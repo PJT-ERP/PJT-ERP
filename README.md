@@ -41,7 +41,7 @@ PtPjtErp.sln
 
 `MasterData.API` menangani data master seperti customer dan product/part. Data ini dipakai oleh Sales Order dan Engineering, tetapi tidak dibuat sebagai foreign key lintas database.
 
-`Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode, scan mulai produksi, scan selesai produksi, dan dashboard owner.
+`Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode/QR, scan mulai produksi, scan selesai/complete produksi, tracking waktu otomatis, detail/list SPK, progress per Sales Order, dan dashboard owner.
 
 `QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Kolom `Reject`, `Repair`, dan `Scrap` di visual check adalah hasil inspeksi teknis barang, sedangkan reject dari Owner adalah keputusan review final terhadap form QC. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
@@ -262,6 +262,41 @@ Output utama:
 - Production Order/SPK
 - Barcode UID
 
+## Skenario Production Tracking (Barcode/QR)
+
+Engineering melakukan tracking produksi dari SPK yang dibuat berdasarkan Sales Order. Barcode/QR dipakai sebagai input scan dari web camera atau mobile camera.
+
+Alur kerja:
+
+1. User Engineering login.
+2. User membuka daftar Production Order/SPK.
+3. User dapat melihat semua SPK atau filter berdasarkan Sales Order.
+4. User membuka detail SPK untuk melihat link ke Sales Order, customer, product, barcode UID, status, start time, finish time, dan duration.
+5. User scan barcode/QR untuk lookup SPK tanpa mengubah status.
+6. User scan barcode/QR dengan action `Start` ketika produksi dimulai.
+7. Sistem otomatis mengisi `started_at_utc`, mengubah status menjadi `InProgress`, dan mulai menghitung duration.
+8. User scan barcode/QR dengan action `Complete` ketika produksi selesai. Action lama `Finish` tetap diterima sebagai alias.
+9. Sistem otomatis mengisi `finished_at_utc`, mengubah status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
+10. User atau Owner dapat membuka progress Sales Order untuk melihat jumlah SPK waiting, in progress, finished, closed, dan progress percent.
+
+Endpoint utama:
+
+- `GET /api/v1/production/orders`
+- `GET /api/v1/production/orders?salesOrderId={salesOrderId}`
+- `GET /api/v1/production/orders/{id}`
+- `POST /api/v1/production/shop-floor/lookup`
+- `POST /api/v1/production/shop-floor/scan`
+- `GET /api/v1/production/sales-orders/{id}/progress`
+
+Output utama:
+
+- Production Order/SPK detail.
+- Barcode UID untuk QR/webcam/mobile scan.
+- Link ke Sales Order.
+- Status `Waiting`, `InProgress`, `Finished`, atau `Closed`.
+- `started_at_utc`, `finished_at_utc`, dan `durationSeconds`.
+- Progress Sales Order.
+
 ## Skenario Engineering
 
 Engineering menangani upload file gambar engineering ke SPK. Role ini tidak melakukan review, approve, atau reject.
@@ -397,19 +432,23 @@ http://localhost:5000
 
 ## CI/CD
 
-Workflow GitHub Actions untuk QC tersedia di:
+Workflow GitHub Actions untuk test service tersedia di:
 
 ```text
 .github/workflows/qc-tests.yml
+.github/workflows/production-tests.yml
 ```
 
 Setiap Pull Request akan menjalankan:
 
 ```powershell
 dotnet test tests/Services/QC.API.Tests/QC.API.Tests.csproj --configuration Release --no-restore
+dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --configuration Release --no-restore
 ```
 
 Test ini fokus ke logic QC: scan barcode/QR, upload checksheet, validasi defect notes, approval Owner, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC hanya untuk `Owner`/`Admin`.
+
+Test Production fokus ke logic Production Tracking: confirm Sales Order menjadi SPK/barcode, lookup barcode, scan `Start`, scan `Complete`, validasi complete sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
 ## Catatan Implementasi
 

@@ -103,6 +103,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             var productionOrder = new ProductionOrder
             {
                 SalesOrderItemId = item.Id,
+                SalesOrderItem = item,
                 PoNumber = GenerateNumber("SPK"),
                 DrawingRef = item.ProductPartNumber,
                 BarcodeUid = $"PJT|SPK|{DateTime.UtcNow:yyyyMMdd}|{item.Id:N}",
@@ -127,17 +128,64 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return createdOrders.Select(ToDto).ToArray();
+        return createdOrders
+            .Select(order =>
+            {
+                var item = salesOrder.Items.Single(salesOrderItem => salesOrderItem.Id == order.SalesOrderItemId);
+                return ToDto(order, item, salesOrder);
+            })
+            .ToArray();
     }
 
-    public async Task<IReadOnlyCollection<ProductionOrderDto>> ListProductionOrdersAsync(CancellationToken cancellationToken)
+    public async Task<SalesOrderProductionProgressDto?> GetSalesOrderProgressAsync(Guid salesOrderId, CancellationToken cancellationToken)
     {
-        var orders = await db.ProductionOrders
+        var salesOrder = await db.SalesOrders
+            .AsNoTracking()
+            .Include(order => order.Items)
+            .ThenInclude(item => item.ProductionOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        return salesOrder is null ? null : ToProgressDto(salesOrder);
+    }
+
+    public async Task<IReadOnlyCollection<ProductionOrderDto>> ListProductionOrdersAsync(Guid? salesOrderId, CancellationToken cancellationToken)
+    {
+        var query = IncludeSalesOrder(db.ProductionOrders.AsNoTracking());
+        if (salesOrderId.HasValue)
+        {
+            query = query.Where(order => order.SalesOrderItem != null && order.SalesOrderItem.SalesOrderId == salesOrderId.Value);
+        }
+
+        var orders = await query
             .AsNoTracking()
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
         return orders.Select(ToDto).ToArray();
+    }
+
+    public async Task<ProductionOrderDto?> GetProductionOrderAsync(Guid productionOrderId, CancellationToken cancellationToken)
+    {
+        var productionOrder = await IncludeSalesOrder(db.ProductionOrders.AsNoTracking())
+            .FirstOrDefaultAsync(order => order.Id == productionOrderId, cancellationToken);
+
+        return productionOrder is null ? null : ToDto(productionOrder);
+    }
+
+    public async Task<ProductionOrderDto?> GetProductionOrderByBarcodeAsync(string barcodeUid, CancellationToken cancellationToken)
+    {
+        var scannedValue = barcodeUid.Trim();
+        if (string.IsNullOrWhiteSpace(scannedValue))
+        {
+            throw new InvalidOperationException("Barcode or QR value is required.");
+        }
+
+        var productionOrder = await IncludeSalesOrder(db.ProductionOrders.AsNoTracking())
+            .FirstOrDefaultAsync(
+                order => order.BarcodeUid == scannedValue || order.PoNumber == scannedValue,
+                cancellationToken);
+
+        return productionOrder is null ? null : ToDto(productionOrder);
     }
 
     public async Task<ProductionOrderDto?> UploadEngineeringDrawingAsync(
@@ -174,39 +222,46 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         productionOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
-        return ToDto(productionOrder);
+        return await GetProductionOrderAsync(productionOrder.Id, cancellationToken);
     }
 
     public async Task<ProductionOrderDto?> ScanAsync(ScanProductionOrderRequest request, CancellationToken cancellationToken)
     {
-        var productionOrder = await db.ProductionOrders
-            .FirstOrDefaultAsync(order => order.BarcodeUid == request.BarcodeUid, cancellationToken);
+        var scannedValue = request.BarcodeUid.Trim();
+        if (string.IsNullOrWhiteSpace(scannedValue))
+        {
+            throw new InvalidOperationException("Barcode or QR value is required.");
+        }
+
+        var productionOrder = await IncludeSalesOrder(db.ProductionOrders)
+            .FirstOrDefaultAsync(
+                order => order.BarcodeUid == scannedValue || order.PoNumber == scannedValue,
+                cancellationToken);
 
         if (productionOrder is null)
         {
             return null;
         }
 
-        var action = request.Action.Trim();
-        if (action.Equals("Start", StringComparison.OrdinalIgnoreCase))
+        var action = NormalizeScanAction(request.Action);
+        var now = DateTime.UtcNow;
+        if (action == ScanActions.Start)
         {
-            productionOrder.Status = ProductionOrderStatuses.InProgress;
-            productionOrder.StartedAtUtc ??= DateTime.UtcNow;
+            StartProduction(productionOrder, now);
         }
-        else if (action.Equals("Finish", StringComparison.OrdinalIgnoreCase))
+        else if (action == ScanActions.Complete)
         {
-            productionOrder.Status = ProductionOrderStatuses.Finished;
-            productionOrder.FinishedAtUtc = DateTime.UtcNow;
-            await eventPublisher.PublishAsync(
-                new ProductionFinishedEvent(productionOrder.Id, productionOrder.PoNumber, productionOrder.BarcodeUid, productionOrder.FinishedAtUtc.Value),
-                cancellationToken);
-        }
-        else
-        {
-            throw new InvalidOperationException("Scan action must be Start or Finish.");
+            var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
+            CompleteProduction(productionOrder, now);
+            if (!wasAlreadyFinished)
+            {
+                await eventPublisher.PublishAsync(
+                    new ProductionFinishedEvent(productionOrder.Id, productionOrder.PoNumber, productionOrder.BarcodeUid, productionOrder.FinishedAtUtc!.Value),
+                    cancellationToken);
+            }
         }
 
-        productionOrder.UpdatedAtUtc = DateTime.UtcNow;
+        productionOrder.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(productionOrder);
     }
@@ -253,10 +308,22 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     private static ProductionOrderDto ToDto(ProductionOrder order)
     {
+        return ToDto(order, order.SalesOrderItem, order.SalesOrderItem?.SalesOrder);
+    }
+
+    private static ProductionOrderDto ToDto(ProductionOrder order, SalesOrderItem? item, SalesOrder? salesOrder)
+    {
         return new ProductionOrderDto(
             order.Id,
             order.PoNumber,
             order.SalesOrderItemId,
+            item?.SalesOrderId,
+            salesOrder?.SoNumber,
+            salesOrder?.CustomerCode,
+            salesOrder?.CustomerName,
+            item?.ProductId,
+            item?.ProductPartNumber,
+            item?.ProductDescription,
             order.DrawingRef,
             order.DrawingFileUrl,
             order.DrawingUploadedByUserId,
@@ -267,12 +334,139 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.Status,
             order.StartedAtUtc,
             order.FinishedAtUtc,
+            CalculateDurationSeconds(order),
             order.QcDecision,
             order.UpdatedAtUtc);
+    }
+
+    private static SalesOrderProductionProgressDto ToProgressDto(SalesOrder order)
+    {
+        var productionOrders = order.Items.SelectMany(item => item.ProductionOrders).ToArray();
+        var finishedOrders = productionOrders.Count(IsProductionFinished);
+        var progressPercent = productionOrders.Length == 0
+            ? 0
+            : decimal.Round((decimal)finishedOrders / productionOrders.Length * 100, 2);
+
+        return new SalesOrderProductionProgressDto(
+            order.Id,
+            order.SoNumber,
+            order.CustomerCode,
+            order.CustomerName,
+            order.Status,
+            order.Items.Count,
+            order.Items.Sum(item => item.Qty),
+            productionOrders.Length,
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Waiting),
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.InProgress),
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Finished),
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Closed),
+            progressPercent,
+            order.Items
+                .OrderBy(item => item.ProductPartNumber)
+                .Select(item => new SalesOrderProductionProgressItemDto(
+                    item.Id,
+                    item.ProductId,
+                    item.ProductPartNumber,
+                    item.ProductDescription,
+                    item.Qty,
+                    item.ProductionOrders
+                        .OrderBy(productionOrder => productionOrder.PoNumber)
+                        .Select(productionOrder => ToDto(productionOrder, item, order))
+                        .ToArray()))
+                .ToArray());
+    }
+
+    private static bool IsProductionFinished(ProductionOrder order)
+    {
+        return order.Status == ProductionOrderStatuses.Finished
+            || order.Status == ProductionOrderStatuses.Closed
+            || order.FinishedAtUtc.HasValue;
+    }
+
+    private static long? CalculateDurationSeconds(ProductionOrder order)
+    {
+        if (!order.StartedAtUtc.HasValue)
+        {
+            return null;
+        }
+
+        var end = order.FinishedAtUtc ?? (order.Status == ProductionOrderStatuses.InProgress ? DateTime.UtcNow : null);
+        if (!end.HasValue)
+        {
+            return null;
+        }
+
+        return Math.Max(0, (long)Math.Round((end.Value - order.StartedAtUtc.Value).TotalSeconds));
+    }
+
+    private static IQueryable<ProductionOrder> IncludeSalesOrder(IQueryable<ProductionOrder> query)
+    {
+        return query
+            .Include(order => order.SalesOrderItem)
+            .ThenInclude(item => item!.SalesOrder);
+    }
+
+    private static string NormalizeScanAction(string action)
+    {
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            throw new InvalidOperationException("Scan action must be Start or Complete.");
+        }
+
+        if (action.Equals(ScanActions.Start, StringComparison.OrdinalIgnoreCase))
+        {
+            return ScanActions.Start;
+        }
+
+        if (action.Equals(ScanActions.Complete, StringComparison.OrdinalIgnoreCase)
+            || action.Equals("Finish", StringComparison.OrdinalIgnoreCase))
+        {
+            return ScanActions.Complete;
+        }
+
+        throw new InvalidOperationException("Scan action must be Start or Complete.");
+    }
+
+    private static void StartProduction(ProductionOrder productionOrder, DateTime timestampUtc)
+    {
+        if (productionOrder.Status == ProductionOrderStatuses.Closed)
+        {
+            throw new InvalidOperationException("Closed production orders cannot be changed.");
+        }
+
+        if (productionOrder.Status == ProductionOrderStatuses.Finished)
+        {
+            throw new InvalidOperationException("Finished production orders cannot be started again.");
+        }
+
+        productionOrder.Status = ProductionOrderStatuses.InProgress;
+        productionOrder.StartedAtUtc ??= timestampUtc;
+    }
+
+    private static void CompleteProduction(ProductionOrder productionOrder, DateTime timestampUtc)
+    {
+        if (productionOrder.Status == ProductionOrderStatuses.Closed)
+        {
+            throw new InvalidOperationException("Closed production orders cannot be changed.");
+        }
+
+        if (!productionOrder.StartedAtUtc.HasValue || productionOrder.Status == ProductionOrderStatuses.Waiting)
+        {
+            throw new InvalidOperationException("Production must be started before it can be completed.");
+        }
+
+        productionOrder.Status = ProductionOrderStatuses.Finished;
+        productionOrder.FinishedAtUtc ??= timestampUtc;
     }
 
     private static string GenerateNumber(string prefix)
     {
         return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
+    }
+
+    private static class ScanActions
+    {
+        public const string Start = "Start";
+        public const string Complete = "Complete";
     }
 }
