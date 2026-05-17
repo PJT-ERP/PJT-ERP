@@ -5,7 +5,7 @@ using PJT_HIMTIKA.Production.Api.Application.Production;
 namespace PJT_HIMTIKA.Production.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin,Engineering")]
+[Authorize(Roles = "Admin,Owner")]
 [Route("api/v1/production/shop-floor")]
 public sealed class ShopFloorController(IProductionService productionService) : ControllerBase
 {

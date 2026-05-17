@@ -1,14 +1,27 @@
 using Microsoft.EntityFrameworkCore;
 using PJT_HIMTIKA.EventBus.Messages.Events;
 using PJT_HIMTIKA.Production.Api.Application.Production;
+using PJT_HIMTIKA.Production.Api.Controllers;
 using PJT_HIMTIKA.Production.Api.Domain.Entities;
 using PJT_HIMTIKA.Production.Api.Infrastructure.Persistence;
 using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Production.API.Tests;
 
 public sealed class ProductionServiceTests
 {
+    [Fact]
+    public void ShopFloorController_allows_owner_not_engineering_for_status_scans()
+    {
+        var authorize = Assert.Single(
+            typeof(ShopFloorController)
+                .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
+                .Cast<AuthorizeAttribute>());
+
+        Assert.Equal("Admin,Owner", authorize.Roles);
+    }
+
     [Fact]
     public async Task ConfirmSalesOrderAsync_creates_barcode_orders_with_sales_order_links()
     {

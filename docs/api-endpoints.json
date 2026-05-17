@@ -46,16 +46,18 @@
     "productionTracking": {
       "summary": "Production Tracking is a cross-service workflow, but not every role can mutate production status.",
       "noSeparateProductionRoleInMvp": true,
-      "productionOperatorRole": "Engineering",
+      "productionOperatorRole": "Owner",
       "notes": [
-        "Engineering acts as the shop-floor/production operator for barcode Start and Complete because the MVP does not define a separate Production role.",
+        "Engineering only uploads/input engineering drawings or links for SPK.",
+        "Owner handles barcode lookup, Start, and Complete in the MVP because the app does not define a separate Production role yet.",
         "Sales Order creates and confirms SO records, which creates SPK/barcodes.",
         "Owner monitors production progress and continues the workflow through QC review after production is finished.",
         "Finance and Purchasing may read production progress for planning/material context, but they do not update production status."
       ],
       "writeAccess": {
         "salesOrderCreationAndConfirmation": ["Admin", "Sales Order"],
-        "barcodeLookupStartCompleteAndDrawingUpload": ["Admin", "Engineering"],
+        "barcodeLookupStartComplete": ["Admin", "Owner"],
+        "drawingUpload": ["Admin", "Engineering"],
         "ownerDashboardAndQcReview": ["Admin", "Owner"]
       },
       "readAccess": {
@@ -440,8 +442,8 @@
       "method": "POST",
       "path": "/api/v1/production/shop-floor/lookup",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering/Production operator lookup for a scanned barcode/QR or SPK number without changing production status. Useful for web/mobile camera confirmation before Start or Complete.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner lookup for a scanned barcode/QR or SPK number without changing production status. Useful for web/mobile camera confirmation before Start or Complete.",
       "requestBody": {
         "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
       },
@@ -462,8 +464,8 @@
       "method": "POST",
       "path": "/api/v1/production/shop-floor/scan",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering/Production operator scans barcode/QR to start or complete production. Complete and Finish are accepted as completion actions.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner scans barcode/QR to start or complete production in the MVP. Complete and Finish are accepted as completion actions.",
       "requestBody": {
         "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
         "action": "Start"
