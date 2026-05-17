@@ -34,6 +34,8 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.HasIndex(product => product.PartNumber);
             builder.Property(product => product.PartNumber).HasMaxLength(100).HasColumnName("part_number");
             builder.Property(product => product.Description).HasColumnName("description");
+            builder.Property(product => product.Unit).HasMaxLength(30).HasColumnName("unit");
+            builder.Property(product => product.MaterialSpec).HasColumnName("material_spec");
             builder.Property(product => product.IsActive).HasColumnName("is_active");
             builder.Property(product => product.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
@@ -68,6 +70,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(item => item.ProductId).HasColumnName("product_id");
             builder.Property(item => item.ProductPartNumber).HasMaxLength(100).HasColumnName("product_part_number");
             builder.Property(item => item.ProductDescription).HasColumnName("product_description");
+            builder.Property(item => item.ProductMaterialSpec).HasColumnName("product_material_spec");
             builder.Property(item => item.Qty).HasColumnName("qty");
             builder.Property(item => item.Notes).HasColumnName("notes");
             builder.Property(item => item.CreatedAtUtc).HasColumnName("created_at_utc");
@@ -83,6 +86,10 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.PoNumber).HasMaxLength(100).HasColumnName("po_number");
             builder.Property(order => order.SalesOrderItemId).HasColumnName("sales_order_item_id");
             builder.Property(order => order.DrawingRef).HasMaxLength(255).HasColumnName("drawing_ref");
+            builder.Property(order => order.DrawingFileUrl).HasMaxLength(1000).HasColumnName("drawing_file_url");
+            builder.Property(order => order.DrawingUploadedByUserId).HasColumnName("drawing_uploaded_by_user_id");
+            builder.Property(order => order.DrawingUploaderName).HasMaxLength(160).HasColumnName("drawing_uploader_name");
+            builder.Property(order => order.DrawingUploadedAtUtc).HasColumnName("drawing_uploaded_at_utc");
             builder.Property(order => order.BarcodeUid).HasMaxLength(255).HasColumnName("barcode_uid");
             builder.Property(order => order.OrderQty).HasColumnName("order_qty");
             builder.Property(order => order.Status).HasMaxLength(50).HasColumnName("status");

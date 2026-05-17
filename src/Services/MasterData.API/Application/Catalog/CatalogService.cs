@@ -54,7 +54,9 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         };
 
         await db.Products.AddAsync(product, cancellationToken);
-        await eventPublisher.PublishAsync(new MasterDataUpdatedEvent(product.Id, "Product", "Created", product.PartNumber, product.Description), cancellationToken);
+        await eventPublisher.PublishAsync(
+            new MasterDataUpdatedEvent(product.Id, "Product", "Created", product.PartNumber, product.Description, product.Unit, product.MaterialSpec),
+            cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         return new ProductDto(product.Id, product.PartNumber, product.Description, product.Unit, product.MaterialSpec, product.IsActive);

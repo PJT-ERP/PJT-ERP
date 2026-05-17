@@ -6,4 +6,8 @@ public record SpkCreatedEvent(
     string SpkNumber,
     string BarcodeValue,
     Guid ProductId,
-    decimal Quantity) : IntegrationEvent;
+    decimal Quantity,
+    string ProductCode = "",
+    string ProductName = "",
+    string? DrawingRef = null,
+    string? MaterialSpec = null) : IntegrationEvent;

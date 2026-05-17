@@ -254,6 +254,10 @@
           "poNumber": "SPK-20260517123000-ABCDEF",
           "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
           "drawingRef": "PART-001",
+          "drawingFileUrl": null,
+          "drawingUploadedByUserId": null,
+          "drawingUploaderName": null,
+          "drawingUploadedAtUtc": null,
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
           "orderQty": 10,
           "status": "Waiting",
@@ -277,12 +281,42 @@
         {
           "id": "00000000-0000-0000-0000-000000000000",
           "poNumber": "SPK-20260517123000-ABCDEF",
+          "drawingRef": "DRW-001",
+          "drawingFileUrl": "https://drive.google.com/file/d/example/view",
+          "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
+          "drawingUploaderName": "Engineering 1",
+          "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
           "orderQty": 10,
           "status": "Waiting",
           "qcDecision": null
         }
       ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Engineering Drawing",
+      "method": "PUT",
+      "path": "/api/v1/production/orders/{id}/engineering-drawing",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering uploads a Google Drive or HTTP(S) drawing file link for the SPK. This is upload/input only, not review or approval.",
+      "requestBody": {
+        "drawingFileUrl": "https://drive.google.com/file/d/example/view",
+        "uploadedByUserId": "00000000-0000-0000-0000-000000000000",
+        "uploaderName": "Engineering 1",
+        "drawingRef": "DRW-001"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "poNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "DRW-001",
+        "drawingFileUrl": "https://drive.google.com/file/d/example/view",
+        "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
+        "drawingUploaderName": "Engineering 1",
+        "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
+        "status": "Waiting"
+      }
     },
     {
       "service": "Production.API",
@@ -333,8 +367,8 @@
       "method": "GET",
       "path": "/api/v1/qc/inspections",
       "auth": "required",
-      "roles": ["Admin", "Engineering", "Owner"],
-      "description": "List QC inspections. Engineering uploads checksheets; Owner reviews submitted checksheets.",
+      "roles": ["Admin", "Owner"],
+      "description": "List QC inspections. Owner fills the checksheet and performs final approve/reject.",
       "requestBody": null,
       "responseBody": [
         {
@@ -343,8 +377,15 @@
           "productionOrderId": "00000000-0000-0000-0000-000000000000",
           "spkNumber": "SPK-20260517123000-ABCDEF",
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+          "productName": "Shaft Diameter 20mm",
+          "productCode": "PART-001",
+          "porNumber": "SPK-20260517123000-ABCDEF",
+          "drawingRef": "PART-001",
+          "orderQty": 10,
+          "materialSpec": "S45C",
           "status": "PendingOwnerReview",
           "inspectionResult": "Accept",
+          "defectNotes": null,
           "ownerDecision": null,
           "updatedAtUtc": "2026-05-17T05:00:00Z",
           "visualChecks": [],
@@ -358,7 +399,7 @@
       "method": "GET",
       "path": "/api/v1/qc/inspections/{id}",
       "auth": "required",
-      "roles": ["Admin", "Engineering", "Owner"],
+      "roles": ["Admin", "Owner"],
       "description": "Get one QC inspection with visual and dimension checks.",
       "requestBody": null,
       "responseBody": {
@@ -367,15 +408,22 @@
         "productionOrderId": "00000000-0000-0000-0000-000000000000",
         "spkNumber": "SPK-20260517123000-ABCDEF",
         "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "PART-001",
+        "orderQty": 10,
+        "materialSpec": "S45C",
         "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Engineer 1",
+        "inspectorName": "Owner",
         "inspectionDate": "2026-05-17",
         "sampleQty": 3,
         "samplingMethod": "Random",
         "measuringToolNo": "CAL-001",
         "status": "PendingOwnerReview",
         "inspectionResult": "Accept",
-        "engineeringRemarks": "Ukuran masuk toleransi.",
+        "defectNotes": null,
+        "formRemarks": "Ukuran masuk toleransi.",
         "ownerDecision": null,
         "ownerReviewedByUserId": null,
         "ownerReviewerName": null,
@@ -390,22 +438,157 @@
       "service": "QC.API",
       "feature": "Inspections",
       "method": "POST",
+      "path": "/api/v1/qc/inspections/scan",
+      "auth": "required",
+      "roles": ["Admin", "Owner"],
+      "description": "Scan a barcode/QR value to open the matching QC inspection form. Accepts barcode UID, SPK number, or QC reference number.",
+      "requestBody": {
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "refNo": "QC-SPK-20260517123000-ABCDEF",
+        "productionOrderId": "00000000-0000-0000-0000-000000000000",
+        "spkNumber": "SPK-20260517123000-ABCDEF",
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "PART-001",
+        "orderQty": 10,
+        "materialSpec": "S45C",
+        "status": "ReadyForInspection",
+        "inspectionResult": null,
+        "defectNotes": null,
+        "ownerDecision": null,
+        "visualChecks": [],
+        "dimensionChecks": []
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/start",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering starts filling an inspection.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner starts filling an inspection.",
       "requestBody": {
         "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Engineer 1",
+        "inspectorName": "Owner",
         "inspectionDate": "2026-05-17",
         "sampleQty": 3,
         "samplingMethod": "Random",
-        "measuringToolNo": "CAL-001"
+        "measuringToolNo": "CAL-001",
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "DRW-001",
+        "orderQty": 10,
+        "materialSpec": "S45C"
       },
       "responseBody": {
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "InInspection",
-        "inspectorName": "Engineer 1"
+        "inspectorName": "Owner"
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "PUT",
+      "path": "/api/v1/qc/inspections/{id}/form",
+      "auth": "required",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner saves/uploads the complete QC form in one request. Set submitForOwnerReview to true when the form is ready for final approval.",
+      "requestBody": {
+        "inspectorId": "00000000-0000-0000-0000-000000000000",
+        "inspectorName": "Owner",
+        "inspectionDate": "2026-05-17",
+        "sampleQty": 3,
+        "samplingMethod": "Random",
+        "measuringToolNo": "CAL-001",
+        "inspectionResult": "Repair",
+        "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
+        "formRemarks": "Form QC sudah diupload untuk approval Owner.",
+        "submitForOwnerReview": true,
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "DRW-001",
+        "orderQty": 10,
+        "materialSpec": "S45C",
+        "visualChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "qtyChecked": 10,
+            "qtyAccept": 8,
+            "qtyReject": 0,
+            "qtyRepair": 2,
+            "qtyScrap": 0,
+            "ncRef": "NC-001",
+            "remarks": "Dua part perlu repair."
+          }
+        ],
+        "dimensionChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "sampleId": "SAMPLE-001",
+            "process": "Turning",
+            "dimensionData": {
+              "A": {
+                "spec": "205",
+                "value": 205.01
+              },
+              "B": {
+                "spec": "180",
+                "value": 180.0
+              },
+              "C": {
+                "spec": "8.2",
+                "value": 8.21
+              },
+              "D": {
+                "spec": "14.3",
+                "value": 14.31
+              }
+            },
+            "operatorId": "00000000-0000-0000-0000-000000000000",
+            "operatorName": "Operator 1",
+            "status": "Repair"
+          }
+        ]
+      },
+      "allowedValues": {
+        "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "status": "PendingOwnerReview",
+        "inspectionResult": "Repair",
+        "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
+        "formRemarks": "Form QC sudah diupload untuk approval Owner.",
+        "ownerDecision": null,
+        "visualChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "qtyChecked": 10,
+            "qtyAccept": 8,
+            "qtyReject": 0,
+            "qtyRepair": 2,
+            "qtyScrap": 0,
+            "ncRef": "NC-001",
+            "remarks": "Dua part perlu repair."
+          }
+        ],
+        "dimensionChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "sampleId": "SAMPLE-001",
+            "process": "Turning",
+            "status": "Repair"
+          }
+        ]
       }
     },
     {
@@ -414,8 +597,8 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/visual-checks",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering uploads visual check quantities.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner records visual check quantities.",
       "requestBody": {
         "qtyChecked": 10,
         "qtyAccept": 9,
@@ -442,8 +625,8 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/dimension-checks",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering uploads flexible dimensional measurement data as JSONB.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner records flexible dimensional measurement data as JSONB.",
       "requestBody": {
         "sampleId": "SAMPLE-001",
         "process": "Turning",
@@ -476,11 +659,12 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/submit",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering submits uploaded checksheet for Owner review. This does not close production.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner marks the uploaded checksheet as ready for final QC approval. This does not close production until review approval.",
       "requestBody": {
         "inspectionResult": "Accept",
-        "engineeringRemarks": "Dimensi dan visual sudah sesuai."
+        "formRemarks": "Dimensi dan visual sudah sesuai.",
+        "defectNotes": null
       },
       "allowedValues": {
         "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
@@ -489,7 +673,8 @@
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "PendingOwnerReview",
         "inspectionResult": "Accept",
-        "engineeringRemarks": "Dimensi dan visual sudah sesuai.",
+        "defectNotes": null,
+        "formRemarks": "Dimensi dan visual sudah sesuai.",
         "ownerDecision": null
       }
     },
@@ -500,7 +685,7 @@
       "path": "/api/v1/qc/inspections/{id}/review",
       "auth": "required",
       "roles": ["Admin", "Owner"],
-      "description": "Owner approves or rejects Engineering's submitted checksheet. This publishes QcCheckCompletedEvent.",
+      "description": "Owner approves or rejects the completed QC checksheet. This publishes QcCheckCompletedEvent.",
       "requestBody": {
         "ownerReviewedByUserId": "00000000-0000-0000-0000-000000000000",
         "ownerReviewerName": "Owner",
@@ -514,6 +699,7 @@
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "Approved",
         "inspectionResult": "Accept",
+        "defectNotes": null,
         "ownerDecision": "Approved",
         "ownerReviewerName": "Owner",
         "ownerReviewedAtUtc": "2026-05-17T05:00:00Z",

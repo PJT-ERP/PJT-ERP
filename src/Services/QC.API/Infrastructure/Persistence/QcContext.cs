@@ -24,6 +24,12 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.Property(inspection => inspection.ProductionOrderId).HasColumnName("production_order_id");
             builder.Property(inspection => inspection.SpkNumber).HasMaxLength(100).HasColumnName("spk_number");
             builder.Property(inspection => inspection.BarcodeUid).HasMaxLength(255).HasColumnName("barcode_uid");
+            builder.Property(inspection => inspection.ProductName).HasMaxLength(255).HasColumnName("product_name");
+            builder.Property(inspection => inspection.ProductCode).HasMaxLength(100).HasColumnName("product_code");
+            builder.Property(inspection => inspection.PorNumber).HasMaxLength(100).HasColumnName("por_number");
+            builder.Property(inspection => inspection.DrawingRef).HasMaxLength(255).HasColumnName("drawing_ref");
+            builder.Property(inspection => inspection.OrderQty).HasColumnName("order_qty");
+            builder.Property(inspection => inspection.MaterialSpec).HasColumnName("material_spec");
             builder.Property(inspection => inspection.InspectorId).HasColumnName("inspector_id");
             builder.Property(inspection => inspection.InspectorName).HasMaxLength(160).HasColumnName("inspector_name");
             builder.Property(inspection => inspection.InspectionDate).HasColumnName("inspection_date");
@@ -33,7 +39,8 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.Property(inspection => inspection.MeasuringToolNo).HasMaxLength(100).HasColumnName("measuring_tool_no");
             builder.Property(inspection => inspection.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(inspection => inspection.InspectionResult).HasMaxLength(40).HasColumnName("inspection_result");
-            builder.Property(inspection => inspection.EngineeringRemarks).HasColumnName("engineering_remarks");
+            builder.Property(inspection => inspection.DefectNotes).HasColumnName("defect_notes");
+            builder.Property(inspection => inspection.FormRemarks).HasColumnName("form_remarks");
             builder.Property(inspection => inspection.OwnerDecision).HasMaxLength(40).HasColumnName("owner_decision");
             builder.Property(inspection => inspection.OwnerReviewedByUserId).HasColumnName("owner_reviewed_by_user_id");
             builder.Property(inspection => inspection.OwnerReviewerName).HasMaxLength(160).HasColumnName("owner_reviewer_name");
@@ -48,6 +55,7 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.ToTable("qc_visual_checks");
             builder.HasKey(check => check.Id);
             builder.Property(check => check.QcInspectionId).HasColumnName("qc_inspection_id");
+            builder.Property(check => check.CheckDate).HasColumnName("check_date");
             builder.Property(check => check.QtyChecked).HasColumnName("qty_checked");
             builder.Property(check => check.QtyAccept).HasColumnName("qty_accept");
             builder.Property(check => check.QtyReject).HasColumnName("qty_reject");
@@ -68,6 +76,7 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.ToTable("qc_dimension_checks");
             builder.HasKey(check => check.Id);
             builder.Property(check => check.QcInspectionId).HasColumnName("qc_inspection_id");
+            builder.Property(check => check.CheckDate).HasColumnName("check_date");
             builder.Property(check => check.SampleId).HasMaxLength(50).HasColumnName("sample_id");
             builder.Property(check => check.Process).HasMaxLength(100).HasColumnName("process");
             builder.Property(check => check.DimensionDataJson).HasColumnType("jsonb").HasColumnName("dimension_data");

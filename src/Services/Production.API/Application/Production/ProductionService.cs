@@ -58,6 +58,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     ProductId = product.Id,
                     ProductPartNumber = product.PartNumber,
                     ProductDescription = product.Description,
+                    ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
                     Notes = item.Notes
                 };
@@ -107,7 +108,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 BarcodeUid = $"PJT|SPK|{DateTime.UtcNow:yyyyMMdd}|{item.Id:N}",
                 OrderQty = item.Qty
             };
-            item.ProductionOrders.Add(productionOrder);
+            await db.ProductionOrders.AddAsync(productionOrder, cancellationToken);
             createdOrders.Add(productionOrder);
 
             await eventPublisher.PublishAsync(
@@ -117,7 +118,11 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     productionOrder.PoNumber,
                     productionOrder.BarcodeUid,
                     item.ProductId,
-                    item.Qty),
+                    item.Qty,
+                    item.ProductPartNumber,
+                    item.ProductDescription,
+                    productionOrder.DrawingRef,
+                    item.ProductMaterialSpec),
                 cancellationToken);
         }
 
@@ -133,6 +138,43 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             .ToListAsync(cancellationToken);
 
         return orders.Select(ToDto).ToArray();
+    }
+
+    public async Task<ProductionOrderDto?> UploadEngineeringDrawingAsync(
+        Guid productionOrderId,
+        UploadEngineeringDrawingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var productionOrder = await db.ProductionOrders
+            .FirstOrDefaultAsync(order => order.Id == productionOrderId, cancellationToken);
+
+        if (productionOrder is null)
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.Absolute, out var drawingUri)
+            || drawingUri.Scheme is not ("http" or "https"))
+        {
+            throw new InvalidOperationException("Drawing file URL must be a valid HTTP or HTTPS link.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.UploaderName))
+        {
+            throw new InvalidOperationException("Uploader name is required.");
+        }
+
+        productionOrder.DrawingFileUrl = drawingUri.ToString();
+        productionOrder.DrawingUploadedByUserId = request.UploadedByUserId;
+        productionOrder.DrawingUploaderName = request.UploaderName.Trim();
+        productionOrder.DrawingUploadedAtUtc = DateTime.UtcNow;
+        productionOrder.DrawingRef = string.IsNullOrWhiteSpace(request.DrawingRef)
+            ? productionOrder.DrawingRef
+            : request.DrawingRef.Trim();
+        productionOrder.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(productionOrder);
     }
 
     public async Task<ProductionOrderDto?> ScanAsync(ScanProductionOrderRequest request, CancellationToken cancellationToken)
@@ -216,6 +258,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.PoNumber,
             order.SalesOrderItemId,
             order.DrawingRef,
+            order.DrawingFileUrl,
+            order.DrawingUploadedByUserId,
+            order.DrawingUploaderName,
+            order.DrawingUploadedAtUtc,
             order.BarcodeUid,
             order.OrderQty,
             order.Status,
