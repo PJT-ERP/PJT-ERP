@@ -14,4 +14,22 @@ public sealed class ProductionOrdersController(IProductionService productionServ
     {
         return Ok(await productionService.ListProductionOrdersAsync(cancellationToken));
     }
+
+    [HttpPut("{id:guid}/engineering-drawing")]
+    [Authorize(Roles = "Admin,Engineering")]
+    public async Task<ActionResult<ProductionOrderDto>> UploadEngineeringDrawing(
+        Guid id,
+        UploadEngineeringDrawingRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await productionService.UploadEngineeringDrawingAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

@@ -36,6 +36,10 @@ public sealed record ProductionOrderDto(
     string PoNumber,
     Guid SalesOrderItemId,
     string? DrawingRef,
+    string? DrawingFileUrl,
+    Guid? DrawingUploadedByUserId,
+    string? DrawingUploaderName,
+    DateTime? DrawingUploadedAtUtc,
     string BarcodeUid,
     int OrderQty,
     string Status,
@@ -45,6 +49,12 @@ public sealed record ProductionOrderDto(
     DateTime UpdatedAtUtc);
 
 public sealed record ScanProductionOrderRequest(string BarcodeUid, string Action);
+
+public sealed record UploadEngineeringDrawingRequest(
+    string DrawingFileUrl,
+    Guid UploadedByUserId,
+    string UploaderName,
+    string? DrawingRef);
 
 public sealed record ExecutiveDashboardDto(
     int WaitingOrders,

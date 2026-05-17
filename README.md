@@ -200,7 +200,7 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Aktivitas produksi dan upload QC/checksheet dijalankan oleh role Engineering, sedangkan approve/reject hasil QC dilakukan oleh Owner.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Engineering hanya melakukan input/upload seperti upload file gambar dan pengisian form QC/checksheet. Semua review, approve, dan reject untuk QC dilakukan oleh Owner.
 
 ## Skenario Login dan Logout
 
@@ -264,25 +264,23 @@ Output utama:
 
 ## Skenario Engineering
 
-Engineering menangani pekerjaan produksi dan upload QC/checksheet.
+Engineering menangani upload file gambar engineering ke SPK. Role ini tidak melakukan review, approve, atau reject.
 
 Alur kerja:
 
 1. User Engineering login.
 2. User membuka daftar SPK.
 3. User melihat SPK yang berasal dari Sales Order yang sudah dikonfirmasi.
-4. User scan barcode ketika pekerjaan mulai.
-5. Status production order berubah menjadi `InProgress`.
-6. User scan barcode lagi ketika pekerjaan selesai.
-7. Status production order berubah menjadi `Finished`.
-8. Production API mengirim `ProductionFinishedEvent` ke QC API.
+4. User upload link file gambar, misalnya link Google Drive.
+5. Sistem menyimpan link gambar, uploader, waktu upload, dan drawing reference.
+6. Owner dapat melihat file gambar tersebut dari data SPK jika perlu review operasional.
 
 Output utama:
 
-- Status produksi real-time.
-- Waktu mulai produksi.
-- Waktu selesai produksi.
-- Event ke QC API agar form inspeksi siap dilakukan.
+- Link file gambar engineering.
+- Drawing reference.
+- Uploader.
+- Waktu upload.
 
 ## Skenario Engineering untuk QC
 

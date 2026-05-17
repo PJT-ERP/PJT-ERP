@@ -254,6 +254,10 @@
           "poNumber": "SPK-20260517123000-ABCDEF",
           "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
           "drawingRef": "PART-001",
+          "drawingFileUrl": null,
+          "drawingUploadedByUserId": null,
+          "drawingUploaderName": null,
+          "drawingUploadedAtUtc": null,
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
           "orderQty": 10,
           "status": "Waiting",
@@ -277,12 +281,42 @@
         {
           "id": "00000000-0000-0000-0000-000000000000",
           "poNumber": "SPK-20260517123000-ABCDEF",
+          "drawingRef": "DRW-001",
+          "drawingFileUrl": "https://drive.google.com/file/d/example/view",
+          "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
+          "drawingUploaderName": "Engineering 1",
+          "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
           "orderQty": 10,
           "status": "Waiting",
           "qcDecision": null
         }
       ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Engineering Drawing",
+      "method": "PUT",
+      "path": "/api/v1/production/orders/{id}/engineering-drawing",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering uploads a Google Drive or HTTP(S) drawing file link for the SPK. This is upload/input only, not review or approval.",
+      "requestBody": {
+        "drawingFileUrl": "https://drive.google.com/file/d/example/view",
+        "uploadedByUserId": "00000000-0000-0000-0000-000000000000",
+        "uploaderName": "Engineering 1",
+        "drawingRef": "DRW-001"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "poNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "DRW-001",
+        "drawingFileUrl": "https://drive.google.com/file/d/example/view",
+        "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
+        "drawingUploaderName": "Engineering 1",
+        "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
+        "status": "Waiting"
+      }
     },
     {
       "service": "Production.API",

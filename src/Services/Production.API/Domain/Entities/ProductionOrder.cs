@@ -7,6 +7,10 @@ public sealed class ProductionOrder
     public Guid SalesOrderItemId { get; set; }
     public SalesOrderItem? SalesOrderItem { get; set; }
     public string? DrawingRef { get; set; }
+    public string? DrawingFileUrl { get; set; }
+    public Guid? DrawingUploadedByUserId { get; set; }
+    public string? DrawingUploaderName { get; set; }
+    public DateTime? DrawingUploadedAtUtc { get; set; }
     public string BarcodeUid { get; set; } = "";
     public int OrderQty { get; set; }
     public string Status { get; set; } = ProductionOrderStatuses.Waiting;
