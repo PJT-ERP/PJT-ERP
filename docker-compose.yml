@@ -2,6 +2,7 @@ x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: "Development"
   ASPNETCORE_URLS: "http://+:8080"
   JWT_KEY: "dev-only-change-this-key-before-production-please"
+  DEV_MASTER_TOKEN: "dev-master-token"
   Jwt__Issuer: "PJT-HIMTIKA.Identity"
   Jwt__Audience: "PJT-HIMTIKA.Web"
   ConnectionStrings__IdentityConnection: "Host=db;Port=5432;Database=pjt_identity;Username=postgres;Password=postgres"

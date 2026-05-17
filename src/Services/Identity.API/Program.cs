@@ -23,7 +23,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddPjtOpenApi();
 
 var app = builder.Build();
 
@@ -36,7 +36,7 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapPjtScalarApiReference("PJT ERP Identity API", builder.Configuration, app.Environment);
 }
 
 app.UsePjtRequestLogging();

@@ -51,8 +51,6 @@ public sealed record ExecutiveDashboardDto(
     int InProgressOrders,
     int FinishedOrders,
     int ClosedOrders,
-    int AcceptedQc,
+    int ApprovedQc,
     int RejectedQc,
-    int RepairQc,
-    int ScrapQc,
-    decimal DefectRate);
+    decimal RejectionRate);

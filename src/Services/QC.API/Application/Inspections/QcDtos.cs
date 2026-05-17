@@ -15,7 +15,13 @@ public sealed record QcInspectionDto(
     string? SamplingMethod,
     string? MeasuringToolNo,
     string Status,
-    string? Decision,
+    string? InspectionResult,
+    string? EngineeringRemarks,
+    string? OwnerDecision,
+    Guid? OwnerReviewedByUserId,
+    string? OwnerReviewerName,
+    DateTime? OwnerReviewedAtUtc,
+    string? OwnerReviewRemarks,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<QcVisualCheckDto> VisualChecks,
     IReadOnlyCollection<QcDimensionCheckDto> DimensionChecks);
@@ -64,4 +70,10 @@ public sealed record QcDimensionCheckDto(
     string? OperatorName,
     string Status);
 
-public sealed record CompleteInspectionRequest(string Decision);
+public sealed record SubmitInspectionRequest(string InspectionResult, string? EngineeringRemarks);
+
+public sealed record ReviewInspectionRequest(
+    Guid OwnerReviewedByUserId,
+    string OwnerReviewerName,
+    string Decision,
+    string? Remarks);

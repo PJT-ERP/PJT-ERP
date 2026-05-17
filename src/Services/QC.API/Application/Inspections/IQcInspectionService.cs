@@ -7,5 +7,6 @@ public interface IQcInspectionService
     Task<QcInspectionDto?> StartAsync(Guid id, StartInspectionRequest request, CancellationToken cancellationToken);
     Task<QcVisualCheckDto?> AddVisualCheckAsync(Guid inspectionId, CreateVisualCheckRequest request, CancellationToken cancellationToken);
     Task<QcDimensionCheckDto?> AddDimensionCheckAsync(Guid inspectionId, CreateDimensionCheckRequest request, CancellationToken cancellationToken);
-    Task<QcInspectionDto?> CompleteAsync(Guid id, CompleteInspectionRequest request, CancellationToken cancellationToken);
+    Task<QcInspectionDto?> SubmitAsync(Guid id, SubmitInspectionRequest request, CancellationToken cancellationToken);
+    Task<QcInspectionDto?> ReviewAsync(Guid id, ReviewInspectionRequest request, CancellationToken cancellationToken);
 }

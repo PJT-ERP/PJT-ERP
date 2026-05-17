@@ -43,7 +43,7 @@ PtPjtErp.sln
 
 `Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode, scan mulai produksi, scan selesai produksi, dan dashboard owner.
 
-`QC.API` menangani QC Inspection, visual check, dan dimension check. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
+`QC.API` menangani QC Inspection, visual check, dimension check, submit hasil oleh Engineering, dan review approve/reject oleh Owner. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
 `Purchasing.API` menangani Purchase Request, item pembelian, submit PR, dan review approve/reject oleh Finance.
 
@@ -60,6 +60,46 @@ Saat dijalankan dengan Docker Compose:
 - QC API: `http://localhost:5004`
 - Purchasing API: `http://localhost:5005`
 - PostgreSQL + PGMQ: `localhost:5435`
+
+## API Catalog
+
+Daftar endpoint gateway dan contoh payload tersedia di:
+
+```text
+docs/api-endpoints.json
+```
+
+File ini bukan konfigurasi runtime seperti `ocelot.json`. Runtime gateway tetap memakai YARP di `src/ApiGateways/Web.Gateway/appsettings.json`, sedangkan `docs/api-endpoints.json` dipakai sebagai referensi frontend dan dokumentasi cepat.
+
+## Scalar API Testing
+
+Saat environment `Development`, Scalar tersedia untuk testing API:
+
+```text
+http://localhost:5000/scalar
+```
+
+Gateway Scalar memuat dokumen OpenAPI dari masing-masing service:
+
+- Identity: `/openapi/identity/v1.json`
+- Master Data: `/openapi/masterdata/v1.json`
+- Production: `/openapi/production/v1.json`
+- QC: `/openapi/qc/v1.json`
+- Purchasing: `/openapi/purchasing/v1.json`
+
+Untuk testing cepat, semua service menerima dev master token hanya di environment `Development`:
+
+```text
+Authorization: Bearer dev-master-token
+```
+
+Alternatif header:
+
+```text
+X-Dev-Master-Token: dev-master-token
+```
+
+Token ini diberi semua role development: `Admin`, `Owner`, `Sales Order`, `Finance`, `Engineering`, dan `Purchasing`. Di luar `Development`, token ini otomatis tidak berlaku.
 
 ## Database dan Microservices
 
@@ -109,7 +149,7 @@ Production.API
 
 QC.API
   └── QcCheckCompletedEvent
-      └── Production.API menyimpan hasil QC pada production order
+      └── Production.API menyimpan hasil review Owner pada production order
 
 Purchasing.API
   └── PurchaseRequestReviewedEvent
@@ -160,7 +200,7 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Aktivitas produksi dan QC/checksheet dijalankan oleh role Engineering.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Aktivitas produksi dan upload QC/checksheet dijalankan oleh role Engineering, sedangkan approve/reject hasil QC dilakukan oleh Owner.
 
 ## Skenario Login dan Logout
 
@@ -224,7 +264,7 @@ Output utama:
 
 ## Skenario Engineering
 
-Engineering menangani pekerjaan produksi dan QC/checksheet.
+Engineering menangani pekerjaan produksi dan upload QC/checksheet.
 
 Alur kerja:
 
@@ -246,7 +286,7 @@ Output utama:
 
 ## Skenario Engineering untuk QC
 
-Role Engineering juga melakukan inspeksi visual dan dimensi setelah barang selesai diproduksi.
+Role Engineering juga mengisi inspeksi visual dan dimensi setelah barang selesai diproduksi. Engineering hanya upload dan submit hasil checksheet, bukan approve/reject.
 
 Alur kerja:
 
@@ -257,16 +297,17 @@ Alur kerja:
 5. User mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
 6. User mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
 7. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
-8. User menyelesaikan inspeksi dengan keputusan `Accept`, `Reject`, `Repair`, atau `Scrap`.
-9. QC API mengirim `QcCheckCompletedEvent` ke Production API.
+8. User mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
+9. User submit checksheet untuk review Owner.
+10. Status inspeksi berubah menjadi `PendingOwnerReview`.
 
 Output utama:
 
 - QC Inspection
 - Visual Check
 - Dimension Check
-- QC Decision
-- Update status ke Production
+- Inspection Result dari Engineering
+- Status `PendingOwnerReview`
 
 ## Skenario Purchasing
 
@@ -311,22 +352,28 @@ Output utama:
 
 ## Skenario Owner
 
-Owner melihat kondisi pabrik secara high-level.
+Owner melakukan review hasil QC dan melihat kondisi pabrik secara high-level.
 
 Alur kerja:
 
 1. Owner login ke sistem.
-2. Owner membuka Executive Dashboard.
-3. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
-4. Owner melihat hasil QC: accepted, rejected, repair, dan scrap.
-5. Owner melihat defect rate.
-6. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
+2. Owner membuka daftar QC yang berstatus `PendingOwnerReview`.
+3. Owner melihat hasil upload Engineering: visual check, dimension check, inspection result, dan remarks.
+4. Owner memilih `Approve` atau `Reject`.
+5. QC API menyimpan reviewer, waktu review, dan catatan Owner.
+6. QC API mengirim `QcCheckCompletedEvent` ke Production API.
+7. Jika Owner approve, Production Order berubah menjadi `Closed`.
+8. Owner membuka Executive Dashboard.
+9. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
+10. Owner melihat hasil QC berdasarkan review final: approved dan rejected.
+11. Owner melihat rejection rate.
+12. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
 
 Output utama:
 
 - Ringkasan status produksi.
-- Ringkasan hasil QC.
-- Defect rate.
+- Ringkasan hasil review QC.
+- Rejection rate.
 - Gambaran performa pabrik.
 
 ## Cara Menjalankan

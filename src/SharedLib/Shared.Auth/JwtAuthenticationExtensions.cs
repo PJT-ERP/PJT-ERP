@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +19,24 @@ public static class JwtAuthenticationExtensions
         var audience = builder.Configuration["Jwt:Audience"] ?? "PJT-HIMTIKA.Web";
 
         builder.Services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = PjtAuthenticationSchemes.Smart;
+                options.DefaultChallengeScheme = PjtAuthenticationSchemes.Smart;
+            })
+            .AddPolicyScheme(PjtAuthenticationSchemes.Smart, "PJT JWT or development master token", options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                    DevMasterTokenAuthenticationHandler.ShouldUseDevMasterToken(
+                        context.Request,
+                        builder.Configuration,
+                        builder.Environment)
+                        ? PjtAuthenticationSchemes.DevMasterToken
+                        : JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, DevMasterTokenAuthenticationHandler>(
+                PjtAuthenticationSchemes.DevMasterToken,
+                _ => { })
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters

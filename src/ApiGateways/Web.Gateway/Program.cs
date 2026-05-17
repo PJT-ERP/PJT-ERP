@@ -1,5 +1,6 @@
 using PJT_HIMTIKA.Shared.Auth;
 using PJT_HIMTIKA.Shared.Logging;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,5 +32,24 @@ app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { service = "gateway", status = "ok" })).AllowAnonymous();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference(options =>
+    {
+        options.WithTitle("PJT ERP Gateway APIs");
+        options.AddPreferredSecuritySchemes("Bearer");
+        options.AddHttpAuthentication("Bearer", auth =>
+        {
+            auth.Token = DevMasterTokenAuthenticationHandler.GetConfiguredToken(builder.Configuration);
+        });
+        options.AddDocument("identity", "Identity API", "/openapi/identity/v1.json", isDefault: true);
+        options.AddDocument("masterdata", "Master Data API", "/openapi/masterdata/v1.json");
+        options.AddDocument("production", "Production API", "/openapi/production/v1.json");
+        options.AddDocument("qc", "QC API", "/openapi/qc/v1.json");
+        options.AddDocument("purchasing", "Purchasing API", "/openapi/purchasing/v1.json");
+    }).AllowAnonymous();
+}
+
 app.MapReverseProxy();
 app.Run();

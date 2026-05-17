@@ -15,7 +15,13 @@ public sealed class QcInspection
     public string? SamplingMethod { get; set; }
     public string? MeasuringToolNo { get; set; }
     public string Status { get; set; } = QcInspectionStatuses.WaitingProduction;
-    public string? Decision { get; set; }
+    public string? InspectionResult { get; set; }
+    public string? EngineeringRemarks { get; set; }
+    public string? OwnerDecision { get; set; }
+    public Guid? OwnerReviewedByUserId { get; set; }
+    public string? OwnerReviewerName { get; set; }
+    public DateTime? OwnerReviewedAtUtc { get; set; }
+    public string? OwnerReviewRemarks { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<QcVisualCheck> VisualChecks { get; set; } = [];
@@ -27,5 +33,7 @@ public static class QcInspectionStatuses
     public const string WaitingProduction = "WaitingProduction";
     public const string ReadyForInspection = "ReadyForInspection";
     public const string InInspection = "InInspection";
-    public const string Completed = "Completed";
+    public const string PendingOwnerReview = "PendingOwnerReview";
+    public const string Approved = "Approved";
+    public const string Rejected = "Rejected";
 }

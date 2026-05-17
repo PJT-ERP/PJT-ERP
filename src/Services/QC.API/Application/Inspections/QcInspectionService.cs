@@ -97,7 +97,7 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
         return ToDto(check);
     }
 
-    public async Task<QcInspectionDto?> CompleteAsync(Guid id, CompleteInspectionRequest request, CancellationToken cancellationToken)
+    public async Task<QcInspectionDto?> SubmitAsync(Guid id, SubmitInspectionRequest request, CancellationToken cancellationToken)
     {
         var inspection = await IncludeChecks(db.QcInspections)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -107,15 +107,67 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             return null;
         }
 
-        inspection.Decision = request.Decision;
-        inspection.Status = QcInspectionStatuses.Completed;
+        inspection.InspectionResult = request.InspectionResult;
+        inspection.EngineeringRemarks = request.EngineeringRemarks;
+        inspection.Status = QcInspectionStatuses.PendingOwnerReview;
+        inspection.OwnerDecision = null;
+        inspection.OwnerReviewedByUserId = null;
+        inspection.OwnerReviewerName = null;
+        inspection.OwnerReviewedAtUtc = null;
+        inspection.OwnerReviewRemarks = null;
+        inspection.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(inspection);
+    }
+
+    public async Task<QcInspectionDto?> ReviewAsync(Guid id, ReviewInspectionRequest request, CancellationToken cancellationToken)
+    {
+        var inspection = await IncludeChecks(db.QcInspections)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+
+        if (inspection is null)
+        {
+            return null;
+        }
+
+        if (inspection.Status != QcInspectionStatuses.PendingOwnerReview)
+        {
+            throw new InvalidOperationException("Inspection must be submitted by Engineering before owner review.");
+        }
+
+        var normalizedDecision = NormalizeOwnerDecision(request.Decision);
+
+        inspection.OwnerDecision = normalizedDecision;
+        inspection.OwnerReviewedByUserId = request.OwnerReviewedByUserId;
+        inspection.OwnerReviewerName = request.OwnerReviewerName;
+        inspection.OwnerReviewedAtUtc = DateTime.UtcNow;
+        inspection.OwnerReviewRemarks = request.Remarks;
+        inspection.Status = normalizedDecision;
         inspection.UpdatedAtUtc = DateTime.UtcNow;
 
         await eventPublisher.PublishAsync(
-            new QcCheckCompletedEvent(inspection.Id, inspection.ProductionOrderId, inspection.Decision, inspection.UpdatedAtUtc),
+            new QcCheckCompletedEvent(inspection.Id, inspection.ProductionOrderId, normalizedDecision, inspection.UpdatedAtUtc),
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(inspection);
+    }
+
+    private static string NormalizeOwnerDecision(string decision)
+    {
+        if (decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+        {
+            return QcInspectionStatuses.Approved;
+        }
+
+        if (decision.Equals("Reject", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+        {
+            return QcInspectionStatuses.Rejected;
+        }
+
+        throw new InvalidOperationException("Owner decision must be Approve or Reject.");
     }
 
     private static IQueryable<QcInspection> IncludeChecks(IQueryable<QcInspection> query)
@@ -140,7 +192,13 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             inspection.SamplingMethod,
             inspection.MeasuringToolNo,
             inspection.Status,
-            inspection.Decision,
+            inspection.InspectionResult,
+            inspection.EngineeringRemarks,
+            inspection.OwnerDecision,
+            inspection.OwnerReviewedByUserId,
+            inspection.OwnerReviewerName,
+            inspection.OwnerReviewedAtUtc,
+            inspection.OwnerReviewRemarks,
             inspection.UpdatedAtUtc,
             inspection.VisualChecks.Select(ToDto).ToArray(),
             inspection.DimensionChecks.Select(ToDto).ToArray());

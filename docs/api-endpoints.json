@@ -1,0 +1,611 @@
+{
+  "name": "PJT ERP API Catalog",
+  "version": "v1",
+  "purpose": "Human/frontend reference for gateway endpoints, roles, and sample payloads. Runtime routing still uses YARP ReverseProxy config in src/ApiGateways/Web.Gateway/appsettings.json.",
+  "gateway": {
+    "reverseProxy": "YARP",
+    "localBaseUrl": "http://localhost:5000",
+    "scalarUrl": "http://localhost:5000/scalar",
+    "openApiDocuments": {
+      "identity": "/openapi/identity/v1.json",
+      "masterdata": "/openapi/masterdata/v1.json",
+      "production": "/openapi/production/v1.json",
+      "qc": "/openapi/qc/v1.json",
+      "purchasing": "/openapi/purchasing/v1.json"
+    },
+    "futureIngress": "Traefik can be placed in front of Web.Gateway later for frontend/backend routing, TLS, and host-based rules."
+  },
+  "auth": {
+    "loginCookie": "access_token",
+    "developmentMasterToken": {
+      "enabledOnlyWhen": "ASPNETCORE_ENVIRONMENT=Development",
+      "token": "dev-master-token",
+      "authorizationHeader": "Bearer dev-master-token",
+      "alternateHeader": {
+        "X-Dev-Master-Token": "dev-master-token"
+      },
+      "rolesGranted": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Purchasing"]
+    },
+    "notes": [
+      "POST /api/v1/auth/login returns a JWT and also sets the access_token HttpOnly cookie.",
+      "Protected endpoints require a logged-in user with one of the listed roles.",
+      "Scalar is available at /scalar in Development and is prefilled with Bearer dev-master-token.",
+      "The dev master token is rejected automatically outside Development.",
+      "Admin is a system role for management and override access."
+    ]
+  },
+  "roles": [
+    "Sales Order",
+    "Finance",
+    "Engineering",
+    "Purchasing",
+    "Owner",
+    "Admin"
+  ],
+  "endpoints": [
+    {
+      "service": "Identity.API",
+      "feature": "Authentication",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "auth": "anonymous",
+      "roles": [],
+      "description": "Login user by registered email. Sets access_token cookie.",
+      "requestBody": {
+        "email": "owner@pjt.local"
+      },
+      "responseBody": {
+        "accessToken": "jwt-token",
+        "userId": "00000000-0000-0000-0000-000000000000",
+        "email": "owner@pjt.local",
+        "name": "Owner",
+        "roles": ["Owner", "Admin"],
+        "department": "Management"
+      }
+    },
+    {
+      "service": "Identity.API",
+      "feature": "Authentication",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "Read current authenticated user from JWT/cookie.",
+      "requestBody": null,
+      "responseBody": {
+        "userId": "00000000-0000-0000-0000-000000000000",
+        "email": "engineering@pjt.local",
+        "name": "Engineering",
+        "roles": ["Engineering"],
+        "department": "Engineering"
+      }
+    },
+    {
+      "service": "Identity.API",
+      "feature": "Authentication",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "Delete access_token cookie.",
+      "requestBody": null,
+      "responseBody": null
+    },
+    {
+      "service": "MasterData.API",
+      "feature": "Customers",
+      "method": "GET",
+      "path": "/api/v1/master-data/customers",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "List active/inactive customers.",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "code": "CUST-001",
+          "name": "PT Contoh Customer",
+          "address": "Jakarta",
+          "contactPerson": "Budi",
+          "isActive": true
+        }
+      ]
+    },
+    {
+      "service": "MasterData.API",
+      "feature": "Customers",
+      "method": "POST",
+      "path": "/api/v1/master-data/customers",
+      "auth": "required",
+      "roles": ["Admin", "Sales Order"],
+      "description": "Create customer master data and publish MasterDataUpdatedEvent.",
+      "requestBody": {
+        "code": "CUST-001",
+        "name": "PT Contoh Customer",
+        "address": "Jakarta",
+        "contactPerson": "Budi"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "code": "CUST-001",
+        "name": "PT Contoh Customer",
+        "address": "Jakarta",
+        "contactPerson": "Budi",
+        "isActive": true
+      }
+    },
+    {
+      "service": "MasterData.API",
+      "feature": "Products",
+      "method": "GET",
+      "path": "/api/v1/master-data/products",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "List product/part master data.",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "partNumber": "PART-001",
+          "description": "Shaft Diameter 20mm",
+          "unit": "pcs",
+          "materialSpec": "S45C",
+          "isActive": true
+        }
+      ]
+    },
+    {
+      "service": "MasterData.API",
+      "feature": "Products",
+      "method": "POST",
+      "path": "/api/v1/master-data/products",
+      "auth": "required",
+      "roles": ["Admin", "Sales Order", "Engineering"],
+      "description": "Create product/part master data and publish MasterDataUpdatedEvent.",
+      "requestBody": {
+        "partNumber": "PART-001",
+        "description": "Shaft Diameter 20mm",
+        "unit": "pcs",
+        "materialSpec": "S45C"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "partNumber": "PART-001",
+        "description": "Shaft Diameter 20mm",
+        "unit": "pcs",
+        "materialSpec": "S45C",
+        "isActive": true
+      }
+    },
+    {
+      "service": "Production.API",
+      "feature": "Sales Orders",
+      "method": "GET",
+      "path": "/api/v1/production/sales-orders",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "List sales orders and their items.",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "soNumber": "SO-20260517123000-ABCDEF",
+          "customerId": "00000000-0000-0000-0000-000000000000",
+          "customerCode": "CUST-001",
+          "customerName": "PT Contoh Customer",
+          "soDate": "2026-05-17",
+          "targetDate": "2026-05-30",
+          "status": "Draft",
+          "createdAtUtc": "2026-05-17T05:00:00Z",
+          "updatedAtUtc": "2026-05-17T05:00:00Z",
+          "items": [
+            {
+              "id": "00000000-0000-0000-0000-000000000000",
+              "productId": "00000000-0000-0000-0000-000000000000",
+              "productPartNumber": "PART-001",
+              "productDescription": "Shaft Diameter 20mm",
+              "qty": 10,
+              "notes": "Urgent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Sales Orders",
+      "method": "POST",
+      "path": "/api/v1/production/sales-orders",
+      "auth": "required",
+      "roles": ["Admin", "Sales Order"],
+      "description": "Create a sales order. Product/customer IDs are soft references replicated from MasterData.",
+      "requestBody": {
+        "customerId": "00000000-0000-0000-0000-000000000000",
+        "soDate": "2026-05-17",
+        "targetDate": "2026-05-30",
+        "items": [
+          {
+            "productId": "00000000-0000-0000-0000-000000000000",
+            "qty": 10,
+            "notes": "Urgent"
+          }
+        ]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "soNumber": "SO-20260517123000-ABCDEF",
+        "status": "Draft"
+      }
+    },
+    {
+      "service": "Production.API",
+      "feature": "Sales Orders",
+      "method": "POST",
+      "path": "/api/v1/production/sales-orders/{id}/confirm",
+      "auth": "required",
+      "roles": ["Admin", "Sales Order"],
+      "description": "Confirm sales order, create SPK/production orders, generate barcode, and publish SpkCreatedEvent.",
+      "requestBody": {
+        "approvedByUserId": "00000000-0000-0000-0000-000000000000"
+      },
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "poNumber": "SPK-20260517123000-ABCDEF",
+          "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
+          "drawingRef": "PART-001",
+          "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+          "orderQty": 10,
+          "status": "Waiting",
+          "startedAtUtc": null,
+          "finishedAtUtc": null,
+          "qcDecision": null,
+          "updatedAtUtc": "2026-05-17T05:00:00Z"
+        }
+      ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Production Orders",
+      "method": "GET",
+      "path": "/api/v1/production/orders",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "List SPK/production orders.",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "poNumber": "SPK-20260517123000-ABCDEF",
+          "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+          "orderQty": 10,
+          "status": "Waiting",
+          "qcDecision": null
+        }
+      ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Shop Floor",
+      "method": "POST",
+      "path": "/api/v1/production/shop-floor/scan",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering scans barcode to start or finish production.",
+      "requestBody": {
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "action": "Start"
+      },
+      "allowedValues": {
+        "action": ["Start", "Finish"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "poNumber": "SPK-20260517123000-ABCDEF",
+        "status": "InProgress",
+        "startedAtUtc": "2026-05-17T05:00:00Z",
+        "finishedAtUtc": null,
+        "qcDecision": null
+      }
+    },
+    {
+      "service": "Production.API",
+      "feature": "Owner Dashboard",
+      "method": "GET",
+      "path": "/api/v1/production/dashboard/executive",
+      "auth": "required",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner dashboard summary for production and owner-reviewed QC.",
+      "requestBody": null,
+      "responseBody": {
+        "waitingOrders": 3,
+        "inProgressOrders": 5,
+        "finishedOrders": 2,
+        "closedOrders": 8,
+        "approvedQc": 7,
+        "rejectedQc": 1,
+        "rejectionRate": 12.5
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "GET",
+      "path": "/api/v1/qc/inspections",
+      "auth": "required",
+      "roles": ["Admin", "Engineering", "Owner"],
+      "description": "List QC inspections. Engineering uploads checksheets; Owner reviews submitted checksheets.",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "refNo": "QC-SPK-20260517123000-ABCDEF",
+          "productionOrderId": "00000000-0000-0000-0000-000000000000",
+          "spkNumber": "SPK-20260517123000-ABCDEF",
+          "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+          "status": "PendingOwnerReview",
+          "inspectionResult": "Accept",
+          "ownerDecision": null,
+          "updatedAtUtc": "2026-05-17T05:00:00Z",
+          "visualChecks": [],
+          "dimensionChecks": []
+        }
+      ]
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "GET",
+      "path": "/api/v1/qc/inspections/{id}",
+      "auth": "required",
+      "roles": ["Admin", "Engineering", "Owner"],
+      "description": "Get one QC inspection with visual and dimension checks.",
+      "requestBody": null,
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "refNo": "QC-SPK-20260517123000-ABCDEF",
+        "productionOrderId": "00000000-0000-0000-0000-000000000000",
+        "spkNumber": "SPK-20260517123000-ABCDEF",
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "inspectorId": "00000000-0000-0000-0000-000000000000",
+        "inspectorName": "Engineer 1",
+        "inspectionDate": "2026-05-17",
+        "sampleQty": 3,
+        "samplingMethod": "Random",
+        "measuringToolNo": "CAL-001",
+        "status": "PendingOwnerReview",
+        "inspectionResult": "Accept",
+        "engineeringRemarks": "Ukuran masuk toleransi.",
+        "ownerDecision": null,
+        "ownerReviewedByUserId": null,
+        "ownerReviewerName": null,
+        "ownerReviewedAtUtc": null,
+        "ownerReviewRemarks": null,
+        "updatedAtUtc": "2026-05-17T05:00:00Z",
+        "visualChecks": [],
+        "dimensionChecks": []
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
+      "path": "/api/v1/qc/inspections/{id}/start",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering starts filling an inspection.",
+      "requestBody": {
+        "inspectorId": "00000000-0000-0000-0000-000000000000",
+        "inspectorName": "Engineer 1",
+        "inspectionDate": "2026-05-17",
+        "sampleQty": 3,
+        "samplingMethod": "Random",
+        "measuringToolNo": "CAL-001"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "status": "InInspection",
+        "inspectorName": "Engineer 1"
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
+      "path": "/api/v1/qc/inspections/{id}/visual-checks",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering uploads visual check quantities.",
+      "requestBody": {
+        "qtyChecked": 10,
+        "qtyAccept": 9,
+        "qtyReject": 1,
+        "qtyRepair": 0,
+        "qtyScrap": 0,
+        "ncRef": "NC-001",
+        "remarks": "Satu part baret."
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "qtyChecked": 10,
+        "qtyAccept": 9,
+        "qtyReject": 1,
+        "qtyRepair": 0,
+        "qtyScrap": 0,
+        "ncRef": "NC-001",
+        "remarks": "Satu part baret."
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
+      "path": "/api/v1/qc/inspections/{id}/dimension-checks",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering uploads flexible dimensional measurement data as JSONB.",
+      "requestBody": {
+        "sampleId": "SAMPLE-001",
+        "process": "Turning",
+        "dimensionData": {
+          "diameterMm": 20.01,
+          "lengthMm": 100.02,
+          "tolerance": "+/-0.05"
+        },
+        "operatorId": "00000000-0000-0000-0000-000000000000",
+        "operatorName": "Operator 1",
+        "status": "Accept"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "sampleId": "SAMPLE-001",
+        "process": "Turning",
+        "dimensionData": {
+          "diameterMm": 20.01,
+          "lengthMm": 100.02,
+          "tolerance": "+/-0.05"
+        },
+        "operatorId": "00000000-0000-0000-0000-000000000000",
+        "operatorName": "Operator 1",
+        "status": "Accept"
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
+      "path": "/api/v1/qc/inspections/{id}/submit",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering submits uploaded checksheet for Owner review. This does not close production.",
+      "requestBody": {
+        "inspectionResult": "Accept",
+        "engineeringRemarks": "Dimensi dan visual sudah sesuai."
+      },
+      "allowedValues": {
+        "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "status": "PendingOwnerReview",
+        "inspectionResult": "Accept",
+        "engineeringRemarks": "Dimensi dan visual sudah sesuai.",
+        "ownerDecision": null
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
+      "path": "/api/v1/qc/inspections/{id}/review",
+      "auth": "required",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner approves or rejects Engineering's submitted checksheet. This publishes QcCheckCompletedEvent.",
+      "requestBody": {
+        "ownerReviewedByUserId": "00000000-0000-0000-0000-000000000000",
+        "ownerReviewerName": "Owner",
+        "decision": "Approve",
+        "remarks": "Approved, production can be closed."
+      },
+      "allowedValues": {
+        "decision": ["Approve", "Reject", "Approved", "Rejected"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "status": "Approved",
+        "inspectionResult": "Accept",
+        "ownerDecision": "Approved",
+        "ownerReviewerName": "Owner",
+        "ownerReviewedAtUtc": "2026-05-17T05:00:00Z",
+        "ownerReviewRemarks": "Approved, production can be closed."
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "GET",
+      "path": "/api/v1/purchasing/purchase-requests",
+      "auth": "required",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing"],
+      "description": "List purchase requests.",
+      "requestBody": null,
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "prNumber": "PR-20260517123000-ABCDEF",
+          "requestDate": "2026-05-17",
+          "requestedByUserId": "00000000-0000-0000-0000-000000000000",
+          "requesterName": "Purchasing 1",
+          "status": "Submitted",
+          "reviewedByUserId": null,
+          "reviewedAtUtc": null,
+          "rejectionReason": null,
+          "updatedAtUtc": "2026-05-17T05:00:00Z",
+          "items": [
+            {
+              "id": "00000000-0000-0000-0000-000000000000",
+              "itemName": "Round Bar S45C",
+              "size": "20mm x 6m",
+              "qty": 5,
+              "suggestedSupplier": "Supplier A",
+              "notes": "Untuk SPK minggu ini"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests",
+      "auth": "required",
+      "roles": ["Admin", "Engineering", "Purchasing"],
+      "description": "Create and submit purchase request for Finance review.",
+      "requestBody": {
+        "requestDate": "2026-05-17",
+        "requestedByUserId": "00000000-0000-0000-0000-000000000000",
+        "requesterName": "Purchasing 1",
+        "items": [
+          {
+            "itemName": "Round Bar S45C",
+            "size": "20mm x 6m",
+            "qty": 5,
+            "suggestedSupplier": "Supplier A",
+            "notes": "Untuk SPK minggu ini"
+          }
+        ]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "prNumber": "PR-20260517123000-ABCDEF",
+        "status": "Submitted"
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/review",
+      "auth": "required",
+      "roles": ["Admin", "Finance"],
+      "description": "Finance approves or rejects a purchase request.",
+      "requestBody": {
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000000",
+        "decision": "Approve",
+        "rejectionReason": null
+      },
+      "allowedValues": {
+        "decision": ["Approve", "Reject", "Approved", "Rejected"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "prNumber": "PR-20260517123000-ABCDEF",
+        "status": "Approved",
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000000",
+        "reviewedAtUtc": "2026-05-17T05:00:00Z",
+        "rejectionReason": null
+      }
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PJT_HIMTIKA.EventBus.Messages.Events;
+using PJT_HIMTIKA.Production.Api.Domain.Entities;
 using PJT_HIMTIKA.Production.Api.Infrastructure.Persistence;
 using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
 
@@ -18,8 +19,8 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db) : IIntegr
         }
 
         productionOrder.QcDecision = integrationEvent.Decision;
-        productionOrder.Status = integrationEvent.Decision.Equals("Accept", StringComparison.OrdinalIgnoreCase)
-            ? "Closed"
+        productionOrder.Status = integrationEvent.Decision.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+            ? ProductionOrderStatuses.Closed
             : productionOrder.Status;
         productionOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
         await db.SaveChangesAsync(cancellationToken);

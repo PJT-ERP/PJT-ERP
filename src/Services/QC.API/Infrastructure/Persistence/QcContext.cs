@@ -32,7 +32,13 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.Property(inspection => inspection.SamplingMethod).HasMaxLength(100).HasColumnName("sampling_method");
             builder.Property(inspection => inspection.MeasuringToolNo).HasMaxLength(100).HasColumnName("measuring_tool_no");
             builder.Property(inspection => inspection.Status).HasMaxLength(50).HasColumnName("status");
-            builder.Property(inspection => inspection.Decision).HasMaxLength(40).HasColumnName("decision");
+            builder.Property(inspection => inspection.InspectionResult).HasMaxLength(40).HasColumnName("inspection_result");
+            builder.Property(inspection => inspection.EngineeringRemarks).HasColumnName("engineering_remarks");
+            builder.Property(inspection => inspection.OwnerDecision).HasMaxLength(40).HasColumnName("owner_decision");
+            builder.Property(inspection => inspection.OwnerReviewedByUserId).HasColumnName("owner_reviewed_by_user_id");
+            builder.Property(inspection => inspection.OwnerReviewerName).HasMaxLength(160).HasColumnName("owner_reviewer_name");
+            builder.Property(inspection => inspection.OwnerReviewedAtUtc).HasColumnName("owner_reviewed_at_utc");
+            builder.Property(inspection => inspection.OwnerReviewRemarks).HasColumnName("owner_review_remarks");
             builder.Property(inspection => inspection.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(inspection => inspection.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });

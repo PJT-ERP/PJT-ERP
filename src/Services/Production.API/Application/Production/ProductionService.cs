@@ -172,23 +172,19 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
     {
         var orders = await db.ProductionOrders.AsNoTracking().ToListAsync(cancellationToken);
-        var accepted = orders.Count(order => order.QcDecision == "Accept");
-        var rejected = orders.Count(order => order.QcDecision == "Reject");
-        var repair = orders.Count(order => order.QcDecision == "Repair");
-        var scrap = orders.Count(order => order.QcDecision == "Scrap");
-        var checkedOrders = accepted + rejected + repair + scrap;
-        var defectRate = checkedOrders == 0 ? 0 : decimal.Round((decimal)(rejected + repair + scrap) / checkedOrders * 100, 2);
+        var approved = orders.Count(order => order.QcDecision == "Approved");
+        var rejected = orders.Count(order => order.QcDecision == "Rejected");
+        var reviewedOrders = approved + rejected;
+        var rejectionRate = reviewedOrders == 0 ? 0 : decimal.Round((decimal)rejected / reviewedOrders * 100, 2);
 
         return new ExecutiveDashboardDto(
             orders.Count(order => order.Status == ProductionOrderStatuses.Waiting),
             orders.Count(order => order.Status == ProductionOrderStatuses.InProgress),
             orders.Count(order => order.Status == ProductionOrderStatuses.Finished),
             orders.Count(order => order.Status == ProductionOrderStatuses.Closed),
-            accepted,
+            approved,
             rejected,
-            repair,
-            scrap,
-            defectRate);
+            rejectionRate);
     }
 
     private static SalesOrderDto ToDto(SalesOrder order)
