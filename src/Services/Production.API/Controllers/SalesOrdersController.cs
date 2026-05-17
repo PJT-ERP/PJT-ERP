@@ -16,7 +16,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Sales")]
+    [Authorize(Roles = "Admin,Sales Order")]
     public async Task<ActionResult<SalesOrderDto>> Create(CreateSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try
@@ -31,7 +31,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/confirm")]
-    [Authorize(Roles = "Admin,Sales")]
+    [Authorize(Roles = "Admin,Sales Order")]
     public async Task<ActionResult<IReadOnlyCollection<ProductionOrderDto>>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try

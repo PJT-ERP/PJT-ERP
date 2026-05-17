@@ -21,24 +21,24 @@ public static class IdentitySeeder
             },
             new UserAccount
             {
-                Email = "sales@pjt.local",
-                Name = "Sales",
-                Department = "Sales",
-                Role = "Sales"
+                Email = "sales-order@pjt.local",
+                Name = "Sales Order",
+                Department = "Sales Order",
+                Role = "Sales Order"
             },
             new UserAccount
             {
-                Email = "production@pjt.local",
-                Name = "Production",
-                Department = "Production",
-                Role = "Production"
+                Email = "engineering@pjt.local",
+                Name = "Engineering",
+                Department = "Engineering",
+                Role = "Engineering"
             },
             new UserAccount
             {
-                Email = "qc@pjt.local",
-                Name = "QC Inspector",
-                Department = "Quality Control",
-                Role = "QC"
+                Email = "purchasing@pjt.local",
+                Name = "Purchasing",
+                Department = "Purchasing",
+                Role = "Purchasing"
             },
             new UserAccount
             {

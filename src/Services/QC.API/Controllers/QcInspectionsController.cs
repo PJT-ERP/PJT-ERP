@@ -5,7 +5,7 @@ using PJT_HIMTIKA.QC.Api.Application.Inspections;
 namespace PJT_HIMTIKA.QC.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin,QC")]
+[Authorize(Roles = "Admin,Engineering")]
 [Route("api/v1/qc/inspections")]
 public sealed class QcInspectionsController(IQcInspectionService inspectionService) : ControllerBase
 {

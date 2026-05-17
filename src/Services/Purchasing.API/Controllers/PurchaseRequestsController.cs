@@ -10,14 +10,14 @@ namespace PJT_HIMTIKA.Purchasing.Api.Controllers;
 public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseRequestService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Finance,Production")]
+    [Authorize(Roles = "Admin,Finance,Engineering,Purchasing")]
     public async Task<ActionResult<IReadOnlyCollection<PurchaseRequestDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await purchaseRequestService.ListAsync(cancellationToken));
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Production")]
+    [Authorize(Roles = "Admin,Engineering,Purchasing")]
     public async Task<ActionResult<PurchaseRequestDto>> Create(CreatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try

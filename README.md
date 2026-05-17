@@ -39,7 +39,7 @@ PtPjtErp.sln
 
 `Identity.API` menangani user, role, login, logout, dan penerbitan JWT. Service ini menjadi tempat fitur User CRUD.
 
-`MasterData.API` menangani data master seperti customer dan product/part. Data ini dipakai oleh Sales dan Production, tetapi tidak dibuat sebagai foreign key lintas database.
+`MasterData.API` menangani data master seperti customer dan product/part. Data ini dipakai oleh Sales Order dan Engineering, tetapi tidak dibuat sebagai foreign key lintas database.
 
 `Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode, scan mulai produksi, scan selesai produksi, dan dashboard owner.
 
@@ -148,15 +148,19 @@ Ini penting untuk ERP karena owner dan admin perlu tahu berapa lama order diam d
 
 ## Role Sistem
 
-Role utama:
+Role operasional utama:
+
+- Sales Order
+- Finance
+- Engineering
+- Purchasing
+- Owner
+
+Role sistem:
 
 - Admin
-- Sales Order
-- Engineering / Production
-- Quality Control
-- Purchasing
-- Finance
-- Owner
+
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Aktivitas produksi dan QC/checksheet dijalankan oleh role Engineering.
 
 ## Skenario Login dan Logout
 
@@ -170,9 +174,9 @@ Role utama:
 Contoh user demo:
 
 - `owner@pjt.local`
-- `sales@pjt.local`
-- `production@pjt.local`
-- `qc@pjt.local`
+- `sales-order@pjt.local`
+- `engineering@pjt.local`
+- `purchasing@pjt.local`
 - `finance@pjt.local`
 
 ## Skenario Admin
@@ -183,7 +187,7 @@ Alur kerja:
 
 1. Admin login ke sistem.
 2. Admin membuka halaman User Management.
-3. Admin membuat user baru untuk Sales, Engineering, QC, Purchasing, Finance, atau Owner.
+3. Admin membuat user baru untuk Sales Order, Finance, Engineering, Purchasing, Owner, atau Admin.
 4. Admin mengubah role user jika ada perpindahan divisi.
 5. Admin menonaktifkan user yang sudah tidak boleh mengakses sistem.
 6. Admin dapat melihat user aktif dan status terakhir login.
@@ -198,16 +202,16 @@ Data utama:
 
 ## Skenario Sales Order
 
-Sales membuat order customer secara digital.
+User Sales Order membuat order customer secara digital.
 
 Alur kerja:
 
-1. Sales login ke sistem.
-2. Sales membuka menu Sales Order.
-3. Sales memilih customer dari Master Data.
-4. Sales memilih product/part yang dipesan.
-5. Sales mengisi quantity, target date, dan notes.
-6. Sales menyimpan Sales Order.
+1. User Sales Order login ke sistem.
+2. User membuka menu Sales Order.
+3. User memilih customer dari Master Data.
+4. User memilih product/part yang dipesan.
+5. User mengisi quantity, target date, dan notes.
+6. User menyimpan Sales Order.
 7. Saat Sales Order dikonfirmasi, Production API otomatis membuat SPK/Production Order.
 8. Sistem membuat barcode unik untuk setiap SPK.
 
@@ -218,13 +222,13 @@ Output utama:
 - Production Order/SPK
 - Barcode UID
 
-## Skenario Engineering / Production
+## Skenario Engineering
 
-Engineering atau tim produksi memakai barcode untuk update status pekerjaan.
+Engineering menangani pekerjaan produksi dan QC/checksheet.
 
 Alur kerja:
 
-1. User Production login.
+1. User Engineering login.
 2. User membuka daftar SPK.
 3. User melihat SPK yang berasal dari Sales Order yang sudah dikonfirmasi.
 4. User scan barcode ketika pekerjaan mulai.
@@ -238,22 +242,22 @@ Output utama:
 - Status produksi real-time.
 - Waktu mulai produksi.
 - Waktu selesai produksi.
-- Event ke QC agar inspeksi siap dilakukan.
+- Event ke QC API agar form inspeksi siap dilakukan.
 
-## Skenario Quality Control
+## Skenario Engineering untuk QC
 
-QC melakukan inspeksi visual dan dimensi setelah barang selesai diproduksi.
+Role Engineering juga melakukan inspeksi visual dan dimensi setelah barang selesai diproduksi.
 
 Alur kerja:
 
-1. QC login ke sistem.
-2. QC membuka daftar inspeksi.
+1. User Engineering login ke sistem.
+2. User membuka daftar inspeksi.
 3. Saat SPK dibuat, QC API sudah menyiapkan form inspeksi melalui `SpkCreatedEvent`.
 4. Saat produksi selesai, form berubah menjadi siap inspeksi melalui `ProductionFinishedEvent`.
-5. QC mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
-6. QC mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
-7. QC mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
-8. QC menyelesaikan inspeksi dengan keputusan `Accept`, `Reject`, `Repair`, atau `Scrap`.
+5. User mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
+6. User mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
+7. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
+8. User menyelesaikan inspeksi dengan keputusan `Accept`, `Reject`, `Repair`, atau `Scrap`.
 9. QC API mengirim `QcCheckCompletedEvent` ke Production API.
 
 Output utama:
