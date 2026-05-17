@@ -23,6 +23,18 @@ public sealed class ProductionServiceTests
     }
 
     [Fact]
+    public void PublicTrackingController_allows_anonymous_customer_tracking()
+    {
+        var allowAnonymous = Assert.Single(
+            typeof(PublicTrackingController)
+                .GetCustomAttributes(typeof(AllowAnonymousAttribute), inherit: false)
+                .Cast<AllowAnonymousAttribute>());
+
+        Assert.NotNull(allowAnonymous);
+    }
+
+
+    [Fact]
     public async Task ConfirmSalesOrderAsync_creates_barcode_orders_with_sales_order_links()
     {
         await using var db = CreateDbContext();
@@ -156,6 +168,48 @@ public sealed class ProductionServiceTests
         Assert.Equal(1, progress.FinishedOrders);
         Assert.Equal(33.33m, progress.ProgressPercent);
         Assert.Equal(3, Assert.Single(progress.Items).ProductionOrders.Count);
+    }
+
+    [Fact]
+    public async Task GetPublicTrackingAsync_returns_customer_progress_by_sales_order_number()
+    {
+        await using var db = CreateDbContext();
+        var salesOrder = CreateSalesOrder();
+        var productionOrder = CreateProductionOrder(salesOrder.Items[0], "SPK-001", ProductionOrderStatuses.Finished);
+        productionOrder.StartedAtUtc = DateTime.UtcNow.AddHours(-2);
+        productionOrder.FinishedAtUtc = DateTime.UtcNow.AddHours(-1);
+        salesOrder.Items[0].ProductionOrders.Add(productionOrder);
+        await db.SalesOrders.AddAsync(salesOrder);
+        await db.SaveChangesAsync();
+
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var tracking = await service.GetPublicTrackingAsync("SO-001", CancellationToken.None);
+
+        Assert.NotNull(tracking);
+        Assert.Equal("SO-001", tracking.SoNumber);
+        Assert.Equal("PT Customer", tracking.CustomerName);
+        Assert.Equal(100m, tracking.ProgressPercent);
+        var item = Assert.Single(tracking.Items);
+        var publicOrder = Assert.Single(item.ProductionOrders);
+        Assert.Equal("SPK-001", publicOrder.PoNumber);
+        Assert.Equal(ProductionOrderStatuses.Finished, publicOrder.Status);
+        Assert.Null(typeof(PublicProductionOrderTrackingDto).GetProperty("BarcodeUid"));
+        Assert.Null(typeof(PublicProductionOrderTrackingDto).GetProperty("DrawingFileUrl"));
+    }
+
+    [Fact]
+    public async Task GetPublicTrackingAsync_accepts_barcode_without_exposing_barcode()
+    {
+        await using var db = CreateDbContext();
+        var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var tracking = await service.GetPublicTrackingAsync(productionOrder.BarcodeUid, CancellationToken.None);
+
+        Assert.NotNull(tracking);
+        Assert.Equal("SO-001", tracking.SoNumber);
+        Assert.Null(typeof(PublicProductionOrderTrackingDto).GetProperty("BarcodeUid"));
     }
 
     private static ProductionContext CreateDbContext()

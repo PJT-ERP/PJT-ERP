@@ -148,6 +148,30 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return salesOrder is null ? null : ToProgressDto(salesOrder);
     }
 
+    public async Task<PublicProductionTrackingDto?> GetPublicTrackingAsync(string trackingCode, CancellationToken cancellationToken)
+    {
+        var normalizedTrackingCode = trackingCode.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTrackingCode))
+        {
+            throw new InvalidOperationException("Tracking code is required.");
+        }
+
+        var salesOrder = await db.SalesOrders
+            .AsNoTracking()
+            .Include(order => order.Items)
+            .ThenInclude(item => item.ProductionOrders)
+            .FirstOrDefaultAsync(
+                order =>
+                    order.SoNumber == normalizedTrackingCode
+                    || order.Items.Any(item =>
+                        item.ProductionOrders.Any(productionOrder =>
+                            productionOrder.PoNumber == normalizedTrackingCode
+                            || productionOrder.BarcodeUid == normalizedTrackingCode)),
+                cancellationToken);
+
+        return salesOrder is null ? null : ToPublicTrackingDto(salesOrder);
+    }
+
     public async Task<IReadOnlyCollection<ProductionOrderDto>> ListProductionOrdersAsync(Guid? salesOrderId, CancellationToken cancellationToken)
     {
         var query = IncludeSalesOrder(db.ProductionOrders.AsNoTracking());
@@ -372,6 +396,54 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     item.ProductionOrders
                         .OrderBy(productionOrder => productionOrder.PoNumber)
                         .Select(productionOrder => ToDto(productionOrder, item, order))
+                        .ToArray()))
+                .ToArray());
+    }
+
+    private static PublicProductionTrackingDto ToPublicTrackingDto(SalesOrder order)
+    {
+        var productionOrders = order.Items.SelectMany(item => item.ProductionOrders).ToArray();
+        var finishedOrders = productionOrders.Count(IsProductionFinished);
+        var progressPercent = productionOrders.Length == 0
+            ? 0
+            : decimal.Round((decimal)finishedOrders / productionOrders.Length * 100, 2);
+        var updatedAtUtc = productionOrders.Length == 0
+            ? order.UpdatedAtUtc
+            : productionOrders.Max(productionOrder => productionOrder.UpdatedAtUtc) > order.UpdatedAtUtc
+                ? productionOrders.Max(productionOrder => productionOrder.UpdatedAtUtc)
+                : order.UpdatedAtUtc;
+
+        return new PublicProductionTrackingDto(
+            order.SoNumber,
+            order.CustomerName,
+            order.Status,
+            order.Items.Count,
+            order.Items.Sum(item => item.Qty),
+            productionOrders.Length,
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Waiting),
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.InProgress),
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Finished),
+            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Closed),
+            progressPercent,
+            updatedAtUtc,
+            order.Items
+                .OrderBy(item => item.ProductPartNumber)
+                .Select(item => new PublicProductionTrackingItemDto(
+                    item.ProductPartNumber,
+                    item.ProductDescription,
+                    item.Qty,
+                    item.ProductionOrders
+                        .OrderBy(productionOrder => productionOrder.PoNumber)
+                        .Select(productionOrder => new PublicProductionOrderTrackingDto(
+                            productionOrder.PoNumber,
+                            item.ProductPartNumber,
+                            item.ProductDescription,
+                            productionOrder.OrderQty,
+                            productionOrder.Status,
+                            productionOrder.StartedAtUtc,
+                            productionOrder.FinishedAtUtc,
+                            CalculateDurationSeconds(productionOrder),
+                            productionOrder.UpdatedAtUtc))
                         .ToArray()))
                 .ToArray());
     }

@@ -37,6 +37,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapScalarApiReference(options =>
     {
+        options.OpenApiRoutePattern = "/openapi/{documentName}/v1.json";
         options.WithTitle("PJT ERP Gateway APIs");
         options.AddPreferredSecuritySchemes("Bearer");
         options.AddHttpAuthentication("Bearer", auth =>
