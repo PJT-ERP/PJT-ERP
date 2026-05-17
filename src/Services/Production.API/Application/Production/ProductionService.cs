@@ -108,7 +108,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 BarcodeUid = $"PJT|SPK|{DateTime.UtcNow:yyyyMMdd}|{item.Id:N}",
                 OrderQty = item.Qty
             };
-            item.ProductionOrders.Add(productionOrder);
+            await db.ProductionOrders.AddAsync(productionOrder, cancellationToken);
             createdOrders.Add(productionOrder);
 
             await eventPublisher.PublishAsync(

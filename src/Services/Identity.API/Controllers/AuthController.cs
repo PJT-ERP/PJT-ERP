@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PJT_HIMTIKA.Identity.Api.Application.Auth;
+using PJT_HIMTIKA.Shared.Auth;
 
 namespace PJT_HIMTIKA.Identity.Api.Controllers;
 
@@ -42,7 +43,24 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         }
 
         var result = await authService.FindByEmailAsync(email, cancellationToken);
-        return result is null ? Unauthorized() : Ok(result);
+        if (result is not null)
+        {
+            return Ok(result);
+        }
+
+        if (User.Identity?.AuthenticationType == PjtAuthenticationSchemes.DevMasterToken)
+        {
+            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+                ? parsedUserId
+                : Guid.Empty;
+            var name = User.FindFirstValue(ClaimTypes.Name) ?? "Development Master User";
+            var department = User.FindFirstValue("department") ?? "Development";
+            var roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray();
+
+            return Ok(new CurrentUserResponse(userId, email, name, roles, department));
+        }
+
+        return Unauthorized();
     }
 
     [HttpPost("logout")]
