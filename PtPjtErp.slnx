@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="src/SharedLib/EventBus.Messages/EventBus.Messages.csproj" />
+  <Project Path="src/SharedLib/Shared.Auth/Shared.Auth.csproj" />
+  <Project Path="src/SharedLib/Shared.Logging/Shared.Logging.csproj" />
+  <Project Path="src/SharedLib/Shared.Infrastructure/Shared.Infrastructure.csproj" />
+  <Project Path="src/Services/Identity.API/Identity.API.csproj" />
+  <Project Path="src/Services/MasterData.API/MasterData.API.csproj" />
+  <Project Path="src/Services/Production.API/Production.API.csproj" />
+  <Project Path="src/Services/QC.API/QC.API.csproj" />
+  <Project Path="src/Services/Purchasing.API/Purchasing.API.csproj" />
+  <Project Path="src/ApiGateways/Web.Gateway/Web.Gateway.csproj" />
+</Solution>

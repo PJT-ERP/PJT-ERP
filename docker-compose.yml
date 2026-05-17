@@ -1,0 +1,114 @@
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: "Development"
+  ASPNETCORE_URLS: "http://+:8080"
+  JWT_KEY: "dev-only-change-this-key-before-production-please"
+  Jwt__Issuer: "PJT-HIMTIKA.Identity"
+  Jwt__Audience: "PJT-HIMTIKA.Web"
+  ConnectionStrings__IdentityConnection: "Host=db;Port=5432;Database=pjt_identity;Username=postgres;Password=postgres"
+  ConnectionStrings__MasterDataConnection: "Host=db;Port=5432;Database=pjt_masterdata;Username=postgres;Password=postgres"
+  ConnectionStrings__ProductionConnection: "Host=db;Port=5432;Database=pjt_production;Username=postgres;Password=postgres"
+  ConnectionStrings__QcConnection: "Host=db;Port=5432;Database=pjt_qc;Username=postgres;Password=postgres"
+  ConnectionStrings__PurchasingConnection: "Host=db;Port=5432;Database=pjt_purchasing;Username=postgres;Password=postgres"
+  ConnectionStrings__NpgmqConnection: "Host=db;Port=5432;Database=pjt_eventbus;Username=postgres;Password=postgres"
+  ConnectionStrings__CacheConnection: "Host=db;Port=5432;Database=pjt_cache;Username=postgres;Password=postgres"
+
+services:
+  db:
+    image: ghcr.io/pgmq/pg17-pgmq:v1.8.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - pjt_db:/var/lib/postgresql/data
+      - ./.database/bootstrap.sql:/docker-entrypoint-initdb.d/00-bootstrap.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  identity-api:
+    build:
+      context: .
+      dockerfile: src/Services/Identity.API/Dockerfile
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:5001:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  masterdata-api:
+    build:
+      context: .
+      dockerfile: src/Services/MasterData.API/Dockerfile
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:5002:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  production-api:
+    build:
+      context: .
+      dockerfile: src/Services/Production.API/Dockerfile
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:5003:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  qc-api:
+    build:
+      context: .
+      dockerfile: src/Services/QC.API/Dockerfile
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:5004:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  purchasing-api:
+    build:
+      context: .
+      dockerfile: src/Services/Purchasing.API/Dockerfile
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:5005:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateways/Web.Gateway/Dockerfile
+    environment:
+      <<: *api-environment
+      ReverseProxy__Clusters__identity__Destinations__identityApi__Address: "http://identity-api:8080/"
+      ReverseProxy__Clusters__masterdata__Destinations__masterdataApi__Address: "http://masterdata-api:8080/"
+      ReverseProxy__Clusters__production__Destinations__productionApi__Address: "http://production-api:8080/"
+      ReverseProxy__Clusters__qc__Destinations__qcApi__Address: "http://qc-api:8080/"
+      ReverseProxy__Clusters__purchasing__Destinations__purchasingApi__Address: "http://purchasing-api:8080/"
+    ports:
+      - "127.0.0.1:5000:8080"
+    depends_on:
+      identity-api:
+        condition: service_started
+      masterdata-api:
+        condition: service_started
+      production-api:
+        condition: service_started
+      qc-api:
+        condition: service_started
+      purchasing-api:
+        condition: service_started
+
+volumes:
+  pjt_db:

@@ -1,0 +1,8 @@
+namespace PJT_HIMTIKA.EventBus.Messages.Events;
+
+public record MasterDataUpdatedEvent(
+    Guid EntityId,
+    string EntityType,
+    string Action,
+    string Code,
+    string Name) : IntegrationEvent;
