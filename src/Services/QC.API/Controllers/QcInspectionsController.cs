@@ -24,43 +24,108 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
         return inspection is null ? NotFound() : Ok(inspection);
     }
 
+    [HttpPost("scan")]
+    [Authorize(Roles = "Admin,Engineering,Owner")]
+    public async Task<ActionResult<QcInspectionDto>> Scan(ScanInspectionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var inspection = await inspectionService.ScanAsync(request, cancellationToken);
+            return inspection is null ? NotFound(new { message = "QC inspection was not found for this barcode or QR value." }) : Ok(inspection);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id:guid}/start")]
     [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<QcInspectionDto>> Start(Guid id, StartInspectionRequest request, CancellationToken cancellationToken)
     {
-        var inspection = await inspectionService.StartAsync(id, request, cancellationToken);
-        return inspection is null ? NotFound() : Ok(inspection);
+        try
+        {
+            var inspection = await inspectionService.StartAsync(id, request, cancellationToken);
+            return inspection is null ? NotFound() : Ok(inspection);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/visual-checks")]
     [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<QcVisualCheckDto>> AddVisualCheck(Guid id, CreateVisualCheckRequest request, CancellationToken cancellationToken)
     {
-        var check = await inspectionService.AddVisualCheckAsync(id, request, cancellationToken);
-        return check is null ? NotFound() : Ok(check);
+        try
+        {
+            var check = await inspectionService.AddVisualCheckAsync(id, request, cancellationToken);
+            return check is null ? NotFound() : Ok(check);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/dimension-checks")]
     [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<QcDimensionCheckDto>> AddDimensionCheck(Guid id, CreateDimensionCheckRequest request, CancellationToken cancellationToken)
     {
-        var check = await inspectionService.AddDimensionCheckAsync(id, request, cancellationToken);
-        return check is null ? NotFound() : Ok(check);
+        try
+        {
+            var check = await inspectionService.AddDimensionCheckAsync(id, request, cancellationToken);
+            return check is null ? NotFound() : Ok(check);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/form")]
+    [Authorize(Roles = "Admin,Engineering")]
+    public async Task<ActionResult<QcInspectionDto>> UploadForm(Guid id, UploadQcFormRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var inspection = await inspectionService.UploadFormAsync(id, request, cancellationToken);
+            return inspection is null ? NotFound() : Ok(inspection);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/submit")]
     [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<QcInspectionDto>> Submit(Guid id, SubmitInspectionRequest request, CancellationToken cancellationToken)
     {
-        var inspection = await inspectionService.SubmitAsync(id, request, cancellationToken);
-        return inspection is null ? NotFound() : Ok(inspection);
+        try
+        {
+            var inspection = await inspectionService.SubmitAsync(id, request, cancellationToken);
+            return inspection is null ? NotFound() : Ok(inspection);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id:guid}/review")]
     [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcInspectionDto>> Review(Guid id, ReviewInspectionRequest request, CancellationToken cancellationToken)
     {
-        var inspection = await inspectionService.ReviewAsync(id, request, cancellationToken);
-        return inspection is null ? NotFound() : Ok(inspection);
+        try
+        {
+            var inspection = await inspectionService.ReviewAsync(id, request, cancellationToken);
+            return inspection is null ? NotFound() : Ok(inspection);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

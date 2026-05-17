@@ -343,8 +343,15 @@
           "productionOrderId": "00000000-0000-0000-0000-000000000000",
           "spkNumber": "SPK-20260517123000-ABCDEF",
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+          "productName": "Shaft Diameter 20mm",
+          "productCode": "PART-001",
+          "porNumber": "SPK-20260517123000-ABCDEF",
+          "drawingRef": "PART-001",
+          "orderQty": 10,
+          "materialSpec": "S45C",
           "status": "PendingOwnerReview",
           "inspectionResult": "Accept",
+          "defectNotes": null,
           "ownerDecision": null,
           "updatedAtUtc": "2026-05-17T05:00:00Z",
           "visualChecks": [],
@@ -367,6 +374,12 @@
         "productionOrderId": "00000000-0000-0000-0000-000000000000",
         "spkNumber": "SPK-20260517123000-ABCDEF",
         "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "PART-001",
+        "orderQty": 10,
+        "materialSpec": "S45C",
         "inspectorId": "00000000-0000-0000-0000-000000000000",
         "inspectorName": "Engineer 1",
         "inspectionDate": "2026-05-17",
@@ -375,6 +388,7 @@
         "measuringToolNo": "CAL-001",
         "status": "PendingOwnerReview",
         "inspectionResult": "Accept",
+        "defectNotes": null,
         "engineeringRemarks": "Ukuran masuk toleransi.",
         "ownerDecision": null,
         "ownerReviewedByUserId": null,
@@ -382,6 +396,37 @@
         "ownerReviewedAtUtc": null,
         "ownerReviewRemarks": null,
         "updatedAtUtc": "2026-05-17T05:00:00Z",
+        "visualChecks": [],
+        "dimensionChecks": []
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "POST",
+      "path": "/api/v1/qc/inspections/scan",
+      "auth": "required",
+      "roles": ["Admin", "Engineering", "Owner"],
+      "description": "Scan a barcode/QR value to open the matching QC inspection form. Accepts barcode UID, SPK number, or QC reference number.",
+      "requestBody": {
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "refNo": "QC-SPK-20260517123000-ABCDEF",
+        "productionOrderId": "00000000-0000-0000-0000-000000000000",
+        "spkNumber": "SPK-20260517123000-ABCDEF",
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "PART-001",
+        "orderQty": 10,
+        "materialSpec": "S45C",
+        "status": "ReadyForInspection",
+        "inspectionResult": null,
+        "defectNotes": null,
+        "ownerDecision": null,
         "visualChecks": [],
         "dimensionChecks": []
       }
@@ -400,12 +445,116 @@
         "inspectionDate": "2026-05-17",
         "sampleQty": 3,
         "samplingMethod": "Random",
-        "measuringToolNo": "CAL-001"
+        "measuringToolNo": "CAL-001",
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "DRW-001",
+        "orderQty": 10,
+        "materialSpec": "S45C"
       },
       "responseBody": {
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "InInspection",
         "inspectorName": "Engineer 1"
+      }
+    },
+    {
+      "service": "QC.API",
+      "feature": "Inspections",
+      "method": "PUT",
+      "path": "/api/v1/qc/inspections/{id}/form",
+      "auth": "required",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering saves/uploads the complete QC form in one request. Set submitForOwnerReview to true when pressing the approval/upload button.",
+      "requestBody": {
+        "inspectorId": "00000000-0000-0000-0000-000000000000",
+        "inspectorName": "Engineer 1",
+        "inspectionDate": "2026-05-17",
+        "sampleQty": 3,
+        "samplingMethod": "Random",
+        "measuringToolNo": "CAL-001",
+        "inspectionResult": "Repair",
+        "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
+        "engineeringRemarks": "Form QC sudah diupload untuk approval Owner.",
+        "submitForOwnerReview": true,
+        "productName": "Shaft Diameter 20mm",
+        "productCode": "PART-001",
+        "porNumber": "SPK-20260517123000-ABCDEF",
+        "drawingRef": "DRW-001",
+        "orderQty": 10,
+        "materialSpec": "S45C",
+        "visualChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "qtyChecked": 10,
+            "qtyAccept": 8,
+            "qtyReject": 0,
+            "qtyRepair": 2,
+            "qtyScrap": 0,
+            "ncRef": "NC-001",
+            "remarks": "Dua part perlu repair."
+          }
+        ],
+        "dimensionChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "sampleId": "SAMPLE-001",
+            "process": "Turning",
+            "dimensionData": {
+              "A": {
+                "spec": "205",
+                "value": 205.01
+              },
+              "B": {
+                "spec": "180",
+                "value": 180.0
+              },
+              "C": {
+                "spec": "8.2",
+                "value": 8.21
+              },
+              "D": {
+                "spec": "14.3",
+                "value": 14.31
+              }
+            },
+            "operatorId": "00000000-0000-0000-0000-000000000000",
+            "operatorName": "Operator 1",
+            "status": "Repair"
+          }
+        ]
+      },
+      "allowedValues": {
+        "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "status": "PendingOwnerReview",
+        "inspectionResult": "Repair",
+        "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
+        "engineeringRemarks": "Form QC sudah diupload untuk approval Owner.",
+        "ownerDecision": null,
+        "visualChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "qtyChecked": 10,
+            "qtyAccept": 8,
+            "qtyReject": 0,
+            "qtyRepair": 2,
+            "qtyScrap": 0,
+            "ncRef": "NC-001",
+            "remarks": "Dua part perlu repair."
+          }
+        ],
+        "dimensionChecks": [
+          {
+            "checkDate": "2026-05-17",
+            "sampleId": "SAMPLE-001",
+            "process": "Turning",
+            "status": "Repair"
+          }
+        ]
       }
     },
     {
@@ -480,7 +629,8 @@
       "description": "Engineering submits uploaded checksheet for Owner review. This does not close production.",
       "requestBody": {
         "inspectionResult": "Accept",
-        "engineeringRemarks": "Dimensi dan visual sudah sesuai."
+        "engineeringRemarks": "Dimensi dan visual sudah sesuai.",
+        "defectNotes": null
       },
       "allowedValues": {
         "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
@@ -489,6 +639,7 @@
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "PendingOwnerReview",
         "inspectionResult": "Accept",
+        "defectNotes": null,
         "engineeringRemarks": "Dimensi dan visual sudah sesuai.",
         "ownerDecision": null
       }
@@ -514,6 +665,7 @@
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "Approved",
         "inspectionResult": "Accept",
+        "defectNotes": null,
         "ownerDecision": "Approved",
         "ownerReviewerName": "Owner",
         "ownerReviewedAtUtc": "2026-05-17T05:00:00Z",

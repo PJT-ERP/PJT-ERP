@@ -5,6 +5,7 @@ public sealed class QcVisualCheck
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid QcInspectionId { get; set; }
     public QcInspection? QcInspection { get; set; }
+    public DateOnly? CheckDate { get; set; }
     public int QtyChecked { get; set; }
     public int QtyAccept { get; set; }
     public int QtyReject { get; set; }

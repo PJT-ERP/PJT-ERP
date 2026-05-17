@@ -20,7 +20,13 @@ public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHand
                 ProductionOrderId = integrationEvent.ProductionOrderId,
                 RefNo = $"QC-{integrationEvent.SpkNumber}",
                 SpkNumber = integrationEvent.SpkNumber,
-                BarcodeUid = integrationEvent.BarcodeValue
+                BarcodeUid = integrationEvent.BarcodeValue,
+                ProductCode = integrationEvent.ProductCode,
+                ProductName = integrationEvent.ProductName,
+                PorNumber = integrationEvent.SpkNumber,
+                DrawingRef = integrationEvent.DrawingRef,
+                OrderQty = Decimal.ToInt32(integrationEvent.Quantity),
+                MaterialSpec = integrationEvent.MaterialSpec
             };
             await db.QcInspections.AddAsync(inspection, cancellationToken);
         }
@@ -28,6 +34,12 @@ public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHand
         {
             inspection.SpkNumber = integrationEvent.SpkNumber;
             inspection.BarcodeUid = integrationEvent.BarcodeValue;
+            inspection.ProductCode = integrationEvent.ProductCode;
+            inspection.ProductName = integrationEvent.ProductName;
+            inspection.PorNumber = integrationEvent.SpkNumber;
+            inspection.DrawingRef = integrationEvent.DrawingRef;
+            inspection.OrderQty = Decimal.ToInt32(integrationEvent.Quantity);
+            inspection.MaterialSpec = integrationEvent.MaterialSpec;
             inspection.UpdatedAtUtc = integrationEvent.OccurredAtUtc;
         }
 

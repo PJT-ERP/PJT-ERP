@@ -35,6 +35,8 @@ public sealed class MasterDataUpdatedEventHandler(ProductionContext db) : IInteg
 
             product.PartNumber = integrationEvent.Code;
             product.Description = integrationEvent.Name;
+            product.Unit = string.IsNullOrWhiteSpace(integrationEvent.Unit) ? "pcs" : integrationEvent.Unit;
+            product.MaterialSpec = integrationEvent.MaterialSpec;
             product.IsActive = !integrationEvent.Action.Equals("Deleted", StringComparison.OrdinalIgnoreCase);
             product.UpdatedAtUtc = integrationEvent.OccurredAtUtc;
         }

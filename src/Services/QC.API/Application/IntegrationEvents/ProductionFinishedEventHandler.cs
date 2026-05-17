@@ -20,7 +20,8 @@ public sealed class ProductionFinishedEventHandler(QcContext db) : IIntegrationE
                 ProductionOrderId = integrationEvent.ProductionOrderId,
                 RefNo = $"QC-{integrationEvent.SpkNumber}",
                 SpkNumber = integrationEvent.SpkNumber,
-                BarcodeUid = integrationEvent.BarcodeValue
+                BarcodeUid = integrationEvent.BarcodeValue,
+                PorNumber = integrationEvent.SpkNumber
             };
             await db.QcInspections.AddAsync(inspection, cancellationToken);
         }

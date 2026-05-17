@@ -34,6 +34,8 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.HasIndex(product => product.PartNumber);
             builder.Property(product => product.PartNumber).HasMaxLength(100).HasColumnName("part_number");
             builder.Property(product => product.Description).HasColumnName("description");
+            builder.Property(product => product.Unit).HasMaxLength(30).HasColumnName("unit");
+            builder.Property(product => product.MaterialSpec).HasColumnName("material_spec");
             builder.Property(product => product.IsActive).HasColumnName("is_active");
             builder.Property(product => product.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
@@ -68,6 +70,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(item => item.ProductId).HasColumnName("product_id");
             builder.Property(item => item.ProductPartNumber).HasMaxLength(100).HasColumnName("product_part_number");
             builder.Property(item => item.ProductDescription).HasColumnName("product_description");
+            builder.Property(item => item.ProductMaterialSpec).HasColumnName("product_material_spec");
             builder.Property(item => item.Qty).HasColumnName("qty");
             builder.Property(item => item.Notes).HasColumnName("notes");
             builder.Property(item => item.CreatedAtUtc).HasColumnName("created_at_utc");

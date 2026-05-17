@@ -58,6 +58,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     ProductId = product.Id,
                     ProductPartNumber = product.PartNumber,
                     ProductDescription = product.Description,
+                    ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
                     Notes = item.Notes
                 };
@@ -117,7 +118,11 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     productionOrder.PoNumber,
                     productionOrder.BarcodeUid,
                     item.ProductId,
-                    item.Qty),
+                    item.Qty,
+                    item.ProductPartNumber,
+                    item.ProductDescription,
+                    productionOrder.DrawingRef,
+                    item.ProductMaterialSpec),
                 cancellationToken);
         }
 

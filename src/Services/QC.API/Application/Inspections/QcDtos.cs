@@ -8,6 +8,12 @@ public sealed record QcInspectionDto(
     Guid ProductionOrderId,
     string SpkNumber,
     string BarcodeUid,
+    string? ProductName,
+    string? ProductCode,
+    string? PorNumber,
+    string? DrawingRef,
+    int? OrderQty,
+    string? MaterialSpec,
     Guid? InspectorId,
     string? InspectorName,
     DateOnly? InspectionDate,
@@ -16,6 +22,7 @@ public sealed record QcInspectionDto(
     string? MeasuringToolNo,
     string Status,
     string? InspectionResult,
+    string? DefectNotes,
     string? EngineeringRemarks,
     string? OwnerDecision,
     Guid? OwnerReviewedByUserId,
@@ -26,13 +33,21 @@ public sealed record QcInspectionDto(
     IReadOnlyCollection<QcVisualCheckDto> VisualChecks,
     IReadOnlyCollection<QcDimensionCheckDto> DimensionChecks);
 
+public sealed record ScanInspectionRequest(string BarcodeUid);
+
 public sealed record StartInspectionRequest(
     Guid InspectorId,
     string InspectorName,
     DateOnly InspectionDate,
     int SampleQty,
     string SamplingMethod,
-    string MeasuringToolNo);
+    string MeasuringToolNo,
+    string? ProductName = null,
+    string? ProductCode = null,
+    string? PorNumber = null,
+    string? DrawingRef = null,
+    int? OrderQty = null,
+    string? MaterialSpec = null);
 
 public sealed record CreateVisualCheckRequest(
     int QtyChecked,
@@ -41,10 +56,12 @@ public sealed record CreateVisualCheckRequest(
     int QtyRepair,
     int QtyScrap,
     string? NcRef,
-    string? Remarks);
+    string? Remarks,
+    DateOnly? CheckDate = null);
 
 public sealed record QcVisualCheckDto(
     Guid Id,
+    DateOnly? CheckDate,
     int QtyChecked,
     int QtyAccept,
     int QtyReject,
@@ -59,10 +76,32 @@ public sealed record CreateDimensionCheckRequest(
     JsonElement DimensionData,
     Guid? OperatorId,
     string? OperatorName,
-    string Status);
+    string Status,
+    DateOnly? CheckDate = null);
+
+public sealed record UploadQcFormRequest(
+    Guid InspectorId,
+    string InspectorName,
+    DateOnly InspectionDate,
+    int SampleQty,
+    string SamplingMethod,
+    string MeasuringToolNo,
+    string InspectionResult,
+    string? DefectNotes,
+    string? EngineeringRemarks,
+    bool SubmitForOwnerReview,
+    IReadOnlyCollection<CreateVisualCheckRequest> VisualChecks,
+    IReadOnlyCollection<CreateDimensionCheckRequest> DimensionChecks,
+    string? ProductName = null,
+    string? ProductCode = null,
+    string? PorNumber = null,
+    string? DrawingRef = null,
+    int? OrderQty = null,
+    string? MaterialSpec = null);
 
 public sealed record QcDimensionCheckDto(
     Guid Id,
+    DateOnly? CheckDate,
     string SampleId,
     string Process,
     JsonElement DimensionData,
@@ -70,7 +109,7 @@ public sealed record QcDimensionCheckDto(
     string? OperatorName,
     string Status);
 
-public sealed record SubmitInspectionRequest(string InspectionResult, string? EngineeringRemarks);
+public sealed record SubmitInspectionRequest(string InspectionResult, string? EngineeringRemarks, string? DefectNotes = null);
 
 public sealed record ReviewInspectionRequest(
     Guid OwnerReviewedByUserId,

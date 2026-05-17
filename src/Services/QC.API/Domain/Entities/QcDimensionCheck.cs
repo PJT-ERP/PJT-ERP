@@ -5,6 +5,7 @@ public sealed class QcDimensionCheck
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid QcInspectionId { get; set; }
     public QcInspection? QcInspection { get; set; }
+    public DateOnly? CheckDate { get; set; }
     public string SampleId { get; set; } = "";
     public string Process { get; set; } = "";
     public string DimensionDataJson { get; set; } = "{}";

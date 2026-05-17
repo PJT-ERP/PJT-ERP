@@ -5,4 +5,6 @@ public record MasterDataUpdatedEvent(
     string EntityType,
     string Action,
     string Code,
-    string Name) : IntegrationEvent;
+    string Name,
+    string? Unit = null,
+    string? MaterialSpec = null) : IntegrationEvent;

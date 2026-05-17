@@ -43,7 +43,7 @@ PtPjtErp.sln
 
 `Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode, scan mulai produksi, scan selesai produksi, dan dashboard owner.
 
-`QC.API` menangani QC Inspection, visual check, dimension check, submit hasil oleh Engineering, dan review approve/reject oleh Owner. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
+`QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Engineering, defect notes, dan review approve/reject oleh Owner. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
 `Purchasing.API` menangani Purchase Request, item pembelian, submit PR, dan review approve/reject oleh Finance.
 
@@ -286,27 +286,32 @@ Output utama:
 
 ## Skenario Engineering untuk QC
 
-Role Engineering juga mengisi inspeksi visual dan dimensi setelah barang selesai diproduksi. Engineering hanya upload dan submit hasil checksheet, bukan approve/reject.
+Role Engineering juga scan barcode/QR QC, mengisi inspeksi visual dan dimensi setelah barang selesai diproduksi, menulis notes defect, lalu upload form QC untuk review Owner. Engineering hanya upload dan submit hasil checksheet, bukan approve/reject.
 
 Alur kerja:
 
 1. User Engineering login ke sistem.
-2. User membuka daftar inspeksi.
+2. User membuka menu QC dan scan barcode/QR SPK.
 3. Saat SPK dibuat, QC API sudah menyiapkan form inspeksi melalui `SpkCreatedEvent`.
 4. Saat produksi selesai, form berubah menjadi siap inspeksi melalui `ProductionFinishedEvent`.
-5. User mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
-6. User mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
-7. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
-8. User mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
-9. User submit checksheet untuk review Owner.
-10. Status inspeksi berubah menjadi `PendingOwnerReview`.
+5. QC API mencari inspection berdasarkan barcode UID, nomor SPK, atau nomor referensi QC.
+6. User mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
+7. User mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
+8. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
+9. User mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
+10. Jika ada defect, user wajib mengisi defect notes.
+11. User klik tombol upload/approval form QC untuk submit checksheet ke Owner.
+12. Status inspeksi berubah menjadi `PendingOwnerReview`.
 
 Output utama:
 
 - QC Inspection
+- Hasil scan barcode/QR QC
+- Header checksheet lama: produk, kode produk, POR/SPK, ref gambar, jumlah order, spec material, jumlah sample, metode sampling, dan alat ukur.
 - Visual Check
 - Dimension Check
 - Inspection Result dari Engineering
+- Defect Notes
 - Status `PendingOwnerReview`
 
 ## Skenario Purchasing
@@ -358,7 +363,7 @@ Alur kerja:
 
 1. Owner login ke sistem.
 2. Owner membuka daftar QC yang berstatus `PendingOwnerReview`.
-3. Owner melihat hasil upload Engineering: visual check, dimension check, inspection result, dan remarks.
+3. Owner melihat hasil upload Engineering: visual check, dimension check, inspection result, defect notes, dan remarks.
 4. Owner memilih `Approve` atau `Reject`.
 5. QC API menyimpan reviewer, waktu review, dan catatan Owner.
 6. QC API mengirim `QcCheckCompletedEvent` ke Production API.
