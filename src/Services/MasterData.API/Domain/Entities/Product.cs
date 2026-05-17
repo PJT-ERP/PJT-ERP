@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.MasterData.Api.Domain.Entities;
+namespace PJT_ERP.MasterData.Api.Domain.Entities;
 
 public sealed class Product
 {

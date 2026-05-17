@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.Purchasing.Api.Application.PurchaseRequests;
-using PJT_HIMTIKA.Purchasing.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Auth;
-using PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
-using PJT_HIMTIKA.Shared.Infrastructure.Caching;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
-using PJT_HIMTIKA.Shared.Logging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.Purchasing.Api.Application.IntegrationEvents;
+using PJT_ERP.Purchasing.Api.Application.PurchaseRequests;
+using PJT_ERP.Purchasing.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Auth;
+using PJT_ERP.Shared.Infrastructure.Abstractions;
+using PJT_ERP.Shared.Infrastructure.Caching;
+using PJT_ERP.Shared.Infrastructure.Messaging;
+using PJT_ERP.Shared.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +26,10 @@ builder.Services.AddPgmqEventBus<PurchasingContext>(builder.Configuration, optio
 {
     options.QueueName = "pjt_purchasing_events";
     options.FanOutQueues = ["pjt_production_events"];
-});
+})
+    .WithReceiver()
+    .AddSubscription<SalesOrderConfirmedEvent, SalesOrderConfirmedEventHandler>()
+    .AddSubscription<SpkCreatedEvent, SpkCreatedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
@@ -35,7 +40,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PurchasingContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.EnsurePurchasingSchemaAsync();
 }
 
 if (app.Environment.IsDevelopment())

@@ -11,4 +11,5 @@
   <Project Path="src/ApiGateways/Web.Gateway/Web.Gateway.csproj" />
   <Project Path="tests/Services/QC.API.Tests/QC.API.Tests.csproj" />
   <Project Path="tests/Services/Production.API.Tests/Production.API.Tests.csproj" />
+  <Project Path="tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj" />
 </Solution>

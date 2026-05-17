@@ -2,7 +2,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace PJT_HIMTIKA.Shared.Infrastructure.Caching;
+namespace PJT_ERP.Shared.Infrastructure.Caching;
 
 public static class PostgresCacheServiceCollectionExtensions
 {

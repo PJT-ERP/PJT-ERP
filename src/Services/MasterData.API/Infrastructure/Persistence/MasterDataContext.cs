@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.MasterData.Api.Domain.Entities;
-using PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.MasterData.Api.Domain.Entities;
+using PJT_ERP.Shared.Infrastructure.Abstractions;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.MasterData.Api.Infrastructure.Persistence;
+namespace PJT_ERP.MasterData.Api.Infrastructure.Persistence;
 
 public sealed class MasterDataContext(DbContextOptions<MasterDataContext> options) : DbContext(options), IUnitOfWork
 {

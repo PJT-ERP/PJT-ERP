@@ -1,6 +1,6 @@
-using PJT_HIMTIKA.Identity.Api.Domain.Entities;
+using PJT_ERP.Identity.Api.Domain.Entities;
 
-namespace PJT_HIMTIKA.Identity.Api.Infrastructure.Persistence;
+namespace PJT_ERP.Identity.Api.Infrastructure.Persistence;
 
 public static class IdentitySeeder
 {

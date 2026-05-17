@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using PJT_HIMTIKA.EventBus.Messages.Events;
+using PJT_ERP.EventBus.Messages.Events;
 
-namespace PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+namespace PJT_ERP.Shared.Infrastructure.Messaging;
 
 public sealed class OutboxEventPublisher<TContext>(
     TContext dbContext,

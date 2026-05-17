@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.Production.Api.Domain.Entities;
-using PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.Production.Api.Domain.Entities;
+using PJT_ERP.Shared.Infrastructure.Abstractions;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.Production.Api.Infrastructure.Persistence;
+namespace PJT_ERP.Production.Api.Infrastructure.Persistence;
 
 public sealed class ProductionContext(DbContextOptions<ProductionContext> options) : DbContext(options), IUnitOfWork
 {

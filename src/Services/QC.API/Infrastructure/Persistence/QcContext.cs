@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.QC.Api.Domain.Entities;
-using PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.QC.Api.Domain.Entities;
+using PJT_ERP.Shared.Infrastructure.Abstractions;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.QC.Api.Infrastructure.Persistence;
+namespace PJT_ERP.QC.Api.Infrastructure.Persistence;
 
 public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(options), IUnitOfWork
 {

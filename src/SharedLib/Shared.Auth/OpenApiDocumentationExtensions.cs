@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
-namespace PJT_HIMTIKA.Shared.Auth;
+namespace PJT_ERP.Shared.Auth;
 
 public static class OpenApiDocumentationExtensions
 {

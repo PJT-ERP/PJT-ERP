@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace PJT_HIMTIKA.Shared.Auth;
+namespace PJT_ERP.Shared.Auth;
 
 public sealed class DevMasterTokenAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,

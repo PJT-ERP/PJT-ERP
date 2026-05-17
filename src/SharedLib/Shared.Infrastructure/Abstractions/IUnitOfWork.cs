@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
+namespace PJT_ERP.Shared.Infrastructure.Abstractions;
 
 public interface IUnitOfWork
 {

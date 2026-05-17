@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+namespace PJT_ERP.Shared.Infrastructure.Messaging;
 
 public sealed class EventBusOptions
 {

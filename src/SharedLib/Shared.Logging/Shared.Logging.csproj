@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>PJT_HIMTIKA.Shared.Logging</RootNamespace>
+    <RootNamespace>PJT_ERP.Shared.Logging</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.EventBus.Messages.Events;
+namespace PJT_ERP.EventBus.Messages.Events;
 
 public record SpkCreatedEvent(
     Guid ProductionOrderId,

@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.EventBus.Messages.Events;
-using PJT_HIMTIKA.Production.Api.Domain.Entities;
-using PJT_HIMTIKA.Production.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.Production.Api.Domain.Entities;
+using PJT_ERP.Production.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.Production.Api.Application.IntegrationEvents;
+namespace PJT_ERP.Production.Api.Application.IntegrationEvents;
 
 public sealed class MasterDataUpdatedEventHandler(ProductionContext db) : IIntegrationEventHandler<MasterDataUpdatedEvent>
 {

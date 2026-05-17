@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.EventBus.Messages.Events;
-using PJT_HIMTIKA.MasterData.Api.Domain.Entities;
-using PJT_HIMTIKA.MasterData.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.MasterData.Api.Domain.Entities;
+using PJT_ERP.MasterData.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.MasterData.Api.Application.Catalog;
+namespace PJT_ERP.MasterData.Api.Application.Catalog;
 
 public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPublisher) : ICatalogService
 {

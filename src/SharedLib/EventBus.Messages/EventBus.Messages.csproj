@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>PJT_HIMTIKA.EventBus.Messages</RootNamespace>
+    <RootNamespace>PJT_ERP.EventBus.Messages</RootNamespace>
   </PropertyGroup>
 
 </Project>

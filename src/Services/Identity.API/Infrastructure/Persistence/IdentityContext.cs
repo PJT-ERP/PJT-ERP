@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.Identity.Api.Domain.Entities;
-using PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
+using PJT_ERP.Identity.Api.Domain.Entities;
+using PJT_ERP.Shared.Infrastructure.Abstractions;
 
-namespace PJT_HIMTIKA.Identity.Api.Infrastructure.Persistence;
+namespace PJT_ERP.Identity.Api.Infrastructure.Persistence;
 
 public sealed class IdentityContext(DbContextOptions<IdentityContext> options) : DbContext(options), IUnitOfWork
 {

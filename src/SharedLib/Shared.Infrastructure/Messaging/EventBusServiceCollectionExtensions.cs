@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Npgmq;
 using Npgsql;
 
-namespace PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+namespace PJT_ERP.Shared.Infrastructure.Messaging;
 
 public static class EventBusServiceCollectionExtensions
 {

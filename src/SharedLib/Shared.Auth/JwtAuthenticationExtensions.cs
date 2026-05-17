@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
-namespace PJT_HIMTIKA.Shared.Auth;
+namespace PJT_ERP.Shared.Auth;
 
 public static class JwtAuthenticationExtensions
 {
@@ -15,8 +15,8 @@ public static class JwtAuthenticationExtensions
             ?? Environment.GetEnvironmentVariable("JWT_KEY")
             ?? throw new InvalidOperationException("JWT_KEY is required.");
 
-        var issuer = builder.Configuration["Jwt:Issuer"] ?? "PJT-HIMTIKA.Identity";
-        var audience = builder.Configuration["Jwt:Audience"] ?? "PJT-HIMTIKA.Web";
+        var issuer = builder.Configuration["Jwt:Issuer"] ?? "PJT-ERP.Identity";
+        var audience = builder.Configuration["Jwt:Audience"] ?? "PJT-ERP.Web";
 
         builder.Services
             .AddAuthentication(options =>

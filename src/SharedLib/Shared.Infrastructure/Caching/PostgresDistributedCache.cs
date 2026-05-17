@@ -2,7 +2,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
-namespace PJT_HIMTIKA.Shared.Infrastructure.Caching;
+namespace PJT_ERP.Shared.Infrastructure.Caching;
 
 public sealed class PostgresDistributedCache(IOptions<PostgresCacheOptions> options) : IDistributedCache
 {
