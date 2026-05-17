@@ -4,7 +4,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
-namespace PJT_HIMTIKA.Shared.Auth;
+namespace PJT_ERP.Shared.Auth;
 
 public sealed class JwtTokenIssuer(IConfiguration configuration)
 {
@@ -19,8 +19,8 @@ public sealed class JwtTokenIssuer(IConfiguration configuration)
             ?? Environment.GetEnvironmentVariable("JWT_KEY")
             ?? throw new InvalidOperationException("JWT_KEY is required.");
 
-        var issuer = configuration["Jwt:Issuer"] ?? "PJT-HIMTIKA.Identity";
-        var audience = configuration["Jwt:Audience"] ?? "PJT-HIMTIKA.Web";
+        var issuer = configuration["Jwt:Issuer"] ?? "PJT-ERP.Identity";
+        var audience = configuration["Jwt:Audience"] ?? "PJT-ERP.Web";
 
         var claims = new List<Claim>
         {

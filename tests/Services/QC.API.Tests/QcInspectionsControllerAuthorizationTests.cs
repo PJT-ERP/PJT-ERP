@@ -1,6 +1,6 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
-using PJT_HIMTIKA.QC.Api.Controllers;
+using PJT_ERP.QC.Api.Controllers;
 
 namespace QC.API.Tests;
 

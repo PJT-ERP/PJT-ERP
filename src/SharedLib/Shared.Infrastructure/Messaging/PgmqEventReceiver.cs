@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgmq;
 
-namespace PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+namespace PJT_ERP.Shared.Infrastructure.Messaging;
 
 public sealed class PgmqEventReceiver(
     INpgmqClientWrapper client,

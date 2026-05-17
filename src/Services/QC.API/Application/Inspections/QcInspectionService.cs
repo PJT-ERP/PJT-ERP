@@ -1,11 +1,11 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.EventBus.Messages.Events;
-using PJT_HIMTIKA.QC.Api.Domain.Entities;
-using PJT_HIMTIKA.QC.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.QC.Api.Domain.Entities;
+using PJT_ERP.QC.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.QC.Api.Application.Inspections;
+namespace PJT_ERP.QC.Api.Application.Inspections;
 
 public sealed class QcInspectionService(QcContext db, IEventPublisher eventPublisher) : IQcInspectionService
 {

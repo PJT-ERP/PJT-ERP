@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PJT_HIMTIKA.Identity.Api.Application.Auth;
-using PJT_HIMTIKA.Shared.Auth;
+using PJT_ERP.Identity.Api.Application.Auth;
+using PJT_ERP.Shared.Auth;
 
-namespace PJT_HIMTIKA.Identity.Api.Controllers;
+namespace PJT_ERP.Identity.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]

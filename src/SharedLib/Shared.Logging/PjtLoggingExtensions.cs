@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace PJT_HIMTIKA.Shared.Logging;
+namespace PJT_ERP.Shared.Logging;
 
 public static class PjtLoggingExtensions
 {

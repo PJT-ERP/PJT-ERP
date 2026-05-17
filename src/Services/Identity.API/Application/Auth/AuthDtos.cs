@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Identity.Api.Application.Auth;
+namespace PJT_ERP.Identity.Api.Application.Auth;
 
 public sealed record LoginRequest(string Email);
 

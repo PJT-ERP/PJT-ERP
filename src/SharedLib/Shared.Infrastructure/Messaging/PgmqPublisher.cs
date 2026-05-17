@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Options;
 
-namespace PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+namespace PJT_ERP.Shared.Infrastructure.Messaging;
 
 public sealed class PgmqPublisher(INpgmqClientWrapper client, IOptions<EventBusOptions> options)
 {

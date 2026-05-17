@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
-namespace PJT_HIMTIKA.Shared.Auth;
+namespace PJT_ERP.Shared.Auth;
 
 public static class PjtAuthenticationSchemes
 {

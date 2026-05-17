@@ -899,13 +899,72 @@
     },
     {
       "service": "Purchasing.API",
+      "feature": "Material Requirements",
+      "method": "GET",
+      "path": "/api/v1/purchasing/material-requirements",
+      "auth": "required",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "List material requirements created from Sales Order/SPK events. Optional query: salesOrderId and status.",
+      "requestBody": null,
+      "query": {
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "status": "Required"
+      },
+      "responseBody": [
+        {
+          "id": "00000000-0000-0000-0000-000000000000",
+          "salesOrderId": "00000000-0000-0000-0000-000000000000",
+          "salesOrderNumber": "SO-20260517123000-ABCDEF",
+          "productionOrderId": "00000000-0000-0000-0000-000000000000",
+          "spkNumber": "SPK-20260517123000-ABCDEF",
+          "productId": "00000000-0000-0000-0000-000000000000",
+          "productPartNumber": "PART-001",
+          "productDescription": "Shaft Diameter 20mm",
+          "materialSpec": "S45C",
+          "requiredQty": 10,
+          "projectName": "PT Contoh Customer - PART-001",
+          "status": "Required",
+          "updatedAtUtc": "2026-05-17T05:00:00Z",
+          "purchaseItems": []
+        }
+      ]
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Material Tracking",
+      "method": "GET",
+      "path": "/api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking",
+      "auth": "required",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "Read material tracking summary for one Sales Order, including how many requirements are requested, approved, ordered, and received.",
+      "requestBody": null,
+      "responseBody": {
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "salesOrderNumber": "SO-20260517123000-ABCDEF",
+        "totalRequirements": 1,
+        "requiredRequirements": 0,
+        "requestedRequirements": 0,
+        "approvedRequirements": 0,
+        "orderedRequirements": 0,
+        "receivedRequirements": 1,
+        "receivedPercent": 100.0,
+        "updatedAtUtc": "2026-05-17T05:00:00Z",
+        "requirements": []
+      }
+    },
+    {
+      "service": "Purchasing.API",
       "feature": "Purchase Requests",
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests",
       "auth": "required",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing"],
-      "description": "List purchase requests.",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "List purchase requests. Optional query: salesOrderId and status.",
       "requestBody": null,
+      "query": {
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "status": "Submitted"
+      },
       "responseBody": [
         {
           "id": "00000000-0000-0000-0000-000000000000",
@@ -913,6 +972,9 @@
           "requestDate": "2026-05-17",
           "requestedByUserId": "00000000-0000-0000-0000-000000000000",
           "requesterName": "Purchasing 1",
+          "salesOrderId": "00000000-0000-0000-0000-000000000000",
+          "salesOrderNumber": "SO-20260517123000-ABCDEF",
+          "projectName": "PT Contoh Customer - PART-001",
           "status": "Submitted",
           "reviewedByUserId": null,
           "reviewedAtUtc": null,
@@ -921,15 +983,53 @@
           "items": [
             {
               "id": "00000000-0000-0000-0000-000000000000",
+              "materialRequirementId": "00000000-0000-0000-0000-000000000000",
+              "salesOrderId": "00000000-0000-0000-0000-000000000000",
+              "salesOrderNumber": "SO-20260517123000-ABCDEF",
+              "productionOrderId": "00000000-0000-0000-0000-000000000000",
+              "spkNumber": "SPK-20260517123000-ABCDEF",
+              "projectName": "PT Contoh Customer - PART-001",
               "itemName": "Round Bar S45C",
               "size": "20mm x 6m",
               "qty": 5,
               "suggestedSupplier": "Supplier A",
+              "supplierName": null,
+              "purchaseDate": null,
+              "expectedArrivalDate": null,
+              "receivedDate": null,
+              "purchaseStatus": "Requested",
+              "purchaseNotes": null,
               "notes": "Untuk SPK minggu ini"
             }
           ]
         }
       ]
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "GET",
+      "path": "/api/v1/purchasing/purchase-requests/{id}",
+      "auth": "required",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "Get one purchase request with linked material/SO/SPK and purchase information.",
+      "requestBody": null,
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "prNumber": "PR-20260517123000-ABCDEF",
+        "requestDate": "2026-05-17",
+        "requestedByUserId": "00000000-0000-0000-0000-000000000000",
+        "requesterName": "Purchasing 1",
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "salesOrderNumber": "SO-20260517123000-ABCDEF",
+        "projectName": "PT Contoh Customer - PART-001",
+        "status": "Submitted",
+        "reviewedByUserId": null,
+        "reviewedAtUtc": null,
+        "rejectionReason": null,
+        "updatedAtUtc": "2026-05-17T05:00:00Z",
+        "items": []
+      }
     },
     {
       "service": "Purchasing.API",
@@ -943,8 +1043,17 @@
         "requestDate": "2026-05-17",
         "requestedByUserId": "00000000-0000-0000-0000-000000000000",
         "requesterName": "Purchasing 1",
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "salesOrderNumber": "SO-20260517123000-ABCDEF",
+        "projectName": "PT Contoh Customer - PART-001",
         "items": [
           {
+            "materialRequirementId": "00000000-0000-0000-0000-000000000000",
+            "salesOrderId": "00000000-0000-0000-0000-000000000000",
+            "salesOrderNumber": "SO-20260517123000-ABCDEF",
+            "productionOrderId": "00000000-0000-0000-0000-000000000000",
+            "spkNumber": "SPK-20260517123000-ABCDEF",
+            "projectName": "PT Contoh Customer - PART-001",
             "itemName": "Round Bar S45C",
             "size": "20mm x 6m",
             "qty": 5,
@@ -956,7 +1065,8 @@
       "responseBody": {
         "id": "00000000-0000-0000-0000-000000000000",
         "prNumber": "PR-20260517123000-ABCDEF",
-        "status": "Submitted"
+        "status": "Submitted",
+        "salesOrderNumber": "SO-20260517123000-ABCDEF"
       }
     },
     {
@@ -982,6 +1092,42 @@
         "reviewedByUserId": "00000000-0000-0000-0000-000000000000",
         "reviewedAtUtc": "2026-05-17T05:00:00Z",
         "rejectionReason": null
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Information",
+      "method": "PUT",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/purchase-info",
+      "auth": "required",
+      "roles": ["Admin", "Purchasing"],
+      "description": "Purchasing records actual purchase/supplier information and material arrival status after Finance approval.",
+      "requestBody": {
+        "supplierName": "Supplier A",
+        "purchaseDate": "2026-05-18",
+        "expectedArrivalDate": "2026-05-20",
+        "receivedDate": "2026-05-20",
+        "purchaseStatus": "Received",
+        "purchaseNotes": "Material diterima lengkap."
+      },
+      "allowedValues": {
+        "purchaseStatus": ["Requested", "Approved", "Rejected", "Ordered", "Received"]
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "prNumber": "PR-20260517123000-ABCDEF",
+        "status": "Approved",
+        "items": [
+          {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "supplierName": "Supplier A",
+            "purchaseDate": "2026-05-18",
+            "expectedArrivalDate": "2026-05-20",
+            "receivedDate": "2026-05-20",
+            "purchaseStatus": "Received",
+            "purchaseNotes": "Material diterima lengkap."
+          }
+        ]
       }
     }
   ]

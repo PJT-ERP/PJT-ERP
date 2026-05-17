@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.QC.Api.Domain.Entities;
+namespace PJT_ERP.QC.Api.Domain.Entities;
 
 public sealed class QcDimensionCheck
 {

@@ -45,7 +45,7 @@ PtPjtErp.sln
 
 `QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Kolom `Reject`, `Repair`, dan `Scrap` di visual check adalah hasil inspeksi teknis barang, sedangkan reject dari Owner adalah keputusan review final terhadap form QC. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
-`Purchasing.API` menangani Purchase Request, item pembelian, submit PR, dan review approve/reject oleh Finance.
+`Purchasing.API` menangani kebutuhan material dari Sales Order/SPK, daftar item untuk purchasing, form pembelian barang/material, informasi supplier dan tanggal pembelian, Purchase Request, review approve/reject oleh Finance, serta tracking bahan baku sampai diterima.
 
 `Web.Gateway` adalah API Gateway berbasis YARP. Semua request frontend masuk lewat gateway, lalu diteruskan ke service yang sesuai.
 
@@ -143,9 +143,14 @@ MasterData.API
 
 Production.API
   ├── SpkCreatedEvent
-  │   └── QC.API membuat form inspeksi awal
+  │   ├── QC.API membuat form inspeksi awal
+  │   └── Purchasing.API membuat material requirement awal untuk kebutuhan bahan baku
   └── ProductionFinishedEvent
       └── QC.API menandai inspeksi siap dikerjakan
+
+Production.API
+  └── SalesOrderConfirmedEvent
+      └── Purchasing.API menyimpan snapshot Sales Order untuk tracking bahan baku
 
 QC.API
   └── QcCheckCompletedEvent
@@ -368,23 +373,36 @@ Output utama:
 
 ## Skenario Purchasing
 
-Purchasing atau bagian operasional membuat permintaan pembelian material.
+Purchasing menangani kebutuhan bahan baku dari Sales Order/SPK sampai informasi pembelian dan penerimaan material tercatat. Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran, jumlah, supplier, project, pemohon, approval, dan purchase.
 
 Alur kerja:
 
-1. User Purchasing login.
-2. User membuka menu Purchase Request.
-3. User mengisi item material yang dibutuhkan.
-4. User mengisi size, quantity, supplier suggestion, dan notes.
-5. User submit Purchase Request.
-6. Status PR berubah menjadi `Submitted`.
-7. Finance dapat melihat PR tersebut untuk direview.
+1. Sales Order dikonfirmasi dan Production API membuat SPK.
+2. Production API mengirim `SalesOrderConfirmedEvent` dan `SpkCreatedEvent`.
+3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per SPK sebagai daftar item yang perlu dipantau.
+4. User Purchasing membuka list material requirement, bisa filter berdasarkan Sales Order atau status.
+5. User Purchasing membuat Purchase Request dari satu atau beberapa material requirement.
+6. User mengisi nama barang, ukuran, jumlah, supplier suggestion, project, dan notes.
+7. Status PR berubah menjadi `Submitted`, lalu material requirement berubah menjadi `PurchaseRequested`.
+8. Setelah Finance approve, user Purchasing mengisi informasi pembelian: supplier final, tanggal beli, estimasi datang, tanggal diterima, status pembelian, dan catatan.
+9. Jika material sudah diterima, status item pembelian menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
+
+Endpoint utama:
+
+- `GET /api/v1/purchasing/material-requirements`
+- `GET /api/v1/purchasing/material-requirements?salesOrderId={salesOrderId}`
+- `GET /api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking`
+- `GET /api/v1/purchasing/purchase-requests`
+- `GET /api/v1/purchasing/purchase-requests/{id}`
+- `POST /api/v1/purchasing/purchase-requests`
+- `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/purchase-info`
 
 Output utama:
 
-- Purchase Request
-- Purchase Request Item
-- Status PR
+- Material Requirement dari Sales Order/SPK.
+- Purchase Request dan Purchase Request Item.
+- Informasi supplier, tanggal beli, estimasi datang, tanggal diterima, dan status pembelian.
+- Tracking bahan baku per Sales Order.
 
 ## Skenario Finance
 
@@ -399,6 +417,7 @@ Alur kerja:
 5. Jika reject, Finance mengisi alasan penolakan.
 6. Sistem menyimpan reviewer, waktu review, dan status final.
 7. Purchasing API mengirim `PurchaseRequestReviewedEvent`.
+8. Jika approved, Purchasing bisa melanjutkan pengisian informasi pembelian material.
 
 Output utama:
 
@@ -454,6 +473,7 @@ Workflow GitHub Actions untuk test service tersedia di:
 ```text
 .github/workflows/qc-tests.yml
 .github/workflows/production-tests.yml
+.github/workflows/purchasing-tests.yml
 ```
 
 Setiap Pull Request akan menjalankan:
@@ -461,11 +481,14 @@ Setiap Pull Request akan menjalankan:
 ```powershell
 dotnet test tests/Services/QC.API.Tests/QC.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --configuration Release --no-restore
+dotnet test tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj --configuration Release --no-restore
 ```
 
 Test ini fokus ke logic QC: scan barcode/QR, upload checksheet, validasi defect notes, approval Owner, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC hanya untuk `Owner`/`Admin`.
 
 Test Production fokus ke logic Production Tracking: confirm Sales Order menjadi SPK/barcode, lookup barcode, scan `Start`, scan `Complete`, validasi complete sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
+
+Test Purchasing fokus ke material requirement dari event Sales Order/SPK, submit Purchase Request, review Finance, update informasi pembelian oleh Purchasing, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
 
 ## Catatan Implementasi
 

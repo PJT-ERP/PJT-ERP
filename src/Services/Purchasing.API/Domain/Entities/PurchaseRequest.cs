@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Purchasing.Api.Domain.Entities;
+namespace PJT_ERP.Purchasing.Api.Domain.Entities;
 
 public sealed class PurchaseRequest
 {
@@ -7,6 +7,9 @@ public sealed class PurchaseRequest
     public DateOnly RequestDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public Guid RequestedByUserId { get; set; }
     public string RequesterName { get; set; } = "";
+    public Guid? SalesOrderId { get; set; }
+    public string? SalesOrderNumber { get; set; }
+    public string? ProjectName { get; set; }
     public string Status { get; set; } = PurchaseRequestStatuses.Draft;
     public Guid? ReviewedByUserId { get; set; }
     public DateTime? ReviewedAtUtc { get; set; }

@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Production.Api.Domain.Entities;
+namespace PJT_ERP.Production.Api.Domain.Entities;
 
 public sealed class CustomerReplica
 {

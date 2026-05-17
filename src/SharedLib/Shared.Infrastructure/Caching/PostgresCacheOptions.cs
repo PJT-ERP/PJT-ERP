@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Shared.Infrastructure.Caching;
+namespace PJT_ERP.Shared.Infrastructure.Caching;
 
 public sealed class PostgresCacheOptions
 {

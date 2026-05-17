@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.MasterData.Api.Application.Catalog;
+namespace PJT_ERP.MasterData.Api.Application.Catalog;
 
 public interface ICatalogService
 {

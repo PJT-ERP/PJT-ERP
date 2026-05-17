@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Identity.Api.Domain.Entities;
+namespace PJT_ERP.Identity.Api.Domain.Entities;
 
 public sealed class UserAccount
 {

@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.EventBus.Messages.Events;
-using PJT_HIMTIKA.Production.Api.Application.Production;
-using PJT_HIMTIKA.Production.Api.Controllers;
-using PJT_HIMTIKA.Production.Api.Domain.Entities;
-using PJT_HIMTIKA.Production.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.Production.Api.Application.Production;
+using PJT_ERP.Production.Api.Controllers;
+using PJT_ERP.Production.Api.Domain.Entities;
+using PJT_ERP.Production.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Production.API.Tests;

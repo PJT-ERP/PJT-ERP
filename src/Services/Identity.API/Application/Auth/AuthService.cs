@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.Identity.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Auth;
+using PJT_ERP.Identity.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Auth;
 
-namespace PJT_HIMTIKA.Identity.Api.Application.Auth;
+namespace PJT_ERP.Identity.Api.Application.Auth;
 
 public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) : IAuthService
 {

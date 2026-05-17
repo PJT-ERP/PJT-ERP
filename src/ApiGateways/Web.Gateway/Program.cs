@@ -1,5 +1,5 @@
-using PJT_HIMTIKA.Shared.Auth;
-using PJT_HIMTIKA.Shared.Logging;
+using PJT_ERP.Shared.Auth;
+using PJT_ERP.Shared.Logging;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);

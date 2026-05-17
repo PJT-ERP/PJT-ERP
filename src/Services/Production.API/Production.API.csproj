@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>PJT_HIMTIKA.Production.Api</RootNamespace>
+    <RootNamespace>PJT_ERP.Production.Api</RootNamespace>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 

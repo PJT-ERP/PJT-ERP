@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PJT_HIMTIKA.QC.Api.Application.Inspections;
+using PJT_ERP.QC.Api.Application.Inspections;
 
-namespace PJT_HIMTIKA.QC.Api.Controllers;
+namespace PJT_ERP.QC.Api.Controllers;
 
 [ApiController]
 [Authorize]

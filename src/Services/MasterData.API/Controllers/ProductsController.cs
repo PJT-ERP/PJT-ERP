@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PJT_HIMTIKA.MasterData.Api.Application.Catalog;
+using PJT_ERP.MasterData.Api.Application.Catalog;
 
-namespace PJT_HIMTIKA.MasterData.Api.Controllers;
+namespace PJT_ERP.MasterData.Api.Controllers;
 
 [ApiController]
 [Authorize]

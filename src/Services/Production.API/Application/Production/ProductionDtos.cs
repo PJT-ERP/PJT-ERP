@@ -1,4 +1,4 @@
-namespace PJT_HIMTIKA.Production.Api.Application.Production;
+namespace PJT_ERP.Production.Api.Application.Production;
 
 public sealed record CreateSalesOrderRequest(
     Guid CustomerId,

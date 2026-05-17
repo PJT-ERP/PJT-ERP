@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace PJT_HIMTIKA.QC.Api.Application.Inspections;
+namespace PJT_ERP.QC.Api.Application.Inspections;
 
 public sealed record QcInspectionDto(
     Guid Id,

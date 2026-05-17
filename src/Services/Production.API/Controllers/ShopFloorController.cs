@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PJT_HIMTIKA.Production.Api.Application.Production;
+using PJT_ERP.Production.Api.Application.Production;
 
-namespace PJT_HIMTIKA.Production.Api.Controllers;
+namespace PJT_ERP.Production.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = "Admin,Owner")]

@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.EventBus.Messages.Events;
-using PJT_HIMTIKA.QC.Api.Application.Inspections;
-using PJT_HIMTIKA.QC.Api.Application.IntegrationEvents;
-using PJT_HIMTIKA.QC.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Auth;
-using PJT_HIMTIKA.Shared.Infrastructure.Abstractions;
-using PJT_HIMTIKA.Shared.Infrastructure.Caching;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
-using PJT_HIMTIKA.Shared.Logging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.QC.Api.Application.Inspections;
+using PJT_ERP.QC.Api.Application.IntegrationEvents;
+using PJT_ERP.QC.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Auth;
+using PJT_ERP.Shared.Infrastructure.Abstractions;
+using PJT_ERP.Shared.Infrastructure.Caching;
+using PJT_ERP.Shared.Infrastructure.Messaging;
+using PJT_ERP.Shared.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 

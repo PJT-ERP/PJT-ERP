@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using PJT_HIMTIKA.EventBus.Messages.Events;
-using PJT_HIMTIKA.QC.Api.Domain.Entities;
-using PJT_HIMTIKA.QC.Api.Infrastructure.Persistence;
-using PJT_HIMTIKA.Shared.Infrastructure.Messaging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.QC.Api.Domain.Entities;
+using PJT_ERP.QC.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
-namespace PJT_HIMTIKA.QC.Api.Application.IntegrationEvents;
+namespace PJT_ERP.QC.Api.Application.IntegrationEvents;
 
 public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHandler<SpkCreatedEvent>
 {
