@@ -52,6 +52,7 @@
         "Owner handles barcode lookup, Start, and Complete in the MVP because the app does not define a separate Production role yet.",
         "Sales Order creates and confirms SO records, which creates SPK/barcodes.",
         "Owner monitors production progress and continues the workflow through QC review after production is finished.",
+        "Customers/public users can open read-only production tracking without login using a shared SO number, SPK number, or barcode UID.",
         "Finance and Purchasing may read production progress for planning/material context, but they do not update production status."
       ],
       "writeAccess": {
@@ -61,7 +62,8 @@
         "ownerDashboardAndQcReview": ["Admin", "Owner"]
       },
       "readAccess": {
-        "productionOrdersAndSalesOrderProgress": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"]
+        "productionOrdersAndSalesOrderProgress": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+        "publicCustomerTracking": "anonymous"
       }
     }
   },
@@ -338,6 +340,54 @@
                 "startedAtUtc": "2026-05-17T05:00:00Z",
                 "finishedAtUtc": null,
                 "durationSeconds": 1800
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "service": "Production.API",
+      "feature": "Public Production Tracking",
+      "method": "GET",
+      "path": "/api/v1/production/tracking?code={soNumberOrSpkOrBarcode}",
+      "alternatePath": "/api/v1/production/tracking/{soNumberOrSpkOrBarcode}",
+      "auth": "anonymous",
+      "roles": [],
+      "description": "Public/customer read-only production tracking. Customers can check how far an order has progressed using a shared Sales Order number, SPK number, or barcode UID. This response intentionally hides internal fields such as barcode UID, drawing links, uploader IDs, and QC decisions.",
+      "requestBody": null,
+      "query": {
+        "code": "SO-20260517123000-ABCDEF"
+      },
+      "responseBody": {
+        "soNumber": "SO-20260517123000-ABCDEF",
+        "customerName": "PT Contoh Customer",
+        "status": "InProduction",
+        "totalItems": 1,
+        "totalQuantity": 10,
+        "productionOrderCount": 1,
+        "waitingOrders": 0,
+        "inProgressOrders": 1,
+        "finishedOrders": 0,
+        "closedOrders": 0,
+        "progressPercent": 0.0,
+        "updatedAtUtc": "2026-05-17T05:00:00Z",
+        "items": [
+          {
+            "productPartNumber": "PART-001",
+            "productDescription": "Shaft Diameter 20mm",
+            "qty": 10,
+            "productionOrders": [
+              {
+                "poNumber": "SPK-20260517123000-ABCDEF",
+                "productPartNumber": "PART-001",
+                "productDescription": "Shaft Diameter 20mm",
+                "orderQty": 10,
+                "status": "InProgress",
+                "startedAtUtc": "2026-05-17T05:00:00Z",
+                "finishedAtUtc": null,
+                "durationSeconds": 1800,
+                "updatedAtUtc": "2026-05-17T05:30:00Z"
               }
             ]
           }

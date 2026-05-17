@@ -79,7 +79,7 @@ Saat environment `Development`, Scalar tersedia untuk testing API:
 http://localhost:5000/scalar
 ```
 
-Gateway Scalar memuat dokumen OpenAPI dari masing-masing service:
+Gateway Scalar memuat dokumen OpenAPI dari masing-masing service. Pilih service dari dropdown di kiri atas Scalar:
 
 - Identity: `/openapi/identity/v1.json`
 - Master Data: `/openapi/masterdata/v1.json`
@@ -209,6 +209,7 @@ Production Tracking adalah workflow lintas service, bukan module yang berdiri se
 - Sales Order membuat Sales Order dan melakukan confirm sampai sistem membuat SPK/barcode.
 - Engineering melihat SPK dan upload link gambar engineering.
 - Owner melakukan lookup barcode, scan `Start`, scan `Complete`, melihat progress produksi, dashboard, bottleneck, dan melanjutkan proses review lewat QC setelah produksi selesai.
+- Customer/public dapat membuka link tracking produksi tanpa login untuk melihat progress order sudah sampai mana. Akses ini read-only dan tidak menampilkan data internal seperti uploader, link drawing, atau user id.
 - Finance dan Purchasing dapat membaca progress produksi untuk konteks material, PR, dan planning, tetapi tidak mengubah status produksi.
 - Admin mengelola user dan punya akses override sistem.
 
@@ -290,9 +291,12 @@ Alur kerja:
 8. User scan barcode/QR dengan action `Complete` ketika produksi selesai. Action lama `Finish` tetap diterima sebagai alias.
 9. Sistem otomatis mengisi `finished_at_utc`, mengubah status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
 10. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order untuk melihat jumlah SPK waiting, in progress, finished, closed, dan progress percent.
+11. Customer dapat membuka public tracking memakai kode Sales Order, nomor SPK, atau barcode UID yang diberikan untuk melihat progress tanpa login. Public tracking hanya menampilkan status, progress, item, quantity, waktu mulai/selesai, dan duration.
 
 Endpoint utama:
 
+- `GET /api/v1/production/tracking?code={soNumberOrSpkOrBarcode}`
+- `GET /api/v1/production/tracking/{soNumberOrSpkOrBarcode}`
 - `GET /api/v1/production/orders`
 - `GET /api/v1/production/orders?salesOrderId={salesOrderId}`
 - `GET /api/v1/production/orders/{id}`
@@ -308,6 +312,7 @@ Output utama:
 - Status `Waiting`, `InProgress`, `Finished`, atau `Closed`.
 - `started_at_utc`, `finished_at_utc`, dan `durationSeconds`.
 - Progress Sales Order.
+- Public customer tracking yang read-only.
 
 ## Skenario Engineering
 

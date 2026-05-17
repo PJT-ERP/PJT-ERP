@@ -55,6 +55,38 @@ public sealed record SalesOrderProductionProgressItemDto(
     int Qty,
     IReadOnlyCollection<ProductionOrderDto> ProductionOrders);
 
+public sealed record PublicProductionTrackingDto(
+    string SoNumber,
+    string CustomerName,
+    string Status,
+    int TotalItems,
+    int TotalQuantity,
+    int ProductionOrderCount,
+    int WaitingOrders,
+    int InProgressOrders,
+    int FinishedOrders,
+    int ClosedOrders,
+    decimal ProgressPercent,
+    DateTime UpdatedAtUtc,
+    IReadOnlyCollection<PublicProductionTrackingItemDto> Items);
+
+public sealed record PublicProductionTrackingItemDto(
+    string ProductPartNumber,
+    string ProductDescription,
+    int Qty,
+    IReadOnlyCollection<PublicProductionOrderTrackingDto> ProductionOrders);
+
+public sealed record PublicProductionOrderTrackingDto(
+    string PoNumber,
+    string ProductPartNumber,
+    string ProductDescription,
+    int OrderQty,
+    string Status,
+    DateTime? StartedAtUtc,
+    DateTime? FinishedAtUtc,
+    long? DurationSeconds,
+    DateTime UpdatedAtUtc);
+
 public sealed record ProductionOrderDto(
     Guid Id,
     string PoNumber,
