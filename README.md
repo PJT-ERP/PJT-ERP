@@ -41,7 +41,7 @@ PtPjtErp.sln
 
 `MasterData.API` menangani data master seperti customer dan product/part. Data ini dipakai oleh Sales Order dan Engineering, tetapi tidak dibuat sebagai foreign key lintas database.
 
-`Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode/QR, scan mulai produksi, scan selesai/complete produksi, tracking waktu otomatis, detail/list SPK, progress per Sales Order, dan dashboard owner.
+`Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode/QR, scan mulai produksi, scan selesai/complete produksi, tracking waktu otomatis, detail/list SPK, progress per Sales Order, dan dashboard owner. Service ini dipakai lintas role: Sales Order membuat SO, Engineering menjalankan aktivitas shop floor/production tracking, dan Owner memonitor progress.
 
 `QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Kolom `Reject`, `Repair`, dan `Scrap` di visual check adalah hasil inspeksi teknis barang, sedangkan reject dari Owner adalah keputusan review final terhadap form QC. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
@@ -200,7 +200,17 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Engineering hanya melakukan input/upload file gambar engineering. Engineering tidak mengisi checksheet QC dan tidak mengisi kolom reject pada form QC. Pengisian form QC/checksheet, defect notes, dan keputusan review final approve/reject dilakukan oleh Owner.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC atau Production pada MVP ini. Role Engineering dipakai untuk dua konteks operasional: upload/input file gambar engineering dan menjalankan aktivitas shop floor seperti scan barcode untuk `Start`/`Complete` produksi. Engineering tetap tidak mengisi checksheet QC dan tidak mengisi kolom reject pada form QC. Pengisian form QC/checksheet, defect notes, dan keputusan review final approve/reject dilakukan oleh Owner.
+
+## Pembagian Akses Production Tracking
+
+Production Tracking adalah workflow lintas service, bukan module yang berdiri sendiri untuk semua orang mengubah data. Data produksinya memang dibaca oleh beberapa role, tetapi aksi update tetap dibatasi.
+
+- Sales Order membuat Sales Order dan melakukan confirm sampai sistem membuat SPK/barcode.
+- Engineering bertindak sebagai operator shop floor/production untuk melihat SPK, lookup barcode, scan `Start`, scan `Complete`, dan upload link gambar engineering.
+- Owner melihat progress produksi, dashboard, bottleneck, dan melanjutkan proses review lewat QC setelah produksi selesai.
+- Finance dan Purchasing dapat membaca progress produksi untuk konteks material, PR, dan planning, tetapi tidak mengubah status produksi.
+- Admin mengelola user dan punya akses override sistem.
 
 ## Skenario Login dan Logout
 
@@ -264,11 +274,13 @@ Output utama:
 
 ## Skenario Production Tracking (Barcode/QR)
 
-Engineering melakukan tracking produksi dari SPK yang dibuat berdasarkan Sales Order. Barcode/QR dipakai sebagai input scan dari web camera atau mobile camera.
+Production Tracking mengikuti cara kerja Excel lama: ada daftar pekerjaan/SPK, status pekerjaan, person in charge, progress, tanggal mulai/selesai, dan notes. Di aplikasi ini, tracking tersebut dibuat berdasarkan Sales Order dan dijalankan lewat barcode/QR.
+
+Karena belum ada role terpisah bernama Production, role Engineering dipakai sebagai role operator produksi/shop floor. Jadi "Engineering" di module ini berarti user yang mengoperasikan tracking produksi, bukan hanya engineering drawing.
 
 Alur kerja:
 
-1. User Engineering login.
+1. User Engineering/Production operator login.
 2. User membuka daftar Production Order/SPK.
 3. User dapat melihat semua SPK atau filter berdasarkan Sales Order.
 4. User membuka detail SPK untuk melihat link ke Sales Order, customer, product, barcode UID, status, start time, finish time, dan duration.
@@ -277,7 +289,7 @@ Alur kerja:
 7. Sistem otomatis mengisi `started_at_utc`, mengubah status menjadi `InProgress`, dan mulai menghitung duration.
 8. User scan barcode/QR dengan action `Complete` ketika produksi selesai. Action lama `Finish` tetap diterima sebagai alias.
 9. Sistem otomatis mengisi `finished_at_utc`, mengubah status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
-10. User atau Owner dapat membuka progress Sales Order untuk melihat jumlah SPK waiting, in progress, finished, closed, dan progress percent.
+10. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order untuk melihat jumlah SPK waiting, in progress, finished, closed, dan progress percent.
 
 Endpoint utama:
 
@@ -299,7 +311,7 @@ Output utama:
 
 ## Skenario Engineering
 
-Engineering menangani upload file gambar engineering ke SPK. Role ini tidak melakukan review, approve, atau reject.
+Dalam konteks module Engineering/drawing, Engineering menangani upload file gambar engineering ke SPK. Role ini tidak melakukan review, approve, atau reject. Dalam konteks Production Tracking, role yang sama juga dipakai sebagai operator produksi untuk scan barcode `Start`/`Complete` karena MVP belum memiliki role Production terpisah.
 
 Alur kerja:
 
