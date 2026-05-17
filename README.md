@@ -43,7 +43,7 @@ PtPjtErp.sln
 
 `Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode, scan mulai produksi, scan selesai produksi, dan dashboard owner.
 
-`QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
+`QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Kolom `Reject`, `Repair`, dan `Scrap` di visual check adalah hasil inspeksi teknis barang, sedangkan reject dari Owner adalah keputusan review final terhadap form QC. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
 `Purchasing.API` menangani Purchase Request, item pembelian, submit PR, dan review approve/reject oleh Finance.
 
@@ -200,7 +200,7 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Engineering hanya melakukan input/upload file gambar engineering. Pengisian form QC/checksheet, defect notes, review, approve, dan reject QC dilakukan oleh Owner.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Engineering hanya melakukan input/upload file gambar engineering. Engineering tidak mengisi checksheet QC dan tidak mengisi kolom reject pada form QC. Pengisian form QC/checksheet, defect notes, dan keputusan review final approve/reject dilakukan oleh Owner.
 
 ## Skenario Login dan Logout
 
@@ -284,7 +284,7 @@ Output utama:
 
 ## Skenario Owner untuk QC
 
-Owner melakukan proses QC dari scan barcode/QR, pengisian checksheet, notes defect, sampai approve/reject untuk menyelesaikan order.
+Owner melakukan proses QC dari scan barcode/QR, pengisian checksheet, notes defect, sampai review final approve/reject untuk menyelesaikan order. Di modul ini ada dua arti reject yang berbeda: `Reject` pada checksheet adalah hasil inspeksi teknis barang, sedangkan `Rejected` pada review Owner adalah keputusan final bahwa form QC tidak disetujui.
 
 Alur kerja:
 
@@ -294,12 +294,12 @@ Alur kerja:
 4. Saat produksi selesai, form berubah menjadi siap inspeksi melalui `ProductionFinishedEvent`.
 5. QC API mencari inspection berdasarkan barcode UID, nomor SPK, atau nomor referensi QC.
 6. User mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
-7. User mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
+7. Owner mengisi visual check sesuai format checksheet: `Accept` untuk quantity barang OK, `Reject` untuk quantity barang NG, `Repair` untuk barang yang perlu repair, `Scrap` untuk barang scrap, serta NC/NCR reference dan keterangan jika ada defect.
 8. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
-9. User mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
-10. Jika ada defect, Owner wajib mengisi defect notes.
+9. Owner mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
+10. Jika hasil teknis memiliki `Reject`, `Repair`, atau `Scrap`, Owner wajib mengisi defect notes.
 11. Owner menyimpan/upload form QC.
-12. Owner memilih `Approve` atau `Reject`.
+12. Owner melakukan review final dengan memilih `Approve` atau `Reject`. Keputusan ini disimpan sebagai owner decision dan tidak otomatis mengubah jumlah reject pada visual check.
 13. QC API mengirim `QcCheckCompletedEvent` ke Production API.
 14. Jika Owner approve, Production Order berubah menjadi `Closed`.
 
@@ -308,11 +308,11 @@ Output utama:
 - QC Inspection
 - Hasil scan barcode/QR QC
 - Header checksheet lama: produk, kode produk, POR/SPK, ref gambar, jumlah order, spec material, jumlah sample, metode sampling, dan alat ukur.
-- Visual Check
+- Visual Check, termasuk quantity `Accept`, `Reject`, `Repair`, `Scrap`, NC/NCR reference, dan keterangan teknis.
 - Dimension Check
-- Inspection Result dari Owner
+- Inspection Result teknis dari checksheet.
 - Defect Notes
-- Status Approved / Rejected
+- Owner Review Status: Approved / Rejected.
 
 ## Skenario Purchasing
 
