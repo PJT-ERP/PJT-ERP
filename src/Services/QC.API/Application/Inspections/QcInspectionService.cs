@@ -166,20 +166,25 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
         ClearOwnerReview(inspection);
         inspection.InspectionResult = inspectionResult;
         inspection.DefectNotes = request.DefectNotes;
-        inspection.EngineeringRemarks = request.EngineeringRemarks;
+        inspection.FormRemarks = request.FormRemarks;
         inspection.Status = request.SubmitForOwnerReview
             ? QcInspectionStatuses.PendingOwnerReview
             : QcInspectionStatuses.InInspection;
         inspection.UpdatedAtUtc = now;
 
-        db.QcVisualChecks.RemoveRange(inspection.VisualChecks);
-        db.QcDimensionChecks.RemoveRange(inspection.DimensionChecks);
-        inspection.VisualChecks.Clear();
-        inspection.DimensionChecks.Clear();
-
-        foreach (var visualCheck in visualChecks)
+        var existingVisualChecks = inspection.VisualChecks.ToArray();
+        var existingDimensionChecks = inspection.DimensionChecks.ToArray();
+        if (existingVisualChecks.Length > 0)
         {
-            inspection.VisualChecks.Add(new QcVisualCheck
+            db.QcVisualChecks.RemoveRange(existingVisualChecks);
+        }
+
+        if (existingDimensionChecks.Length > 0)
+        {
+            db.QcDimensionChecks.RemoveRange(existingDimensionChecks);
+        }
+
+        var newVisualChecks = visualChecks.Select(visualCheck => new QcVisualCheck
             {
                 QcInspectionId = inspection.Id,
                 QtyChecked = visualCheck.QtyChecked,
@@ -192,12 +197,10 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
                 CheckDate = visualCheck.CheckDate,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
-            });
-        }
+            })
+            .ToArray();
 
-        foreach (var dimensionCheck in dimensionChecks)
-        {
-            inspection.DimensionChecks.Add(new QcDimensionCheck
+        var newDimensionChecks = dimensionChecks.Select(dimensionCheck => new QcDimensionCheck
             {
                 QcInspectionId = inspection.Id,
                 SampleId = dimensionCheck.SampleId,
@@ -209,10 +212,22 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
                 CheckDate = dimensionCheck.CheckDate,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
-            });
+            })
+            .ToArray();
+
+        if (newVisualChecks.Length > 0)
+        {
+            await db.QcVisualChecks.AddRangeAsync(newVisualChecks, cancellationToken);
+        }
+
+        if (newDimensionChecks.Length > 0)
+        {
+            await db.QcDimensionChecks.AddRangeAsync(newDimensionChecks, cancellationToken);
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        inspection.VisualChecks = [.. newVisualChecks];
+        inspection.DimensionChecks = [.. newDimensionChecks];
         return ToDto(inspection);
     }
 
@@ -233,7 +248,7 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
 
         inspection.InspectionResult = inspectionResult;
         inspection.DefectNotes = defectNotes;
-        inspection.EngineeringRemarks = request.EngineeringRemarks ?? inspection.EngineeringRemarks;
+        inspection.FormRemarks = request.FormRemarks ?? inspection.FormRemarks;
         inspection.Status = QcInspectionStatuses.PendingOwnerReview;
         ClearOwnerReview(inspection);
         inspection.UpdatedAtUtc = DateTime.UtcNow;
@@ -254,7 +269,7 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
 
         if (inspection.Status != QcInspectionStatuses.PendingOwnerReview)
         {
-            throw new InvalidOperationException("Inspection must be submitted by Engineering before owner review.");
+            throw new InvalidOperationException("Inspection must be submitted for owner review before final approval.");
         }
 
         var normalizedDecision = NormalizeOwnerDecision(request.Decision);
@@ -521,7 +536,7 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             inspection.Status,
             inspection.InspectionResult,
             inspection.DefectNotes,
-            inspection.EngineeringRemarks,
+            inspection.FormRemarks,
             inspection.OwnerDecision,
             inspection.OwnerReviewedByUserId,
             inspection.OwnerReviewerName,

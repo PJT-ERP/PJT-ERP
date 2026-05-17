@@ -43,7 +43,7 @@ PtPjtErp.sln
 
 `Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode, scan mulai produksi, scan selesai produksi, dan dashboard owner.
 
-`QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Engineering, defect notes, dan review approve/reject oleh Owner. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
+`QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
 
 `Purchasing.API` menangani Purchase Request, item pembelian, submit PR, dan review approve/reject oleh Finance.
 
@@ -200,7 +200,7 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Engineering hanya melakukan input/upload seperti upload file gambar dan pengisian form QC/checksheet. Semua review, approve, dan reject untuk QC dilakukan oleh Owner.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC. Engineering hanya melakukan input/upload file gambar engineering. Pengisian form QC/checksheet, defect notes, review, approve, dan reject QC dilakukan oleh Owner.
 
 ## Skenario Login dan Logout
 
@@ -282,14 +282,14 @@ Output utama:
 - Uploader.
 - Waktu upload.
 
-## Skenario Engineering untuk QC
+## Skenario Owner untuk QC
 
-Role Engineering juga scan barcode/QR QC, mengisi inspeksi visual dan dimensi setelah barang selesai diproduksi, menulis notes defect, lalu upload form QC untuk review Owner. Engineering hanya upload dan submit hasil checksheet, bukan approve/reject.
+Owner melakukan proses QC dari scan barcode/QR, pengisian checksheet, notes defect, sampai approve/reject untuk menyelesaikan order.
 
 Alur kerja:
 
-1. User Engineering login ke sistem.
-2. User membuka menu QC dan scan barcode/QR SPK.
+1. Owner login ke sistem.
+2. Owner membuka menu QC dan scan barcode/QR SPK.
 3. Saat SPK dibuat, QC API sudah menyiapkan form inspeksi melalui `SpkCreatedEvent`.
 4. Saat produksi selesai, form berubah menjadi siap inspeksi melalui `ProductionFinishedEvent`.
 5. QC API mencari inspection berdasarkan barcode UID, nomor SPK, atau nomor referensi QC.
@@ -297,9 +297,11 @@ Alur kerja:
 7. User mengisi visual check: accept, reject, repair, scrap, NC reference, dan remarks.
 8. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
 9. User mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
-10. Jika ada defect, user wajib mengisi defect notes.
-11. User klik tombol upload/approval form QC untuk submit checksheet ke Owner.
-12. Status inspeksi berubah menjadi `PendingOwnerReview`.
+10. Jika ada defect, Owner wajib mengisi defect notes.
+11. Owner menyimpan/upload form QC.
+12. Owner memilih `Approve` atau `Reject`.
+13. QC API mengirim `QcCheckCompletedEvent` ke Production API.
+14. Jika Owner approve, Production Order berubah menjadi `Closed`.
 
 Output utama:
 
@@ -308,9 +310,9 @@ Output utama:
 - Header checksheet lama: produk, kode produk, POR/SPK, ref gambar, jumlah order, spec material, jumlah sample, metode sampling, dan alat ukur.
 - Visual Check
 - Dimension Check
-- Inspection Result dari Engineering
+- Inspection Result dari Owner
 - Defect Notes
-- Status `PendingOwnerReview`
+- Status Approved / Rejected
 
 ## Skenario Purchasing
 
@@ -353,24 +355,18 @@ Output utama:
 - Waktu review
 - Rejection reason jika ada
 
-## Skenario Owner
+## Skenario Owner Dashboard
 
-Owner melakukan review hasil QC dan melihat kondisi pabrik secara high-level.
+Owner melihat kondisi pabrik secara high-level.
 
 Alur kerja:
 
 1. Owner login ke sistem.
-2. Owner membuka daftar QC yang berstatus `PendingOwnerReview`.
-3. Owner melihat hasil upload Engineering: visual check, dimension check, inspection result, defect notes, dan remarks.
-4. Owner memilih `Approve` atau `Reject`.
-5. QC API menyimpan reviewer, waktu review, dan catatan Owner.
-6. QC API mengirim `QcCheckCompletedEvent` ke Production API.
-7. Jika Owner approve, Production Order berubah menjadi `Closed`.
-8. Owner membuka Executive Dashboard.
-9. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
-10. Owner melihat hasil QC berdasarkan review final: approved dan rejected.
-11. Owner melihat rejection rate.
-12. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
+2. Owner membuka Executive Dashboard.
+3. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
+4. Owner melihat hasil QC berdasarkan review final: approved dan rejected.
+5. Owner melihat rejection rate.
+6. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
 
 Output utama:
 
@@ -398,6 +394,22 @@ Gateway utama:
 ```text
 http://localhost:5000
 ```
+
+## CI/CD
+
+Workflow GitHub Actions untuk QC tersedia di:
+
+```text
+.github/workflows/qc-tests.yml
+```
+
+Setiap Pull Request akan menjalankan:
+
+```powershell
+dotnet test tests/Services/QC.API.Tests/QC.API.Tests.csproj --configuration Release --no-restore
+```
+
+Test ini fokus ke logic QC: scan barcode/QR, upload checksheet, validasi defect notes, approval Owner, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC hanya untuk `Owner`/`Admin`.
 
 ## Catatan Implementasi
 

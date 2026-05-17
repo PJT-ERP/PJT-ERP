@@ -40,7 +40,7 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.Property(inspection => inspection.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(inspection => inspection.InspectionResult).HasMaxLength(40).HasColumnName("inspection_result");
             builder.Property(inspection => inspection.DefectNotes).HasColumnName("defect_notes");
-            builder.Property(inspection => inspection.EngineeringRemarks).HasColumnName("engineering_remarks");
+            builder.Property(inspection => inspection.FormRemarks).HasColumnName("form_remarks");
             builder.Property(inspection => inspection.OwnerDecision).HasMaxLength(40).HasColumnName("owner_decision");
             builder.Property(inspection => inspection.OwnerReviewedByUserId).HasColumnName("owner_reviewed_by_user_id");
             builder.Property(inspection => inspection.OwnerReviewerName).HasMaxLength(160).HasColumnName("owner_reviewer_name");

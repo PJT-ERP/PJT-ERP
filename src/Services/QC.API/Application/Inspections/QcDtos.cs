@@ -23,7 +23,7 @@ public sealed record QcInspectionDto(
     string Status,
     string? InspectionResult,
     string? DefectNotes,
-    string? EngineeringRemarks,
+    string? FormRemarks,
     string? OwnerDecision,
     Guid? OwnerReviewedByUserId,
     string? OwnerReviewerName,
@@ -88,7 +88,7 @@ public sealed record UploadQcFormRequest(
     string MeasuringToolNo,
     string InspectionResult,
     string? DefectNotes,
-    string? EngineeringRemarks,
+    string? FormRemarks,
     bool SubmitForOwnerReview,
     IReadOnlyCollection<CreateVisualCheckRequest> VisualChecks,
     IReadOnlyCollection<CreateDimensionCheckRequest> DimensionChecks,
@@ -109,7 +109,7 @@ public sealed record QcDimensionCheckDto(
     string? OperatorName,
     string Status);
 
-public sealed record SubmitInspectionRequest(string InspectionResult, string? EngineeringRemarks, string? DefectNotes = null);
+public sealed record SubmitInspectionRequest(string InspectionResult, string? FormRemarks, string? DefectNotes = null);
 
 public sealed record ReviewInspectionRequest(
     Guid OwnerReviewedByUserId,

@@ -23,7 +23,7 @@ public sealed class QcInspection
     public string Status { get; set; } = QcInspectionStatuses.WaitingProduction;
     public string? InspectionResult { get; set; }
     public string? DefectNotes { get; set; }
-    public string? EngineeringRemarks { get; set; }
+    public string? FormRemarks { get; set; }
     public string? OwnerDecision { get; set; }
     public Guid? OwnerReviewedByUserId { get; set; }
     public string? OwnerReviewerName { get; set; }

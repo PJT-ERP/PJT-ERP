@@ -9,4 +9,5 @@
   <Project Path="src/Services/QC.API/QC.API.csproj" />
   <Project Path="src/Services/Purchasing.API/Purchasing.API.csproj" />
   <Project Path="src/ApiGateways/Web.Gateway/Web.Gateway.csproj" />
+  <Project Path="tests/Services/QC.API.Tests/QC.API.Tests.csproj" />
 </Solution>

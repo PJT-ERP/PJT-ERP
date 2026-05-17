@@ -10,14 +10,14 @@ namespace PJT_HIMTIKA.QC.Api.Controllers;
 public sealed class QcInspectionsController(IQcInspectionService inspectionService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Engineering,Owner")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<IReadOnlyCollection<QcInspectionDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await inspectionService.ListAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Admin,Engineering,Owner")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcInspectionDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var inspection = await inspectionService.GetAsync(id, cancellationToken);
@@ -25,7 +25,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPost("scan")]
-    [Authorize(Roles = "Admin,Engineering,Owner")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcInspectionDto>> Scan(ScanInspectionRequest request, CancellationToken cancellationToken)
     {
         try
@@ -40,7 +40,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPost("{id:guid}/start")]
-    [Authorize(Roles = "Admin,Engineering")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcInspectionDto>> Start(Guid id, StartInspectionRequest request, CancellationToken cancellationToken)
     {
         try
@@ -55,7 +55,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPost("{id:guid}/visual-checks")]
-    [Authorize(Roles = "Admin,Engineering")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcVisualCheckDto>> AddVisualCheck(Guid id, CreateVisualCheckRequest request, CancellationToken cancellationToken)
     {
         try
@@ -70,7 +70,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPost("{id:guid}/dimension-checks")]
-    [Authorize(Roles = "Admin,Engineering")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcDimensionCheckDto>> AddDimensionCheck(Guid id, CreateDimensionCheckRequest request, CancellationToken cancellationToken)
     {
         try
@@ -85,7 +85,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPut("{id:guid}/form")]
-    [Authorize(Roles = "Admin,Engineering")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcInspectionDto>> UploadForm(Guid id, UploadQcFormRequest request, CancellationToken cancellationToken)
     {
         try
@@ -100,7 +100,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPost("{id:guid}/submit")]
-    [Authorize(Roles = "Admin,Engineering")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult<QcInspectionDto>> Submit(Guid id, SubmitInspectionRequest request, CancellationToken cancellationToken)
     {
         try

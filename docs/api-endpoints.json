@@ -367,8 +367,8 @@
       "method": "GET",
       "path": "/api/v1/qc/inspections",
       "auth": "required",
-      "roles": ["Admin", "Engineering", "Owner"],
-      "description": "List QC inspections. Engineering uploads checksheets; Owner reviews submitted checksheets.",
+      "roles": ["Admin", "Owner"],
+      "description": "List QC inspections. Owner fills the checksheet and performs final approve/reject.",
       "requestBody": null,
       "responseBody": [
         {
@@ -399,7 +399,7 @@
       "method": "GET",
       "path": "/api/v1/qc/inspections/{id}",
       "auth": "required",
-      "roles": ["Admin", "Engineering", "Owner"],
+      "roles": ["Admin", "Owner"],
       "description": "Get one QC inspection with visual and dimension checks.",
       "requestBody": null,
       "responseBody": {
@@ -415,7 +415,7 @@
         "orderQty": 10,
         "materialSpec": "S45C",
         "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Engineer 1",
+        "inspectorName": "Owner",
         "inspectionDate": "2026-05-17",
         "sampleQty": 3,
         "samplingMethod": "Random",
@@ -423,7 +423,7 @@
         "status": "PendingOwnerReview",
         "inspectionResult": "Accept",
         "defectNotes": null,
-        "engineeringRemarks": "Ukuran masuk toleransi.",
+        "formRemarks": "Ukuran masuk toleransi.",
         "ownerDecision": null,
         "ownerReviewedByUserId": null,
         "ownerReviewerName": null,
@@ -440,7 +440,7 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/scan",
       "auth": "required",
-      "roles": ["Admin", "Engineering", "Owner"],
+      "roles": ["Admin", "Owner"],
       "description": "Scan a barcode/QR value to open the matching QC inspection form. Accepts barcode UID, SPK number, or QC reference number.",
       "requestBody": {
         "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
@@ -471,11 +471,11 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/start",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering starts filling an inspection.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner starts filling an inspection.",
       "requestBody": {
         "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Engineer 1",
+        "inspectorName": "Owner",
         "inspectionDate": "2026-05-17",
         "sampleQty": 3,
         "samplingMethod": "Random",
@@ -490,7 +490,7 @@
       "responseBody": {
         "id": "00000000-0000-0000-0000-000000000000",
         "status": "InInspection",
-        "inspectorName": "Engineer 1"
+        "inspectorName": "Owner"
       }
     },
     {
@@ -499,18 +499,18 @@
       "method": "PUT",
       "path": "/api/v1/qc/inspections/{id}/form",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering saves/uploads the complete QC form in one request. Set submitForOwnerReview to true when pressing the approval/upload button.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner saves/uploads the complete QC form in one request. Set submitForOwnerReview to true when the form is ready for final approval.",
       "requestBody": {
         "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Engineer 1",
+        "inspectorName": "Owner",
         "inspectionDate": "2026-05-17",
         "sampleQty": 3,
         "samplingMethod": "Random",
         "measuringToolNo": "CAL-001",
         "inspectionResult": "Repair",
         "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
-        "engineeringRemarks": "Form QC sudah diupload untuk approval Owner.",
+        "formRemarks": "Form QC sudah diupload untuk approval Owner.",
         "submitForOwnerReview": true,
         "productName": "Shaft Diameter 20mm",
         "productCode": "PART-001",
@@ -567,7 +567,7 @@
         "status": "PendingOwnerReview",
         "inspectionResult": "Repair",
         "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
-        "engineeringRemarks": "Form QC sudah diupload untuk approval Owner.",
+        "formRemarks": "Form QC sudah diupload untuk approval Owner.",
         "ownerDecision": null,
         "visualChecks": [
           {
@@ -597,8 +597,8 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/visual-checks",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering uploads visual check quantities.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner records visual check quantities.",
       "requestBody": {
         "qtyChecked": 10,
         "qtyAccept": 9,
@@ -625,8 +625,8 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/dimension-checks",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering uploads flexible dimensional measurement data as JSONB.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner records flexible dimensional measurement data as JSONB.",
       "requestBody": {
         "sampleId": "SAMPLE-001",
         "process": "Turning",
@@ -659,11 +659,11 @@
       "method": "POST",
       "path": "/api/v1/qc/inspections/{id}/submit",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering submits uploaded checksheet for Owner review. This does not close production.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner marks the uploaded checksheet as ready for final QC approval. This does not close production until review approval.",
       "requestBody": {
         "inspectionResult": "Accept",
-        "engineeringRemarks": "Dimensi dan visual sudah sesuai.",
+        "formRemarks": "Dimensi dan visual sudah sesuai.",
         "defectNotes": null
       },
       "allowedValues": {
@@ -674,7 +674,7 @@
         "status": "PendingOwnerReview",
         "inspectionResult": "Accept",
         "defectNotes": null,
-        "engineeringRemarks": "Dimensi dan visual sudah sesuai.",
+        "formRemarks": "Dimensi dan visual sudah sesuai.",
         "ownerDecision": null
       }
     },
@@ -685,7 +685,7 @@
       "path": "/api/v1/qc/inspections/{id}/review",
       "auth": "required",
       "roles": ["Admin", "Owner"],
-      "description": "Owner approves or rejects Engineering's submitted checksheet. This publishes QcCheckCompletedEvent.",
+      "description": "Owner approves or rejects the completed QC checksheet. This publishes QcCheckCompletedEvent.",
       "requestBody": {
         "ownerReviewedByUserId": "00000000-0000-0000-0000-000000000000",
         "ownerReviewerName": "Owner",
