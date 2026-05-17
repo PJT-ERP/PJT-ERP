@@ -31,10 +31,41 @@ public sealed record SalesOrderItemDto(
     int Qty,
     string? Notes);
 
+public sealed record SalesOrderProductionProgressDto(
+    Guid SalesOrderId,
+    string SoNumber,
+    string CustomerCode,
+    string CustomerName,
+    string Status,
+    int TotalItems,
+    int TotalQuantity,
+    int ProductionOrderCount,
+    int WaitingOrders,
+    int InProgressOrders,
+    int FinishedOrders,
+    int ClosedOrders,
+    decimal ProgressPercent,
+    IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
+
+public sealed record SalesOrderProductionProgressItemDto(
+    Guid SalesOrderItemId,
+    Guid ProductId,
+    string ProductPartNumber,
+    string ProductDescription,
+    int Qty,
+    IReadOnlyCollection<ProductionOrderDto> ProductionOrders);
+
 public sealed record ProductionOrderDto(
     Guid Id,
     string PoNumber,
     Guid SalesOrderItemId,
+    Guid? SalesOrderId,
+    string? SoNumber,
+    string? CustomerCode,
+    string? CustomerName,
+    Guid? ProductId,
+    string? ProductPartNumber,
+    string? ProductDescription,
     string? DrawingRef,
     string? DrawingFileUrl,
     Guid? DrawingUploadedByUserId,
@@ -45,10 +76,13 @@ public sealed record ProductionOrderDto(
     string Status,
     DateTime? StartedAtUtc,
     DateTime? FinishedAtUtc,
+    long? DurationSeconds,
     string? QcDecision,
     DateTime UpdatedAtUtc);
 
 public sealed record ScanProductionOrderRequest(string BarcodeUid, string Action);
+
+public sealed record LookupProductionOrderRequest(string BarcodeUid);
 
 public sealed record UploadEngineeringDrawingRequest(
     string DrawingFileUrl,

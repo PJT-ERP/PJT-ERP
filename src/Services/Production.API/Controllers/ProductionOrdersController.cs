@@ -10,9 +10,18 @@ namespace PJT_HIMTIKA.Production.Api.Controllers;
 public sealed class ProductionOrdersController(IProductionService productionService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyCollection<ProductionOrderDto>>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyCollection<ProductionOrderDto>>> List(
+        [FromQuery] Guid? salesOrderId,
+        CancellationToken cancellationToken)
     {
-        return Ok(await productionService.ListProductionOrdersAsync(cancellationToken));
+        return Ok(await productionService.ListProductionOrdersAsync(salesOrderId, cancellationToken));
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ProductionOrderDto>> Get(Guid id, CancellationToken cancellationToken)
+    {
+        var order = await productionService.GetProductionOrderAsync(id, cancellationToken);
+        return order is null ? NotFound() : Ok(order);
     }
 
     [HttpPut("{id:guid}/engineering-drawing")]

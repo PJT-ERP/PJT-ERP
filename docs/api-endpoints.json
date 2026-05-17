@@ -42,6 +42,29 @@
     "Owner",
     "Admin"
   ],
+  "roleModel": {
+    "productionTracking": {
+      "summary": "Production Tracking is a cross-service workflow, but not every role can mutate production status.",
+      "noSeparateProductionRoleInMvp": true,
+      "productionOperatorRole": "Owner",
+      "notes": [
+        "Engineering only uploads/input engineering drawings or links for SPK.",
+        "Owner handles barcode lookup, Start, and Complete in the MVP because the app does not define a separate Production role yet.",
+        "Sales Order creates and confirms SO records, which creates SPK/barcodes.",
+        "Owner monitors production progress and continues the workflow through QC review after production is finished.",
+        "Finance and Purchasing may read production progress for planning/material context, but they do not update production status."
+      ],
+      "writeAccess": {
+        "salesOrderCreationAndConfirmation": ["Admin", "Sales Order"],
+        "barcodeLookupStartComplete": ["Admin", "Owner"],
+        "drawingUpload": ["Admin", "Engineering"],
+        "ownerDashboardAndQcReview": ["Admin", "Owner"]
+      },
+      "readAccess": {
+        "productionOrdersAndSalesOrderProgress": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"]
+      }
+    }
+  },
   "endpoints": [
     {
       "service": "Identity.API",
@@ -253,6 +276,13 @@
           "id": "00000000-0000-0000-0000-000000000000",
           "poNumber": "SPK-20260517123000-ABCDEF",
           "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
+          "salesOrderId": "00000000-0000-0000-0000-000000000000",
+          "soNumber": "SO-20260517123000-ABCDEF",
+          "customerCode": "CUST-001",
+          "customerName": "PT Contoh Customer",
+          "productId": "00000000-0000-0000-0000-000000000000",
+          "productPartNumber": "PART-001",
+          "productDescription": "Shaft Diameter 20mm",
           "drawingRef": "PART-001",
           "drawingFileUrl": null,
           "drawingUploadedByUserId": null,
@@ -263,10 +293,56 @@
           "status": "Waiting",
           "startedAtUtc": null,
           "finishedAtUtc": null,
+          "durationSeconds": null,
           "qcDecision": null,
           "updatedAtUtc": "2026-05-17T05:00:00Z"
         }
       ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Sales Order Progress",
+      "method": "GET",
+      "path": "/api/v1/production/sales-orders/{id}/progress",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "Read-only production tracking progress for one Sales Order, including linked SPK/order status and duration.",
+      "requestBody": null,
+      "responseBody": {
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "soNumber": "SO-20260517123000-ABCDEF",
+        "customerCode": "CUST-001",
+        "customerName": "PT Contoh Customer",
+        "status": "InProduction",
+        "totalItems": 1,
+        "totalQuantity": 10,
+        "productionOrderCount": 1,
+        "waitingOrders": 0,
+        "inProgressOrders": 1,
+        "finishedOrders": 0,
+        "closedOrders": 0,
+        "progressPercent": 0.0,
+        "items": [
+          {
+            "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
+            "productId": "00000000-0000-0000-0000-000000000000",
+            "productPartNumber": "PART-001",
+            "productDescription": "Shaft Diameter 20mm",
+            "qty": 10,
+            "productionOrders": [
+              {
+                "id": "00000000-0000-0000-0000-000000000000",
+                "poNumber": "SPK-20260517123000-ABCDEF",
+                "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+                "status": "InProgress",
+                "startedAtUtc": "2026-05-17T05:00:00Z",
+                "finishedAtUtc": null,
+                "durationSeconds": 1800
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "service": "Production.API",
@@ -275,12 +351,20 @@
       "path": "/api/v1/production/orders",
       "auth": "required",
       "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "List SPK/production orders.",
+      "description": "Read-only list of SPK/production orders. Optional query: salesOrderId filters production tracking for one Sales Order.",
       "requestBody": null,
       "responseBody": [
         {
           "id": "00000000-0000-0000-0000-000000000000",
           "poNumber": "SPK-20260517123000-ABCDEF",
+          "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
+          "salesOrderId": "00000000-0000-0000-0000-000000000000",
+          "soNumber": "SO-20260517123000-ABCDEF",
+          "customerCode": "CUST-001",
+          "customerName": "PT Contoh Customer",
+          "productId": "00000000-0000-0000-0000-000000000000",
+          "productPartNumber": "PART-001",
+          "productDescription": "Shaft Diameter 20mm",
           "drawingRef": "DRW-001",
           "drawingFileUrl": "https://drive.google.com/file/d/example/view",
           "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
@@ -288,10 +372,44 @@
           "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
           "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
           "orderQty": 10,
-          "status": "Waiting",
+          "status": "InProgress",
+          "startedAtUtc": "2026-05-17T05:00:00Z",
+          "finishedAtUtc": null,
+          "durationSeconds": 1800,
           "qcDecision": null
         }
       ]
+    },
+    {
+      "service": "Production.API",
+      "feature": "Production Orders",
+      "method": "GET",
+      "path": "/api/v1/production/orders/{id}",
+      "auth": "required",
+      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+      "description": "Get one SPK/production order detail with Sales Order link, barcode, timestamps, and duration.",
+      "requestBody": null,
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "poNumber": "SPK-20260517123000-ABCDEF",
+        "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
+        "salesOrderId": "00000000-0000-0000-0000-000000000000",
+        "soNumber": "SO-20260517123000-ABCDEF",
+        "customerCode": "CUST-001",
+        "customerName": "PT Contoh Customer",
+        "productId": "00000000-0000-0000-0000-000000000000",
+        "productPartNumber": "PART-001",
+        "productDescription": "Shaft Diameter 20mm",
+        "drawingRef": "DRW-001",
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "orderQty": 10,
+        "status": "Finished",
+        "startedAtUtc": "2026-05-17T05:00:00Z",
+        "finishedAtUtc": "2026-05-17T07:00:00Z",
+        "durationSeconds": 7200,
+        "qcDecision": null,
+        "updatedAtUtc": "2026-05-17T07:00:00Z"
+      }
     },
     {
       "service": "Production.API",
@@ -322,16 +440,38 @@
       "service": "Production.API",
       "feature": "Shop Floor",
       "method": "POST",
+      "path": "/api/v1/production/shop-floor/lookup",
+      "auth": "required",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner lookup for a scanned barcode/QR or SPK number without changing production status. Useful for web/mobile camera confirmation before Start or Complete.",
+      "requestBody": {
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
+      },
+      "responseBody": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "poNumber": "SPK-20260517123000-ABCDEF",
+        "soNumber": "SO-20260517123000-ABCDEF",
+        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
+        "status": "Waiting",
+        "startedAtUtc": null,
+        "finishedAtUtc": null,
+        "durationSeconds": null
+      }
+    },
+    {
+      "service": "Production.API",
+      "feature": "Shop Floor",
+      "method": "POST",
       "path": "/api/v1/production/shop-floor/scan",
       "auth": "required",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering scans barcode to start or finish production.",
+      "roles": ["Admin", "Owner"],
+      "description": "Owner scans barcode/QR to start or complete production in the MVP. Complete and Finish are accepted as completion actions.",
       "requestBody": {
         "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
         "action": "Start"
       },
       "allowedValues": {
-        "action": ["Start", "Finish"]
+        "action": ["Start", "Complete", "Finish"]
       },
       "responseBody": {
         "id": "00000000-0000-0000-0000-000000000000",
@@ -339,6 +479,7 @@
         "status": "InProgress",
         "startedAtUtc": "2026-05-17T05:00:00Z",
         "finishedAtUtc": null,
+        "durationSeconds": 1800,
         "qcDecision": null
       }
     },

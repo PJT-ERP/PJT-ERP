@@ -15,6 +15,13 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
     }
 
+    [HttpGet("{id:guid}/progress")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
+    {
+        var progress = await productionService.GetSalesOrderProgressAsync(id, cancellationToken);
+        return progress is null ? NotFound() : Ok(progress);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Sales Order")]
     public async Task<ActionResult<SalesOrderDto>> Create(CreateSalesOrderRequest request, CancellationToken cancellationToken)

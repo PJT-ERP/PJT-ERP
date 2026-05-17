@@ -1,0 +1,36 @@
+name: Production Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  production-tests:
+    name: Run Production tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore Production tests
+        run: dotnet restore tests/Services/Production.API.Tests/Production.API.Tests.csproj
+
+      - name: Run Production tests
+        run: dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --configuration Release --no-restore --logger trx --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-test-results
+          path: TestResults
