@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.Production.Api.Application.Analytics;
 using PJT_ERP.Production.Api.Application.IntegrationEvents;
 using PJT_ERP.Production.Api.Application.Production;
 using PJT_ERP.Production.Api.Infrastructure.Persistence;
@@ -21,6 +22,7 @@ builder.Services.AddDbContext<ProductionContext>(options =>
 });
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ProductionContext>());
 builder.Services.AddScoped<IProductionService, ProductionService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<ProductionContext>(builder.Configuration, options =>
 {

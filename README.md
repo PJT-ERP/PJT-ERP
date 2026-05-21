@@ -89,17 +89,9 @@ Gateway Scalar memuat dokumen OpenAPI dari masing-masing service. Pilih service 
 
 Untuk testing cepat, semua service menerima dev master token hanya di environment `Development`:
 
-```text
-Authorization: Bearer dev-master-token
-```
-
-Alternatif header:
-
-```text
-X-Dev-Master-Token: dev-master-token
-```
-
-Token ini diberi semua role development: `Admin`, `Owner`, `Sales Order`, `Finance`, `Engineering`, dan `Purchasing`. Di luar `Development`, token ini otomatis tidak berlaku.
+Di mode `Development`, database otomatis diberi akun testing standar:
+`owner@test.com`, `admin@test.com`, `finance@test.com`, `sales@test.com`, dan `engineering@test.com`.
+Semua akun memakai password `Dev123!`. Login tetap memakai endpoint normal agar developer memakai JWT asli sejak fase testing.
 
 ## Database dan Microservices
 
@@ -229,11 +221,11 @@ Production Tracking adalah workflow lintas service, bukan module yang berdiri se
 
 Contoh user demo:
 
-- `owner@pjt.local`
-- `sales-order@pjt.local`
-- `engineering@pjt.local`
-- `purchasing@pjt.local`
-- `finance@pjt.local`
+- `owner@test.com`
+- `admin@test.com`
+- `finance@test.com`
+- `sales@test.com`
+- `engineering@test.com`
 
 ## Skenario Admin
 

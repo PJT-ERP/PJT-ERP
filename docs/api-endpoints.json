@@ -17,20 +17,12 @@
   },
   "auth": {
     "loginCookie": "access_token",
-    "developmentMasterToken": {
-      "enabledOnlyWhen": "ASPNETCORE_ENVIRONMENT=Development",
-      "token": "dev-master-token",
-      "authorizationHeader": "Bearer dev-master-token",
-      "alternateHeader": {
-        "X-Dev-Master-Token": "dev-master-token"
-      },
-      "rolesGranted": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Purchasing"]
-    },
+    "developmentSeedUsers": ["owner@test.com", "admin@test.com", "finance@test.com", "sales@test.com", "engineering@test.com"],
     "notes": [
-      "POST /api/v1/auth/login returns a JWT and also sets the access_token HttpOnly cookie.",
+      "POST /api/v1/auth/login requires email and password, returns a JWT, and also sets the access_token HttpOnly cookie.",
+      "Development seed users use the shared password Dev123!.",
       "Protected endpoints require a logged-in user with one of the listed roles.",
-      "Scalar is available at /scalar in Development and is prefilled with Bearer dev-master-token.",
-      "The dev master token is rejected automatically outside Development.",
+      "Scalar is available at /scalar in Development. Paste a real JWT from the login endpoint into the Bearer auth field.",
       "Admin is a system role for management and override access."
     ]
   },
@@ -77,12 +69,13 @@
       "roles": [],
       "description": "Login user by registered email. Sets access_token cookie.",
       "requestBody": {
-        "email": "owner@pjt.local"
+        "email": "owner@test.com",
+        "password": "Dev123!"
       },
       "responseBody": {
         "accessToken": "jwt-token",
         "userId": "00000000-0000-0000-0000-000000000000",
-        "email": "owner@pjt.local",
+        "email": "owner@test.com",
         "name": "Owner",
         "roles": ["Owner", "Admin"],
         "department": "Management"
