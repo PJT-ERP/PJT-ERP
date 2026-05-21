@@ -1,6 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PJT_ERP.Identity.Api.Application.Auth;
 
-public sealed record LoginRequest(string Email);
+public sealed record LoginRequest(
+    [Required, EmailAddress] string Email,
+    [Required] string Password);
 
 public sealed record LoginResponse(
     string AccessToken,

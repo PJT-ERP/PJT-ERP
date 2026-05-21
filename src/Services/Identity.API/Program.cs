@@ -30,8 +30,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IdentityContext>();
-    await db.Database.EnsureCreatedAsync();
-    await IdentitySeeder.SeedAsync(db);
+    await db.Database.MigrateAsync();
+
+    if (app.Environment.IsDevelopment())
+    {
+        await IdentitySeeder.SeedAsync(db);
+    }
 }
 
 if (app.Environment.IsDevelopment())

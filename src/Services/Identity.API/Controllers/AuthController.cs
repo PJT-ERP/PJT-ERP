@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PJT_ERP.Identity.Api.Application.Auth;
-using PJT_ERP.Shared.Auth;
 
 namespace PJT_ERP.Identity.Api.Controllers;
 
@@ -17,7 +16,7 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         var result = await authService.LoginAsync(request, cancellationToken);
         if (result is null)
         {
-            return Unauthorized(new { message = "User is not registered or inactive." });
+            return Unauthorized(new { message = "Invalid email or password." });
         }
 
         Response.Cookies.Append("access_token", result.AccessToken, new CookieOptions
@@ -46,18 +45,6 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         if (result is not null)
         {
             return Ok(result);
-        }
-
-        if (User.Identity?.AuthenticationType == PjtAuthenticationSchemes.DevMasterToken)
-        {
-            var userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
-                ? parsedUserId
-                : Guid.Empty;
-            var name = User.FindFirstValue(ClaimTypes.Name) ?? "Development Master User";
-            var department = User.FindFirstValue("department") ?? "Development";
-            var roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray();
-
-            return Ok(new CurrentUserResponse(userId, email, name, roles, department));
         }
 
         return Unauthorized();

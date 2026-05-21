@@ -18,6 +18,7 @@ public sealed class IdentityContext(DbContextOptions<IdentityContext> options) :
             builder.Property(user => user.Id).HasColumnName("id");
             builder.Property(user => user.Name).HasMaxLength(255).HasColumnName("name");
             builder.Property(user => user.Email).HasMaxLength(160).HasColumnName("email");
+            builder.Property(user => user.PasswordHash).HasMaxLength(255).HasColumnName("password_hash");
             builder.Property(user => user.Role).HasMaxLength(120).HasColumnName("role");
             builder.Property(user => user.Department).HasMaxLength(80).HasColumnName("department");
             builder.Property(user => user.JoinDateUtc).HasColumnName("join_date_utc");
