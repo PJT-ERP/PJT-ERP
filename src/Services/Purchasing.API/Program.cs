@@ -40,7 +40,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PurchasingContext>();
-    await db.EnsurePurchasingSchemaAsync();
+    await db.Database.MigrateAsync();
+
+    if (app.Environment.IsDevelopment())
+    {
+        await PurchasingSeeder.SeedAsync(db);
+    }
 }
 
 if (app.Environment.IsDevelopment())
