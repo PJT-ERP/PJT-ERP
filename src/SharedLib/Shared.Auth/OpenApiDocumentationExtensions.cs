@@ -37,9 +37,7 @@ public static class OpenApiDocumentationExtensions
                 .AddPreferredSecuritySchemes("Bearer")
                 .AddHttpAuthentication("Bearer", auth =>
                 {
-                    auth.Token = environment.IsDevelopment()
-                        ? DevMasterTokenAuthenticationHandler.GetConfiguredToken(configuration)
-                        : "";
+                    auth.Token = "";
                 });
         }).AllowAnonymous();
 
@@ -69,7 +67,7 @@ internal sealed class BearerSecuritySchemeTransformer(
             Scheme = "bearer",
             In = ParameterLocation.Header,
             BearerFormat = "JWT",
-            Description = "Use a normal JWT. In Development only, Bearer dev-master-token also works as a master testing token."
+            Description = "Paste a valid JWT access token."
         };
 
         if (document.Paths is null)

@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,22 +20,9 @@ public static class JwtAuthenticationExtensions
         builder.Services
             .AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = PjtAuthenticationSchemes.Smart;
-                options.DefaultChallengeScheme = PjtAuthenticationSchemes.Smart;
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
-            .AddPolicyScheme(PjtAuthenticationSchemes.Smart, "PJT JWT or development master token", options =>
-            {
-                options.ForwardDefaultSelector = context =>
-                    DevMasterTokenAuthenticationHandler.ShouldUseDevMasterToken(
-                        context.Request,
-                        builder.Configuration,
-                        builder.Environment)
-                        ? PjtAuthenticationSchemes.DevMasterToken
-                        : JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddScheme<AuthenticationSchemeOptions, DevMasterTokenAuthenticationHandler>(
-                PjtAuthenticationSchemes.DevMasterToken,
-                _ => { })
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
