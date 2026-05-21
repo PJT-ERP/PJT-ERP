@@ -1,3 +1,4 @@
+using Microsoft.OpenApi;
 using PJT_ERP.Shared.Auth;
 using PJT_ERP.Shared.Logging;
 using Scalar.AspNetCore;
@@ -6,6 +7,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddPjtLogging();
 builder.ConfigurePjtJwtAuthentication();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
+    options.AddPolicy("MasterDataPolicy", policy => policy.RequireRole("Admin", "Sales"));
+    options.AddPolicy("ProductionPolicy", policy => policy.RequireRole("Admin", "Engineering"));
+    options.AddPolicy("QcPolicy", policy => policy.RequireRole("Admin", "Engineering"));
+    options.AddPolicy("PurchasingPolicy", policy => policy.RequireRole("Admin", "Finance"));
+});
 
 builder.Services.AddCors(options =>
 {
@@ -18,6 +28,30 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
+    });
+});
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("gateway", new OpenApiInfo
+    {
+        Title = "PJT ERP Web Gateway",
+        Version = "v1"
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste a valid JWT access token."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
 });
 
@@ -35,6 +69,13 @@ app.MapGet("/health", () => Results.Ok(new { service = "gateway", status = "ok" 
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/gateway/swagger.json", "PJT ERP Web Gateway v1");
+        options.RoutePrefix = "swagger";
+    });
+
     app.MapScalarApiReference(options =>
     {
         options.OpenApiRoutePattern = "/openapi/{documentName}/v1.json";
@@ -42,7 +83,7 @@ if (app.Environment.IsDevelopment())
         options.AddPreferredSecuritySchemes("Bearer");
         options.AddHttpAuthentication("Bearer", auth =>
         {
-            auth.Token = DevMasterTokenAuthenticationHandler.GetConfiguredToken(builder.Configuration);
+            auth.Token = "";
         });
         options.AddDocument("identity", "Identity API", "/openapi/identity/v1.json", isDefault: true);
         options.AddDocument("masterdata", "Master Data API", "/openapi/masterdata/v1.json");
