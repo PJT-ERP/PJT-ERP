@@ -7,8 +7,8 @@ namespace QC.API.Tests;
 public sealed class QcInspectionsControllerAuthorizationTests
 {
     [Theory]
-    [InlineData(nameof(QcInspectionsController.List), "Admin,Owner,Engineering Reviewer")]
-    [InlineData(nameof(QcInspectionsController.Get), "Admin,Owner,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.List), "Admin,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.Get), "Admin,Engineering Reviewer")]
     [InlineData(nameof(QcInspectionsController.UploadResult), "Admin,Engineering Reviewer")]
     public void Qc_actions_use_reviewer_roles(string actionName, string expectedRoles)
     {
@@ -19,6 +19,7 @@ public sealed class QcInspectionsControllerAuthorizationTests
         var authorize = method.GetCustomAttributes<AuthorizeAttribute>().Single();
 
         Assert.Equal(expectedRoles, authorize.Roles);
+        Assert.DoesNotContain("Owner", authorize.Roles);
         Assert.DoesNotContain("visual", actionName, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("dimension", actionName, StringComparison.OrdinalIgnoreCase);
     }

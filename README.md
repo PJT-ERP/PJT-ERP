@@ -99,7 +99,7 @@ Alternatif header:
 X-Dev-Master-Token: dev-master-token
 ```
 
-Token ini diberi semua role development: `Admin`, `Owner`, `Sales Order`, `Finance`, `Engineering`, dan `Purchasing`. Di luar `Development`, token ini otomatis tidak berlaku.
+Token ini diberi semua role development: `Admin`, `Owner`, `Sales Order`, `Finance`, `Engineering`, `Engineering Worker`, `Engineering Reviewer`, dan `Purchasing`. Di luar `Development`, token ini otomatis tidak berlaku.
 
 ## Database dan Microservices
 
@@ -154,7 +154,7 @@ Production.API
 
 QC.API
   └── QcCheckCompletedEvent
-      └── Production.API menyimpan hasil review Owner pada production order
+      └── Production.API menyimpan hasil review Engineering Reviewer pada production order
 
 Purchasing.API
   └── PurchaseRequestReviewedEvent
@@ -205,15 +205,15 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Engineering dibagi menjadi worker dan reviewer. Worker yang ditugaskan di Sales Order melakukan start/finish produksi melalui endpoint Sales Order, sedangkan reviewer yang ditugaskan melakukan QC dengan upload gambar/form QC, notes, dan approve/reject. Barcode/QR hanya shortcut lookup tracking, bukan mekanisme scan untuk mengubah status.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Engineering dibagi menjadi worker dan reviewer. Worker yang ditugaskan di Sales Order meng-upload link gambar engineering serta melakukan start/finish produksi melalui endpoint Sales Order, sedangkan reviewer yang ditugaskan hanya melakukan QC dengan upload gambar/form QC, notes, dan approve/reject. Barcode/QR hanya shortcut lookup tracking, bukan mekanisme scan untuk mengubah status.
 
 ## Pembagian Akses Production Tracking
 
 Production Tracking adalah workflow lintas service, bukan module yang berdiri sendiri untuk semua orang mengubah data. Data produksinya memang dibaca oleh beberapa role, tetapi aksi update tetap dibatasi.
 
 - Sales Order membuat Sales Order, mengisi item, dan assign engineer worker/reviewer.
-- Engineering melihat Sales Order yang ditugaskan dan upload link gambar engineering.
-- Engineering Worker melakukan start/finish produksi pada Sales Order yang ditugaskan.
+- Engineering Worker melihat Sales Order yang ditugaskan, upload link gambar engineering, dan melakukan start/finish produksi.
+- Engineering Reviewer hanya mengerjakan QC review setelah produksi selesai.
 - Owner melakukan lookup barcode berbasis SO, melihat progress produksi, dashboard, dan bottleneck.
 - Customer/public dapat membuka link tracking produksi tanpa login untuk melihat progress order sudah sampai mana. Akses ini read-only dan tidak menampilkan data internal seperti uploader, link drawing, atau user id.
 - Finance dan Purchasing dapat membaca progress produksi untuk konteks material, PR, dan planning, tetapi tidak mengubah status produksi.
@@ -288,12 +288,13 @@ Alur kerja:
 
 1. User membuka progress Sales Order.
 2. Barcode/QR dapat dipakai untuk lookup Sales Order tanpa mengubah status.
-3. Engineering Worker yang ditugaskan melakukan start produksi pada Sales Order.
-4. Sistem mengisi `started_at_utc`, mengubah production status menjadi `InProgress`, dan mulai menghitung duration.
-5. Engineering Worker yang sama melakukan finish produksi pada Sales Order.
-6. Sistem mengisi `finished_at_utc`, mengubah production status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
-7. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order.
-8. Customer dapat membuka public tracking memakai kode Sales Order atau barcode UID yang diberikan untuk melihat progress tanpa login. Public tracking hanya menampilkan status, progress, item, quantity, waktu mulai/selesai, dan duration.
+3. Engineering Worker yang ditugaskan upload link gambar engineering pada Sales Order.
+4. Engineering Worker yang sama melakukan start produksi pada Sales Order.
+5. Sistem mengisi `started_at_utc`, mengubah production status menjadi `InProgress`, dan mulai menghitung duration.
+6. Engineering Worker yang sama melakukan finish produksi pada Sales Order.
+7. Sistem mengisi `finished_at_utc`, mengubah production status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
+8. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order.
+9. Customer dapat membuka public tracking memakai kode Sales Order atau barcode UID yang diberikan untuk melihat progress tanpa login. Public tracking hanya menampilkan status, progress, item, quantity, waktu mulai/selesai, dan duration.
 
 Endpoint utama:
 
@@ -316,16 +317,17 @@ Output utama:
 
 ## Skenario Engineering
 
-Engineering menangani upload file gambar engineering ke Sales Order. Engineering Worker melakukan start/finish produksi, sedangkan Engineering Reviewer melakukan QC.
+Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Reviewer hanya melakukan QC.
 
 Alur kerja:
 
-1. User Engineering login.
+1. User Engineering Worker login.
 2. User membuka daftar Sales Order yang ditugaskan.
 3. User melihat item pekerjaan dari Sales Order yang sudah dikonfirmasi.
 4. User upload link file gambar, misalnya link Google Drive.
 5. Sistem menyimpan link gambar, uploader, waktu upload, dan drawing reference.
-6. Owner dapat melihat file gambar tersebut dari data Sales Order jika perlu review operasional.
+6. User melakukan start/finish produksi dari Sales Order yang sama.
+7. Owner dapat melihat file gambar tersebut dari data Sales Order jika perlu review operasional.
 
 Output utama:
 
@@ -421,7 +423,7 @@ Alur kerja:
 1. Owner login ke sistem.
 2. Owner membuka Executive Dashboard.
 3. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
-4. Owner melihat hasil QC berdasarkan review final: approved dan rejected.
+4. Owner melihat ringkasan hasil QC dari Engineering Reviewer: approved dan rejected.
 5. Owner melihat rejection rate.
 6. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
 

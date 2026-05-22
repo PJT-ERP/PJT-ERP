@@ -210,15 +210,13 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         var productionOrder = GetPrimaryProductionOrder(salesOrder)
             ?? throw new InvalidOperationException("Sales order must be confirmed before engineering drawings can be uploaded.");
 
+        ValidateDrawingUploadRequest(request);
+        EnsureAssignedWorker(productionOrder, request.UploadedByUserId);
+
         if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.Absolute, out var drawingUri)
             || drawingUri.Scheme is not ("http" or "https"))
         {
             throw new InvalidOperationException("Drawing file URL must be a valid HTTP or HTTPS link.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.UploaderName))
-        {
-            throw new InvalidOperationException("Uploader name is required.");
         }
 
         productionOrder.DrawingFileUrl = drawingUri.ToString();
@@ -566,6 +564,19 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         if (string.IsNullOrWhiteSpace(request.WorkerName))
         {
             throw new InvalidOperationException("Worker name is required.");
+        }
+    }
+
+    private static void ValidateDrawingUploadRequest(UploadEngineeringDrawingRequest request)
+    {
+        if (request.UploadedByUserId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Uploader user id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.UploaderName))
+        {
+            throw new InvalidOperationException("Uploader name is required.");
         }
     }
 

@@ -47,11 +47,11 @@
       "writeAccess": {
         "salesOrderCreationConfirmationAndEngineerAssignment": ["Admin", "Sales Order"],
         "salesOrderProductionStartFinish": ["Admin", "Engineering Worker"],
-        "salesOrderDrawingUpload": ["Admin", "Engineering"],
-        "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing"]
+        "salesOrderDrawingUpload": ["Admin", "Engineering Worker"],
+        "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing"]
       },
       "readAccess": {
-        "salesOrderProgress": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing", "Owner", "Admin"],
+        "salesOrderProgress": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing", "Owner", "Admin"],
         "publicCustomerTracking": "anonymous"
       }
     },
@@ -61,7 +61,7 @@
         "qcResultUpload": ["Admin", "Engineering Reviewer"]
       },
       "readAccess": {
-        "qcInspections": ["Admin", "Owner", "Engineering Reviewer"]
+        "qcInspections": ["Admin", "Engineering Reviewer"]
       }
     }
   },
@@ -115,7 +115,7 @@
       "feature": "Sales Order Tracking",
       "method": "GET",
       "path": "/api/v1/production/sales-orders/{id}/progress",
-      "roles": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing", "Owner", "Admin"],
+      "roles": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing", "Owner", "Admin"],
       "description": "Read Sales Order production progress, assignment, drawing, barcode, timestamps, duration, and item lines."
     },
     {
@@ -123,7 +123,7 @@
       "feature": "Sales Order Tracking",
       "method": "POST",
       "path": "/api/v1/production/tracking/lookup",
-      "roles": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing"],
+      "roles": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing"],
       "description": "Lookup Sales Order tracking by SO number or barcode. This endpoint is read-only.",
       "requestBody": {
         "trackingCode": "SO-20260522120000-ABCDEF"
@@ -150,8 +150,8 @@
       "feature": "Engineering Drawing",
       "method": "PUT",
       "path": "/api/v1/production/sales-orders/{id}/engineering-drawing",
-      "roles": ["Admin", "Engineering"],
-      "description": "Upload/input an engineering drawing link against the Sales Order."
+      "roles": ["Admin", "Engineering Worker"],
+      "description": "Upload/input an engineering drawing link against the Sales Order. Only the assigned Engineering Worker can upload it."
     },
     {
       "service": "Production.API",
@@ -167,8 +167,8 @@
       "feature": "QC Inspection",
       "method": "GET",
       "path": "/api/v1/qc/inspections",
-      "roles": ["Admin", "Owner", "Engineering Reviewer"],
-      "description": "List QC inspection records prepared by the Sales Order workflow."
+      "roles": ["Admin", "Engineering Reviewer"],
+      "description": "List QC inspection records prepared by the Sales Order workflow for Engineering Reviewer QC."
     },
     {
       "service": "QC.API",

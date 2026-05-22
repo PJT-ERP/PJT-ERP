@@ -23,9 +23,30 @@ public sealed class ProductionServiceTests
                 .Cast<AuthorizeAttribute>());
 
         Assert.Contains("Engineering Worker", authorize.Roles);
+        Assert.DoesNotContain("Engineering Reviewer", authorize.Roles);
         Assert.DoesNotContain(
             typeof(ShopFloorController).GetMethods(),
             method => method.Name.Contains("Scan", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker")]
+    public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
+    {
+        var method = typeof(SalesOrdersController)
+            .GetMethods()
+            .Single(method => method.Name == actionName);
+        var authorize = method
+            .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
+            .Cast<AuthorizeAttribute>()
+            .Single();
+
+        Assert.Equal(expectedRoles, authorize.Roles);
+        Assert.DoesNotContain("Engineering Reviewer", authorize.Roles);
     }
 
     [Fact]
@@ -168,6 +189,49 @@ public sealed class ProductionServiceTests
         Assert.Equal(productionOrder.Id, finishedEvent.ProductionOrderId);
         Assert.Equal(salesOrder.SoNumber, finishedEvent.SpkNumber);
         Assert.Equal(ReviewerUserId, finishedEvent.QcReviewerUserId);
+    }
+
+    [Fact]
+    public async Task UploadEngineeringDrawingAsync_updates_sales_order_tracking_with_assigned_worker()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var result = await service.UploadEngineeringDrawingAsync(
+            salesOrder.Id,
+            new UploadEngineeringDrawingRequest(
+                "https://drive.example/engineering-drawing.jpg",
+                WorkerUserId,
+                "Worker Engineer",
+                "DRAW-001"),
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("https://drive.example/engineering-drawing.jpg", result.DrawingFileUrl);
+        Assert.Equal(WorkerUserId, result.DrawingUploadedByUserId);
+        Assert.Equal("Worker Engineer", result.DrawingUploaderName);
+        Assert.Equal("DRAW-001", result.DrawingRef);
+    }
+
+    [Fact]
+    public async Task UploadEngineeringDrawingAsync_rejects_unassigned_worker()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UploadEngineeringDrawingAsync(
+                salesOrder.Id,
+                new UploadEngineeringDrawingRequest(
+                    "https://drive.example/engineering-drawing.jpg",
+                    ReviewerUserId,
+                    "Reviewer Engineer",
+                    "DRAW-001"),
+                CancellationToken.None));
+
+        Assert.Contains("assigned production worker", exception.Message);
     }
 
     [Fact]
