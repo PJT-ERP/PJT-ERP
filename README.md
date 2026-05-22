@@ -360,19 +360,20 @@ Output utama:
 
 ## Skenario Purchasing
 
-Purchasing menangani kebutuhan bahan baku dari Sales Order sampai informasi pembelian dan penerimaan material tercatat. Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran, jumlah, supplier, project, pemohon, approval, dan purchase.
+Purchasing menangani kebutuhan bahan baku dari Sales Order sampai informasi pembelian dan penerimaan material tercatat. Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran, jumlah, urgensi, supplier, nomor PO, estimasi harga, estimasi tiba, project, pemohon, dan status penerimaan.
 
 Alur kerja:
 
 1. Sales Order dikonfirmasi dan Production API menyiapkan state produksi internal.
 2. Production API mengirim event workflow Sales Order.
 3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
-4. User Purchasing membuka list material requirement, bisa filter berdasarkan Sales Order atau status.
-5. User Purchasing membuat Purchase Request dari satu atau beberapa material requirement.
-6. User mengisi nama barang, ukuran, jumlah, supplier suggestion, project, dan notes.
-7. Status PR berubah menjadi `Submitted`, lalu material requirement berubah menjadi `PurchaseRequested`.
-8. Setelah Finance approve, user Purchasing mengisi informasi pembelian: supplier final, tanggal beli, estimasi datang, tanggal diterima, status pembelian, dan catatan.
-9. Jika material sudah diterima, status item pembelian menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
+4. Engineering membuka menu Pengajuan Purchasing dan membuat Purchase Request dari satu atau beberapa material requirement.
+5. Engineering mengisi nama barang, spesifikasi/ukuran, jumlah, urgensi (`Normal`, `Urgent`, atau `Critical`), referensi SO, supplier suggestion, project, dan notes.
+6. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
+7. User Purchasing membuka Manajemen Pembelian untuk melihat list request menunggu, diproses, selesai, atau ditolak.
+8. Purchasing memproses item dengan mengisi supplier final, nomor PO, estimasi harga, estimasi tanggal tiba, dan catatan purchasing. Status item menjadi `Ordered`.
+9. Purchasing dapat menolak item request jika tidak valid. Status item menjadi `Rejected`.
+10. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
 
 Endpoint utama:
 
@@ -383,13 +384,16 @@ Endpoint utama:
 - `GET /api/v1/purchasing/purchase-requests`
 - `GET /api/v1/purchasing/purchase-requests/{id}`
 - `POST /api/v1/purchasing/purchase-requests`
+- `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process`
+- `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/reject`
+- `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/receive`
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/purchase-info`
 
 Output utama:
 
 - Material Requirement dari Sales Order.
 - Purchase Request dan Purchase Request Item.
-- Informasi supplier, tanggal beli, estimasi datang, tanggal diterima, dan status pembelian.
+- Informasi supplier, nomor PO, estimasi harga, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan jika ada.
 - Tracking bahan baku per Sales Order.
 
 ## Skenario Finance

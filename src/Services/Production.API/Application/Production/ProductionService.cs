@@ -118,6 +118,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         salesOrder.ApprovedAtUtc ??= now;
         salesOrder.UpdatedAtUtc = now;
 
+        var firstItem = salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First();
         var productionOrder = GetPrimaryProductionOrder(salesOrder);
         if (productionOrder is null)
         {
@@ -125,7 +126,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             {
                 SalesOrderId = salesOrder.Id,
                 SalesOrder = salesOrder,
-                SalesOrderItemId = salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().Id,
+                SalesOrderItemId = firstItem.Id,
                 PoNumber = salesOrder.SoNumber,
                 DrawingRef = salesOrder.SoNumber,
                 BarcodeUid = $"PJT|SO|{now:yyyyMMdd}|{salesOrder.Id:N}",
@@ -155,12 +156,12 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 salesOrder.Id,
                 salesOrder.SoNumber,
                 productionOrder.BarcodeUid,
-                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductId,
-                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().Qty,
-                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductPartNumber,
-                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductDescription,
+                firstItem.ProductId,
+                firstItem.Qty,
+                firstItem.ProductPartNumber,
+                firstItem.ProductDescription,
                 salesOrder.SoNumber,
-                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductMaterialSpec,
+                firstItem.ProductMaterialSpec,
                 salesOrder.SoNumber,
                 salesOrder.ProductionWorkerUserId,
                 salesOrder.ProductionWorkerName,

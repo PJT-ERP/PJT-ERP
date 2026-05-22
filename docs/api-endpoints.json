@@ -204,10 +204,83 @@
     {
       "service": "Purchasing.API",
       "feature": "Purchase Requests",
+      "method": "GET",
+      "path": "/api/v1/purchasing/purchase-requests",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "List purchase requests submitted by Engineering or Purchasing. UI can filter by status or Sales Order."
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "GET",
+      "path": "/api/v1/purchasing/purchase-requests/{id}",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "Open purchase request detail with item, urgency, requester, SO reference, supplier, PO number, estimated price, ETA, received date, and notes."
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
       "method": "POST",
       "path": "/api/v1/purchasing/purchase-requests",
       "roles": ["Admin", "Engineering", "Purchasing"],
-      "description": "Create and submit a multi-item purchase request for Finance review."
+      "description": "Engineering or Purchasing submits a multi-item purchase request.",
+      "requestBody": {
+        "requestDate": "2026-05-22",
+        "requestedByUserId": "00000000-0000-0000-0000-000000000010",
+        "requesterName": "Engineering Worker",
+        "salesOrderId": "00000000-0000-0000-0000-000000000011",
+        "salesOrderNumber": "SO-20260522120000-ABCDEF",
+        "projectName": "SO-20260522120000-ABCDEF",
+        "items": [
+          {
+            "materialRequirementId": "00000000-0000-0000-0000-000000000012",
+            "itemName": "Carbide End Mill Ø12mm",
+            "size": "4 Flute, TiAIN Coating, L=75mm",
+            "qty": 20,
+            "urgency": "Normal",
+            "suggestedSupplier": "PT. Krakatau Steel",
+            "notes": "Stok cutting tool untuk mesin CNC"
+          }
+        ]
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Request Item",
+      "method": "PUT",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process",
+      "roles": ["Admin", "Purchasing"],
+      "description": "Purchasing processes a waiting item by filling supplier, PO number, estimated price, ETA, and purchasing notes.",
+      "requestBody": {
+        "supplierName": "PT. Krakatau Steel",
+        "expectedArrivalDate": "2026-05-25",
+        "poNumber": "PO-2026-041",
+        "estimatedPrice": 7300000,
+        "purchaseNotes": "Stok cutting tool untuk mesin CNC"
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Request Item",
+      "method": "PUT",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/reject",
+      "roles": ["Admin", "Purchasing"],
+      "description": "Purchasing rejects a purchase request item and records the rejection reason.",
+      "requestBody": {
+        "rejectionReason": "Request material tidak valid"
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Request Item",
+      "method": "PUT",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/receive",
+      "roles": ["Admin", "Purchasing"],
+      "description": "Purchasing confirms material receipt using the actual received date.",
+      "requestBody": {
+        "receivedDate": "2026-05-24",
+        "purchaseNotes": "Barang diterima lengkap"
+      }
     },
     {
       "service": "Purchasing.API",
@@ -215,7 +288,15 @@
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/purchase-info",
       "roles": ["Admin", "Purchasing"],
-      "description": "Record supplier, purchase date, arrival estimate, received date, purchase status, and notes."
+      "description": "Compatibility endpoint to record or patch supplier, PO number, estimated price, purchase date, arrival estimate, received date, purchase status, and notes."
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Sales Order Material Tracking",
+      "method": "GET",
+      "path": "/api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking",
+      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "description": "Track raw material progress from one Sales Order, including requirement counts and linked purchasing item status."
     }
   ]
 }

@@ -34,6 +34,7 @@ public sealed class SpkCreatedEventHandler(PurchasingContext db) : IIntegrationE
 
         foreach (var item in ExpandItems(integrationEvent))
         {
+            var salesOrderItemId = NormalizeSalesOrderItemId(item.SalesOrderItemId);
             var requirement = await db.MaterialRequirements
                 .FirstOrDefaultAsync(
                     existing =>
@@ -48,7 +49,7 @@ public sealed class SpkCreatedEventHandler(PurchasingContext db) : IIntegrationE
                     SalesOrderId = integrationEvent.SalesOrderId,
                     SalesOrderNumber = salesOrderNumber,
                     ProductionOrderId = integrationEvent.ProductionOrderId,
-                    SalesOrderItemId = item.SalesOrderItemId,
+                    SalesOrderItemId = salesOrderItemId,
                     SpkNumber = integrationEvent.SpkNumber,
                     BarcodeUid = integrationEvent.BarcodeValue,
                     ProductId = item.ProductId,
@@ -66,7 +67,7 @@ public sealed class SpkCreatedEventHandler(PurchasingContext db) : IIntegrationE
             {
                 requirement.SalesOrderId = integrationEvent.SalesOrderId;
                 requirement.SalesOrderNumber = salesOrderNumber;
-                requirement.SalesOrderItemId = item.SalesOrderItemId;
+                requirement.SalesOrderItemId = salesOrderItemId;
                 requirement.SpkNumber = integrationEvent.SpkNumber;
                 requirement.BarcodeUid = integrationEvent.BarcodeValue;
                 requirement.ProductId = item.ProductId;
@@ -99,5 +100,10 @@ public sealed class SpkCreatedEventHandler(PurchasingContext db) : IIntegrationE
                 integrationEvent.ProductName,
                 integrationEvent.MaterialSpec)
         ];
+    }
+
+    private static Guid? NormalizeSalesOrderItemId(Guid salesOrderItemId)
+    {
+        return salesOrderItemId == Guid.Empty ? null : salesOrderItemId;
     }
 }

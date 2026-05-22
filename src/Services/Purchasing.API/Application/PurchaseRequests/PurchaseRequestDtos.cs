@@ -18,7 +18,8 @@ public sealed record CreatePurchaseRequestItem(
     string? Size,
     int Qty,
     string? SuggestedSupplier,
-    string? Notes);
+    string? Notes,
+    string? Urgency = null);
 
 public sealed record ReviewPurchaseRequest(Guid ReviewedByUserId, string Decision, string? RejectionReason);
 
@@ -28,7 +29,20 @@ public sealed record UpdatePurchaseItemInfoRequest(
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
     string? PurchaseStatus,
+    string? PurchaseNotes,
+    string? PoNumber = null,
+    decimal? EstimatedPrice = null);
+
+public sealed record ProcessPurchaseItemRequest(
+    string SupplierName,
+    DateOnly ExpectedArrivalDate,
+    string? PoNumber,
+    decimal? EstimatedPrice,
     string? PurchaseNotes);
+
+public sealed record RejectPurchaseItemRequest(string? RejectionReason);
+
+public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? PurchaseNotes);
 
 public sealed record UpdateMaterialStockInfoRequest(int StockOnHand, string? StockNotes);
 
@@ -57,13 +71,17 @@ public sealed record PurchaseRequestItemDto(
     string ItemName,
     string? Size,
     int Qty,
+    string Urgency,
     string? SuggestedSupplier,
     string? SupplierName,
+    string? PoNumber,
+    decimal? EstimatedPrice,
     DateOnly? PurchaseDate,
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
     string PurchaseStatus,
     string? PurchaseNotes,
+    string? RejectionReason,
     string? Notes);
 
 public sealed record MaterialRequirementDto(
@@ -93,10 +111,13 @@ public sealed record LinkedPurchaseItemDto(
     string PurchaseRequestStatus,
     string PurchaseStatus,
     string? SupplierName,
+    string? PoNumber,
+    decimal? EstimatedPrice,
     DateOnly? PurchaseDate,
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
-    string? PurchaseNotes);
+    string? PurchaseNotes,
+    string? RejectionReason);
 
 public sealed record SalesOrderMaterialTrackingDto(
     Guid SalesOrderId,

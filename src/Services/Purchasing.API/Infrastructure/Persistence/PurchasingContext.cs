@@ -96,13 +96,17 @@ public sealed class PurchasingContext(DbContextOptions<PurchasingContext> option
             builder.Property(item => item.ItemName).HasMaxLength(255).HasColumnName("item_name");
             builder.Property(item => item.Size).HasMaxLength(100).HasColumnName("size");
             builder.Property(item => item.Qty).HasColumnName("qty");
+            builder.Property(item => item.Urgency).HasMaxLength(30).HasColumnName("urgency");
             builder.Property(item => item.SuggestedSupplier).HasMaxLength(255).HasColumnName("suggested_supplier");
             builder.Property(item => item.SupplierName).HasMaxLength(255).HasColumnName("supplier_name");
+            builder.Property(item => item.PoNumber).HasMaxLength(100).HasColumnName("po_number");
+            builder.Property(item => item.EstimatedPrice).HasColumnType("numeric(18,2)").HasColumnName("estimated_price");
             builder.Property(item => item.PurchaseDate).HasColumnName("purchase_date");
             builder.Property(item => item.ExpectedArrivalDate).HasColumnName("expected_arrival_date");
             builder.Property(item => item.ReceivedDate).HasColumnName("received_date");
             builder.Property(item => item.PurchaseStatus).HasMaxLength(50).HasColumnName("purchase_status");
             builder.Property(item => item.PurchaseNotes).HasColumnName("purchase_notes");
+            builder.Property(item => item.RejectionReason).HasColumnName("rejection_reason");
             builder.Property(item => item.Notes).HasColumnName("notes");
             builder.Property(item => item.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(item => item.UpdatedAtUtc).HasColumnName("updated_at_utc");
