@@ -13,7 +13,8 @@ namespace Purchasing.API.Tests;
 public sealed class PurchaseRequestServiceTests
 {
     [Theory]
-    [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering,Purchasing")]
+    [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering")]
+    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.ProcessItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.RejectItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.ReceiveItem), "Admin,Purchasing")]
@@ -113,13 +114,13 @@ public sealed class PurchaseRequestServiceTests
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
-        var service = new PurchaseRequestService(db, new RecordingEventPublisher());
+        var service = CreateService(db);
 
         var purchaseRequest = await service.CreateAsync(
             new CreatePurchaseRequest(
                 DateOnly.FromDateTime(DateTime.UtcNow),
                 Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                "Purchasing",
+                "Engineering Worker",
                 null,
                 null,
                 null,
@@ -139,21 +140,23 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task ReviewAsync_approves_request_and_updates_requirement()
+    public async Task ReviewAsync_accepts_request_from_finance_and_updates_requirement()
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
         var eventPublisher = new RecordingEventPublisher();
-        var service = new PurchaseRequestService(db, eventPublisher);
+        var service = CreateService(db, eventPublisher);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
 
         var reviewed = await service.ReviewAsync(
             purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Approve", null),
+            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null),
             CancellationToken.None);
 
         Assert.NotNull(reviewed);
         Assert.Equal(PurchaseRequestStatuses.Approved, reviewed.Status);
+        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), reviewed.ReviewedByUserId);
+        Assert.NotNull(reviewed.ReviewedAtUtc);
         Assert.Equal(PurchaseItemStatuses.Approved, Assert.Single(reviewed.Items).PurchaseStatus);
         Assert.Equal(MaterialRequirementStatuses.PurchaseApproved, (await db.MaterialRequirements.SingleAsync()).Status);
         Assert.Single(eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>());
@@ -164,13 +167,10 @@ public sealed class PurchaseRequestServiceTests
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
-        var service = new PurchaseRequestService(db, new RecordingEventPublisher());
+        var service = CreateService(db);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
-        var reviewed = await service.ReviewAsync(
-            purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Approve", null),
-            CancellationToken.None);
-        var itemId = Assert.Single(reviewed!.Items).Id;
+        var approved = await AcceptPurchaseRequestAsync(service, purchaseRequest);
+        var itemId = Assert.Single(approved.Items).Id;
 
         var updated = await service.UpdatePurchaseItemInfoAsync(
             purchaseRequest.Id,
@@ -187,6 +187,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         var item = Assert.Single(updated!.Items);
+        Assert.Equal(PurchaseRequestStatuses.Completed, updated.Status);
         Assert.Equal("Supplier A", item.SupplierName);
         Assert.Equal("PO-2026-001", item.PoNumber);
         Assert.Equal(2_750_000m, item.EstimatedPrice);
@@ -200,8 +201,9 @@ public sealed class PurchaseRequestServiceTests
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
-        var service = new PurchaseRequestService(db, new RecordingEventPublisher());
+        var service = CreateService(db);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
+        purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
 
         var processed = await service.ProcessPurchaseItemAsync(
@@ -216,7 +218,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         var processedItem = Assert.Single(processed!.Items);
-        Assert.Equal(PurchaseRequestStatuses.Approved, processed.Status);
+        Assert.Equal(PurchaseRequestStatuses.Processing, processed.Status);
         Assert.Equal(PurchaseItemStatuses.Ordered, processedItem.PurchaseStatus);
         Assert.Equal("PT. Krakatau Steel", processedItem.SupplierName);
         Assert.Equal("PO-2026-041", processedItem.PoNumber);
@@ -231,6 +233,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         var receivedItem = Assert.Single(received!.Items);
+        Assert.Equal(PurchaseRequestStatuses.Completed, received.Status);
         Assert.Equal(PurchaseItemStatuses.Received, receivedItem.PurchaseStatus);
         Assert.Equal(new DateOnly(2026, 5, 24), receivedItem.ReceivedDate);
         Assert.Equal("PT. Krakatau Steel", receivedItem.SupplierName);
@@ -243,8 +246,9 @@ public sealed class PurchaseRequestServiceTests
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
-        var service = new PurchaseRequestService(db, new RecordingEventPublisher());
+        var service = CreateService(db);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
+        purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
 
         var rejected = await service.RejectPurchaseItemAsync(
@@ -265,15 +269,12 @@ public sealed class PurchaseRequestServiceTests
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
-        var service = new PurchaseRequestService(db, new RecordingEventPublisher());
+        var service = CreateService(db);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
-        var reviewed = await service.ReviewAsync(
-            purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Approve", null),
-            CancellationToken.None);
+        purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         await service.UpdatePurchaseItemInfoAsync(
             purchaseRequest.Id,
-            Assert.Single(reviewed!.Items).Id,
+            Assert.Single(purchaseRequest.Items).Id,
             new UpdatePurchaseItemInfoRequest("Supplier A", new DateOnly(2026, 5, 17), null, new DateOnly(2026, 5, 18), "Received", null),
             CancellationToken.None);
 
@@ -289,6 +290,13 @@ public sealed class PurchaseRequestServiceTests
         var linkedItem = Assert.Single(Assert.Single(tracking.Requirements).PurchaseItems);
         Assert.Equal(PurchaseItemStatuses.Received, linkedItem.PurchaseStatus);
         Assert.Equal("Supplier A", linkedItem.SupplierName);
+    }
+
+    private static PurchaseRequestService CreateService(
+        PurchasingContext db,
+        RecordingEventPublisher? eventPublisher = null)
+    {
+        return new PurchaseRequestService(db, eventPublisher ?? new RecordingEventPublisher());
     }
 
     private static PurchasingContext CreateDbContext()
@@ -338,12 +346,24 @@ public sealed class PurchaseRequestServiceTests
             new CreatePurchaseRequest(
                 DateOnly.FromDateTime(DateTime.UtcNow),
                 Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                "Purchasing",
+                "Engineering Worker",
                 null,
                 null,
                 null,
                 [new CreatePurchaseRequestItem(requirement.Id, null, null, null, "", null, 5, "Supplier A", "Need material")]),
             CancellationToken.None);
+    }
+
+    private static async Task<PurchaseRequestDto> AcceptPurchaseRequestAsync(
+        PurchaseRequestService service,
+        PurchaseRequestDto purchaseRequest)
+    {
+        var reviewed = await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null),
+            CancellationToken.None);
+
+        return reviewed!;
     }
 
     private sealed class RecordingEventPublisher : IEventPublisher

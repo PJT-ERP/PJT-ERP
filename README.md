@@ -27,7 +27,7 @@ PtPjtErp.sln
 
 ## Komponen SharedLib
 
-`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, dan `PurchaseRequestReviewedEvent`.
+`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, dan `PurchaseRequestReviewedEvent`.
 
 `Shared.Auth` berisi konfigurasi JWT, validasi token, dan helper penerbit token untuk login.
 
@@ -45,7 +45,7 @@ PtPjtErp.sln
 
 `QC.API` menangani QC Inspection sederhana oleh Engineering Reviewer: upload foto/form QC, notes, dan keputusan approve/reject. Tidak ada lagi form checklist visual/dimension di aplikasi.
 
-`Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, form pembelian barang/material multi-item, informasi supplier dan tanggal pembelian, Purchase Request, review approve/reject oleh Finance, serta tracking bahan baku sampai diterima.
+`Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering, acceptance/reject oleh Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
 
 `Web.Gateway` adalah API Gateway berbasis YARP. Semua request frontend masuk lewat gateway, lalu diteruskan ke service yang sesuai.
 
@@ -158,7 +158,8 @@ QC.API
 
 Purchasing.API
   └── PurchaseRequestReviewedEvent
-      └── siap dipakai untuk dashboard/reporting berikutnya
+      └── siap dipakai untuk dashboard/reporting acceptance Purchase Request
+
 ```
 
 Event dikirim melalui PGMQ dengan transactional outbox. Jadi data bisnis dan event disimpan dalam satu transaksi, lalu background worker mengirim event ke queue.
@@ -216,7 +217,7 @@ Production Tracking adalah workflow lintas service, bukan module yang berdiri se
 - Engineering Reviewer hanya mengerjakan QC review setelah produksi selesai.
 - Owner melakukan lookup barcode berbasis SO, melihat progress produksi, dashboard, dan bottleneck.
 - Customer/public dapat membuka link tracking produksi tanpa login untuk melihat progress order sudah sampai mana. Akses ini read-only dan tidak menampilkan data internal seperti uploader, link drawing, atau user id.
-- Finance dan Purchasing dapat membaca progress produksi untuk konteks material, PR, dan planning, tetapi tidak mengubah status produksi.
+- Finance dan Purchasing dapat membaca progress produksi untuk konteks material, pengajuan pembelian, dan planning, tetapi tidak mengubah status produksi.
 - Admin mengelola user dan punya akses override sistem.
 
 ## Skenario Login dan Logout
@@ -358,22 +359,27 @@ Output utama:
 - Notes
 - Reviewer decision: Approved / Rejected.
 
-## Skenario Purchasing
+## Skenario Pengajuan, Finance, dan Purchasing
 
-Purchasing menangani kebutuhan bahan baku dari Sales Order sampai informasi pembelian dan penerimaan material tercatat. Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran, jumlah, urgensi, supplier, nomor PO, estimasi harga, estimasi tiba, project, pemohon, dan status penerimaan.
+Pengajuan pembelian dibuat dari menu Engineering, karena Engineering yang mengetahui kebutuhan material produksi. Setelah request masuk, Finance harus accept/reject Purchase Request terlebih dahulu. Jika Finance accept, role Purchasing menangani proses pembelian sampai informasi supplier, nomor PO, estimasi harga, estimasi tiba, dan penerimaan material tercatat.
+
+Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran/spesifikasi, jumlah, satuan, urgensi, referensi SO, pemohon, supplier, nomor PO, estimasi harga, estimasi tiba, catatan, dan status penerimaan.
 
 Alur kerja:
 
 1. Sales Order dikonfirmasi dan Production API menyiapkan state produksi internal.
 2. Production API mengirim event workflow Sales Order.
 3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
-4. Engineering membuka menu Pengajuan Purchasing dan membuat Purchase Request dari satu atau beberapa material requirement.
-5. Engineering mengisi nama barang, spesifikasi/ukuran, jumlah, urgensi (`Normal`, `Urgent`, atau `Critical`), referensi SO, supplier suggestion, project, dan notes.
-6. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
-7. User Purchasing membuka Manajemen Pembelian untuk melihat list request menunggu, diproses, selesai, atau ditolak.
-8. Purchasing memproses item dengan mengisi supplier final, nomor PO, estimasi harga, estimasi tanggal tiba, dan catatan purchasing. Status item menjadi `Ordered`.
-9. Purchasing dapat menolak item request jika tidak valid. Status item menjadi `Rejected`.
-10. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
+4. Engineering membuka tab `Pengajuan Purchasing`.
+5. Engineering membuat Purchase Request baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional.
+6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), referensi SO, supplier suggestion, dan catatan kebutuhan.
+7. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
+8. Finance membuka daftar Purchase Request yang masih `Submitted`.
+9. Finance memilih `Accept` atau `Reject`; jika reject, Finance mengisi alasan penolakan. Jika accepted, status request menjadi `Approved`, item menjadi `Approved`, dan material requirement berubah menjadi `PurchaseApproved`.
+10. Purchasing membuka menu `Manajemen Pembelian` untuk melihat request yang sudah accepted, diproses, selesai, atau ditolak.
+11. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, estimasi harga, estimasi tanggal tiba, dan catatan purchasing. Status item menjadi `Ordered`.
+12. Purchasing dapat menolak item request jika tidak valid pada tahap pembelian. Status item menjadi `Rejected`.
+13. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
 
 Endpoint utama:
 
@@ -384,6 +390,7 @@ Endpoint utama:
 - `GET /api/v1/purchasing/purchase-requests`
 - `GET /api/v1/purchasing/purchase-requests/{id}`
 - `POST /api/v1/purchasing/purchase-requests`
+- `POST /api/v1/purchasing/purchase-requests/{id}/review`
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process`
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/reject`
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/receive`
@@ -393,30 +400,9 @@ Output utama:
 
 - Material Requirement dari Sales Order.
 - Purchase Request dan Purchase Request Item.
-- Informasi supplier, nomor PO, estimasi harga, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan jika ada.
+- Finance acceptance: reviewer, waktu review, status approved/rejected, dan alasan penolakan jika ada.
+- Informasi supplier, nomor PO, estimasi harga, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
 - Tracking bahan baku per Sales Order.
-
-## Skenario Finance
-
-Finance melakukan review terhadap Purchase Request.
-
-Alur kerja:
-
-1. Finance login ke sistem.
-2. Finance membuka daftar Purchase Request.
-3. Finance mengecek item, jumlah, supplier suggestion, dan notes.
-4. Finance memilih `Approve` atau `Reject`.
-5. Jika reject, Finance mengisi alasan penolakan.
-6. Sistem menyimpan reviewer, waktu review, dan status final.
-7. Purchasing API mengirim `PurchaseRequestReviewedEvent`.
-8. Jika approved, Purchasing bisa melanjutkan pengisian informasi pembelian material.
-
-Output utama:
-
-- Status Approved / Rejected
-- Reviewer
-- Waktu review
-- Rejection reason jika ada
 
 ## Skenario Owner Dashboard
 
@@ -480,7 +466,7 @@ Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Enginee
 
 Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
-Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item, review Finance, update informasi pembelian/stok oleh Purchasing, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
+Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item dari Engineering, acceptance/reject oleh Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
 
 ## Catatan Implementasi
 

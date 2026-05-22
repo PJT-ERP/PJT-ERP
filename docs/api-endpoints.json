@@ -207,7 +207,7 @@
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "List purchase requests submitted by Engineering or Purchasing. UI can filter by status or Sales Order."
+      "description": "List purchase requests submitted by Engineering, accepted by Finance, and handled by Purchasing. UI can filter by status or Sales Order."
     },
     {
       "service": "Purchasing.API",
@@ -215,15 +215,15 @@
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests/{id}",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "Open purchase request detail with item, urgency, requester, SO reference, supplier, PO number, estimated price, ETA, received date, and notes."
+      "description": "Open purchase request detail with item, urgency, requester, SO reference, Finance review data, supplier, PO number, estimated price, ETA, received date, and notes."
     },
     {
       "service": "Purchasing.API",
       "feature": "Purchase Requests",
       "method": "POST",
       "path": "/api/v1/purchasing/purchase-requests",
-      "roles": ["Admin", "Engineering", "Purchasing"],
-      "description": "Engineering or Purchasing submits a multi-item purchase request.",
+      "roles": ["Admin", "Engineering"],
+      "description": "Engineering submits a multi-item purchase request.",
       "requestBody": {
         "requestDate": "2026-05-22",
         "requestedByUserId": "00000000-0000-0000-0000-000000000010",
@@ -246,11 +246,24 @@
     },
     {
       "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/review",
+      "roles": ["Admin", "Finance"],
+      "description": "Finance accepts or rejects a submitted purchase request before Purchasing can process items.",
+      "requestBody": {
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000020",
+        "decision": "Accept",
+        "rejectionReason": null
+      }
+    },
+    {
+      "service": "Purchasing.API",
       "feature": "Purchase Request Item",
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process",
       "roles": ["Admin", "Purchasing"],
-      "description": "Purchasing processes a waiting item by filling supplier, PO number, estimated price, ETA, and purchasing notes.",
+      "description": "Purchasing processes a Finance-accepted item by filling supplier, PO number, estimated price, ETA, and purchasing notes.",
       "requestBody": {
         "supplierName": "PT. Krakatau Steel",
         "expectedArrivalDate": "2026-05-25",
