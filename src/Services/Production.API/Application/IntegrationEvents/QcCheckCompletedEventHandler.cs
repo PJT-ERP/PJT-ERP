@@ -11,6 +11,7 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db) : IIntegr
     public async Task Handle(QcCheckCompletedEvent integrationEvent, CancellationToken cancellationToken = default)
     {
         var productionOrder = await db.ProductionOrders
+            .Include(order => order.SalesOrder)
             .FirstOrDefaultAsync(order => order.Id == integrationEvent.ProductionOrderId, cancellationToken);
 
         if (productionOrder is null)
@@ -23,6 +24,15 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db) : IIntegr
             ? ProductionOrderStatuses.Closed
             : productionOrder.Status;
         productionOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
+
+        if (productionOrder.SalesOrder is not null)
+        {
+            productionOrder.SalesOrder.Status = integrationEvent.Decision.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+                ? SalesOrderStatuses.Completed
+                : productionOrder.SalesOrder.Status;
+            productionOrder.SalesOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

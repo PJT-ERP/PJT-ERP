@@ -13,42 +13,24 @@ public sealed class QcInspection
     public string? DrawingRef { get; set; }
     public int? OrderQty { get; set; }
     public string? MaterialSpec { get; set; }
-    public Guid? InspectorId { get; set; }
-    public string? InspectorName { get; set; }
-    public DateOnly? InspectionDate { get; set; }
     public DateTime? ProductionFinishedAtUtc { get; set; }
-    public int? SampleQty { get; set; }
-    public string? SamplingMethod { get; set; }
-    public string? MeasuringToolNo { get; set; }
+    public Guid? AssignedReviewerUserId { get; set; }
+    public string? AssignedReviewerName { get; set; }
+    public string? QcImageUrl { get; set; }
+    public string? Notes { get; set; }
     public string Status { get; set; } = QcInspectionStatuses.WaitingProduction;
-    public string? InspectionResult { get; set; }
-    public string? DefectNotes { get; set; }
-    public string? FormRemarks { get; set; }
-    public string? OwnerDecision { get; set; }
-    public Guid? OwnerReviewedByUserId { get; set; }
-    public string? OwnerReviewerName { get; set; }
-    public DateTime? OwnerReviewedAtUtc { get; set; }
-    public string? OwnerReviewRemarks { get; set; }
+    public string? Decision { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public string? ReviewerName { get; set; }
+    public DateTime? ReviewedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
-    public List<QcVisualCheck> VisualChecks { get; set; } = [];
-    public List<QcDimensionCheck> DimensionChecks { get; set; } = [];
 }
 
 public static class QcInspectionStatuses
 {
     public const string WaitingProduction = "WaitingProduction";
     public const string ReadyForInspection = "ReadyForInspection";
-    public const string InInspection = "InInspection";
-    public const string PendingOwnerReview = "PendingOwnerReview";
     public const string Approved = "Approved";
     public const string Rejected = "Rejected";
-}
-
-public static class QcInspectionResults
-{
-    public const string Accept = "Accept";
-    public const string Reject = "Reject";
-    public const string Repair = "Repair";
-    public const string Scrap = "Scrap";
 }

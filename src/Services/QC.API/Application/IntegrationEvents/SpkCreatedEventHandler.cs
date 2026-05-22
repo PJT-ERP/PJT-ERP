@@ -26,7 +26,9 @@ public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHand
                 PorNumber = integrationEvent.SpkNumber,
                 DrawingRef = integrationEvent.DrawingRef,
                 OrderQty = Decimal.ToInt32(integrationEvent.Quantity),
-                MaterialSpec = integrationEvent.MaterialSpec
+                MaterialSpec = integrationEvent.MaterialSpec,
+                AssignedReviewerUserId = integrationEvent.QcReviewerUserId,
+                AssignedReviewerName = integrationEvent.QcReviewerName
             };
             await db.QcInspections.AddAsync(inspection, cancellationToken);
         }
@@ -40,6 +42,8 @@ public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHand
             inspection.DrawingRef = integrationEvent.DrawingRef;
             inspection.OrderQty = Decimal.ToInt32(integrationEvent.Quantity);
             inspection.MaterialSpec = integrationEvent.MaterialSpec;
+            inspection.AssignedReviewerUserId = integrationEvent.QcReviewerUserId;
+            inspection.AssignedReviewerName = integrationEvent.QcReviewerName;
             inspection.UpdatedAtUtc = integrationEvent.OccurredAtUtc;
         }
 

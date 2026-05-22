@@ -13,14 +13,13 @@ public sealed record CreatePurchaseRequestItem(
     Guid? MaterialRequirementId,
     Guid? SalesOrderId,
     string? SalesOrderNumber,
-    Guid? ProductionOrderId,
-    string? SpkNumber,
     string? ProjectName,
     string ItemName,
     string? Size,
     int Qty,
     string? SuggestedSupplier,
-    string? Notes);
+    string? Notes,
+    string? Urgency = null);
 
 public sealed record ReviewPurchaseRequest(Guid ReviewedByUserId, string Decision, string? RejectionReason);
 
@@ -30,7 +29,22 @@ public sealed record UpdatePurchaseItemInfoRequest(
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
     string? PurchaseStatus,
+    string? PurchaseNotes,
+    string? PoNumber = null,
+    decimal? EstimatedPrice = null);
+
+public sealed record ProcessPurchaseItemRequest(
+    string SupplierName,
+    DateOnly ExpectedArrivalDate,
+    string? PoNumber,
+    decimal? EstimatedPrice,
     string? PurchaseNotes);
+
+public sealed record RejectPurchaseItemRequest(string? RejectionReason);
+
+public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? PurchaseNotes);
+
+public sealed record UpdateMaterialStockInfoRequest(int StockOnHand, string? StockNotes);
 
 public sealed record PurchaseRequestDto(
     Guid Id,
@@ -53,32 +67,38 @@ public sealed record PurchaseRequestItemDto(
     Guid? MaterialRequirementId,
     Guid? SalesOrderId,
     string? SalesOrderNumber,
-    Guid? ProductionOrderId,
-    string? SpkNumber,
     string? ProjectName,
     string ItemName,
     string? Size,
     int Qty,
+    string Urgency,
     string? SuggestedSupplier,
     string? SupplierName,
+    string? PoNumber,
+    decimal? EstimatedPrice,
     DateOnly? PurchaseDate,
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
     string PurchaseStatus,
     string? PurchaseNotes,
+    string? RejectionReason,
     string? Notes);
 
 public sealed record MaterialRequirementDto(
     Guid Id,
     Guid SalesOrderId,
     string SalesOrderNumber,
-    Guid ProductionOrderId,
-    string SpkNumber,
+    Guid? SalesOrderItemId,
     Guid ProductId,
     string ProductPartNumber,
     string ProductDescription,
     string? MaterialSpec,
     int RequiredQty,
+    int StockOnHand,
+    int StockBalanceAfterRequirement,
+    bool RequiresPurchase,
+    string? StockNotes,
+    DateTime? StockUpdatedAtUtc,
     string ProjectName,
     string Status,
     DateTime UpdatedAtUtc,
@@ -91,10 +111,13 @@ public sealed record LinkedPurchaseItemDto(
     string PurchaseRequestStatus,
     string PurchaseStatus,
     string? SupplierName,
+    string? PoNumber,
+    decimal? EstimatedPrice,
     DateOnly? PurchaseDate,
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
-    string? PurchaseNotes);
+    string? PurchaseNotes,
+    string? RejectionReason);
 
 public sealed record SalesOrderMaterialTrackingDto(
     Guid SalesOrderId,

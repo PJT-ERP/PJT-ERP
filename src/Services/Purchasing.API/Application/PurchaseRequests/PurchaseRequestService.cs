@@ -81,12 +81,13 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                     MaterialRequirementId = item.MaterialRequirementId,
                     SalesOrderId = item.SalesOrderId ?? requirement?.SalesOrderId ?? request.SalesOrderId,
                     SalesOrderNumber = NormalizeOptional(item.SalesOrderNumber) ?? requirement?.SalesOrderNumber ?? NormalizeOptional(request.SalesOrderNumber),
-                    ProductionOrderId = item.ProductionOrderId ?? requirement?.ProductionOrderId,
-                    SpkNumber = NormalizeOptional(item.SpkNumber) ?? requirement?.SpkNumber,
+                    ProductionOrderId = requirement?.ProductionOrderId,
+                    SpkNumber = requirement?.SpkNumber,
                     ProjectName = NormalizeOptional(item.ProjectName) ?? requirement?.ProjectName ?? NormalizeOptional(request.ProjectName),
                     ItemName = ResolveItemName(item, requirement),
                     Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
                     Qty = item.Qty,
+                    Urgency = NormalizeUrgency(item.Urgency),
                     SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier),
                     Notes = NormalizeOptional(item.Notes),
                     PurchaseStatus = PurchaseItemStatuses.Requested
@@ -117,36 +118,44 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
+        if (purchaseRequest.Status != PurchaseRequestStatuses.Submitted)
+        {
+            throw new InvalidOperationException("Only submitted purchase requests can be reviewed by Finance.");
+        }
+
         var decision = NormalizeReviewDecision(request.Decision);
         if (decision == PurchaseRequestStatuses.Rejected && string.IsNullOrWhiteSpace(request.RejectionReason))
         {
             throw new InvalidOperationException("Rejection reason is required when rejecting a purchase request.");
         }
 
+        var now = DateTime.UtcNow;
         purchaseRequest.Status = decision;
         purchaseRequest.ReviewedByUserId = request.ReviewedByUserId;
-        purchaseRequest.ReviewedAtUtc = DateTime.UtcNow;
-        purchaseRequest.RejectionReason = purchaseRequest.Status == PurchaseRequestStatuses.Rejected ? request.RejectionReason?.Trim() : null;
-        purchaseRequest.UpdatedAtUtc = DateTime.UtcNow;
+        purchaseRequest.ReviewedAtUtc = now;
+        purchaseRequest.RejectionReason = decision == PurchaseRequestStatuses.Rejected
+            ? NormalizeOptional(request.RejectionReason)
+            : null;
+        purchaseRequest.UpdatedAtUtc = now;
 
         foreach (var item in purchaseRequest.Items)
         {
             item.PurchaseStatus = decision == PurchaseRequestStatuses.Approved
                 ? PurchaseItemStatuses.Approved
                 : PurchaseItemStatuses.Rejected;
-            item.UpdatedAtUtc = purchaseRequest.UpdatedAtUtc;
+            item.RejectionReason = purchaseRequest.RejectionReason;
+            item.UpdatedAtUtc = now;
 
-            if (item.MaterialRequirement is not null)
-            {
-                item.MaterialRequirement.Status = decision == PurchaseRequestStatuses.Approved
+            UpdateMaterialRequirementStatus(
+                item,
+                decision == PurchaseRequestStatuses.Approved
                     ? MaterialRequirementStatuses.PurchaseApproved
-                    : MaterialRequirementStatuses.PurchaseRejected;
-                item.MaterialRequirement.UpdatedAtUtc = purchaseRequest.UpdatedAtUtc;
-            }
+                    : MaterialRequirementStatuses.PurchaseRejected,
+                now);
         }
 
         await eventPublisher.PublishAsync(
-            new PurchaseRequestReviewedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, purchaseRequest.Status, purchaseRequest.ReviewedAtUtc.Value),
+            new PurchaseRequestReviewedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, purchaseRequest.Status, now),
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
@@ -171,29 +180,44 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             throw new InvalidOperationException("Rejected purchase requests cannot receive purchase information.");
         }
 
+        EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "receive purchase information");
+
         var purchaseItem = purchaseRequest.Items.FirstOrDefault(item => item.Id == itemId)
             ?? throw new InvalidOperationException("Purchase request item was not found.");
-        var purchaseStatus = NormalizePurchaseStatus(request.PurchaseStatus, request.PurchaseDate, request.ReceivedDate);
+        var purchaseStatus = string.IsNullOrWhiteSpace(request.PurchaseStatus)
+            && !request.PurchaseDate.HasValue
+            && !request.ReceivedDate.HasValue
+                ? purchaseItem.PurchaseStatus
+                : NormalizePurchaseStatus(request.PurchaseStatus, request.PurchaseDate, request.ReceivedDate);
+        ValidateEstimatedPrice(request.EstimatedPrice);
+        var requestedSupplier = NormalizeOptional(request.SupplierName);
+        var effectiveSupplier = requestedSupplier ?? purchaseItem.SupplierName;
+        var effectivePurchaseDate = request.PurchaseDate ?? purchaseItem.PurchaseDate;
 
         if (purchaseStatus is PurchaseItemStatuses.Ordered or PurchaseItemStatuses.Received)
         {
-            if (string.IsNullOrWhiteSpace(request.SupplierName))
+            if (string.IsNullOrWhiteSpace(effectiveSupplier))
             {
                 throw new InvalidOperationException("Supplier name is required when recording ordered or received material.");
             }
 
-            if (!request.PurchaseDate.HasValue)
+            if (!effectivePurchaseDate.HasValue)
             {
                 throw new InvalidOperationException("Purchase date is required when recording ordered or received material.");
             }
         }
 
-        purchaseItem.SupplierName = NormalizeOptional(request.SupplierName);
-        purchaseItem.PurchaseDate = request.PurchaseDate;
-        purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate;
-        purchaseItem.ReceivedDate = request.ReceivedDate;
+        purchaseItem.SupplierName = requestedSupplier ?? purchaseItem.SupplierName;
+        purchaseItem.PoNumber = request.PoNumber is null ? purchaseItem.PoNumber : NormalizeOptional(request.PoNumber);
+        purchaseItem.EstimatedPrice = request.EstimatedPrice ?? purchaseItem.EstimatedPrice;
+        purchaseItem.PurchaseDate = effectivePurchaseDate;
+        purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate ?? purchaseItem.ExpectedArrivalDate;
+        purchaseItem.ReceivedDate = request.ReceivedDate ?? purchaseItem.ReceivedDate;
         purchaseItem.PurchaseStatus = purchaseStatus;
-        purchaseItem.PurchaseNotes = NormalizeOptional(request.PurchaseNotes);
+        purchaseItem.PurchaseNotes = request.PurchaseNotes is null ? purchaseItem.PurchaseNotes : NormalizeOptional(request.PurchaseNotes);
+        purchaseItem.RejectionReason = purchaseStatus == PurchaseItemStatuses.Rejected
+            ? purchaseItem.PurchaseNotes
+            : null;
         purchaseItem.UpdatedAtUtc = DateTime.UtcNow;
         purchaseRequest.UpdatedAtUtc = purchaseItem.UpdatedAtUtc;
 
@@ -209,6 +233,152 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             };
             purchaseItem.MaterialRequirement.UpdatedAtUtc = purchaseItem.UpdatedAtUtc;
         }
+
+        RefreshPurchaseRequestStatus(purchaseRequest);
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(purchaseRequest);
+    }
+
+    public async Task<PurchaseRequestDto?> ProcessPurchaseItemAsync(
+        Guid purchaseRequestId,
+        Guid itemId,
+        ProcessPurchaseItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.SupplierName))
+        {
+            throw new InvalidOperationException("Supplier name is required when processing a purchase request item.");
+        }
+
+        ValidateEstimatedPrice(request.EstimatedPrice);
+
+        var purchaseRequest = await IncludeItems(db.PurchaseRequests)
+            .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
+
+        if (purchaseRequest is null)
+        {
+            return null;
+        }
+
+        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected)
+        {
+            throw new InvalidOperationException("Rejected purchase requests cannot be processed.");
+        }
+
+        EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "be processed");
+
+        var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
+        if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Received)
+        {
+            throw new InvalidOperationException("Received purchase request items cannot be processed again.");
+        }
+
+        if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Rejected)
+        {
+            throw new InvalidOperationException("Rejected purchase request items cannot be processed.");
+        }
+
+        var now = DateTime.UtcNow;
+        purchaseItem.SupplierName = request.SupplierName.Trim();
+        purchaseItem.PoNumber = NormalizeOptional(request.PoNumber);
+        purchaseItem.EstimatedPrice = request.EstimatedPrice;
+        purchaseItem.PurchaseDate = DateOnly.FromDateTime(now);
+        purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate;
+        purchaseItem.ReceivedDate = null;
+        purchaseItem.PurchaseStatus = PurchaseItemStatuses.Ordered;
+        purchaseItem.PurchaseNotes = NormalizeOptional(request.PurchaseNotes);
+        purchaseItem.RejectionReason = null;
+        purchaseItem.UpdatedAtUtc = now;
+        purchaseRequest.UpdatedAtUtc = now;
+        RefreshPurchaseRequestStatus(purchaseRequest);
+        UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Ordered, now);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(purchaseRequest);
+    }
+
+    public async Task<PurchaseRequestDto?> RejectPurchaseItemAsync(
+        Guid purchaseRequestId,
+        Guid itemId,
+        RejectPurchaseItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        var purchaseRequest = await IncludeItems(db.PurchaseRequests)
+            .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
+
+        if (purchaseRequest is null)
+        {
+            return null;
+        }
+
+        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected
+            && purchaseRequest.Items.All(item => item.PurchaseStatus == PurchaseItemStatuses.Rejected))
+        {
+            throw new InvalidOperationException("Rejected purchase requests cannot be changed.");
+        }
+
+        EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "have items rejected by Purchasing");
+
+        var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
+        if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Received)
+        {
+            throw new InvalidOperationException("Received purchase request items cannot be rejected.");
+        }
+
+        var now = DateTime.UtcNow;
+        purchaseItem.PurchaseStatus = PurchaseItemStatuses.Rejected;
+        purchaseItem.RejectionReason = NormalizeOptional(request.RejectionReason);
+        purchaseItem.PurchaseNotes = purchaseItem.RejectionReason ?? purchaseItem.PurchaseNotes;
+        purchaseItem.UpdatedAtUtc = now;
+        purchaseRequest.UpdatedAtUtc = now;
+        RefreshPurchaseRequestStatus(purchaseRequest);
+        UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.PurchaseRejected, now);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(purchaseRequest);
+    }
+
+    public async Task<PurchaseRequestDto?> ReceivePurchaseItemAsync(
+        Guid purchaseRequestId,
+        Guid itemId,
+        ReceivePurchaseItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        var purchaseRequest = await IncludeItems(db.PurchaseRequests)
+            .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
+
+        if (purchaseRequest is null)
+        {
+            return null;
+        }
+
+        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected)
+        {
+            throw new InvalidOperationException("Rejected purchase requests cannot receive material.");
+        }
+
+        EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "receive material");
+
+        var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
+        if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Rejected)
+        {
+            throw new InvalidOperationException("Rejected purchase request items cannot receive material.");
+        }
+
+        if (string.IsNullOrWhiteSpace(purchaseItem.SupplierName) || !purchaseItem.PurchaseDate.HasValue)
+        {
+            throw new InvalidOperationException("Purchase request item must be processed before it can be received.");
+        }
+
+        var now = DateTime.UtcNow;
+        purchaseItem.ReceivedDate = request.ReceivedDate;
+        purchaseItem.PurchaseStatus = PurchaseItemStatuses.Received;
+        purchaseItem.PurchaseNotes = NormalizeOptional(request.PurchaseNotes) ?? purchaseItem.PurchaseNotes;
+        purchaseItem.RejectionReason = null;
+        purchaseItem.UpdatedAtUtc = now;
+        purchaseRequest.UpdatedAtUtc = now;
+        RefreshPurchaseRequestStatus(purchaseRequest);
+        UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Received, now);
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
@@ -237,6 +407,33 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         return requirements.Select(ToDto).ToArray();
     }
 
+    public async Task<MaterialRequirementDto?> UpdateMaterialRequirementStockAsync(
+        Guid materialRequirementId,
+        UpdateMaterialStockInfoRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.StockOnHand < 0)
+        {
+            throw new InvalidOperationException("Stock on hand cannot be negative.");
+        }
+
+        var requirement = await IncludePurchaseItems(db.MaterialRequirements)
+            .FirstOrDefaultAsync(item => item.Id == materialRequirementId, cancellationToken);
+
+        if (requirement is null)
+        {
+            return null;
+        }
+
+        requirement.StockOnHand = request.StockOnHand;
+        requirement.StockNotes = NormalizeOptional(request.StockNotes);
+        requirement.StockUpdatedAtUtc = DateTime.UtcNow;
+        requirement.UpdatedAtUtc = requirement.StockUpdatedAtUtc.Value;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(requirement);
+    }
+
     public async Task<SalesOrderMaterialTrackingDto?> GetSalesOrderMaterialTrackingAsync(
         Guid salesOrderId,
         CancellationToken cancellationToken)
@@ -247,7 +444,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
         var requirements = await IncludePurchaseItems(db.MaterialRequirements.AsNoTracking())
             .Where(requirement => requirement.SalesOrderId == salesOrderId)
-            .OrderBy(requirement => requirement.SpkNumber)
+            .OrderBy(requirement => requirement.ProductPartNumber)
             .ToListAsync(cancellationToken);
 
         if (snapshot is null && requirements.Count == 0)
@@ -346,19 +543,21 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             item.MaterialRequirementId,
             item.SalesOrderId,
             item.SalesOrderNumber,
-            item.ProductionOrderId,
-            item.SpkNumber,
             item.ProjectName,
             item.ItemName,
             item.Size,
             item.Qty,
+            item.Urgency,
             item.SuggestedSupplier,
             item.SupplierName,
+            item.PoNumber,
+            item.EstimatedPrice,
             item.PurchaseDate,
             item.ExpectedArrivalDate,
             item.ReceivedDate,
             item.PurchaseStatus,
             item.PurchaseNotes,
+            item.RejectionReason,
             item.Notes);
     }
 
@@ -368,13 +567,17 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             requirement.Id,
             requirement.SalesOrderId,
             requirement.SalesOrderNumber,
-            requirement.ProductionOrderId,
-            requirement.SpkNumber,
+            requirement.SalesOrderItemId,
             requirement.ProductId,
             requirement.ProductPartNumber,
             requirement.ProductDescription,
             requirement.MaterialSpec,
             requirement.RequiredQty,
+            requirement.StockOnHand,
+            requirement.StockOnHand - requirement.RequiredQty,
+            requirement.StockOnHand < requirement.RequiredQty,
+            requirement.StockNotes,
+            requirement.StockUpdatedAtUtc,
             requirement.ProjectName,
             requirement.Status,
             requirement.UpdatedAtUtc,
@@ -388,10 +591,13 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                     item.PurchaseRequest.Status,
                     item.PurchaseStatus,
                     item.SupplierName,
+                    item.PoNumber,
+                    item.EstimatedPrice,
                     item.PurchaseDate,
                     item.ExpectedArrivalDate,
                     item.ReceivedDate,
-                    item.PurchaseNotes))
+                    item.PurchaseNotes,
+                    item.RejectionReason))
                 .ToArray());
     }
 
@@ -412,7 +618,9 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
     private static string NormalizeReviewDecision(string decision)
     {
-        if (decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
+        if (decision.Equals("Accept", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Accepted", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
             || decision.Equals(PurchaseRequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
         {
             return PurchaseRequestStatuses.Approved;
@@ -424,7 +632,23 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return PurchaseRequestStatuses.Rejected;
         }
 
-        throw new InvalidOperationException("Review decision must be Approve or Reject.");
+        throw new InvalidOperationException("Finance decision must be Accept or Reject.");
+    }
+
+    private static string NormalizeUrgency(string? urgency)
+    {
+        if (string.IsNullOrWhiteSpace(urgency))
+        {
+            return PurchaseItemUrgencies.Normal;
+        }
+
+        return urgency.Trim() switch
+        {
+            var value when value.Equals(PurchaseItemUrgencies.Normal, StringComparison.OrdinalIgnoreCase) => PurchaseItemUrgencies.Normal,
+            var value when value.Equals(PurchaseItemUrgencies.Urgent, StringComparison.OrdinalIgnoreCase) => PurchaseItemUrgencies.Urgent,
+            var value when value.Equals(PurchaseItemUrgencies.Critical, StringComparison.OrdinalIgnoreCase) => PurchaseItemUrgencies.Critical,
+            _ => throw new InvalidOperationException("Purchase urgency must be Normal, Urgent, or Critical.")
+        };
     }
 
     private static string NormalizePurchaseStatus(string? status, DateOnly? purchaseDate, DateOnly? receivedDate)
@@ -436,7 +660,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                 return PurchaseItemStatuses.Received;
             }
 
-            return purchaseDate.HasValue ? PurchaseItemStatuses.Ordered : PurchaseItemStatuses.Approved;
+            return purchaseDate.HasValue ? PurchaseItemStatuses.Ordered : PurchaseItemStatuses.Requested;
         }
 
         return status.Trim() switch
@@ -453,6 +677,88 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static void ValidateEstimatedPrice(decimal? estimatedPrice)
+    {
+        if (estimatedPrice.HasValue && estimatedPrice.Value < 0)
+        {
+            throw new InvalidOperationException("Estimated price cannot be negative.");
+        }
+    }
+
+    private static PurchaseRequestItem FindPurchaseItem(PurchaseRequest purchaseRequest, Guid itemId)
+    {
+        return purchaseRequest.Items.FirstOrDefault(item => item.Id == itemId)
+            ?? throw new InvalidOperationException("Purchase request item was not found.");
+    }
+
+    private static void UpdateMaterialRequirementStatus(
+        PurchaseRequestItem purchaseItem,
+        string status,
+        DateTime timestampUtc)
+    {
+        if (purchaseItem.MaterialRequirement is null)
+        {
+            return;
+        }
+
+        purchaseItem.MaterialRequirement.Status = status;
+        purchaseItem.MaterialRequirement.UpdatedAtUtc = timestampUtc;
+    }
+
+    private static void EnsurePurchaseRequestAcceptedForPurchasing(PurchaseRequest purchaseRequest, string action)
+    {
+        if (purchaseRequest.Status is PurchaseRequestStatuses.Approved
+            or PurchaseRequestStatuses.Processing
+            or PurchaseRequestStatuses.Completed)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException($"Purchase request must be accepted by Finance before it can {action}.");
+    }
+
+    private static void RefreshPurchaseRequestStatus(PurchaseRequest purchaseRequest)
+    {
+        if (purchaseRequest.Items.All(item => item.PurchaseStatus == PurchaseItemStatuses.Rejected))
+        {
+            purchaseRequest.Status = PurchaseRequestStatuses.Rejected;
+            purchaseRequest.RejectionReason = string.Join(
+                "; ",
+                purchaseRequest.Items
+                    .Select(item => item.RejectionReason)
+                    .Where(reason => !string.IsNullOrWhiteSpace(reason)));
+            purchaseRequest.RejectionReason = string.IsNullOrWhiteSpace(purchaseRequest.RejectionReason)
+                ? null
+                : purchaseRequest.RejectionReason;
+            return;
+        }
+
+        if (purchaseRequest.Items.All(item => item.PurchaseStatus == PurchaseItemStatuses.Received))
+        {
+            purchaseRequest.Status = PurchaseRequestStatuses.Completed;
+            purchaseRequest.RejectionReason = null;
+            return;
+        }
+
+        if (purchaseRequest.Items.Any(item => item.PurchaseStatus is PurchaseItemStatuses.Ordered
+                or PurchaseItemStatuses.Received))
+        {
+            purchaseRequest.Status = PurchaseRequestStatuses.Processing;
+            purchaseRequest.RejectionReason = null;
+            return;
+        }
+
+        if (purchaseRequest.Items.Any(item => item.PurchaseStatus == PurchaseItemStatuses.Approved))
+        {
+            purchaseRequest.Status = PurchaseRequestStatuses.Approved;
+            purchaseRequest.RejectionReason = null;
+            return;
+        }
+
+        purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+        purchaseRequest.RejectionReason = null;
     }
 
     private static string GenerateNumber()

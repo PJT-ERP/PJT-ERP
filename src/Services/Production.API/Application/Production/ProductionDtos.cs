@@ -1,12 +1,20 @@
 namespace PJT_ERP.Production.Api.Application.Production;
 
+public sealed record EngineerAssignment(Guid UserId, string Name);
+
 public sealed record CreateSalesOrderRequest(
     Guid CustomerId,
     DateOnly SoDate,
     DateOnly? TargetDate,
-    IReadOnlyCollection<CreateSalesOrderItemRequest> Items);
+    IReadOnlyCollection<CreateSalesOrderItemRequest> Items,
+    EngineerAssignment? ProductionWorker = null,
+    EngineerAssignment? QcReviewer = null);
 
 public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, string? Notes);
+
+public sealed record AssignSalesOrderEngineersRequest(
+    EngineerAssignment? ProductionWorker,
+    EngineerAssignment? QcReviewer);
 
 public sealed record ConfirmSalesOrderRequest(Guid ApprovedByUserId);
 
@@ -18,6 +26,10 @@ public sealed record SalesOrderDto(
     string CustomerName,
     DateOnly SoDate,
     DateOnly? TargetDate,
+    Guid? ProductionWorkerUserId,
+    string? ProductionWorkerName,
+    Guid? QcReviewerUserId,
+    string? QcReviewerName,
     string Status,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
@@ -36,15 +48,30 @@ public sealed record SalesOrderProductionProgressDto(
     string SoNumber,
     string CustomerCode,
     string CustomerName,
-    string Status,
+    Guid? ProductionWorkerUserId,
+    string? ProductionWorkerName,
+    Guid? QcReviewerUserId,
+    string? QcReviewerName,
+    string SalesOrderStatus,
+    string ProductionStatus,
     int TotalItems,
     int TotalQuantity,
-    int ProductionOrderCount,
-    int WaitingOrders,
-    int InProgressOrders,
-    int FinishedOrders,
-    int ClosedOrders,
     decimal ProgressPercent,
+    string? DrawingRef,
+    string? DrawingFileUrl,
+    Guid? DrawingUploadedByUserId,
+    string? DrawingUploaderName,
+    DateTime? DrawingUploadedAtUtc,
+    string? TrackingBarcodeUid,
+    DateTime? StartedAtUtc,
+    Guid? StartedByUserId,
+    string? StartedByName,
+    DateTime? FinishedAtUtc,
+    Guid? FinishedByUserId,
+    string? FinishedByName,
+    long? DurationSeconds,
+    string? QcDecision,
+    DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
 
 public sealed record SalesOrderProductionProgressItemDto(
@@ -52,69 +79,30 @@ public sealed record SalesOrderProductionProgressItemDto(
     Guid ProductId,
     string ProductPartNumber,
     string ProductDescription,
-    int Qty,
-    IReadOnlyCollection<ProductionOrderDto> ProductionOrders);
+    int Qty);
 
 public sealed record PublicProductionTrackingDto(
     string SoNumber,
     string CustomerName,
-    string Status,
+    string SalesOrderStatus,
+    string ProductionStatus,
     int TotalItems,
     int TotalQuantity,
-    int ProductionOrderCount,
-    int WaitingOrders,
-    int InProgressOrders,
-    int FinishedOrders,
-    int ClosedOrders,
     decimal ProgressPercent,
+    DateTime? StartedAtUtc,
+    DateTime? FinishedAtUtc,
+    long? DurationSeconds,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<PublicProductionTrackingItemDto> Items);
 
 public sealed record PublicProductionTrackingItemDto(
     string ProductPartNumber,
     string ProductDescription,
-    int Qty,
-    IReadOnlyCollection<PublicProductionOrderTrackingDto> ProductionOrders);
+    int Qty);
 
-public sealed record PublicProductionOrderTrackingDto(
-    string PoNumber,
-    string ProductPartNumber,
-    string ProductDescription,
-    int OrderQty,
-    string Status,
-    DateTime? StartedAtUtc,
-    DateTime? FinishedAtUtc,
-    long? DurationSeconds,
-    DateTime UpdatedAtUtc);
+public sealed record LookupSalesOrderTrackingRequest(string TrackingCode);
 
-public sealed record ProductionOrderDto(
-    Guid Id,
-    string PoNumber,
-    Guid SalesOrderItemId,
-    Guid? SalesOrderId,
-    string? SoNumber,
-    string? CustomerCode,
-    string? CustomerName,
-    Guid? ProductId,
-    string? ProductPartNumber,
-    string? ProductDescription,
-    string? DrawingRef,
-    string? DrawingFileUrl,
-    Guid? DrawingUploadedByUserId,
-    string? DrawingUploaderName,
-    DateTime? DrawingUploadedAtUtc,
-    string BarcodeUid,
-    int OrderQty,
-    string Status,
-    DateTime? StartedAtUtc,
-    DateTime? FinishedAtUtc,
-    long? DurationSeconds,
-    string? QcDecision,
-    DateTime UpdatedAtUtc);
-
-public sealed record ScanProductionOrderRequest(string BarcodeUid, string Action);
-
-public sealed record LookupProductionOrderRequest(string BarcodeUid);
+public sealed record ProductionStatusUpdateRequest(Guid WorkerUserId, string WorkerName);
 
 public sealed record UploadEngineeringDrawingRequest(
     string DrawingFileUrl,

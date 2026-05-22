@@ -23,6 +23,8 @@ public static class PurchaseRequestStatuses
 {
     public const string Draft = "Draft";
     public const string Submitted = "Submitted";
+    public const string Processing = "Processing";
+    public const string Completed = "Completed";
     public const string Approved = "Approved";
     public const string Rejected = "Rejected";
 }
