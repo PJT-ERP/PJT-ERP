@@ -29,6 +29,8 @@ public sealed class PurchaseRequestServiceTests
         await using var db = CreateDbContext();
         var salesOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var productionOrderId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var firstSalesOrderItemId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var secondSalesOrderItemId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
         await new SalesOrderConfirmedEventHandler(db).Handle(
             new SalesOrderConfirmedEvent(salesOrderId, "SO-001", Guid.Parse("33333333-3333-3333-3333-333333333333"), DateTime.UtcNow));
@@ -36,21 +38,29 @@ public sealed class PurchaseRequestServiceTests
             new SpkCreatedEvent(
                 productionOrderId,
                 salesOrderId,
-                "SPK-001",
-                "PJT|SPK|001",
+                "SO-001",
+                "PJT|SO|001",
                 Guid.Parse("44444444-4444-4444-4444-444444444444"),
                 5,
                 "PART-001",
                 "Shaft",
-                "DRW-001",
-                "S45C"));
+                "SO-001",
+                "S45C",
+                SalesOrderNumber: "SO-001",
+                Items:
+                [
+                    new SpkCreatedItem(firstSalesOrderItemId, Guid.Parse("44444444-4444-4444-4444-444444444444"), 5, "PART-001", "Shaft", "S45C"),
+                    new SpkCreatedItem(secondSalesOrderItemId, Guid.Parse("44444444-4444-4444-4444-444444444445"), 2, "PART-002", "Bushing", "Bronze")
+                ]));
 
-        var requirement = await db.MaterialRequirements.SingleAsync();
-        Assert.Equal(salesOrderId, requirement.SalesOrderId);
-        Assert.Equal("SO-001", requirement.SalesOrderNumber);
-        Assert.Equal(productionOrderId, requirement.ProductionOrderId);
-        Assert.Equal("S45C", requirement.MaterialSpec);
-        Assert.Equal(MaterialRequirementStatuses.Required, requirement.Status);
+        var requirements = await db.MaterialRequirements.OrderBy(requirement => requirement.ProductPartNumber).ToArrayAsync();
+        Assert.Equal(2, requirements.Length);
+        Assert.All(requirements, requirement => Assert.Equal(salesOrderId, requirement.SalesOrderId));
+        Assert.All(requirements, requirement => Assert.Equal("SO-001", requirement.SalesOrderNumber));
+        Assert.Equal(firstSalesOrderItemId, requirements[0].SalesOrderItemId);
+        Assert.Equal("S45C", requirements[0].MaterialSpec);
+        Assert.Equal("Bronze", requirements[1].MaterialSpec);
+        Assert.All(requirements, requirement => Assert.Equal(MaterialRequirementStatuses.Required, requirement.Status));
     }
 
     [Fact]
@@ -68,7 +78,7 @@ public sealed class PurchaseRequestServiceTests
                 null,
                 null,
                 null,
-                [new CreatePurchaseRequestItem(requirement.Id, null, null, null, null, null, "", null, 5, "Supplier A", "Need material")]),
+                [new CreatePurchaseRequestItem(requirement.Id, null, null, null, "", null, 5, "Supplier A", "Need material")]),
             CancellationToken.None);
 
         Assert.Equal(PurchaseRequestStatuses.Submitted, purchaseRequest.Status);
@@ -153,6 +163,8 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(1, tracking.TotalRequirements);
         Assert.Equal(1, tracking.ReceivedRequirements);
         Assert.Equal(100m, tracking.ReceivedPercent);
+        Assert.Null(typeof(MaterialRequirementDto).GetProperty("ProductionOrderId"));
+        Assert.Null(typeof(MaterialRequirementDto).GetProperty("SpkNumber"));
         var linkedItem = Assert.Single(Assert.Single(tracking.Requirements).PurchaseItems);
         Assert.Equal(PurchaseItemStatuses.Received, linkedItem.PurchaseStatus);
         Assert.Equal("Supplier A", linkedItem.SupplierName);
@@ -182,8 +194,8 @@ public sealed class PurchaseRequestServiceTests
             SalesOrder = snapshot,
             SalesOrderNumber = snapshot.SalesOrderNumber,
             ProductionOrderId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            SpkNumber = "SPK-001",
-            BarcodeUid = "PJT|SPK|001",
+            SpkNumber = "SO-001",
+            BarcodeUid = "PJT|SO|001",
             ProductId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
             ProductPartNumber = "PART-001",
             ProductDescription = "Shaft",
@@ -209,7 +221,7 @@ public sealed class PurchaseRequestServiceTests
                 null,
                 null,
                 null,
-                [new CreatePurchaseRequestItem(requirement.Id, null, null, null, null, null, "", null, 5, "Supplier A", "Need material")]),
+                [new CreatePurchaseRequestItem(requirement.Id, null, null, null, "", null, 5, "Supplier A", "Need material")]),
             CancellationToken.None);
     }
 

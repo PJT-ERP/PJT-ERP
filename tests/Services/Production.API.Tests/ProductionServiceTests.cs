@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Production.Api.Application.Production;
@@ -5,37 +6,30 @@ using PJT_ERP.Production.Api.Controllers;
 using PJT_ERP.Production.Api.Domain.Entities;
 using PJT_ERP.Production.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Infrastructure.Messaging;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Production.API.Tests;
 
 public sealed class ProductionServiceTests
 {
+    private static readonly Guid WorkerUserId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+    private static readonly Guid ReviewerUserId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+
     [Fact]
-    public void ShopFloorController_allows_owner_not_engineering_for_status_scans()
+    public void ShopFloorController_exposes_read_only_sales_order_tracking_lookup()
     {
         var authorize = Assert.Single(
             typeof(ShopFloorController)
                 .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
                 .Cast<AuthorizeAttribute>());
 
-        Assert.Equal("Admin,Owner", authorize.Roles);
+        Assert.Contains("Engineering Worker", authorize.Roles);
+        Assert.DoesNotContain(
+            typeof(ShopFloorController).GetMethods(),
+            method => method.Name.Contains("Scan", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void PublicTrackingController_allows_anonymous_customer_tracking()
-    {
-        var allowAnonymous = Assert.Single(
-            typeof(PublicTrackingController)
-                .GetCustomAttributes(typeof(AllowAnonymousAttribute), inherit: false)
-                .Cast<AllowAnonymousAttribute>());
-
-        Assert.NotNull(allowAnonymous);
-    }
-
-
-    [Fact]
-    public async Task ConfirmSalesOrderAsync_creates_barcode_orders_with_sales_order_links()
+    public async Task ConfirmSalesOrderAsync_returns_sales_order_tracking_without_public_po_identity()
     {
         await using var db = CreateDbContext();
         var customer = new CustomerReplica
@@ -44,15 +38,25 @@ public sealed class ProductionServiceTests
             Code = "CUST-001",
             Name = "PT Customer"
         };
-        var product = new ProductReplica
+        var products = new[]
         {
-            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            PartNumber = "PART-001",
-            Description = "Shaft Diameter 20mm",
-            MaterialSpec = "S45C"
+            new ProductReplica
+            {
+                Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                PartNumber = "PART-001",
+                Description = "Shaft Diameter 20mm",
+                MaterialSpec = "S45C"
+            },
+            new ProductReplica
+            {
+                Id = Guid.Parse("22222222-2222-2222-2222-222222222223"),
+                PartNumber = "PART-002",
+                Description = "Bushing",
+                MaterialSpec = "Bronze"
+            }
         };
         await db.CustomerReplicas.AddAsync(customer);
-        await db.ProductReplicas.AddAsync(product);
+        await db.ProductReplicas.AddRangeAsync(products);
         await db.SaveChangesAsync();
 
         var eventPublisher = new RecordingEventPublisher();
@@ -62,123 +66,151 @@ public sealed class ProductionServiceTests
                 customer.Id,
                 DateOnly.FromDateTime(DateTime.UtcNow),
                 DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)),
-                [new CreateSalesOrderItemRequest(product.Id, 10, "Urgent")]),
+                [
+                    new CreateSalesOrderItemRequest(products[0].Id, 10, "Urgent"),
+                    new CreateSalesOrderItemRequest(products[1].Id, 4, null)
+                ],
+                new EngineerAssignment(WorkerUserId, "Worker Engineer"),
+                new EngineerAssignment(ReviewerUserId, "Reviewer Engineer")),
             CancellationToken.None);
 
-        var productionOrders = await service.ConfirmSalesOrderAsync(
+        var tracking = await service.ConfirmSalesOrderAsync(
             salesOrder.Id,
             new ConfirmSalesOrderRequest(Guid.Parse("33333333-3333-3333-3333-333333333333")),
             CancellationToken.None);
 
-        var productionOrder = Assert.Single(productionOrders);
-        Assert.Equal(ProductionOrderStatuses.Waiting, productionOrder.Status);
-        Assert.Equal(salesOrder.Id, productionOrder.SalesOrderId);
-        Assert.Equal(salesOrder.SoNumber, productionOrder.SoNumber);
-        Assert.Equal(customer.Code, productionOrder.CustomerCode);
-        Assert.Equal(product.Id, productionOrder.ProductId);
-        Assert.Equal(product.PartNumber, productionOrder.ProductPartNumber);
-        Assert.StartsWith("PJT|SPK|", productionOrder.BarcodeUid, StringComparison.Ordinal);
-        Assert.Null(productionOrder.DurationSeconds);
+        Assert.Equal(salesOrder.Id, tracking.SalesOrderId);
+        Assert.Equal(salesOrder.SoNumber, tracking.SoNumber);
+        Assert.Equal(ProductionOrderStatuses.Waiting, tracking.ProductionStatus);
+        Assert.Equal(WorkerUserId, tracking.ProductionWorkerUserId);
+        Assert.Equal(ReviewerUserId, tracking.QcReviewerUserId);
+        Assert.Equal(14, tracking.TotalQuantity);
+        Assert.Equal(2, tracking.Items.Count);
+        Assert.StartsWith("PJT|SO|", tracking.TrackingBarcodeUid, StringComparison.Ordinal);
+        Assert.Null(typeof(SalesOrderProductionProgressDto).GetProperty("PoNumber"));
+        Assert.Null(typeof(SalesOrderProductionProgressDto).GetProperty("ProductionOrderId"));
+        Assert.Null(typeof(SalesOrderProductionProgressDto).GetProperty("ProductionOrders"));
 
-        Assert.Contains(eventPublisher.PublishedEvents, item => item is SalesOrderConfirmedEvent);
-        Assert.Contains(eventPublisher.PublishedEvents, item => item is SpkCreatedEvent);
+        var confirmedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<SalesOrderConfirmedEvent>());
+        Assert.Equal(2, confirmedEvent.Items!.Count);
+        var spkEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<SpkCreatedEvent>());
+        Assert.Equal(salesOrder.SoNumber, spkEvent.SpkNumber);
+        Assert.Equal(2, spkEvent.Items!.Count);
     }
 
     [Fact]
-    public async Task GetProductionOrderByBarcodeAsync_returns_tracking_detail()
-    {
-        await using var db = CreateDbContext();
-        var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
-
-        var result = await service.GetProductionOrderByBarcodeAsync(productionOrder.BarcodeUid, CancellationToken.None);
-
-        Assert.NotNull(result);
-        Assert.Equal(productionOrder.Id, result.Id);
-        Assert.Equal("SO-001", result.SoNumber);
-        Assert.Equal("CUST-001", result.CustomerCode);
-        Assert.Equal("PART-001", result.ProductPartNumber);
-    }
-
-    [Fact]
-    public async Task ScanAsync_starts_and_completes_production_with_duration_and_event()
-    {
-        await using var db = CreateDbContext();
-        var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var eventPublisher = new RecordingEventPublisher();
-        var service = new ProductionService(db, eventPublisher);
-
-        var started = await service.ScanAsync(new ScanProductionOrderRequest(productionOrder.BarcodeUid, "Start"), CancellationToken.None);
-
-        Assert.NotNull(started);
-        Assert.Equal(ProductionOrderStatuses.InProgress, started.Status);
-        Assert.NotNull(started.StartedAtUtc);
-        Assert.NotNull(started.DurationSeconds);
-        Assert.Empty(eventPublisher.PublishedEvents);
-
-        var completed = await service.ScanAsync(new ScanProductionOrderRequest(productionOrder.BarcodeUid, "Complete"), CancellationToken.None);
-
-        Assert.NotNull(completed);
-        Assert.Equal(ProductionOrderStatuses.Finished, completed.Status);
-        Assert.NotNull(completed.FinishedAtUtc);
-        Assert.NotNull(completed.DurationSeconds);
-        Assert.True(completed.DurationSeconds >= 0);
-
-        var finishedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<ProductionFinishedEvent>());
-        Assert.Equal(productionOrder.Id, finishedEvent.ProductionOrderId);
-    }
-
-    [Fact]
-    public async Task ScanAsync_rejects_complete_before_start()
-    {
-        await using var db = CreateDbContext();
-        var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.ScanAsync(new ScanProductionOrderRequest(productionOrder.BarcodeUid, "Complete"), CancellationToken.None));
-
-        Assert.Contains("started before it can be completed", exception.Message);
-    }
-
-    [Fact]
-    public async Task GetSalesOrderProgressAsync_returns_progress_counts_and_linked_orders()
+    public async Task ConfirmSalesOrderAsync_requires_engineer_assignments()
     {
         await using var db = CreateDbContext();
         var salesOrder = CreateSalesOrder();
-        var waiting = CreateProductionOrder(salesOrder.Items[0], "SPK-001", ProductionOrderStatuses.Waiting);
-        var inProgress = CreateProductionOrder(salesOrder.Items[0], "SPK-002", ProductionOrderStatuses.InProgress);
-        inProgress.StartedAtUtc = DateTime.UtcNow.AddMinutes(-30);
-        var finished = CreateProductionOrder(salesOrder.Items[0], "SPK-003", ProductionOrderStatuses.Finished);
-        finished.StartedAtUtc = DateTime.UtcNow.AddHours(-2);
-        finished.FinishedAtUtc = DateTime.UtcNow.AddHours(-1);
-        salesOrder.Items[0].ProductionOrders.AddRange([waiting, inProgress, finished]);
+        salesOrder.ProductionWorkerUserId = null;
+        salesOrder.ProductionWorkerName = null;
         await db.SalesOrders.AddAsync(salesOrder);
         await db.SaveChangesAsync();
 
         var service = new ProductionService(db, new RecordingEventPublisher());
 
-        var progress = await service.GetSalesOrderProgressAsync(salesOrder.Id, CancellationToken.None);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.ConfirmSalesOrderAsync(salesOrder.Id, new ConfirmSalesOrderRequest(Guid.NewGuid()), CancellationToken.None));
 
-        Assert.NotNull(progress);
-        Assert.Equal(salesOrder.Id, progress.SalesOrderId);
-        Assert.Equal(3, progress.ProductionOrderCount);
-        Assert.Equal(1, progress.WaitingOrders);
-        Assert.Equal(1, progress.InProgressOrders);
-        Assert.Equal(1, progress.FinishedOrders);
-        Assert.Equal(33.33m, progress.ProgressPercent);
-        Assert.Equal(3, Assert.Single(progress.Items).ProductionOrders.Count);
+        Assert.Contains("production worker engineer", exception.Message);
     }
 
     [Fact]
-    public async Task GetPublicTrackingAsync_returns_customer_progress_by_sales_order_number()
+    public async Task TrackingLookup_returns_sales_order_detail_without_mutating_status()
+    {
+        await using var db = CreateDbContext();
+        var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var result = await service.GetSalesOrderTrackingByCodeAsync(productionOrder.BarcodeUid, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("SO-001", result.SoNumber);
+        Assert.Equal("CUST-001", result.CustomerCode);
+        Assert.Equal(ProductionOrderStatuses.Waiting, result.ProductionStatus);
+        Assert.Null(result.StartedAtUtc);
+        Assert.Null(typeof(SalesOrderProductionProgressDto).GetProperty("PoNumber"));
+    }
+
+    [Fact]
+    public async Task StartAndFinishProductionAsync_update_sales_order_tracking_with_assigned_worker_and_event()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new ProductionService(db, eventPublisher);
+
+        var started = await service.StartProductionAsync(
+            salesOrder.Id,
+            new ProductionStatusUpdateRequest(WorkerUserId, "Worker Engineer"),
+            CancellationToken.None);
+
+        Assert.NotNull(started);
+        Assert.Equal(ProductionOrderStatuses.InProgress, started.ProductionStatus);
+        Assert.NotNull(started.StartedAtUtc);
+        Assert.Equal(WorkerUserId, started.StartedByUserId);
+        Assert.Equal(50m, started.ProgressPercent);
+        Assert.Empty(eventPublisher.PublishedEvents);
+
+        var finished = await service.FinishProductionAsync(
+            salesOrder.Id,
+            new ProductionStatusUpdateRequest(WorkerUserId, "Worker Engineer"),
+            CancellationToken.None);
+
+        Assert.NotNull(finished);
+        Assert.Equal(ProductionOrderStatuses.Finished, finished.ProductionStatus);
+        Assert.NotNull(finished.FinishedAtUtc);
+        Assert.Equal(WorkerUserId, finished.FinishedByUserId);
+        Assert.Equal(100m, finished.ProgressPercent);
+
+        var finishedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<ProductionFinishedEvent>());
+        Assert.Equal(productionOrder.Id, finishedEvent.ProductionOrderId);
+        Assert.Equal(salesOrder.SoNumber, finishedEvent.SpkNumber);
+        Assert.Equal(ReviewerUserId, finishedEvent.QcReviewerUserId);
+    }
+
+    [Fact]
+    public async Task StartProductionAsync_rejects_unassigned_worker()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.StartProductionAsync(
+                salesOrder.Id,
+                new ProductionStatusUpdateRequest(Guid.NewGuid(), "Other Worker"),
+                CancellationToken.None));
+
+        Assert.Contains("assigned production worker", exception.Message);
+    }
+
+    [Fact]
+    public async Task FinishProductionAsync_rejects_finish_before_start()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var service = new ProductionService(db, new RecordingEventPublisher());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.FinishProductionAsync(
+                salesOrder.Id,
+                new ProductionStatusUpdateRequest(WorkerUserId, "Worker Engineer"),
+                CancellationToken.None));
+
+        Assert.Contains("started by the assigned worker", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetPublicTrackingAsync_returns_customer_progress_without_internal_identifiers()
     {
         await using var db = CreateDbContext();
         var salesOrder = CreateSalesOrder();
-        var productionOrder = CreateProductionOrder(salesOrder.Items[0], "SPK-001", ProductionOrderStatuses.Finished);
+        var productionOrder = CreateProductionOrder(salesOrder, ProductionOrderStatuses.Finished);
         productionOrder.StartedAtUtc = DateTime.UtcNow.AddHours(-2);
         productionOrder.FinishedAtUtc = DateTime.UtcNow.AddHours(-1);
-        salesOrder.Items[0].ProductionOrders.Add(productionOrder);
+        salesOrder.ProductionOrders.Add(productionOrder);
         await db.SalesOrders.AddAsync(salesOrder);
         await db.SaveChangesAsync();
 
@@ -190,26 +222,11 @@ public sealed class ProductionServiceTests
         Assert.Equal("SO-001", tracking.SoNumber);
         Assert.Equal("PT Customer", tracking.CustomerName);
         Assert.Equal(100m, tracking.ProgressPercent);
-        var item = Assert.Single(tracking.Items);
-        var publicOrder = Assert.Single(item.ProductionOrders);
-        Assert.Equal("SPK-001", publicOrder.PoNumber);
-        Assert.Equal(ProductionOrderStatuses.Finished, publicOrder.Status);
-        Assert.Null(typeof(PublicProductionOrderTrackingDto).GetProperty("BarcodeUid"));
-        Assert.Null(typeof(PublicProductionOrderTrackingDto).GetProperty("DrawingFileUrl"));
-    }
-
-    [Fact]
-    public async Task GetPublicTrackingAsync_accepts_barcode_without_exposing_barcode()
-    {
-        await using var db = CreateDbContext();
-        var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
-
-        var tracking = await service.GetPublicTrackingAsync(productionOrder.BarcodeUid, CancellationToken.None);
-
-        Assert.NotNull(tracking);
-        Assert.Equal("SO-001", tracking.SoNumber);
-        Assert.Null(typeof(PublicProductionOrderTrackingDto).GetProperty("BarcodeUid"));
+        Assert.Equal(2, tracking.Items.Count);
+        Assert.Equal(ProductionOrderStatuses.Finished, tracking.ProductionStatus);
+        Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("BarcodeUid"));
+        Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("PoNumber"));
+        Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("ProductionOrderId"));
     }
 
     private static ProductionContext CreateDbContext()
@@ -224,8 +241,8 @@ public sealed class ProductionServiceTests
     private static async Task<(SalesOrder SalesOrder, ProductionOrder ProductionOrder)> SeedSalesOrderWithProductionOrderAsync(ProductionContext db)
     {
         var salesOrder = CreateSalesOrder();
-        var productionOrder = CreateProductionOrder(salesOrder.Items[0], "SPK-001", ProductionOrderStatuses.Waiting);
-        salesOrder.Items[0].ProductionOrders.Add(productionOrder);
+        var productionOrder = CreateProductionOrder(salesOrder, ProductionOrderStatuses.Waiting);
+        salesOrder.ProductionOrders.Add(productionOrder);
         await db.SalesOrders.AddAsync(salesOrder);
         await db.SaveChangesAsync();
         return (salesOrder, productionOrder);
@@ -240,34 +257,54 @@ public sealed class ProductionServiceTests
             CustomerId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
             CustomerCode = "CUST-001",
             CustomerName = "PT Customer",
+            ProductionWorkerUserId = WorkerUserId,
+            ProductionWorkerName = "Worker Engineer",
+            QcReviewerUserId = ReviewerUserId,
+            QcReviewerName = "Reviewer Engineer",
             Status = SalesOrderStatuses.InProduction
         };
 
-        salesOrder.Items.Add(new SalesOrderItem
-        {
-            Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
-            SalesOrder = salesOrder,
-            SalesOrderId = salesOrder.Id,
-            ProductId = Guid.Parse("77777777-7777-7777-7777-777777777777"),
-            ProductPartNumber = "PART-001",
-            ProductDescription = "Shaft Diameter 20mm",
-            Qty = 10
-        });
+        salesOrder.Items.AddRange(
+        [
+            new SalesOrderItem
+            {
+                Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                SalesOrder = salesOrder,
+                SalesOrderId = salesOrder.Id,
+                ProductId = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                ProductPartNumber = "PART-001",
+                ProductDescription = "Shaft Diameter 20mm",
+                Qty = 10
+            },
+            new SalesOrderItem
+            {
+                Id = Guid.Parse("66666666-6666-6666-6666-666666666667"),
+                SalesOrder = salesOrder,
+                SalesOrderId = salesOrder.Id,
+                ProductId = Guid.Parse("77777777-7777-7777-7777-777777777778"),
+                ProductPartNumber = "PART-002",
+                ProductDescription = "Bushing",
+                Qty = 4
+            }
+        ]);
 
         return salesOrder;
     }
 
-    private static ProductionOrder CreateProductionOrder(SalesOrderItem item, string poNumber, string status)
+    private static ProductionOrder CreateProductionOrder(SalesOrder salesOrder, string status)
     {
+        var firstItem = salesOrder.Items[0];
         return new ProductionOrder
         {
             Id = Guid.NewGuid(),
-            SalesOrderItem = item,
-            SalesOrderItemId = item.Id,
-            PoNumber = poNumber,
-            DrawingRef = item.ProductPartNumber,
-            BarcodeUid = $"PJT|SPK|20260518|{Guid.NewGuid():N}",
-            OrderQty = item.Qty,
+            SalesOrder = salesOrder,
+            SalesOrderId = salesOrder.Id,
+            SalesOrderItem = firstItem,
+            SalesOrderItemId = firstItem.Id,
+            PoNumber = salesOrder.SoNumber,
+            DrawingRef = salesOrder.SoNumber,
+            BarcodeUid = $"PJT|SO|20260518|{Guid.NewGuid():N}",
+            OrderQty = salesOrder.Items.Sum(item => item.Qty),
             Status = status
         };
     }

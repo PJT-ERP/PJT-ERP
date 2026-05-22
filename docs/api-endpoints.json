@@ -12,1123 +12,210 @@
       "production": "/openapi/production/v1.json",
       "qc": "/openapi/qc/v1.json",
       "purchasing": "/openapi/purchasing/v1.json"
-    },
-    "futureIngress": "Traefik can be placed in front of Web.Gateway later for frontend/backend routing, TLS, and host-based rules."
+    }
   },
   "auth": {
-    "loginCookie": "access_token",
     "developmentMasterToken": {
       "enabledOnlyWhen": "ASPNETCORE_ENVIRONMENT=Development",
       "token": "dev-master-token",
       "authorizationHeader": "Bearer dev-master-token",
-      "alternateHeader": {
-        "X-Dev-Master-Token": "dev-master-token"
-      },
-      "rolesGranted": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Purchasing"]
-    },
-    "notes": [
-      "POST /api/v1/auth/login returns a JWT and also sets the access_token HttpOnly cookie.",
-      "Protected endpoints require a logged-in user with one of the listed roles.",
-      "Scalar is available at /scalar in Development and is prefilled with Bearer dev-master-token.",
-      "The dev master token is rejected automatically outside Development.",
-      "Admin is a system role for management and override access."
-    ]
+      "rolesGranted": [
+        "Admin",
+        "Owner",
+        "Sales Order",
+        "Finance",
+        "Engineering",
+        "Engineering Worker",
+        "Engineering Reviewer",
+        "Purchasing"
+      ]
+    }
   },
   "roles": [
     "Sales Order",
     "Finance",
     "Engineering",
+    "Engineering Worker",
+    "Engineering Reviewer",
     "Purchasing",
     "Owner",
     "Admin"
   ],
   "roleModel": {
     "productionTracking": {
-      "summary": "Production Tracking is a cross-service workflow, but not every role can mutate production status.",
-      "noSeparateProductionRoleInMvp": true,
-      "productionOperatorRole": "Owner",
-      "notes": [
-        "Engineering only uploads/input engineering drawings or links for SPK.",
-        "Owner handles barcode lookup, Start, and Complete in the MVP because the app does not define a separate Production role yet.",
-        "Sales Order creates and confirms SO records, which creates SPK/barcodes.",
-        "Owner monitors production progress and continues the workflow through QC review after production is finished.",
-        "Customers/public users can open read-only production tracking without login using a shared SO number, SPK number, or barcode UID.",
-        "Finance and Purchasing may read production progress for planning/material context, but they do not update production status."
-      ],
+      "summary": "Sales Order is the visible tracking root. ProductionOrder rows are internal workflow state only.",
       "writeAccess": {
-        "salesOrderCreationAndConfirmation": ["Admin", "Sales Order"],
-        "barcodeLookupStartComplete": ["Admin", "Owner"],
-        "drawingUpload": ["Admin", "Engineering"],
-        "ownerDashboardAndQcReview": ["Admin", "Owner"]
+        "salesOrderCreationConfirmationAndEngineerAssignment": ["Admin", "Sales Order"],
+        "salesOrderProductionStartFinish": ["Admin", "Engineering Worker"],
+        "salesOrderDrawingUpload": ["Admin", "Engineering"],
+        "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing"]
       },
       "readAccess": {
-        "productionOrdersAndSalesOrderProgress": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
+        "salesOrderProgress": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing", "Owner", "Admin"],
         "publicCustomerTracking": "anonymous"
+      }
+    },
+    "qc": {
+      "summary": "QC is image/form upload, notes, and approve/reject by Engineering Reviewer. There are no visual/dimension checklist endpoints.",
+      "writeAccess": {
+        "qcResultUpload": ["Admin", "Engineering Reviewer"]
+      },
+      "readAccess": {
+        "qcInspections": ["Admin", "Owner", "Engineering Reviewer"]
       }
     }
   },
   "endpoints": [
     {
-      "service": "Identity.API",
-      "feature": "Authentication",
-      "method": "POST",
-      "path": "/api/v1/auth/login",
-      "auth": "anonymous",
-      "roles": [],
-      "description": "Login user by registered email. Sets access_token cookie.",
-      "requestBody": {
-        "email": "owner@pjt.local"
-      },
-      "responseBody": {
-        "accessToken": "jwt-token",
-        "userId": "00000000-0000-0000-0000-000000000000",
-        "email": "owner@pjt.local",
-        "name": "Owner",
-        "roles": ["Owner", "Admin"],
-        "department": "Management"
-      }
-    },
-    {
-      "service": "Identity.API",
-      "feature": "Authentication",
-      "method": "GET",
-      "path": "/api/v1/auth/me",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "Read current authenticated user from JWT/cookie.",
-      "requestBody": null,
-      "responseBody": {
-        "userId": "00000000-0000-0000-0000-000000000000",
-        "email": "engineering@pjt.local",
-        "name": "Engineering",
-        "roles": ["Engineering"],
-        "department": "Engineering"
-      }
-    },
-    {
-      "service": "Identity.API",
-      "feature": "Authentication",
-      "method": "POST",
-      "path": "/api/v1/auth/logout",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "Delete access_token cookie.",
-      "requestBody": null,
-      "responseBody": null
-    },
-    {
-      "service": "MasterData.API",
-      "feature": "Customers",
-      "method": "GET",
-      "path": "/api/v1/master-data/customers",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "List active/inactive customers.",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "code": "CUST-001",
-          "name": "PT Contoh Customer",
-          "address": "Jakarta",
-          "contactPerson": "Budi",
-          "isActive": true
-        }
-      ]
-    },
-    {
-      "service": "MasterData.API",
-      "feature": "Customers",
-      "method": "POST",
-      "path": "/api/v1/master-data/customers",
-      "auth": "required",
-      "roles": ["Admin", "Sales Order"],
-      "description": "Create customer master data and publish MasterDataUpdatedEvent.",
-      "requestBody": {
-        "code": "CUST-001",
-        "name": "PT Contoh Customer",
-        "address": "Jakarta",
-        "contactPerson": "Budi"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "code": "CUST-001",
-        "name": "PT Contoh Customer",
-        "address": "Jakarta",
-        "contactPerson": "Budi",
-        "isActive": true
-      }
-    },
-    {
-      "service": "MasterData.API",
-      "feature": "Products",
-      "method": "GET",
-      "path": "/api/v1/master-data/products",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "List product/part master data.",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "partNumber": "PART-001",
-          "description": "Shaft Diameter 20mm",
-          "unit": "pcs",
-          "materialSpec": "S45C",
-          "isActive": true
-        }
-      ]
-    },
-    {
-      "service": "MasterData.API",
-      "feature": "Products",
-      "method": "POST",
-      "path": "/api/v1/master-data/products",
-      "auth": "required",
-      "roles": ["Admin", "Sales Order", "Engineering"],
-      "description": "Create product/part master data and publish MasterDataUpdatedEvent.",
-      "requestBody": {
-        "partNumber": "PART-001",
-        "description": "Shaft Diameter 20mm",
-        "unit": "pcs",
-        "materialSpec": "S45C"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "partNumber": "PART-001",
-        "description": "Shaft Diameter 20mm",
-        "unit": "pcs",
-        "materialSpec": "S45C",
-        "isActive": true
-      }
-    },
-    {
-      "service": "Production.API",
-      "feature": "Sales Orders",
-      "method": "GET",
-      "path": "/api/v1/production/sales-orders",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "List sales orders and their items.",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "soNumber": "SO-20260517123000-ABCDEF",
-          "customerId": "00000000-0000-0000-0000-000000000000",
-          "customerCode": "CUST-001",
-          "customerName": "PT Contoh Customer",
-          "soDate": "2026-05-17",
-          "targetDate": "2026-05-30",
-          "status": "Draft",
-          "createdAtUtc": "2026-05-17T05:00:00Z",
-          "updatedAtUtc": "2026-05-17T05:00:00Z",
-          "items": [
-            {
-              "id": "00000000-0000-0000-0000-000000000000",
-              "productId": "00000000-0000-0000-0000-000000000000",
-              "productPartNumber": "PART-001",
-              "productDescription": "Shaft Diameter 20mm",
-              "qty": 10,
-              "notes": "Urgent"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "service": "Production.API",
       "feature": "Sales Orders",
       "method": "POST",
       "path": "/api/v1/production/sales-orders",
-      "auth": "required",
       "roles": ["Admin", "Sales Order"],
-      "description": "Create a sales order. Product/customer IDs are soft references replicated from MasterData.",
+      "description": "Create a Sales Order with one or more item lines and optional engineer worker/reviewer assignment.",
       "requestBody": {
         "customerId": "00000000-0000-0000-0000-000000000000",
-        "soDate": "2026-05-17",
-        "targetDate": "2026-05-30",
+        "soDate": "2026-05-22",
+        "targetDate": "2026-05-29",
+        "productionWorker": {
+          "userId": "00000000-0000-0000-0000-000000000001",
+          "name": "Engineering Worker"
+        },
+        "qcReviewer": {
+          "userId": "00000000-0000-0000-0000-000000000002",
+          "name": "Engineering Reviewer"
+        },
         "items": [
           {
-            "productId": "00000000-0000-0000-0000-000000000000",
+            "productId": "00000000-0000-0000-0000-000000000003",
             "qty": 10,
             "notes": "Urgent"
           }
         ]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "soNumber": "SO-20260517123000-ABCDEF",
-        "status": "Draft"
       }
+    },
+    {
+      "service": "Production.API",
+      "feature": "Sales Orders",
+      "method": "PUT",
+      "path": "/api/v1/production/sales-orders/{id}/engineers",
+      "roles": ["Admin", "Sales Order"],
+      "description": "Assign or update the Engineering Worker and Engineering Reviewer responsible for the Sales Order."
     },
     {
       "service": "Production.API",
       "feature": "Sales Orders",
       "method": "POST",
       "path": "/api/v1/production/sales-orders/{id}/confirm",
-      "auth": "required",
       "roles": ["Admin", "Sales Order"],
-      "description": "Confirm sales order, create SPK/production orders, generate barcode, and publish SpkCreatedEvent.",
-      "requestBody": {
-        "approvedByUserId": "00000000-0000-0000-0000-000000000000"
-      },
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "poNumber": "SPK-20260517123000-ABCDEF",
-          "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
-          "salesOrderId": "00000000-0000-0000-0000-000000000000",
-          "soNumber": "SO-20260517123000-ABCDEF",
-          "customerCode": "CUST-001",
-          "customerName": "PT Contoh Customer",
-          "productId": "00000000-0000-0000-0000-000000000000",
-          "productPartNumber": "PART-001",
-          "productDescription": "Shaft Diameter 20mm",
-          "drawingRef": "PART-001",
-          "drawingFileUrl": null,
-          "drawingUploadedByUserId": null,
-          "drawingUploaderName": null,
-          "drawingUploadedAtUtc": null,
-          "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-          "orderQty": 10,
-          "status": "Waiting",
-          "startedAtUtc": null,
-          "finishedAtUtc": null,
-          "durationSeconds": null,
-          "qcDecision": null,
-          "updatedAtUtc": "2026-05-17T05:00:00Z"
-        }
-      ]
+      "description": "Confirm the Sales Order and prepare internal production tracking. Response is SO tracking, not an internal workflow object."
     },
     {
       "service": "Production.API",
-      "feature": "Sales Order Progress",
+      "feature": "Sales Order Tracking",
       "method": "GET",
       "path": "/api/v1/production/sales-orders/{id}/progress",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "Read-only production tracking progress for one Sales Order, including linked SPK/order status and duration.",
-      "requestBody": null,
-      "responseBody": {
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "soNumber": "SO-20260517123000-ABCDEF",
-        "customerCode": "CUST-001",
-        "customerName": "PT Contoh Customer",
-        "status": "InProduction",
-        "totalItems": 1,
-        "totalQuantity": 10,
-        "productionOrderCount": 1,
-        "waitingOrders": 0,
-        "inProgressOrders": 1,
-        "finishedOrders": 0,
-        "closedOrders": 0,
-        "progressPercent": 0.0,
-        "items": [
-          {
-            "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
-            "productId": "00000000-0000-0000-0000-000000000000",
-            "productPartNumber": "PART-001",
-            "productDescription": "Shaft Diameter 20mm",
-            "qty": 10,
-            "productionOrders": [
-              {
-                "id": "00000000-0000-0000-0000-000000000000",
-                "poNumber": "SPK-20260517123000-ABCDEF",
-                "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-                "status": "InProgress",
-                "startedAtUtc": "2026-05-17T05:00:00Z",
-                "finishedAtUtc": null,
-                "durationSeconds": 1800
-              }
-            ]
-          }
-        ]
+      "roles": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing", "Owner", "Admin"],
+      "description": "Read Sales Order production progress, assignment, drawing, barcode, timestamps, duration, and item lines."
+    },
+    {
+      "service": "Production.API",
+      "feature": "Sales Order Tracking",
+      "method": "POST",
+      "path": "/api/v1/production/tracking/lookup",
+      "roles": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Engineering Reviewer", "Purchasing"],
+      "description": "Lookup Sales Order tracking by SO number or barcode. This endpoint is read-only.",
+      "requestBody": {
+        "trackingCode": "SO-20260522120000-ABCDEF"
       }
     },
     {
       "service": "Production.API",
-      "feature": "Public Production Tracking",
-      "method": "GET",
-      "path": "/api/v1/production/tracking?code={soNumberOrSpkOrBarcode}",
-      "alternatePath": "/api/v1/production/tracking/{soNumberOrSpkOrBarcode}",
-      "auth": "anonymous",
-      "roles": [],
-      "description": "Public/customer read-only production tracking. Customers can check how far an order has progressed using a shared Sales Order number, SPK number, or barcode UID. This response intentionally hides internal fields such as barcode UID, drawing links, uploader IDs, and QC decisions.",
-      "requestBody": null,
-      "query": {
-        "code": "SO-20260517123000-ABCDEF"
-      },
-      "responseBody": {
-        "soNumber": "SO-20260517123000-ABCDEF",
-        "customerName": "PT Contoh Customer",
-        "status": "InProduction",
-        "totalItems": 1,
-        "totalQuantity": 10,
-        "productionOrderCount": 1,
-        "waitingOrders": 0,
-        "inProgressOrders": 1,
-        "finishedOrders": 0,
-        "closedOrders": 0,
-        "progressPercent": 0.0,
-        "updatedAtUtc": "2026-05-17T05:00:00Z",
-        "items": [
-          {
-            "productPartNumber": "PART-001",
-            "productDescription": "Shaft Diameter 20mm",
-            "qty": 10,
-            "productionOrders": [
-              {
-                "poNumber": "SPK-20260517123000-ABCDEF",
-                "productPartNumber": "PART-001",
-                "productDescription": "Shaft Diameter 20mm",
-                "orderQty": 10,
-                "status": "InProgress",
-                "startedAtUtc": "2026-05-17T05:00:00Z",
-                "finishedAtUtc": null,
-                "durationSeconds": 1800,
-                "updatedAtUtc": "2026-05-17T05:30:00Z"
-              }
-            ]
-          }
-        ]
-      }
+      "feature": "Sales Order Production",
+      "method": "PUT",
+      "path": "/api/v1/production/sales-orders/{id}/production/start",
+      "roles": ["Admin", "Engineering Worker"],
+      "description": "Start production for the Sales Order. Only the assigned worker can update it."
     },
     {
       "service": "Production.API",
-      "feature": "Production Orders",
-      "method": "GET",
-      "path": "/api/v1/production/orders",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "Read-only list of SPK/production orders. Optional query: salesOrderId filters production tracking for one Sales Order.",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "poNumber": "SPK-20260517123000-ABCDEF",
-          "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
-          "salesOrderId": "00000000-0000-0000-0000-000000000000",
-          "soNumber": "SO-20260517123000-ABCDEF",
-          "customerCode": "CUST-001",
-          "customerName": "PT Contoh Customer",
-          "productId": "00000000-0000-0000-0000-000000000000",
-          "productPartNumber": "PART-001",
-          "productDescription": "Shaft Diameter 20mm",
-          "drawingRef": "DRW-001",
-          "drawingFileUrl": "https://drive.google.com/file/d/example/view",
-          "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
-          "drawingUploaderName": "Engineering 1",
-          "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
-          "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-          "orderQty": 10,
-          "status": "InProgress",
-          "startedAtUtc": "2026-05-17T05:00:00Z",
-          "finishedAtUtc": null,
-          "durationSeconds": 1800,
-          "qcDecision": null
-        }
-      ]
-    },
-    {
-      "service": "Production.API",
-      "feature": "Production Orders",
-      "method": "GET",
-      "path": "/api/v1/production/orders/{id}",
-      "auth": "required",
-      "roles": ["Sales Order", "Finance", "Engineering", "Purchasing", "Owner", "Admin"],
-      "description": "Get one SPK/production order detail with Sales Order link, barcode, timestamps, and duration.",
-      "requestBody": null,
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "poNumber": "SPK-20260517123000-ABCDEF",
-        "salesOrderItemId": "00000000-0000-0000-0000-000000000000",
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "soNumber": "SO-20260517123000-ABCDEF",
-        "customerCode": "CUST-001",
-        "customerName": "PT Contoh Customer",
-        "productId": "00000000-0000-0000-0000-000000000000",
-        "productPartNumber": "PART-001",
-        "productDescription": "Shaft Diameter 20mm",
-        "drawingRef": "DRW-001",
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-        "orderQty": 10,
-        "status": "Finished",
-        "startedAtUtc": "2026-05-17T05:00:00Z",
-        "finishedAtUtc": "2026-05-17T07:00:00Z",
-        "durationSeconds": 7200,
-        "qcDecision": null,
-        "updatedAtUtc": "2026-05-17T07:00:00Z"
-      }
+      "feature": "Sales Order Production",
+      "method": "PUT",
+      "path": "/api/v1/production/sales-orders/{id}/production/finish",
+      "roles": ["Admin", "Engineering Worker"],
+      "description": "Finish production for the Sales Order and publish the production-finished workflow event."
     },
     {
       "service": "Production.API",
       "feature": "Engineering Drawing",
       "method": "PUT",
-      "path": "/api/v1/production/orders/{id}/engineering-drawing",
-      "auth": "required",
+      "path": "/api/v1/production/sales-orders/{id}/engineering-drawing",
       "roles": ["Admin", "Engineering"],
-      "description": "Engineering uploads a Google Drive or HTTP(S) drawing file link for the SPK. This is upload/input only, not review or approval.",
-      "requestBody": {
-        "drawingFileUrl": "https://drive.google.com/file/d/example/view",
-        "uploadedByUserId": "00000000-0000-0000-0000-000000000000",
-        "uploaderName": "Engineering 1",
-        "drawingRef": "DRW-001"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "poNumber": "SPK-20260517123000-ABCDEF",
-        "drawingRef": "DRW-001",
-        "drawingFileUrl": "https://drive.google.com/file/d/example/view",
-        "drawingUploadedByUserId": "00000000-0000-0000-0000-000000000000",
-        "drawingUploaderName": "Engineering 1",
-        "drawingUploadedAtUtc": "2026-05-17T05:00:00Z",
-        "status": "Waiting"
-      }
+      "description": "Upload/input an engineering drawing link against the Sales Order."
     },
     {
       "service": "Production.API",
-      "feature": "Shop Floor",
-      "method": "POST",
-      "path": "/api/v1/production/shop-floor/lookup",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner lookup for a scanned barcode/QR or SPK number without changing production status. Useful for web/mobile camera confirmation before Start or Complete.",
-      "requestBody": {
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "poNumber": "SPK-20260517123000-ABCDEF",
-        "soNumber": "SO-20260517123000-ABCDEF",
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-        "status": "Waiting",
-        "startedAtUtc": null,
-        "finishedAtUtc": null,
-        "durationSeconds": null
-      }
-    },
-    {
-      "service": "Production.API",
-      "feature": "Shop Floor",
-      "method": "POST",
-      "path": "/api/v1/production/shop-floor/scan",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner scans barcode/QR to start or complete production in the MVP. Complete and Finish are accepted as completion actions.",
-      "requestBody": {
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-        "action": "Start"
-      },
-      "allowedValues": {
-        "action": ["Start", "Complete", "Finish"]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "poNumber": "SPK-20260517123000-ABCDEF",
-        "status": "InProgress",
-        "startedAtUtc": "2026-05-17T05:00:00Z",
-        "finishedAtUtc": null,
-        "durationSeconds": 1800,
-        "qcDecision": null
-      }
-    },
-    {
-      "service": "Production.API",
-      "feature": "Owner Dashboard",
+      "feature": "Public Tracking",
       "method": "GET",
-      "path": "/api/v1/production/dashboard/executive",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner dashboard summary for production and owner-reviewed QC.",
-      "requestBody": null,
-      "responseBody": {
-        "waitingOrders": 3,
-        "inProgressOrders": 5,
-        "finishedOrders": 2,
-        "closedOrders": 8,
-        "approvedQc": 7,
-        "rejectedQc": 1,
-        "rejectionRate": 12.5
-      }
+      "path": "/api/v1/production/tracking?code={soNumberOrBarcode}",
+      "roles": [],
+      "auth": "anonymous",
+      "description": "Public/customer read-only tracking by SO number or barcode. Internal identifiers, barcode UID, drawing links, uploader IDs, and QC decisions are hidden."
     },
     {
       "service": "QC.API",
-      "feature": "Inspections",
+      "feature": "QC Inspection",
       "method": "GET",
       "path": "/api/v1/qc/inspections",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "List QC inspections. Owner fills the checksheet and performs final approve/reject.",
-      "requestBody": null,
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "refNo": "QC-SPK-20260517123000-ABCDEF",
-          "productionOrderId": "00000000-0000-0000-0000-000000000000",
-          "spkNumber": "SPK-20260517123000-ABCDEF",
-          "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-          "productName": "Shaft Diameter 20mm",
-          "productCode": "PART-001",
-          "porNumber": "SPK-20260517123000-ABCDEF",
-          "drawingRef": "PART-001",
-          "orderQty": 10,
-          "materialSpec": "S45C",
-          "status": "PendingOwnerReview",
-          "inspectionResult": "Accept",
-          "defectNotes": null,
-          "ownerDecision": null,
-          "updatedAtUtc": "2026-05-17T05:00:00Z",
-          "visualChecks": [],
-          "dimensionChecks": []
-        }
-      ]
+      "roles": ["Admin", "Owner", "Engineering Reviewer"],
+      "description": "List QC inspection records prepared by the Sales Order workflow."
     },
     {
       "service": "QC.API",
-      "feature": "Inspections",
-      "method": "GET",
-      "path": "/api/v1/qc/inspections/{id}",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Get one QC inspection with visual and dimension checks.",
-      "requestBody": null,
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "refNo": "QC-SPK-20260517123000-ABCDEF",
-        "productionOrderId": "00000000-0000-0000-0000-000000000000",
-        "spkNumber": "SPK-20260517123000-ABCDEF",
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-        "productName": "Shaft Diameter 20mm",
-        "productCode": "PART-001",
-        "porNumber": "SPK-20260517123000-ABCDEF",
-        "drawingRef": "PART-001",
-        "orderQty": 10,
-        "materialSpec": "S45C",
-        "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Owner",
-        "inspectionDate": "2026-05-17",
-        "sampleQty": 3,
-        "samplingMethod": "Random",
-        "measuringToolNo": "CAL-001",
-        "status": "PendingOwnerReview",
-        "inspectionResult": "Accept",
-        "defectNotes": null,
-        "formRemarks": "Ukuran masuk toleransi.",
-        "ownerDecision": null,
-        "ownerReviewedByUserId": null,
-        "ownerReviewerName": null,
-        "ownerReviewedAtUtc": null,
-        "ownerReviewRemarks": null,
-        "updatedAtUtc": "2026-05-17T05:00:00Z",
-        "visualChecks": [],
-        "dimensionChecks": []
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
-      "method": "POST",
-      "path": "/api/v1/qc/inspections/scan",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Scan a barcode/QR value to open the matching QC inspection form. Accepts barcode UID, SPK number, or QC reference number.",
-      "requestBody": {
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "refNo": "QC-SPK-20260517123000-ABCDEF",
-        "productionOrderId": "00000000-0000-0000-0000-000000000000",
-        "spkNumber": "SPK-20260517123000-ABCDEF",
-        "barcodeUid": "PJT|SPK|20260517|00000000000000000000000000000000",
-        "productName": "Shaft Diameter 20mm",
-        "productCode": "PART-001",
-        "porNumber": "SPK-20260517123000-ABCDEF",
-        "drawingRef": "PART-001",
-        "orderQty": 10,
-        "materialSpec": "S45C",
-        "status": "ReadyForInspection",
-        "inspectionResult": null,
-        "defectNotes": null,
-        "ownerDecision": null,
-        "visualChecks": [],
-        "dimensionChecks": []
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
-      "method": "POST",
-      "path": "/api/v1/qc/inspections/{id}/start",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner starts filling an inspection.",
-      "requestBody": {
-        "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Owner",
-        "inspectionDate": "2026-05-17",
-        "sampleQty": 3,
-        "samplingMethod": "Random",
-        "measuringToolNo": "CAL-001",
-        "productName": "Shaft Diameter 20mm",
-        "productCode": "PART-001",
-        "porNumber": "SPK-20260517123000-ABCDEF",
-        "drawingRef": "DRW-001",
-        "orderQty": 10,
-        "materialSpec": "S45C"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "status": "InInspection",
-        "inspectorName": "Owner"
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
+      "feature": "QC Result",
       "method": "PUT",
-      "path": "/api/v1/qc/inspections/{id}/form",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner saves/uploads the complete QC form in one request. Set submitForOwnerReview to true when the form is ready for final approval.",
+      "path": "/api/v1/qc/inspections/{id}/result",
+      "roles": ["Admin", "Engineering Reviewer"],
+      "description": "Upload QC image/form URL, notes, and approve/reject decision.",
       "requestBody": {
-        "inspectorId": "00000000-0000-0000-0000-000000000000",
-        "inspectorName": "Owner",
-        "inspectionDate": "2026-05-17",
-        "sampleQty": 3,
-        "samplingMethod": "Random",
-        "measuringToolNo": "CAL-001",
-        "inspectionResult": "Repair",
-        "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
-        "formRemarks": "Form QC sudah diupload untuk approval Owner.",
-        "submitForOwnerReview": true,
-        "productName": "Shaft Diameter 20mm",
-        "productCode": "PART-001",
-        "porNumber": "SPK-20260517123000-ABCDEF",
-        "drawingRef": "DRW-001",
-        "orderQty": 10,
-        "materialSpec": "S45C",
-        "visualChecks": [
-          {
-            "checkDate": "2026-05-17",
-            "qtyChecked": 10,
-            "qtyAccept": 8,
-            "qtyReject": 0,
-            "qtyRepair": 2,
-            "qtyScrap": 0,
-            "ncRef": "NC-001",
-            "remarks": "Dua part perlu repair."
-          }
-        ],
-        "dimensionChecks": [
-          {
-            "checkDate": "2026-05-17",
-            "sampleId": "SAMPLE-001",
-            "process": "Turning",
-            "dimensionData": {
-              "A": {
-                "spec": "205",
-                "value": 205.01
-              },
-              "B": {
-                "spec": "180",
-                "value": 180.0
-              },
-              "C": {
-                "spec": "8.2",
-                "value": 8.21
-              },
-              "D": {
-                "spec": "14.3",
-                "value": 14.31
-              }
-            },
-            "operatorId": "00000000-0000-0000-0000-000000000000",
-            "operatorName": "Operator 1",
-            "status": "Repair"
-          }
-        ]
-      },
-      "allowedValues": {
-        "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "status": "PendingOwnerReview",
-        "inspectionResult": "Repair",
-        "defectNotes": "Ada goresan di permukaan, perlu repair ringan.",
-        "formRemarks": "Form QC sudah diupload untuk approval Owner.",
-        "ownerDecision": null,
-        "visualChecks": [
-          {
-            "checkDate": "2026-05-17",
-            "qtyChecked": 10,
-            "qtyAccept": 8,
-            "qtyReject": 0,
-            "qtyRepair": 2,
-            "qtyScrap": 0,
-            "ncRef": "NC-001",
-            "remarks": "Dua part perlu repair."
-          }
-        ],
-        "dimensionChecks": [
-          {
-            "checkDate": "2026-05-17",
-            "sampleId": "SAMPLE-001",
-            "process": "Turning",
-            "status": "Repair"
-          }
-        ]
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
-      "method": "POST",
-      "path": "/api/v1/qc/inspections/{id}/visual-checks",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner records visual check quantities.",
-      "requestBody": {
-        "qtyChecked": 10,
-        "qtyAccept": 9,
-        "qtyReject": 1,
-        "qtyRepair": 0,
-        "qtyScrap": 0,
-        "ncRef": "NC-001",
-        "remarks": "Satu part baret."
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "qtyChecked": 10,
-        "qtyAccept": 9,
-        "qtyReject": 1,
-        "qtyRepair": 0,
-        "qtyScrap": 0,
-        "ncRef": "NC-001",
-        "remarks": "Satu part baret."
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
-      "method": "POST",
-      "path": "/api/v1/qc/inspections/{id}/dimension-checks",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner records flexible dimensional measurement data as JSONB.",
-      "requestBody": {
-        "sampleId": "SAMPLE-001",
-        "process": "Turning",
-        "dimensionData": {
-          "diameterMm": 20.01,
-          "lengthMm": 100.02,
-          "tolerance": "+/-0.05"
-        },
-        "operatorId": "00000000-0000-0000-0000-000000000000",
-        "operatorName": "Operator 1",
-        "status": "Accept"
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "sampleId": "SAMPLE-001",
-        "process": "Turning",
-        "dimensionData": {
-          "diameterMm": 20.01,
-          "lengthMm": 100.02,
-          "tolerance": "+/-0.05"
-        },
-        "operatorId": "00000000-0000-0000-0000-000000000000",
-        "operatorName": "Operator 1",
-        "status": "Accept"
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
-      "method": "POST",
-      "path": "/api/v1/qc/inspections/{id}/submit",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner marks the uploaded checksheet as ready for final QC approval. This does not close production until review approval.",
-      "requestBody": {
-        "inspectionResult": "Accept",
-        "formRemarks": "Dimensi dan visual sudah sesuai.",
-        "defectNotes": null
-      },
-      "allowedValues": {
-        "inspectionResult": ["Accept", "Reject", "Repair", "Scrap"]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "status": "PendingOwnerReview",
-        "inspectionResult": "Accept",
-        "defectNotes": null,
-        "formRemarks": "Dimensi dan visual sudah sesuai.",
-        "ownerDecision": null
-      }
-    },
-    {
-      "service": "QC.API",
-      "feature": "Inspections",
-      "method": "POST",
-      "path": "/api/v1/qc/inspections/{id}/review",
-      "auth": "required",
-      "roles": ["Admin", "Owner"],
-      "description": "Owner approves or rejects the completed QC checksheet. This publishes QcCheckCompletedEvent.",
-      "requestBody": {
-        "ownerReviewedByUserId": "00000000-0000-0000-0000-000000000000",
-        "ownerReviewerName": "Owner",
-        "decision": "Approve",
-        "remarks": "Approved, production can be closed."
-      },
-      "allowedValues": {
-        "decision": ["Approve", "Reject", "Approved", "Rejected"]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "status": "Approved",
-        "inspectionResult": "Accept",
-        "defectNotes": null,
-        "ownerDecision": "Approved",
-        "ownerReviewerName": "Owner",
-        "ownerReviewedAtUtc": "2026-05-17T05:00:00Z",
-        "ownerReviewRemarks": "Approved, production can be closed."
+        "reviewerUserId": "00000000-0000-0000-0000-000000000002",
+        "reviewerName": "Engineering Reviewer",
+        "qcImageUrl": "https://drive.example/qc-form.jpg",
+        "notes": "Visual condition acceptable.",
+        "decision": "Approve"
       }
     },
     {
       "service": "Purchasing.API",
       "feature": "Material Requirements",
       "method": "GET",
-      "path": "/api/v1/purchasing/material-requirements",
-      "auth": "required",
+      "path": "/api/v1/purchasing/material-requirements?salesOrderId={salesOrderId}",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "List material requirements created from Sales Order/SPK events. Optional query: salesOrderId and status.",
-      "requestBody": null,
-      "query": {
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "status": "Required"
-      },
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "salesOrderId": "00000000-0000-0000-0000-000000000000",
-          "salesOrderNumber": "SO-20260517123000-ABCDEF",
-          "productionOrderId": "00000000-0000-0000-0000-000000000000",
-          "spkNumber": "SPK-20260517123000-ABCDEF",
-          "productId": "00000000-0000-0000-0000-000000000000",
-          "productPartNumber": "PART-001",
-          "productDescription": "Shaft Diameter 20mm",
-          "materialSpec": "S45C",
-          "requiredQty": 10,
-          "projectName": "PT Contoh Customer - PART-001",
-          "status": "Required",
-          "updatedAtUtc": "2026-05-17T05:00:00Z",
-          "purchaseItems": []
-        }
-      ]
+      "description": "List material requirements by Sales Order with stock visibility."
     },
     {
       "service": "Purchasing.API",
-      "feature": "Material Tracking",
-      "method": "GET",
-      "path": "/api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking",
-      "auth": "required",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "Read material tracking summary for one Sales Order, including how many requirements are requested, approved, ordered, and received.",
-      "requestBody": null,
-      "responseBody": {
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "salesOrderNumber": "SO-20260517123000-ABCDEF",
-        "totalRequirements": 1,
-        "requiredRequirements": 0,
-        "requestedRequirements": 0,
-        "approvedRequirements": 0,
-        "orderedRequirements": 0,
-        "receivedRequirements": 1,
-        "receivedPercent": 100.0,
-        "updatedAtUtc": "2026-05-17T05:00:00Z",
-        "requirements": []
-      }
-    },
-    {
-      "service": "Purchasing.API",
-      "feature": "Purchase Requests",
-      "method": "GET",
-      "path": "/api/v1/purchasing/purchase-requests",
-      "auth": "required",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "List purchase requests. Optional query: salesOrderId and status.",
-      "requestBody": null,
-      "query": {
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "status": "Submitted"
-      },
-      "responseBody": [
-        {
-          "id": "00000000-0000-0000-0000-000000000000",
-          "prNumber": "PR-20260517123000-ABCDEF",
-          "requestDate": "2026-05-17",
-          "requestedByUserId": "00000000-0000-0000-0000-000000000000",
-          "requesterName": "Purchasing 1",
-          "salesOrderId": "00000000-0000-0000-0000-000000000000",
-          "salesOrderNumber": "SO-20260517123000-ABCDEF",
-          "projectName": "PT Contoh Customer - PART-001",
-          "status": "Submitted",
-          "reviewedByUserId": null,
-          "reviewedAtUtc": null,
-          "rejectionReason": null,
-          "updatedAtUtc": "2026-05-17T05:00:00Z",
-          "items": [
-            {
-              "id": "00000000-0000-0000-0000-000000000000",
-              "materialRequirementId": "00000000-0000-0000-0000-000000000000",
-              "salesOrderId": "00000000-0000-0000-0000-000000000000",
-              "salesOrderNumber": "SO-20260517123000-ABCDEF",
-              "productionOrderId": "00000000-0000-0000-0000-000000000000",
-              "spkNumber": "SPK-20260517123000-ABCDEF",
-              "projectName": "PT Contoh Customer - PART-001",
-              "itemName": "Round Bar S45C",
-              "size": "20mm x 6m",
-              "qty": 5,
-              "suggestedSupplier": "Supplier A",
-              "supplierName": null,
-              "purchaseDate": null,
-              "expectedArrivalDate": null,
-              "receivedDate": null,
-              "purchaseStatus": "Requested",
-              "purchaseNotes": null,
-              "notes": "Untuk SPK minggu ini"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "service": "Purchasing.API",
-      "feature": "Purchase Requests",
-      "method": "GET",
-      "path": "/api/v1/purchasing/purchase-requests/{id}",
-      "auth": "required",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "Get one purchase request with linked material/SO/SPK and purchase information.",
-      "requestBody": null,
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "prNumber": "PR-20260517123000-ABCDEF",
-        "requestDate": "2026-05-17",
-        "requestedByUserId": "00000000-0000-0000-0000-000000000000",
-        "requesterName": "Purchasing 1",
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "salesOrderNumber": "SO-20260517123000-ABCDEF",
-        "projectName": "PT Contoh Customer - PART-001",
-        "status": "Submitted",
-        "reviewedByUserId": null,
-        "reviewedAtUtc": null,
-        "rejectionReason": null,
-        "updatedAtUtc": "2026-05-17T05:00:00Z",
-        "items": []
-      }
+      "feature": "Material Stock",
+      "method": "PUT",
+      "path": "/api/v1/purchasing/material-requirements/{id}/stock",
+      "roles": ["Admin", "Purchasing"],
+      "description": "Update stock on hand and stock notes for a material requirement."
     },
     {
       "service": "Purchasing.API",
       "feature": "Purchase Requests",
       "method": "POST",
       "path": "/api/v1/purchasing/purchase-requests",
-      "auth": "required",
       "roles": ["Admin", "Engineering", "Purchasing"],
-      "description": "Create and submit purchase request for Finance review.",
-      "requestBody": {
-        "requestDate": "2026-05-17",
-        "requestedByUserId": "00000000-0000-0000-0000-000000000000",
-        "requesterName": "Purchasing 1",
-        "salesOrderId": "00000000-0000-0000-0000-000000000000",
-        "salesOrderNumber": "SO-20260517123000-ABCDEF",
-        "projectName": "PT Contoh Customer - PART-001",
-        "items": [
-          {
-            "materialRequirementId": "00000000-0000-0000-0000-000000000000",
-            "salesOrderId": "00000000-0000-0000-0000-000000000000",
-            "salesOrderNumber": "SO-20260517123000-ABCDEF",
-            "productionOrderId": "00000000-0000-0000-0000-000000000000",
-            "spkNumber": "SPK-20260517123000-ABCDEF",
-            "projectName": "PT Contoh Customer - PART-001",
-            "itemName": "Round Bar S45C",
-            "size": "20mm x 6m",
-            "qty": 5,
-            "suggestedSupplier": "Supplier A",
-            "notes": "Untuk SPK minggu ini"
-          }
-        ]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "prNumber": "PR-20260517123000-ABCDEF",
-        "status": "Submitted",
-        "salesOrderNumber": "SO-20260517123000-ABCDEF"
-      }
+      "description": "Create and submit a multi-item purchase request for Finance review."
     },
     {
       "service": "Purchasing.API",
       "feature": "Purchase Requests",
-      "method": "POST",
-      "path": "/api/v1/purchasing/purchase-requests/{id}/review",
-      "auth": "required",
-      "roles": ["Admin", "Finance"],
-      "description": "Finance approves or rejects a purchase request.",
-      "requestBody": {
-        "reviewedByUserId": "00000000-0000-0000-0000-000000000000",
-        "decision": "Approve",
-        "rejectionReason": null
-      },
-      "allowedValues": {
-        "decision": ["Approve", "Reject", "Approved", "Rejected"]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "prNumber": "PR-20260517123000-ABCDEF",
-        "status": "Approved",
-        "reviewedByUserId": "00000000-0000-0000-0000-000000000000",
-        "reviewedAtUtc": "2026-05-17T05:00:00Z",
-        "rejectionReason": null
-      }
-    },
-    {
-      "service": "Purchasing.API",
-      "feature": "Purchase Information",
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/purchase-info",
-      "auth": "required",
       "roles": ["Admin", "Purchasing"],
-      "description": "Purchasing records actual purchase/supplier information and material arrival status after Finance approval.",
-      "requestBody": {
-        "supplierName": "Supplier A",
-        "purchaseDate": "2026-05-18",
-        "expectedArrivalDate": "2026-05-20",
-        "receivedDate": "2026-05-20",
-        "purchaseStatus": "Received",
-        "purchaseNotes": "Material diterima lengkap."
-      },
-      "allowedValues": {
-        "purchaseStatus": ["Requested", "Approved", "Rejected", "Ordered", "Received"]
-      },
-      "responseBody": {
-        "id": "00000000-0000-0000-0000-000000000000",
-        "prNumber": "PR-20260517123000-ABCDEF",
-        "status": "Approved",
-        "items": [
-          {
-            "id": "00000000-0000-0000-0000-000000000000",
-            "supplierName": "Supplier A",
-            "purchaseDate": "2026-05-18",
-            "expectedArrivalDate": "2026-05-20",
-            "receivedDate": "2026-05-20",
-            "purchaseStatus": "Received",
-            "purchaseNotes": "Material diterima lengkap."
-          }
-        ]
-      }
+      "description": "Record supplier, purchase date, arrival estimate, received date, purchase status, and notes."
     }
   ]
 }

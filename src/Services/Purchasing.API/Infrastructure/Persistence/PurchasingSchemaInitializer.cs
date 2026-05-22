@@ -58,6 +58,7 @@ public static class PurchasingSchemaInitializer
                 sales_order_id uuid NOT NULL,
                 sales_order_number character varying(100) NOT NULL,
                 production_order_id uuid NOT NULL,
+                sales_order_item_id uuid NULL,
                 spk_number character varying(100) NOT NULL,
                 barcode_uid character varying(255) NOT NULL,
                 product_id uuid NOT NULL,
@@ -65,6 +66,9 @@ public static class PurchasingSchemaInitializer
                 product_description text NOT NULL,
                 material_spec character varying(255) NULL,
                 required_qty integer NOT NULL,
+                stock_on_hand integer NOT NULL DEFAULT 0,
+                stock_notes text NULL,
+                stock_updated_at_utc timestamp with time zone NULL,
                 project_name character varying(255) NOT NULL,
                 status character varying(50) NOT NULL,
                 created_at_utc timestamp with time zone NOT NULL,
@@ -84,8 +88,13 @@ public static class PurchasingSchemaInitializer
                 END IF;
             END $$;
 
-            CREATE UNIQUE INDEX IF NOT EXISTS ix_material_requirements_production_order_id
+            DROP INDEX IF EXISTS ix_material_requirements_production_order_id;
+
+            CREATE INDEX IF NOT EXISTS ix_material_requirements_production_order_id
                 ON material_requirements (production_order_id);
+
+            CREATE INDEX IF NOT EXISTS ix_material_requirements_production_order_product_id
+                ON material_requirements (production_order_id, product_id);
 
             CREATE INDEX IF NOT EXISTS ix_material_requirements_sales_order_id
                 ON material_requirements (sales_order_id);
@@ -131,6 +140,11 @@ public static class PurchasingSchemaInitializer
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS sales_order_number character varying(100);
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS project_name character varying(255);
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS updated_at_utc timestamp with time zone NOT NULL DEFAULT now();
+
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS sales_order_item_id uuid;
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS stock_on_hand integer NOT NULL DEFAULT 0;
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS stock_notes text;
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS stock_updated_at_utc timestamp with time zone;
 
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS material_requirement_id uuid;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS sales_order_id uuid;

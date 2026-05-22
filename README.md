@@ -41,11 +41,11 @@ PtPjtErp.sln
 
 `MasterData.API` menangani data master seperti customer dan product/part. Data ini dipakai oleh Sales Order dan Engineering, tetapi tidak dibuat sebagai foreign key lintas database.
 
-`Production.API` menangani Sales Order, Sales Order Item, Production Order/SPK, barcode/QR, scan mulai produksi, scan selesai/complete produksi, tracking waktu otomatis, detail/list SPK, progress per Sales Order, dan dashboard owner. Service ini dipakai lintas role: Sales Order membuat SO, Engineering upload gambar/drawing, dan Owner menjalankan sekaligus memonitor production tracking.
+`Production.API` menangani Sales Order sebagai pusat tracking produksi: item SO, assignment engineer worker/reviewer, barcode/QR lookup berbasis SO, start/finish produksi oleh worker yang ditugaskan, tracking waktu otomatis, progress per Sales Order, dan dashboard owner. Record production order di database hanya dipakai sebagai state internal workflow, bukan identitas yang ditampilkan ke user.
 
-`QC.API` menangani scan barcode/QR untuk QC, QC Inspection, visual check, dimension check, upload form QC oleh Owner, defect notes, dan review approve/reject oleh Owner. Kolom `Reject`, `Repair`, dan `Scrap` di visual check adalah hasil inspeksi teknis barang, sedangkan reject dari Owner adalah keputusan review final terhadap form QC. Data ukuran fleksibel disimpan dalam kolom JSONB agar form QC bisa berubah mengikuti kebutuhan part.
+`QC.API` menangani QC Inspection sederhana oleh Engineering Reviewer: upload foto/form QC, notes, dan keputusan approve/reject. Tidak ada lagi form checklist visual/dimension di aplikasi.
 
-`Purchasing.API` menangani kebutuhan material dari Sales Order/SPK, daftar item untuk purchasing, form pembelian barang/material, informasi supplier dan tanggal pembelian, Purchase Request, review approve/reject oleh Finance, serta tracking bahan baku sampai diterima.
+`Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, form pembelian barang/material multi-item, informasi supplier dan tanggal pembelian, Purchase Request, review approve/reject oleh Finance, serta tracking bahan baku sampai diterima.
 
 `Web.Gateway` adalah API Gateway berbasis YARP. Semua request frontend masuk lewat gateway, lalu diteruskan ke service yang sesuai.
 
@@ -205,15 +205,16 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Tidak ada role terpisah bernama QC atau Production pada MVP ini. Engineering hanya melakukan upload/input file gambar engineering. Engineering tidak melakukan scan `Start`/`Complete` produksi, tidak mengisi checksheet QC, dan tidak mengisi kolom reject pada form QC. Karena belum ada role Production terpisah, aksi update status produksi lewat barcode/QR dipegang oleh Owner untuk MVP. Pengisian form QC/checksheet, defect notes, dan keputusan review final approve/reject juga dilakukan oleh Owner.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Engineering dibagi menjadi worker dan reviewer. Worker yang ditugaskan di Sales Order melakukan start/finish produksi melalui endpoint Sales Order, sedangkan reviewer yang ditugaskan melakukan QC dengan upload gambar/form QC, notes, dan approve/reject. Barcode/QR hanya shortcut lookup tracking, bukan mekanisme scan untuk mengubah status.
 
 ## Pembagian Akses Production Tracking
 
 Production Tracking adalah workflow lintas service, bukan module yang berdiri sendiri untuk semua orang mengubah data. Data produksinya memang dibaca oleh beberapa role, tetapi aksi update tetap dibatasi.
 
-- Sales Order membuat Sales Order dan melakukan confirm sampai sistem membuat SPK/barcode.
-- Engineering melihat SPK dan upload link gambar engineering.
-- Owner melakukan lookup barcode, scan `Start`, scan `Complete`, melihat progress produksi, dashboard, bottleneck, dan melanjutkan proses review lewat QC setelah produksi selesai.
+- Sales Order membuat Sales Order, mengisi item, dan assign engineer worker/reviewer.
+- Engineering melihat Sales Order yang ditugaskan dan upload link gambar engineering.
+- Engineering Worker melakukan start/finish produksi pada Sales Order yang ditugaskan.
+- Owner melakukan lookup barcode berbasis SO, melihat progress produksi, dashboard, dan bottleneck.
 - Customer/public dapat membuka link tracking produksi tanpa login untuk melihat progress order sudah sampai mana. Akses ini read-only dan tidak menampilkan data internal seperti uploader, link drawing, atau user id.
 - Finance dan Purchasing dapat membaca progress produksi untuk konteks material, PR, dan planning, tetapi tidak mengubah status produksi.
 - Admin mengelola user dan punya akses override sistem.
@@ -268,52 +269,46 @@ Alur kerja:
 4. User memilih product/part yang dipesan.
 5. User mengisi quantity, target date, dan notes.
 6. User menyimpan Sales Order.
-7. Saat Sales Order dikonfirmasi, Production API otomatis membuat SPK/Production Order.
-8. Sistem membuat barcode unik untuk setiap SPK.
+7. Saat Sales Order dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
+8. Sistem membuat barcode unik berbasis Sales Order.
 
 Output utama:
 
 - Sales Order
 - Sales Order Item
-- Production Order/SPK
-- Barcode UID
+- Barcode UID berbasis SO
 
 ## Skenario Production Tracking (Barcode/QR)
 
-Production Tracking mengikuti cara kerja Excel lama: ada daftar pekerjaan/SPK, status pekerjaan, person in charge, progress, tanggal mulai/selesai, dan notes. Di aplikasi ini, tracking tersebut dibuat berdasarkan Sales Order dan dijalankan lewat barcode/QR.
+Production Tracking mengikuti cara kerja Excel lama: status pekerjaan, person in charge, progress, tanggal mulai/selesai, dan notes. Di aplikasi ini, tracking tersebut dibuat berdasarkan Sales Order; barcode/QR hanya menjadi shortcut lookup ke Sales Order.
 
-Karena belum ada role terpisah bernama Production, aksi update status produksi untuk MVP dipegang oleh Owner. Jadi module ini tetap mencatat aktivitas produksi/shop floor, tetapi user yang melakukan scan `Start`/`Complete` adalah Owner, bukan Engineering.
+Sales Order adalah identitas utama. Record production order di database hanya menyimpan state internal seperti status, barcode, timestamp, duration, dan QC decision.
 
 Alur kerja:
 
-1. User Owner login.
-2. User membuka daftar Production Order/SPK.
-3. User dapat melihat semua SPK atau filter berdasarkan Sales Order.
-4. User membuka detail SPK untuk melihat link ke Sales Order, customer, product, barcode UID, status, start time, finish time, dan duration.
-5. User scan barcode/QR untuk lookup SPK tanpa mengubah status.
-6. User scan barcode/QR dengan action `Start` ketika produksi dimulai.
-7. Sistem otomatis mengisi `started_at_utc`, mengubah status menjadi `InProgress`, dan mulai menghitung duration.
-8. User scan barcode/QR dengan action `Complete` ketika produksi selesai. Action lama `Finish` tetap diterima sebagai alias.
-9. Sistem otomatis mengisi `finished_at_utc`, mengubah status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
-10. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order untuk melihat jumlah SPK waiting, in progress, finished, closed, dan progress percent.
-11. Customer dapat membuka public tracking memakai kode Sales Order, nomor SPK, atau barcode UID yang diberikan untuk melihat progress tanpa login. Public tracking hanya menampilkan status, progress, item, quantity, waktu mulai/selesai, dan duration.
+1. User membuka progress Sales Order.
+2. Barcode/QR dapat dipakai untuk lookup Sales Order tanpa mengubah status.
+3. Engineering Worker yang ditugaskan melakukan start produksi pada Sales Order.
+4. Sistem mengisi `started_at_utc`, mengubah production status menjadi `InProgress`, dan mulai menghitung duration.
+5. Engineering Worker yang sama melakukan finish produksi pada Sales Order.
+6. Sistem mengisi `finished_at_utc`, mengubah production status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
+7. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order.
+8. Customer dapat membuka public tracking memakai kode Sales Order atau barcode UID yang diberikan untuk melihat progress tanpa login. Public tracking hanya menampilkan status, progress, item, quantity, waktu mulai/selesai, dan duration.
 
 Endpoint utama:
 
-- `GET /api/v1/production/tracking?code={soNumberOrSpkOrBarcode}`
-- `GET /api/v1/production/tracking/{soNumberOrSpkOrBarcode}`
-- `GET /api/v1/production/orders`
-- `GET /api/v1/production/orders?salesOrderId={salesOrderId}`
-- `GET /api/v1/production/orders/{id}`
-- `POST /api/v1/production/shop-floor/lookup`
-- `POST /api/v1/production/shop-floor/scan`
+- `GET /api/v1/production/tracking?code={soNumberOrBarcode}`
+- `GET /api/v1/production/tracking/{soNumberOrBarcode}`
+- `POST /api/v1/production/tracking/lookup`
 - `GET /api/v1/production/sales-orders/{id}/progress`
+- `PUT /api/v1/production/sales-orders/{id}/production/start`
+- `PUT /api/v1/production/sales-orders/{id}/production/finish`
+- `PUT /api/v1/production/sales-orders/{id}/engineering-drawing`
 
 Output utama:
 
-- Production Order/SPK detail.
-- Barcode UID untuk QR/webcam/mobile scan.
-- Link ke Sales Order.
+- Sales Order tracking detail.
+- Barcode UID untuk lookup via QR/webcam/mobile.
 - Status `Waiting`, `InProgress`, `Finished`, atau `Closed`.
 - `started_at_utc`, `finished_at_utc`, dan `durationSeconds`.
 - Progress Sales Order.
@@ -321,16 +316,16 @@ Output utama:
 
 ## Skenario Engineering
 
-Engineering menangani upload file gambar engineering ke SPK. Role ini tidak melakukan scan `Start`/`Complete`, review, approve, atau reject.
+Engineering menangani upload file gambar engineering ke Sales Order. Engineering Worker melakukan start/finish produksi, sedangkan Engineering Reviewer melakukan QC.
 
 Alur kerja:
 
 1. User Engineering login.
-2. User membuka daftar SPK.
-3. User melihat SPK yang berasal dari Sales Order yang sudah dikonfirmasi.
+2. User membuka daftar Sales Order yang ditugaskan.
+3. User melihat item pekerjaan dari Sales Order yang sudah dikonfirmasi.
 4. User upload link file gambar, misalnya link Google Drive.
 5. Sistem menyimpan link gambar, uploader, waktu upload, dan drawing reference.
-6. Owner dapat melihat file gambar tersebut dari data SPK jika perlu review operasional.
+6. Owner dapat melihat file gambar tersebut dari data Sales Order jika perlu review operasional.
 
 Output utama:
 
@@ -339,47 +334,37 @@ Output utama:
 - Uploader.
 - Waktu upload.
 
-## Skenario Owner untuk QC
+## Skenario Engineering Reviewer untuk QC
 
-Owner melakukan proses QC dari scan barcode/QR, pengisian checksheet, notes defect, sampai review final approve/reject untuk menyelesaikan order. Di modul ini ada dua arti reject yang berbeda: `Reject` pada checksheet adalah hasil inspeksi teknis barang, sedangkan `Rejected` pada review Owner adalah keputusan final bahwa form QC tidak disetujui.
+Engineering Reviewer melakukan QC sederhana setelah produksi selesai: upload foto/form QC, isi notes, lalu approve/reject. Aplikasi tidak menyimpan tabel hasil inspeksi visual/dimension.
 
 Alur kerja:
 
-1. Owner login ke sistem.
-2. Owner membuka menu QC dan scan barcode/QR SPK.
-3. Saat SPK dibuat, QC API sudah menyiapkan form inspeksi melalui `SpkCreatedEvent`.
-4. Saat produksi selesai, form berubah menjadi siap inspeksi melalui `ProductionFinishedEvent`.
-5. QC API mencari inspection berdasarkan barcode UID, nomor SPK, atau nomor referensi QC.
-6. User mengisi data inspeksi awal seperti inspector, sample qty, sampling method, dan measuring tool.
-7. Owner mengisi visual check sesuai format checksheet: `Accept` untuk quantity barang OK, `Reject` untuk quantity barang NG, `Repair` untuk barang yang perlu repair, `Scrap` untuk barang scrap, serta NC/NCR reference dan keterangan jika ada defect.
-8. User mengisi dimension check dengan data ukuran fleksibel dalam JSONB.
-9. Owner mengisi hasil inspeksi teknis seperti `Accept`, `Reject`, `Repair`, atau `Scrap`.
-10. Jika hasil teknis memiliki `Reject`, `Repair`, atau `Scrap`, Owner wajib mengisi defect notes.
-11. Owner menyimpan/upload form QC.
-12. Owner melakukan review final dengan memilih `Approve` atau `Reject`. Keputusan ini disimpan sebagai owner decision dan tidak otomatis mengubah jumlah reject pada visual check.
-13. QC API mengirim `QcCheckCompletedEvent` ke Production API.
-14. Jika Owner approve, Production Order berubah menjadi `Closed`.
+1. Engineering Reviewer login ke sistem.
+2. Reviewer membuka menu QC.
+3. Saat SO dikonfirmasi, QC API menyiapkan inspection internal melalui event workflow.
+4. Saat produksi selesai, inspection berubah menjadi siap QC melalui `ProductionFinishedEvent`.
+5. Reviewer upload foto/form QC, mengisi notes, dan memilih `Approve` atau `Reject`.
+6. QC API mengirim `QcCheckCompletedEvent` ke Production API.
+7. Jika reviewer approve, production status SO berubah menjadi `Closed` dan Sales Order berubah menjadi `Completed`.
 
 Output utama:
 
 - QC Inspection
-- Hasil scan barcode/QR QC
-- Header checksheet lama: produk, kode produk, POR/SPK, ref gambar, jumlah order, spec material, jumlah sample, metode sampling, dan alat ukur.
-- Visual Check, termasuk quantity `Accept`, `Reject`, `Repair`, `Scrap`, NC/NCR reference, dan keterangan teknis.
-- Dimension Check
-- Inspection Result teknis dari checksheet.
-- Defect Notes
-- Owner Review Status: Approved / Rejected.
+- Sales Order number
+- QC image/form URL
+- Notes
+- Reviewer decision: Approved / Rejected.
 
 ## Skenario Purchasing
 
-Purchasing menangani kebutuhan bahan baku dari Sales Order/SPK sampai informasi pembelian dan penerimaan material tercatat. Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran, jumlah, supplier, project, pemohon, approval, dan purchase.
+Purchasing menangani kebutuhan bahan baku dari Sales Order sampai informasi pembelian dan penerimaan material tercatat. Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran, jumlah, supplier, project, pemohon, approval, dan purchase.
 
 Alur kerja:
 
-1. Sales Order dikonfirmasi dan Production API membuat SPK.
-2. Production API mengirim `SalesOrderConfirmedEvent` dan `SpkCreatedEvent`.
-3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per SPK sebagai daftar item yang perlu dipantau.
+1. Sales Order dikonfirmasi dan Production API menyiapkan state produksi internal.
+2. Production API mengirim event workflow Sales Order.
+3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
 4. User Purchasing membuka list material requirement, bisa filter berdasarkan Sales Order atau status.
 5. User Purchasing membuat Purchase Request dari satu atau beberapa material requirement.
 6. User mengisi nama barang, ukuran, jumlah, supplier suggestion, project, dan notes.
@@ -392,6 +377,7 @@ Endpoint utama:
 - `GET /api/v1/purchasing/material-requirements`
 - `GET /api/v1/purchasing/material-requirements?salesOrderId={salesOrderId}`
 - `GET /api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking`
+- `PUT /api/v1/purchasing/material-requirements/{id}/stock`
 - `GET /api/v1/purchasing/purchase-requests`
 - `GET /api/v1/purchasing/purchase-requests/{id}`
 - `POST /api/v1/purchasing/purchase-requests`
@@ -399,7 +385,7 @@ Endpoint utama:
 
 Output utama:
 
-- Material Requirement dari Sales Order/SPK.
+- Material Requirement dari Sales Order.
 - Purchase Request dan Purchase Request Item.
 - Informasi supplier, tanggal beli, estimasi datang, tanggal diterima, dan status pembelian.
 - Tracking bahan baku per Sales Order.
@@ -484,11 +470,11 @@ dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --co
 dotnet test tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj --configuration Release --no-restore
 ```
 
-Test ini fokus ke logic QC: scan barcode/QR, upload checksheet, validasi defect notes, approval Owner, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC hanya untuk `Owner`/`Admin`.
+Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Engineering Reviewer, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke reviewer/admin.
 
-Test Production fokus ke logic Production Tracking: confirm Sales Order menjadi SPK/barcode, lookup barcode, scan `Start`, scan `Complete`, validasi complete sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
+Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
-Test Purchasing fokus ke material requirement dari event Sales Order/SPK, submit Purchase Request, review Finance, update informasi pembelian oleh Purchasing, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
+Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item, review Finance, update informasi pembelian/stok oleh Purchasing, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
 
 ## Catatan Implementasi
 

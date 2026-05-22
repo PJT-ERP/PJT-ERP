@@ -13,8 +13,6 @@ public sealed record CreatePurchaseRequestItem(
     Guid? MaterialRequirementId,
     Guid? SalesOrderId,
     string? SalesOrderNumber,
-    Guid? ProductionOrderId,
-    string? SpkNumber,
     string? ProjectName,
     string ItemName,
     string? Size,
@@ -31,6 +29,8 @@ public sealed record UpdatePurchaseItemInfoRequest(
     DateOnly? ReceivedDate,
     string? PurchaseStatus,
     string? PurchaseNotes);
+
+public sealed record UpdateMaterialStockInfoRequest(int StockOnHand, string? StockNotes);
 
 public sealed record PurchaseRequestDto(
     Guid Id,
@@ -53,8 +53,6 @@ public sealed record PurchaseRequestItemDto(
     Guid? MaterialRequirementId,
     Guid? SalesOrderId,
     string? SalesOrderNumber,
-    Guid? ProductionOrderId,
-    string? SpkNumber,
     string? ProjectName,
     string ItemName,
     string? Size,
@@ -72,13 +70,17 @@ public sealed record MaterialRequirementDto(
     Guid Id,
     Guid SalesOrderId,
     string SalesOrderNumber,
-    Guid ProductionOrderId,
-    string SpkNumber,
+    Guid? SalesOrderItemId,
     Guid ProductId,
     string ProductPartNumber,
     string ProductDescription,
     string? MaterialSpec,
     int RequiredQty,
+    int StockOnHand,
+    int StockBalanceAfterRequirement,
+    bool RequiresPurchase,
+    string? StockNotes,
+    DateTime? StockUpdatedAtUtc,
     string ProjectName,
     string Status,
     DateTime UpdatedAtUtc,

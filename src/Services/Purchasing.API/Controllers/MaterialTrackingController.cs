@@ -26,4 +26,22 @@ public sealed class MaterialTrackingController(IPurchaseRequestService purchaseR
         var result = await purchaseRequestService.GetSalesOrderMaterialTrackingAsync(salesOrderId, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
+
+    [HttpPut("material-requirements/{id:guid}/stock")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<MaterialRequirementDto>> UpdateMaterialRequirementStock(
+        Guid id,
+        UpdateMaterialStockInfoRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await purchaseRequestService.UpdateMaterialRequirementStockAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

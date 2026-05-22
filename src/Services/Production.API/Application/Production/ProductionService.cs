@@ -21,10 +21,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     public async Task<SalesOrderDto> CreateSalesOrderAsync(CreateSalesOrderRequest request, CancellationToken cancellationToken)
     {
-        if (request.Items.Count == 0)
-        {
-            throw new InvalidOperationException("Sales order must contain at least one item.");
-        }
+        ValidateSalesOrderItems(request.Items);
+        var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
+        var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
 
         var customer = await db.CustomerReplicas
             .AsNoTracking()
@@ -50,6 +49,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             CustomerName = customer.Name,
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
+            ProductionWorkerUserId = productionWorker?.UserId,
+            ProductionWorkerName = productionWorker?.Name,
+            QcReviewerUserId = qcReviewer?.UserId,
+            QcReviewerName = qcReviewer?.Name,
             Items = request.Items.Select(item =>
             {
                 var product = products[item.ProductId];
@@ -60,7 +63,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     ProductDescription = product.Description,
                     ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
-                    Notes = item.Notes
+                    Notes = NormalizeOptional(item.Notes)
                 };
             }).ToList()
         };
@@ -70,11 +73,34 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return ToDto(order);
     }
 
-    public async Task<IReadOnlyCollection<ProductionOrderDto>> ConfirmSalesOrderAsync(Guid salesOrderId, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
+    public async Task<SalesOrderDto?> AssignSalesOrderEngineersAsync(
+        Guid salesOrderId,
+        AssignSalesOrderEngineersRequest request,
+        CancellationToken cancellationToken)
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
-            .ThenInclude(item => item.ProductionOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null)
+        {
+            return null;
+        }
+
+        if (salesOrder.Status == SalesOrderStatuses.Cancelled)
+        {
+            throw new InvalidOperationException("Cancelled sales orders cannot be assigned.");
+        }
+
+        ApplyAssignment(salesOrder, request);
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
+    public async Task<SalesOrderProductionProgressDto> ConfirmSalesOrderAsync(Guid salesOrderId, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken)
             ?? throw new InvalidOperationException("Sales order was not found.");
 
@@ -83,147 +109,106 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             throw new InvalidOperationException("Cancelled sales orders cannot be confirmed.");
         }
 
+        EnsureEngineersAssigned(salesOrder);
+        ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.Notes)).ToArray());
+
+        var now = DateTime.UtcNow;
         salesOrder.Status = SalesOrderStatuses.InProduction;
         salesOrder.ApprovedByUserId = request.ApprovedByUserId;
-        salesOrder.ApprovedAtUtc = DateTime.UtcNow;
-        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+        salesOrder.ApprovedAtUtc ??= now;
+        salesOrder.UpdatedAtUtc = now;
 
-        await eventPublisher.PublishAsync(
-            new SalesOrderConfirmedEvent(salesOrder.Id, salesOrder.SoNumber, salesOrder.CustomerId, DateTime.UtcNow),
-            cancellationToken);
-
-        var createdOrders = new List<ProductionOrder>();
-        foreach (var item in salesOrder.Items)
+        var productionOrder = GetPrimaryProductionOrder(salesOrder);
+        if (productionOrder is null)
         {
-            if (item.ProductionOrders.Count > 0)
+            productionOrder = new ProductionOrder
             {
-                continue;
-            }
-
-            var productionOrder = new ProductionOrder
-            {
-                SalesOrderItemId = item.Id,
-                SalesOrderItem = item,
-                PoNumber = GenerateNumber("SPK"),
-                DrawingRef = item.ProductPartNumber,
-                BarcodeUid = $"PJT|SPK|{DateTime.UtcNow:yyyyMMdd}|{item.Id:N}",
-                OrderQty = item.Qty
+                SalesOrderId = salesOrder.Id,
+                SalesOrder = salesOrder,
+                SalesOrderItemId = salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().Id,
+                PoNumber = salesOrder.SoNumber,
+                DrawingRef = salesOrder.SoNumber,
+                BarcodeUid = $"PJT|SO|{now:yyyyMMdd}|{salesOrder.Id:N}",
+                OrderQty = salesOrder.Items.Sum(item => item.Qty)
             };
-            await db.ProductionOrders.AddAsync(productionOrder, cancellationToken);
-            createdOrders.Add(productionOrder);
 
-            await eventPublisher.PublishAsync(
-                new SpkCreatedEvent(
-                    productionOrder.Id,
-                    salesOrder.Id,
-                    productionOrder.PoNumber,
-                    productionOrder.BarcodeUid,
-                    item.ProductId,
-                    item.Qty,
-                    item.ProductPartNumber,
-                    item.ProductDescription,
-                    productionOrder.DrawingRef,
-                    item.ProductMaterialSpec),
-                cancellationToken);
+            await db.ProductionOrders.AddAsync(productionOrder, cancellationToken);
+            salesOrder.ProductionOrders.Add(productionOrder);
         }
 
+        await eventPublisher.PublishAsync(
+            new SalesOrderConfirmedEvent(
+                salesOrder.Id,
+                salesOrder.SoNumber,
+                salesOrder.CustomerId,
+                now,
+                BuildConfirmedItems(salesOrder),
+                salesOrder.ProductionWorkerUserId,
+                salesOrder.ProductionWorkerName,
+                salesOrder.QcReviewerUserId,
+                salesOrder.QcReviewerName),
+            cancellationToken);
+
+        await eventPublisher.PublishAsync(
+            new SpkCreatedEvent(
+                productionOrder.Id,
+                salesOrder.Id,
+                salesOrder.SoNumber,
+                productionOrder.BarcodeUid,
+                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductId,
+                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().Qty,
+                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductPartNumber,
+                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductDescription,
+                salesOrder.SoNumber,
+                salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First().ProductMaterialSpec,
+                salesOrder.SoNumber,
+                salesOrder.ProductionWorkerUserId,
+                salesOrder.ProductionWorkerName,
+                salesOrder.QcReviewerUserId,
+                salesOrder.QcReviewerName,
+                BuildSpkItems(salesOrder)),
+            cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
-        return createdOrders
-            .Select(order =>
-            {
-                var item = salesOrder.Items.Single(salesOrderItem => salesOrderItem.Id == order.SalesOrderItemId);
-                return ToDto(order, item, salesOrder);
-            })
-            .ToArray();
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Sales order tracking was not found after confirmation.");
     }
 
     public async Task<SalesOrderProductionProgressDto?> GetSalesOrderProgressAsync(Guid salesOrderId, CancellationToken cancellationToken)
     {
-        var salesOrder = await db.SalesOrders
-            .AsNoTracking()
-            .Include(order => order.Items)
-            .ThenInclude(item => item.ProductionOrders)
+        var salesOrder = await IncludeProduction(db.SalesOrders.AsNoTracking())
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         return salesOrder is null ? null : ToProgressDto(salesOrder);
     }
 
+    public async Task<SalesOrderProductionProgressDto?> GetSalesOrderTrackingByCodeAsync(string trackingCode, CancellationToken cancellationToken)
+    {
+        var salesOrder = await FindSalesOrderByTrackingCodeAsync(trackingCode, asNoTracking: true, cancellationToken);
+        return salesOrder is null ? null : ToProgressDto(salesOrder);
+    }
+
     public async Task<PublicProductionTrackingDto?> GetPublicTrackingAsync(string trackingCode, CancellationToken cancellationToken)
     {
-        var normalizedTrackingCode = trackingCode.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedTrackingCode))
-        {
-            throw new InvalidOperationException("Tracking code is required.");
-        }
-
-        var salesOrder = await db.SalesOrders
-            .AsNoTracking()
-            .Include(order => order.Items)
-            .ThenInclude(item => item.ProductionOrders)
-            .FirstOrDefaultAsync(
-                order =>
-                    order.SoNumber == normalizedTrackingCode
-                    || order.Items.Any(item =>
-                        item.ProductionOrders.Any(productionOrder =>
-                            productionOrder.PoNumber == normalizedTrackingCode
-                            || productionOrder.BarcodeUid == normalizedTrackingCode)),
-                cancellationToken);
-
+        var salesOrder = await FindSalesOrderByTrackingCodeAsync(trackingCode, asNoTracking: true, cancellationToken);
         return salesOrder is null ? null : ToPublicTrackingDto(salesOrder);
     }
 
-    public async Task<IReadOnlyCollection<ProductionOrderDto>> ListProductionOrdersAsync(Guid? salesOrderId, CancellationToken cancellationToken)
-    {
-        var query = IncludeSalesOrder(db.ProductionOrders.AsNoTracking());
-        if (salesOrderId.HasValue)
-        {
-            query = query.Where(order => order.SalesOrderItem != null && order.SalesOrderItem.SalesOrderId == salesOrderId.Value);
-        }
-
-        var orders = await query
-            .AsNoTracking()
-            .OrderByDescending(order => order.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
-
-        return orders.Select(ToDto).ToArray();
-    }
-
-    public async Task<ProductionOrderDto?> GetProductionOrderAsync(Guid productionOrderId, CancellationToken cancellationToken)
-    {
-        var productionOrder = await IncludeSalesOrder(db.ProductionOrders.AsNoTracking())
-            .FirstOrDefaultAsync(order => order.Id == productionOrderId, cancellationToken);
-
-        return productionOrder is null ? null : ToDto(productionOrder);
-    }
-
-    public async Task<ProductionOrderDto?> GetProductionOrderByBarcodeAsync(string barcodeUid, CancellationToken cancellationToken)
-    {
-        var scannedValue = barcodeUid.Trim();
-        if (string.IsNullOrWhiteSpace(scannedValue))
-        {
-            throw new InvalidOperationException("Barcode or QR value is required.");
-        }
-
-        var productionOrder = await IncludeSalesOrder(db.ProductionOrders.AsNoTracking())
-            .FirstOrDefaultAsync(
-                order => order.BarcodeUid == scannedValue || order.PoNumber == scannedValue,
-                cancellationToken);
-
-        return productionOrder is null ? null : ToDto(productionOrder);
-    }
-
-    public async Task<ProductionOrderDto?> UploadEngineeringDrawingAsync(
-        Guid productionOrderId,
+    public async Task<SalesOrderProductionProgressDto?> UploadEngineeringDrawingAsync(
+        Guid salesOrderId,
         UploadEngineeringDrawingRequest request,
         CancellationToken cancellationToken)
     {
-        var productionOrder = await db.ProductionOrders
-            .FirstOrDefaultAsync(order => order.Id == productionOrderId, cancellationToken);
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
-        if (productionOrder is null)
+        if (salesOrder is null)
         {
             return null;
         }
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before engineering drawings can be uploaded.");
 
         if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.Absolute, out var drawingUri)
             || drawingUri.Scheme is not ("http" or "https"))
@@ -244,50 +229,75 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             ? productionOrder.DrawingRef
             : request.DrawingRef.Trim();
         productionOrder.UpdatedAtUtc = DateTime.UtcNow;
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
 
         await db.SaveChangesAsync(cancellationToken);
-        return await GetProductionOrderAsync(productionOrder.Id, cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
     }
 
-    public async Task<ProductionOrderDto?> ScanAsync(ScanProductionOrderRequest request, CancellationToken cancellationToken)
+    public async Task<SalesOrderProductionProgressDto?> StartProductionAsync(
+        Guid salesOrderId,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
     {
-        var scannedValue = request.BarcodeUid.Trim();
-        if (string.IsNullOrWhiteSpace(scannedValue))
-        {
-            throw new InvalidOperationException("Barcode or QR value is required.");
-        }
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
-        var productionOrder = await IncludeSalesOrder(db.ProductionOrders)
-            .FirstOrDefaultAsync(
-                order => order.BarcodeUid == scannedValue || order.PoNumber == scannedValue,
-                cancellationToken);
-
-        if (productionOrder is null)
+        if (salesOrder is null)
         {
             return null;
         }
 
-        var action = NormalizeScanAction(request.Action);
-        var now = DateTime.UtcNow;
-        if (action == ScanActions.Start)
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before production can start.");
+
+        ValidateWorkerRequest(request);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId);
+        StartProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
+    public async Task<SalesOrderProductionProgressDto?> FinishProductionAsync(
+        Guid salesOrderId,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null)
         {
-            StartProduction(productionOrder, now);
-        }
-        else if (action == ScanActions.Complete)
-        {
-            var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
-            CompleteProduction(productionOrder, now);
-            if (!wasAlreadyFinished)
-            {
-                await eventPublisher.PublishAsync(
-                    new ProductionFinishedEvent(productionOrder.Id, productionOrder.PoNumber, productionOrder.BarcodeUid, productionOrder.FinishedAtUtc!.Value),
-                    cancellationToken);
-            }
+            return null;
         }
 
-        productionOrder.UpdatedAtUtc = now;
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before production can finish.");
+
+        ValidateWorkerRequest(request);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId);
+
+        var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
+        FinishProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
+        if (!wasAlreadyFinished)
+        {
+            await eventPublisher.PublishAsync(
+                new ProductionFinishedEvent(
+                    productionOrder.Id,
+                    salesOrder.SoNumber,
+                    productionOrder.BarcodeUid,
+                    productionOrder.FinishedAtUtc!.Value,
+                    salesOrder.Id,
+                    salesOrder.SoNumber,
+                    salesOrder.QcReviewerUserId,
+                    salesOrder.QcReviewerName),
+                cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
-        return ToDto(productionOrder);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
     }
 
     public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
@@ -308,6 +318,27 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             rejectionRate);
     }
 
+    private async Task<SalesOrder?> FindSalesOrderByTrackingCodeAsync(
+        string trackingCode,
+        bool asNoTracking,
+        CancellationToken cancellationToken)
+    {
+        var normalizedTrackingCode = trackingCode.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTrackingCode))
+        {
+            throw new InvalidOperationException("Tracking code is required.");
+        }
+
+        var query = IncludeProduction(asNoTracking ? db.SalesOrders.AsNoTracking() : db.SalesOrders);
+        return await query.FirstOrDefaultAsync(
+            order =>
+                order.SoNumber == normalizedTrackingCode
+                || order.ProductionOrders.Any(productionOrder =>
+                    productionOrder.BarcodeUid == normalizedTrackingCode
+                    || productionOrder.PoNumber == normalizedTrackingCode),
+            cancellationToken);
+    }
+
     private static SalesOrderDto ToDto(SalesOrder order)
     {
         return new SalesOrderDto(
@@ -318,73 +349,63 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.CustomerName,
             order.SoDate,
             order.TargetDate,
+            order.ProductionWorkerUserId,
+            order.ProductionWorkerName,
+            order.QcReviewerUserId,
+            order.QcReviewerName,
             order.Status,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
-            order.Items.Select(item => new SalesOrderItemDto(
-                item.Id,
-                item.ProductId,
-                item.ProductPartNumber,
-                item.ProductDescription,
-                item.Qty,
-                item.Notes)).ToArray());
+            order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray());
     }
 
-    private static ProductionOrderDto ToDto(ProductionOrder order)
+    private static SalesOrderItemDto ToDto(SalesOrderItem item)
     {
-        return ToDto(order, order.SalesOrderItem, order.SalesOrderItem?.SalesOrder);
-    }
-
-    private static ProductionOrderDto ToDto(ProductionOrder order, SalesOrderItem? item, SalesOrder? salesOrder)
-    {
-        return new ProductionOrderDto(
-            order.Id,
-            order.PoNumber,
-            order.SalesOrderItemId,
-            item?.SalesOrderId,
-            salesOrder?.SoNumber,
-            salesOrder?.CustomerCode,
-            salesOrder?.CustomerName,
-            item?.ProductId,
-            item?.ProductPartNumber,
-            item?.ProductDescription,
-            order.DrawingRef,
-            order.DrawingFileUrl,
-            order.DrawingUploadedByUserId,
-            order.DrawingUploaderName,
-            order.DrawingUploadedAtUtc,
-            order.BarcodeUid,
-            order.OrderQty,
-            order.Status,
-            order.StartedAtUtc,
-            order.FinishedAtUtc,
-            CalculateDurationSeconds(order),
-            order.QcDecision,
-            order.UpdatedAtUtc);
+        return new SalesOrderItemDto(
+            item.Id,
+            item.ProductId,
+            item.ProductPartNumber,
+            item.ProductDescription,
+            item.Qty,
+            item.Notes);
     }
 
     private static SalesOrderProductionProgressDto ToProgressDto(SalesOrder order)
     {
-        var productionOrders = order.Items.SelectMany(item => item.ProductionOrders).ToArray();
-        var finishedOrders = productionOrders.Count(IsProductionFinished);
-        var progressPercent = productionOrders.Length == 0
-            ? 0
-            : decimal.Round((decimal)finishedOrders / productionOrders.Length * 100, 2);
+        var productionOrder = GetPrimaryProductionOrder(order);
+        var updatedAtUtc = productionOrder is null || order.UpdatedAtUtc >= productionOrder.UpdatedAtUtc
+            ? order.UpdatedAtUtc
+            : productionOrder.UpdatedAtUtc;
 
         return new SalesOrderProductionProgressDto(
             order.Id,
             order.SoNumber,
             order.CustomerCode,
             order.CustomerName,
+            order.ProductionWorkerUserId,
+            order.ProductionWorkerName,
+            order.QcReviewerUserId,
+            order.QcReviewerName,
             order.Status,
+            productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
-            productionOrders.Length,
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Waiting),
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.InProgress),
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Finished),
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Closed),
-            progressPercent,
+            CalculateProgressPercent(productionOrder),
+            productionOrder?.DrawingRef,
+            productionOrder?.DrawingFileUrl,
+            productionOrder?.DrawingUploadedByUserId,
+            productionOrder?.DrawingUploaderName,
+            productionOrder?.DrawingUploadedAtUtc,
+            productionOrder?.BarcodeUid,
+            productionOrder?.StartedAtUtc,
+            productionOrder?.StartedByUserId,
+            productionOrder?.StartedByName,
+            productionOrder?.FinishedAtUtc,
+            productionOrder?.FinishedByUserId,
+            productionOrder?.FinishedByName,
+            productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
+            productionOrder?.QcDecision,
+            updatedAtUtc,
             order.Items
                 .OrderBy(item => item.ProductPartNumber)
                 .Select(item => new SalesOrderProductionProgressItemDto(
@@ -392,67 +413,53 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     item.ProductId,
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty,
-                    item.ProductionOrders
-                        .OrderBy(productionOrder => productionOrder.PoNumber)
-                        .Select(productionOrder => ToDto(productionOrder, item, order))
-                        .ToArray()))
+                    item.Qty))
                 .ToArray());
     }
 
     private static PublicProductionTrackingDto ToPublicTrackingDto(SalesOrder order)
     {
-        var productionOrders = order.Items.SelectMany(item => item.ProductionOrders).ToArray();
-        var finishedOrders = productionOrders.Count(IsProductionFinished);
-        var progressPercent = productionOrders.Length == 0
-            ? 0
-            : decimal.Round((decimal)finishedOrders / productionOrders.Length * 100, 2);
-        var updatedAtUtc = productionOrders.Length == 0
+        var productionOrder = GetPrimaryProductionOrder(order);
+        var updatedAtUtc = productionOrder is null || order.UpdatedAtUtc >= productionOrder.UpdatedAtUtc
             ? order.UpdatedAtUtc
-            : productionOrders.Max(productionOrder => productionOrder.UpdatedAtUtc) > order.UpdatedAtUtc
-                ? productionOrders.Max(productionOrder => productionOrder.UpdatedAtUtc)
-                : order.UpdatedAtUtc;
+            : productionOrder.UpdatedAtUtc;
 
         return new PublicProductionTrackingDto(
             order.SoNumber,
             order.CustomerName,
             order.Status,
+            productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
-            productionOrders.Length,
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Waiting),
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.InProgress),
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Finished),
-            productionOrders.Count(productionOrder => productionOrder.Status == ProductionOrderStatuses.Closed),
-            progressPercent,
+            CalculateProgressPercent(productionOrder),
+            productionOrder?.StartedAtUtc,
+            productionOrder?.FinishedAtUtc,
+            productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
             updatedAtUtc,
             order.Items
                 .OrderBy(item => item.ProductPartNumber)
                 .Select(item => new PublicProductionTrackingItemDto(
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty,
-                    item.ProductionOrders
-                        .OrderBy(productionOrder => productionOrder.PoNumber)
-                        .Select(productionOrder => new PublicProductionOrderTrackingDto(
-                            productionOrder.PoNumber,
-                            item.ProductPartNumber,
-                            item.ProductDescription,
-                            productionOrder.OrderQty,
-                            productionOrder.Status,
-                            productionOrder.StartedAtUtc,
-                            productionOrder.FinishedAtUtc,
-                            CalculateDurationSeconds(productionOrder),
-                            productionOrder.UpdatedAtUtc))
-                        .ToArray()))
+                    item.Qty))
                 .ToArray());
     }
 
-    private static bool IsProductionFinished(ProductionOrder order)
+    private static decimal CalculateProgressPercent(ProductionOrder? order)
     {
-        return order.Status == ProductionOrderStatuses.Finished
-            || order.Status == ProductionOrderStatuses.Closed
-            || order.FinishedAtUtc.HasValue;
+        if (order is null)
+        {
+            return 0;
+        }
+
+        if (order.Status == ProductionOrderStatuses.Closed
+            || order.Status == ProductionOrderStatuses.Finished
+            || order.FinishedAtUtc.HasValue)
+        {
+            return 100;
+        }
+
+        return order.Status == ProductionOrderStatuses.InProgress ? 50 : 0;
     }
 
     private static long? CalculateDurationSeconds(ProductionOrder order)
@@ -471,74 +478,186 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return Math.Max(0, (long)Math.Round((end.Value - order.StartedAtUtc.Value).TotalSeconds));
     }
 
-    private static IQueryable<ProductionOrder> IncludeSalesOrder(IQueryable<ProductionOrder> query)
+    private static IQueryable<SalesOrder> IncludeProduction(IQueryable<SalesOrder> query)
     {
         return query
-            .Include(order => order.SalesOrderItem)
-            .ThenInclude(item => item!.SalesOrder);
+            .Include(order => order.Items)
+            .Include(order => order.ProductionOrders);
     }
 
-    private static string NormalizeScanAction(string action)
+    private static ProductionOrder? GetPrimaryProductionOrder(SalesOrder salesOrder)
     {
-        if (string.IsNullOrWhiteSpace(action))
-        {
-            throw new InvalidOperationException("Scan action must be Start or Complete.");
-        }
-
-        if (action.Equals(ScanActions.Start, StringComparison.OrdinalIgnoreCase))
-        {
-            return ScanActions.Start;
-        }
-
-        if (action.Equals(ScanActions.Complete, StringComparison.OrdinalIgnoreCase)
-            || action.Equals("Finish", StringComparison.OrdinalIgnoreCase))
-        {
-            return ScanActions.Complete;
-        }
-
-        throw new InvalidOperationException("Scan action must be Start or Complete.");
+        return salesOrder.ProductionOrders
+            .OrderBy(order => order.CreatedAtUtc)
+            .FirstOrDefault();
     }
 
-    private static void StartProduction(ProductionOrder productionOrder, DateTime timestampUtc)
+    private static void ValidateSalesOrderItems(IReadOnlyCollection<CreateSalesOrderItemRequest> items)
+    {
+        if (items.Count == 0)
+        {
+            throw new InvalidOperationException("Sales order must contain at least one item.");
+        }
+
+        if (items.Any(item => item.Qty <= 0))
+        {
+            throw new InvalidOperationException("Sales order item quantity must be greater than zero.");
+        }
+    }
+
+    private static EngineerAssignment? NormalizeAssignment(EngineerAssignment? assignment, string label)
+    {
+        if (assignment is null)
+        {
+            return null;
+        }
+
+        if (assignment.UserId == Guid.Empty)
+        {
+            throw new InvalidOperationException($"{label} user id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(assignment.Name))
+        {
+            throw new InvalidOperationException($"{label} name is required.");
+        }
+
+        return assignment with { Name = assignment.Name.Trim() };
+    }
+
+    private static void ApplyAssignment(SalesOrder salesOrder, AssignSalesOrderEngineersRequest request)
+    {
+        var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
+        var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
+
+        if (productionWorker is not null)
+        {
+            salesOrder.ProductionWorkerUserId = productionWorker.UserId;
+            salesOrder.ProductionWorkerName = productionWorker.Name;
+        }
+
+        if (qcReviewer is not null)
+        {
+            salesOrder.QcReviewerUserId = qcReviewer.UserId;
+            salesOrder.QcReviewerName = qcReviewer.Name;
+        }
+    }
+
+    private static void EnsureEngineersAssigned(SalesOrder salesOrder)
+    {
+        if (!salesOrder.ProductionWorkerUserId.HasValue || string.IsNullOrWhiteSpace(salesOrder.ProductionWorkerName))
+        {
+            throw new InvalidOperationException("A production worker engineer must be assigned before the sales order is confirmed.");
+        }
+
+        if (!salesOrder.QcReviewerUserId.HasValue || string.IsNullOrWhiteSpace(salesOrder.QcReviewerName))
+        {
+            throw new InvalidOperationException("A QC reviewer engineer must be assigned before the sales order is confirmed.");
+        }
+    }
+
+    private static void ValidateWorkerRequest(ProductionStatusUpdateRequest request)
+    {
+        if (request.WorkerUserId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Worker user id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.WorkerName))
+        {
+            throw new InvalidOperationException("Worker name is required.");
+        }
+    }
+
+    private static void EnsureAssignedWorker(ProductionOrder productionOrder, Guid workerUserId)
+    {
+        var assignedWorkerId = productionOrder.SalesOrder?.ProductionWorkerUserId;
+        if (!assignedWorkerId.HasValue)
+        {
+            throw new InvalidOperationException("This sales order does not have an assigned production worker.");
+        }
+
+        if (assignedWorkerId.Value != workerUserId)
+        {
+            throw new InvalidOperationException("Only the assigned production worker can update this sales order production.");
+        }
+    }
+
+    private static void StartProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
     {
         if (productionOrder.Status == ProductionOrderStatuses.Closed)
         {
-            throw new InvalidOperationException("Closed production orders cannot be changed.");
+            throw new InvalidOperationException("Closed sales order production cannot be changed.");
         }
 
         if (productionOrder.Status == ProductionOrderStatuses.Finished)
         {
-            throw new InvalidOperationException("Finished production orders cannot be started again.");
+            throw new InvalidOperationException("Finished sales order production cannot be started again.");
         }
 
         productionOrder.Status = ProductionOrderStatuses.InProgress;
         productionOrder.StartedAtUtc ??= timestampUtc;
+        productionOrder.StartedByUserId ??= request.WorkerUserId;
+        productionOrder.StartedByName ??= request.WorkerName.Trim();
+        productionOrder.UpdatedAtUtc = timestampUtc;
     }
 
-    private static void CompleteProduction(ProductionOrder productionOrder, DateTime timestampUtc)
+    private static void FinishProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
     {
         if (productionOrder.Status == ProductionOrderStatuses.Closed)
         {
-            throw new InvalidOperationException("Closed production orders cannot be changed.");
+            throw new InvalidOperationException("Closed sales order production cannot be changed.");
         }
 
         if (!productionOrder.StartedAtUtc.HasValue || productionOrder.Status == ProductionOrderStatuses.Waiting)
         {
-            throw new InvalidOperationException("Production must be started before it can be completed.");
+            throw new InvalidOperationException("Production must be started by the assigned worker before it can be finished.");
         }
 
         productionOrder.Status = ProductionOrderStatuses.Finished;
         productionOrder.FinishedAtUtc ??= timestampUtc;
+        productionOrder.FinishedByUserId ??= request.WorkerUserId;
+        productionOrder.FinishedByName ??= request.WorkerName.Trim();
+        productionOrder.UpdatedAtUtc = timestampUtc;
+    }
+
+    private static SalesOrderConfirmedItem[] BuildConfirmedItems(SalesOrder salesOrder)
+    {
+        return salesOrder.Items
+            .OrderBy(item => item.ProductPartNumber)
+            .Select(item => new SalesOrderConfirmedItem(
+                item.Id,
+                item.ProductId,
+                item.Qty,
+                item.ProductPartNumber,
+                item.ProductDescription,
+                item.ProductMaterialSpec,
+                item.Notes))
+            .ToArray();
+    }
+
+    private static SpkCreatedItem[] BuildSpkItems(SalesOrder salesOrder)
+    {
+        return salesOrder.Items
+            .OrderBy(item => item.ProductPartNumber)
+            .Select(item => new SpkCreatedItem(
+                item.Id,
+                item.ProductId,
+                item.Qty,
+                item.ProductPartNumber,
+                item.ProductDescription,
+                item.ProductMaterialSpec,
+                item.Notes))
+            .ToArray();
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private static string GenerateNumber(string prefix)
     {
         return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
-    }
-
-    private static class ScanActions
-    {
-        public const string Start = "Start";
-        public const string Complete = "Complete";
     }
 }

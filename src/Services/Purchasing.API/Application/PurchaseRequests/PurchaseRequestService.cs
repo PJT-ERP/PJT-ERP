@@ -81,8 +81,8 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                     MaterialRequirementId = item.MaterialRequirementId,
                     SalesOrderId = item.SalesOrderId ?? requirement?.SalesOrderId ?? request.SalesOrderId,
                     SalesOrderNumber = NormalizeOptional(item.SalesOrderNumber) ?? requirement?.SalesOrderNumber ?? NormalizeOptional(request.SalesOrderNumber),
-                    ProductionOrderId = item.ProductionOrderId ?? requirement?.ProductionOrderId,
-                    SpkNumber = NormalizeOptional(item.SpkNumber) ?? requirement?.SpkNumber,
+                    ProductionOrderId = requirement?.ProductionOrderId,
+                    SpkNumber = requirement?.SpkNumber,
                     ProjectName = NormalizeOptional(item.ProjectName) ?? requirement?.ProjectName ?? NormalizeOptional(request.ProjectName),
                     ItemName = ResolveItemName(item, requirement),
                     Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
@@ -237,6 +237,33 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         return requirements.Select(ToDto).ToArray();
     }
 
+    public async Task<MaterialRequirementDto?> UpdateMaterialRequirementStockAsync(
+        Guid materialRequirementId,
+        UpdateMaterialStockInfoRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.StockOnHand < 0)
+        {
+            throw new InvalidOperationException("Stock on hand cannot be negative.");
+        }
+
+        var requirement = await IncludePurchaseItems(db.MaterialRequirements)
+            .FirstOrDefaultAsync(item => item.Id == materialRequirementId, cancellationToken);
+
+        if (requirement is null)
+        {
+            return null;
+        }
+
+        requirement.StockOnHand = request.StockOnHand;
+        requirement.StockNotes = NormalizeOptional(request.StockNotes);
+        requirement.StockUpdatedAtUtc = DateTime.UtcNow;
+        requirement.UpdatedAtUtc = requirement.StockUpdatedAtUtc.Value;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(requirement);
+    }
+
     public async Task<SalesOrderMaterialTrackingDto?> GetSalesOrderMaterialTrackingAsync(
         Guid salesOrderId,
         CancellationToken cancellationToken)
@@ -247,7 +274,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
         var requirements = await IncludePurchaseItems(db.MaterialRequirements.AsNoTracking())
             .Where(requirement => requirement.SalesOrderId == salesOrderId)
-            .OrderBy(requirement => requirement.SpkNumber)
+            .OrderBy(requirement => requirement.ProductPartNumber)
             .ToListAsync(cancellationToken);
 
         if (snapshot is null && requirements.Count == 0)
@@ -346,8 +373,6 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             item.MaterialRequirementId,
             item.SalesOrderId,
             item.SalesOrderNumber,
-            item.ProductionOrderId,
-            item.SpkNumber,
             item.ProjectName,
             item.ItemName,
             item.Size,
@@ -368,13 +393,17 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             requirement.Id,
             requirement.SalesOrderId,
             requirement.SalesOrderNumber,
-            requirement.ProductionOrderId,
-            requirement.SpkNumber,
+            requirement.SalesOrderItemId,
             requirement.ProductId,
             requirement.ProductPartNumber,
             requirement.ProductDescription,
             requirement.MaterialSpec,
             requirement.RequiredQty,
+            requirement.StockOnHand,
+            requirement.StockOnHand - requirement.RequiredQty,
+            requirement.StockOnHand < requirement.RequiredQty,
+            requirement.StockNotes,
+            requirement.StockUpdatedAtUtc,
             requirement.ProjectName,
             requirement.Status,
             requirement.UpdatedAtUtc,

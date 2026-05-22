@@ -35,6 +35,20 @@ public static class IdentitySeeder
             },
             new UserAccount
             {
+                Email = "engineering-worker@pjt.local",
+                Name = "Engineering Worker",
+                Department = "Engineering",
+                Role = "Engineering Worker"
+            },
+            new UserAccount
+            {
+                Email = "engineering-reviewer@pjt.local",
+                Name = "Engineering Reviewer",
+                Department = "Engineering",
+                Role = "Engineering Reviewer"
+            },
+            new UserAccount
+            {
                 Email = "purchasing@pjt.local",
                 Name = "Purchasing",
                 Department = "Purchasing",

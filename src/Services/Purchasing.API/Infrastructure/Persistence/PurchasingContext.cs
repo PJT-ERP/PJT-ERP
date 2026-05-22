@@ -35,11 +35,13 @@ public sealed class PurchasingContext(DbContextOptions<PurchasingContext> option
         {
             builder.ToTable("material_requirements");
             builder.HasKey(requirement => requirement.Id);
-            builder.HasIndex(requirement => requirement.ProductionOrderId).IsUnique();
+            builder.HasIndex(requirement => requirement.ProductionOrderId);
+            builder.HasIndex(requirement => new { requirement.ProductionOrderId, requirement.ProductId });
             builder.HasIndex(requirement => requirement.SalesOrderId);
             builder.Property(requirement => requirement.SalesOrderId).HasColumnName("sales_order_id");
             builder.Property(requirement => requirement.SalesOrderNumber).HasMaxLength(100).HasColumnName("sales_order_number");
             builder.Property(requirement => requirement.ProductionOrderId).HasColumnName("production_order_id");
+            builder.Property(requirement => requirement.SalesOrderItemId).HasColumnName("sales_order_item_id");
             builder.Property(requirement => requirement.SpkNumber).HasMaxLength(100).HasColumnName("spk_number");
             builder.Property(requirement => requirement.BarcodeUid).HasMaxLength(255).HasColumnName("barcode_uid");
             builder.Property(requirement => requirement.ProductId).HasColumnName("product_id");
@@ -47,6 +49,9 @@ public sealed class PurchasingContext(DbContextOptions<PurchasingContext> option
             builder.Property(requirement => requirement.ProductDescription).HasColumnName("product_description");
             builder.Property(requirement => requirement.MaterialSpec).HasMaxLength(255).HasColumnName("material_spec");
             builder.Property(requirement => requirement.RequiredQty).HasColumnName("required_qty");
+            builder.Property(requirement => requirement.StockOnHand).HasColumnName("stock_on_hand");
+            builder.Property(requirement => requirement.StockNotes).HasColumnName("stock_notes");
+            builder.Property(requirement => requirement.StockUpdatedAtUtc).HasColumnName("stock_updated_at_utc");
             builder.Property(requirement => requirement.ProjectName).HasMaxLength(255).HasColumnName("project_name");
             builder.Property(requirement => requirement.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(requirement => requirement.CreatedAtUtc).HasColumnName("created_at_utc");

@@ -9,12 +9,17 @@ public sealed class SalesOrder
     public string CustomerName { get; set; } = "";
     public DateOnly SoDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public DateOnly? TargetDate { get; set; }
+    public Guid? ProductionWorkerUserId { get; set; }
+    public string? ProductionWorkerName { get; set; }
+    public Guid? QcReviewerUserId { get; set; }
+    public string? QcReviewerName { get; set; }
     public string Status { get; set; } = SalesOrderStatuses.Draft;
     public Guid? ApprovedByUserId { get; set; }
     public DateTime? ApprovedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<SalesOrderItem> Items { get; set; } = [];
+    public List<ProductionOrder> ProductionOrders { get; set; } = [];
 }
 
 public static class SalesOrderStatuses
