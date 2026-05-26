@@ -1,0 +1,52 @@
+import React from "react";
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from "react-router";
+import { SODashboard } from "../components/so-dashboard";
+import { SOList } from "../components/so-list";
+import { SOCreate } from "../components/so-create";
+import { SODetail } from "../components/so-detail";
+import { CustomerList } from "../components/customer-list";
+
+function SOModuleRoutes() {
+  const navigate = useNavigate();
+
+  const handleNavigate = (page: string, data?: unknown) => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (page === "so-detail" && typeof data === "string") {
+      navigate(`/erp/so/detail/${data}`);
+    } else if (page === "so-list") {
+      navigate("/erp/so/list");
+    } else if (page === "so-create") {
+      navigate("/erp/so/create", { state: data });
+    } else if (page === "customer-list") {
+      navigate("/erp/so/customers");
+    } else {
+      navigate("/erp/so/dashboard");
+    }
+  };
+
+  return (
+    <Routes>
+      <Route index element={<Navigate to="/erp/so/dashboard" replace />} />
+      <Route path="dashboard" element={<SODashboard onNavigate={handleNavigate} />} />
+      <Route path="list" element={<SOList onNavigate={handleNavigate} />} />
+      <Route path="create" element={<SOCreateWrapper onNavigate={handleNavigate} />} />
+      <Route path="detail/:id" element={<SODetailWrapper onNavigate={handleNavigate} />} />
+      <Route path="customers" element={<CustomerList onNavigate={handleNavigate} />} />
+    </Routes>
+  );
+}
+
+function SOCreateWrapper({ onNavigate }: { onNavigate: (page: string, data?: unknown) => void }) {
+  const location = useLocation();
+  const initialData = location.state as { customerId?: string; orderType?: "new" | "repeat" } | undefined;
+  return <SOCreate onNavigate={onNavigate} initialData={initialData} />;
+}
+
+function SODetailWrapper({ onNavigate }: { onNavigate: (page: string, data?: unknown) => void }) {
+  const { id } = useParams();
+  return <SODetail orderId={id!} onNavigate={onNavigate} />;
+}
+
+export default function SalesOrderModule() {
+  return <SOModuleRoutes />;
+}

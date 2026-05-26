@@ -1,0 +1,86 @@
+import { HashRouter, Routes, Route, Navigate } from "react-router";
+import { AppProvider } from "./components/context/AppContext";
+
+import HomePage from "./pages/HomePage";
+import { Login } from "./pages/Login";
+import PurchasingModule from "./pages/PurchasingModule";
+import SalesOrderModule from "./pages/SalesOrderModule";
+import { ERPLayout } from "./components/erp-layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
+import { FinanceLayout } from "./components/finance/FinanceLayout";
+import { FinanceDashboard } from "./components/finance/FinanceDashboard";
+import { InvoiceList } from "./components/finance/InvoiceList";
+import { CreateInvoice } from "./components/finance/CreateInvoice";
+import { PaymentVerification } from "./components/finance/PaymentVerification";
+import { TransactionHistory } from "./components/finance/TransactionHistory";
+import { FinanceReports } from "./components/finance/FinanceReports";
+
+// Migrated Pages from Folder B
+import { AdminPage } from "./pages/AdminPage";
+import { EngineeringPage } from "./pages/EngineeringPage";
+import { EngineeringPurchasingPage } from "./pages/EngineeringPurchasingPage";
+import { EngineeringQCPage } from "./pages/EngineeringQCPage";
+import { OwnerApprovalPage } from "./pages/OwnerApprovalPage";
+import { ProductionPage } from "./pages/ProductionPage";
+import { ProductionMonitoringPage } from "./pages/ProductionMonitoringPage";
+import { DesignMonitoringPage } from "./pages/DesignMonitoringPage";
+import { QCPage } from "./pages/QCPage";
+
+const financeRoutes = [
+  { path: "dashboard", element: <FinanceDashboard /> },
+  { path: "invoices", element: <InvoiceList /> },
+  { path: "create-invoice", element: <CreateInvoice /> },
+  { path: "payment-verification", element: <PaymentVerification /> },
+  { path: "transactions", element: <TransactionHistory /> },
+  { path: "reports", element: <FinanceReports /> },
+];
+
+export default function App() {
+  return (
+    <AppProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<Login />} />
+
+          <Route path="/erp" element={<ERPLayout />}>
+            <Route index element={<Navigate to="/login" replace />} />
+            
+            {/* Purchasing: Purchasing, Admin, Owner */}
+            <Route path="purchasing/*" element={<ProtectedRoute allowedRoles={['Purchasing', 'Admin', 'Owner']}><PurchasingModule /></ProtectedRoute>} />
+            
+            {/* SO: Sales, Admin, Owner */}
+            <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Admin', 'Owner']}><SalesOrderModule /></ProtectedRoute>} />
+
+            {/* Engineer: Engineering, Admin, Owner */}
+            <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><EngineeringPage /></ProtectedRoute>} />
+            <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><EngineeringPurchasingPage /></ProtectedRoute>} />
+            <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><EngineeringQCPage /></ProtectedRoute>} />
+            <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><ProductionPage /></ProtectedRoute>} />
+            <Route path="production-monitoring" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><ProductionMonitoringPage /></ProtectedRoute>} />
+            <Route path="design-monitoring" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><DesignMonitoringPage /></ProtectedRoute>} />
+            <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><QCPage /></ProtectedRoute>} />
+
+            {/* Owner: STRICTLY OWNER */}
+            <Route path="owner" element={<ProtectedRoute allowedRoles={['Owner']}><OwnerApprovalPage /></ProtectedRoute>} />
+            
+            {/* Admin: STRICTLY ADMIN */}
+            <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin']}><AdminPage /></ProtectedRoute>} />
+          </Route>
+
+          {/* Finance stands alone because FinanceLayout has its own Sidebar and Topbar */}
+          <Route path="/erp/finance" element={<ProtectedRoute allowedRoles={['Finance', 'Admin', 'Owner']}><FinanceLayout /></ProtectedRoute>}>
+            <Route index element={<Navigate to="/erp/finance/dashboard" replace />} />
+            {financeRoutes.map(route => (
+              <Route key={route.path} path={route.path} element={route.element} />
+            ))}
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </HashRouter>
+    </AppProvider>
+  );
+}
+
