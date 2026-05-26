@@ -5,8 +5,8 @@ import HomePage from "./pages/HomePage";
 import { Login } from "./pages/Login";
 import PurchasingModule from "./pages/PurchasingModule";
 import SalesOrderModule from "./pages/SalesOrderModule";
-import { ERPLayout } from "./components/erp-layout";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ERPLayout } from "./components/layout/erp-layout";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
 import { FinanceLayout } from "./components/finance/FinanceLayout";
 import { FinanceDashboard } from "./components/finance/FinanceDashboard";

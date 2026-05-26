@@ -50,7 +50,7 @@ function SOCombobox({ value, onChange, options }: {
   return (
     <div ref={ref} className="relative">
       <div
-        className="w-full flex items-center gap-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm cursor-pointer focus-within:ring-2 focus-within:ring-[#C9191E]/30 focus-within:border-[#C9191E] bg-white"
+        className="w-full flex items-center gap-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm cursor-pointer focus-within:ring-2 focus-within:ring-slate-900/30 focus-within:border-slate-900 bg-white"
         onClick={() => setOpen(true)}
       >
         {open ? (
@@ -90,7 +90,7 @@ function SOCombobox({ value, onChange, options }: {
             <div
               key={o.id}
               onMouseDown={() => handleSelect(o.id)}
-              className={`px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50 ${value === o.id ? 'bg-[#C9191E]/5 text-[#C9191E]' : 'text-gray-700'}`}
+              className={`px-3 py-2.5 text-sm cursor-pointer hover:bg-gray-50 ${value === o.id ? 'bg-slate-900/5 text-slate-900' : 'text-gray-700'}`}
             >
               <span className="font-mono text-xs">{o.id}</span>
               <span className="text-gray-500"> — </span>
@@ -239,7 +239,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
         </div>
         <h3 className="text-gray-900 mb-2">Pengajuan Berhasil Dikirim</h3>
         <p className="text-sm text-gray-500 mb-4">Permintaan purchasing akan diproses oleh tim Purchasing</p>
-        <button onClick={onClose} className="px-6 py-2 bg-[#C9191E] text-white text-sm rounded-lg">Tutup</button>
+        <button onClick={onClose} className="px-6 py-2 bg-slate-900 text-white text-sm rounded-lg">Tutup</button>
       </div>
     </div>
   );
@@ -250,12 +250,12 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="text-gray-900">Pengajuan Purchasing Baru</h2>
-          <button onClick={onClose} className="text-gray-400 text-xl">×</button>
+          <button type="button" onClick={onClose} className="text-gray-400 text-xl hover:text-gray-600">×</button>
         </div>
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm text-gray-700 mb-1">Referensi SO (Opsional)</label>
             <SOCombobox
@@ -268,31 +268,31 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
             <label className="block text-sm text-gray-700 mb-1">Nama Item / Material <span className="text-red-500">*</span></label>
             <input type="text" required value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))}
               placeholder="Contoh: Stainless Steel Bar SS304 Ø50mm"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Spesifikasi <span className="text-red-500">*</span></label>
             <textarea required value={form.specification} onChange={e => setForm(f => ({ ...f, specification: e.target.value }))}
               rows={2} placeholder="Grade, dimensi, standar, dll."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E] resize-none" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900 resize-none" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm text-gray-700 mb-1">Qty <span className="text-red-500">*</span></label>
               <input type="number" required min="1" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
             </div>
             <div>
               <label className="block text-sm text-gray-700 mb-1">Satuan</label>
               <select value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]">
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900">
                 {['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'].map(u => <option key={u}>{u}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm text-gray-700 mb-1">Urgensi</label>
               <select value={form.urgency} onChange={e => setForm(f => ({ ...f, urgency: e.target.value as PurchasingUrgency }))}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]">
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900">
                 <option>Normal</option><option>Urgent</option><option>Critical</option>
               </select>
             </div>
@@ -301,11 +301,11 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
             <label className="block text-sm text-gray-700 mb-1">Catatan Tambahan</label>
             <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               rows={2} placeholder="Kebutuhan khusus, supplier preferensi, dll."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 resize-none" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 resize-none" />
           </div>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Batal</button>
-            <button type="submit" className="flex-1 py-2.5 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419]">Ajukan Permintaan</button>
+            <button type="submit" className="flex-1 py-2.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800">Ajukan Permintaan</button>
           </div>
         </form>
       </div>
@@ -330,7 +330,7 @@ export function EngineeringPurchasingPage() {
           <p className="text-sm text-gray-500">Ajukan permintaan material dan pantau statusnya</p>
         </div>
         <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419] shrink-0">
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 shrink-0">
           <Plus size={15} /> Ajukan Baru
         </button>
       </div>

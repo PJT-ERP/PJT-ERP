@@ -8,8 +8,16 @@ import {
   AlertTriangle, ArrowRight, RefreshCw,
   Receipt, Download, Eye,
 } from "lucide-react";
-import { salesOrders, statusConfig, invoiceStatusConfig, type SOStatus, type InvoiceStatus } from "./so-data";
-import type { Page } from "./erp-layout";
+import { useApp } from "../context/AppContext";
+import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
+import type { Page } from "../layout/erp-layout";
+
+type InvoiceStatus = "paid" | "waiting" | "not_created";
+const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
+  paid: { label: "Paid", textColor: "#065F46", bgColor: "#ECFDF5", borderColor: "#6EE7B7", dotColor: "#10B981" },
+  waiting: { label: "Waiting", textColor: "#92400E", bgColor: "#FFFBEB", borderColor: "#FCD34D", dotColor: "#F59E0B" },
+  not_created: { label: "Not Created", textColor: "#64748B", bgColor: "#F8FAFC", borderColor: "#CBD5E1", dotColor: "#94A3B8" },
+};
 
 interface SODetailProps {
   orderId: string;
@@ -77,7 +85,9 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 }
 
 export function SODetail({ orderId, onNavigate }: SODetailProps) {
+  const { salesOrders, customers } = useApp();
   const order = salesOrders.find(o => o.id === orderId);
+  const customer = customers.find(c => c.code === order?.customerId);
 
   if (!order) {
     return (
@@ -94,7 +104,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
     );
   }
 
-  const cfg = statusConfig[order.status as SOStatus];
+  const cfg = getStatusColor(order.status as SOStatus);
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -113,14 +123,14 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           </button>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h1 style={{ color: S.slate, margin: 0 }}>{order.soNumber}</h1>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 4, border: `1px solid ${cfg.borderColor}`, background: cfg.bgColor, color: cfg.textColor, fontSize: "12px", fontWeight: 500 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
-                {cfg.label}
+              <h1 style={{ color: S.slate, margin: 0 }}>{order.id}</h1>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 4, border: `1px solid`, borderColor: cfg.border.replace("border-", ""), background: cfg.bg.replace("bg-", ""), color: cfg.text.replace("text-", ""), fontSize: "12px", fontWeight: 500 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0 }} />
+                {order.status}
               </span>
             </div>
             <p style={{ color: S.secondary, fontSize: "12px", margin: "3px 0 0" }}>
-              Dibuat {order.createdDate} · Diperbarui {order.updatedDate} · {order.customerName}
+              Dibuat {order.createdAt} · {customer?.name}
             </p>
           </div>
         </div>
@@ -139,7 +149,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           </p>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
             {WORKFLOW_STEPS.map((step, idx) => {
-              const tStep     = order.timeline.find(t => t.step === step.key);
+              const tStep     = order.timeline?.find(t => t.step === step.key);
               const isDone    = tStep?.completed && !tStep?.current;
               const isCurrent = tStep?.current;
 
@@ -193,12 +203,12 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           {/* Customer info */}
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <InfoRow icon={<User size={11} />}     label="Nama"       value={order.customerName} />
-              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={order.company} />
-              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={order.phone} />
-              <InfoRow icon={<Mail size={11} />}     label="Email"      value={order.email} />
+              <InfoRow icon={<User size={11} />}     label="Nama"       value={customer?.name || "-"} />
+              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={customer?.name || "-"} />
+              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={customer?.phone || "-"} />
+              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={customer?.contact || "-"} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={order.address} />
+                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={customer?.address || "-"} />
               </div>
             </div>
           </InfoCard>
@@ -207,7 +217,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={order.productName} />
+                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={order.description} />
               </div>
               <InfoRow icon={<Hash size={11} />}    label="Jumlah"   value={`${order.quantity.toLocaleString("id-ID")} ${order.unit}`} />
               <InfoRow icon={<Calendar size={11} />} label="Deadline" value={order.deadline} />
@@ -225,13 +235,13 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           {/* Activity log */}
           <InfoCard title="Log Aktivitas" icon={<Activity size={13} />}>
             <div>
-              {order.activities.map((act, idx) => (
-                <div key={act.id} style={{ display: "flex", gap: 12, paddingBottom: idx < order.activities.length - 1 ? 14 : 4 }}>
+              {(order.activities || []).map((act, idx) => (
+                <div key={act.id} style={{ display: "flex", gap: 12, paddingBottom: idx < (order.activities?.length || 0) - 1 ? 14 : 4 }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                     <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(6,182,212,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Activity size={11} style={{ color: S.cyan }} />
                     </div>
-                    {idx < order.activities.length - 1 && (
+                    {idx < (order.activities?.length || 0) - 1 && (
                       <div style={{ width: 1, flex: 1, background: "#F1F5F9", margin: "4px 0" }} />
                     )}
                   </div>
@@ -260,7 +270,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
             <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
                 <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. SO</p>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{order.soNumber}</p>
+                <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{order.id}</p>
               </div>
               <div style={{ height: 1, background: "#F8FAFC" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -324,7 +334,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
 }
 
 // ─── InvoiceSection ───────────────────────────────────────────────────────────
-function InvoiceSection({ invoice }: { invoice?: import("./so-data").InvoiceInfo }) {
+function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
   const status: InvoiceStatus = invoice?.status ?? "not_created";
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;

@@ -67,7 +67,7 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                     : 'SO ditolak secara permanen dan tidak akan diproses lebih lanjut.'
                 }
               </p>
-              <button onClick={onClose} className="px-6 py-2 bg-[#C9191E] text-white text-sm rounded-lg">Tutup</button>
+              <button onClick={onClose} className="px-6 py-2 bg-slate-900 text-white text-sm rounded-lg">Tutup</button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -191,7 +191,7 @@ export function OwnerApprovalPage() {
     .filter(so => {
       const q = logSearch.toLowerCase();
       const customer = customers.find(c => c.code === so.customerId);
-      const matchSearch = !logSearch || so.id.toLowerCase().includes(q) || so.description.toLowerCase().includes(q) || customer?.name.toLowerCase().includes(q);
+      const matchSearch = !logSearch || so.id.toLowerCase().includes(q) || so.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
       const matchFilter =
         logFilter === 'all' ||
         (logFilter === 'approved' && so.status === 'Ready for Production') ||
@@ -218,7 +218,7 @@ export function OwnerApprovalPage() {
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-gray-800">Menunggu Review</h2>
           {waitingApproval.length > 0 && (
-            <span className="w-6 h-6 bg-[#C9191E] text-white text-xs rounded-full flex items-center justify-center">
+            <span className="w-6 h-6 bg-slate-900 text-white text-xs rounded-full flex items-center justify-center">
               {waitingApproval.length}
             </span>
           )}
@@ -266,7 +266,7 @@ export function OwnerApprovalPage() {
                   {!isAdmin && (
                     <button
                       onClick={() => setSelectedSO(so)}
-                      className="px-4 py-2 bg-[#C9191E] hover:bg-[#a01419] text-white text-sm rounded-lg transition-colors shrink-0"
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm rounded-lg transition-colors shrink-0"
                     >
                       Review
                     </button>
@@ -291,7 +291,7 @@ export function OwnerApprovalPage() {
               value={logSearch}
               onChange={e => setLogSearch(e.target.value)}
               placeholder="Cari SO, deskripsi, customer..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C9191E]/20 focus:border-[#C9191E]"
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900"
             />
           </div>
           <div className="flex gap-1">
@@ -302,14 +302,14 @@ export function OwnerApprovalPage() {
               { value: 'rejected', label: `Ditolak (${logCounts.rejected})` },
             ] as const).map(f => (
               <button key={f.value} onClick={() => setLogFilter(f.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs transition-colors border ${logFilter === f.value ? 'bg-[#C9191E] text-white border-[#C9191E]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs transition-colors border ${logFilter === f.value ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
                 {f.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
           {logSOs.length === 0 ? (
             <div className="py-12 text-center">
               <FileText size={32} className="text-gray-200 mx-auto mb-3" />

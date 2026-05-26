@@ -6,9 +6,9 @@ import {
   ChevronLeft, ChevronRight,
   Hash, RefreshCw, CheckCircle2,
 } from "lucide-react";
-import { customers as seedCustomers, salesOrders } from "./so-data";
-import type { Customer } from "./so-data";
-import type { Page } from "./erp-layout";
+import { useApp } from "../context/AppContext";
+import type { Customer } from "../data/mockData";
+import type { Page } from "../layout/erp-layout";
 
 interface CustomerListProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -29,7 +29,7 @@ const PAGE_SIZE = 8;
 
 // ─── empty form ───────────────────────────────────────────────────────────────
 const emptyForm = (): Partial<Customer> => ({
-  name: "", company: "", phone: "", email: "", address: "", city: "",
+  name: "", contact: "", phone: "", address: "",
 });
 
 // ─── Form field helpers ────────────────────────────────────────────────────────
@@ -123,24 +123,16 @@ function CustomerModal({ state, onSave, onClose }: {
           <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <ModalLabel text="Nama Lengkap" required />
-                <ModalInput placeholder="Nama kontak" value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
+                <ModalLabel text="Perusahaan" required />
+                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
               </div>
               <div>
-                <ModalLabel text="Perusahaan" required />
-                <ModalInput placeholder="PT / CV ..." value={form.company ?? ""} onChange={e => set("company", e.target.value)} required />
+                <ModalLabel text="Kontak PIC" required />
+                <ModalInput placeholder="Nama kontak" value={form.contact ?? ""} onChange={e => set("contact", e.target.value)} required />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
                 <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required />
-              </div>
-              <div>
-                <ModalLabel text="Email" />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? ""} onChange={e => set("email", e.target.value)} />
-              </div>
-              <div>
-                <ModalLabel text="Kota" required />
-                <ModalInput placeholder="Bekasi, Surabaya, ..." value={form.city ?? ""} onChange={e => set("city", e.target.value)} required />
               </div>
             </div>
             <div>
@@ -173,39 +165,37 @@ function CustomerModal({ state, onSave, onClose }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function CustomerList({ onNavigate }: CustomerListProps) {
-  const [localCustomers, setLocalCustomers] = useState<Customer[]>(seedCustomers);
+  const { customers, salesOrders, addCustomer, updateCustomer } = useApp();
   const [search, setSearch]   = useState("");
   const [page, setPage]       = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [modal, setModal]     = useState<ModalState | null>(null);
 
   const filtered = useMemo(() => {
-    if (!search) return localCustomers;
+    if (!search) return customers;
     const q = search.toLowerCase();
-    return localCustomers.filter(c =>
+    return customers.filter(c =>
       c.name.toLowerCase().includes(q) ||
-      c.company.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.phone.includes(q) ||
-      c.city.toLowerCase().includes(q)
+      (c.contact && c.contact.toLowerCase().includes(q)) ||
+      c.phone.includes(q)
     );
-  }, [search, localCustomers]);
+  }, [search, customers]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const activeCustomers = localCustomers.filter(c =>
-    salesOrders.some(o => o.customerId === c.id && !["completed", "cancelled"].includes(o.status))
+  const activeCustomers = customers.filter(c =>
+    salesOrders.some(o => o.customerId === c.code && !["Completed", "Rejected", "Cancelled"].includes(o.status))
   ).length;
 
   const getActiveOrders = (cid: string) =>
-    salesOrders.filter(o => o.customerId === cid && !["completed", "cancelled"].includes(o.status)).length;
+    salesOrders.filter(o => o.customerId === cid && !["Completed", "Rejected", "Cancelled"].includes(o.status)).length;
 
   const summaryCards = [
-    { label: "Total Pelanggan",  value: localCustomers.length,                                             color: "#06B6D4", bg: "rgba(6,182,212,0.08)"   },
+    { label: "Total Pelanggan",  value: customers.length,                                             color: "#06B6D4", bg: "rgba(6,182,212,0.08)"   },
     { label: "Pelanggan Aktif",  value: activeCustomers,                                                   color: "#22C55E", bg: "rgba(34,197,94,0.08)"   },
-    { label: "Order Bulan Ini",  value: salesOrders.filter(o => o.createdDate.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-    { label: "Kota Terjangkau",  value: new Set(localCustomers.map(c => c.city)).size,                     color: "#8B5CF6", bg: "rgba(139,92,246,0.08)"  },
+    { label: "Order Bulan Ini",  value: salesOrders.filter(o => o.createdAt.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+    { label: "Kota Terjangkau",  value: new Set(customers.map(c => c.address)).size,                     color: "#8B5CF6", bg: "rgba(139,92,246,0.08)"  },
   ];
 
   // ── Modal handlers ──────────────────────────────────────────────────────────
@@ -215,19 +205,15 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
   const handleSave = (data: Partial<Customer>) => {
     if (modal?.mode === "add") {
       const newCustomer: Customer = {
-        id:            `C${String(localCustomers.length + 1).padStart(3, "0")}`,
+        code:          `C${String(customers.length + 1).padStart(3, "0")}`,
         name:          data.name    ?? "",
-        company:       data.company ?? "",
+        contact:       data.contact ?? "",
         phone:         data.phone   ?? "",
-        email:         data.email   ?? "",
         address:       data.address ?? "",
-        city:          data.city    ?? "",
-        totalOrders:   0,
-        lastOrderDate: new Date().toISOString().slice(0, 10),
       };
-      setLocalCustomers(prev => [...prev, newCustomer]);
-    } else if (modal?.mode === "edit" && data.id) {
-      setLocalCustomers(prev => prev.map(c => c.id === data.id ? { ...c, ...data } as Customer : c));
+      addCustomer(newCustomer);
+    } else if (modal?.mode === "edit" && data.code) {
+      updateCustomer(data.code, data);
     }
     setModal(null);
   };
@@ -245,7 +231,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>Data Pelanggan</h1>
-          <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>{localCustomers.length} pelanggan terdaftar</p>
+          <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>{customers.length} pelanggan terdaftar</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <HeaderBtn icon={<Download size={12} />} label="Export" onClick={() => {}} />
@@ -318,19 +304,19 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 {paginated.length === 0 ? (
                   <tr><td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px" }}>Tidak ada pelanggan yang sesuai pencarian</td></tr>
                 ) : paginated.map((c, idx) => {
-                  const initials    = c.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-                  const active      = getActiveOrders(c.id);
+                  const initials    = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                  const active      = getActiveOrders(c.code);
                   const isLast      = idx === paginated.length - 1;
                   return (
                     <CustomerTableRow
-                      key={c.id}
+                      key={c.code}
                       customer={c}
                       initials={initials}
                       active={active}
                       isLast={isLast}
                       onEdit={() => openEdit(c)}
-                      onCreateSO={() => goCreateSO(c.id)}
-                      onRepeat={() => goRepeatOrder(c.id)}
+                      onCreateSO={() => goCreateSO(c.code)}
+                      onRepeat={() => goRepeatOrder(c.code)}
                     />
                   );
                 })}
@@ -348,10 +334,10 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
               Tidak ada pelanggan yang sesuai pencarian
             </div>
           ) : paginated.map(c => {
-            const initials = c.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-            const active   = getActiveOrders(c.id);
+            const initials = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+            const active   = getActiveOrders(c.code);
             return (
-              <div key={c.id}
+              <div key={c.code}
                 style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: 16, transition: "border-color 0.15s, box-shadow 0.15s" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.cyan; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.border; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
@@ -363,7 +349,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
-                      <p style={{ margin: 0, fontSize: "11px", color: S.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.company}</p>
+                      <p style={{ margin: 0, fontSize: "11px", color: S.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.contact}</p>
                     </div>
                   </div>
                   <button title="Edit pelanggan" onClick={() => openEdit(c)}
@@ -378,8 +364,8 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
                   {[
                     { icon: <Phone size={10} />, val: c.phone },
-                    { icon: <Mail size={10} />,  val: c.email },
-                    { icon: <MapPin size={10} />,val: c.city  },
+                    { icon: <Mail size={10} />,  val: c.contact },
+                    { icon: <MapPin size={10} />,val: c.address  },
                   ].map((f, i) => (
                     <p key={i} style={{ margin: 0, fontSize: "11.5px", color: S.secondary, display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ color: "#94A3B8", flexShrink: 0 }}>{f.icon}</span>
@@ -390,9 +376,9 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10, padding: "8px 0", borderTop: `1px solid #F8FAFC`, borderBottom: `1px solid #F8FAFC` }}>
                   {[
-                    { label: "Total Order", value: c.totalOrders, color: S.slate },
+                    { label: "Total Order", value: salesOrders.filter(o => o.customerId === c.code).length, color: S.slate },
                     { label: "Aktif",       value: active,        color: active > 0 ? S.cyan : S.secondary },
-                    { label: "Terakhir",    value: c.lastOrderDate.slice(5), color: S.slate },
+                    { label: "Terakhir",    value: salesOrders.filter(o => o.customerId === c.code).pop()?.createdAt || "-", color: S.slate },
                   ].map(s => (
                     <div key={s.label} style={{ textAlign: "center" }}>
                       <p style={{ margin: 0, fontSize: "10px", color: "#94A3B8" }}>{s.label}</p>
@@ -402,8 +388,8 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 </div>
 
                 <div style={{ display: "flex", gap: 6 }}>
-                  <CardActionBtn label="Buat SO" icon={<ShoppingCart size={11} />} bg="#ECFEFF" color={S.cyan} onClick={() => goCreateSO(c.id)} />
-                  <CardActionBtn label="Repeat" icon={<RefreshCw size={11} />} bg="#F5F3FF" color="#7C3AED" onClick={() => goRepeatOrder(c.id)} />
+                  <CardActionBtn label="Buat SO" icon={<ShoppingCart size={11} />} bg="#ECFEFF" color={S.cyan} onClick={() => goCreateSO(c.code)} />
+                  <CardActionBtn label="Repeat" icon={<RefreshCw size={11} />} bg="#F5F3FF" color="#7C3AED" onClick={() => goRepeatOrder(c.code)} />
                 </div>
               </div>
             );
@@ -447,25 +433,25 @@ function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCre
           </div>
           <div>
             <p style={{ margin: 0, fontSize: "12.5px", fontWeight: 500, color: S.slate }}>{c.name}</p>
-            <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{c.company}</p>
+            <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{c.contact}</p>
           </div>
         </div>
       </td>
       <td style={{ padding: "10px 14px" }}>
         <p style={{ margin: 0, fontSize: "12px", color: S.slate, display: "flex", alignItems: "center", gap: 5 }}><Phone size={10} style={{ color: "#94A3B8" }} /> {c.phone}</p>
-        <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary, display: "flex", alignItems: "center", gap: 5 }}><Mail size={10} style={{ color: "#94A3B8" }} /> {c.email}</p>
+        <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary, display: "flex", alignItems: "center", gap: 5 }}><Mail size={10} style={{ color: "#94A3B8" }} /> {c.contact}</p>
       </td>
       <td style={{ padding: "10px 14px" }}>
-        <span style={{ fontSize: "12.5px", color: S.slate }}>{c.city}</span>
+        <span style={{ fontSize: "12.5px", color: S.slate }}>{c.address.split(",")[0]}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
-        <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{c.totalOrders}</span>
+        <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{1}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
         <span style={{ fontSize: "12.5px", fontWeight: 500, color: active > 0 ? S.cyan : S.secondary }}>{active}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
-        <span style={{ fontSize: "12px", color: S.secondary }}>{c.lastOrderDate}</span>
+        <span style={{ fontSize: "12px", color: S.secondary }}>-</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
         <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>

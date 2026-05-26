@@ -3,8 +3,16 @@ import {
   Search, Plus, Download, Eye, Edit, Copy, Printer,
   ChevronLeft, ChevronRight, X, SlidersHorizontal,
 } from "lucide-react";
-import { salesOrders, customers, statusConfig, invoiceStatusConfig, type SOStatus, type InvoiceStatus } from "./so-data";
-import type { Page } from "./erp-layout";
+import { useApp } from "../context/AppContext";
+import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
+import type { Page } from "../layout/erp-layout";
+
+type InvoiceStatus = "paid" | "waiting" | "not_created";
+const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
+  paid: { label: "Paid", textColor: "#065F46", bgColor: "#ECFDF5", borderColor: "#6EE7B7", dotColor: "#10B981" },
+  waiting: { label: "Waiting", textColor: "#92400E", bgColor: "#FFFBEB", borderColor: "#FCD34D", dotColor: "#F59E0B" },
+  not_created: { label: "Not Created", textColor: "#64748B", bgColor: "#F8FAFC", borderColor: "#CBD5E1", dotColor: "#94A3B8" },
+};
 
 interface SOListProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -48,17 +56,17 @@ const STATUS_OPTIONS = [
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: SOStatus }) {
-  const cfg = statusConfig[status];
+  const cfg = getStatusColor(status);
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
       padding: "2px 8px", borderRadius: 4,
-      border: `1px solid ${cfg.borderColor}`,
-      background: cfg.bgColor, color: cfg.textColor,
+      border: `1px solid`, borderColor: cfg.border.replace("border-", ""),
+      background: cfg.bg.replace("bg-", ""), color: cfg.text.replace("text-", ""),
       fontSize: "11px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
-      {cfg.label}
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0 }} />
+      {status}
     </span>
   );
 }
@@ -150,6 +158,7 @@ function ActionBtn({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOList({ onNavigate }: SOListProps) {
+  const { salesOrders, customers } = useApp();
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -161,16 +170,17 @@ export function SOList({ onNavigate }: SOListProps) {
   const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (customerFilter !== "all" ? 1 : 0) + (dateFilter ? 1 : 0);
 
   const filtered = useMemo(() => salesOrders.filter(o => {
+    const cust = customers.find(c => c.code === o.customerId);
+    const cName = cust?.name || "";
     const q = search.toLowerCase();
     const matchSearch = !search ||
-      o.soNumber.toLowerCase().includes(q) ||
-      o.customerName.toLowerCase().includes(q) ||
-      o.productName.toLowerCase().includes(q) ||
-      o.company.toLowerCase().includes(q);
+      o.id.toLowerCase().includes(q) ||
+      cName.toLowerCase().includes(q) ||
+      o.description.toLowerCase().includes(q);
     return matchSearch &&
       (statusFilter === "all" || o.status === statusFilter) &&
       (customerFilter === "all" || o.customerId === customerFilter) &&
-      (!dateFilter || o.createdDate.startsWith(dateFilter));
+      (!dateFilter || o.createdAt.startsWith(dateFilter));
   }), [search, statusFilter, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -184,17 +194,19 @@ export function SOList({ onNavigate }: SOListProps) {
   const exportOrders = () => {
     downloadCsv("sales-orders.csv", [
       ["No. SO", "Customer", "Company", "Product", "Qty", "Unit", "Deadline", "Invoice Status", "Workflow Status"],
-      ...filtered.map(order => [
-        order.soNumber,
-        order.customerName,
-        order.company,
-        order.productName,
+      ...filtered.map(order => {
+        const cust = customers.find(c => c.code === order.customerId);
+        return [
+        order.id,
+        cust?.name || "",
+        cust?.name || "",
+        order.description,
         String(order.quantity),
         order.unit,
         order.deadline,
         invoiceStatusConfig[(order.invoice?.status ?? "not_created") as InvoiceStatus].label,
-        statusConfig[order.status as SOStatus].label,
-      ]),
+        order.status,
+      ]})
     ]);
   };
 
@@ -302,7 +314,7 @@ export function SOList({ onNavigate }: SOListProps) {
             active={customerFilter !== "all"}
           >
             <option value="all">Semua Pelanggan</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name} · {c.company}</option>)}
+            {customers.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
           </FilterDropdown>
 
           <div style={{
@@ -376,6 +388,7 @@ export function SOList({ onNavigate }: SOListProps) {
               <TableRow
                 key={order.id}
                 order={order}
+                customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
                 isLast={idx === paginated.length - 1}
                 onView={() => onNavigate("so-detail", order.id)}
                 onEdit={showEditUnavailable}
@@ -417,19 +430,19 @@ export function SOList({ onNavigate }: SOListProps) {
                   style={{ margin: 0, color: S.cyan, fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
                   onClick={() => onNavigate("so-detail", order.id)}
                 >
-                  {order.soNumber}
+                  {order.id}
                 </p>
-                <p style={{ margin: "2px 0 0", color: S.slate, fontSize: "13px", fontWeight: 500 }}>{order.customerName}</p>
-                <p style={{ margin: 0, color: S.secondary, fontSize: "11px" }}>{order.company}</p>
+                <p style={{ margin: "2px 0 0", color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name}</p>
+                <p style={{ margin: 0, color: S.secondary, fontSize: "11px" }}>{customers.find(c => c.code === order.customerId)?.name}</p>
               </div>
               <StatusBadge status={order.status as SOStatus} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "0 14px 12px" }}>
               {[
-                { label: "Produk",   value: order.productName },
+                { label: "Produk",   value: order.description },
                 { label: "Qty",      value: `${order.quantity.toLocaleString("id-ID")} ${order.unit}` },
                 { label: "Deadline", value: order.deadline },
-                { label: "Dibuat",   value: order.createdDate },
+                { label: "Dibuat",   value: order.createdAt },
               ].map(f => (
                 <div key={f.label}>
                   <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>{f.label}</p>
@@ -466,8 +479,9 @@ export function SOList({ onNavigate }: SOListProps) {
 }
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
-function TableRow({ order, isLast, onView, onEdit, onDuplicate, onPrint }: {
-  order: typeof import("./so-data").salesOrders[number];
+function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, onPrint }: {
+  order: SalesOrder;
+  customerName: string;
   isLast: boolean;
   onView: () => void;
   onEdit: () => void;
@@ -491,15 +505,15 @@ function TableRow({ order, isLast, onView, onEdit, onDuplicate, onPrint }: {
       {/* Left accent bar on hover */}
       <td style={{ padding: "9px 14px", position: "relative" }}>
         {hov && <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 2, background: "#06B6D4", borderRadius: "0 1px 1px 0" }} />}
-        <span style={{ color: "#06B6D4", fontSize: "12.5px", fontWeight: 500 }}>{order.soNumber}</span>
+        <span style={{ color: "#06B6D4", fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
       </td>
       <td style={{ padding: "9px 14px", width: 170 }}>
-        <p style={{ margin: 0, color: "#1E293B", fontSize: "12.5px", fontWeight: 500 }}>{order.customerName}</p>
-        <p style={{ margin: 0, color: "#64748B", fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{order.company}</p>
+        <p style={{ margin: 0, color: "#1E293B", fontSize: "12.5px", fontWeight: 500 }}>{customerName}</p>
+        <p style={{ margin: 0, color: "#64748B", fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customerName}</p>
       </td>
       <td style={{ padding: "9px 14px", maxWidth: 180 }}>
         <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-          {order.productName}
+          {order.description}
         </span>
       </td>
       <td style={{ padding: "9px 14px" }}>
@@ -517,7 +531,7 @@ function TableRow({ order, isLast, onView, onEdit, onDuplicate, onPrint }: {
         <StatusBadge status={order.status as SOStatus} />
       </td>
       <td style={{ padding: "9px 14px" }}>
-        <span style={{ color: "#64748B", fontSize: "12px" }}>{order.createdDate}</span>
+        <span style={{ color: "#64748B", fontSize: "12px" }}>{order.createdAt}</span>
       </td>
       <td style={{ padding: "9px 14px" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>

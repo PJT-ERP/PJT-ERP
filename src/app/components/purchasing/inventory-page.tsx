@@ -24,7 +24,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 

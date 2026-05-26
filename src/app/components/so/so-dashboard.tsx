@@ -15,9 +15,10 @@ import {
   Receipt,
   Send,
 } from "lucide-react";
-import { salesOrders, statusConfig, type SOStatus } from "./so-data";
-import type { Page } from "./erp-layout";
-import { useERPStore } from "../store/useERPStore";
+import { useApp } from "../context/AppContext";
+import { getStatusColor, SOStatus } from "../data/mockData";
+import type { Page } from "../layout/erp-layout";
+import { useERPStore } from "../../store/useERPStore";
 
 interface SODashboardProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -44,46 +45,47 @@ const formatIDR = (amount: number) =>
   }).format(amount);
 
 function StatusBadge({ status }: { status: SOStatus }) {
-  const cfg = statusConfig[status];
+  const cfg = getStatusColor(status);
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "5px",
       padding: "2px 8px", borderRadius: "4px",
-      border: `1px solid ${cfg.borderColor}`,
-      background: cfg.bgColor, color: cfg.textColor,
+      border: `1px solid`, borderColor: cfg.border.replace("border-", ""),
+      background: cfg.bg.replace("bg-", ""), color: cfg.text.replace("text-", ""),
       fontSize: "11.5px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0, display: "inline-block" }} />
-      {cfg.label}
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0, display: "inline-block" }} />
+      {status}
     </span>
   );
 }
 
 export function SODashboard({ onNavigate }: SODashboardProps) {
+  const { salesOrders, customers } = useApp();
   const { liveInvoices, markInvoiceSentToCustomer, markInvoiceCustomerPaid } = useERPStore();
   const readyInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_ready");
   const sentInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_sent");
   const paidInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "customer_paid");
   const total = salesOrders.length;
-  const waitingFinance = salesOrders.filter((o) => o.status === "waiting_finance" || o.status === "draft").length;
-  const inProduction = salesOrders.filter((o) => o.status === "in_production" || o.status === "engineering_review").length;
-  const completed = salesOrders.filter((o) => o.status === "completed").length;
+  const waitingFinance = salesOrders.filter((o) => o.status === "Pending Design" || o.status === "Waiting Approval").length;
+  const inProduction = salesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
+  const completed = salesOrders.filter((o) => o.status === "Completed").length;
 
   const recentOrders = [...salesOrders]
-    .sort((a, b) => b.createdDate.localeCompare(a.createdDate))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
 
   const workflowStats = [
-    { label: "Draft",               count: salesOrders.filter(o => o.status === "draft").length,               color: "#94A3B8" },
-    { label: "Waiting Finance",     count: salesOrders.filter(o => o.status === "waiting_finance").length,     color: "#F59E0B" },
-    { label: "Engineering Review",  count: salesOrders.filter(o => o.status === "engineering_review").length,  color: "#3B82F6" },
-    { label: "In Production",       count: salesOrders.filter(o => o.status === "in_production").length,       color: "#06B6D4" },
-    { label: "Waiting Payment",     count: salesOrders.filter(o => o.status === "waiting_payment").length,     color: "#8B5CF6" },
-    { label: "Completed",           count: salesOrders.filter(o => o.status === "completed").length,           color: "#22C55E" },
+    { label: "Pending Design",      count: salesOrders.filter(o => o.status === "Pending Design").length,      color: "#94A3B8" },
+    { label: "Waiting Approval",    count: salesOrders.filter(o => o.status === "Waiting Approval").length,    color: "#F59E0B" },
+    { label: "Revision Required",   count: salesOrders.filter(o => o.status === "Revision Required").length,   color: "#EF4444" },
+    { label: "In Production",       count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#06B6D4" },
+    { label: "QC",                  count: salesOrders.filter(o => o.status === "QC").length,                  color: "#3B82F6" },
+    { label: "Completed",           count: salesOrders.filter(o => o.status === "Completed").length,           color: "#22C55E" },
   ];
 
   const allActivities = salesOrders
-    .flatMap((o) => o.activities.map((a) => ({ ...a, soNumber: o.soNumber, orderId: o.id })))
+    .flatMap((o) => (o.activities || []).map((a) => ({ ...a, soNumber: o.id, orderId: o.id })))
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, 7);
 
@@ -335,12 +337,12 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                 onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
               >
-                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.soNumber}</span>
+                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
                 <div>
-                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{order.customerName}</p>
-                  <p style={{ color: S.secondary, fontSize: "11px", margin: 0 }}>{order.company}</p>
+                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+                  <p style={{ color: S.secondary, fontSize: "11px", margin: 0 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
                 </div>
-                <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.productName}</span>
+                <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.description}</span>
                 <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center" }}>{order.quantity.toLocaleString("id-ID")} {order.unit}</span>
                 <div style={{ alignSelf: "center" }}>
                   <StatusBadge status={order.status as SOStatus} />
@@ -450,8 +452,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               .map((o) => (
                 <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9, paddingBottom: 9, borderBottom: `1px solid #F8FAFC` }}>
                   <div>
-                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, fontWeight: 500 }}>{o.soNumber}</p>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{o.customerName}</p>
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, fontWeight: 500 }}>{o.id}</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{customers.find(c => c.code === o.customerId)?.name || "-"}</p>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 500 }}>{o.deadline}</p>

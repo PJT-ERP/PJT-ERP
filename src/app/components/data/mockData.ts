@@ -53,7 +53,28 @@ export interface SalesOrder {
   qcAt?: string;
   completedAt?: string;
   isRework?: boolean;
+  
+  // SO Module Specifics
+  notes?: string;
+  timeline?: { id: string; step: string; label: string; date: string; completed: boolean; current?: boolean; assignedTo?: string }[];
+  activities?: { id: string; user: string; role: string; action: string; timestamp: string }[];
+  invoice?: { invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string };
 }
+
+export const productOptions = [
+  "Pipa Galvanis 2 Inch",
+  "Pipa Galvanis 3 Inch",
+  "Baut Hex M16 × 80mm Grade 8.8",
+  "Baut Hex M20 × 100mm Grade 10.9",
+  "Shaft Coupling Ø50mm SS316L",
+  "Bearing SKF 6205-2RS",
+  "Bearing SKF 6305-2Z",
+  "Gear Box Helical Ratio 1:20",
+  "Plat Baja ST37 10mm",
+  "Plat Stainless 316L 6mm",
+  "Sprocket #50 Z30 Hardened",
+  "V-Belt A-60 Bando",
+];
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Budi Santoso', username: 'sales01', password: 'sales123', role: 'Sales', email: 'budi@pjt.co.id', isActive: true },

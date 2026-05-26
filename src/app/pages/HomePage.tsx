@@ -1,14 +1,14 @@
 import "../../styles/fonts.css";
-import { Navbar } from "../components/Navbar";
-import { HeroSection } from "../components/HeroSection";
-import { CompanyIntro } from "../components/CompanyIntro";
-import { ServicesSection } from "../components/ServicesSection";
-import { ManufacturingProcess } from "../components/ManufacturingProcess";
-import { OrderTracking } from "../components/OrderTracking";
-import { WhyChooseUs } from "../components/WhyChooseUs";
-import { CompanyStats } from "../components/CompanyStats";
-import { ContactSection } from "../components/ContactSection";
-import { Footer } from "../components/Footer";
+import { Navbar } from "../components/landing/Navbar";
+import { HeroSection } from "../components/landing/HeroSection";
+import { CompanyIntro } from "../components/landing/CompanyIntro";
+import { ServicesSection } from "../components/landing/ServicesSection";
+import { ManufacturingProcess } from "../components/landing/ManufacturingProcess";
+import { OrderTracking } from "../components/landing/OrderTracking";
+import { WhyChooseUs } from "../components/landing/WhyChooseUs";
+import { CompanyStats } from "../components/landing/CompanyStats";
+import { ContactSection } from "../components/landing/ContactSection";
+import { Footer } from "../components/landing/Footer";
 
 export default function HomePage() {
   return (

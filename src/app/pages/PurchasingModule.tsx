@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router";
-import { DashboardPage } from "../components/dashboard-page";
-import { MaterialRequestsPage } from "../components/material-requests-page";
-import { PurchaseOrdersPage } from "../components/purchase-orders-page";
-import { CreatePurchaseOrderPage } from "../components/create-purchase-order-page";
+import { DashboardPage } from "../components/purchasing/dashboard-page";
+import { MaterialRequestsPage } from "../components/purchasing/material-requests-page";
+import { PurchaseOrdersPage } from "../components/purchasing/purchase-orders-page";
+import { CreatePurchaseOrderPage } from "../components/purchasing/create-purchase-order-page";
 
 export default function PurchasingModule() {
   const navigate = useNavigate();

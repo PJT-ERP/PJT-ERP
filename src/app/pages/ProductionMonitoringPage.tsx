@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Factory, Clock, Shield, CheckCircle, XCircle, AlertTriangle, CalendarClock, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { StatusBadge } from "../components/shared/StatusBadge";
+import { SalesOrder } from "../components/data/mockData";
+import { SODetailModal } from "../components/shared/SODetailModal";
 
 type Section = 'all' | 'ready' | 'in-production' | 'qc' | 'completed';
 
@@ -21,7 +23,7 @@ function PaginationFooter({ currentPage, totalPages, total, pageSize, setPage }:
         {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1).map((p, idx, arr) => (
           <span key={p}>
             {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-xs text-gray-400 px-1">…</span>}
-            <button onClick={() => setPage(p)} className={`w-7 h-7 text-xs rounded-lg ${p === currentPage ? 'bg-[#C9191E] text-white' : 'text-gray-600 hover:bg-gray-200'}`}>{p}</button>
+            <button onClick={() => setPage(p)} className={`w-7 h-7 text-xs rounded-lg ${p === currentPage ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-200'}`}>{p}</button>
           </span>
         ))}
         <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
@@ -38,6 +40,7 @@ export function ProductionMonitoringPage() {
   const [section, setSection] = useState<Section>('all');
   const [qcSearch, setQcSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const PAGE_SIZE = 10;
 
   const readyForProd = salesOrders.filter(s => s.status === 'Ready for Production');
@@ -49,7 +52,7 @@ export function ProductionMonitoringPage() {
     if (!qcSearch) return true;
     const q = qcSearch.toLowerCase();
     const customer = customers.find(c => c.code === so.customerId);
-    return so.id.toLowerCase().includes(q) || so.description.toLowerCase().includes(q) || customer?.name.toLowerCase().includes(q);
+    return so.id.toLowerCase().includes(q) || so.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredCompleted.length / PAGE_SIZE));
@@ -125,7 +128,7 @@ export function ProductionMonitoringPage() {
             onClick={() => { setSection(f.value); setPage(1); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${
               section === f.value
-                ? 'bg-[#C9191E] text-white border-[#C9191E]'
+                ? 'bg-slate-900 text-white border-slate-900'
                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -154,7 +157,7 @@ export function ProductionMonitoringPage() {
               const customer = customers.find(c => c.code === so.customerId);
               const daysDiff = Math.ceil((new Date(so.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               return (
-                <div key={so.id} className="bg-white rounded-xl shadow-sm border-l-4 border-l-purple-400 p-4 flex items-center gap-4">
+                <div key={so.id} onClick={() => setSelectedSO(so)} className="bg-white rounded-xl shadow-sm border-l-4 border-l-purple-400 p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow">
                   <div className="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
                     <CalendarClock size={18} className="text-purple-600" />
                   </div>
@@ -199,7 +202,7 @@ export function ProductionMonitoringPage() {
                 : null;
               const isOverDeadline = so.deadline < new Date().toISOString().split('T')[0];
               return (
-                <div key={so.id} className="bg-white rounded-xl shadow-sm border-l-4 border-l-orange-400 p-4 flex items-center gap-4">
+                <div key={so.id} onClick={() => setSelectedSO(so)} className="bg-white rounded-xl shadow-sm border-l-4 border-l-orange-400 p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow">
                   <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                     <Clock size={18} className="text-orange-600" />
                   </div>
@@ -243,7 +246,7 @@ export function ProductionMonitoringPage() {
                 ? Math.round((new Date(so.endTime).getTime() - new Date(so.startTime).getTime()) / (1000 * 60 * 60))
                 : null;
               return (
-                <div key={so.id} className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-400 p-4 flex items-center gap-4">
+                <div key={so.id} onClick={() => setSelectedSO(so)} className="bg-white rounded-xl shadow-sm border-l-4 border-l-cyan-400 p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow">
                   <div className="w-9 h-9 bg-cyan-100 rounded-lg flex items-center justify-center shrink-0">
                     <Shield size={18} className="text-cyan-600" />
                   </div>
@@ -289,7 +292,7 @@ export function ProductionMonitoringPage() {
                   value={qcSearch}
                   onChange={e => { setQcSearch(e.target.value); setPage(1); }}
                   placeholder="Cari SO, deskripsi, atau customer..."
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C9191E]/20 focus:border-[#C9191E]"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900"
                 />
               </div>
             </div>
@@ -311,7 +314,7 @@ export function ProductionMonitoringPage() {
                 {(section === 'completed' ? paginatedCompleted : completed).map(so => {
                   const customer = customers.find(c => c.code === so.customerId);
                   return (
-                    <tr key={so.id} className="hover:bg-gray-50">
+                    <tr key={so.id} onClick={() => setSelectedSO(so)} className="hover:bg-gray-50 cursor-pointer">
                       <td className="px-4 py-3 font-mono text-xs text-gray-900">{so.id}</td>
                       <td className="px-4 py-3 text-xs text-gray-700 max-w-[120px] truncate">{customer?.name}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{so.description}</td>
@@ -352,7 +355,7 @@ export function ProductionMonitoringPage() {
                   {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1).map((p, idx, arr) => (
                     <span key={p}>
                       {idx > 0 && arr[idx - 1] !== p - 1 && <span className="text-xs text-gray-400 px-1">…</span>}
-                      <button onClick={() => setPage(p)} className={`w-7 h-7 text-xs rounded-lg ${p === currentPage ? 'bg-[#C9191E] text-white' : 'text-gray-600 hover:bg-gray-200'}`}>{p}</button>
+                      <button onClick={() => setPage(p)} className={`w-7 h-7 text-xs rounded-lg ${p === currentPage ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-200'}`}>{p}</button>
                     </span>
                   ))}
                   <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
@@ -392,6 +395,14 @@ export function ProductionMonitoringPage() {
         <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-100">
           <p className="text-gray-400">Belum ada riwayat QC</p>
         </div>
+      )}
+
+      {selectedSO && (
+        <SODetailModal
+          so={selectedSO}
+          customer={customers.find(c => c.code === selectedSO.customerId)}
+          onClose={() => setSelectedSO(null)}
+        />
       )}
     </div>
   );

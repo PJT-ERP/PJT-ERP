@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router";
-import { useApp } from "./context/AppContext";
-import { UserRole } from "./data/mockData";
+import { useApp } from "../context/AppContext";
+import { UserRole } from "../data/mockData";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

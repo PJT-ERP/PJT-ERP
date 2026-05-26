@@ -1,10 +1,10 @@
 import React from "react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from "react-router";
-import { SODashboard } from "../components/so-dashboard";
-import { SOList } from "../components/so-list";
-import { SOCreate } from "../components/so-create";
-import { SODetail } from "../components/so-detail";
-import { CustomerList } from "../components/customer-list";
+import { SODashboard } from "../components/so/so-dashboard";
+import { SOList } from "../components/so/so-list";
+import { SOCreate } from "../components/so/so-create";
+import { SODetail } from "../components/so/so-detail";
+import { CustomerList } from "../components/so/customer-list";
 
 function SOModuleRoutes() {
   const navigate = useNavigate();

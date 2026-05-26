@@ -3,11 +3,11 @@ import {
   LayoutDashboard, Users, Plus, List, ChevronRight, Menu, X, Bell, Search, LogOut, Building2,
   ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList
 } from "lucide-react";
-import { cn } from "./ui/utils";
-import { useERPStore } from "../store/useERPStore";
-import { useApp } from "./context/AppContext";
+import { cn } from "../ui/utils";
+import { useERPStore } from "../../store/useERPStore";
+import { useApp } from "../context/AppContext";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router";
-import { UserRole } from "./data/mockData";
+import { UserRole } from "../data/mockData";
 
 interface NavItemDef { label: string; icon: React.ReactNode; path: string; }
 

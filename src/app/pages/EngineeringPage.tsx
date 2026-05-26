@@ -37,7 +37,7 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
               </div>
               <h3 className="text-gray-900 mb-1">Desain Diteruskan ke Owner</h3>
               <p className="text-sm text-gray-500 mb-4">Status SO diubah menjadi "Waiting Approval"</p>
-              <button onClick={onClose} className="px-6 py-2 bg-[#C9191E] text-white text-sm rounded-lg">Tutup</button>
+              <button onClick={onClose} className="px-6 py-2 bg-slate-900 text-white text-sm rounded-lg">Tutup</button>
             </div>
           ) : step === 'confirm' ? (
             <div className="space-y-4">
@@ -54,7 +54,7 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setStep('upload')} className="flex-1 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Kembali</button>
-                <button onClick={handleForward} className="flex-1 py-2 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419] flex items-center justify-center gap-2">
+                <button onClick={handleForward} className="flex-1 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 flex items-center justify-center gap-2">
                   <Send size={15} /> Forward ke Owner
                 </button>
               </div>
@@ -76,12 +76,12 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
                 <label className="block text-sm text-gray-700 mb-1.5">Link Desain / Drawing <span className="text-red-500">*</span></label>
                 <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
               </div>
               <div className="flex gap-2">
                 <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Batal</button>
                 <button onClick={() => setStep('confirm')} disabled={!designLink.trim()}
-                  className="flex-1 py-2.5 bg-[#C9191E] text-white text-sm rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="flex-1 py-2.5 bg-slate-900 text-white text-sm rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   <Send size={15} /> Submit & Forward
                 </button>
               </div>
@@ -186,7 +186,7 @@ export function EngineeringPage() {
                 </div>
                 {!isWaiting && (
                   <button onClick={() => setSelectedSO(so)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-[#C9191E] hover:bg-[#a01419] text-white text-xs rounded-lg transition-colors shrink-0">
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs rounded-lg transition-colors shrink-0">
                     <Pencil size={13} />
                     {isRevision ? 'Revisi Desain' : 'Input Desain'}
                   </button>

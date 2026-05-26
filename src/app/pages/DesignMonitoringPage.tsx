@@ -190,7 +190,7 @@ export function DesignMonitoringPage() {
           <button key={btn.value} onClick={() => setFilterStatus(btn.value)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${
               filterStatus === btn.value
-                ? 'bg-[#C9191E] text-white border-[#C9191E]'
+                ? 'bg-slate-900 text-white border-slate-900'
                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
             }`}>
             {btn.label}

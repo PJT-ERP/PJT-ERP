@@ -6,9 +6,10 @@ import {
   ChevronRight, Trash2, GripVertical,
   Layers,
 } from "lucide-react";
-import { customers, productOptions } from "./so-data";
-import type { Page } from "./erp-layout";
-import { submitSOToFinance } from "../store/erpStore";
+import { productOptions } from "../data/mockData";
+import { useApp } from "../context/AppContext";
+import type { Page } from "../layout/erp-layout";
+import { useERPStore } from "../../store/useERPStore";
 
 interface SOCreateProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -299,17 +300,20 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
+  const { customers } = useApp();
+  const { submitSOToFinance } = useERPStore();
+  
   const prefillCustomer = initialData?.customerId
-    ? customers.find(c => c.id === initialData.customerId)
+    ? customers.find(c => c.code === initialData.customerId)
     : null;
 
   const [orderType, setOrderType] = useState<OrderType>(initialData?.orderType ?? null);
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerName: prefillCustomer?.name     ?? "",
-    company:      prefillCustomer?.company  ?? "",
+    company:      prefillCustomer?.name     ?? "",
     phone:        prefillCustomer?.phone    ?? "",
-    email:        prefillCustomer?.email    ?? "",
+    email:        prefillCustomer?.contact  ?? "",
     address:      prefillCustomer?.address  ?? "",
     deadline: "", generalNotes: "",
   });
@@ -320,7 +324,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [submitted, setSubmitted]         = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
 
-  const selectedCustomer = customers.find(c => c.id === repeatForm.customerId);
+  const selectedCustomer = customers.find(c => c.code === repeatForm.customerId);
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
 
   const updateProduct = useCallback((id: string, updated: ProductRow, list: ProductRow[], setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => {
@@ -377,8 +381,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       id: crypto.randomUUID(),
       soNumber,
       customerName: selectedCustomer.name,
-      company: selectedCustomer.company,
-      email: selectedCustomer.email,
+      company: selectedCustomer.name,
+      email: selectedCustomer.contact,
       phone: selectedCustomer.phone,
       address: selectedCustomer.address,
       productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
@@ -581,19 +585,17 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               <Select value={repeatForm.customerId} onChange={e => setRepeatForm({ ...repeatForm, customerId: e.target.value })} required>
                 <option value="">— Pilih pelanggan existing —</option>
                 {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} · {c.company} · {c.city}</option>
+                  <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </Select>
             </div>
             {selectedCustomer && (
               <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 4, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
                 {[
-                  { icon: <Building2 size={11} />, label: "Perusahaan", value: selectedCustomer.company },
+                  { icon: <Building2 size={11} />, label: "Perusahaan", value: selectedCustomer.name },
                   { icon: <Phone size={11} />,     label: "Telepon",    value: selectedCustomer.phone },
-                  { icon: <Mail size={11} />,      label: "Email",      value: selectedCustomer.email },
-                  { icon: <Hash size={11} />,      label: "Total Order",value: `${selectedCustomer.totalOrders} order` },
-                  { icon: <MapPin size={11} />,    label: "Kota",       value: selectedCustomer.city },
-                  { icon: <Calendar size={11} />,  label: "Order Terakhir", value: selectedCustomer.lastOrderDate },
+                  { icon: <Mail size={11} />,      label: "Kontak",      value: selectedCustomer.contact },
+                  { icon: <MapPin size={11} />,    label: "Alamat",       value: selectedCustomer.address },
                 ].map(f => (
                   <div key={f.label}>
                     <p style={{ margin: 0, fontSize: "10.5px", color: "#0EA5E9", display: "flex", alignItems: "center", gap: 4 }}>{f.icon} {f.label}</p>

@@ -44,25 +44,25 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div>
             <label className="block text-sm text-gray-700 mb-1">Nama Lengkap *</label>
-            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-gray-700 mb-1">Username *</label>
-              <input type="text" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+              <input type="text" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
             </div>
             <div>
               <label className="block text-sm text-gray-700 mb-1">Password *</label>
-              <input type="text" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+              <input type="text" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
             </div>
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Email *</label>
-            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Role *</label>
-            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]">
+            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900">
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
@@ -72,7 +72,7 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
           </div>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Batal</button>
-            <button type="submit" className="flex-1 py-2.5 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419]">Simpan</button>
+            <button type="submit" className="flex-1 py-2.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800">Simpan</button>
           </div>
         </form>
       </div>
@@ -111,28 +111,28 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-gray-700 mb-1">Kode *</label>
-              <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} disabled={!!customer} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E] disabled:bg-gray-50" />
+              <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} disabled={!!customer} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900 disabled:bg-gray-50" />
             </div>
             <div>
               <label className="block text-sm text-gray-700 mb-1">Kontak PIC *</label>
-              <input type="text" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+              <input type="text" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
             </div>
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Nama Perusahaan *</label>
-            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Nomor Telepon</label>
-            <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]" />
+            <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900" />
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1">Alamat</label>
-            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} rows={2} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E] resize-none" />
+            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} rows={2} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900 resize-none" />
           </div>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Batal</button>
-            <button type="submit" className="flex-1 py-2.5 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419]">Simpan</button>
+            <button type="submit" className="flex-1 py-2.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800">Simpan</button>
           </div>
         </form>
       </div>
@@ -195,17 +195,17 @@ export function AdminPage() {
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input type="text" value={userSearch} onChange={e => setUserSearch(e.target.value)}
                 placeholder="Cari nama, username, email, role..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C9191E]/20 focus:border-[#C9191E]" />
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900" />
             </div>
             <button
               onClick={() => { setEditUser(undefined); setShowUserForm(true); }}
-              className="flex items-center gap-2 px-3 py-2 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419] shrink-0"
+              className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 shrink-0"
             >
               <Plus size={15} /> Tambah User
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b">
@@ -224,7 +224,7 @@ export function AdminPage() {
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-600">{u.name.charAt(0)}</div>
                         <span className="text-gray-900">{u.name}</span>
-                        {u.id === currentUser?.id && <span className="text-xs text-[#C9191E] bg-red-50 px-1.5 rounded">Anda</span>}
+                        {u.id === currentUser?.id && <span className="text-xs text-slate-900 bg-red-50 px-1.5 rounded">Anda</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{u.username}</td>
@@ -265,17 +265,17 @@ export function AdminPage() {
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input type="text" value={custSearch} onChange={e => setCustSearch(e.target.value)}
                 placeholder="Cari nama, kode, atau PIC..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C9191E]/20 focus:border-[#C9191E]" />
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900" />
             </div>
             <button
               onClick={() => { setEditCustomer(undefined); setShowCustForm(true); }}
-              className="flex items-center gap-2 px-3 py-2 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419] shrink-0"
+              className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 shrink-0"
             >
               <Plus size={15} /> Tambah Customer
             </button>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b">

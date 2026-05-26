@@ -132,7 +132,7 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
         <p className="text-sm text-gray-500 mb-4">
           {so.id} — {result === 'Pass' ? 'Status: Completed' : 'Dikembalikan ke produksi untuk rework'}
         </p>
-        <button onClick={onClose} className="px-6 py-2 bg-[#C9191E] text-white text-sm rounded-lg">Selesai</button>
+        <button onClick={onClose} className="px-6 py-2 bg-slate-900 text-white text-sm rounded-lg">Selesai</button>
       </div>
     </div>
   );
@@ -152,7 +152,7 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
           {/* Photo Upload */}
           <div>
             <p className="text-sm text-gray-700 mb-2">Foto Hasil Produksi</p>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-[#C9191E]/50 transition-colors cursor-pointer"
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-slate-900/50 transition-colors cursor-pointer"
               onClick={() => fileInputRef.current?.click()}>
               <Upload size={24} className="text-gray-400 mx-auto mb-1" />
               <p className="text-sm text-gray-500">Klik untuk upload foto</p>
@@ -180,7 +180,7 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
             <label className="block text-sm text-gray-700 mb-1.5">Catatan Hasil Inspeksi</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               rows={3} placeholder="Temuan defect, kondisi produk, rekomendasi, dll."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 resize-none" />
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 resize-none" />
           </div>
 
           {/* Pass / Fail */}
@@ -209,7 +209,7 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Batal</button>
             <button onClick={handleSubmit} disabled={!result}
-              className="flex-1 py-2.5 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419] disabled:opacity-50 transition-colors">
+              className="flex-1 py-2.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors">
               Submit Hasil QC
             </button>
           </div>

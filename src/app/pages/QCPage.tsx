@@ -120,7 +120,7 @@ export function QCPage() {
     const matchSearch = !qcSearch ||
       so.id.toLowerCase().includes(qcSearch.toLowerCase()) ||
       so.description.toLowerCase().includes(qcSearch.toLowerCase()) ||
-      cust?.name.toLowerCase().includes(qcSearch.toLowerCase());
+      (cust?.name || '').toLowerCase().includes(qcSearch.toLowerCase());
     const matchFilter =
       filterResult === 'all' ||
       (filterResult === 'Menunggu' && so.status === 'QC') ||
@@ -188,13 +188,13 @@ export function QCPage() {
               value={qcSearch}
               onChange={e => setQcSearch(e.target.value)}
               placeholder="Cari SO, Deskripsi, Customer..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/20"
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/20"
             />
           </div>
           <div className="flex gap-1">
             {(['all', 'Menunggu', 'Pass', 'Fail'] as const).map(f => (
               <button key={f} onClick={() => setFilterResult(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${filterResult === f ? 'bg-[#C9191E] text-white' : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${filterResult === f ? 'bg-slate-900 text-white' : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
                 {f === 'all' ? 'Semua' : f}
               </button>
             ))}

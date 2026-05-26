@@ -11,8 +11,8 @@ import {
   Eye,
   Download,
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Dialog, DialogContent } from "../ui/dialog";
 
 /* ── Data ──────────────────────────────────────────────────── */
 

@@ -33,7 +33,7 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
         <p className="text-xs text-gray-400 mb-4">
           Mulai: {new Date(startDate).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}
         </p>
-        <button onClick={onClose} className="px-6 py-2 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419]">
+        <button onClick={onClose} className="px-6 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800">
           Tutup
         </button>
       </div>
@@ -80,7 +80,7 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
               required
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C9191E]/30 focus:border-[#C9191E]"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/30 focus:border-slate-900"
             />
           </div>
 
@@ -144,7 +144,7 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
             <p className="text-xs text-amber-700">⚠ Selesai terlambat dari deadline ({so.deadline})</p>
           </div>
         )}
-        <button onClick={onClose} className="px-6 py-2 bg-[#C9191E] text-white text-sm rounded-lg hover:bg-[#a01419]">
+        <button onClick={onClose} className="px-6 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800">
           Tutup
         </button>
       </div>
@@ -199,7 +199,7 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
               className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
                 isLate
                   ? 'border-amber-400 focus:ring-amber-300 bg-amber-50'
-                  : 'border-gray-300 focus:ring-[#C9191E]/30 focus:border-[#C9191E]'
+                  : 'border-gray-300 focus:ring-slate-900/30 focus:border-slate-900'
               }`}
             />
             {durationHours !== null && endDate && (

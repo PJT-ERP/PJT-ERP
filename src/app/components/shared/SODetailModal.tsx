@@ -52,7 +52,7 @@ export function SODetailModal({ so, customer, onClose }: SODetailModalProps) {
                       <div className={`
                         w-7 h-7 rounded-full flex items-center justify-center text-xs
                         ${idx < currentStepIdx ? 'bg-green-500 text-white'
-                          : idx === currentStepIdx ? 'bg-[#C9191E] text-white'
+                          : idx === currentStepIdx ? 'bg-slate-900 text-white'
                           : 'bg-gray-200 text-gray-400'}
                       `}>
                         {idx < currentStepIdx ? <Check size={13} strokeWidth={3} /> : idx + 1}
