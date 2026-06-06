@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -10,7 +10,9 @@ import {
   AlertTriangle,
   Eye,
   Download,
+  Plus,
 } from "lucide-react";
+import { useERPStore } from "../../store/useERPStore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
 
@@ -38,6 +40,7 @@ interface MR {
   approvedBy?: string;
   approvedAt?: string;
   supplierAssigned?: string;
+  financeApproval?: "Pending" | "Approved" | "Rejected";
 }
 
 const MR_DATA: MR[] = [
@@ -138,6 +141,7 @@ const MR_DATA: MR[] = [
       { code: "SAF-003", name: "Kacamata Safety", spec: "Clear Lens", qty: 30, unit: "pcs", currentStock: 8 },
       { code: "SAF-004", name: "Ear Plug 3M", spec: "NRR 29dB", qty: 100, unit: "pasang", currentStock: 20 },
     ],
+    financeApproval: "Pending",
   },
 ];
 
@@ -199,10 +203,32 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 /* ── Page ──────────────────────────────────────────────────── */
 
 export function MaterialRequestsPage() {
+  const { allSOs } = useERPStore();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [detail, setDetail] = useState<MR | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [formSoNumber, setFormSoNumber] = useState("");
+  const [formItems, setFormItems] = useState<Partial<MRItem>[]>([{ code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
+  const [formPriority, setFormPriority] = useState("Medium");
+  const [formUrgency, setFormUrgency] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+
+  const availableMaterials = useMemo(() => {
+    if (!formSoNumber) return [];
+    const so = allSOs.find((s) => s.soNumber === formSoNumber);
+    if (so) return [so.productName];
+    return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
+  }, [formSoNumber, allSOs]);
+
+  const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
+  const removeFormItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
+  const updateFormItem = (i: number, key: keyof MRItem, val: any) => {
+    const next = [...formItems];
+    next[i] = { ...next[i], [key]: val };
+    setFormItems(next);
+  };
 
   const filtered = MR_DATA.filter((m) => {
     const q = search.toLowerCase();
@@ -235,6 +261,13 @@ export function MaterialRequestsPage() {
             style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
           >
             <Download size={13} /> Export
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
+            style={{ fontSize: 12, background: "#1e3a5f" }}
+          >
+            <Plus size={13} /> Buat PR
           </button>
         </div>
       </div>
@@ -316,6 +349,7 @@ export function MaterialRequestsPage() {
                 <TH className="hidden lg:table-cell">Item</TH>
                 <TH>Prioritas</TH>
                 <TH>Status</TH>
+                <TH>Appr. Finance</TH>
                 <TH className="hidden xl:table-cell">Supplier Assigned</TH>
                 <TH>Aksi</TH>
               </tr>
@@ -324,6 +358,7 @@ export function MaterialRequestsPage() {
               {filtered.map((mr) => {
                 const sc = statusCfg[mr.status];
                 const pc = priorityCfg[mr.priority];
+                const fc = mr.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : mr.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
                 return (
                   <tr
                     key={mr.id}
@@ -354,6 +389,9 @@ export function MaterialRequestsPage() {
                     </TD>
                     <TD>
                       <Pill cfg={sc} label={mr.status} />
+                    </TD>
+                    <TD>
+                      {mr.financeApproval ? <Pill cfg={fc} label={mr.financeApproval} /> : <span style={{fontSize: 11, color: "#94a3b8"}}>—</span>}
                     </TD>
                     <TD className="hidden xl:table-cell">
                       {mr.supplierAssigned ? (
@@ -449,6 +487,7 @@ export function MaterialRequestsPage() {
                       { label: "Supplier Assigned", val: detail.supplierAssigned ?? "Belum ditugaskan" },
                       { label: "Disetujui Oleh", val: detail.approvedBy ?? "—" },
                       { label: "Tanggal Persetujuan", val: detail.approvedAt ?? "—" },
+                      { label: "Approval Finance", val: detail.financeApproval ?? "—" },
                     ].map(({ label, val }) => (
                       <div key={label}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
@@ -531,6 +570,143 @@ export function MaterialRequestsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Create PR Dialog ─────────────────────────────────────── */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent
+          className="w-[calc(100vw-24px)] sm:w-[min(900px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto"
+          style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
+        >
+          <div className="px-6 py-4" style={{ background: "#0f1e35", borderRadius: "8px 8px 0 0" }}>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 style={{ color: "#fff" }}>Buat Purchase Request (PR)</h2>
+                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Permintaan material multi-item</p>
+              </div>
+              <button onClick={() => setCreateOpen(false)} className="rounded p-1.5 hover:bg-white/10 transition-colors" style={{ color: "#94a3b8" }}>
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>No SO</label>
+                <Select value={formSoNumber} onValueChange={(val) => { setFormSoNumber(val); setFormItems([{ code: "", name: "", spec: "", qty: 1, unit: "pcs" }]); }}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Pilih SO (Opsional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Tanpa SO —</SelectItem>
+                    {allSOs.map(so => <SelectItem key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerName}</SelectItem>)}
+                    <SelectItem value="SO-MOCK-01">SO-MOCK-01 (Dummy)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Prioritas</label>
+                <Select value={formPriority} onValueChange={setFormPriority}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Low", "Medium", "High"].map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Urgensi / Alasan</label>
+                <input
+                  value={formUrgency}
+                  onChange={(e) => setFormUrgency(e.target.value)}
+                  placeholder="Misal: Stok habis, mesin rusak..."
+                  className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+                  style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", height: 36 }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Daftar Material *</label>
+                <button
+                  onClick={addFormItem}
+                  className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-slate-50 transition-colors"
+                  style={{ fontSize: 11, color: "#2563eb", borderColor: "#bfdbfe" }}
+                >
+                  <Plus size={12} /> Tambah Material
+                </button>
+              </div>
+
+              <div className="rounded overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
+                {formItems.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[100px_1fr_1fr_100px_100px_36px] gap-3 lg:gap-2 items-end"
+                    style={{ padding: "12px", borderBottom: "1px solid #f1f5f9" }}
+                  >
+                    <div>
+                      <label style={{ fontSize: 9, color: "#64748b", display: "block", marginBottom: 4 }}>Kode Item</label>
+                      <input value={item.code} onChange={e => updateFormItem(idx, "code", e.target.value)} placeholder="MAT-XXX" className="w-full rounded border px-2 py-1.5 text-xs outline-none" style={{ borderColor: "#e2e8f0" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 9, color: "#64748b", display: "block", marginBottom: 4 }}>Nama Material</label>
+                      {formSoNumber && formSoNumber !== "none" ? (
+                        <select value={item.name} onChange={e => updateFormItem(idx, "name", e.target.value)} className="w-full rounded border px-2 py-1.5 text-xs outline-none" style={{ borderColor: "#e2e8f0", height: "30px", background: "#fff" }}>
+                          <option value="">Pilih Material</option>
+                          {availableMaterials.map(mat => <option key={mat} value={mat}>{mat}</option>)}
+                        </select>
+                      ) : (
+                        <input value={item.name} onChange={e => updateFormItem(idx, "name", e.target.value)} placeholder="Nama material" className="w-full rounded border px-2 py-1.5 text-xs outline-none" style={{ borderColor: "#e2e8f0" }} />
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 9, color: "#64748b", display: "block", marginBottom: 4 }}>Spesifikasi</label>
+                      <input value={item.spec} onChange={e => updateFormItem(idx, "spec", e.target.value)} placeholder="Spesifikasi / Ukuran" className="w-full rounded border px-2 py-1.5 text-xs outline-none" style={{ borderColor: "#e2e8f0" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 9, color: "#64748b", display: "block", marginBottom: 4 }}>Qty</label>
+                      <input type="number" min="1" value={item.qty} onChange={e => updateFormItem(idx, "qty", Number(e.target.value))} className="w-full rounded border px-2 py-1.5 text-xs outline-none" style={{ borderColor: "#e2e8f0" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 9, color: "#64748b", display: "block", marginBottom: 4 }}>Satuan</label>
+                      <input value={item.unit} onChange={e => updateFormItem(idx, "unit", e.target.value)} placeholder="pcs/kg" className="w-full rounded border px-2 py-1.5 text-xs outline-none" style={{ borderColor: "#e2e8f0" }} />
+                    </div>
+                    <button
+                      onClick={() => removeFormItem(idx)}
+                      disabled={formItems.length === 1}
+                      className="flex h-[28px] items-center justify-center rounded border border-red-100 text-red-500 hover:bg-red-50 disabled:opacity-30"
+                    >
+                      <XCircle size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Catatan Tambahan</label>
+              <textarea
+                value={formNotes}
+                onChange={e => setFormNotes(e.target.value)}
+                rows={2}
+                className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 resize-none"
+                style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc" }}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button onClick={() => setCreateOpen(false)} className="rounded px-4 py-2 border text-slate-600 hover:bg-slate-50" style={{ fontSize: 13 }}>
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  alert("Purchase Request berhasil dibuat!");
+                  setCreateOpen(false);
+                }}
+                className="rounded px-4 py-2 text-white hover:opacity-90" style={{ fontSize: 13, background: "#1e3a5f" }}>
+                Submit PR
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

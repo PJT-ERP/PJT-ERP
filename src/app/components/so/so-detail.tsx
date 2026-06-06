@@ -6,9 +6,10 @@ import {
   CheckCircle2, Circle, Clock,
   Activity, Printer, Edit, Copy,
   AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye,
+  Receipt, Download, Eye, Upload, X,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { useERPStore } from "../../store/useERPStore";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
@@ -22,6 +23,7 @@ const invoiceStatusConfig: Record<string, { label: string; textColor: string; bg
 interface SODetailProps {
   orderId: string;
   onNavigate: (page: Page, data?: unknown) => void;
+  initialEditMode?: boolean;
 }
 
 const S = {
@@ -44,14 +46,23 @@ const WORKFLOW_STEPS = [
   { key: "completed",        label: "Completed",        dept: ""                },
 ];
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function InfoRow({ icon, label, value, isEdit, onChange, type = "text" }: { icon: React.ReactNode; label: string; value: string; isEdit?: boolean; onChange?: (val: string) => void; type?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8", display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ color: "#CBD5E1" }}>{icon}</span>
         {label}
       </p>
-      <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>{value}</p>
+      {isEdit ? (
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange?.(e.target.value)}
+          style={{ padding: "4px 8px", fontSize: "13px", color: S.slate, border: `1px solid ${S.border}`, borderRadius: 4, background: "#fff", outline: "none", width: "100%", fontFamily: S.font, boxSizing: "border-box" }}
+        />
+      ) : (
+        <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>{value}</p>
+      )}
     </div>
   );
 }
@@ -84,10 +95,58 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
   );
 }
 
-export function SODetail({ orderId, onNavigate }: SODetailProps) {
-  const { salesOrders, customers } = useApp();
+export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
+  const { salesOrders, customers, updateSalesOrder } = useApp();
+  const { allSOs, updateSOInFinance } = useERPStore();
+  
   const order = salesOrders.find(o => o.id === orderId);
   const customer = customers.find(c => c.code === order?.customerId);
+  const financeSo = allSOs.find(s => s.soNumber === orderId);
+
+  const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  const [editForm, setEditForm] = useState({
+    customerName: customer?.name || "",
+    company: financeSo?.company || customer?.name || "",
+    phone: financeSo?.phone || customer?.phone || "",
+    contact: financeSo?.email || customer?.contact || "",
+    address: financeSo?.address || customer?.address || "",
+    description: order?.description || "",
+    quantity: String(order?.quantity || ""),
+    unit: order?.unit || "",
+    material: financeSo?.material || order?.material || "",
+    spec: financeSo?.spec || order?.spec || "",
+    deadline: order?.deadline || "",
+    notes: financeSo?.notes || order?.notes || "",
+  });
+
+  const handleSave = () => {
+    if (!order) return;
+    updateSalesOrder(orderId, {
+      description: editForm.description,
+      quantity: Number(editForm.quantity),
+      unit: editForm.unit,
+      material: editForm.material,
+      spec: editForm.spec,
+      deadline: editForm.deadline,
+      notes: editForm.notes,
+    });
+    if (financeSo) {
+      updateSOInFinance(financeSo.id, {
+        customerName: editForm.customerName,
+        company: editForm.company,
+        phone: editForm.phone,
+        email: editForm.contact,
+        address: editForm.address,
+        productName: editForm.description,
+        quantity: Number(editForm.quantity),
+        unit: editForm.unit,
+        material: editForm.material,
+        spec: editForm.spec,
+        notes: editForm.notes,
+      });
+    }
+    setIsEditMode(false);
+  };
 
   if (!order) {
     return (
@@ -137,7 +196,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <HeaderBtn icon={<Printer size={13} />} label="Cetak"    />
           <HeaderBtn icon={<Copy size={13} />}    label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
-          <HeaderBtn icon={<Edit size={13} />}    label="Edit"     primary />
+          <HeaderBtn icon={<Edit size={13} />}    label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
       </div>
 
@@ -203,12 +262,12 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           {/* Customer info */}
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <InfoRow icon={<User size={11} />}     label="Nama"       value={customer?.name || "-"} />
-              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={customer?.name || "-"} />
-              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={customer?.phone || "-"} />
-              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={customer?.contact || "-"} />
+              <InfoRow icon={<User size={11} />}     label="Nama"       value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, customerName: v}))} />
+              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (financeSo?.company || customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
+              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (financeSo?.phone || customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
+              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (financeSo?.email || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={customer?.address || "-"} />
+                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (financeSo?.address || customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
               </div>
             </div>
           </InfoCard>
@@ -217,15 +276,16 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={order.description} />
+                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, description: v}))} />
               </div>
-              <InfoRow icon={<Hash size={11} />}    label="Jumlah"   value={`${order.quantity.toLocaleString("id-ID")} ${order.unit}`} />
-              <InfoRow icon={<Calendar size={11} />} label="Deadline" value={order.deadline} />
-              {order.notes && (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <InfoRow icon={<FileText size={11} />} label="Catatan" value={order.notes} />
-                </div>
-              )}
+              <InfoRow icon={<Hash size={11} />}    label="Jumlah"   value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({...prev, quantity: v}))} />
+              <InfoRow icon={<Hash size={11} />}    label="Unit"     value={isEditMode ? editForm.unit : order.unit} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, unit: v}))} />
+              <InfoRow icon={<Package size={11} />} label="Material" value={isEditMode ? editForm.material : (financeSo?.material || order.material || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, material: v}))} />
+              <InfoRow icon={<FileText size={11} />} label="Spesifikasi" value={isEditMode ? editForm.spec : (financeSo?.spec || order.spec || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, spec: v}))} />
+              <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({...prev, deadline: v}))} />
+              <div style={{ gridColumn: "1 / -1" }}>
+                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, notes: v}))} />
+              </div>
             </div>
           </InfoCard>
 
@@ -233,30 +293,52 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
           <InvoiceSection invoice={order.invoice} />
 
           {/* Activity log */}
-          <InfoCard title="Log Aktivitas" icon={<Activity size={13} />}>
-            <div>
-              {(order.activities || []).map((act, idx) => (
-                <div key={act.id} style={{ display: "flex", gap: 12, paddingBottom: idx < (order.activities?.length || 0) - 1 ? 14 : 4 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(6,182,212,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Activity size={11} style={{ color: S.cyan }} />
+          {!isEditMode && (
+            <InfoCard title="Log Aktivitas" icon={<Activity size={13} />}>
+              <div>
+                {(order.activities || []).map((act, idx) => (
+                  <div key={act.id} style={{ display: "flex", gap: 12, paddingBottom: idx < (order.activities?.length || 0) - 1 ? 14 : 4 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(6,182,212,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Activity size={11} style={{ color: S.cyan }} />
+                      </div>
+                      {idx < (order.activities?.length || 0) - 1 && (
+                        <div style={{ width: 1, flex: 1, background: "#F1F5F9", margin: "4px 0" }} />
+                      )}
                     </div>
-                    {idx < (order.activities?.length || 0) - 1 && (
-                      <div style={{ width: 1, flex: 1, background: "#F1F5F9", margin: "4px 0" }} />
-                    )}
+                    <div style={{ flex: 1, paddingTop: 2 }}>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: S.slate }}>{act.action}</p>
+                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>
+                        <span style={{ fontWeight: 500, color: S.secondary }}>{act.user}</span>
+                        {" · "}<span style={{ color: S.cyan }}>{act.role}</span>
+                        {" · "}{act.timestamp}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{ flex: 1, paddingTop: 2 }}>
-                    <p style={{ margin: 0, fontSize: "12.5px", color: S.slate }}>{act.action}</p>
-                    <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>
-                      <span style={{ fontWeight: 500, color: S.secondary }}>{act.user}</span>
-                      {" · "}<span style={{ color: S.cyan }}>{act.role}</span>
-                      {" · "}{act.timestamp}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </InfoCard>
+          )}
+
+          {/* Edit Actions */}
+          {isEditMode && (
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
+              <button type="button" onClick={() => setIsEditMode(false)}
+                style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+                onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
+                onMouseLeave={e => (e.currentTarget.style.background = S.white)}
+              >
+                Batal
+              </button>
+              <button type="button" onClick={handleSave}
+                style={{ padding: "8px 24px", borderRadius: 4, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+                onMouseEnter={e => (e.currentTarget.style.filter = "brightness(0.95)")}
+                onMouseLeave={e => (e.currentTarget.style.filter = "none")}
+              >
+                Simpan Perubahan
+              </button>
             </div>
-          </InfoCard>
+          )}
         </div>
 
         {/* ── Right column ──────────────────────────────────────────────────────── */}
@@ -295,37 +377,7 @@ export function SODetail({ orderId, onNavigate }: SODetailProps) {
             </div>
           </div>
 
-          {/* Quick actions */}
-          <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-            <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-              <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Aksi</p>
-            </div>
-            <div style={{ padding: "12px 14px" }}>
-              <ActionBtn
-                icon={<Edit size={13} />}
-                label="Edit Sales Order"
-                bg={S.cyan} color="#fff"
-                border="none"
-                onClick={() => window.alert("Edit Sales Order belum tersedia di demo ini. Gunakan Duplikat untuk membuat order baru dari data yang mirip.")}
-              />
-              <ActionBtn
-                icon={<RefreshCw size={13} />}
-                label="Duplikat sebagai Repeat Order"
-                bg="#F5F3FF" color="#7C3AED"
-                onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })}
-              />
-              <ActionBtn
-                icon={<Printer size={13} />}
-                label="Cetak SO"
-                bg={S.bg} color={S.slate}
-              />
-              <ActionBtn
-                icon={<ArrowRight size={13} />}
-                label="Lihat Invoice"
-                bg={S.bg} color={S.slate}
-              />
-            </div>
-          </div>
+
 
         </div>
       </div>
@@ -338,83 +390,192 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
   const status: InvoiceStatus = invoice?.status ?? "not_created";
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
+  
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [paymentReported, setPaymentReported] = useState(false);
 
   return (
-    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Receipt size={13} style={{ color: S.cyan }} />
-          <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>Informasi Invoice</span>
-          <span style={{ fontSize: "10px", color: "#94A3B8", background: "#F1F5F9", border: "1px solid #E2E8F0", borderRadius: 3, padding: "1px 6px" }}>
-            Read-only
+    <>
+      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Receipt size={13} style={{ color: S.cyan }} />
+            <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>Informasi Invoice</span>
+            <span style={{ fontSize: "10px", color: "#94A3B8", background: "#F1F5F9", border: "1px solid #E2E8F0", borderRadius: 3, padding: "1px 6px" }}>
+              Read-only
+            </span>
+          </div>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "2px 8px", borderRadius: 4,
+            border: `1px solid ${cfg.borderColor}`,
+            background: cfg.bgColor, color: cfg.textColor,
+            fontSize: "11px", fontWeight: 500,
+          }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
+            {paymentReported ? "Menunggu Verifikasi Finance" : cfg.label}
           </span>
         </div>
-        <span style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "2px 8px", borderRadius: 4,
-          border: `1px solid ${cfg.borderColor}`,
-          background: cfg.bgColor, color: cfg.textColor,
-          fontSize: "11px", fontWeight: 500,
-        }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
-          {cfg.label}
-        </span>
+
+        <div style={{ padding: 16 }}>
+          {!hasInvoice ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#F8FAFC", borderRadius: 4, border: "1px solid #E2E8F0" }}>
+              <Receipt size={16} style={{ color: "#94A3B8", flexShrink: 0 }} />
+              <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary }}>
+                Invoice belum dibuat. Finance akan menerbitkan invoice setelah SO disetujui.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 16 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. Invoice</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{invoice!.invoiceNumber}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Invoice</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.invoiceDate}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jatuh Tempo</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: status === "overdue" ? "#EF4444" : S.slate }}>{invoice!.dueDate}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jumlah Tagihan</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate, fontWeight: 600 }}>
+                    Rp {invoice!.amount.toLocaleString("id-ID")}
+                  </p>
+                </div>
+                {invoice!.paymentDate && (
+                  <div>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar</p>
+                    <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#22C55E" }}>{invoice!.paymentDate}</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Action buttons */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
+                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" />
+                <InvoiceBtn icon={<Download size={12} />} label="Download PDF" />
+                {status === "waiting" && !paymentReported && (
+                  <div style={{ marginLeft: "auto" }}>
+                    <InvoiceBtn 
+                      icon={<Upload size={12} />} 
+                      label="Lapor Pembayaran" 
+                      primary 
+                      onClick={() => setShowUploadModal(true)} 
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      <div style={{ padding: 16 }}>
-        {!hasInvoice ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#F8FAFC", borderRadius: 4, border: "1px solid #E2E8F0" }}>
-            <Receipt size={16} style={{ color: "#94A3B8", flexShrink: 0 }} />
-            <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary }}>
-              Invoice belum dibuat. Finance akan menerbitkan invoice setelah SO disetujui.
-            </p>
+      {showUploadModal && (
+        <ReportPaymentModal 
+          invoiceNumber={invoice?.invoiceNumber || ""}
+          amount={invoice?.amount || 0}
+          onClose={() => setShowUploadModal(false)}
+          onSubmit={() => {
+            setPaymentReported(true);
+            setShowUploadModal(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function ReportPaymentModal({ invoiceNumber, amount, onClose, onSubmit }: { invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUploading(true);
+    setTimeout(() => {
+      setIsUploading(false);
+      onSubmit();
+    }, 800);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <div style={{ position: "relative", background: "#fff", borderRadius: 12, width: "100%", maxWidth: 450, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden", fontFamily: S.font }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "16px", color: S.slate }}>Lapor Pembayaran</h2>
+            <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>Invoice {invoiceNumber}</p>
           </div>
-        ) : (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 16 }}>
-              <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. Invoice</p>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{invoice!.invoiceNumber}</p>
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Invoice</p>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.invoiceDate}</p>
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jatuh Tempo</p>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: status === "overdue" ? "#EF4444" : S.slate }}>{invoice!.dueDate}</p>
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jumlah Tagihan</p>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate, fontWeight: 600 }}>
-                  Rp {invoice!.amount.toLocaleString("id-ID")}
-                </p>
-              </div>
-              {invoice!.paymentDate && (
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#22C55E" }}>{invoice!.paymentDate}</p>
-                </div>
-              )}
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary }}>
+            <X size={20} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} style={{ padding: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Bank Tujuan</label>
+              <select required style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none" }}>
+                <option value="">Pilih Bank...</option>
+                <option value="BCA">BCA - PT Pratama Jaya (1234567890)</option>
+                <option value="Mandiri">Mandiri - PT Pratama Jaya (0987654321)</option>
+              </select>
             </div>
-            {/* Action buttons — view only, cannot edit */}
-            <div style={{ display: "flex", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
-              <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" />
-              <InvoiceBtn icon={<Download size={12} />} label="Download PDF" />
+            
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Nominal Transfer</label>
+              <input required type="text" defaultValue={`Rp ${amount.toLocaleString('id-ID')}`} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
             </div>
-          </>
-        )}
+
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Upload Bukti Transfer</label>
+              <div style={{ position: "relative", border: "1px dashed #CBD5E1", borderRadius: 8, padding: 24, textAlign: "center", background: "#F8FAFC" }}>
+                <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
+                <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>Max ukuran file 5MB</p>
+                <input required type="file" style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Catatan Tambahan (Opsional)</label>
+              <textarea rows={2} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box", resize: "none" }} placeholder="Misal: Sudah ditransfer atas nama Budi..." />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>
+              Batal
+            </button>
+            <button type="submit" disabled={isUploading} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", opacity: isUploading ? 0.7 : 1 }}>
+              {isUploading ? "Mengunggah..." : "Kirim Bukti Bayar"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
-function InvoiceBtn({ icon, label }: { icon: React.ReactNode; label: string }) {
+function InvoiceBtn({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick?: () => void; primary?: boolean }) {
   const [hov, setHov] = useState(false);
   return (
     <button
-      style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 4, border: `1px solid ${hov ? "#CBD5E1" : S.border}`, background: hov ? S.bg : S.white, color: hov ? S.slate : S.secondary, fontSize: "12px", cursor: "pointer", fontFamily: S.font, transition: "all 0.1s" }}
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6,
+        border: primary ? "none" : `1px solid ${hov ? "#CBD5E1" : S.border}`,
+        background: primary ? (hov ? "#2563EB" : "#3B82F6") : (hov ? S.bg : S.white),
+        color: primary ? "#fff" : (hov ? S.slate : S.secondary),
+        fontSize: "12.5px", fontWeight: primary ? 500 : 400,
+        cursor: "pointer", fontFamily: S.font, transition: "all 0.1s",
+        boxShadow: primary ? "0 1px 2px rgba(0,0,0,0.05)" : "none"
+      }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
@@ -439,9 +600,14 @@ function InfoCard({ title, icon, children }: { title: string; icon: React.ReactN
 // ─── HeaderBtn ────────────────────────────────────────────────────────────────
 function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; label: string; primary?: boolean; onClick?: () => void }) {
   const [hov, setHov] = useState(false);
+  const [active, setActive] = useState(false);
   return (
     <button
       onClick={onClick}
+      onMouseDown={() => setActive(true)}
+      onMouseUp={() => setActive(false)}
+      onMouseLeave={() => { setHov(false); setActive(false); }}
+      onMouseEnter={() => setHov(true)}
       style={{
         display: "flex", alignItems: "center", gap: 5,
         padding: "6px 12px", borderRadius: 4,
@@ -450,9 +616,10 @@ function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; l
         color: primary ? "#fff" : hov ? S.slate : S.secondary,
         fontSize: "12.5px", fontWeight: primary ? 500 : 400,
         cursor: "pointer", fontFamily: S.font, transition: "all 0.1s",
+        transform: active ? "scale(0.96)" : "scale(1)",
+        boxShadow: active ? "none" : primary ? "0 1px 2px rgba(0,0,0,0.1)" : "0 1px 2px rgba(0,0,0,0.03)",
+        ...(active && primary ? { filter: "brightness(0.9)" } : {}),
       }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
     >
       {icon} {label}
     </button>

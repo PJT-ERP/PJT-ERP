@@ -7,6 +7,7 @@ import {
   markInvoiceCustomerPaid,
   markInvoiceSentToCustomer,
   submitSOToFinance,
+  updateSOInFinance,
   subscribe,
 } from "./erpStore";
 
@@ -20,6 +21,7 @@ export function useERPStore() {
     allSOs,
     liveInvoices,
     submitSOToFinance,
+    updateSOInFinance,
     createInvoiceFromSO,
     markInvoiceSentToCustomer,
     markInvoiceCustomerPaid,

@@ -35,6 +35,8 @@ export interface SalesOrder {
   description: string;
   quantity: number;
   unit: string;
+  material?: string;
+  spec?: string;
   deadline: string;
   status: SOStatus;
   createdBy: string;
@@ -103,6 +105,7 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
     designLink: 'https://drive.google.com/file/d/example1', submittedAt: '2026-04-03', approvedAt: '2026-04-05',
     approvedBy: 'u3', startTime: '2026-04-10T08:00', endTime: '2026-04-25T16:00',
     qcStatus: 'Pass', qcNotes: '', qcAt: '2026-04-26', completedAt: '2026-04-27',
+    invoice: { invoiceNumber: 'INV-2026-0451', invoiceDate: '2026-06-01', dueDate: '2026-06-15', amount: 45000000, status: 'waiting', paymentDate: '' },
   },
   {
     id: 'SO-2026002', customerId: '0002', partNumber: 'PJT-SHF-002', description: 'Drive Shaft Assembly 80mm',

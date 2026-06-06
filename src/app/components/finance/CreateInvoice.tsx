@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Plus, Trash2, ChevronDown, Save, Eye, ArrowLeft,
-  CheckCircle2, Building2, FileText, Hash, Calendar
+  CheckCircle2, Building2, FileText, Hash, Calendar, Printer
 } from 'lucide-react';
 import { salesOrders, customers, formatIDR } from './mockData';
 import { useERPStore } from '../../store/useERPStore';
@@ -39,6 +39,12 @@ export function CreateInvoice() {
   const [ppnEnabled, setPpnEnabled] = useState(true);
   const [items, setItems] = useState<LineItem[]>([newItem()]);
   const [submitted, setSubmitted] = useState(false);
+  
+  // New Finance features
+  const [invoiceType, setInvoiceType] = useState('Full Payment');
+  const [dpPercentage, setDpPercentage] = useState('50');
+  const [customDp, setCustomDp] = useState('');
+  const [dpDeadline, setDpDeadline] = useState('');
 
   // Find SO from either mock data or live store
   const mockSo = salesOrders.find(s => s.id === selectedSO);
@@ -90,7 +96,12 @@ export function CreateInvoice() {
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const ppn = ppnEnabled ? Math.round(subtotal * 0.11) : 0;
-  const total = subtotal + ppn;
+  const grandTotal = subtotal + ppn;
+
+  // DP calculation
+  const isDP = invoiceType === 'Down Payment (DP)';
+  const pct = dpPercentage === 'Custom' ? (Number(customDp) || 0) : Number(dpPercentage);
+  const invoiceTotal = isDP ? Math.round((grandTotal * pct) / 100) : grandTotal;
 
   const invoiceNumber = `INV-2026-${String(Math.floor(Math.random() * 900) + 271).padStart(4, '0')}`;
 
@@ -98,7 +109,7 @@ export function CreateInvoice() {
     if (liveSo) {
       createInvoiceFromSO(liveSo.id, {
         invoiceNumber,
-        amount: total,
+        amount: invoiceTotal,
         dueDate,
         issueDate,
         notes,
@@ -115,7 +126,8 @@ export function CreateInvoice() {
         `Pelanggan: ${customer}`,
         `Subtotal: ${formatIDR(subtotal)}`,
         `PPN: ${formatIDR(ppn)}`,
-        `Total: ${formatIDR(total)}`,
+        `Grand Total: ${formatIDR(grandTotal)}`,
+        isDP ? `Tagihan DP (${pct}%): ${formatIDR(invoiceTotal)}` : `Total Tagihan: ${formatIDR(invoiceTotal)}`,
       ].join('\n')
     );
   };
@@ -131,10 +143,13 @@ export function CreateInvoice() {
           <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{invoiceNumber}</span></p>
           {(liveSo || mockSo) && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
           <div className="flex gap-3">
-            <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors">
+            <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Lihat Daftar Invoice
             </button>
-            <button onClick={() => { setSubmitted(false); setSelectedSO(''); setItems([newItem()]); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+            <button onClick={() => window.print()} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+              <Printer size={15} /> Cetak Surat Penagihan
+            </button>
+            <button onClick={() => { setSubmitted(false); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Buat Lagi
             </button>
           </div>
@@ -144,318 +159,285 @@ export function CreateInvoice() {
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 min-h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/erp/finance/invoices')} className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-all">
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 className="text-xl text-slate-900">Buat Invoice Baru</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Buat invoice berdasarkan Sales Order yang telah dikerjakan</p>
+    <div className="p-4 lg:p-8 min-h-full bg-[#F8FAFC] flex justify-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div className="w-full max-w-[850px] pb-10">
+        
+        {/* Top actions */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/erp/finance/invoices')} className="text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-200 transition-all">
+              <ArrowLeft size={18} />
+            </button>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Buat Invoice</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={handlePreview} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
+              <Eye size={16} /> Preview
+            </button>
+            <button onClick={handleSubmit} disabled={!selectedSO || items.some(i => !i.description || i.unitPrice === 0)} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
+              <Save size={16} /> Simpan Invoice
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {/* Main Form */}
-        <div className="xl:col-span-2 space-y-4">
-          {/* SO Selection */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Hash size={14} className="text-blue-600" />
+        {/* Paper Document Wrapper */}
+        <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden relative">
+          
+          {/* Top blue accent bar */}
+          <div className="h-2 w-full bg-blue-600"></div>
+
+          <div className="p-8 sm:p-12">
+            
+            {/* SO Selector Banner */}
+            <div className="mb-10 bg-blue-50/50 border border-blue-100 rounded-lg p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
+              <div>
+                <h3 className="text-sm font-bold text-blue-900 mb-1">Pilih Basis Sales Order</h3>
+                <p className="text-xs text-blue-700 font-medium">Data pelanggan dan detail pesanan akan diisi secara otomatis ke dalam dokumen invoice.</p>
               </div>
-              <h3 className="text-sm font-semibold text-slate-800">Pilih Sales Order</h3>
-            </div>
-            <div className="relative">
-              <select
-                value={selectedSO}
-                onChange={e => setSelectedSO(e.target.value)}
-                className="w-full appearance-none border border-slate-200 rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all pr-10"
-              >
-                <option value="">— Pilih Sales Order —</option>
-                {/* Live pending SOs from store */}
-                {pendingSOs.length > 0 && (
-                  <optgroup label="Live Sales Orders (Pending Invoice)">
-                    {pendingSOs.map(so => (
-                      <option key={so.id} value={so.id}>
-                        🔴 [LIVE] {so.soNumber} · {so.company}
-                      </option>
+              <div className="relative w-full sm:w-72 flex-shrink-0">
+                <select
+                  value={selectedSO}
+                  onChange={e => setSelectedSO(e.target.value)}
+                  className="w-full appearance-none border border-blue-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all shadow-sm pr-10"
+                >
+                  <option value="">— Pilih Sales Order —</option>
+                  {pendingSOs.length > 0 && (
+                    <optgroup label="Live Sales Orders">
+                      {pendingSOs.map(so => (
+                        <option key={so.id} value={so.id}>🔴 {so.soNumber} · {so.company}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="Mock Sales Orders">
+                    {salesOrders.map(so => (
+                      <option key={so.id} value={so.id}>{so.soNumber} · {so.customerName}</option>
                     ))}
                   </optgroup>
-                )}
-                {/* Mock SOs */}
-                <optgroup label="Mock Sales Orders">
-                  {salesOrders.map(so => (
-                    <option key={so.id} value={so.id}>
-                      {so.soNumber} · {so.customerName} · {formatIDR(so.totalAmount)}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </select>
+                <ChevronDown size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
             </div>
-          </div>
 
-          {/* Customer Info (auto-filled) */}
-          {displayCustomer && (
-            <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-5 ring-1 ring-blue-100">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Building2 size={14} className="text-blue-600" />
+            {/* Document Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12">
+              <div className="flex gap-4">
+                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Building2 size={32} className="text-white" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-800">Data Pelanggan (Otomatis)</h3>
-                <span className="text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">AUTO-FILLED</span>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA</h2>
+                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">Kawasan Industri MM2100<br/>Cikarang Barat, Bekasi 17530<br/>finance@pratamajaya.co.id</p>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Nama Perusahaan</label>
-                  <input readOnly value={displayCustomer.name} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Kontak PIC</label>
-                  <input readOnly value={displayCustomer.contact} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
-                  <input readOnly value={displayCustomer.email} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">NPWP</label>
-                  <input readOnly value={displayCustomer.npwp} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700" />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Alamat</label>
-                  <input readOnly value={displayCustomer.address} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700" />
+              
+              <div className="text-left md:text-right w-full md:w-auto">
+                <h1 className="text-5xl font-black text-slate-200 tracking-widest mb-6 uppercase">Invoice</h1>
+                
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                  <div className="text-slate-500 font-medium">Nomor Invoice</div>
+                  <div className="font-bold text-slate-800">{invoiceNumber}</div>
+                  
+                  <div className="text-slate-500 font-medium pt-1">Tanggal Terbit</div>
+                  <div className="font-semibold text-slate-800">
+                    <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:outline-none w-full text-left md:text-right transition-colors" />
+                  </div>
+                  
+                  <div className="text-slate-500 font-medium pt-1">Jatuh Tempo</div>
+                  <div className="font-semibold text-slate-800">
+                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:outline-none w-full text-left md:text-right transition-colors" />
+                  </div>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Invoice Details */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Calendar size={14} className="text-blue-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-800">Detail Invoice</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Tanggal Invoice</label>
-                <input
-                  type="date"
-                  value={issueDate}
-                  onChange={e => setIssueDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Jatuh Tempo</label>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={e => setDueDate(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Termin Pembayaran</label>
-                <div className="relative">
-                  <select
-                    value={paymentTerm}
-                    onChange={e => setPaymentTerm(e.target.value)}
-                    className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all pr-8"
-                  >
-                    {PAYMENT_TERMS.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                  <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            {/* Billed To */}
+            <div className="mb-12">
+              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Ditagihkan Kepada</h3>
+              {displayCustomer ? (
+                <div className="text-sm text-slate-700 leading-relaxed max-w-sm">
+                  <p className="font-bold text-slate-900 text-lg mb-1">{displayCustomer.name}</p>
+                  <p className="font-semibold text-slate-600 mb-2">Attn: {displayCustomer.contact}</p>
+                  <p className="text-slate-500">{displayCustomer.address}</p>
+                  {displayCustomer.npwp !== '-' && <p className="text-slate-500 mt-1">NPWP: {displayCustomer.npwp}</p>}
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">No. Invoice</label>
-                <input readOnly value={invoiceNumber} className="w-full border border-slate-100 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500" />
-              </div>
+              ) : (
+                <div className="p-4 border-2 border-dashed border-slate-200 rounded-lg text-sm text-slate-400 max-w-sm font-medium">
+                  Pilih Sales Order di atas untuk mengisi data pelanggan secara otomatis.
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Line Items */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FileText size={14} className="text-blue-600" />
-                </div>
-                <h3 className="text-sm font-semibold text-slate-800">Item Invoice</h3>
+            {/* Items Table */}
+            <div className="mb-12">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-y-2 border-slate-800 text-sm font-bold text-slate-800 uppercase tracking-wider">
+                      <th className="py-3 px-2 w-[45%] text-[11px]">Deskripsi Produk / Jasa</th>
+                      <th className="py-3 px-2 w-[15%] text-[11px] text-right">Qty</th>
+                      <th className="py-3 px-2 w-[20%] text-[11px] text-right">Harga Satuan</th>
+                      <th className="py-3 px-2 w-[20%] text-[11px] text-right">Total</th>
+                      <th className="py-3 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm font-medium">
+                    {items.map((item) => (
+                      <tr key={item.id} className="border-b border-slate-200 group hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-2 align-top">
+                          <textarea
+                            value={item.description}
+                            onChange={e => updateItem(item.id, 'description', e.target.value)}
+                            placeholder="Deskripsi barang..."
+                            rows={1}
+                            className="w-full bg-transparent resize-none border-none focus:ring-0 p-0 text-slate-800 placeholder:text-slate-300 focus:outline-none"
+                            style={{ minHeight: '24px' }}
+                          />
+                        </td>
+                        <td className="py-3 px-2 align-top">
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.quantity}
+                              onChange={e => updateItem(item.id, 'quantity', Number(e.target.value))}
+                              className="w-16 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                            />
+                            <select
+                              value={item.unit}
+                              onChange={e => updateItem(item.id, 'unit', e.target.value)}
+                              className="bg-transparent border-none text-slate-500 focus:outline-none cursor-pointer appearance-none p-0 w-8"
+                            >
+                              {UNITS.map(u => <option key={u}>{u}</option>)}
+                            </select>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 align-top text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.unitPrice || ''}
+                            onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
+                            placeholder="0"
+                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                          />
+                        </td>
+                        <td className="py-3 px-2 align-top text-right font-bold text-slate-800">
+                          {formatIDR(item.quantity * item.unitPrice)}
+                        </td>
+                        <td className="py-3 align-top text-right">
+                          {items.length > 1 && (
+                            <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <button onClick={addItem} className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-all">
-                <Plus size={13} />
-                Tambah Item
+              <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-blue-50">
+                <Plus size={16} /> Tambah Baris
               </button>
             </div>
 
-            <div className="space-y-3">
-              {items.map((item, idx) => (
-                <div key={item.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-400">ITEM {idx + 1}</span>
-                    {items.length > 1 && (
-                      <button onClick={() => removeItem(item.id)} className="text-red-400 hover:text-red-600 transition-colors p-1">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <input
-                      value={item.description}
-                      onChange={e => updateItem(item.id, 'description', e.target.value)}
-                      placeholder="Deskripsi pekerjaan / produk..."
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all bg-white"
-                    />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-400 mb-1">Qty</label>
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          value={item.quantity}
-                          onChange={e => updateItem(item.id, 'quantity', Number(e.target.value))}
-                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-400 mb-1">Satuan</label>
-                        <div className="relative">
-                          <select
-                            value={item.unit}
-                            onChange={e => updateItem(item.id, 'unit', e.target.value)}
-                            className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none bg-white pr-6"
-                          >
-                            {UNITS.map(u => <option key={u}>{u}</option>)}
+            {/* Totals & Options */}
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-12 border-t-2 border-slate-100 pt-8">
+              
+              {/* Left Side: Invoice Types & Notes */}
+              <div className="w-full sm:w-[45%] space-y-8">
+                
+                {/* Options Box */}
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-4">Pengaturan Penagihan</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-700">Jenis Tagihan</span>
+                      <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 text-slate-800 transition-colors cursor-pointer">
+                        {['Full Payment', 'Down Payment (DP)', 'Pelunasan'].map(t => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+
+                    {invoiceType === 'Down Payment (DP)' && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-700">DP (%)</span>
+                        <div className="flex gap-2">
+                          <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 w-24 transition-colors cursor-pointer">
+                            <option value="25">25%</option>
+                            <option value="50">50%</option>
+                            <option value="Custom">Custom</option>
                           </select>
+                          {dpPercentage === 'Custom' && (
+                            <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-blue-500 transition-colors" />
+                          )}
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-400 mb-1">Harga Satuan (Rp)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.unitPrice || ''}
-                          onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
-                          placeholder="0"
-                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-400 mb-1">Total</label>
-                        <div className="border border-slate-100 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 font-medium">
-                          {formatIDR(item.quantity * item.unitPrice)}
-                        </div>
-                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-200/60">
+                      <span className="text-sm font-semibold text-slate-700">Termasuk PPN (11%)</span>
+                      <button onClick={() => setPpnEnabled(!ppnEnabled)} className={`w-12 h-6 rounded-full transition-colors relative shadow-inner ${ppnEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ease-out ${ppnEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                      </button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {/* PPN Toggle */}
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-              <span className="text-sm text-slate-600">Termasuk PPN 11%</span>
-              <button
-                onClick={() => setPpnEnabled(p => !p)}
-                className={`relative w-10 h-5.5 rounded-full transition-colors ${ppnEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}
-                style={{ height: '22px', width: '42px' }}
-              >
-                <span className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${ppnEnabled ? 'translate-x-5.5' : 'translate-x-0.5'}`}
-                  style={{ width: '18px', height: '18px', transform: ppnEnabled ? 'translateX(22px)' : 'translateX(2px)' }}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <label className="block text-sm font-semibold text-slate-800 mb-3">Catatan Invoice</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Catatan khusus, instruksi pembayaran, atau syarat & ketentuan..."
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all bg-slate-50/50"
-            />
-          </div>
-        </div>
-
-        {/* Summary Sidebar */}
-        <div className="space-y-4">
-          {/* Invoice Preview */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sticky top-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Ringkasan Invoice</h3>
-
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">No. Invoice</span>
-                <span className="font-medium text-slate-800">{invoiceNumber}</span>
-              </div>
-              {(liveSo || mockSo) && (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Pelanggan</span>
-                    <span className="font-medium text-slate-800 text-right max-w-[140px] truncate">{displayCustomerName}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">No. SO</span>
-                    <span className="font-medium text-slate-800">{displaySoNumber}</span>
-                  </div>
-                </>
-              )}
-              {dueDate && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Jatuh Tempo</span>
-                  <span className="font-medium text-slate-800">{new Date(dueDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Catatan / Terms</h4>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Contoh: Pembayaran ditransfer ke Rek. BCA 12345678 a/n PT Pratama Jaya..."
+                    rows={4}
+                    className="w-full border border-slate-200 shadow-sm rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-white resize-none text-slate-700 placeholder:text-slate-400 transition-colors"
+                  />
                 </div>
-              )}
-            </div>
-
-            <div className="border-t border-slate-100 pt-4 space-y-2.5">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="text-slate-700">{formatIDR(subtotal)}</span>
               </div>
-              {ppnEnabled && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">PPN 11%</span>
-                  <span className="text-slate-700">{formatIDR(ppn)}</span>
+
+              {/* Right Side: Calculation */}
+              <div className="w-full sm:w-[50%]">
+                <div className="bg-white rounded-xl space-y-4 text-sm font-medium">
+                  <div className="flex justify-between items-center text-slate-600 px-2">
+                    <span>Subtotal</span>
+                    <span className="font-bold text-slate-900 text-base">{formatIDR(subtotal)}</span>
+                  </div>
+                  {ppnEnabled && (
+                    <div className="flex justify-between items-center text-slate-600 px-2">
+                      <span>PPN (11%)</span>
+                      <span className="font-bold text-slate-900 text-base">{formatIDR(ppn)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center text-slate-800 border-t-2 border-slate-900 pt-4 px-2">
+                    <span className="font-bold text-lg">Grand Total</span>
+                    <span className="font-black text-xl tracking-tight">{formatIDR(grandTotal)}</span>
+                  </div>
+
+                  {isDP && (
+                    <div className="flex justify-between items-center text-blue-900 bg-blue-50 px-5 py-4 rounded-xl mt-6 border border-blue-100 shadow-sm">
+                      <span className="font-bold">Tagihan DP ({pct}%)</span>
+                      <span className="font-black text-2xl tracking-tight">{formatIDR(invoiceTotal)}</span>
+                    </div>
+                  )}
+
+                  {!isDP && (
+                    <div className="flex justify-between items-center text-slate-900 bg-slate-100 px-5 py-4 rounded-xl mt-6 border border-slate-200 shadow-sm">
+                      <span className="font-bold">Total Penagihan</span>
+                      <span className="font-black text-2xl tracking-tight text-blue-700">{formatIDR(invoiceTotal)}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="flex justify-between font-semibold text-base border-t border-slate-200 pt-3">
-                <span className="text-slate-800">Total</span>
-                <span className="text-blue-700">{formatIDR(total)}</span>
               </div>
+
             </div>
 
-            <div className="mt-5 space-y-2">
-              <button
-                onClick={handleSubmit}
-                disabled={!selectedSO || items.some(i => !i.description || i.unitPrice === 0)}
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg py-2.5 text-sm font-medium transition-colors shadow-sm"
-              >
-                <Save size={15} />
-                Simpan Invoice
-              </button>
-              <button
-                onClick={handlePreview}
-                className="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors"
-              >
-                <Eye size={15} />
-                Preview
-              </button>
+            {/* Bottom Accent */}
+            <div className="mt-20 text-center border-t border-slate-100 pt-10">
+              <p className="text-sm text-slate-500 font-semibold mb-1">Terima kasih atas kerja sama Anda.</p>
+              <p className="text-[11px] text-slate-400 font-medium">Dokumen ini dihasilkan oleh Sistem ERP PT Pratama Jaya dan sah tanpa tanda tangan fisik.</p>
             </div>
 
-            {(!selectedSO || items.some(i => !i.description || i.unitPrice === 0)) && (
-              <p className="text-xs text-slate-400 text-center mt-3">Lengkapi semua field untuk menyimpan</p>
-            )}
           </div>
         </div>
       </div>

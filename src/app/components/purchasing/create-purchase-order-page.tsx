@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import type { Page } from "./layout";
+import { useERPStore } from "../../store/useERPStore";
 
 interface CreatePurchaseOrderPageProps {
   onNavigate: (page: Page) => void;
 }
 
 interface FormItem {
+  code: string;
   name: string;
   spec: string;
   qty: string;
   unit: string;
-  price: string;
+  totalPrice: string;
 }
 
 const SUPPLIERS = [
@@ -25,13 +27,15 @@ const SUPPLIERS = [
 
 const UNITS = ["pcs", "batang", "lembar", "kg", "m", "box", "roll", "liter", "pasang", "kaleng"];
 const TERMS = ["Cash", "Net 7", "Net 14", "Net 30", "Net 45"];
+const PO_CATEGORIES = ["Asset", "Consumable", "Tools", "Project", "Maintenance"];
 
 const emptyItem = (): FormItem => ({
+  code: "",
   name: "",
   spec: "",
   qty: "",
   unit: "pcs",
-  price: "",
+  totalPrice: "",
 });
 
 const formatRp = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
@@ -49,16 +53,26 @@ function inputClass(extra = "") {
 }
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
+  const { allSOs } = useERPStore();
   const [supplier, setSupplier] = useState("");
   const [mrRef, setMrRef] = useState("");
+  const [soNumber, setSoNumber] = useState("");
+  const [poCategory, setPoCategory] = useState("Consumable");
   const [dueDate, setDueDate] = useState("");
   const [terms, setTerms] = useState("Net 14");
   const [shippingAddress, setShippingAddress] = useState("Gudang Utama - Jl. Industri No. 1, Bekasi");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
 
+  const availableMaterials = useMemo(() => {
+    if (!soNumber) return [];
+    const so = allSOs.find((s) => s.soNumber === soNumber);
+    if (so) return [so.productName];
+    return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
+  }, [soNumber, allSOs]);
+
   const total = useMemo(
-    () => items.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0),
+    () => items.reduce((sum, item) => sum + (Number(item.totalPrice) || 0), 0),
     [items]
   );
 
@@ -75,10 +89,10 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   };
 
   const submitPO = () => {
-    const hasInvalidItem = items.some(item => !item.name || !item.qty || !item.price);
+    const hasInvalidItem = items.some(item => !item.name || !item.code || !item.qty || !item.totalPrice);
 
-    if (!supplier || !dueDate || hasInvalidItem) {
-      window.alert("Lengkapi supplier, tanggal jatuh tempo, nama material, qty, dan harga sebelum membuat PO.");
+    if (!supplier || !dueDate || !soNumber || hasInvalidItem) {
+      window.alert("Lengkapi supplier, No SO, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
       return;
     }
 
@@ -134,8 +148,22 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             </select>
           </div>
           <div className="space-y-1.5">
+            <FieldLabel>No SO *</FieldLabel>
+            <select value={soNumber} onChange={e => { setSoNumber(e.target.value); setItems([emptyItem()]); }} className={inputClass()}>
+              <option value="">Pilih SO</option>
+              {allSOs.map(so => <option key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerName}</option>)}
+              <option value="SO-MOCK-01">SO-MOCK-01 (Dummy)</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
             <FieldLabel>Referensi MR</FieldLabel>
             <input value={mrRef} onChange={e => setMrRef(e.target.value)} placeholder="MR-2405-018" className={inputClass()} />
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Kategori PO</FieldLabel>
+            <select value={poCategory} onChange={e => setPoCategory(e.target.value)} className={inputClass()}>
+              {PO_CATEGORIES.map(item => <option key={item} value={item}>{item}</option>)}
+            </select>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Jatuh Tempo *</FieldLabel>
@@ -147,7 +175,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
               {TERMS.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5 md:col-span-3">
+          <div className="space-y-1.5 md:col-span-1">
             <FieldLabel>Alamat Pengiriman</FieldLabel>
             <input value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className={inputClass()} />
           </div>
@@ -169,11 +197,18 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="divide-y divide-slate-100">
           {items.map((item, index) => (
             <div key={index} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-12">
-              <div className="space-y-1.5 md:col-span-4">
-                <FieldLabel>Nama Material *</FieldLabel>
-                <input value={item.name} onChange={e => updateItem(index, "name", e.target.value)} placeholder="Besi Hollow 4x4x2mm" className={inputClass()} />
+              <div className="space-y-1.5 md:col-span-2">
+                <FieldLabel>Kode Item *</FieldLabel>
+                <input value={item.code} onChange={e => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass()} />
               </div>
               <div className="space-y-1.5 md:col-span-3">
+                <FieldLabel>Nama Material *</FieldLabel>
+                <select value={item.name} onChange={e => updateItem(index, "name", e.target.value)} className={inputClass()}>
+                  <option value="">Pilih Material</option>
+                  {availableMaterials.map(mat => <option key={mat} value={mat}>{mat}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
                 <input value={item.spec} onChange={e => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass()} />
               </div>
@@ -183,13 +218,18 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
-                <select value={item.unit} onChange={e => updateItem(index, "unit", e.target.value)} className={inputClass()}>
+                <select value={item.unit} onChange={e => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 text-xs")}>
                   {UNITS.map(unit => <option key={unit} value={unit}>{unit}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5 md:col-span-2">
-                <FieldLabel>Harga/Satuan *</FieldLabel>
-                <input value={item.price} onChange={e => updateItem(index, "price", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
+                <div className="flex items-center justify-between">
+                  <FieldLabel>Total Harga *</FieldLabel>
+                  {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
+                    <span className="text-[10px] text-slate-400">@ {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
+                  )}
+                </div>
+                <input value={item.totalPrice} onChange={e => updateItem(index, "totalPrice", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
               </div>
               <div className="flex items-end md:col-span-1">
                 <button

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -106,6 +107,20 @@ export function FinanceDashboard() {
   const navigate = useNavigate();
   const recentInvoices = [...invoices].slice(0, 5);
   const pendingPayments = payments.filter(p => p.status === 'PENDING');
+
+  const customerAnalytics = useMemo(() => {
+    const acc: Record<string, { total: number, paid: number, remaining: number }> = {};
+    invoices.forEach(inv => {
+      if (!acc[inv.customerName]) acc[inv.customerName] = { total: 0, paid: 0, remaining: 0 };
+      acc[inv.customerName].total += inv.amount;
+      acc[inv.customerName].paid += inv.paidAmount;
+      acc[inv.customerName].remaining += (inv.amount - inv.paidAmount);
+    });
+    return Object.entries(acc).map(([name, data]) => ({
+      name: name.replace('PT ', '').replace('CV ', '').replace('UD ', ''), // Shorten name
+      ...data
+    })).sort((a, b) => b.total - a.total);
+  }, []);
 
   return (
     <div className="p-4 lg:p-6 space-y-6 min-h-full">
@@ -216,6 +231,32 @@ export function FinanceDashboard() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Customer Analytics Row */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-slate-800 text-sm font-semibold">Analitik per Customer</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Total Tagihan, Terbayar, dan Sisa Piutang</p>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-blue-500 rounded-sm inline-block" /> Total Tagihan</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-green-500 rounded-sm inline-block" /> Terbayar</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-amber-500 rounded-sm inline-block" /> Sisa Piutang</span>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={customerAnalytics} margin={{ top: 5, right: 5, left: 0, bottom: 0 }} barGap={2} barCategoryGap="20%">
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatIDRShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={80} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+            <Bar dataKey="total" name="Total Tagihan" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="paid" name="Terbayar" fill="#22c55e" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="remaining" name="Sisa Piutang" fill="#f59e0b" radius={[2, 2, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Bottom Row */}

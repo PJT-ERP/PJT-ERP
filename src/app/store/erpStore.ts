@@ -11,9 +11,13 @@ export interface ERPSalesOrder {
   email: string;
   phone: string;
   address: string;
+  customerCode?: string;
+  designUrl?: string;
   productName: string;
   quantity: number;
   unit: string;
+  material?: string;
+  spec?: string;
   estimatedAmount: number;
   notes: string;
   submittedAt: string;
@@ -91,6 +95,14 @@ export function submitSOToFinance(so: Omit<ERPSalesOrder, "invoiceStatus" | "sub
     pendingSOs: [...state.pendingSOs, newSalesOrder],
   };
 
+  emitChange();
+}
+
+export function updateSOInFinance(soId: string, updates: Partial<ERPSalesOrder>) {
+  state = {
+    ...state,
+    pendingSOs: state.pendingSOs.map(so => so.id === soId ? { ...so, ...updates } : so),
+  };
   emitChange();
 }
 

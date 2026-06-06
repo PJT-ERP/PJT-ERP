@@ -9,7 +9,6 @@ import {
 const navItems = [
   { to: '/erp/finance/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/erp/finance/invoices', label: 'Daftar Invoice', icon: FileText },
-  { to: '/erp/finance/create-invoice', label: 'Buat Invoice', icon: FilePlus },
   { to: '/erp/finance/payment-verification', label: 'Verifikasi Pembayaran', icon: ShieldCheck, badge: 2 },
   { to: '/erp/finance/transactions', label: 'Riwayat Transaksi', icon: History },
   { to: '/erp/finance/reports', label: 'Laporan Keuangan', icon: BarChart3 },

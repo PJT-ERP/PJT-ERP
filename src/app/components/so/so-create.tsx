@@ -4,7 +4,7 @@ import {
   User, Building2, Phone, Mail, MapPin,
   Package, Hash, Calendar, FileText, Search,
   ChevronRight, Trash2, GripVertical,
-  Layers,
+  Layers, Link as LinkIcon
 } from "lucide-react";
 import { productOptions } from "../data/mockData";
 import { useApp } from "../context/AppContext";
@@ -20,12 +20,12 @@ type OrderType = "new" | "repeat" | null;
 
 const S = {
   font: "Inter, sans-serif",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
-  secondary: "#64748B",
-  border: "#E2E8F0",
-  bg: "#F8FAFC",
-  bgHover: "#F1F5F9",
+  cyan: "#0284C7", // Deeper blue/cyan for better contrast (sky-600)
+  slate: "#0F172A", // Darker slate (slate-900)
+  secondary: "#475569", // Darker secondary text (slate-600)
+  border: "#CBD5E1", // Darker border (slate-300) for visibility
+  bg: "#F1F5F9", // Slightly darker bg (slate-100)
+  bgHover: "#E2E8F0", // slate-200
   white: "#FFFFFF",
   red: "#EF4444",
 };
@@ -57,6 +57,7 @@ const emptyProduct = (): ProductRow => ({
 
 // ─── Customer form ────────────────────────────────────────────────────────────
 interface CustomerForm {
+  customerCode: string;
   customerName: string;
   company: string;
   phone: string;
@@ -64,12 +65,15 @@ interface CustomerForm {
   address: string;
   deadline: string;
   generalNotes: string;
+  designUrl: string;
 }
 
 interface RepeatForm {
   customerId: string;
+  previousSoId: string;
   deadline: string;
   generalNotes: string;
+  designUrl: string;
 }
 
 // ─── Primitive UI helpers ─────────────────────────────────────────────────────
@@ -98,7 +102,8 @@ function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> &
           border: `1px solid ${focused ? S.cyan : S.border}`,
           borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
           fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
-          transition: "border-color 0.12s, background 0.12s",
+          boxShadow: focused ? `0 0 0 2px ${S.cyan}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
           ...props.style,
         }}
         onFocus={e => { setFocused(true); props.onFocus?.(e); }}
@@ -120,7 +125,8 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { r
         border: `1px solid ${focused ? S.cyan : S.border}`,
         borderRadius: 4, padding: "7px 10px",
         fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none", resize: "none",
-        transition: "border-color 0.12s, background 0.12s",
+        boxShadow: focused ? `0 0 0 2px ${S.cyan}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+        transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
         ...props.style,
       }}
       onFocus={e => { setFocused(true); props.onFocus?.(e); }}
@@ -140,7 +146,8 @@ function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEle
         border: `1px solid ${focused ? S.cyan : S.border}`,
         borderRadius: 4, padding: "7px 10px",
         fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none", cursor: "pointer",
-        transition: "border-color 0.12s, background 0.12s",
+        boxShadow: focused ? `0 0 0 2px ${S.cyan}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+        transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
         ...props.style,
       }}
       onFocus={e => { setFocused(true); props.onFocus?.(e); }}
@@ -155,8 +162,8 @@ function SectionCard({ title, icon, children, action }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
 }) {
   return (
-    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg }}>
         <span style={{ color: S.cyan }}>{icon}</span>
         <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate, fontFamily: S.font, flex: 1 }}>{title}</span>
         {action}
@@ -249,7 +256,15 @@ function ProductLineItem({ row, index, total, onChange, onRemove }: ProductRowPr
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <div>
             <Label text="Material" />
-            <Input placeholder="ST37, SS316L, A36..." value={row.material} onChange={e => onChange({ ...row, material: e.target.value })} />
+            <Select value={row.material} onChange={e => onChange({ ...row, material: e.target.value })}>
+              <option value="">— Pilih Material —</option>
+              <option value="ST37">Besi ST37 (Mild Steel)</option>
+              <option value="SS304">Stainless Steel 304</option>
+              <option value="SS316L">Stainless Steel 316L</option>
+              <option value="A36">Baja A36</option>
+              <option value="Aluminium">Aluminium</option>
+              <option value="Besi Cor">Besi Cor (Cast Iron)</option>
+            </Select>
           </div>
           <div>
             <Label text="Spesifikasi / Dimensi" />
@@ -300,27 +315,56 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers } = useApp();
-  const { submitSOToFinance } = useERPStore();
+  const { customers, addSalesOrder, addCustomer, salesOrders, updateSalesOrder } = useApp();
+  const { submitSOToFinance, updateSOInFinance, allSOs } = useERPStore();
+  const allSos = allSOs;
+  
+  const isEdit = initialData?.mode === "edit";
+  const editSoId = initialData?.soId;
+  const existingAppSo = isEdit ? salesOrders.find(s => s.id === editSoId) : null;
+  const existingFinanceSo = isEdit ? allSOs.find(s => s.soNumber === editSoId) : null;
   
   const prefillCustomer = initialData?.customerId
     ? customers.find(c => c.code === initialData.customerId)
-    : null;
+    : existingAppSo ? customers.find(c => c.code === existingAppSo.customerId) : null;
 
-  const [orderType, setOrderType] = useState<OrderType>(initialData?.orderType ?? null);
+  const [orderType, setOrderType] = useState<OrderType>(isEdit ? "new" : initialData?.orderType ?? null);
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
+    customerCode: prefillCustomer?.code     ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
     customerName: prefillCustomer?.name     ?? "",
-    company:      prefillCustomer?.name     ?? "",
-    phone:        prefillCustomer?.phone    ?? "",
-    email:        prefillCustomer?.contact  ?? "",
-    address:      prefillCustomer?.address  ?? "",
-    deadline: "", generalNotes: "",
+    company:      existingFinanceSo?.company ?? prefillCustomer?.name ?? "",
+    phone:        existingFinanceSo?.phone   ?? prefillCustomer?.phone ?? "",
+    email:        existingFinanceSo?.email   ?? prefillCustomer?.contact ?? "",
+    address:      existingFinanceSo?.address ?? prefillCustomer?.address ?? "",
+    deadline:     existingAppSo?.deadline ?? "", 
+    generalNotes: existingFinanceSo?.notes ?? "", 
+    designUrl:    existingFinanceSo?.designUrl ?? "",
   });
 
-  const [products, setProducts]           = useState<ProductRow[]>([emptyProduct()]);
-  const [repeatForm, setRepeatForm]       = useState<RepeatForm>({ customerId: initialData?.customerId ?? "", deadline: "", generalNotes: "" });
-  const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([emptyProduct()]);
+  const [products, setProducts] = useState<ProductRow[]>([
+    existingFinanceSo ? {
+      ...emptyProduct(),
+      type: "custom",
+      productName: existingFinanceSo.productName,
+      customName: existingFinanceSo.productName,
+      quantity: String(existingFinanceSo.quantity),
+      unit: existingFinanceSo.unit,
+      material: existingFinanceSo.material || "",
+      spec: existingFinanceSo.spec || "",
+    } : existingAppSo ? {
+      ...emptyProduct(),
+      type: "custom",
+      productName: existingAppSo.description,
+      customName: existingAppSo.description,
+      quantity: String(existingAppSo.quantity),
+      unit: existingAppSo.unit,
+      material: existingAppSo.material || "",
+      spec: existingAppSo.spec || "",
+    } : emptyProduct()
+  ]);
+  const [repeatForm, setRepeatForm]       = useState<RepeatForm>({ customerId: initialData?.customerId ?? "", previousSoId: "", deadline: "", generalNotes: "", designUrl: "" });
+  const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
   const [submitted, setSubmitted]         = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
 
@@ -336,27 +380,103 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
-    setCustomerForm({ customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "" });
-    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", deadline: "", generalNotes: "" });
-    setRepeatProducts([emptyProduct()]);
+    setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", designUrl: "" });
+    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", designUrl: "" });
+    setRepeatProducts([]);
+  };
+
+  const handleRepeatSoSelect = (soId: string) => {
+    setRepeatForm({ ...repeatForm, previousSoId: soId });
+    const selectedSo = allSos.find(so => so.id === soId);
+    if (selectedSo) {
+      setRepeatProducts([{
+        ...emptyProduct(),
+        productName: selectedSo.productName,
+        quantity: String(selectedSo.quantity),
+        unit: selectedSo.unit,
+      }]);
+    } else {
+      setRepeatProducts([]);
+    }
   };
 
   const handleNewOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const soNumber = `SO-2026-${String(Math.floor(Math.random() * 900) + 100).padStart(4, '0')}`;
-    setGeneratedSONumber(soNumber);
     
     // Using the first product for the store representation (simplification for the mock store)
     const primaryProduct = products[0];
+
+    // Check if customer exists, if not create
+    const existingCustomer = customers.find(c => c.code === customerForm.customerCode);
+    if (!existingCustomer) {
+      addCustomer({
+        id: crypto.randomUUID(),
+        code: customerForm.customerCode,
+        name: customerForm.customerName,
+        address: customerForm.address,
+        contact: customerForm.email,
+        phone: customerForm.phone,
+        status: 'Active'
+      });
+    }
+
+    if (isEdit && editSoId) {
+      updateSalesOrder(editSoId, {
+        customerId: customerForm.customerCode,
+        description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+        quantity: Number(primaryProduct.quantity) || 1,
+        unit: primaryProduct.unit,
+        material: primaryProduct.material,
+        spec: primaryProduct.spec,
+        deadline: customerForm.deadline,
+      });
+
+      if (existingFinanceSo) {
+        updateSOInFinance(existingFinanceSo.id, {
+          customerName: customerForm.customerName,
+          customerCode: customerForm.customerCode,
+          company: customerForm.company,
+          email: customerForm.email,
+          phone: customerForm.phone,
+          address: customerForm.address,
+          designUrl: customerForm.designUrl,
+          productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+          quantity: Number(primaryProduct.quantity) || 1,
+          unit: primaryProduct.unit,
+          material: primaryProduct.material,
+          spec: primaryProduct.spec,
+          notes: customerForm.generalNotes,
+        });
+      }
+
+      setGeneratedSONumber(editSoId);
+      setSubmitted(true);
+      return;
+    }
+
+    const newSO = addSalesOrder({
+      customerId: customerForm.customerCode,
+      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      quantity: Number(primaryProduct.quantity) || 1,
+      unit: primaryProduct.unit,
+      material: primaryProduct.material,
+      spec: primaryProduct.spec,
+      deadline: customerForm.deadline,
+    });
+
+    const soNumber = newSO.id;
+    setGeneratedSONumber(soNumber);
     
     submitSOToFinance({
       id: crypto.randomUUID(),
       soNumber,
       customerName: customerForm.customerName,
+      customerCode: customerForm.customerCode,
       company: customerForm.company,
       email: customerForm.email,
       phone: customerForm.phone,
       address: customerForm.address,
+      designUrl: customerForm.designUrl,
       productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
@@ -371,20 +491,30 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     e.preventDefault();
     if (!selectedCustomer) return;
     
-    const soNumber = `SO-2026-${String(Math.floor(Math.random() * 900) + 100).padStart(4, '0')}`;
-    setGeneratedSONumber(soNumber);
-    
     // Using the first product for the store representation (simplification for the mock store)
     const primaryProduct = repeatProducts[0];
+
+    const newSO = addSalesOrder({
+      customerId: selectedCustomer.code,
+      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      quantity: Number(primaryProduct.quantity) || 1,
+      unit: primaryProduct.unit,
+      deadline: repeatForm.deadline,
+    });
+
+    const soNumber = newSO.id;
+    setGeneratedSONumber(soNumber);
     
     submitSOToFinance({
       id: crypto.randomUUID(),
       soNumber,
       customerName: selectedCustomer.name,
+      customerCode: selectedCustomer.code,
       company: selectedCustomer.name,
       email: selectedCustomer.contact,
       phone: selectedCustomer.phone,
       address: selectedCustomer.address,
+      designUrl: repeatForm.designUrl,
       productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
@@ -404,11 +534,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
             <CheckCircle2 size={28} style={{ color: "#22C55E" }} />
           </div>
-          <h2 style={{ color: S.slate, marginBottom: 6 }}>Sales Order Dibuat</h2>
+          <h2 style={{ color: S.slate, marginBottom: 6 }}>{isEdit ? "Sales Order Diperbarui" : "Sales Order Dibuat"}</h2>
           <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Sales Order:</p>
           <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedSONumber}</p>
           <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
-            {totalItems} item produk · Dikirim ke Finance untuk review
+            {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Dikirim ke Finance untuk review"}
           </p>
           <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
@@ -483,15 +613,15 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.",           accentColor: "#6366F1" },
           ].map(card => (
             <button key={card.type} onClick={() => setOrderType(card.type)}
-              style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: 22, textAlign: "left", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s", fontFamily: S.font }}
-              onMouseEnter={e => { (e.currentTarget).style.borderColor = card.accentColor; (e.currentTarget).style.boxShadow = "0 2px 10px rgba(0,0,0,0.07)"; }}
-              onMouseLeave={e => { (e.currentTarget).style.borderColor = S.border; (e.currentTarget).style.boxShadow = "none"; }}
+              style={{ background: S.white, border: `2px solid ${S.border}`, borderRadius: 8, padding: 22, textAlign: "left", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s, transform 0.1s", fontFamily: S.font, boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}
+              onMouseEnter={e => { (e.currentTarget).style.borderColor = card.accentColor; (e.currentTarget).style.boxShadow = `0 4px 12px ${card.accentColor}33`; (e.currentTarget).style.transform = "translateY(-2px)"; }}
+              onMouseLeave={e => { (e.currentTarget).style.borderColor = S.border; (e.currentTarget).style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)"; (e.currentTarget).style.transform = "translateY(0)"; }}
             >
-              <div style={{ width: 42, height: 42, borderRadius: 8, background: S.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 8, background: S.bgHover, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
                 {card.icon}
               </div>
-              <h3 style={{ color: S.slate, margin: "0 0 6px" }}>{card.title}</h3>
-              <p style={{ color: S.secondary, fontSize: "12.5px", margin: 0, lineHeight: 1.6 }}>{card.desc}</p>
+              <h3 style={{ color: S.slate, margin: "0 0 6px", fontSize: "16px", fontWeight: 600 }}>{card.title}</h3>
+              <p style={{ color: S.secondary, fontSize: "13px", margin: 0, lineHeight: 1.6 }}>{card.desc}</p>
             </button>
           ))}
         </div>
@@ -505,6 +635,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <SectionCard title="Informasi Pelanggan" icon={<User size={14} />}>
             <Grid2>
               <div>
+                <Label text="Kode Pelanggan" required />
+                <Input icon={<Hash size={11} />} readOnly value={customerForm.customerCode} style={{ background: "#F1F5F9", cursor: "not-allowed", color: "#64748B" }} required />
+              </div>
+              <div>
                 <Label text="Nama Pelanggan" required />
                 <Input icon={<User size={11} />} placeholder="Nama lengkap" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
               </div>
@@ -517,8 +651,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Input icon={<Phone size={11} />} type="tel" placeholder="08xxxxxxxxxx" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} required />
               </div>
               <div>
-                <Label text="Email" />
-                <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} />
+                <Label text="Email" required />
+                <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} required />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Alamat Pengiriman" required />
@@ -534,6 +668,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
               </div>
               <div>
+                <Label text="Link URL Desain" required />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={customerForm.designUrl} onChange={e => setCustomerForm({ ...customerForm, designUrl: e.target.value })} required />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
                 <Input placeholder="Instruksi umum, catatan pengiriman..." value={customerForm.generalNotes} onChange={e => setCustomerForm({ ...customerForm, generalNotes: e.target.value })} />
               </div>
@@ -582,13 +720,24 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <SectionCard title="Pilih Pelanggan" icon={<Search size={14} />}>
             <div style={{ marginBottom: selectedCustomer ? 14 : 0 }}>
               <Label text="Pelanggan" required />
-              <Select value={repeatForm.customerId} onChange={e => setRepeatForm({ ...repeatForm, customerId: e.target.value })} required>
+              <Select value={repeatForm.customerId} onChange={e => { setRepeatForm({ ...repeatForm, customerId: e.target.value, previousSoId: "" }); setRepeatProducts([]); }} required>
                 <option value="">— Pilih pelanggan existing —</option>
                 {customers.map(c => (
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </Select>
             </div>
+            {selectedCustomer && (
+              <div style={{ marginBottom: 14 }}>
+                <Label text="Sales Order Sebelumnya" required />
+                <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
+                  <option value="">— Pilih SO untuk di-repeat —</option>
+                  {allSos.filter(so => so.customerName === selectedCustomer.name || so.company === selectedCustomer.name).map(so => (
+                    <option key={so.id} value={so.id}>{so.soNumber} - {so.productName}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
             {selectedCustomer && (
               <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 4, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
                 {[
@@ -613,6 +762,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
               </div>
               <div>
+                <Label text="Link URL Desain" required />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={repeatForm.designUrl} onChange={e => setRepeatForm({ ...repeatForm, designUrl: e.target.value })} required />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
                 <Input placeholder="Perubahan spesifikasi, catatan khusus..." value={repeatForm.generalNotes} onChange={e => setRepeatForm({ ...repeatForm, generalNotes: e.target.value })} />
               </div>
@@ -620,20 +773,23 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </SectionCard>
 
           <SectionCard
-            title={`Daftar Produk (${repeatProducts.length} item)`}
+            title={`Produk Repeat Order`}
             icon={<Layers size={14} />}
-            action={<AddProductBtn onClick={() => addProduct(setRepeatProducts)} color="#6366F1" />}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {repeatProducts.map((row, idx) => (
-                <ProductLineItem
-                  key={row.id}
-                  row={row} index={idx} total={repeatProducts.length}
-                  onChange={updated => updateProduct(row.id, updated, repeatProducts, setRepeatProducts)}
-                  onRemove={() => removeProduct(row.id, setRepeatProducts)}
-                />
-              ))}
-            </div>
+            {repeatForm.previousSoId ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {repeatProducts.map((row, idx) => (
+                  <div key={row.id} style={{ border: `1px solid ${S.border}`, borderRadius: 6, padding: 14, background: "#F8FAFC" }}>
+                    <div style={{ fontWeight: 600, fontSize: "13px", color: S.slate, marginBottom: 4 }}>{row.productName}</div>
+                    <div style={{ fontSize: "12px", color: S.secondary }}>Jumlah: {row.quantity} {row.unit}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: "12.5px", color: S.secondary, padding: "10px 0" }}>
+                Pilih Sales Order sebelumnya untuk memuat produk secara otomatis.
+              </div>
+            )}
           </SectionCard>
 
           <div style={{ display: "flex", gap: 10 }}>

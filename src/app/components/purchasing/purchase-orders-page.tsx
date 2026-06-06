@@ -47,6 +47,7 @@ interface PO {
   items: POItem[];
   notes: string;
   shippingAddress: string;
+  financeApproval?: "Pending" | "Approved" | "Rejected";
 }
 
 const PO_DATA: PO[] = [
@@ -69,6 +70,7 @@ const PO_DATA: PO[] = [
       { code: "MAT-002", name: "Plat Besi 3mm", spec: "3mm, 120x240cm", qty: 10, unit: "lembar", unitPrice: 420000, received: 0 },
       { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "40x40x3mm, 6m", qty: 15, unit: "batang", unitPrice: 145000, received: 0 },
     ],
+    financeApproval: "Approved",
   },
   {
     id: "PO-2405-030",
@@ -399,6 +401,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                 <TH className="hidden lg:table-cell">Qty</TH>
                 <TH className="hidden lg:table-cell">Jatuh Tempo</TH>
                 <TH className="hidden sm:table-cell">Status</TH>
+                <TH className="hidden xl:table-cell">Appr. Finance</TH>
                 <TH className="hidden xl:table-cell">Pembayaran</TH>
                 <TH className="hidden md:table-cell">Total Nilai</TH>
                 <TH>Aksi</TH>
@@ -407,6 +410,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             <tbody>
               {filtered.map((po) => {
                 const dc = deliveryCfg[po.deliveryStatus];
+                const fc = po.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : po.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
                 const isExp = expanded.has(po.id);
                 const isOverdue = po.deliveryStatus !== "Closed" && po.deliveryStatus !== "Cancelled";
                 return (
@@ -459,6 +463,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         <Pill bg={dc.bg} color={dc.color}>
                           {po.deliveryStatus}
                         </Pill>
+                      </TD>
+                      <TD className="hidden xl:table-cell">
+                        {po.financeApproval ? <Pill bg={fc.bg} color={fc.color}>{po.financeApproval}</Pill> : <span style={{fontSize: 11, color: "#94a3b8"}}>—</span>}
                       </TD>
                       <TD className="hidden xl:table-cell">
                         <Pill bg={paymentCfg[po.paymentStatus].bg} color={paymentCfg[po.paymentStatus].color}>
@@ -576,6 +583,11 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Pill bg={dc.bg} color={dc.color}>{detail.deliveryStatus}</Pill>
                       <Pill bg={pc.bg} color={pc.color}>{detail.paymentStatus}</Pill>
+                      {detail.financeApproval && (
+                        <Pill bg={detail.financeApproval === "Approved" ? "#dcfce7" : detail.financeApproval === "Rejected" ? "#fee2e2" : "#f1f5f9"} color={detail.financeApproval === "Approved" ? "#166534" : detail.financeApproval === "Rejected" ? "#991b1b" : "#475569"}>
+                          Finance: {detail.financeApproval}
+                        </Pill>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

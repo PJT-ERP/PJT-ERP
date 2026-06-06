@@ -20,11 +20,11 @@ interface SOListProps {
 
 const S = {
   font: "Inter, sans-serif",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
-  secondary: "#64748B",
-  border: "#E2E8F0",
-  bg: "#F8FAFC",
+  cyan: "#0284C7", // Deeper cyan (sky-600)
+  slate: "#0F172A", // Darker slate
+  secondary: "#475569",
+  border: "#CBD5E1", // Darker border for visibility
+  bg: "#F1F5F9",
   white: "#FFFFFF",
 };
 
@@ -131,27 +131,29 @@ function ActionBtn({
   onClick: () => void; title: string;
 }) {
   const [hov, setHov] = useState(false);
+  const [active, setActive] = useState(false);
   return (
     <button
       title={title}
       onClick={e => { e.stopPropagation(); onClick(); }}
-      style={{
-        display: "flex", alignItems: "center", gap: 4,
-        padding: hov ? "4px 8px" : "4px 5px",
-        borderRadius: 4, border: "none",
-        background: hov ? hoverBg : "transparent",
-        color: hov ? hoverColor : "#94A3B8",
-        fontSize: "11px", fontWeight: 500, cursor: "pointer",
-        fontFamily: S.font, transition: "all 0.12s", whiteSpace: "nowrap",
-        overflow: "hidden", maxWidth: hov ? 90 : 26,
-      }}
+      onMouseDown={() => setActive(true)}
+      onMouseUp={() => setActive(false)}
+      onMouseLeave={() => { setHov(false); setActive(false); }}
       onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "6px 10px",
+        borderRadius: 6, border: `1px solid ${active || hov ? hoverColor : S.border}`,
+        background: active ? hoverColor : hov ? hoverBg : S.white,
+        color: active ? "#FFF" : hov ? hoverColor : S.secondary,
+        fontSize: "11px", fontWeight: 600, cursor: "pointer",
+        fontFamily: S.font, transition: "all 0.1s", whiteSpace: "nowrap",
+        boxShadow: active ? "none" : hov ? "0 2px 4px rgba(0,0,0,0.05)" : "0 1px 2px rgba(0,0,0,0.02)",
+        transform: active ? "scale(0.96)" : "scale(1)",
+      }}
     >
       {icon}
-      <span style={{ opacity: hov ? 1 : 0, transition: "opacity 0.12s", fontSize: "11px" }}>
-        {label}
-      </span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -353,7 +355,7 @@ export function SOList({ onNavigate }: SOListProps) {
       {/* ── Desktop table ─────────────────────────────────────────────────────── */}
       <div className="hidden lg:block" style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 1120, tableLayout: "fixed", borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
               {[
@@ -391,7 +393,7 @@ export function SOList({ onNavigate }: SOListProps) {
                 customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
                 isLast={idx === paginated.length - 1}
                 onView={() => onNavigate("so-detail", order.id)}
-                onEdit={showEditUnavailable}
+                onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
                 onDuplicate={() => onNavigate("so-create")}
                 onPrint={() => window.print()}
               />
@@ -453,19 +455,11 @@ export function SOList({ onNavigate }: SOListProps) {
             <div style={{ display: "flex", gap: 6, padding: "9px 14px", borderTop: `1px solid ${S.border}` }}>
               {[
                 { label: "Detail",   bg: "#EFF6FF", color: "#2563EB", action: () => onNavigate("so-detail", order.id) },
-                { label: "Edit",     bg: "#FFFBEB", color: "#D97706", action: showEditUnavailable },
+                { label: "Edit",     bg: "#FFFBEB", color: "#D97706", action: () => onNavigate("so-detail", { id: order.id, isEditMode: true }) },
                 { label: "Duplikat", bg: "#F5F3FF", color: "#7C3AED", action: () => onNavigate("so-create") },
                 { label: "Cetak",    bg: "#F8FAFC", color: "#475569", action: () => window.print() },
               ].map(btn => (
-                <button
-                  key={btn.label}
-                  onClick={btn.action}
-                  style={{ flex: 1, padding: "5px 4px", borderRadius: 4, border: "none", background: btn.bg, color: btn.color, fontSize: "11.5px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "opacity 0.12s" }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = "0.8")}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-                >
-                  {btn.label}
-                </button>
+                <MobileActionBtn key={btn.label} {...btn} />
               ))}
             </div>
           </div>
@@ -493,8 +487,8 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
   return (
     <tr
       style={{
-        borderBottom: isLast ? "none" : "1px solid #F1F5F9",
-        background: hov ? "#FAFAFA" : "transparent",
+        borderBottom: isLast ? "none" : `1px solid ${S.border}`,
+        background: hov ? S.bg : "transparent",
         transition: "background 0.1s",
         cursor: "pointer",
       }}
@@ -511,8 +505,8 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
         <p style={{ margin: 0, color: "#1E293B", fontSize: "12.5px", fontWeight: 500 }}>{customerName}</p>
         <p style={{ margin: 0, color: "#64748B", fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customerName}</p>
       </td>
-      <td style={{ padding: "9px 14px", maxWidth: 180 }}>
-        <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+      <td style={{ padding: "9px 14px", maxWidth: 200 }}>
+        <span style={{ color: "#334155", fontSize: "12px", display: "block" }}>
           {order.description}
         </span>
       </td>
@@ -533,8 +527,8 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
       <td style={{ padding: "9px 14px" }}>
         <span style={{ color: "#64748B", fontSize: "12px" }}>{order.createdAt}</span>
       </td>
-      <td style={{ padding: "9px 14px" }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+      <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#2563EB" onClick={onView}      title="Lihat detail" />
           <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
           <ActionBtn icon={<Copy size={12} />}    label="Duplikat" hoverBg="#F5F3FF" hoverColor="#7C3AED" onClick={onDuplicate} title="Duplikat order" />
@@ -551,21 +545,54 @@ function HoverBtn({ icon, label, onClick, style: baseStyle, hoverStyle, primary 
   style: React.CSSProperties; hoverStyle: React.CSSProperties; primary?: boolean;
 }) {
   const [hov, setHov] = useState(false);
+  const [active, setActive] = useState(false);
   return (
     <button
       onClick={onClick}
+      onMouseDown={() => setActive(true)}
+      onMouseUp={() => setActive(false)}
+      onMouseLeave={() => { setHov(false); setActive(false); }}
+      onMouseEnter={() => setHov(true)}
       style={{
         display: "flex", alignItems: "center", gap: 5,
-        padding: "6px 12px", borderRadius: 4,
-        fontSize: "12.5px", fontWeight: primary ? 500 : 400,
-        cursor: "pointer", fontFamily: "Inter, sans-serif",
-        transition: "all 0.12s",
-        ...(hov ? { ...baseStyle, ...hoverStyle } : baseStyle),
+        padding: "8px 14px", borderRadius: 6,
+        fontSize: "12.5px", fontWeight: 600,
+        cursor: "pointer", fontFamily: S.font,
+        border: `1px solid ${S.border}`,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        transition: "all 0.1s",
+        transform: active ? "scale(0.96)" : hov ? "translateY(-1px)" : "none",
+        ...(hov ? { ...baseStyle, ...hoverStyle, boxShadow: active ? "none" : "0 4px 6px rgba(0,0,0,0.05)" } : baseStyle),
+        ...(active && primary ? { filter: "brightness(0.9)" } : {}),
       }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
     >
       {icon} {label}
+    </button>
+  );
+}
+
+function MobileActionBtn({ label, bg, color, action }: { label: string, bg: string, color: string, action: () => void }) {
+  const [hov, setHov] = useState(false);
+  const [active, setActive] = useState(false);
+  return (
+    <button
+      onClick={action}
+      onMouseDown={() => setActive(true)}
+      onMouseUp={() => setActive(false)}
+      onMouseLeave={() => { setHov(false); setActive(false); }}
+      onMouseEnter={() => setHov(true)}
+      style={{
+        flex: 1, padding: "8px 4px", borderRadius: 6,
+        border: `1px solid ${active || hov ? color : S.border}`,
+        background: active ? color : hov ? bg : S.white,
+        color: active ? "#FFF" : hov ? color : S.secondary,
+        fontSize: "12px", fontWeight: 600, cursor: "pointer",
+        fontFamily: S.font, transition: "all 0.1s",
+        boxShadow: active ? "none" : hov ? "0 2px 4px rgba(0,0,0,0.05)" : "0 1px 2px rgba(0,0,0,0.02)",
+        transform: active ? "scale(0.96)" : "scale(1)",
+      }}
+    >
+      {label}
     </button>
   );
 }

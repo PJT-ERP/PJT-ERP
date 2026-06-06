@@ -11,8 +11,12 @@ function SOModuleRoutes() {
 
   const handleNavigate = (page: string, data?: unknown) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-    if (page === "so-detail" && typeof data === "string") {
-      navigate(`/erp/so/detail/${data}`);
+    if (page === "so-detail") {
+      if (typeof data === "string") {
+        navigate(`/erp/so/detail/${data}`);
+      } else if (typeof data === "object" && data !== null && "id" in data) {
+        navigate(`/erp/so/detail/${(data as any).id}`, { state: data });
+      }
     } else if (page === "so-list") {
       navigate("/erp/so/list");
     } else if (page === "so-create") {
@@ -44,7 +48,9 @@ function SOCreateWrapper({ onNavigate }: { onNavigate: (page: string, data?: unk
 
 function SODetailWrapper({ onNavigate }: { onNavigate: (page: string, data?: unknown) => void }) {
   const { id } = useParams();
-  return <SODetail orderId={id!} onNavigate={onNavigate} />;
+  const location = useLocation();
+  const isEditMode = location.state?.isEditMode === true;
+  return <SODetail orderId={id!} onNavigate={onNavigate} initialEditMode={isEditMode} />;
 }
 
 export default function SalesOrderModule() {
