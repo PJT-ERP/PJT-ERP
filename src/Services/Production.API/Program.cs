@@ -27,7 +27,7 @@ builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<ProductionContext>(builder.Configuration, options =>
 {
     options.QueueName = "pjt_production_events";
-    options.FanOutQueues = ["pjt_qc_events", "pjt_purchasing_events"];
+    options.FanOutQueues = ["pjt_qc_events", "pjt_purchasing_events", "pjt_finance_events"];
 })
     .WithReceiver()
     .AddSubscription<MasterDataUpdatedEvent, MasterDataUpdatedEventHandler>()

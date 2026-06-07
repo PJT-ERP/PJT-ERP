@@ -11,7 +11,8 @@
       "masterdata": "/openapi/masterdata/v1.json",
       "production": "/openapi/production/v1.json",
       "qc": "/openapi/qc/v1.json",
-      "purchasing": "/openapi/purchasing/v1.json"
+      "purchasing": "/openapi/purchasing/v1.json",
+      "finance": "/openapi/finance/v1.json"
     }
   },
   "auth": {
@@ -62,6 +63,15 @@
       },
       "readAccess": {
         "qcInspections": ["Admin", "Engineering Reviewer"]
+      }
+    },
+    "finance": {
+      "summary": "Finance invoices are created from completed Sales Orders. Invoice item rows are copied from SO items; Finance fills prices, DP/payment schedule, due dates, payment records, and collection letters.",
+      "writeAccess": {
+        "invoiceCreationPaymentAndCollectionLetters": ["Admin", "Finance"]
+      },
+      "readAccess": {
+        "invoicesCandidatesAndDashboard": ["Admin", "Finance", "Owner"]
       }
     }
   },
@@ -334,6 +344,81 @@
       "path": "/api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
       "description": "Track raw material progress from one Sales Order, including requirement counts and linked purchasing item status."
+    },
+    {
+      "service": "Finance.API",
+      "feature": "Invoice Candidates",
+      "method": "GET",
+      "path": "/api/v1/finance/invoice-candidates?customerId={customerId}",
+      "roles": ["Admin", "Finance", "Owner"],
+      "description": "List completed Sales Orders that are ready to be invoiced. Rows are created automatically after QC approves the production order."
+    },
+    {
+      "service": "Finance.API",
+      "feature": "Invoices",
+      "method": "GET",
+      "path": "/api/v1/finance/invoices?customerId={customerId}&dueFrom={date}&dueTo={date}&status={status}&sortBy=dueDateAsc",
+      "roles": ["Admin", "Finance", "Owner"],
+      "description": "List invoices with due date filter, customer filter, status filter, and date sorting for Riwayat Transaksi Finance."
+    },
+    {
+      "service": "Finance.API",
+      "feature": "Invoices",
+      "method": "POST",
+      "path": "/api/v1/finance/invoices",
+      "roles": ["Admin", "Finance"],
+      "description": "Create an invoice from a completed Sales Order. Item rows come from SO; Finance only sends unit prices and payment schedules.",
+      "requestBody": {
+        "salesOrderId": "00000000-0000-0000-0000-000000000011",
+        "invoiceDate": "2026-06-08",
+        "dueDate": "2026-06-22",
+        "taxPercent": 11,
+        "items": [
+          {
+            "salesOrderItemId": "00000000-0000-0000-0000-000000000012",
+            "unitPrice": 100000
+          }
+        ],
+        "paymentSchedules": [
+          {
+            "label": "DP 50%",
+            "percentage": 50,
+            "dueDate": "2026-06-12"
+          },
+          {
+            "label": "Pelunasan 50%",
+            "percentage": 50,
+            "dueDate": "2026-06-22"
+          }
+        ],
+        "bankName": "BCA",
+        "bankAccountName": "PT PJT",
+        "bankAccountNumber": "1234567890"
+      }
+    },
+    {
+      "service": "Finance.API",
+      "feature": "Payments",
+      "method": "POST",
+      "path": "/api/v1/finance/invoices/{invoiceId}/payments",
+      "roles": ["Admin", "Finance"],
+      "description": "Record DP or remaining payment. API recalculates paid amount, remaining amount, payment percentage, and invoice status."
+    },
+    {
+      "service": "Finance.API",
+      "feature": "Collection Letters",
+      "method": "POST",
+      "path": "/api/v1/finance/invoices/{invoiceId}/collection-letters",
+      "roles": ["Admin", "Finance"],
+      "description": "Create Surat Penagihan for unpaid invoices after the due date. This is separate from invoice printout."
+    },
+    {
+      "service": "Finance.API",
+      "feature": "Finance Dashboard",
+      "method": "GET",
+      "path": "/api/v1/finance/dashboard?customerId={customerId}",
+      "roles": ["Admin", "Finance", "Owner"],
+      "description": "Return billing, paid, outstanding, overdue, and payment progress metrics. If customerId is supplied, dashboard is scoped to one customer."
     }
   ]
 }

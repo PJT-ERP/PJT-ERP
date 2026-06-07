@@ -27,7 +27,7 @@ PtPjtErp.sln
 
 ## Komponen SharedLib
 
-`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, dan `PurchaseRequestReviewedEvent`.
+`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, `SalesOrderReadyForInvoiceEvent`, dan `PurchaseRequestReviewedEvent`.
 
 `Shared.Auth` berisi konfigurasi JWT, validasi token, dan helper penerbit token untuk login.
 
@@ -47,6 +47,8 @@ PtPjtErp.sln
 
 `Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering, acceptance/reject oleh Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
 
+`Finance.API` menangani kandidat invoice dari Sales Order yang sudah selesai QC, pembuatan invoice dari item SO, termin DP/pelunasan berbasis persentase, pencatatan pembayaran, filter jatuh tempo/pelanggan, surat penagihan, dan dashboard finance global atau per customer.
+
 `Web.Gateway` adalah API Gateway berbasis YARP. Semua request frontend masuk lewat gateway, lalu diteruskan ke service yang sesuai.
 
 ## Port
@@ -59,6 +61,7 @@ Saat dijalankan dengan Docker Compose:
 - Production API: `http://localhost:5003`
 - QC API: `http://localhost:5004`
 - Purchasing API: `http://localhost:5005`
+- Finance API: `http://localhost:5006`
 - PostgreSQL + PGMQ: `localhost:5435`
 
 ## API Catalog
@@ -86,6 +89,7 @@ Gateway Scalar memuat dokumen OpenAPI dari masing-masing service. Pilih service 
 - Production: `/openapi/production/v1.json`
 - QC: `/openapi/qc/v1.json`
 - Purchasing: `/openapi/purchasing/v1.json`
+- Finance: `/openapi/finance/v1.json`
 
 Untuk testing cepat, semua service menerima dev master token hanya di environment `Development`:
 
@@ -110,6 +114,7 @@ Project ini memakai pendekatan microservices dari awal. Artinya setiap service p
 - `pjt_production`
 - `pjt_qc`
 - `pjt_purchasing`
+- `pjt_finance`
 - `pjt_eventbus`
 - `pjt_cache`
 
@@ -155,6 +160,10 @@ Production.API
 QC.API
   └── QcCheckCompletedEvent
       └── Production.API menyimpan hasil review Engineering Reviewer pada production order
+
+Production.API
+  └── SalesOrderReadyForInvoiceEvent
+      └── Finance.API membuat kandidat invoice dari Sales Order yang sudah selesai QC
 
 Purchasing.API
   └── PurchaseRequestReviewedEvent
@@ -411,6 +420,38 @@ Output utama:
 - Informasi supplier, nomor PO, kategori pembelian, total harga, harga satuan hasil hitung, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
 - Tracking bahan baku per Sales Order.
 
+## Skenario Finance
+
+Finance membuat invoice dari Sales Order yang sudah selesai QC. Item invoice tidak diinput manual dari nol; sistem mengambil daftar item dari Sales Order yang sudah masuk sebagai kandidat invoice.
+
+Alur kerja:
+
+1. Engineering Reviewer approve QC.
+2. Production API menutup production order, mengubah Sales Order menjadi `Completed`, lalu mengirim `SalesOrderReadyForInvoiceEvent`.
+3. Finance API membuat invoice candidate berisi customer, email, nomor SO, target date, dan list item SO.
+4. User Finance membuat invoice dengan mengisi harga satuan per item, pajak, tanggal invoice, jatuh tempo, rekening transfer, dan termin pembayaran seperti DP 25%, DP 50%, atau pelunasan.
+5. User Finance mencatat pembayaran. Sistem menghitung `paidAmount`, `remainingAmount`, `paymentPercent`, dan status invoice.
+6. Riwayat transaksi bisa difilter berdasarkan customer, status, rentang jatuh tempo, serta sort tanggal/jatuh tempo paling lama atau terbaru.
+7. Jika pembayaran lewat jatuh tempo dan belum lunas, Finance dapat membuat Surat Penagihan terpisah dari invoice.
+8. Dashboard Finance bisa dibaca global atau difilter untuk satu customer spesifik.
+
+Endpoint utama:
+
+- `GET /api/v1/finance/invoice-candidates`
+- `GET /api/v1/finance/invoices`
+- `GET /api/v1/finance/invoices/{invoiceId}`
+- `POST /api/v1/finance/invoices`
+- `POST /api/v1/finance/invoices/{invoiceId}/payments`
+- `POST /api/v1/finance/invoices/{invoiceId}/collection-letters`
+- `GET /api/v1/finance/dashboard`
+
+Output utama:
+
+- Invoice Candidate dari Sales Order completed.
+- Invoice dengan list item SO, total, pajak, rekening transfer, termin pembayaran, dan payment progress.
+- Riwayat pembayaran dan surat penagihan.
+- Dashboard finance global atau per customer.
+
 ## Skenario Owner Dashboard
 
 Owner melihat kondisi pabrik secara high-level.
@@ -467,6 +508,7 @@ Setiap Pull Request akan menjalankan:
 dotnet test tests/Services/QC.API.Tests/QC.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj --configuration Release --no-restore
+dotnet test tests/Services/Finance.API.Tests/Finance.API.Tests.csproj --configuration Release --no-restore
 ```
 
 Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Engineering Reviewer, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke reviewer/admin.
@@ -474,6 +516,8 @@ Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Enginee
 Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
 Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item dari Engineering, acceptance/reject oleh Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
+
+Test Finance fokus ke kandidat invoice dari event Sales Order completed, pembuatan invoice dari item SO, termin DP/pelunasan, pencatatan pembayaran, surat penagihan overdue, dashboard per customer, dan pembatasan role endpoint.
 
 ## Catatan Implementasi
 

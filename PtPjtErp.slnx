@@ -8,8 +8,10 @@
   <Project Path="src/Services/Production.API/Production.API.csproj" />
   <Project Path="src/Services/QC.API/QC.API.csproj" />
   <Project Path="src/Services/Purchasing.API/Purchasing.API.csproj" />
+  <Project Path="src/Services/Finance.API/Finance.API.csproj" />
   <Project Path="src/ApiGateways/Web.Gateway/Web.Gateway.csproj" />
   <Project Path="tests/Services/QC.API.Tests/QC.API.Tests.csproj" />
   <Project Path="tests/Services/Production.API.Tests/Production.API.Tests.csproj" />
   <Project Path="tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj" />
+  <Project Path="tests/Services/Finance.API.Tests/Finance.API.Tests.csproj" />
 </Solution>
