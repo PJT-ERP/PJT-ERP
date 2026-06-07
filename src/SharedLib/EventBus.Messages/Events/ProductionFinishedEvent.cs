@@ -4,4 +4,8 @@ public record ProductionFinishedEvent(
     Guid ProductionOrderId,
     string SpkNumber,
     string BarcodeValue,
-    DateTime FinishedAtUtc) : IntegrationEvent;
+    DateTime FinishedAtUtc,
+    Guid? SalesOrderId = null,
+    string? SalesOrderNumber = null,
+    Guid? QcReviewerUserId = null,
+    string? QcReviewerName = null) : IntegrationEvent;

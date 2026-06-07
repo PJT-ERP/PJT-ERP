@@ -21,12 +21,16 @@ public sealed class ProductionFinishedEventHandler(QcContext db) : IIntegrationE
                 RefNo = $"QC-{integrationEvent.SpkNumber}",
                 SpkNumber = integrationEvent.SpkNumber,
                 BarcodeUid = integrationEvent.BarcodeValue,
-                PorNumber = integrationEvent.SpkNumber
+                PorNumber = integrationEvent.SpkNumber,
+                AssignedReviewerUserId = integrationEvent.QcReviewerUserId,
+                AssignedReviewerName = integrationEvent.QcReviewerName
             };
             await db.QcInspections.AddAsync(inspection, cancellationToken);
         }
 
         inspection.Status = QcInspectionStatuses.ReadyForInspection;
+        inspection.AssignedReviewerUserId = integrationEvent.QcReviewerUserId ?? inspection.AssignedReviewerUserId;
+        inspection.AssignedReviewerName = integrationEvent.QcReviewerName ?? inspection.AssignedReviewerName;
         inspection.ProductionFinishedAtUtc = integrationEvent.FinishedAtUtc;
         inspection.UpdatedAtUtc = integrationEvent.FinishedAtUtc;
         await db.SaveChangesAsync(cancellationToken);

@@ -28,7 +28,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Engineering,Purchasing")]
+    [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<PurchaseRequestDto>> Create(CreatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try
@@ -68,6 +68,63 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
         try
         {
             var result = await purchaseRequestService.UpdatePurchaseItemInfoAsync(id, itemId, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/items/{itemId:guid}/process")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<PurchaseRequestDto>> ProcessItem(
+        Guid id,
+        Guid itemId,
+        ProcessPurchaseItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await purchaseRequestService.ProcessPurchaseItemAsync(id, itemId, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/items/{itemId:guid}/reject")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<PurchaseRequestDto>> RejectItem(
+        Guid id,
+        Guid itemId,
+        RejectPurchaseItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await purchaseRequestService.RejectPurchaseItemAsync(id, itemId, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/items/{itemId:guid}/receive")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<PurchaseRequestDto>> ReceiveItem(
+        Guid id,
+        Guid itemId,
+        ReceivePurchaseItemRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await purchaseRequestService.ReceivePurchaseItemAsync(id, itemId, request, cancellationToken);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)

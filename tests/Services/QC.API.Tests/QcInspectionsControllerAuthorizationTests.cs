@@ -6,22 +6,11 @@ namespace QC.API.Tests;
 
 public sealed class QcInspectionsControllerAuthorizationTests
 {
-    public static TheoryData<string> OwnerOnlyActions => new()
-    {
-        nameof(QcInspectionsController.List),
-        nameof(QcInspectionsController.Get),
-        nameof(QcInspectionsController.Scan),
-        nameof(QcInspectionsController.Start),
-        nameof(QcInspectionsController.AddVisualCheck),
-        nameof(QcInspectionsController.AddDimensionCheck),
-        nameof(QcInspectionsController.UploadForm),
-        nameof(QcInspectionsController.Submit),
-        nameof(QcInspectionsController.Review)
-    };
-
     [Theory]
-    [MemberData(nameof(OwnerOnlyActions))]
-    public void Qc_actions_are_restricted_to_owner_or_admin(string actionName)
+    [InlineData(nameof(QcInspectionsController.List), "Admin,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.Get), "Admin,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.UploadResult), "Admin,Engineering Reviewer")]
+    public void Qc_actions_use_reviewer_roles(string actionName, string expectedRoles)
     {
         var method = typeof(QcInspectionsController)
             .GetMethods(BindingFlags.Instance | BindingFlags.Public)
@@ -29,7 +18,9 @@ public sealed class QcInspectionsControllerAuthorizationTests
 
         var authorize = method.GetCustomAttributes<AuthorizeAttribute>().Single();
 
-        Assert.Equal("Admin,Owner", authorize.Roles);
-        Assert.DoesNotContain("Engineering", authorize.Roles);
+        Assert.Equal(expectedRoles, authorize.Roles);
+        Assert.DoesNotContain("Owner", authorize.Roles);
+        Assert.DoesNotContain("visual", actionName, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("dimension", actionName, StringComparison.OrdinalIgnoreCase);
     }
 }

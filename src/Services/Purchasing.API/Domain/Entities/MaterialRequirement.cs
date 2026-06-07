@@ -7,6 +7,7 @@ public sealed class MaterialRequirement
     public SalesOrderSnapshot? SalesOrder { get; set; }
     public string SalesOrderNumber { get; set; } = "";
     public Guid ProductionOrderId { get; set; }
+    public Guid? SalesOrderItemId { get; set; }
     public string SpkNumber { get; set; } = "";
     public string BarcodeUid { get; set; } = "";
     public Guid ProductId { get; set; }
@@ -14,6 +15,9 @@ public sealed class MaterialRequirement
     public string ProductDescription { get; set; } = "";
     public string? MaterialSpec { get; set; }
     public int RequiredQty { get; set; }
+    public int StockOnHand { get; set; }
+    public string? StockNotes { get; set; }
+    public DateTime? StockUpdatedAtUtc { get; set; }
     public string ProjectName { get; set; } = "";
     public string Status { get; set; } = MaterialRequirementStatuses.Required;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

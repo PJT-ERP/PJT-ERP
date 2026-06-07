@@ -58,6 +58,7 @@ public static class PurchasingSchemaInitializer
                 sales_order_id uuid NOT NULL,
                 sales_order_number character varying(100) NOT NULL,
                 production_order_id uuid NOT NULL,
+                sales_order_item_id uuid NULL,
                 spk_number character varying(100) NOT NULL,
                 barcode_uid character varying(255) NOT NULL,
                 product_id uuid NOT NULL,
@@ -65,6 +66,9 @@ public static class PurchasingSchemaInitializer
                 product_description text NOT NULL,
                 material_spec character varying(255) NULL,
                 required_qty integer NOT NULL,
+                stock_on_hand integer NOT NULL DEFAULT 0,
+                stock_notes text NULL,
+                stock_updated_at_utc timestamp with time zone NULL,
                 project_name character varying(255) NOT NULL,
                 status character varying(50) NOT NULL,
                 created_at_utc timestamp with time zone NOT NULL,
@@ -84,8 +88,13 @@ public static class PurchasingSchemaInitializer
                 END IF;
             END $$;
 
-            CREATE UNIQUE INDEX IF NOT EXISTS ix_material_requirements_production_order_id
+            DROP INDEX IF EXISTS ix_material_requirements_production_order_id;
+
+            CREATE INDEX IF NOT EXISTS ix_material_requirements_production_order_id
                 ON material_requirements (production_order_id);
+
+            CREATE INDEX IF NOT EXISTS ix_material_requirements_production_order_product_id
+                ON material_requirements (production_order_id, product_id);
 
             CREATE INDEX IF NOT EXISTS ix_material_requirements_sales_order_id
                 ON material_requirements (sales_order_id);
@@ -102,13 +111,17 @@ public static class PurchasingSchemaInitializer
                 item_name character varying(255) NOT NULL,
                 size character varying(100) NULL,
                 qty integer NOT NULL,
+                urgency character varying(30) NOT NULL DEFAULT 'Normal',
                 suggested_supplier character varying(255) NULL,
                 supplier_name character varying(255) NULL,
+                po_number character varying(100) NULL,
+                estimated_price numeric(18,2) NULL,
                 purchase_date date NULL,
                 expected_arrival_date date NULL,
                 received_date date NULL,
                 purchase_status character varying(50) NOT NULL DEFAULT 'Requested',
                 purchase_notes text NULL,
+                rejection_reason text NULL,
                 notes text NULL,
                 created_at_utc timestamp with time zone NOT NULL,
                 updated_at_utc timestamp with time zone NOT NULL
@@ -132,26 +145,41 @@ public static class PurchasingSchemaInitializer
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS project_name character varying(255);
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS updated_at_utc timestamp with time zone NOT NULL DEFAULT now();
 
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS sales_order_item_id uuid;
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS stock_on_hand integer NOT NULL DEFAULT 0;
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS stock_notes text;
+            ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS stock_updated_at_utc timestamp with time zone;
+
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS material_requirement_id uuid;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS sales_order_id uuid;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS sales_order_number character varying(100);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS production_order_id uuid;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS spk_number character varying(100);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS project_name character varying(255);
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS urgency character varying(30) NOT NULL DEFAULT 'Normal';
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS supplier_name character varying(255);
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS po_number character varying(100);
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS estimated_price numeric(18,2);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_date date;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS expected_arrival_date date;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS received_date date;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_status character varying(50) NOT NULL DEFAULT 'Requested';
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_notes text;
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS rejection_reason text;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS updated_at_utc timestamp with time zone NOT NULL DEFAULT now();
 
             UPDATE purchase_request_items
             SET purchase_status = 'Requested'
             WHERE purchase_status IS NULL;
 
+            UPDATE purchase_request_items
+            SET urgency = 'Normal'
+            WHERE urgency IS NULL OR btrim(urgency) = '';
+
             ALTER TABLE purchase_request_items ALTER COLUMN purchase_status SET DEFAULT 'Requested';
             ALTER TABLE purchase_request_items ALTER COLUMN purchase_status SET NOT NULL;
+            ALTER TABLE purchase_request_items ALTER COLUMN urgency SET DEFAULT 'Normal';
+            ALTER TABLE purchase_request_items ALTER COLUMN urgency SET NOT NULL;
 
             CREATE INDEX IF NOT EXISTS ix_purchase_request_items_purchase_request_id
                 ON purchase_request_items (purchase_request_id);

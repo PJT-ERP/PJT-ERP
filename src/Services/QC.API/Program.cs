@@ -40,7 +40,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<QcContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.EnsureQcSchemaAsync();
 }
 
 if (app.Environment.IsDevelopment())

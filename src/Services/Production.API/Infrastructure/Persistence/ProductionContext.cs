@@ -51,6 +51,10 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.CustomerName).HasMaxLength(255).HasColumnName("customer_name");
             builder.Property(order => order.SoDate).HasColumnName("so_date");
             builder.Property(order => order.TargetDate).HasColumnName("target_date");
+            builder.Property(order => order.ProductionWorkerUserId).HasColumnName("production_worker_user_id");
+            builder.Property(order => order.ProductionWorkerName).HasMaxLength(160).HasColumnName("production_worker_name");
+            builder.Property(order => order.QcReviewerUserId).HasColumnName("qc_reviewer_user_id");
+            builder.Property(order => order.QcReviewerName).HasMaxLength(160).HasColumnName("qc_reviewer_name");
             builder.Property(order => order.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(order => order.ApprovedByUserId).HasColumnName("approved_by_user_id");
             builder.Property(order => order.ApprovedAtUtc).HasColumnName("approved_at_utc");
@@ -83,7 +87,9 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.HasKey(order => order.Id);
             builder.HasIndex(order => order.PoNumber).IsUnique();
             builder.HasIndex(order => order.BarcodeUid).IsUnique();
+            builder.HasIndex(order => order.SalesOrderId);
             builder.Property(order => order.PoNumber).HasMaxLength(100).HasColumnName("po_number");
+            builder.Property(order => order.SalesOrderId).HasColumnName("sales_order_id");
             builder.Property(order => order.SalesOrderItemId).HasColumnName("sales_order_item_id");
             builder.Property(order => order.DrawingRef).HasMaxLength(255).HasColumnName("drawing_ref");
             builder.Property(order => order.DrawingFileUrl).HasMaxLength(1000).HasColumnName("drawing_file_url");
@@ -94,14 +100,22 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.OrderQty).HasColumnName("order_qty");
             builder.Property(order => order.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(order => order.StartedAtUtc).HasColumnName("started_at_utc");
+            builder.Property(order => order.StartedByUserId).HasColumnName("started_by_user_id");
+            builder.Property(order => order.StartedByName).HasMaxLength(160).HasColumnName("started_by_name");
             builder.Property(order => order.FinishedAtUtc).HasColumnName("finished_at_utc");
+            builder.Property(order => order.FinishedByUserId).HasColumnName("finished_by_user_id");
+            builder.Property(order => order.FinishedByName).HasMaxLength(160).HasColumnName("finished_by_name");
             builder.Property(order => order.QcDecision).HasMaxLength(40).HasColumnName("qc_decision");
             builder.Property(order => order.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(order => order.UpdatedAtUtc).HasColumnName("updated_at_utc");
+            builder.HasOne(order => order.SalesOrder)
+                .WithMany(salesOrder => salesOrder.ProductionOrders)
+                .HasForeignKey(order => order.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
             builder.HasOne(order => order.SalesOrderItem)
                 .WithMany(item => item.ProductionOrders)
                 .HasForeignKey(order => order.SalesOrderItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());

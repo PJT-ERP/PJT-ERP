@@ -10,12 +10,14 @@ namespace PJT_ERP.Production.Api.Controllers;
 public sealed class SalesOrdersController(IProductionService productionService) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}/progress")]
+    [Authorize(Roles = "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
     {
         var progress = await productionService.GetSalesOrderProgressAsync(id, cancellationToken);
@@ -37,13 +39,85 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
     }
 
+    [HttpPut("{id:guid}/engineers")]
+    [Authorize(Roles = "Admin,Sales Order")]
+    public async Task<ActionResult<SalesOrderDto>> AssignEngineers(
+        Guid id,
+        AssignSalesOrderEngineersRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.AssignSalesOrderEngineersAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id:guid}/confirm")]
     [Authorize(Roles = "Admin,Sales Order")]
-    public async Task<ActionResult<IReadOnlyCollection<ProductionOrderDto>>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try
         {
             return Ok(await productionService.ConfirmSalesOrderAsync(id, request, cancellationToken));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/engineering-drawing")]
+    [Authorize(Roles = "Admin,Engineering Worker")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> UploadEngineeringDrawing(
+        Guid id,
+        UploadEngineeringDrawingRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await productionService.UploadEngineeringDrawingAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/production/start")]
+    [Authorize(Roles = "Admin,Engineering Worker")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> StartProduction(
+        Guid id,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await productionService.StartProductionAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/production/finish")]
+    [Authorize(Roles = "Admin,Engineering Worker")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> FinishProduction(
+        Guid id,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await productionService.FinishProductionAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
         {
