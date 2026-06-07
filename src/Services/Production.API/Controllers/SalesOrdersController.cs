@@ -57,6 +57,24 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
     }
 
+    [HttpPut("{id:guid}/design-status")]
+    [Authorize(Roles = "Admin,Engineering Reviewer")]
+    public async Task<ActionResult<SalesOrderDto>> UpdateDesignStatus(
+        Guid id,
+        UpdateSalesOrderDesignStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.UpdateSalesOrderDesignStatusAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id:guid}/confirm")]
     [Authorize(Roles = "Admin,Sales Order")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)

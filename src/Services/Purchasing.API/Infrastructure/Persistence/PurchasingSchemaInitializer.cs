@@ -112,10 +112,12 @@ public static class PurchasingSchemaInitializer
                 size character varying(100) NULL,
                 qty integer NOT NULL,
                 urgency character varying(30) NOT NULL DEFAULT 'Normal',
+                purchase_category character varying(50) NOT NULL DEFAULT 'Project',
                 suggested_supplier character varying(255) NULL,
                 supplier_name character varying(255) NULL,
                 po_number character varying(100) NULL,
                 estimated_price numeric(18,2) NULL,
+                total_price numeric(18,2) NULL,
                 purchase_date date NULL,
                 expected_arrival_date date NULL,
                 received_date date NULL,
@@ -157,9 +159,11 @@ public static class PurchasingSchemaInitializer
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS spk_number character varying(100);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS project_name character varying(255);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS urgency character varying(30) NOT NULL DEFAULT 'Normal';
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_category character varying(50) NOT NULL DEFAULT 'Project';
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS supplier_name character varying(255);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS po_number character varying(100);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS estimated_price numeric(18,2);
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS total_price numeric(18,2);
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_date date;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS expected_arrival_date date;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS received_date date;
@@ -176,10 +180,16 @@ public static class PurchasingSchemaInitializer
             SET urgency = 'Normal'
             WHERE urgency IS NULL OR btrim(urgency) = '';
 
+            UPDATE purchase_request_items
+            SET purchase_category = 'Project'
+            WHERE purchase_category IS NULL OR btrim(purchase_category) = '';
+
             ALTER TABLE purchase_request_items ALTER COLUMN purchase_status SET DEFAULT 'Requested';
             ALTER TABLE purchase_request_items ALTER COLUMN purchase_status SET NOT NULL;
             ALTER TABLE purchase_request_items ALTER COLUMN urgency SET DEFAULT 'Normal';
             ALTER TABLE purchase_request_items ALTER COLUMN urgency SET NOT NULL;
+            ALTER TABLE purchase_request_items ALTER COLUMN purchase_category SET DEFAULT 'Project';
+            ALTER TABLE purchase_request_items ALTER COLUMN purchase_category SET NOT NULL;
 
             CREATE INDEX IF NOT EXISTS ix_purchase_request_items_purchase_request_id
                 ON purchase_request_items (purchase_request_id);

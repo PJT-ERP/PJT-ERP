@@ -92,7 +92,10 @@ public sealed class ProductionServiceTests
                     new CreateSalesOrderItemRequest(products[1].Id, 4, null)
                 ],
                 new EngineerAssignment(WorkerUserId, "Worker Engineer"),
-                new EngineerAssignment(ReviewerUserId, "Reviewer Engineer")),
+                new EngineerAssignment(ReviewerUserId, "Reviewer Engineer"),
+                "https://drive.example/customer-drawing.jpg",
+                "DESIGN-001",
+                SalesOrderDesignStatuses.Approved),
             CancellationToken.None);
 
         var tracking = await service.ConfirmSalesOrderAsync(
@@ -105,6 +108,9 @@ public sealed class ProductionServiceTests
         Assert.Equal(ProductionOrderStatuses.Waiting, tracking.ProductionStatus);
         Assert.Equal(WorkerUserId, tracking.ProductionWorkerUserId);
         Assert.Equal(ReviewerUserId, tracking.QcReviewerUserId);
+        Assert.Equal("https://drive.example/customer-drawing.jpg", tracking.CustomerDrawingUrl);
+        Assert.Equal("DESIGN-001", tracking.DesignReference);
+        Assert.Equal(SalesOrderDesignStatuses.Approved, tracking.DesignStatus);
         Assert.Equal(14, tracking.TotalQuantity);
         Assert.Equal(2, tracking.Items.Count);
         Assert.StartsWith("PJT|SO|", tracking.TrackingBarcodeUid, StringComparison.Ordinal);
@@ -325,6 +331,13 @@ public sealed class ProductionServiceTests
             ProductionWorkerName = "Worker Engineer",
             QcReviewerUserId = ReviewerUserId,
             QcReviewerName = "Reviewer Engineer",
+            CustomerEmail = "customer@example.com",
+            CustomerDrawingUrl = "https://drive.example/customer-drawing.jpg",
+            DesignReference = "DESIGN-001",
+            DesignStatus = SalesOrderDesignStatuses.Approved,
+            DesignApprovedByUserId = ReviewerUserId,
+            DesignApprovedByName = "Reviewer Engineer",
+            DesignApprovedAtUtc = DateTime.UtcNow,
             Status = SalesOrderStatuses.InProduction
         };
 

@@ -16,10 +16,12 @@ public sealed class PurchaseRequestItem
     public string? Size { get; set; }
     public int Qty { get; set; }
     public string Urgency { get; set; } = PurchaseItemUrgencies.Normal;
+    public string PurchaseCategory { get; set; } = PurchaseItemCategories.Project;
     public string? SuggestedSupplier { get; set; }
     public string? SupplierName { get; set; }
     public string? PoNumber { get; set; }
     public decimal? EstimatedPrice { get; set; }
+    public decimal? TotalPrice { get; set; }
     public DateOnly? PurchaseDate { get; set; }
     public DateOnly? ExpectedArrivalDate { get; set; }
     public DateOnly? ReceivedDate { get; set; }
@@ -45,4 +47,13 @@ public static class PurchaseItemUrgencies
     public const string Normal = "Normal";
     public const string Urgent = "Urgent";
     public const string Critical = "Critical";
+}
+
+public static class PurchaseItemCategories
+{
+    public const string Asset = "Asset";
+    public const string Consumable = "Consumable";
+    public const string Tools = "Tools";
+    public const string Project = "Project";
+    public const string Maintenance = "Maintenance";
 }

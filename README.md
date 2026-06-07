@@ -268,15 +268,19 @@ Alur kerja:
 2. User membuka menu Sales Order.
 3. User memilih customer dari Master Data.
 4. User memilih product/part yang dipesan.
-5. User mengisi quantity, target date, dan notes.
+5. User mengisi quantity, target date, notes, referensi desain, dan link gambar/customer drawing jika ada.
 6. User menyimpan Sales Order.
-7. Saat Sales Order dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
-8. Sistem membuat barcode unik berbasis Sales Order.
+7. Engineering Reviewer/Supervisor mengubah status desain menjadi `Approved`, `RevisionRequired`, atau `Rejected`.
+8. Saat Sales Order dengan desain `Approved` dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
+9. Sistem membuat barcode unik berbasis Sales Order.
 
 Output utama:
 
 - Sales Order
 - Sales Order Item
+- Customer email dan kode customer.
+- Link gambar/customer drawing dari Sales Order.
+- Status dan referensi desain.
 - Barcode UID berbasis SO
 
 ## Skenario Production Tracking (Barcode/QR)
@@ -303,6 +307,7 @@ Endpoint utama:
 - `GET /api/v1/production/tracking/{soNumberOrBarcode}`
 - `POST /api/v1/production/tracking/lookup`
 - `GET /api/v1/production/sales-orders/{id}/progress`
+- `PUT /api/v1/production/sales-orders/{id}/design-status`
 - `PUT /api/v1/production/sales-orders/{id}/production/start`
 - `PUT /api/v1/production/sales-orders/{id}/production/finish`
 - `PUT /api/v1/production/sales-orders/{id}/engineering-drawing`
@@ -314,11 +319,12 @@ Output utama:
 - Status `Waiting`, `InProgress`, `Finished`, atau `Closed`.
 - `started_at_utc`, `finished_at_utc`, dan `durationSeconds`.
 - Progress Sales Order.
+- Link gambar/customer drawing dari SO untuk Production Tracker internal.
 - Public customer tracking yang read-only.
 
 ## Skenario Engineering
 
-Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Reviewer hanya melakukan QC.
+Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Reviewer/Supervisor menangani approval desain dan QC.
 
 Alur kerja:
 
@@ -336,6 +342,7 @@ Output utama:
 - Drawing reference.
 - Uploader.
 - Waktu upload.
+- Approval desain: `PendingDesign`, `WaitingApproval`, `Approved`, `RevisionRequired`, atau `Rejected`.
 
 ## Skenario Engineering Reviewer untuk QC
 
@@ -363,7 +370,7 @@ Output utama:
 
 Pengajuan pembelian dibuat dari menu Engineering, karena Engineering yang mengetahui kebutuhan material produksi. Setelah request masuk, Finance harus accept/reject Purchase Request terlebih dahulu. Jika Finance accept, role Purchasing menangani proses pembelian sampai informasi supplier, nomor PO, estimasi harga, estimasi tiba, dan penerimaan material tercatat.
 
-Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran/spesifikasi, jumlah, satuan, urgensi, referensi SO, pemohon, supplier, nomor PO, estimasi harga, estimasi tiba, catatan, dan status penerimaan.
+Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran/spesifikasi, jumlah, satuan, urgensi, kategori pembelian, referensi SO opsional, pemohon, supplier, nomor PO, total harga, estimasi tiba, catatan, dan status penerimaan.
 
 Alur kerja:
 
@@ -372,12 +379,12 @@ Alur kerja:
 3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
 4. Engineering membuka tab `Pengajuan Purchasing`.
 5. Engineering membuat Purchase Request baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional.
-6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), referensi SO, supplier suggestion, dan catatan kebutuhan.
+6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), kategori (`Asset`, `Consumable`, `Tools`, `Project`, atau `Maintenance`), referensi SO opsional, supplier suggestion, dan catatan kebutuhan.
 7. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
 8. Finance membuka daftar Purchase Request yang masih `Submitted`.
 9. Finance memilih `Accept` atau `Reject`; jika reject, Finance mengisi alasan penolakan. Jika accepted, status request menjadi `Approved`, item menjadi `Approved`, dan material requirement berubah menjadi `PurchaseApproved`.
 10. Purchasing membuka menu `Manajemen Pembelian` untuk melihat request yang sudah accepted, diproses, selesai, atau ditolak.
-11. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, estimasi harga, estimasi tanggal tiba, dan catatan purchasing. Status item menjadi `Ordered`.
+11. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, total harga, kategori pembelian, estimasi tanggal tiba, dan catatan purchasing. Harga satuan dihitung otomatis dari `totalPrice / qty`. Status item menjadi `Ordered`.
 12. Purchasing dapat menolak item request jika tidak valid pada tahap pembelian. Status item menjadi `Rejected`.
 13. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
 
@@ -401,7 +408,7 @@ Output utama:
 - Material Requirement dari Sales Order.
 - Purchase Request dan Purchase Request Item.
 - Finance acceptance: reviewer, waktu review, status approved/rejected, dan alasan penolakan jika ada.
-- Informasi supplier, nomor PO, estimasi harga, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
+- Informasi supplier, nomor PO, kategori pembelian, total harga, harga satuan hasil hitung, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
 - Tracking bahan baku per Sales Order.
 
 ## Skenario Owner Dashboard

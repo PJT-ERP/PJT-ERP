@@ -11,10 +11,26 @@ public static class ProductionSchemaInitializer
         // Dev-friendly schema evolution until formal EF migrations are introduced.
         await db.Database.ExecuteSqlRawAsync(
             """
+            ALTER TABLE customer_replicas ADD COLUMN IF NOT EXISTS email character varying(160);
+
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_email character varying(160);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_reference character varying(255);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_status character varying(50) NOT NULL DEFAULT 'PendingDesign';
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_user_id uuid;
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_name character varying(160);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_at_utc timestamp with time zone;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_worker_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_worker_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_reviewer_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_reviewer_name character varying(160);
+
+            UPDATE sales_orders
+            SET design_status = 'PendingDesign'
+            WHERE design_status IS NULL OR btrim(design_status) = '';
+
+            ALTER TABLE sales_orders ALTER COLUMN design_status SET DEFAULT 'PendingDesign';
+            ALTER TABLE sales_orders ALTER COLUMN design_status SET NOT NULL;
 
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS sales_order_id uuid;
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS started_by_user_id uuid;

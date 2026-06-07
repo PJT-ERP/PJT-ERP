@@ -22,6 +22,7 @@ public sealed class MasterDataContext(DbContextOptions<MasterDataContext> option
             builder.Property(customer => customer.Name).HasMaxLength(160).HasColumnName("name");
             builder.Property(customer => customer.Address).HasMaxLength(400).HasColumnName("address");
             builder.Property(customer => customer.ContactPerson).HasMaxLength(120).HasColumnName("contact_person");
+            builder.Property(customer => customer.Email).HasMaxLength(160).HasColumnName("email");
             builder.Property(customer => customer.IsActive).HasColumnName("is_active");
             builder.Property(customer => customer.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(customer => customer.UpdatedAtUtc).HasColumnName("updated_at_utc");

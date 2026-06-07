@@ -23,6 +23,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.HasIndex(customer => customer.Code);
             builder.Property(customer => customer.Code).HasMaxLength(50).HasColumnName("code");
             builder.Property(customer => customer.Name).HasMaxLength(255).HasColumnName("name");
+            builder.Property(customer => customer.Email).HasMaxLength(160).HasColumnName("email");
             builder.Property(customer => customer.IsActive).HasColumnName("is_active");
             builder.Property(customer => customer.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
@@ -49,6 +50,13 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.CustomerId).HasColumnName("customer_id");
             builder.Property(order => order.CustomerCode).HasMaxLength(50).HasColumnName("customer_code");
             builder.Property(order => order.CustomerName).HasMaxLength(255).HasColumnName("customer_name");
+            builder.Property(order => order.CustomerEmail).HasMaxLength(160).HasColumnName("customer_email");
+            builder.Property(order => order.CustomerDrawingUrl).HasMaxLength(1000).HasColumnName("customer_drawing_url");
+            builder.Property(order => order.DesignReference).HasMaxLength(255).HasColumnName("design_reference");
+            builder.Property(order => order.DesignStatus).HasMaxLength(50).HasColumnName("design_status");
+            builder.Property(order => order.DesignApprovedByUserId).HasColumnName("design_approved_by_user_id");
+            builder.Property(order => order.DesignApprovedByName).HasMaxLength(160).HasColumnName("design_approved_by_name");
+            builder.Property(order => order.DesignApprovedAtUtc).HasColumnName("design_approved_at_utc");
             builder.Property(order => order.SoDate).HasColumnName("so_date");
             builder.Property(order => order.TargetDate).HasColumnName("target_date");
             builder.Property(order => order.ProductionWorkerUserId).HasColumnName("production_worker_user_id");

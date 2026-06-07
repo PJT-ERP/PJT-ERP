@@ -88,6 +88,8 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                     Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
                     Qty = item.Qty,
                     Urgency = NormalizeUrgency(item.Urgency),
+                    PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId),
+                    TotalPrice = NormalizePrice(item.TotalPrice, "Total price"),
                     SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier),
                     Notes = NormalizeOptional(item.Notes),
                     PurchaseStatus = PurchaseItemStatuses.Requested
@@ -190,6 +192,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                 ? purchaseItem.PurchaseStatus
                 : NormalizePurchaseStatus(request.PurchaseStatus, request.PurchaseDate, request.ReceivedDate);
         ValidateEstimatedPrice(request.EstimatedPrice);
+        var requestedTotalPrice = NormalizePrice(request.TotalPrice ?? request.EstimatedPrice, "Total price");
         var requestedSupplier = NormalizeOptional(request.SupplierName);
         var effectiveSupplier = requestedSupplier ?? purchaseItem.SupplierName;
         var effectivePurchaseDate = request.PurchaseDate ?? purchaseItem.PurchaseDate;
@@ -210,6 +213,10 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         purchaseItem.SupplierName = requestedSupplier ?? purchaseItem.SupplierName;
         purchaseItem.PoNumber = request.PoNumber is null ? purchaseItem.PoNumber : NormalizeOptional(request.PoNumber);
         purchaseItem.EstimatedPrice = request.EstimatedPrice ?? purchaseItem.EstimatedPrice;
+        purchaseItem.TotalPrice = requestedTotalPrice ?? purchaseItem.TotalPrice;
+        purchaseItem.PurchaseCategory = request.PurchaseCategory is null
+            ? purchaseItem.PurchaseCategory
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId);
         purchaseItem.PurchaseDate = effectivePurchaseDate;
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate ?? purchaseItem.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = request.ReceivedDate ?? purchaseItem.ReceivedDate;
@@ -251,6 +258,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         }
 
         ValidateEstimatedPrice(request.EstimatedPrice);
+        var totalPrice = NormalizePrice(request.TotalPrice ?? request.EstimatedPrice, "Total price");
 
         var purchaseRequest = await IncludeItems(db.PurchaseRequests)
             .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
@@ -282,6 +290,10 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         purchaseItem.SupplierName = request.SupplierName.Trim();
         purchaseItem.PoNumber = NormalizeOptional(request.PoNumber);
         purchaseItem.EstimatedPrice = request.EstimatedPrice;
+        purchaseItem.TotalPrice = totalPrice;
+        purchaseItem.PurchaseCategory = request.PurchaseCategory is null
+            ? purchaseItem.PurchaseCategory
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId);
         purchaseItem.PurchaseDate = DateOnly.FromDateTime(now);
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = null;
@@ -548,10 +560,13 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             item.Size,
             item.Qty,
             item.Urgency,
+            item.PurchaseCategory,
             item.SuggestedSupplier,
             item.SupplierName,
             item.PoNumber,
             item.EstimatedPrice,
+            item.TotalPrice,
+            CalculateUnitPrice(item),
             item.PurchaseDate,
             item.ExpectedArrivalDate,
             item.ReceivedDate,
@@ -590,9 +605,12 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                     item.Id,
                     item.PurchaseRequest.Status,
                     item.PurchaseStatus,
+                    item.PurchaseCategory,
                     item.SupplierName,
                     item.PoNumber,
                     item.EstimatedPrice,
+                    item.TotalPrice,
+                    CalculateUnitPrice(item),
                     item.PurchaseDate,
                     item.ExpectedArrivalDate,
                     item.ReceivedDate,
@@ -685,6 +703,55 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         {
             throw new InvalidOperationException("Estimated price cannot be negative.");
         }
+    }
+
+    private static decimal? NormalizePrice(decimal? price, string label)
+    {
+        if (!price.HasValue)
+        {
+            return null;
+        }
+
+        if (price.Value < 0)
+        {
+            throw new InvalidOperationException($"{label} cannot be negative.");
+        }
+
+        return price.Value;
+    }
+
+    private static decimal? CalculateUnitPrice(PurchaseRequestItem item)
+    {
+        var totalPrice = item.TotalPrice ?? item.EstimatedPrice;
+        if (!totalPrice.HasValue || item.Qty <= 0)
+        {
+            return null;
+        }
+
+        return decimal.Round(totalPrice.Value / item.Qty, 2);
+    }
+
+    private static string NormalizePurchaseCategory(
+        string? category,
+        Guid? materialRequirementId,
+        Guid? salesOrderId)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return materialRequirementId.HasValue || salesOrderId.HasValue
+                ? PurchaseItemCategories.Project
+                : PurchaseItemCategories.Consumable;
+        }
+
+        return category.Trim() switch
+        {
+            var value when value.Equals(PurchaseItemCategories.Asset, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Asset,
+            var value when value.Equals(PurchaseItemCategories.Consumable, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Consumable,
+            var value when value.Equals(PurchaseItemCategories.Tools, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Tools,
+            var value when value.Equals(PurchaseItemCategories.Project, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Project,
+            var value when value.Equals(PurchaseItemCategories.Maintenance, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Maintenance,
+            _ => throw new InvalidOperationException("Purchase category must be Asset, Consumable, Tools, Project, or Maintenance.")
+        };
     }
 
     private static PurchaseRequestItem FindPurchaseItem(PurchaseRequest purchaseRequest, Guid itemId)

@@ -19,7 +19,9 @@ public sealed record CreatePurchaseRequestItem(
     int Qty,
     string? SuggestedSupplier,
     string? Notes,
-    string? Urgency = null);
+    string? Urgency = null,
+    string? PurchaseCategory = null,
+    decimal? TotalPrice = null);
 
 public sealed record ReviewPurchaseRequest(Guid ReviewedByUserId, string Decision, string? RejectionReason);
 
@@ -31,14 +33,18 @@ public sealed record UpdatePurchaseItemInfoRequest(
     string? PurchaseStatus,
     string? PurchaseNotes,
     string? PoNumber = null,
-    decimal? EstimatedPrice = null);
+    decimal? EstimatedPrice = null,
+    decimal? TotalPrice = null,
+    string? PurchaseCategory = null);
 
 public sealed record ProcessPurchaseItemRequest(
     string SupplierName,
     DateOnly ExpectedArrivalDate,
     string? PoNumber,
     decimal? EstimatedPrice,
-    string? PurchaseNotes);
+    string? PurchaseNotes,
+    decimal? TotalPrice = null,
+    string? PurchaseCategory = null);
 
 public sealed record RejectPurchaseItemRequest(string? RejectionReason);
 
@@ -72,10 +78,13 @@ public sealed record PurchaseRequestItemDto(
     string? Size,
     int Qty,
     string Urgency,
+    string PurchaseCategory,
     string? SuggestedSupplier,
     string? SupplierName,
     string? PoNumber,
     decimal? EstimatedPrice,
+    decimal? TotalPrice,
+    decimal? UnitPrice,
     DateOnly? PurchaseDate,
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,
@@ -110,9 +119,12 @@ public sealed record LinkedPurchaseItemDto(
     Guid PurchaseRequestItemId,
     string PurchaseRequestStatus,
     string PurchaseStatus,
+    string PurchaseCategory,
     string? SupplierName,
     string? PoNumber,
     decimal? EstimatedPrice,
+    decimal? TotalPrice,
+    decimal? UnitPrice,
     DateOnly? PurchaseDate,
     DateOnly? ExpectedArrivalDate,
     DateOnly? ReceivedDate,

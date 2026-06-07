@@ -72,11 +72,14 @@
       "method": "POST",
       "path": "/api/v1/production/sales-orders",
       "roles": ["Admin", "Sales Order"],
-      "description": "Create a Sales Order with one or more item lines and optional engineer worker/reviewer assignment.",
+      "description": "Create a Sales Order with one or more item lines, customer drawing/design reference, and optional engineer worker/reviewer assignment.",
       "requestBody": {
         "customerId": "00000000-0000-0000-0000-000000000000",
         "soDate": "2026-05-22",
         "targetDate": "2026-05-29",
+        "customerDrawingUrl": "https://drive.example/customer-design-input.jpg",
+        "designReference": "DESIGN-2026-001",
+        "designStatus": "PendingDesign",
         "productionWorker": {
           "userId": "00000000-0000-0000-0000-000000000001",
           "name": "Engineering Worker"
@@ -104,11 +107,29 @@
     },
     {
       "service": "Production.API",
+      "feature": "Design Approval",
+      "method": "PUT",
+      "path": "/api/v1/production/sales-orders/{id}/design-status",
+      "roles": ["Admin", "Engineering Reviewer"],
+      "description": "Engineering supervisor/reviewer updates design status. Sales Order confirmation requires designStatus Approved.",
+      "requestBody": {
+        "designStatus": "Approved",
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000002",
+        "reviewerName": "Engineering Supervisor",
+        "designReference": "DESIGN-2026-001",
+        "customerDrawingUrl": "https://drive.example/customer-design-input.jpg"
+      },
+      "allowedValues": {
+        "designStatus": ["PendingDesign", "WaitingApproval", "Approved", "RevisionRequired", "Rejected"]
+      }
+    },
+    {
+      "service": "Production.API",
       "feature": "Sales Orders",
       "method": "POST",
       "path": "/api/v1/production/sales-orders/{id}/confirm",
       "roles": ["Admin", "Sales Order"],
-      "description": "Confirm the Sales Order and prepare internal production tracking. Response is SO tracking, not an internal workflow object."
+      "description": "Confirm an approved-design Sales Order and prepare internal production tracking. Response is SO tracking, not an internal workflow object."
     },
     {
       "service": "Production.API",
@@ -238,6 +259,8 @@
             "size": "4 Flute, TiAIN Coating, L=75mm",
             "qty": 20,
             "urgency": "Normal",
+            "purchaseCategory": "Tools",
+            "totalPrice": 7300000,
             "suggestedSupplier": "PT. Krakatau Steel",
             "notes": "Stok cutting tool untuk mesin CNC"
           }
@@ -263,12 +286,13 @@
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process",
       "roles": ["Admin", "Purchasing"],
-      "description": "Purchasing processes a Finance-accepted item by filling supplier, PO number, estimated price, ETA, and purchasing notes.",
+      "description": "Purchasing processes a Finance-accepted item by filling supplier, PO number, total price, ETA, category, and purchasing notes. Unit price is calculated by the API from totalPrice / qty.",
       "requestBody": {
         "supplierName": "PT. Krakatau Steel",
         "expectedArrivalDate": "2026-05-25",
         "poNumber": "PO-2026-041",
-        "estimatedPrice": 7300000,
+        "totalPrice": 7300000,
+        "purchaseCategory": "Tools",
         "purchaseNotes": "Stok cutting tool untuk mesin CNC"
       }
     },
@@ -301,7 +325,7 @@
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/purchase-info",
       "roles": ["Admin", "Purchasing"],
-      "description": "Compatibility endpoint to record or patch supplier, PO number, estimated price, purchase date, arrival estimate, received date, purchase status, and notes."
+      "description": "Compatibility endpoint to record or patch supplier, PO number, total price, purchase category, purchase date, arrival estimate, received date, purchase status, and notes."
     },
     {
       "service": "Purchasing.API",
