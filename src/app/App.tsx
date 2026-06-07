@@ -19,13 +19,14 @@ import { FinancePurchasingApproval } from "./components/finance/FinancePurchasin
 
 // Migrated Pages from Folder B
 import { AdminPage } from "./pages/AdminPage";
+import { EngineeringTasksPage } from "./pages/EngineeringTasksPage";
 import { EngineeringPage } from "./pages/EngineeringPage";
 import { EngineeringPurchasingPage } from "./pages/EngineeringPurchasingPage";
 import { EngineeringQCPage } from "./pages/EngineeringQCPage";
 import { OwnerApprovalPage } from "./pages/OwnerApprovalPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { CustomerAnalyticsPage } from "./pages/CustomerAnalyticsPage";
 import { ProductionPage } from "./pages/ProductionPage";
-import { ProductionMonitoringPage } from "./pages/ProductionMonitoringPage";
-import { DesignMonitoringPage } from "./pages/DesignMonitoringPage";
 import { QCPage } from "./pages/QCPage";
 
 const financeRoutes = [
@@ -55,28 +56,29 @@ export default function App() {
             {/* SO: Sales, Admin, Owner */}
             <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Admin', 'Owner']}><SalesOrderModule /></ProtectedRoute>} />
 
-            {/* Engineer: Engineering, Admin, Owner */}
-            <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><EngineeringPage /></ProtectedRoute>} />
-            <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><EngineeringPurchasingPage /></ProtectedRoute>} />
-            <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><EngineeringQCPage /></ProtectedRoute>} />
-            <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><ProductionPage /></ProtectedRoute>} />
-            <Route path="production-monitoring" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><ProductionMonitoringPage /></ProtectedRoute>} />
-            <Route path="design-monitoring" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><DesignMonitoringPage /></ProtectedRoute>} />
-            <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner']}><QCPage /></ProtectedRoute>} />
+            {/* Engineer: Engineering, Admin, Owner, Engineering Supervisor */}
+            <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPage /></ProtectedRoute>} />
+            <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
+            <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
+            <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
+            <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
+            <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><QCPage /></ProtectedRoute>} />
 
-            {/* Owner: STRICTLY OWNER */}
-            <Route path="owner" element={<ProtectedRoute allowedRoles={['Owner']}><OwnerApprovalPage /></ProtectedRoute>} />
+            {/* Owner & Engineering Supervisor Approval */}
+            <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><OwnerApprovalPage /></ProtectedRoute>} />
+            <Route path="dashboard" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><DashboardPage /></ProtectedRoute>} />
+            <Route path="customer-analytics" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><CustomerAnalyticsPage /></ProtectedRoute>} />
             
-            {/* Admin: STRICTLY ADMIN */}
-            <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin']}><AdminPage /></ProtectedRoute>} />
-          </Route>
+            {/* Admin: Admin & Owner */}
+            <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />
 
-          {/* Finance stands alone because FinanceLayout has its own Sidebar and Topbar */}
-          <Route path="/erp/finance" element={<ProtectedRoute allowedRoles={['Finance', 'Admin', 'Owner']}><FinanceLayout /></ProtectedRoute>}>
-            <Route index element={<Navigate to="/erp/finance/dashboard" replace />} />
-            {financeRoutes.map(route => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
+            {/* Finance: Finance, Admin, Owner */}
+            <Route path="finance">
+              <Route index element={<Navigate to="dashboard" replace />} />
+              {financeRoutes.map(route => (
+                <Route key={route.path} path={route.path} element={<ProtectedRoute allowedRoles={['Finance', 'Admin', 'Owner']}>{route.element}</ProtectedRoute>} />
+              ))}
+            </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

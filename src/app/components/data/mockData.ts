@@ -99,6 +99,87 @@ export const CUSTOMERS: Customer[] = [
 ];
 
 export const INITIAL_SALES_ORDERS: SalesOrder[] = [
+// ── Riwayat Jan–Mar 2026 ──────────────────────────────────────────────────
+  {
+    id: 'SO-2025098', customerId: '0001', partNumber: 'PJT-BRG-H01', description: 'Bearing Housing Custom 120mm',
+    quantity: 20, unit: 'PCS', deadline: '2026-01-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-03',
+    designLink: 'https://drive.google.com', submittedAt: '2026-01-05', approvedAt: '2026-01-07', approvedBy: 'u3',
+    startTime: '2026-01-08T08:00', endTime: '2026-01-18T16:00', qcStatus: 'Pass', qcAt: '2026-01-19', completedAt: '2026-01-20',
+  },
+  {
+    id: 'SO-2025099', customerId: '0002', partNumber: 'PJT-SHF-H01', description: 'Shaft Coupling 60mm SS304',
+    quantity: 8, unit: 'PCS', deadline: '2026-01-25', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-08',
+    designLink: 'https://drive.google.com', submittedAt: '2026-01-10', approvedAt: '2026-01-12', approvedBy: 'u3',
+    startTime: '2026-01-13T08:00', endTime: '2026-01-24T16:00', qcStatus: 'Pass', qcAt: '2026-01-25', completedAt: '2026-01-26',
+  },
+  {
+    id: 'SO-2025100', customerId: '0003', partNumber: 'PJT-VAL-H01', description: 'Gate Valve Body DN80 CS',
+    quantity: 6, unit: 'PCS', deadline: '2026-01-28', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-10',
+    designLink: 'https://drive.google.com', submittedAt: '2026-01-12', approvedAt: '2026-01-14', approvedBy: 'u3',
+    startTime: '2026-01-15T08:00', endTime: '2026-01-27T16:00', qcStatus: 'Pass', qcAt: '2026-01-28', completedAt: '2026-01-29',
+  },
+  {
+    id: 'SO-2025101', customerId: '0005', partNumber: 'PJT-PLT-H01', description: 'Jig Plate Aluminium 400x400mm',
+    quantity: 2, unit: 'PCS', deadline: '2026-01-30', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-12',
+    designLink: 'https://drive.google.com', submittedAt: '2026-01-14', approvedAt: '2026-01-16', approvedBy: 'u3',
+    startTime: '2026-01-17T08:00', endTime: '2026-01-28T16:00', qcStatus: 'Pass', qcAt: '2026-01-29', completedAt: '2026-01-30',
+  },
+  {
+    id: 'SO-2025102', customerId: '0001', partNumber: 'PJT-SPR-H01', description: 'Sprocket 32T Single Grade A',
+    quantity: 15, unit: 'PCS', deadline: '2026-02-15', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-02',
+    designLink: 'https://drive.google.com', submittedAt: '2026-02-04', approvedAt: '2026-02-06', approvedBy: 'u3',
+    startTime: '2026-02-07T08:00', endTime: '2026-02-14T16:00', qcStatus: 'Pass', qcAt: '2026-02-15', completedAt: '2026-02-16',
+  },
+  {
+    id: 'SO-2025103', customerId: '0004', partNumber: 'PJT-FLG-H01', description: 'Flange Slip-On DN150 A105',
+    quantity: 12, unit: 'PCS', deadline: '2026-02-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-05',
+    designLink: 'https://drive.google.com', submittedAt: '2026-02-07', approvedAt: '2026-02-09', approvedBy: 'u3',
+    startTime: '2026-02-10T08:00', endTime: '2026-02-19T16:00', qcStatus: 'Pass', qcAt: '2026-02-20', completedAt: '2026-02-21',
+  },
+  {
+    id: 'SO-2025104', customerId: '0006', partNumber: 'PJT-HSG-H01', description: 'Pump Casing Bronze 125mm',
+    quantity: 4, unit: 'PCS', deadline: '2026-02-25', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-10',
+    designLink: 'https://drive.google.com', submittedAt: '2026-02-12', approvedAt: '2026-02-14', approvedBy: 'u3',
+    startTime: '2026-02-15T08:00', endTime: '2026-02-24T16:00', qcStatus: 'Pass', qcAt: '2026-02-25', completedAt: '2026-02-26',
+  },
+  {
+    id: 'SO-2025105', customerId: '0002', partNumber: 'PJT-SHF-H02', description: 'Output Shaft Gearbox 90mm CrMo',
+    quantity: 5, unit: 'PCS', deadline: '2026-03-10', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-20',
+    designLink: 'https://drive.google.com', submittedAt: '2026-02-22', approvedAt: '2026-02-24', approvedBy: 'u3',
+    startTime: '2026-02-25T08:00', endTime: '2026-03-09T16:00', qcStatus: 'Pass', qcAt: '2026-03-10', completedAt: '2026-03-11',
+  },
+  {
+    id: 'SO-2025106', customerId: '0001', partNumber: 'PJT-BRG-H02', description: 'Pillow Block Bearing Seat 75mm',
+    quantity: 18, unit: 'PCS', deadline: '2026-03-15', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-01',
+    designLink: 'https://drive.google.com', submittedAt: '2026-03-03', approvedAt: '2026-03-05', approvedBy: 'u3',
+    startTime: '2026-03-06T08:00', endTime: '2026-03-14T16:00', qcStatus: 'Pass', qcAt: '2026-03-15', completedAt: '2026-03-16',
+  },
+  {
+    id: 'SO-2025107', customerId: '0003', partNumber: 'PJT-VAL-H02', description: 'Check Valve Body SS316 DN50',
+    quantity: 8, unit: 'PCS', deadline: '2026-03-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-05',
+    designLink: 'https://drive.google.com', submittedAt: '2026-03-07', approvedAt: '2026-03-09', approvedBy: 'u3',
+    startTime: '2026-03-10T08:00', endTime: '2026-03-19T16:00', qcStatus: 'Pass', qcAt: '2026-03-20', completedAt: '2026-03-21',
+  },
+  {
+    id: 'SO-2025108', customerId: '0007', partNumber: 'PJT-BRK-H01', description: 'Brake Disc Rotor 220mm',
+    quantity: 10, unit: 'PCS', deadline: '2026-03-22', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-08',
+    designLink: 'https://drive.google.com', submittedAt: '2026-03-10', approvedAt: '2026-03-12', approvedBy: 'u3',
+    startTime: '2026-03-13T08:00', endTime: '2026-03-21T16:00', qcStatus: 'Pass', qcAt: '2026-03-22', completedAt: '2026-03-23',
+  },
+  {
+    id: 'SO-2025109', customerId: '0008', partNumber: 'PJT-CAM-H01', description: 'Cam Follower Bracket 4130 Steel',
+    quantity: 6, unit: 'PCS', deadline: '2026-03-28', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-15',
+    designLink: 'https://drive.google.com', submittedAt: '2026-03-17', approvedAt: '2026-03-19', approvedBy: 'u3',
+    startTime: '2026-03-20T08:00', endTime: '2026-03-27T16:00', qcStatus: 'Pass', qcAt: '2026-03-28', completedAt: '2026-03-29',
+  },
+  {
+    id: 'SO-2025110', customerId: '0005', partNumber: 'PJT-PLT-H02', description: 'Fixture Plate SS304 500x300mm',
+    quantity: 3, unit: 'PCS', deadline: '2026-03-30', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-18',
+    designLink: 'https://drive.google.com', submittedAt: '2026-03-20', approvedAt: '2026-03-22', approvedBy: 'u3',
+    startTime: '2026-03-23T08:00', endTime: '2026-03-29T16:00', qcStatus: 'Pass', qcAt: '2026-03-30', completedAt: '2026-03-31',
+  },
+  // ── Apr–Mei 2026 ────────────────────────────────────────────────────────────
+
   {
     id: 'SO-2026001', customerId: '0001', partNumber: 'PJT-BRG-001', description: 'Bearing Housing Custom 150mm',
     quantity: 25, unit: 'PCS', deadline: '2026-06-15', status: 'Completed', createdBy: 'u1', createdAt: '2026-04-01',

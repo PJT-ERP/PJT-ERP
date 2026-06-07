@@ -18,6 +18,7 @@ export function Login() {
       case "purchasing": setUsername("purchasing01"); setPassword("purchase123"); break;
       case "so": setUsername("sales01"); setPassword("sales123"); break;
       case "engineer": setUsername("eng01"); setPassword("eng123"); break;
+      case "engineering_supervisor": setUsername("eng_spv"); setPassword("spv123"); break;
       case "owner": setUsername("owner"); setPassword("owner123"); break;
       case "admin": setUsername("admin01"); setPassword("admin123"); break;
     }
@@ -33,7 +34,8 @@ export function Login() {
         case "purchasing": navigate("/erp/purchasing"); break;
         case "so": navigate("/erp/so"); break;
         case "engineer": navigate("/erp/engineer"); break;
-        case "owner": navigate("/erp/owner"); break;
+        case "engineering_supervisor": navigate("/erp/engineer"); break;
+        case "owner": navigate("/erp/dashboard"); break;
         case "admin": navigate("/erp/admin"); break;
         default: navigate("/erp/so");
       }
@@ -68,6 +70,7 @@ export function Login() {
               <option value="finance">Finance</option>
               <option value="purchasing">Purchasing</option>
               <option value="engineer">Engineer</option>
+              <option value="engineering_supervisor">Engineering Supervisor</option>
               <option value="owner">Owner</option>
               <option value="admin">Admin</option>
             </select>

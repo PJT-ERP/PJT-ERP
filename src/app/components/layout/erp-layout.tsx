@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   LayoutDashboard, Users, Plus, List, ChevronRight, Menu, X, Bell, Search, LogOut, Building2,
-  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList
+  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { useERPStore } from "../../store/useERPStore";
@@ -9,7 +9,7 @@ import { useApp } from "../context/AppContext";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router";
 import { UserRole } from "../data/mockData";
 
-interface NavItemDef { label: string; icon: React.ReactNode; path: string; }
+interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; isHeader?: boolean; }
 
 const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   Sales: [
@@ -20,28 +20,51 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   Engineering: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
-    { label: "Purchasing Req", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
-    { label: "Quality Control", icon: <CheckSquare size={15} />, path: "/erp/engineer-qc" },
-    { label: "Production", icon: <Box size={15} />, path: "/erp/production" },
-    { label: "Prod Monitoring", icon: <Activity size={15} />, path: "/erp/production-monitoring" },
-    { label: "Design Monitoring", icon: <Wrench size={15} />, path: "/erp/design-monitoring" },
-    { label: "QC Monitoring", icon: <CheckSquare size={15} />, path: "/erp/qc" },
+    { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
+    { label: "Req. Pembelian", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
+    { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
+    { label: "Pantau QC", icon: <CheckSquare size={15} />, path: "/erp/qc" },
+  ],
+  'Engineering Supervisor': [
+    { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
+    { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
+    { label: "Persetujuan Desain", icon: <CheckCircle size={15} />, path: "/erp/approval" },
+    { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/engineer-qc" },
+    { label: "Req. Pembelian", icon: <Package size={15} />, path: "/erp/engineer-purchasing" },
+    { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
   ],
   Owner: [
-    { label: "Executive Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/owner" },
+    { label: "MENU UTAMA", isHeader: true },
+    { label: "Dashboard Eksekutif", icon: <LayoutDashboard size={15} />, path: "/erp/dashboard" },
+    { label: "Persetujuan Desain", icon: <CheckCircle size={15} />, path: "/erp/approval" },
+    { label: "Analitik Pelanggan", icon: <BarChart2 size={15} />, path: "/erp/customer-analytics" },
+    { label: "PANTAU", isHeader: true },
+    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so" },
+    { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
+    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
+    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
+    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing" },
+    { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance" },
+    { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
   ],
   Admin: [
+    { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance" },
+    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so" },
+    { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
+    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
+    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
+    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },
-    { label: "Invoices", icon: <FileText size={15} />, path: "/erp/finance/invoices" },
-    { label: "Payments", icon: <FileText size={15} />, path: "/erp/finance/payment-verification" },
+    { label: "Daftar Tagihan", icon: <FileText size={15} />, path: "/erp/finance/invoices" },
+    { label: "Verifikasi Bayar", icon: <FileText size={15} />, path: "/erp/finance/payment-verification" },
   ],
   Purchasing: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/purchasing" },
-    { label: "Material Requests", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
-    { label: "Purchase Orders", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
+    { label: "Req. Material", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
+    { label: "Daftar PO", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
     { label: "Buat PO", icon: <Plus size={15} />, path: "/erp/purchasing/create" },
   ]
 };
@@ -90,13 +113,20 @@ export function ERPLayout() {
       {/* Flat nav */}
       <nav style={{ flex: 1, padding: "10px 8px", fontFamily: "Inter, sans-serif", display: "flex", flexDirection: "column", gap: 1 }}>
         {navItems.map(item => {
-          const active = location.pathname === item.path || (item.path !== `/erp/${paths[1]}` && location.pathname.startsWith(item.path));
+          if (item.isHeader) {
+            return (
+              <p key={item.label} style={{ fontSize: "10.5px", color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px", padding: "12px 10px 4px", fontWeight: 600 }}>
+                {item.label}
+              </p>
+            );
+          }
+          const active = item.path ? (location.pathname === item.path || (item.path !== `/erp/${paths[1]}` && location.pathname.startsWith(item.path))) : false;
           return (
             <NavItem
               key={item.label}
               item={item}
               active={active}
-              onClick={() => { navigate(item.path); setSidebarOpen(false); }}
+              onClick={() => { if (item.path) navigate(item.path); setSidebarOpen(false); }}
             />
           );
         })}
