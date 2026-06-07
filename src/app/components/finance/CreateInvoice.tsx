@@ -360,17 +360,23 @@ export function CreateInvoice() {
                     </div>
 
                     {invoiceType === 'Down Payment (DP)' && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-700">DP (%)</span>
-                        <div className="flex gap-2">
-                          <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 w-24 transition-colors cursor-pointer">
-                            <option value="25">25%</option>
-                            <option value="50">50%</option>
-                            <option value="Custom">Custom</option>
-                          </select>
-                          {dpPercentage === 'Custom' && (
-                            <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-blue-500 transition-colors" />
-                          )}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-slate-700">DP (%)</span>
+                          <div className="flex gap-2">
+                            <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 w-24 transition-colors cursor-pointer">
+                              <option value="25">25%</option>
+                              <option value="50">50%</option>
+                              <option value="Custom">Custom</option>
+                            </select>
+                            {dpPercentage === 'Custom' && (
+                              <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-blue-500 transition-colors" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-slate-700">Jatuh Tempo DP</span>
+                          <input type="date" value={dpDeadline} onChange={e => setDpDeadline(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 transition-colors" />
                         </div>
                       </div>
                     )}
@@ -385,11 +391,11 @@ export function CreateInvoice() {
                 </div>
 
                 <div>
-                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Catatan / Terms</h4>
+                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Catatan Tambahan</h4>
                   <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="Contoh: Pembayaran ditransfer ke Rek. BCA 12345678 a/n PT Pratama Jaya..."
+                    placeholder="Contoh: Pengiriman dilakukan setelah pelunasan..."
                     rows={4}
                     className="w-full border border-slate-200 shadow-sm rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-white resize-none text-slate-700 placeholder:text-slate-400 transition-colors"
                   />
@@ -433,9 +439,19 @@ export function CreateInvoice() {
             </div>
 
             {/* Bottom Accent */}
-            <div className="mt-20 text-center border-t border-slate-100 pt-10">
-              <p className="text-sm text-slate-500 font-semibold mb-1">Terima kasih atas kerja sama Anda.</p>
-              <p className="text-[11px] text-slate-400 font-medium">Dokumen ini dihasilkan oleh Sistem ERP PT Pratama Jaya dan sah tanpa tanda tangan fisik.</p>
+            <div className="mt-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 border-t border-slate-100 pt-10">
+              <div className="text-left">
+                <p className="text-sm font-bold text-slate-800 mb-3">Informasi Pembayaran</p>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 inline-block shadow-sm">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Transfer Ke:</p>
+                  <p className="text-lg font-black text-blue-800 tracking-tight">Bank BCA - 1234567890</p>
+                  <p className="text-sm font-semibold text-slate-700">a/n PT Pratama Jaya</p>
+                </div>
+              </div>
+              <div className="text-left sm:text-right">
+                <p className="text-sm text-slate-500 font-semibold mb-1">Terima kasih atas kerja sama Anda.</p>
+                <p className="text-[11px] text-slate-400 font-medium">Dokumen ini dihasilkan oleh Sistem ERP PT Pratama Jaya<br className="hidden sm:block"/>dan sah tanpa tanda tangan fisik.</p>
+              </div>
             </div>
 
           </div>

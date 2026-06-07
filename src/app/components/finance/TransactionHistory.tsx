@@ -27,19 +27,31 @@ const STATUS_LABELS: Record<string, string> = {
 export function TransactionHistory() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'ALL'>('ALL');
+  const [customerFilter, setCustomerFilter] = useState<string>('ALL');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
 
-  const filtered = useMemo(() =>
-    transactions.filter(t => {
+  const uniqueCustomers = useMemo(() => Array.from(new Set(transactions.map(t => t.customerName))), []);
+
+  const filtered = useMemo(() => {
+    const result = transactions.filter(t => {
       const matchSearch = !search ||
         t.referenceNumber.toLowerCase().includes(search.toLowerCase()) ||
         t.description.toLowerCase().includes(search.toLowerCase()) ||
         t.customerName.toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === 'ALL' || t.type === typeFilter;
-      return matchSearch && matchType;
-    }),
-    [search, typeFilter]
-  );
+      const matchCustomer = customerFilter === 'ALL' || t.customerName === customerFilter;
+      return matchSearch && matchType && matchCustomer;
+    });
+
+    result.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'ASC' ? dateA - dateB : dateB - dateA;
+    });
+
+    return result;
+  }, [search, typeFilter, customerFilter, sortOrder]);
 
   const totalCredit = transactions.reduce((s, t) => s + t.credit, 0);
   const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
@@ -102,6 +114,15 @@ export function TransactionHistory() {
             />
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Customer Filter */}
+            <select
+              value={customerFilter}
+              onChange={e => setCustomerFilter(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+            >
+              <option value="ALL">Semua Pelanggan</option>
+              {uniqueCustomers.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
             {/* Type Filter */}
             <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
               {(['ALL', 'PAYMENT', 'INVOICE', 'CREDIT_NOTE'] as const).map(t => (
@@ -141,8 +162,19 @@ export function TransactionHistory() {
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
                   {['Tanggal', 'Referensi', 'Deskripsi', 'Pelanggan', 'Debit', 'Kredit', 'Saldo', 'Status'].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-                      {h}
+                    <th 
+                      key={h} 
+                      className={`text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap ${h === 'Tanggal' ? 'cursor-pointer hover:bg-slate-100 transition-colors group' : ''}`}
+                      onClick={() => h === 'Tanggal' && setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC')}
+                    >
+                      <div className="flex items-center gap-1">
+                        {h}
+                        {h === 'Tanggal' && (
+                          <span className="text-[10px] text-slate-400 group-hover:text-blue-500">
+                            {sortOrder === 'ASC' ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </div>
                     </th>
                   ))}
                 </tr>

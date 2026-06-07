@@ -87,6 +87,14 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        
+        {/* OVERDUE Watermark */}
+        {invoice.status === 'OVERDUE' && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 opacity-10 pointer-events-none z-0">
+            <span className="text-8xl font-black text-red-600 uppercase tracking-widest border-8 border-red-600 px-8 py-4 rounded-3xl">OVERDUE</span>
+          </div>
+        )}
+
         {/* Modal Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
           <div>
@@ -194,13 +202,13 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2 relative z-10">
             <button
               onClick={() => window.print()}
-              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg py-2.5 transition-colors"
+              className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-medium rounded-lg py-2.5 transition-colors ${invoice.status === 'OVERDUE' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
               <Printer size={15} />
-              Print Invoice
+              {invoice.status === 'OVERDUE' ? 'Cetak Surat Penagihan Khusus' : 'Print Invoice'}
             </button>
             <button
               onClick={exportInvoice}
