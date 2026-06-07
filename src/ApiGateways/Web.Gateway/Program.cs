@@ -7,6 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddPjtLogging();
 builder.ConfigurePjtJwtAuthentication();
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>

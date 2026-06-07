@@ -231,11 +231,11 @@ Production Tracking adalah workflow lintas service, bukan module yang berdiri se
 
 Contoh user demo:
 
-- `owner@pjt.local`
-- `sales-order@pjt.local`
-- `engineering@pjt.local`
-- `purchasing@pjt.local`
-- `finance@pjt.local`
+- `owner@test.com`
+- `admin@test.com`
+- `finance@test.com`
+- `sales@test.com`
+- `engineering@test.com`
 
 ## Skenario Admin
 
