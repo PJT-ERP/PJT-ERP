@@ -19,6 +19,7 @@ import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 import { useERPStore } from "../../store/useERPStore";
+import { useSalesData } from "./useSalesData";
 
 interface SODashboardProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -61,7 +62,8 @@ function StatusBadge({ status }: { status: SOStatus }) {
 }
 
 export function SODashboard({ onNavigate }: SODashboardProps) {
-  const { salesOrders, customers } = useApp();
+  const app = useApp();
+  const { salesOrders, customers, error, isUsingBackend } = useSalesData(app.salesOrders, app.customers);
   const { liveInvoices, markInvoiceSentToCustomer, markInvoiceCustomerPaid } = useERPStore();
   const readyInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_ready");
   const sentInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_sent");
@@ -147,6 +149,12 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           <Plus size={14} /> Buat SO
         </button>
       </div>
+
+      {error && !isUsingBackend && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", borderRadius: 6, padding: "9px 12px", fontSize: "12px" }}>
+          Sales API belum tersedia, dashboard memakai data mock lokal untuk testing FE.
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
@@ -446,7 +454,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>
             </div>
             {salesOrders
-              .filter(o => !["completed", "cancelled"].includes(o.status))
+              .filter(o => !["Completed", "Rejected"].includes(o.status))
               .sort((a, b) => a.deadline.localeCompare(b.deadline))
               .slice(0, 4)
               .map((o) => (

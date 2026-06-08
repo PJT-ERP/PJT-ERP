@@ -2,10 +2,12 @@ import React, { useState, useMemo } from "react";
 import {
   Search, Plus, Download, Eye, Edit, Copy, Printer,
   ChevronLeft, ChevronRight, X, SlidersHorizontal,
+  RefreshCw,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
+import { useSalesData } from "./useSalesData";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";
 const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
@@ -44,14 +46,14 @@ function downloadCsv(filename: string, rows: string[][]) {
 
 const STATUS_OPTIONS = [
   { value: "all",               label: "Semua Status"       },
-  { value: "draft",             label: "Draft"              },
-  { value: "waiting_finance",   label: "Waiting Finance"    },
-  { value: "waiting_payment",   label: "Waiting Payment"    },
-  { value: "paid",              label: "Paid"               },
-  { value: "engineering_review",label: "Engineering Review" },
+  { value: "pending_design",    label: "Pending Design"     },
+  { value: "waiting_approval",  label: "Waiting Approval"   },
+  { value: "revision_required", label: "Revision Required"  },
+  { value: "ready_for_production", label: "Ready Production" },
   { value: "in_production",     label: "In Production"      },
+  { value: "qc",                label: "QC"                 },
   { value: "completed",         label: "Completed"          },
-  { value: "cancelled",         label: "Cancelled"          },
+  { value: "rejected",          label: "Rejected"           },
 ];
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
@@ -160,7 +162,8 @@ function ActionBtn({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOList({ onNavigate }: SOListProps) {
-  const { salesOrders, customers } = useApp();
+  const app = useApp();
+  const { salesOrders, customers, isLoading, error, refresh, isUsingBackend } = useSalesData(app.salesOrders, app.customers);
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -180,10 +183,10 @@ export function SOList({ onNavigate }: SOListProps) {
       cName.toLowerCase().includes(q) ||
       o.description.toLowerCase().includes(q);
     return matchSearch &&
-      (statusFilter === "all" || o.status === statusFilter) &&
+      (statusFilter === "all" || o.status.toLowerCase().replace(/\s+/g, "_") === statusFilter) &&
       (customerFilter === "all" || o.customerId === customerFilter) &&
       (!dateFilter || o.createdAt.startsWith(dateFilter));
-  }), [search, statusFilter, customerFilter, dateFilter]);
+  }), [salesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -232,6 +235,13 @@ export function SOList({ onNavigate }: SOListProps) {
         </div>
         <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
           <HoverBtn
+            icon={<RefreshCw size={12} />}
+            label={isLoading ? "Sync..." : "Refresh"}
+            onClick={() => void refresh()}
+            style={{ background: S.white, border: `1px solid ${S.border}`, color: S.secondary }}
+            hoverStyle={{ background: S.bg, color: S.slate }}
+          />
+          <HoverBtn
             icon={<Download size={12} />}
             label="Export"
             onClick={exportOrders}
@@ -248,6 +258,12 @@ export function SOList({ onNavigate }: SOListProps) {
           />
         </div>
       </div>
+
+      {error && !isUsingBackend && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", borderRadius: 6, padding: "9px 12px", fontSize: "12px" }}>
+          Sales API belum tersedia, halaman memakai data mock lokal untuk testing FE.
+        </div>
+      )}
 
       {/* ── Filter panel ─────────────────────────────────────────────────────── */}
       <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6 }}>

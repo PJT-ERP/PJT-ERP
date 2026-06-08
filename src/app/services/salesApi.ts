@@ -4,13 +4,31 @@ export interface CustomerDto {
   id: string;
   code: string;
   name: string;
+  contactPerson?: string | null;
   email?: string | null;
   address?: string | null;
   phone?: string | null;
+  isActive?: boolean;
+}
+
+export interface CreateCustomerRequest {
+  code: string;
+  name: string;
+  address?: string | null;
+  contactPerson?: string | null;
+  email?: string | null;
 }
 
 export interface ProductDto {
   id: string;
+  partNumber: string;
+  description: string;
+  unit: string;
+  materialSpec?: string | null;
+  isActive?: boolean;
+}
+
+export interface CreateProductRequest {
   partNumber: string;
   description: string;
   unit: string;
@@ -68,8 +86,18 @@ export const salesApi = {
     return response.data;
   },
 
+  async createCustomer(request: CreateCustomerRequest) {
+    const response = await apiClient.post<CustomerDto>('/api/v1/master-data/customers', request);
+    return response.data;
+  },
+
   async listProducts() {
     const response = await apiClient.get<ProductDto[]>('/api/v1/master-data/products');
+    return response.data;
+  },
+
+  async createProduct(request: CreateProductRequest) {
+    const response = await apiClient.post<ProductDto>('/api/v1/master-data/products', request);
     return response.data;
   },
 

@@ -9,6 +9,8 @@ import {
 import { useApp } from "../context/AppContext";
 import type { Customer } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
+import { salesApi } from "../../services/salesApi";
+import { useSalesData } from "./useSalesData";
 
 interface CustomerListProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -69,7 +71,7 @@ interface ModalState {
 
 function CustomerModal({ state, onSave, onClose }: {
   state: ModalState;
-  onSave: (c: Partial<Customer>) => void;
+  onSave: (c: Partial<Customer>) => void | Promise<void>;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Partial<Customer>>(state.customer);
@@ -165,7 +167,9 @@ function CustomerModal({ state, onSave, onClose }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function CustomerList({ onNavigate }: CustomerListProps) {
-  const { customers, salesOrders, addCustomer, updateCustomer } = useApp();
+  const app = useApp();
+  const { customers, salesOrders, error, refresh, isUsingBackend } = useSalesData(app.salesOrders, app.customers);
+  const { addCustomer, updateCustomer } = app;
   const [search, setSearch]   = useState("");
   const [page, setPage]       = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -202,7 +206,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
   const openAdd  = () => setModal({ mode: "add",  customer: emptyForm() });
   const openEdit = (c: Customer) => setModal({ mode: "edit", customer: { ...c } });
 
-  const handleSave = (data: Partial<Customer>) => {
+  const handleSave = async (data: Partial<Customer>) => {
     if (modal?.mode === "add") {
       const newCustomer: Customer = {
         code:          `C${String(customers.length + 1).padStart(3, "0")}`,
@@ -211,7 +215,22 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
         phone:         data.phone   ?? "",
         address:       data.address ?? "",
       };
-      addCustomer(newCustomer);
+      if (isUsingBackend) {
+        try {
+          await salesApi.createCustomer({
+            code: newCustomer.code,
+            name: newCustomer.name,
+            address: newCustomer.address,
+            contactPerson: newCustomer.contact,
+            email: newCustomer.contact.includes("@") ? newCustomer.contact : undefined,
+          });
+          await refresh();
+        } catch {
+          addCustomer(newCustomer);
+        }
+      } else {
+        addCustomer(newCustomer);
+      }
     } else if (modal?.mode === "edit" && data.code) {
       updateCustomer(data.code, data);
     }
@@ -238,6 +257,12 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
           <HeaderBtn icon={<Plus size={12} />} label="Tambah Pelanggan" onClick={openAdd} primary />
         </div>
       </div>
+
+      {error && !isUsingBackend && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", borderRadius: 6, padding: "9px 12px", fontSize: "12px" }}>
+          Master Data API belum tersedia, halaman memakai data pelanggan mock lokal untuk testing FE.
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>

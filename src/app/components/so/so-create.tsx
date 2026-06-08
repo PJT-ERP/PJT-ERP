@@ -10,6 +10,8 @@ import { productOptions } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import type { Page } from "../layout/erp-layout";
 import { useERPStore } from "../../store/useERPStore";
+import { salesApi, type ProductDto } from "../../services/salesApi";
+import { useSalesData } from "./useSalesData";
 
 interface SOCreateProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -315,7 +317,9 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, addSalesOrder, addCustomer, salesOrders, updateSalesOrder } = useApp();
+  const app = useApp();
+  const { customers, salesOrders, refresh: refreshSalesData, isUsingBackend } = useSalesData(app.salesOrders, app.customers);
+  const { addSalesOrder, addCustomer, updateSalesOrder } = app;
   const { submitSOToFinance, updateSOInFinance, allSOs } = useERPStore();
   const allSos = allSOs;
   
@@ -367,6 +371,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
   const [submitted, setSubmitted]         = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const selectedCustomer = customers.find(c => c.code === repeatForm.customerId);
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
@@ -400,8 +405,76 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
-  const handleNewOrderSubmit = (e: React.FormEvent) => {
+  const getProductName = (row: ProductRow) =>
+    row.type === "custom" ? row.customName : row.productName;
+
+  const getMaterialSpec = (row: ProductRow) =>
+    [row.material, row.specification, row.notes].filter(Boolean).join(" | ") || null;
+
+  const ensureBackendCustomer = async () => {
+    const existing = customers.find(c => c.code === customerForm.customerCode);
+    if (existing && /^[0-9a-f-]{36}$/i.test(existing.code)) {
+      return existing.code;
+    }
+
+    const created = await salesApi.createCustomer({
+      code: customerForm.customerCode,
+      name: customerForm.company || customerForm.customerName,
+      address: customerForm.address,
+      contactPerson: customerForm.customerName,
+      email: customerForm.email,
+    });
+
+    return created.id;
+  };
+
+  const ensureBackendProduct = async (row: ProductRow, products: ProductDto[]) => {
+    const name = getProductName(row);
+    const partNumber = row.type === "existing" ? name : `CUSTOM-${Date.now().toString(36).toUpperCase()}`;
+    const existing = products.find(p =>
+      p.partNumber.toLowerCase() === partNumber.toLowerCase() ||
+      p.description.toLowerCase() === name.toLowerCase()
+    );
+
+    if (existing) return existing;
+
+    return salesApi.createProduct({
+      partNumber,
+      description: name,
+      unit: row.unit,
+      materialSpec: getMaterialSpec(row),
+    });
+  };
+
+  const createBackendSalesOrder = async (rows: ProductRow[]) => {
+    const [customerId, masterProducts] = await Promise.all([
+      ensureBackendCustomer(),
+      salesApi.listProducts(),
+    ]);
+
+    const items = await Promise.all(rows.map(async row => {
+      const product = await ensureBackendProduct(row, masterProducts);
+      return {
+        productId: product.id,
+        qty: Number(row.quantity) || 1,
+        notes: [row.notes, row.material, row.specification].filter(Boolean).join(" | ") || null,
+      };
+    }));
+
+    return salesApi.createSalesOrder({
+      customerId,
+      soDate: new Date().toISOString().slice(0, 10),
+      targetDate: customerForm.deadline || null,
+      items,
+      customerDrawingUrl: customerForm.designUrl || null,
+      designReference: customerForm.generalNotes || null,
+      designStatus: "Waiting Approval",
+    });
+  };
+
+  const handleNewOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
     
     // Using the first product for the store representation (simplification for the mock store)
     const primaryProduct = products[0];
@@ -454,17 +527,30 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       return;
     }
 
+    let backendSoNumber = "";
+    if (isUsingBackend) {
+      try {
+        const backendOrder = await createBackendSalesOrder(products);
+        backendSoNumber = backendOrder.soNumber;
+        await refreshSalesData();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Production API belum menerima Sales Order";
+        setSubmitError(`${message}. SO tetap disimpan ke simulasi lokal.`);
+      }
+    }
+
     const newSO = addSalesOrder({
       customerId: customerForm.customerCode,
-      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      description: getProductName(primaryProduct),
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
       material: primaryProduct.material,
-      spec: primaryProduct.spec,
+      spec: primaryProduct.specification,
       deadline: customerForm.deadline,
+      designLink: customerForm.designUrl,
     });
 
-    const soNumber = newSO.id;
+    const soNumber = backendSoNumber || newSO.id;
     setGeneratedSONumber(soNumber);
     
     submitSOToFinance({
@@ -477,7 +563,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       phone: customerForm.phone,
       address: customerForm.address,
       designUrl: customerForm.designUrl,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      productName: getProductName(primaryProduct),
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
       estimatedAmount: 0, // Set to 0 for finance to fill
@@ -540,6 +626,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
             {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Dikirim ke Finance untuk review"}
           </p>
+          {submitError && (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", borderRadius: 4, padding: "10px 14px", marginBottom: 16, textAlign: "left", fontSize: "11.5px" }}>
+              {submitError}
+            </div>
+          )}
           <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
@@ -588,6 +679,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </p>
         </div>
       </div>
+
+      {submitError && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", borderRadius: 6, padding: "9px 12px", fontSize: "12px" }}>
+          {submitError}
+        </div>
+      )}
 
       {/* Step breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
