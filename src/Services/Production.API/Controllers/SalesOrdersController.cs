@@ -10,14 +10,14 @@ namespace PJT_ERP.Production.Api.Controllers;
 public sealed class SalesOrdersController(IProductionService productionService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}/progress")]
-    [Authorize(Roles = "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
     {
         var progress = await productionService.GetSalesOrderProgressAsync(id, cancellationToken);
@@ -25,7 +25,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Sales Order")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
     public async Task<ActionResult<SalesOrderDto>> Create(CreateSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try
@@ -40,7 +40,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/engineers")]
-    [Authorize(Roles = "Admin,Sales Order")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
     public async Task<ActionResult<SalesOrderDto>> AssignEngineers(
         Guid id,
         AssignSalesOrderEngineersRequest request,
@@ -58,7 +58,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/design-status")]
-    [Authorize(Roles = "Admin,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
     public async Task<ActionResult<SalesOrderDto>> UpdateDesignStatus(
         Guid id,
         UpdateSalesOrderDesignStatusRequest request,
@@ -76,7 +76,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/confirm")]
-    [Authorize(Roles = "Admin,Sales Order")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try

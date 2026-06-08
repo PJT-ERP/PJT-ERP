@@ -39,7 +39,7 @@ public sealed class PurchaseRequestServiceTests
                 .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
                 .Cast<AuthorizeAttribute>());
 
-        Assert.Equal("Admin,Finance,Engineering,Purchasing,Owner,Sales Order", authorize.Roles);
+        Assert.Equal("Admin,Finance,Engineering,Purchasing,Owner,Sales,Sales Order", authorize.Roles);
     }
 
     [Fact]

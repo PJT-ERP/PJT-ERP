@@ -1,0 +1,468 @@
+import { useState } from "react";
+import {
+  Search,
+  AlertTriangle,
+  TrendingDown,
+  TrendingUp,
+  CheckCircle2,
+  Package,
+  RefreshCcw,
+  Truck,
+  Clock,
+  Plus,
+  Download,
+  Filter,
+  ChevronDown,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+
+/* ── Types & Data ──────────────────────────────────────────── */
+
+interface IncomingShipment {
+  po: string;
+  supplier: string;
+  eta: string;
+  qty: number;
+  unit: string;
+}
+
+interface InventoryItem {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  unit: string;
+  currentStock: number;
+  minStock: number;
+  maxStock: number;
+  reorderPoint: number;
+  location: string;
+  lastUpdated: string;
+  supplier: string;
+  unitPrice: number;
+  incoming?: IncomingShipment;
+}
+
+const INVENTORY: InventoryItem[] = [
+  { id: "1",  code: "MAT-001", name: "Besi Hollow 4x4x2mm", category: "Besi & Baja",    unit: "batang", currentStock: 45,  minStock: 20,  maxStock: 100, reorderPoint: 30,  location: "Gudang A — Rak 1.A", lastUpdated: "24 Mei 2026", supplier: "PT Indo Steel",    unitPrice: 185000 },
+  { id: "2",  code: "MAT-002", name: "Plat Besi 3mm",        category: "Besi & Baja",    unit: "lembar", currentStock: 8,   minStock: 15,  maxStock: 50,  reorderPoint: 20,  location: "Gudang A — Rak 2.B", lastUpdated: "23 Mei 2026", supplier: "CV Bintang Logam", unitPrice: 420000, incoming: { po: "PO-2405-031", supplier: "CV Bintang Logam", eta: "27 Mei", qty: 10, unit: "lembar" } },
+  { id: "3",  code: "MAT-003", name: "Bearing SKF 6205",     category: "Spare Parts",    unit: "pcs",    currentStock: 3,   minStock: 10,  maxStock: 40,  reorderPoint: 15,  location: "Gudang B — Rak 4.C", lastUpdated: "22 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 85000,  incoming: { po: "PO-2405-030", supplier: "PT Sumber Teknik", eta: "26 Mei", qty: 12, unit: "pcs" } },
+  { id: "4",  code: "MAT-004", name: "V-Belt A48",            category: "Spare Parts",    unit: "pcs",    currentStock: 2,   minStock: 5,   maxStock: 20,  reorderPoint: 8,   location: "Gudang B — Rak 5.A", lastUpdated: "21 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 75000,  incoming: { po: "PO-2405-030", supplier: "PT Sumber Teknik", eta: "26 Mei", qty: 6, unit: "pcs" } },
+  { id: "5",  code: "MAT-005", name: "Elektroda Las E6013",   category: "Consumable Las", unit: "box",    currentStock: 12,  minStock: 8,   maxStock: 30,  reorderPoint: 12,  location: "Gudang C — Rak 1.A", lastUpdated: "24 Mei 2026", supplier: "CV Tekno Prima",  unitPrice: 215000, incoming: { po: "PO-2405-027", supplier: "CV Tekno Prima", eta: "24 Mei", qty: 4, unit: "box" } },
+  { id: "6",  code: "MAT-006", name: "Cat Epoxy Primer Grey", category: "Cat & Kimia",    unit: "kaleng", currentStock: 4,   minStock: 8,   maxStock: 25,  reorderPoint: 10,  location: "Gudang C — Rak 3.B", lastUpdated: "20 Mei 2026", supplier: "UD Maju Jaya",    unitPrice: 185000, incoming: { po: "PO-2405-029", supplier: "UD Maju Jaya", eta: "Hari ini", qty: 4, unit: "kaleng" } },
+  { id: "7",  code: "MAT-007", name: "Besi WF 150x75",        category: "Besi & Baja",    unit: "batang", currentStock: 18,  minStock: 10,  maxStock: 40,  reorderPoint: 15,  location: "Gudang A — Rak 3.A", lastUpdated: "24 Mei 2026", supplier: "PT Indo Steel",    unitPrice: 1850000 },
+  { id: "8",  code: "MAT-008", name: "Mata Gerinda Potong 4\"", category: "Consumable Las", unit: "pcs",  currentStock: 35,  minStock: 20,  maxStock: 80,  reorderPoint: 30,  location: "Gudang C — Rak 2.A", lastUpdated: "23 Mei 2026", supplier: "CV Tekno Prima",  unitPrice: 8500 },
+  { id: "9",  code: "MAT-009", name: "Besi Siku 40x40x3mm",   category: "Besi & Baja",    unit: "batang", currentStock: 0,   minStock: 15,  maxStock: 60,  reorderPoint: 20,  location: "Gudang A — Rak 4.B", lastUpdated: "19 Mei 2026", supplier: "CV Bintang Logam", unitPrice: 145000, incoming: { po: "PO-2405-031", supplier: "CV Bintang Logam", eta: "27 Mei", qty: 15, unit: "batang" } },
+  { id: "10", code: "MAT-010", name: "Thinner Epoxy 4L",       category: "Cat & Kimia",    unit: "kaleng", currentStock: 6,   minStock: 6,   maxStock: 20,  reorderPoint: 8,   location: "Gudang C — Rak 4.B", lastUpdated: "20 Mei 2026", supplier: "UD Maju Jaya",    unitPrice: 65000,  incoming: { po: "PO-2405-029", supplier: "UD Maju Jaya", eta: "Hari ini", qty: 4, unit: "kaleng" } },
+  { id: "11", code: "MAT-011", name: "Baut M12 x 50",          category: "Fastener",       unit: "pcs",    currentStock: 280, minStock: 100, maxStock: 500, reorderPoint: 150, location: "Gudang B — Rak 1.A", lastUpdated: "24 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 3500 },
+  { id: "12", code: "MAT-012", name: "Mur M12",                 category: "Fastener",       unit: "pcs",    currentStock: 195, minStock: 100, maxStock: 400, reorderPoint: 150, location: "Gudang B — Rak 2.A", lastUpdated: "24 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 2500 },
+];
+
+/* ── Helpers ───────────────────────────────────────────────── */
+
+type StockStatus = "critical" | "low" | "normal" | "excess";
+
+function getStatus(item: InventoryItem): StockStatus {
+  if (item.currentStock === 0) return "critical";
+  if (item.currentStock < item.minStock) return "critical";
+  if (item.currentStock <= item.reorderPoint) return "low";
+  if (item.currentStock >= item.maxStock * 0.9) return "excess";
+  return "normal";
+}
+
+const statusCfg: Record<StockStatus, { label: string; bg: string; color: string; dot: string; barColor: string }> = {
+  critical: { label: "Kritis",   bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
+  low:      { label: "Rendah",   bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
+  normal:   { label: "Normal",   bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
+  excess:   { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
+};
+
+const formatRp = (n: number) => {
+  if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1)} M`;
+  if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(0)} Jt`;
+  return `Rp ${n.toLocaleString("id-ID")}`;
+};
+
+function TH({ children, className = "", right = false }: { children: React.ReactNode; className?: string; right?: boolean }) {
+  return (
+    <th className={className} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", padding: "9px 16px", textAlign: right ? "right" : "left", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+      {children}
+    </th>
+  );
+}
+
+function TD({ children, className = "", right = false }: { children: React.ReactNode; className?: string; right?: boolean }) {
+  return (
+    <td className={className} style={{ padding: "11px 16px", fontSize: 13, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: right ? "right" : "left" }}>
+      {children}
+    </td>
+  );
+}
+
+/* ── Category chart data ───────────────────────────────────── */
+
+const categories = Array.from(new Set(INVENTORY.map((i) => i.category)));
+const chartData = categories.map((cat) => ({
+  name: cat.split(" ")[0],
+  value: Math.round(INVENTORY.filter((i) => i.category === cat).reduce((s, i) => s + i.currentStock * i.unitPrice, 0) / 1_000_000),
+}));
+
+const CHART_COLORS = ["#2563eb", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
+
+/* ── Page ──────────────────────────────────────────────────── */
+
+export function InventoryPage() {
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const filtered = INVENTORY.filter((item) => {
+    const q = search.toLowerCase();
+    const status = getStatus(item);
+    const matchQ = !q || item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
+    const matchC = filterCat === "all" || item.category === filterCat;
+    const matchS = filterStatus === "all" || status === filterStatus;
+    return matchQ && matchC && matchS;
+  });
+
+  const criticalItems = INVENTORY.filter((i) => getStatus(i) === "critical");
+  const lowItems      = INVENTORY.filter((i) => getStatus(i) === "low");
+  const incomingItems = INVENTORY.filter((i) => !!i.incoming);
+  const totalValue    = INVENTORY.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
+
+  return (
+    <div className="p-5 space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 style={{ color: "#0f172a" }}>Inventory Status</h1>
+          <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+            Ketersediaan material dan status stok gudang — per 24 Mei 2026
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
+            <RefreshCcw size={13} /> Refresh
+          </button>
+          <button className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" style={{ fontSize: 12, background: "#1e3a5f" }}>
+            <Plus size={13} /> Buat PO Reorder
+          </button>
+        </div>
+      </div>
+
+      {/* Summary KPI */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Total Item", val: INVENTORY.length, sub: `${categories.length} kategori`, icon: <Package size={16} style={{ color: "#2563eb" }} />, bg: "#eff6ff" },
+          { label: "Stok Kritis", val: criticalItems.length, sub: "Segera reorder", icon: <AlertTriangle size={16} style={{ color: "#dc2626" }} />, bg: "#fee2e2", urgent: true },
+          { label: "Perlu Reorder", val: lowItems.length, sub: "Di bawah reorder point", icon: <TrendingDown size={16} style={{ color: "#f59e0b" }} />, bg: "#fef9c3" },
+          { label: "Nilai Stok Total", val: formatRp(totalValue), sub: "Semua material", icon: <TrendingUp size={16} style={{ color: "#16a34a" }} />, bg: "#dcfce7", isText: true },
+        ].map((k) => (
+          <div
+            key={k.label}
+            className="rounded-lg p-4 flex items-center gap-4"
+            style={{
+              background: "#fff",
+              border: `1px solid ${k.urgent ? "#fca5a5" : "#e2e8f0"}`,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg shrink-0" style={{ background: k.bg }}>
+              {k.icon}
+            </div>
+            <div className="min-w-0">
+              <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>{k.label}</p>
+              <p style={{ fontSize: k.isText ? 15 : 22, fontWeight: 700, color: k.urgent ? "#dc2626" : "#0f172a", marginTop: 2 }}>{k.val}</p>
+              <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{k.sub}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Top row — alerts + chart + incoming */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Critical stock alert */}
+        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #fca5a5", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div className="flex items-center gap-2 px-4 py-3" style={{ background: "#fef2f2", borderBottom: "1px solid #fca5a5" }}>
+            <AlertTriangle size={14} style={{ color: "#dc2626" }} />
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Stok Kritis — Tindakan Segera
+            </p>
+          </div>
+          <div className="divide-y" style={{ divideColor: "#f1f5f9" }}>
+            {criticalItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{item.name}</p>
+                  <p style={{ fontSize: 11, color: "#64748b" }}>{item.code} · {item.location}</p>
+                </div>
+                <div className="text-right">
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#dc2626" }}>
+                    {item.currentStock} {item.unit}
+                  </p>
+                  <p style={{ fontSize: 10, color: "#94a3b8" }}>min: {item.minStock}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {criticalItems.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <p style={{ fontSize: 13, color: "#94a3b8" }}>Tidak ada stok kritis</p>
+            </div>
+          )}
+        </div>
+
+        {/* Category chart */}
+        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div className="px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Nilai Stok per Kategori (Juta Rp)
+            </p>
+          </div>
+          <div className="px-2 py-4">
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, left: -24, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [`Rp ${v} Jt`]} />
+                <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                  {chartData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Incoming shipments */}
+        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
+            <Truck size={14} style={{ color: "#0891b2" }} />
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Material Masuk
+            </p>
+            <span className="ml-auto rounded-full flex items-center justify-center text-white" style={{ width: 18, height: 18, background: "#0891b2", fontSize: 10, fontWeight: 700 }}>
+              {incomingItems.length}
+            </span>
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
+            {incomingItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-start gap-3 px-4 py-3"
+                style={{ borderBottom: "1px solid #f8fafc" }}
+              >
+                <div className="flex items-center justify-center w-7 h-7 rounded shrink-0 mt-0.5" style={{ background: "#ecfeff" }}>
+                  <Truck size={13} style={{ color: "#0891b2" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{item.name}</p>
+                  <p style={{ fontSize: 11, color: "#64748b" }}>{item.incoming!.supplier}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className="rounded px-1.5 py-0.5"
+                      style={{
+                        fontSize: 10, fontWeight: 600,
+                        background: item.incoming!.eta === "Hari ini" ? "#fee2e2" : "#eff6ff",
+                        color: item.incoming!.eta === "Hari ini" ? "#991b1b" : "#1d4ed8",
+                      }}
+                    >
+                      ETA: {item.incoming!.eta}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>+{item.incoming!.qty} {item.incoming!.unit}</span>
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>{item.incoming!.po}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2 p-3 rounded-lg" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari kode, nama, kategori..."
+            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#0f172a" }}
+          />
+        </div>
+        <Select value={filterCat} onValueChange={setFilterCat}>
+          <SelectTrigger className="h-9 w-44 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+            <SelectValue placeholder="Semua Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-1.5">
+          {(["all", "critical", "low", "normal"] as const).map((s) => {
+            const cfg = s === "all" ? null : statusCfg[s];
+            const active = filterStatus === s;
+            const count = s === "all" ? INVENTORY.length : INVENTORY.filter((i) => getStatus(i) === s).length;
+            return (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className="rounded px-2.5 py-1.5 transition-colors flex items-center gap-1.5"
+                style={{
+                  fontSize: 11, fontWeight: 500,
+                  background: active ? (cfg?.bg ?? "#1e3a5f") : "#f8fafc",
+                  color: active ? (cfg?.color ?? "#fff") : "#475569",
+                  border: `1px solid ${active ? (cfg?.color ? cfg.color + "50" : "#1e3a5f") : "#e2e8f0"}`,
+                }}
+              >
+                {cfg && <span className="rounded-full" style={{ width: 5, height: 5, background: cfg.dot }} />}
+                {s === "all" ? "Semua" : cfg!.label}
+                <strong style={{ color: active ? "inherit" : "#0f172a" }}>{count}</strong>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main table */}
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <TH>Kode / Material</TH>
+                <TH className="hidden md:table-cell">Kategori</TH>
+                <TH right>Stok Saat Ini</TH>
+                <TH className="hidden lg:table-cell" right>Min</TH>
+                <TH className="hidden lg:table-cell" right>Reorder Pt</TH>
+                <TH className="hidden xl:table-cell" right>Maks</TH>
+                <TH className="hidden lg:table-cell w-36">Level Stok</TH>
+                <TH>Status</TH>
+                <TH className="hidden md:table-cell">Material Masuk</TH>
+                <TH className="hidden xl:table-cell">Lokasi</TH>
+                <TH className="hidden sm:table-cell" right>Nilai Stok</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item) => {
+                const status = getStatus(item);
+                const sc = statusCfg[status];
+                const pct = item.maxStock > 0 ? Math.min(100, Math.round((item.currentStock / item.maxStock) * 100)) : 0;
+
+                return (
+                  <tr
+                    key={item.id}
+                    style={{ borderBottom: "1px solid #f1f5f9" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                  >
+                    <TD>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: sc.dot }} />
+                        <div>
+                          <p style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{item.code}</p>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{item.name}</p>
+                        </div>
+                      </div>
+                    </TD>
+                    <TD className="hidden md:table-cell">
+                      <span style={{ fontSize: 12, color: "#475569" }}>{item.category}</span>
+                    </TD>
+                    <TD right>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: status === "critical" ? "#dc2626" : status === "low" ? "#d97706" : "#0f172a" }}>
+                        {item.currentStock}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 4 }}>{item.unit}</span>
+                    </TD>
+                    <TD className="hidden lg:table-cell" right>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>{item.minStock}</span>
+                    </TD>
+                    <TD className="hidden lg:table-cell" right>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>{item.reorderPoint}</span>
+                    </TD>
+                    <TD className="hidden xl:table-cell" right>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>{item.maxStock}</span>
+                    </TD>
+                    <TD className="hidden lg:table-cell">
+                      <div style={{ width: 100 }}>
+                        <div className="rounded-full overflow-hidden" style={{ height: 6, background: "#f1f5f9" }}>
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${pct}%`, background: sc.barColor }}
+                          />
+                        </div>
+                        <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{pct}%</p>
+                      </div>
+                    </TD>
+                    <TD>
+                      <span
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+                        style={{ fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}
+                      >
+                        <span className="rounded-full" style={{ width: 5, height: 5, background: sc.dot }} />
+                        {sc.label}
+                      </span>
+                    </TD>
+                    <TD className="hidden md:table-cell">
+                      {item.incoming ? (
+                        <div>
+                          <span
+                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+                            style={{
+                              fontSize: 10, fontWeight: 600,
+                              background: item.incoming.eta === "Hari ini" ? "#fee2e2" : "#ecfeff",
+                              color: item.incoming.eta === "Hari ini" ? "#991b1b" : "#0e7490",
+                            }}
+                          >
+                            <Truck size={10} /> +{item.incoming.qty} {item.incoming.unit}
+                          </span>
+                          <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>ETA: {item.incoming.eta}</p>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "#e2e8f0" }}>—</span>
+                      )}
+                    </TD>
+                    <TD className="hidden xl:table-cell">
+                      <span style={{ fontSize: 11, color: "#64748b" }}>{item.location}</span>
+                    </TD>
+                    <TD className="hidden sm:table-cell" right>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>
+                        {formatRp(item.currentStock * item.unitPrice)}
+                      </span>
+                    </TD>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
+          <p style={{ fontSize: 11, color: "#94a3b8" }}>
+            Menampilkan {filtered.length} dari {INVENTORY.length} item
+          </p>
+          <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
+            Nilai total stok: {formatRp(filtered.reduce((s, i) => s + i.currentStock * i.unitPrice, 0))}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

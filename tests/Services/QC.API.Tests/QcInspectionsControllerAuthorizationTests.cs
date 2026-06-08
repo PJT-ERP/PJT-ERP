@@ -7,9 +7,9 @@ namespace QC.API.Tests;
 public sealed class QcInspectionsControllerAuthorizationTests
 {
     [Theory]
-    [InlineData(nameof(QcInspectionsController.List), "Admin,Engineering Reviewer")]
-    [InlineData(nameof(QcInspectionsController.Get), "Admin,Engineering Reviewer")]
-    [InlineData(nameof(QcInspectionsController.UploadResult), "Admin,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.List), "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.Get), "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [InlineData(nameof(QcInspectionsController.UploadResult), "Admin,Engineering Supervisor,Engineering Reviewer")]
     public void Qc_actions_use_reviewer_roles(string actionName, string expectedRoles)
     {
         var method = typeof(QcInspectionsController)
