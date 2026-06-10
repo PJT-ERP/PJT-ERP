@@ -47,14 +47,8 @@ const formatIDR = (amount: number) =>
 function StatusBadge({ status }: { status: SOStatus }) {
   const cfg = getStatusColor(status);
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: "5px",
-      padding: "2px 8px", borderRadius: "4px",
-      border: `1px solid`, borderColor: cfg.border.replace("border-", ""),
-      background: cfg.bg.replace("bg-", ""), color: cfg.text.replace("text-", ""),
-      fontSize: "11.5px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0, display: "inline-block" }} />
+    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
+      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
       {status}
     </span>
   );
@@ -139,9 +133,20 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           onClick={() => onNavigate("so-create")}
           style={{
             display: "flex", alignItems: "center", gap: 6,
-            padding: "7px 14px", borderRadius: 4, border: "none",
-            background: S.cyan, color: "#fff", cursor: "pointer",
-            fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+            padding: "8px 16px", borderRadius: 6, border: "none",
+            background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
+            color: "#fff", cursor: "pointer",
+            fontSize: "13px", fontWeight: 600, fontFamily: S.font, whiteSpace: "nowrap",
+            boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
+            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-1px)";
+            e.currentTarget.style.boxShadow = "0 6px 16px rgba(200, 16, 46, 0.35)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(200, 16, 46, 0.25)";
           }}
         >
           <Plus size={14} /> Buat SO
@@ -151,7 +156,30 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         {summaryCards.map((card) => (
-          <div key={card.label} style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+          <button 
+            key={card.label} 
+            onClick={() => onNavigate("so-list", { filter: card.label })}
+            style={{ 
+              background: S.white, 
+              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", 
+              border: `1px solid ${S.cardBorder}`, 
+              borderRadius: 6, 
+              padding: "16px 18px",
+              textAlign: "left",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              fontFamily: S.font,
+              width: "100%",
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 12px 28px -4px rgba(0,0,0,0.15), 0 4px 12px -4px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)";
+            }}
+          >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>{card.label}</p>
@@ -162,7 +190,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                 {card.icon}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -424,12 +452,23 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                   onClick={() => onNavigate(action.page)}
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "9px 12px", borderRadius: 4, cursor: "pointer",
-                    background: action.primary ? S.cyan : S.bg,
-                    border: `1px solid ${action.primary ? S.cyan : S.border}`,
+                    padding: "10px 14px", borderRadius: 6, cursor: "pointer",
+                    background: action.primary ? "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)" : S.bg,
+                    border: `1px solid ${action.primary ? "transparent" : S.border}`,
                     color: action.primary ? "#fff" : S.slate,
                     fontSize: "12.5px", fontWeight: 500, fontFamily: S.font,
-                    transition: "opacity 0.1s",
+                    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                    boxShadow: action.primary ? "0 4px 12px rgba(200, 16, 46, 0.25)" : "none",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = "translateX(4px)";
+                    if (action.primary) e.currentTarget.style.boxShadow = "0 6px 16px rgba(200, 16, 46, 0.35)";
+                    else e.currentTarget.style.background = S.white;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = "translateX(0)";
+                    if (action.primary) e.currentTarget.style.boxShadow = "0 4px 12px rgba(200, 16, 46, 0.25)";
+                    else e.currentTarget.style.background = S.bg;
                   }}
                 >
                   <span style={{ display: "flex", alignItems: "center", gap: 7 }}>{action.icon}{action.label}</span>

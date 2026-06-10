@@ -11,13 +11,8 @@ export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps) {
   
   return (
     <span 
-      className={`inline-flex items-center rounded-md font-bold shadow-sm tracking-wide ${sizeClass}`} 
-      style={{ 
-        backgroundColor: colors.bg, 
-        color: colors.text,
-        textTransform: 'uppercase',
-        border: 'none'
-      }}
+      className={`inline-flex items-center rounded-md font-bold shadow-sm tracking-wide ${sizeClass} ${colors.bg} ${colors.text} ${colors.border}`}
+      style={{ textTransform: 'uppercase' }}
     >
       {status}
     </span>

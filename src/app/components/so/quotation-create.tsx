@@ -28,6 +28,7 @@ const S = {
   bgHover: "#E2E8F0", // slate-200
   white: "#FFFFFF",
   red: "#EF4444",
+  cyan: "#0284C7", // Brand blue for QUT
 };
 
 // ─── Product line item ────────────────────────────────────────────────────────
@@ -553,12 +554,12 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
           <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Penawaran:</p>
           <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedQuotationID}</p>
           <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
-            {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Dikirim ke Finance untuk review"}
+            {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Dikirim ke Engineering untuk review desain"}
           </p>
           <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
-              {" "}Departemen Finance akan mereview dan memverifikasi QUT ini dalam 1×24 jam kerja.
+              {" "}Tim Engineering akan meninjau kelengkapan desain dan material sebelum penawaran dapat dikirimkan ke pelanggan.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>

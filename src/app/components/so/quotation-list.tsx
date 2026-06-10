@@ -58,14 +58,8 @@ const STATUS_OPTIONS = [
 function StatusBadge({ status }: { status: QuotationStatus }) {
   const cfg = getQuotationStatusColor(status);
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "2px 8px", borderRadius: 4,
-      border: `1px solid`, borderColor: cfg.border.replace("border-", ""),
-      background: cfg.bg.replace("bg-", ""), color: cfg.text.replace("text-", ""),
-      fontSize: "11px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0 }} />
+    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
+      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
       {cfg.label}
     </span>
   );
@@ -259,8 +253,16 @@ export function QuotationList({ onNavigate }: QuotationListProps) {
             icon={<Plus size={12} />}
             label="Buat QUT"
             onClick={() => onNavigate("quotation-create")}
-            style={{ background: S.cyan, border: `1px solid ${S.cyan}`, color: "#fff" }}
-            hoverStyle={{ opacity: "0.88" }}
+            style={{ 
+              background: "linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)", 
+              border: "none", 
+              color: "#fff",
+              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
+              fontWeight: 600,
+              padding: "7px 14px",
+              borderRadius: "6px"
+            }}
+            hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(37, 99, 235, 0.35)" }}
             primary
           />
         </div>

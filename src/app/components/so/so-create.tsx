@@ -16,7 +16,7 @@ interface SOCreateProps {
   initialData?: { customerId?: string; orderType?: "new" | "repeat" };
 }
 
-type OrderType = "new" | "repeat" | null;
+type OrderType = "new" | "repeat" | "from_qut" | null;
 
 const S = {
   font: "Inter, sans-serif",
@@ -28,6 +28,7 @@ const S = {
   bgHover: "#E2E8F0", // slate-200
   white: "#FFFFFF",
   red: "#EF4444",
+  cyan: "#C8102E", // Map cyan to primary brand red to fix undefined references
 };
 
 // ─── Product line item ────────────────────────────────────────────────────────
@@ -382,7 +383,7 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, addSalesOrder, addCustomer, salesOrders, updateSalesOrder } = useApp();
+  const { customers, addSalesOrder, addCustomer, salesOrders, updateSalesOrder, quotations } = useApp();
   const { submitSOToFinance, updateSOInFinance, allSOs } = useERPStore();
   const allSos = allSOs;
 
@@ -429,12 +430,29 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       materials: existingAppSo.materials || emptyProduct().materials,
     } : emptyProduct()
   ]);
-  const [repeatForm, setRepeatForm] = useState<RepeatForm>({ customerId: initialData?.customerId ?? "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
-  const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
 
-  const selectedCustomer = customers.find(c => c.code === repeatForm.customerId);
+  const today = new Date().toISOString().split("T")[0];
+
+  const [repeatForm, setRepeatForm] = useState<RepeatForm>({
+    customerId: initialData?.customerId || "", previousSoId: "", deadline: today, generalNotes: "", customerImageUrl: "", estimatedAmount: 0
+  });
+
+  const [qutForm, setQutForm] = useState({
+    qutId: "", customerId: "", deadline: today, generalNotes: "", customerImageUrl: ""
+  });
+
+
+  const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
+  const [qutProducts, setQutProducts] = useState<ProductRow[]>([]);
+
+  const selectedCustomer = orderType === "repeat"
+    ? customers.find(c => c.code === repeatForm.customerId)
+    : orderType === "from_qut"
+      ? customers.find(c => c.code === qutForm.customerId)
+      : null;
+
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
 
   const updateProduct = useCallback((id: string, updated: ProductRow, list: ProductRow[], setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => {
@@ -449,6 +467,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setRepeatProducts([]);
+    setQutForm({ qutId: "", customerId: "", deadline: today, generalNotes: "", customerImageUrl: "" });
+    setQutProducts([]);
   };
 
   const handleRepeatSoSelect = (soId: string) => {
@@ -457,12 +477,30 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     if (selectedSo) {
       setRepeatProducts([{
         ...emptyProduct(),
-        productName: selectedSo.productName,
+        productName: selectedSo.description, // changed to description, as it stores the product name
         quantity: String(selectedSo.quantity),
         unit: selectedSo.unit,
       }]);
     } else {
       setRepeatProducts([]);
+    }
+  };
+
+  const handleQutSelect = (qutId: string) => {
+    const qut = quotations.find(q => q.id === qutId);
+    if (qut) {
+      setQutForm({ ...qutForm, qutId: qutId, customerId: qut.customerId });
+      setQutProducts([{
+        ...emptyProduct(),
+        productName: qut.productName || qut.description,
+        quantity: String(qut.quantity),
+        unit: qut.unit,
+        designId: qut.designId || "",
+        materials: qut.materials || []
+      }]);
+    } else {
+      setQutForm({ ...qutForm, qutId: "", customerId: "" });
+      setQutProducts([]);
     }
   };
 
@@ -598,9 +636,49 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     setSubmitted(true);
   };
 
+  const handleQutSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer) return;
+
+    const primaryProduct = qutProducts[0];
+    const newSO = addSalesOrder({
+      customerId: selectedCustomer.code,
+      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      quantity: Number(primaryProduct.quantity) || 1,
+      unit: primaryProduct.unit,
+      designId: primaryProduct.designId,
+      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
+      deadline: qutForm.deadline,
+    });
+
+    const soNumber = newSO.id;
+    setGeneratedSONumber(soNumber);
+
+    submitSOToFinance({
+      id: crypto.randomUUID(),
+      soNumber,
+      customerName: selectedCustomer.name,
+      customerCode: selectedCustomer.code,
+      company: selectedCustomer.name,
+      email: selectedCustomer.contact,
+      phone: selectedCustomer.phone,
+      address: selectedCustomer.address,
+      customerImageUrl: qutForm.customerImageUrl,
+      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      designId: primaryProduct.designId,
+      quantity: Number(primaryProduct.quantity) || 1,
+      unit: primaryProduct.unit,
+      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
+      estimatedAmount: quotations.find(q => q.id === qutForm.qutId)?.estimatedAmount || 0,
+      notes: qutForm.generalNotes,
+    });
+
+    setSubmitted(true);
+  };
+
   // ─── Success screen ──────────────────────────────────────────────────────────
   if (submitted) {
-    const totalItems = orderType === "new" ? products.length : repeatProducts.length;
+    const totalItems = orderType === "from_qut" ? qutProducts.length : repeatProducts.length;
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
@@ -650,21 +728,21 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </button>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>
-            {!orderType ? "Buat Sales Order" : orderType === "new" ? "New Order" : "Repeat Order"}
+            {!orderType ? "Buat Sales Order" : orderType === "repeat" ? "Repeat Order" : "Dari Penawaran (QUT)"}
           </h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             {!orderType
               ? "Pilih jenis order untuk melanjutkan"
-              : orderType === "new"
-                ? "Isi data pelanggan dan tambahkan satu atau lebih produk"
-                : "Pilih pelanggan existing dan tambahkan produk repeat"}
+              : orderType === "repeat"
+                ? "Pilih pelanggan existing dan tambahkan produk repeat"
+                : "Pilih Quotation yang telah disetujui (Won) untuk dibuatkan Sales Order"}
           </p>
         </div>
       </div>
 
       {/* Step breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "New Order", "Submit"].map((step, i) => {
+        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Dari QUT", "Submit"].map((step, i) => {
           const active = (i === 0 && !orderType) || (i === 1 && !!orderType);
           const done = i === 0 && !!orderType;
           return (
@@ -680,9 +758,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
       {/* ── Step 1: Choose order type ─────────────────────────────────────────── */}
       {!orderType && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, maxWidth: 600 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, maxWidth: 860 }}>
           {[
-            { type: "new" as const, icon: <Plus size={22} style={{ color: S.cyan }} />, title: "New Order", desc: "Buat sales order dengan pelanggan baru atau produk yang belum pernah dipesan. Mendukung multi-produk dalam satu SO.", accentColor: S.cyan },
+            { type: "from_qut" as const, icon: <FileText size={22} style={{ color: "#10B981" }} />, title: "Dari Penawaran (QUT)", desc: "Pilih Quotation yang telah disetujui untuk langsung dikonversi menjadi Sales Order. Data akan ditarik secara otomatis.", accentColor: "#10B981" },
             { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.", accentColor: "#6366F1" },
           ].map(card => (
             <button key={card.type} onClick={() => setOrderType(card.type)}
@@ -880,6 +958,96 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
               <RefreshCw size={14} /> Submit Repeat Order
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* ── From QUT Order Form ───────────────────────────────────────────────── */}
+      {orderType === "from_qut" && (
+        <form onSubmit={handleQutSubmit}
+          style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
+
+          <SectionCard title="Pilih Penawaran (QUT)" icon={<FileText size={14} />}>
+            <div style={{ marginBottom: 14 }}>
+              <Label text="Nomor Penawaran (QUT)" required />
+              <Select value={qutForm.qutId} onChange={e => handleQutSelect(e.target.value)} required>
+                <option value="">— Pilih Penawaran (QUT) —</option>
+                {quotations.filter(q => q.status === 'won').map(q => {
+                  const cust = customers.find(c => c.code === q.customerId);
+                  return (
+                    <option key={q.id} value={q.id}>{q.id} - {cust?.name} ({q.productName})</option>
+                  );
+                })}
+              </Select>
+            </div>
+            {selectedCustomer && (
+              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 4, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+                {[
+                  { icon: <User size={11} />, label: "Pelanggan", value: selectedCustomer.name },
+                  { icon: <Building2 size={11} />, label: "Perusahaan", value: selectedCustomer.company || selectedCustomer.name },
+                  { icon: <Phone size={11} />, label: "Telepon", value: selectedCustomer.phone },
+                  { icon: <Mail size={11} />, label: "Email", value: selectedCustomer.contact },
+                ].map(f => (
+                  <div key={f.label}>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#16A34A", display: "flex", alignItems: "center", gap: 4 }}>{f.icon} {f.label}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#14532D", fontWeight: 500 }}>{f.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Detail Order" icon={<Calendar size={14} />}>
+            <Grid2>
+              <div>
+                <Label text="Deadline" required />
+                <Input icon={<Calendar size={11} />} type="date" value={qutForm.deadline} onChange={e => setQutForm({ ...qutForm, deadline: e.target.value })} required />
+              </div>
+              <div>
+                <Label text="URL Gambar Referensi Customer" required />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={qutForm.customerImageUrl} onChange={e => setQutForm({ ...qutForm, customerImageUrl: e.target.value })} required />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Label text="Catatan Tambahan" />
+                <Input placeholder="Catatan khusus terkait pembuatan SO ini..." value={qutForm.generalNotes} onChange={e => setQutForm({ ...qutForm, generalNotes: e.target.value })} />
+              </div>
+            </Grid2>
+          </SectionCard>
+
+          <SectionCard
+            title={`Produk dari QUT`}
+            icon={<Layers size={14} />}
+          >
+            {qutForm.qutId ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {qutProducts.map((row) => (
+                  <div key={row.id} style={{ border: `1px solid ${S.border}`, borderRadius: 6, padding: 14, background: "#F8FAFC" }}>
+                    <div style={{ fontWeight: 600, fontSize: "13px", color: S.slate, marginBottom: 4 }}>{row.productName}</div>
+                    <div style={{ fontSize: "12px", color: S.secondary }}>Jumlah: {row.quantity} {row.unit}</div>
+                    {row.designId && <div style={{ fontSize: "12px", color: S.primary, marginTop: 4 }}>Desain: {row.designId}</div>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: "12.5px", color: S.secondary, padding: "10px 0" }}>
+                Pilih QUT terlebih dahulu untuk memuat produk secara otomatis.
+              </div>
+            )}
+          </SectionCard>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={() => setOrderType(null)}
+              style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+              onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
+              onMouseLeave={e => (e.currentTarget.style.background = S.white)}
+            >Batal</button>
+            <button type="submit" disabled={!qutForm.qutId}
+              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: !qutForm.qutId ? "#94A3B8" : S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: !qutForm.qutId ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = !qutForm.qutId ? "1" : "0.88")}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              <CheckCircle2 size={14} /> Submit SO dari QUT
             </button>
           </div>
         </form>

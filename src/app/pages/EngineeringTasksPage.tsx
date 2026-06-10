@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pencil, Send, Clock, CheckCircle, ExternalLink, List, AlertTriangle, Search, ChevronDown } from "lucide-react";
+import { Pencil, Send, Clock, CheckCircle, ExternalLink, List, AlertTriangle, Search, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
 
@@ -28,15 +28,21 @@ function StatusBadge({ status }: { status: string }) {
 function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, customers, currentUser } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? '');
+  const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
   const customer = customers.find(c => c.code === qut.customerId);
   
   const isSpv = currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv';
   const isPendingSpv = qut.status === 'design_review';
 
+  const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
+  const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
+  const updateMaterial = (id: string, field: string, value: any) => setMaterials(materials.map(m => m.id === id ? { ...m, [field]: value } : m));
+
   const handleForward = () => {
     updateQuotation(qut.id, {
       designLink,
+      materials,
       status: isSpv ? 'client_design_approval' : 'design_review',
     });
     setStep('done');
@@ -97,18 +103,49 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.createdAt}</p></div>
               </div>
               <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 12 }}>
-                <p style={{ fontSize: "12px", color: "#1D4ED8", margin: 0 }}>Silakan unggah dokumen CAD dan daftar material (BOM) ke folder cloud proyek ini, lalu tempelkan linknya di bawah.</p>
+                <p style={{ fontSize: "12px", color: "#1D4ED8", margin: 0 }}>Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "13.5px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Link Desain / Drawing & BOM <span style={{ color: "#EF4444" }}>*</span></label>
+                <label style={{ display: "block", fontSize: "13.5px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
                 <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none" }} />
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              
+              <div style={{ marginTop: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <label style={{ fontSize: "13.5px", color: S.slate, fontWeight: 500 }}>Bill of Materials (BOM) <span style={{ color: "#EF4444" }}>*</span></label>
+                  <button onClick={addMaterial} style={{ padding: "4px 8px", background: "rgba(200,16,46,0.1)", color: S.cyan, border: "none", borderRadius: 4, fontSize: "12px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Tambah Material</button>
+                </div>
+                {materials.length === 0 ? (
+                  <div style={{ padding: 12, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, fontSize: "12.5px", color: "#991B1B" }}>
+                    Daftar material masih kosong. Wajib menambahkan minimal 1 material.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "200px", overflowY: "auto", paddingRight: 4 }}>
+                    {materials.map(m => (
+                      <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "center", background: "#F8FAFC", padding: 8, borderRadius: 6, border: `1px solid ${S.border}` }}>
+                        <input placeholder="Nama material..." value={m.name} onChange={e => updateMaterial(m.id, 'name', e.target.value)} style={{ flex: 1.5, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", minWidth: 0 }} />
+                        <input placeholder="Spesifikasi..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} style={{ flex: 1, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", minWidth: 0 }} />
+                        <input type="number" min="0.1" step="0.1" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} style={{ width: 60, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none" }} />
+                        <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} style={{ width: 70, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none" }}>
+                          <option value="pcs">pcs</option>
+                          <option value="kg">kg</option>
+                          <option value="meter">meter</option>
+                          <option value="lembar">lembar</option>
+                          <option value="batang">batang</option>
+                        </select>
+                        <button onClick={() => removeMaterial(m.id)} style={{ padding: 4, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex" }}><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-                <button onClick={() => setStep('confirm')} disabled={!designLink.trim()}
-                  style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: designLink.trim() ? 1 : 0.5 }}>
+                <button onClick={() => setStep('confirm')} disabled={!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)}
+                  style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: (designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) ? 1 : 0.5 }}>
                   <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}
                 </button>
               </div>

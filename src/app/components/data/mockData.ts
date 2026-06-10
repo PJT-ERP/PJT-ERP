@@ -90,6 +90,7 @@ export const USERS: User[] = [
   { id: 'u4', name: 'Intan', username: 'admin01', password: 'admin123', role: 'Admin', email: 'siti@pjt.co.id', isActive: true },
   { id: 'u5', name: 'Dewi Kusuma', username: 'finance01', password: 'fin123', role: 'Finance', email: 'dewi@pjt.co.id', isActive: true },
   { id: 'u6', name: 'Ahmad Fauzi', username: 'purchasing01', password: 'purchase123', role: 'Purchasing', email: 'ahmad@pjt.co.id', isActive: true },
+  { id: 'u7', name: 'Dimas Supervisor', username: 'eng_spv', password: 'spv123', role: 'Engineering', email: 'dimas@pjt.co.id', isActive: true },
 ];
 
 export const CUSTOMERS: Customer[] = [

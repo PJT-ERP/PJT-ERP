@@ -177,8 +177,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h1 style={{ color: S.slate, margin: 0 }}>{order.id}</h1>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 4, border: `1px solid`, borderColor: cfg.border.replace("border-", ""), background: cfg.bg.replace("bg-", ""), color: cfg.text.replace("text-", ""), fontSize: "12px", fontWeight: 500 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0 }} />
+              <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
+                <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
                 {order.status}
               </span>
             </div>
