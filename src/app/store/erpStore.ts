@@ -12,12 +12,12 @@ export interface ERPSalesOrder {
   phone: string;
   address: string;
   customerCode?: string;
-  designUrl?: string;
+  designId?: string;
+  customerImageUrl?: string;
   productName: string;
   quantity: number;
   unit: string;
-  material?: string;
-  spec?: string;
+  materials?: { id: string; name: string; quantity: number; unit: string; spec?: string }[];
   estimatedAmount: number;
   notes: string;
   submittedAt: string;

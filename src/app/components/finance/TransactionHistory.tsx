@@ -7,16 +7,16 @@ import {
 import { transactions, formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
-  INVOICE: { label: 'Invoice', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
+  INVOICE: { label: 'Invoice', icon: FileText, color: 'text-red-600', bg: 'bg-red-100' },
   PAYMENT: { label: 'Pembayaran', icon: CreditCard, color: 'text-green-600', bg: 'bg-green-100' },
   CREDIT_NOTE: { label: 'Kredit Nota', icon: MinusCircle, color: 'text-purple-600', bg: 'bg-purple-100' },
   DEBIT_NOTE: { label: 'Debit Nota', icon: PlusCircle, color: 'text-orange-600', bg: 'bg-orange-100' },
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  COMPLETED: 'bg-green-100 text-green-700',
-  OUTSTANDING: 'bg-amber-100 text-amber-700',
-  PENDING_VERIFICATION: 'bg-blue-100 text-blue-700',
+  COMPLETED: '#16A34A',
+  OUTSTANDING: '#F59E0B',
+  PENDING_VERIFICATION: '#DC2626',
 };
 const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Selesai',
@@ -110,7 +110,7 @@ export function TransactionHistory() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Cari referensi, deskripsi, atau pelanggan..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all"
             />
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -118,7 +118,7 @@ export function TransactionHistory() {
             <select
               value={customerFilter}
               onChange={e => setCustomerFilter(e.target.value)}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-red-500 font-medium cursor-pointer"
             >
               <option value="ALL">Semua Pelanggan</option>
               {uniqueCustomers.map(c => <option key={c} value={c}>{c}</option>)}
@@ -170,7 +170,7 @@ export function TransactionHistory() {
                       <div className="flex items-center gap-1">
                         {h}
                         {h === 'Tanggal' && (
-                          <span className="text-[10px] text-slate-400 group-hover:text-blue-500">
+                          <span className="text-[10px] text-slate-400 group-hover:text-red-500">
                             {sortOrder === 'ASC' ? '▲' : '▼'}
                           </span>
                         )}
@@ -185,7 +185,7 @@ export function TransactionHistory() {
                 ) : filtered.map(trx => {
                   const cfg = TYPE_CONFIG[trx.type];
                   return (
-                    <tr key={trx.id} className="hover:bg-blue-50/20 transition-colors">
+                    <tr key={trx.id} className="hover:bg-red-50/20 transition-colors">
                       <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{formatDate(trx.date)}</td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
@@ -214,7 +214,10 @@ export function TransactionHistory() {
                         <span className="font-medium text-slate-800 text-xs">{formatIDR(trx.balance)}</span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[trx.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                        <span 
+                          className="text-[10px] font-bold px-2 py-1 rounded-md shadow-sm uppercase tracking-wide"
+                          style={{ backgroundColor: STATUS_COLORS[trx.status] || '#64748B', color: '#FFFFFF', border: 'none' }}
+                        >
                           {STATUS_LABELS[trx.status] ?? trx.status}
                         </span>
                       </td>
@@ -249,7 +252,10 @@ export function TransactionHistory() {
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium text-slate-800 text-sm">{trx.description}</span>
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[trx.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                                <span 
+                                  className="text-[10px] font-bold px-2 py-1 rounded-md shadow-sm uppercase tracking-wide"
+                                  style={{ backgroundColor: STATUS_COLORS[trx.status] || '#64748B', color: '#FFFFFF', border: 'none' }}
+                                >
                                   {STATUS_LABELS[trx.status] ?? trx.status}
                                 </span>
                               </div>

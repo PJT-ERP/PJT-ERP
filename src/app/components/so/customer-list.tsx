@@ -16,8 +16,8 @@ interface CustomerListProps {
 
 const S = {
   font:      "Inter, sans-serif",
-  cyan:      "#06B6D4",
-  slate:     "#1E293B",
+  cyan:      "#C8102E",
+  slate:     "#111827",
   secondary: "#64748B",
   border:    "#E2E8F0",
   bg:        "#F8FAFC",
@@ -101,7 +101,7 @@ function CustomerModal({ state, onSave, onClose }: {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${S.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(6,182,212,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(200,16,46,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Users size={14} style={{ color: S.cyan }} />
             </div>
             <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.slate }}>
@@ -191,7 +191,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
     salesOrders.filter(o => o.customerId === cid && !["Completed", "Rejected", "Cancelled"].includes(o.status)).length;
 
   const summaryCards = [
-    { label: "Total Pelanggan",  value: customers.length,                                             color: "#06B6D4", bg: "rgba(6,182,212,0.08)"   },
+    { label: "Total Pelanggan",  value: customers.length,                                             color: "#C8102E", bg: "rgba(200,16,46,0.08)"   },
     { label: "Pelanggan Aktif",  value: activeCustomers,                                                   color: "#22C55E", bg: "rgba(34,197,94,0.08)"   },
     { label: "Order Bulan Ini",  value: salesOrders.filter(o => o.createdAt.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
     { label: "Kota Terjangkau",  value: new Set(customers.map(c => c.address)).size,                     color: "#8B5CF6", bg: "rgba(139,92,246,0.08)"  },
@@ -343,7 +343,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg, #0F172A, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.cyan, fontSize: "13px", fontWeight: 700 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg, #1F1F1F, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.cyan, fontSize: "13px", fontWeight: 700 }}>
                       {initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -427,7 +427,7 @@ function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCre
     >
       <td style={{ padding: "10px 14px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 6, background: "linear-gradient(135deg, #0F172A, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#06B6D4", fontSize: "10px", fontWeight: 700 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 6, background: "linear-gradient(135deg, #1F1F1F, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#C8102E", fontSize: "10px", fontWeight: 700 }}>
             {initials}
           </div>
           <div>

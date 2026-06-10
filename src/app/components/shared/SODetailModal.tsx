@@ -105,7 +105,7 @@ export function SODetailModal({ so, customer, onClose }: SODetailModalProps) {
             {so.designLink && (
               <div>
                 <p className="text-xs text-gray-500">Link Desain</p>
-                <a href={so.designLink} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                <a href={so.designLink} target="_blank" rel="noreferrer" className="text-sm text-red-600 hover:underline flex items-center gap-1">
                   Buka Desain <ExternalLink size={12} />
                 </a>
               </div>

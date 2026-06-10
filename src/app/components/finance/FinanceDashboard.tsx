@@ -22,9 +22,10 @@ const KPI_CARDS = [
     icon: FileText,
     trend: '+12%',
     up: true,
-    color: 'bg-blue-50 text-blue-700',
-    iconBg: 'bg-blue-100',
-    border: 'border-blue-100',
+    color: 'bg-red-600 text-white border-transparent shadow-sm',
+    iconColor: 'text-red-600',
+    iconBg: 'bg-red-100',
+    border: 'border-red-100',
   },
   {
     title: 'Menunggu Pembayaran',
@@ -33,7 +34,8 @@ const KPI_CARDS = [
     icon: Clock,
     trend: '+5%',
     up: false,
-    color: 'bg-amber-50 text-amber-700',
+    color: 'bg-amber-500 text-white border-transparent shadow-sm',
+    iconColor: 'text-amber-600',
     iconBg: 'bg-amber-100',
     border: 'border-amber-100',
   },
@@ -44,7 +46,8 @@ const KPI_CARDS = [
     icon: CheckCircle2,
     trend: '+18%',
     up: true,
-    color: 'bg-green-50 text-green-700',
+    color: 'bg-green-600 text-white border-transparent shadow-sm',
+    iconColor: 'text-green-600',
     iconBg: 'bg-green-100',
     border: 'border-green-100',
   },
@@ -55,30 +58,31 @@ const KPI_CARDS = [
     icon: Wallet,
     trend: '-40%',
     up: false,
-    color: 'bg-purple-50 text-purple-700',
+    color: 'bg-purple-600 text-white border-transparent shadow-sm',
+    iconColor: 'text-purple-600',
     iconBg: 'bg-purple-100',
     border: 'border-purple-100',
   },
 ];
 
 const QUICK_ACTIONS = [
-  { label: 'Buat Invoice', icon: FilePlus, to: '/erp/finance/create-invoice', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
+  { label: 'Buat Invoice', icon: FilePlus, to: '/erp/finance/create-invoice', color: 'bg-red-600 hover:bg-red-700 text-white' },
   { label: 'Verifikasi Pembayaran', icon: ShieldCheck, to: '/erp/finance/payment-verification', color: 'bg-amber-500 hover:bg-amber-600 text-white', badge: '2' },
   { label: 'Lihat Laporan', icon: BarChart3, to: '/erp/finance/reports', color: 'bg-slate-700 hover:bg-slate-800 text-white' },
   { label: 'Daftar Invoice', icon: FileText, to: '/erp/finance/invoices', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
 ];
 
 const statusColors: Record<string, string> = {
-  PAID: 'bg-green-100 text-green-700',
-  PENDING: 'bg-amber-100 text-amber-700',
-  OVERDUE: 'bg-red-100 text-red-700',
-  PARTIAL: 'bg-blue-100 text-blue-700',
+  PAID: '#16A34A',
+  PENDING: '#F59E0B',
+  OVERDUE: '#DC2626',
+  PARTIAL: '#DC2626',
 };
 const statusLabel: Record<string, string> = {
   PAID: 'Lunas', PENDING: 'Menunggu', OVERDUE: 'Jatuh Tempo', PARTIAL: 'Sebagian',
 };
 
-const PIE_COLORS = ['#16a34a', '#d97706', '#dc2626', '#2563eb'];
+const PIE_COLORS = ['#16a34a', '#d97706', '#dc2626', '#C8102E'];
 
 const formatIDRShort = (v: number) => {
   if (v >= 1_000_000_000) return `Rp ${(v / 1_000_000_000).toFixed(1)}M`;
@@ -165,7 +169,7 @@ export function FinanceDashboard() {
           </button>
           <button
             onClick={() => navigate('/erp/finance/create-invoice')}
-            className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
+            className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
           >
             <FilePlus size={14} />
             <span>Buat Invoice</span>
@@ -178,7 +182,7 @@ export function FinanceDashboard() {
         <button
           onClick={() => { setActiveTab('GLOBAL'); setSelectedCustomer('ALL'); }}
           className={`py-2 px-1 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'GLOBAL' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            activeTab === 'GLOBAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
           <BarChart3 size={16} />
@@ -187,7 +191,7 @@ export function FinanceDashboard() {
         <button
           onClick={() => setActiveTab('CUSTOMER')}
           className={`py-2 px-1 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'CUSTOMER' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            activeTab === 'CUSTOMER' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
           <Users size={16} />
@@ -197,12 +201,12 @@ export function FinanceDashboard() {
 
       {/* Customer Filter Dropdown (Only visible in CUSTOMER tab) */}
       {activeTab === 'CUSTOMER' && (
-        <div className="flex items-center gap-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+        <div className="flex items-center gap-3 bg-red-50/50 p-4 rounded-xl border border-red-100">
           <span className="text-sm font-semibold text-slate-700">Pilih Pelanggan:</span>
           <select
             value={selectedCustomer}
             onChange={(e) => setSelectedCustomer(e.target.value)}
-            className="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 p-2 shadow-sm font-medium"
+            className="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg focus:ring-blue-500 focus:border-red-500 block w-64 p-2 shadow-sm font-medium"
           >
             <option value="ALL">Semua Pelanggan</option>
             {uniqueCustomers.map(c => <option key={c} value={c}>{c}</option>)}
@@ -217,7 +221,7 @@ export function FinanceDashboard() {
             <div className="flex items-start justify-between mb-3">
               <p className="text-sm text-slate-500">{card.title}</p>
               <div className={`w-9 h-9 rounded-lg ${card.iconBg} flex items-center justify-center`}>
-                <card.icon size={17} className={card.color.split(' ')[1]} />
+                <card.icon size={17} className={card.iconColor} />
               </div>
             </div>
             <p className="text-xl font-semibold text-slate-900 truncate">{card.value}</p>
@@ -245,7 +249,7 @@ export function FinanceDashboard() {
                 <p className="text-xs text-slate-400 mt-0.5">6 bulan terakhir</p>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-500 rounded-full inline-block" /> Pendapatan</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-red-500 rounded-full inline-block" /> Pendapatan</span>
                 <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-slate-300 rounded-full inline-block" /> Ditagihkan</span>
               </div>
             </div>
@@ -253,8 +257,8 @@ export function FinanceDashboard() {
               <AreaChart data={monthlyRevenueData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#C8102E" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#C8102E" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="invGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.12} />
@@ -266,7 +270,7 @@ export function FinanceDashboard() {
                 <YAxis tickFormatter={(v) => formatIDRShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={75} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="invoiced" name="Ditagihkan" stroke="#cbd5e1" strokeWidth={2} fill="url(#invGrad)" dot={false} />
-                <Area type="monotone" dataKey="revenue" name="Pendapatan" stroke="#2563eb" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 3, fill: '#2563eb' }} activeDot={{ r: 5 }} />
+                <Area type="monotone" dataKey="revenue" name="Pendapatan" stroke="#C8102E" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 3, fill: '#C8102E' }} activeDot={{ r: 5 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -310,7 +314,7 @@ export function FinanceDashboard() {
             <p className="text-xs text-slate-400 mt-0.5">{selectedCustomer === 'ALL' ? 'Total Tagihan, Terbayar, dan Sisa Piutang per Pelanggan' : `Detail untuk Pelanggan: ${selectedCustomer}`}</p>
           </div>
           <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-blue-500 rounded-sm inline-block" /> Total Tagihan</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-red-500 rounded-sm inline-block" /> Total Tagihan</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-green-500 rounded-sm inline-block" /> Terbayar</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-amber-500 rounded-sm inline-block" /> Sisa Piutang</span>
           </div>
@@ -335,7 +339,7 @@ export function FinanceDashboard() {
           <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <h3 className="text-slate-800 text-sm font-semibold">Invoice Terbaru</h3>
-              <button onClick={() => navigate('/erp/finance/invoices')} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+              <button onClick={() => navigate('/erp/finance/invoices')} className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium">
                 Lihat Semua <ChevronRight size={13} />
               </button>
             </div>
@@ -345,8 +349,11 @@ export function FinanceDashboard() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-slate-800 truncate">{inv.invoiceNumber}</span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusColors[inv.status]}`}>
-                        {statusLabel[inv.status]}
+                      <span 
+                        className="text-[10px] font-bold px-2 py-1 rounded-md shadow-sm uppercase tracking-wide"
+                        style={{ backgroundColor: statusColors[inv.status] || '#64748B', color: '#FFFFFF', border: 'none' }}
+                      >
+                        {statusLabel[inv.status] ?? inv.status}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">{inv.customerName} · {inv.soNumber}</p>

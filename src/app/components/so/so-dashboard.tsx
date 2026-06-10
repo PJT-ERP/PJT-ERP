@@ -26,9 +26,9 @@ interface SODashboardProps {
 
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
@@ -79,7 +79,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
     { label: "Pending Design",      count: salesOrders.filter(o => o.status === "Pending Design").length,      color: "#94A3B8" },
     { label: "Waiting Approval",    count: salesOrders.filter(o => o.status === "Waiting Approval").length,    color: "#F59E0B" },
     { label: "Revision Required",   count: salesOrders.filter(o => o.status === "Revision Required").length,   color: "#EF4444" },
-    { label: "In Production",       count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#06B6D4" },
+    { label: "In Production",       count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
     { label: "QC",                  count: salesOrders.filter(o => o.status === "QC").length,                  color: "#3B82F6" },
     { label: "Completed",           count: salesOrders.filter(o => o.status === "Completed").length,           color: "#22C55E" },
   ];
@@ -94,8 +94,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       label: "Total Orders",
       value: total,
       icon: <ShoppingCart size={18} />,
-      accent: "#06B6D4",
-      bg: "rgba(6,182,212,0.08)",
+      accent: "#C8102E",
+      bg: "rgba(200,16,46,0.08)",
       change: "+3 minggu ini",
     },
     {
@@ -110,8 +110,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       label: "In Production",
       value: inProduction,
       icon: <Factory size={18} />,
-      accent: "#06B6D4",
-      bg: "rgba(6,182,212,0.08)",
+      accent: "#C8102E",
+      bg: "rgba(200,16,46,0.08)",
       change: "Aktif di workshop",
     },
     {
@@ -182,14 +182,14 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             borderBottom: "1px solid #DBEAFE",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 6, background: "#DBEAFE", color: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 6, background: "#DBEAFE", color: "#C8102E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Receipt size={16} />
               </div>
               <div>
                 <p style={{ margin: 0, color: "#1E3A8A", fontSize: "13.5px", fontWeight: 700 }}>
                   {readyInvoices.length} invoice siap dikirim ke customer
                 </p>
-                <p style={{ margin: "2px 0 0", color: "#2563EB", fontSize: "12px" }}>
+                <p style={{ margin: "2px 0 0", color: "#C8102E", fontSize: "12px" }}>
                   Finance sudah membuat invoice. SO team bisa follow up dan kirim ke customer.
                 </p>
               </div>
@@ -223,7 +223,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                     </p>
                     <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "11px" }}>{invoice.soNumber}</p>
                   </div>
-                  <span style={{ color: "#0F172A", fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <span style={{ color: "#1F1F1F", fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap" }}>
                     {formatIDR(invoice.amount)}
                   </span>
                 </div>
@@ -238,7 +238,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                     width: "100%",
                     border: "none",
                     borderRadius: 4,
-                    background: "#2563EB",
+                    background: "#C8102E",
                     color: "#fff",
                     padding: "7px 10px",
                     fontSize: "12px",
@@ -364,7 +364,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                   borderBottom: idx < allActivities.length - 1 ? `1px solid ${S.border}` : "none",
                 }}>
                   <div style={{
-                    width: 28, height: 28, borderRadius: "50%", background: "rgba(6,182,212,0.1)",
+                    width: 28, height: 28, borderRadius: "50%", background: "rgba(200,16,46,0.1)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0, color: S.cyan,
                   }}>

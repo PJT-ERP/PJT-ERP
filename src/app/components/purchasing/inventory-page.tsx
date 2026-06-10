@@ -117,7 +117,7 @@ const chartData = categories.map((cat) => ({
   value: Math.round(INVENTORY.filter((i) => i.category === cat).reduce((s, i) => s + i.currentStock * i.unitPrice, 0) / 1_000_000),
 }));
 
-const CHART_COLORS = ["#2563eb", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
+const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
 
 /* ── Page ──────────────────────────────────────────────────── */
 
@@ -145,7 +145,7 @@ export function InventoryPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ color: "#0f172a" }}>Inventory Status</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Inventory Status</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             Ketersediaan material dan status stok gudang — per 24 Mei 2026
           </p>
@@ -163,7 +163,7 @@ export function InventoryPage() {
       {/* Summary KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Item", val: INVENTORY.length, sub: `${categories.length} kategori`, icon: <Package size={16} style={{ color: "#2563eb" }} />, bg: "#eff6ff" },
+          { label: "Total Item", val: INVENTORY.length, sub: `${categories.length} kategori`, icon: <Package size={16} style={{ color: "#C8102E" }} />, bg: "#eff6ff" },
           { label: "Stok Kritis", val: criticalItems.length, sub: "Segera reorder", icon: <AlertTriangle size={16} style={{ color: "#dc2626" }} />, bg: "#fee2e2", urgent: true },
           { label: "Perlu Reorder", val: lowItems.length, sub: "Di bawah reorder point", icon: <TrendingDown size={16} style={{ color: "#f59e0b" }} />, bg: "#fef9c3" },
           { label: "Nilai Stok Total", val: formatRp(totalValue), sub: "Semua material", icon: <TrendingUp size={16} style={{ color: "#16a34a" }} />, bg: "#dcfce7", isText: true },
@@ -182,7 +182,7 @@ export function InventoryPage() {
             </div>
             <div className="min-w-0">
               <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>{k.label}</p>
-              <p style={{ fontSize: k.isText ? 15 : 22, fontWeight: 700, color: k.urgent ? "#dc2626" : "#0f172a", marginTop: 2 }}>{k.val}</p>
+              <p style={{ fontSize: k.isText ? 15 : 22, fontWeight: 700, color: k.urgent ? "#dc2626" : "#1F1F1F", marginTop: 2 }}>{k.val}</p>
               <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{k.sub}</p>
             </div>
           </div>
@@ -203,7 +203,7 @@ export function InventoryPage() {
             {criticalItems.map((item) => (
               <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{item.name}</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{item.name}</p>
                   <p style={{ fontSize: 11, color: "#64748b" }}>{item.code} · {item.location}</p>
                 </div>
                 <div className="text-right">
@@ -225,7 +225,7 @@ export function InventoryPage() {
         {/* Category chart */}
         <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Nilai Stok per Kategori (Juta Rp)
             </p>
           </div>
@@ -250,7 +250,7 @@ export function InventoryPage() {
         <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <Truck size={14} style={{ color: "#0891b2" }} />
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Material Masuk
             </p>
             <span className="ml-auto rounded-full flex items-center justify-center text-white" style={{ width: 18, height: 18, background: "#0891b2", fontSize: 10, fontWeight: 700 }}>
@@ -268,7 +268,7 @@ export function InventoryPage() {
                   <Truck size={13} style={{ color: "#0891b2" }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{item.name}</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{item.name}</p>
                   <p style={{ fontSize: 11, color: "#64748b" }}>{item.incoming!.supplier}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span
@@ -300,7 +300,7 @@ export function InventoryPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari kode, nama, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
-            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#0f172a" }}
+            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
         <Select value={filterCat} onValueChange={setFilterCat}>
@@ -331,7 +331,7 @@ export function InventoryPage() {
               >
                 {cfg && <span className="rounded-full" style={{ width: 5, height: 5, background: cfg.dot }} />}
                 {s === "all" ? "Semua" : cfg!.label}
-                <strong style={{ color: active ? "inherit" : "#0f172a" }}>{count}</strong>
+                <strong style={{ color: active ? "inherit" : "#1F1F1F" }}>{count}</strong>
               </button>
             );
           })}
@@ -378,7 +378,7 @@ export function InventoryPage() {
                         <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: sc.dot }} />
                         <div>
                           <p style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{item.code}</p>
-                          <p style={{ fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{item.name}</p>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: "#1F1F1F" }}>{item.name}</p>
                         </div>
                       </div>
                     </TD>
@@ -386,7 +386,7 @@ export function InventoryPage() {
                       <span style={{ fontSize: 12, color: "#475569" }}>{item.category}</span>
                     </TD>
                     <TD right>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: status === "critical" ? "#dc2626" : status === "low" ? "#d97706" : "#0f172a" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: status === "critical" ? "#dc2626" : status === "low" ? "#d97706" : "#1F1F1F" }}>
                         {item.currentStock}
                       </span>
                       <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 4 }}>{item.unit}</span>
@@ -443,7 +443,7 @@ export function InventoryPage() {
                       <span style={{ fontSize: 11, color: "#64748b" }}>{item.location}</span>
                     </TD>
                     <TD className="hidden sm:table-cell" right>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>
                         {formatRp(item.currentStock * item.unitPrice)}
                       </span>
                     </TD>

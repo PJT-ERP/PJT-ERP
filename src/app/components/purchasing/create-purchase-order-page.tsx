@@ -49,7 +49,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function inputClass(extra = "") {
-  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${extra}`;
+  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-blue-100 ${extra}`;
 }
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
@@ -151,7 +151,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <FieldLabel>No SO *</FieldLabel>
             <select value={soNumber} onChange={e => { setSoNumber(e.target.value); setItems([emptyItem()]); }} className={inputClass()}>
               <option value="">Pilih SO</option>
-              {allSOs.map(so => <option key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerName}</option>)}
+              {allSOs.map(so => <option key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</option>)}
               <option value="SO-MOCK-01">SO-MOCK-01 (Dummy)</option>
             </select>
           </div>
@@ -187,7 +187,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <h2 className="text-sm font-semibold uppercase tracking-[0.05em] text-slate-900">Item Material</h2>
           <button
             onClick={addItem}
-            className="flex items-center gap-1.5 rounded border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
+            className="flex items-center gap-1.5 rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
           >
             <Plus size={13} />
             Tambah Item

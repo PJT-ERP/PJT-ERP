@@ -308,7 +308,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 style={{ color: "#0f172a" }}>Purchase Orders</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Purchase Orders</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             Daftar dan pengelolaan semua Purchase Order — PT Pratama Jaya Tekindo
           </p>
@@ -352,7 +352,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
               }}
             >
               <span className="rounded-full" style={{ width: 6, height: 6, background: cfg.dot }} />
-              {s} <strong style={{ color: active ? cfg.color : "#0f172a" }}>{n}</strong>
+              {s} <strong style={{ color: active ? cfg.color : "#1F1F1F" }}>{n}</strong>
             </button>
           );
         })}
@@ -370,7 +370,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari No. PO, supplier, No. MR..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
-            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#0f172a" }}
+            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -434,13 +434,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         <div className="flex items-center gap-2">
                           <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: dc.dot }} />
                           <div>
-                            <p style={{ fontWeight: 600, color: "#0f172a", fontSize: 12 }}>{po.id}</p>
+                            <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
                             <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.mrRef}</p>
                           </div>
                         </div>
                       </TD>
                       <TD>
-                        <p style={{ fontWeight: 500, color: "#0f172a", fontSize: 13 }}>{po.supplier}</p>
+                        <p style={{ fontWeight: 500, color: "#1F1F1F", fontSize: 13 }}>{po.supplier}</p>
                         <p style={{ fontSize: 11, color: "#94a3b8" }}>{po.supplierCode}</p>
                       </TD>
                       <TD className="hidden md:table-cell">
@@ -473,14 +473,14 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         </Pill>
                       </TD>
                       <TD className="hidden md:table-cell">
-                        <span style={{ fontWeight: 600, fontSize: 12, color: "#0f172a" }}>
+                        <span style={{ fontWeight: 600, fontSize: 12, color: "#1F1F1F" }}>
                           {formatRp(calcTotal(po.items))}
                         </span>
                       </TD>
                       <TD>
                         <button
-                          className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-blue-50"
-                          style={{ fontSize: 11, color: "#2563eb", borderColor: "#bfdbfe" }}
+                          className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-red-50"
+                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                           onClick={() => setDetail(po)}
                         >
                           <Eye size={12} /> Detail
@@ -509,21 +509,21 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                   {po.items.map((item, i) => (
                                     <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                       <td style={{ padding: "8px 12px", fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{item.code}</td>
-                                      <td style={{ padding: "8px 12px", fontSize: 12, fontWeight: 500, color: "#0f172a" }}>{item.name}</td>
+                                      <td style={{ padding: "8px 12px", fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>{item.name}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, color: "#64748b" }}>{item.spec}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 500 }}>{item.qty} {item.unit}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                                         {item.received} {item.unit}
                                       </td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(item.unitPrice)}</td>
-                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#0f172a" }}>{formatRp(item.qty * item.unitPrice)}</td>
+                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.qty * item.unitPrice)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                                 <tfoot>
                                   <tr style={{ background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
-                                    <td colSpan={6} style={{ padding: "8px 12px", fontSize: 12, fontWeight: 600, textAlign: "right", color: "#0f172a" }}>Total</td>
-                                    <td style={{ padding: "8px 12px", fontSize: 13, fontWeight: 700, textAlign: "right", color: "#0f172a" }}>{formatRp(calcTotal(po.items))}</td>
+                                    <td colSpan={6} style={{ padding: "8px 12px", fontSize: 12, fontWeight: 600, textAlign: "right", color: "#1F1F1F" }}>Total</td>
+                                    <td style={{ padding: "8px 12px", fontSize: 13, fontWeight: 700, textAlign: "right", color: "#1F1F1F" }}>{formatRp(calcTotal(po.items))}</td>
                                   </tr>
                                 </tfoot>
                               </table>
@@ -611,7 +611,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         <TabsTrigger
                           key={t}
                           value={t}
-                          className="rounded-none h-10 px-4 capitalize data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent"
+                          className="rounded-none h-10 px-4 capitalize data-[state=active]:border-b-2 data-[state=active]:border-red-600 data-[state=active]:bg-transparent"
                           style={{ fontSize: 12 }}
                         >
                           {t === "overview" ? "Informasi PO" : t === "items" ? "Detail Item" : "Pengiriman"}
@@ -636,7 +636,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       ].map(({ label, val }) => (
                         <div key={label}>
                           <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                          <p style={{ fontSize: 13, color: "#0f172a", marginTop: 3 }}>{val}</p>
+                          <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{val}</p>
                         </div>
                       ))}
                     </div>
@@ -650,7 +650,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                     {/* Value summary */}
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { label: "Nilai PO", val: formatRp(calcTotal(detail.items)), color: "#0f172a" },
+                        { label: "Nilai PO", val: formatRp(calcTotal(detail.items)), color: "#1F1F1F" },
                         { label: "Terima", val: formatRp(calcReceived(detail.items)), color: "#16a34a" },
                         { label: "Sisa", val: formatRp(calcTotal(detail.items) - calcReceived(detail.items)), color: "#d97706" },
                       ].map((s) => (
@@ -677,14 +677,14 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                           {detail.items.map((item, i) => (
                             <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                               <td style={{ padding: "11px 16px", fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{item.code}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 500, color: "#0f172a" }}>{item.name}</td>
+                              <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 500, color: "#1F1F1F" }}>{item.name}</td>
                               <td style={{ padding: "11px 16px", fontSize: 12, color: "#64748b" }}>{item.spec}</td>
                               <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 500 }}>{item.qty} {item.unit}</td>
                               <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                                 {item.received} {item.unit}
                               </td>
                               <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(item.unitPrice)}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#0f172a" }}>{formatRp(item.qty * item.unitPrice)}</td>
+                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.qty * item.unitPrice)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -702,7 +702,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   <TabsContent value="delivery" className="mt-0 p-6 space-y-4">
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>Progress Pengiriman</p>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>Progress Pengiriman</p>
                         <Pill bg={dc.bg} color={dc.color}>{detail.deliveryStatus}</Pill>
                       </div>
                       <div className="relative h-2 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
@@ -727,7 +727,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       ].map(({ label, val }) => (
                         <div key={label} className="rounded p-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                           <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                          <p style={{ fontSize: 13, color: "#0f172a", marginTop: 3 }}>{val}</p>
+                          <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{val}</p>
                         </div>
                       ))}
                     </div>
@@ -798,7 +798,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                 <button
                   onClick={addItem}
                   className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-slate-50 transition-colors"
-                  style={{ fontSize: 11, color: "#2563eb", borderColor: "#bfdbfe" }}
+                  style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                 >
                   <Plus size={12} /> Tambah Item
                 </button>

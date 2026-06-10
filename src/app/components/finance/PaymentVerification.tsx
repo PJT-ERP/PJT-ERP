@@ -7,9 +7,9 @@ import {
 import { payments, formatIDR, formatDate, type Payment, type PaymentStatus } from './mockData';
 
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: React.ComponentType<any> }> = {
-  PENDING: { label: 'Menunggu Verifikasi', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
-  VERIFIED: { label: 'Terverifikasi', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2 },
-  REJECTED: { label: 'Ditolak', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
+  PENDING: { label: 'Menunggu Verifikasi', color: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-200', icon: Clock },
+  VERIFIED: { label: 'Terverifikasi', color: 'bg-green-600 text-white border-transparent shadow-sm border-green-200', icon: CheckCircle2 },
+  REJECTED: { label: 'Ditolak', color: 'bg-red-600 text-white border-transparent shadow-sm border-red-200', icon: XCircle },
 };
 
 function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
@@ -56,7 +56,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-1">Jumlah Pembayaran</p>
-              <p className="text-sm font-bold text-blue-700">{formatIDR(payment.amount)}</p>
+              <p className="text-sm font-bold text-red-700">{formatIDR(payment.amount)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-1">Tanggal Bayar</p>
@@ -84,7 +84,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
                 {/* Simulated receipt */}
                 <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex flex-col items-center gap-2 border-b border-slate-100">
                   <div className="w-16 h-20 bg-white rounded-lg shadow-md flex flex-col items-center justify-center gap-2 border border-slate-200">
-                    <Banknote size={24} className="text-blue-500" />
+                    <Banknote size={24} className="text-red-500" />
                     <div className="space-y-1 w-8">
                       <div className="h-0.5 bg-slate-200 rounded" />
                       <div className="h-0.5 bg-slate-200 rounded w-3/4" />
@@ -97,7 +97,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
                   <button className="flex-1 flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg py-2 text-xs font-medium transition-colors">
                     <Eye size={13} /> Lihat Bukti
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg py-2 text-xs font-medium transition-colors">
+                  <button className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg py-2 text-xs font-medium transition-colors">
                     <Upload size={13} /> Download
                   </button>
                 </div>
@@ -111,9 +111,9 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
           </div>
 
           {payment.notes && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-              <p className="text-xs font-semibold text-blue-700 mb-1">Catatan dari Pelanggan</p>
-              <p className="text-xs text-blue-600">{payment.notes}</p>
+            <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+              <p className="text-xs font-semibold text-red-700 mb-1">Catatan dari Pelanggan</p>
+              <p className="text-xs text-red-600">{payment.notes}</p>
             </div>
           )}
 
@@ -235,7 +235,7 @@ export function PaymentVerification() {
           { label: 'Menunggu Verifikasi', value: pendingCount, sub: formatIDR(pendingAmount), color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
           { label: 'Terverifikasi', value: verifiedCount, sub: 'bulan ini', color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
           { label: 'Ditolak', value: rejectedCount, sub: 'perlu tindak lanjut', color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
-          { label: 'Total Diterima', value: formatIDR(paymentData.filter(p => p.status === 'VERIFIED').reduce((s, p) => s + p.amount, 0)), sub: 'terverifikasi', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-100', wide: true },
+          { label: 'Total Diterima', value: formatIDR(paymentData.filter(p => p.status === 'VERIFIED').reduce((s, p) => s + p.amount, 0)), sub: 'terverifikasi', color: 'text-red-700', bg: 'bg-red-50 border-red-100', wide: true },
         ].map(s => (
           <div key={s.label} className={`bg-white border rounded-xl px-4 py-3 shadow-sm ${s.bg.split(' ')[1]}`}>
             <p className="text-xs text-slate-400">{s.label}</p>

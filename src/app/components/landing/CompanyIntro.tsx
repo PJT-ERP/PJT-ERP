@@ -15,9 +15,9 @@ export function CompanyIntro() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section label */}
         <div className="flex items-center gap-3 mb-4">
-          <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+          <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           <span
-            style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
+            style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
             ABOUT THE COMPANY
           </span>
@@ -28,7 +28,7 @@ export function CompanyIntro() {
           <div>
             <h2
               style={{
-                color: "#1E293B",
+                color: "#111827",
                 fontFamily: "Inter, sans-serif",
                 fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
                 fontWeight: 800,
@@ -39,7 +39,7 @@ export function CompanyIntro() {
             >
               Engineering Excellence,
               <br />
-              <span style={{ color: "#06B6D4" }}>Built for Industry</span>
+              <span style={{ color: "#C8102E" }}>Built for Industry</span>
             </h2>
             <p
               style={{
@@ -72,10 +72,10 @@ export function CompanyIntro() {
                 <div key={item} className="flex items-start gap-3">
                   <CheckCircle
                     className="w-5 h-5 flex-shrink-0 mt-0.5"
-                    style={{ color: "#06B6D4" }}
+                    style={{ color: "#C8102E" }}
                   />
                   <span
-                    style={{ color: "#1E293B", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 500, lineHeight: 1.5 }}
+                    style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 500, lineHeight: 1.5 }}
                   >
                     {item}
                   </span>
@@ -88,7 +88,7 @@ export function CompanyIntro() {
           <div className="relative">
             <div
               className="rounded-2xl overflow-hidden"
-              style={{ border: "1px solid #E2E8F0", boxShadow: "0 8px 32px rgba(15,23,42,0.08)" }}
+              style={{ border: "1px solid #E2E8F0", boxShadow: "0 8px 32px rgba(24,24,24,0.08)" }}
             >
               <img
                 src="https://images.unsplash.com/photo-1717386255773-1e3037c81788?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwbWFudWZhY3R1cmluZyUyMGZhY3RvcnklMjBtYWNoaW5lcnl8ZW58MXx8fHwxNzc5NjM0NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080"
@@ -101,13 +101,13 @@ export function CompanyIntro() {
             <div
               className="absolute -bottom-5 -left-5 rounded-xl p-5"
               style={{
-                backgroundColor: "#0F172A",
-                boxShadow: "0 12px 40px rgba(15,23,42,0.25)",
+                backgroundColor: "#1F1F1F",
+                boxShadow: "0 12px 40px rgba(24,24,24,0.25)",
                 minWidth: "200px",
               }}
             >
               <div
-                style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "28px", fontWeight: 800, lineHeight: 1 }}
+                style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "28px", fontWeight: 800, lineHeight: 1 }}
               >
                 15+
               </div>

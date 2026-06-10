@@ -61,7 +61,12 @@ export interface SalesOrder {
   timeline?: { id: string; step: string; label: string; date: string; completed: boolean; current?: boolean; assignedTo?: string }[];
   activities?: { id: string; user: string; role: string; action: string; timestamp: string }[];
   invoice?: { invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string };
+  quotationDate?: string;
+  designApprovedAt?: string;
 }
+
+export const STANDARD_PRODUCTS_BOM: Record<string, {id: string; name: string; spec: string; quantity: number; unit: string}[]> = {};
+export const ENGINEERING_DESIGNS: any[] = [];
 
 export const productOptions = [
   "Pipa Galvanis 2 Inch",
@@ -98,6 +103,68 @@ export const CUSTOMERS: Customer[] = [
   { code: '0008', name: 'PT. PRIMA SOLUSI INDUSTRI', contact: 'Ibu Wati', phone: '0831-9012-3456', address: 'BSD City, Tangerang Selatan' },
 ];
 
+export const INITIAL_QUOTATIONS: Quotation[] = [
+  {
+    id: 'QUT-2026-001',
+    customerId: '0001',
+    productName: 'Baut Custom 0.05mm',
+    description: 'Baut baja presisi tinggi untuk mesin bubut',
+    quantity: 100,
+    unit: 'pcs',
+    deadline: '2026-06-30',
+    status: 'pending_design',
+    createdBy: 'u1',
+    createdAt: '2026-06-01',
+  },
+  {
+    id: 'QUT-2026-002',
+    customerId: '0002',
+    productName: 'Pipa Galvanis 3 Inch Bracket',
+    description: 'Bracket khusus',
+    quantity: 50,
+    unit: 'pcs',
+    deadline: '2026-06-25',
+    status: 'waiting_pricing',
+    designId: 'DES-002',
+    createdBy: 'u1',
+    createdAt: '2026-06-02',
+  },
+  {
+    id: 'QUT-2026-003',
+    customerId: '0003',
+    productName: 'Shaft Coupling Ø50mm SS316L',
+    description: 'Assembly coupling shaft',
+    quantity: 10,
+    unit: 'pcs',
+    deadline: '2026-06-20',
+    status: 'client_price_approval',
+    designId: 'DES-003',
+    estimatedAmount: 25000000,
+    customerImageUrl: 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&q=80&w=400',
+    revisions: [
+      { revNumber: 1, amount: 28000000, date: '2026-06-04', notes: 'Penawaran awal dengan material premium.' },
+      { revNumber: 2, amount: 25000000, date: '2026-06-06', notes: 'Diskon volume setelah nego dengan klien.' }
+    ],
+    createdBy: 'u1',
+    createdAt: '2026-06-03',
+  },
+  {
+    id: 'QUT-2026-004',
+    customerId: '0004',
+    productName: 'Gear Box Helical',
+    description: 'Ratio 1:20',
+    quantity: 2,
+    unit: 'set',
+    deadline: '2026-06-15',
+    status: 'lost',
+    designId: 'DES-001',
+    estimatedAmount: 40000000,
+    lostReason: 'Harga terlalu mahal dibanding kompetitor',
+    createdBy: 'u1',
+    createdAt: '2026-06-04',
+  }
+];
+
 export const INITIAL_SALES_ORDERS: SalesOrder[] = [
 // ── Riwayat Jan–Mar 2026 ──────────────────────────────────────────────────
   {
@@ -105,12 +172,19 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
     quantity: 20, unit: 'PCS', deadline: '2026-01-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-03',
     designLink: 'https://drive.google.com', submittedAt: '2026-01-05', approvedAt: '2026-01-07', approvedBy: 'u3',
     startTime: '2026-01-08T08:00', endTime: '2026-01-18T16:00', qcStatus: 'Pass', qcAt: '2026-01-19', completedAt: '2026-01-20',
+    quotationDate: '2025-12-15', designApprovedAt: '2025-12-28',
+    qcNotes: 'Dimensi housing presisi. Lulus uji getaran sumbu.', qcPhotos: ['https://images.unsplash.com/photo-1565814636199-ae8133055c1c?auto=format&fit=crop&q=80&w=200'],
+    invoice: { invoiceNumber: 'INV-2026-001', invoiceDate: '2026-01-21', dueDate: '2026-02-21', amount: 45000000, status: 'paid', paymentDate: '2026-02-15' }
   },
   {
     id: 'SO-2025099', customerId: '0002', partNumber: 'PJT-SHF-H01', description: 'Shaft Coupling 60mm SS304',
     quantity: 8, unit: 'PCS', deadline: '2026-01-25', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-08',
     designLink: 'https://drive.google.com', submittedAt: '2026-01-10', approvedAt: '2026-01-12', approvedBy: 'u3',
-    startTime: '2026-01-13T08:00', endTime: '2026-01-24T16:00', qcStatus: 'Pass', qcAt: '2026-01-25', completedAt: '2026-01-26',
+    startTime: '2026-01-13T08:00', endTime: '2026-01-24T16:00', qcStatus: 'Fail', qcAt: '2026-01-25', completedAt: '2026-01-26',
+    lateReason: 'Mesin bubut sempat mengalami maintenance selama 2 hari',
+    quotationDate: '2025-12-20', designApprovedAt: '2026-01-02',
+    qcNotes: '2 pcs cacat minor pada ulir. Harus dirework.', qcPhotos: ['https://images.unsplash.com/photo-1580983546535-ebbc30138cd3?auto=format&fit=crop&q=80&w=200'],
+    invoice: { invoiceNumber: 'INV-2026-002', invoiceDate: '2026-01-27', dueDate: '2026-02-27', amount: 18500000, status: 'waiting', paymentDate: '' }
   },
   {
     id: 'SO-2025100', customerId: '0003', partNumber: 'PJT-VAL-H01', description: 'Gate Valve Body DN80 CS',
@@ -224,6 +298,7 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
     quantity: 8, unit: 'PCS', deadline: '2026-07-15', status: 'Waiting Approval', createdBy: 'u1', createdAt: '2026-05-05',
     designLink: 'https://drive.google.com/file/d/example7', submittedAt: '2026-05-07',
   },
+
   {
     id: 'SO-2026058', customerId: '0007', partNumber: 'PJT-BRK-008', description: 'Brake Drum Custom 250mm OD',
     quantity: 15, unit: 'PCS', deadline: '2026-07-20', status: 'Waiting Approval', createdBy: 'u1', createdAt: '2026-05-07',
@@ -286,7 +361,42 @@ export function getStatusColor(status: SOStatus): { bg: string; text: string; bo
     'Completed':            { bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-300' },
     'Rejected':             { bg: 'bg-slate-100',  text: 'text-slate-700',  border: 'border-slate-300' },
   };
-  return map[status];
+  return map[status] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+}
+
+export type QuotationStatus = 'draft' | 'pending_design' | 'design_review' | 'client_design_approval' | 'waiting_pricing' | 'client_price_approval' | 'won' | 'lost';
+
+export interface Quotation {
+  id: string;
+  customerId: string;
+  productName: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  deadline: string;
+  status: QuotationStatus;
+  designId?: string;
+  estimatedAmount?: number;
+  customerImageUrl?: string;
+  createdBy: string;
+  createdAt: string;
+  revisions?: { revNumber: number; amount: number; date: string; notes: string }[];
+  materials?: any[];
+  notes?: string;
+  timeline?: any[];
+  invoice?: { status: string };
+  lostReason?: string;
+}
+
+export function getQuotationStatusColor(status: QuotationStatus): { bg: string; text: string; border: string; label: string } {
+  if (status === 'draft') return { bg: "bg-gray-100", text: "text-gray-500", border: "border-gray-300", label: "Draft" };
+  if (status === 'pending_design' || status === 'design_review') return { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", label: "Design Process" };
+  if (status === 'client_design_approval') return { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300", label: "Approve Design" };
+  if (status === 'waiting_pricing') return { bg: "bg-amber-100", text: "text-amber-700", border: "border-amber-300", label: "Waiting Pricing" };
+  if (status === 'client_price_approval') return { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300", label: "Approve Price" };
+  if (status === 'won') return { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300", label: "Won" };
+  if (status === 'lost') return { bg: "bg-red-100", text: "text-red-700", border: "border-red-300", label: "Lost" };
+  return { bg: "bg-gray-100", text: "text-gray-500", border: "border-gray-300", label: "Unknown" };
 }
 
 export function getCustomer(code: string, customers: Customer[]): Customer | undefined {

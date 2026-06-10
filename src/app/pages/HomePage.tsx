@@ -15,10 +15,10 @@ export default function HomePage() {
     <div style={{ fontFamily: "Inter, sans-serif" }}>
       <Navbar />
       <HeroSection />
+      <OrderTracking />
       <CompanyIntro />
       <ServicesSection />
       <ManufacturingProcess />
-      <OrderTracking />
       <WhyChooseUs />
       <CompanyStats />
       <ContactSection />

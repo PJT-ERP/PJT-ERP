@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, X, SlidersHorizontal,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
+import { getStatusColor, getQuotationStatusColor, QuotationStatus, Quotation } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";
@@ -14,7 +14,7 @@ const invoiceStatusConfig: Record<string, { label: string; textColor: string; bg
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
 };
 
-interface SOListProps {
+interface QuotationListProps {
   onNavigate: (page: Page, data?: unknown) => void;
 }
 
@@ -43,20 +43,20 @@ function downloadCsv(filename: string, rows: string[][]) {
 }
 
 const STATUS_OPTIONS = [
-  { value: "all",               label: "Semua Status"       },
-  { value: "draft",             label: "Draft"              },
-  { value: "waiting_finance",   label: "Waiting Finance"    },
-  { value: "waiting_payment",   label: "Waiting Payment"    },
-  { value: "paid",              label: "Paid"               },
-  { value: "engineering_review",label: "Engineering Review" },
-  { value: "in_production",     label: "In Production"      },
-  { value: "completed",         label: "Completed"          },
-  { value: "cancelled",         label: "Cancelled"          },
+  { value: "all",                    label: "Semua Status" },
+  { value: "draft",                  label: "Draft" },
+  { value: "pending_design",         label: "Pending Design" },
+  { value: "design_review",          label: "Design Review" },
+  { value: "client_design_approval", label: "Client Design Validation" },
+  { value: "waiting_pricing",        label: "Waiting Pricing" },
+  { value: "client_price_approval",  label: "Client Pricing Validation" },
+  { value: "won",                    label: "Won (Convert to SO)" },
+  { value: "lost",                   label: "Lost" },
 ];
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: SOStatus }) {
-  const cfg = getStatusColor(status);
+function StatusBadge({ status }: { status: QuotationStatus }) {
+  const cfg = getQuotationStatusColor(status);
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -66,7 +66,7 @@ function StatusBadge({ status }: { status: SOStatus }) {
       fontSize: "11px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
     }}>
       <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.text.replace("text-", ""), flexShrink: 0 }} />
-      {status}
+      {cfg.label}
     </span>
   );
 }
@@ -159,8 +159,8 @@ function ActionBtn({
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function SOList({ onNavigate }: SOListProps) {
-  const { salesOrders, customers } = useApp();
+export function QuotationList({ onNavigate }: QuotationListProps) {
+  const { quotations, customers } = useApp();
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -171,7 +171,7 @@ export function SOList({ onNavigate }: SOListProps) {
   const hasActiveFilters = statusFilter !== "all" || customerFilter !== "all" || !!dateFilter;
   const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (customerFilter !== "all" ? 1 : 0) + (dateFilter ? 1 : 0);
 
-  const filtered = useMemo(() => salesOrders.filter(o => {
+  const filtered = useMemo(() => quotations.filter(o => {
     const cust = customers.find(c => c.code === o.customerId);
     const cName = cust?.name || "";
     const q = search.toLowerCase();
@@ -195,7 +195,7 @@ export function SOList({ onNavigate }: SOListProps) {
 
   const exportOrders = () => {
     downloadCsv("sales-orders.csv", [
-      ["No. SO", "Customer", "Company", "Product", "Qty", "Unit", "Deadline", "Invoice Status", "Workflow Status"],
+      ["No. QUT", "Customer", "Company", "Product", "Qty", "Unit", "Deadline", "Invoice Status", "Workflow Status"],
       ...filtered.map(order => {
         const cust = customers.find(c => c.code === order.customerId);
         return [
@@ -213,7 +213,7 @@ export function SOList({ onNavigate }: SOListProps) {
   };
 
   const showEditUnavailable = () => {
-    window.alert("Edit Sales Order belum tersedia di demo ini. Gunakan Duplikat untuk membuat order baru dari data yang mirip.");
+    window.alert("Edit Penawaran belum tersedia di demo ini. Gunakan Duplikat untuk membuat order baru dari data yang mirip.");
   };
 
   return (
@@ -222,15 +222,15 @@ export function SOList({ onNavigate }: SOListProps) {
       {/* ── Tabs ──────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, marginBottom: 4 }}>
         <button
-          onClick={() => onNavigate("quotation-list")}
-          style={{ padding: "10px 20px", border: "none", background: "none", color: S.secondary, borderBottom: "2px solid transparent", fontWeight: 500, fontSize: "13px", cursor: "pointer" }}
-          onMouseEnter={e => e.currentTarget.style.color = S.slate}
-          onMouseLeave={e => e.currentTarget.style.color = S.secondary}
+          style={{ padding: "10px 20px", border: "none", background: "none", color: "#C8102E", borderBottom: "2px solid #C8102E", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
         >
           Penawaran (QUT)
         </button>
         <button
-          style={{ padding: "10px 20px", border: "none", background: "none", color: "#C8102E", borderBottom: "2px solid #C8102E", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
+          onClick={() => onNavigate("so-list")}
+          style={{ padding: "10px 20px", border: "none", background: "none", color: S.secondary, borderBottom: "2px solid transparent", fontWeight: 500, fontSize: "13px", cursor: "pointer" }}
+          onMouseEnter={e => e.currentTarget.style.color = S.slate}
+          onMouseLeave={e => e.currentTarget.style.color = S.secondary}
         >
           Sales Order (SO)
         </button>
@@ -239,10 +239,10 @@ export function SOList({ onNavigate }: SOListProps) {
       {/* ── Page header ───────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h1 style={{ color: S.slate, margin: 0 }}>Daftar Sales Order</h1>
+          <h1 style={{ color: S.slate, margin: 0 }}>Daftar Penawaran</h1>
           <p style={{ color: S.secondary, fontSize: "12.5px", marginTop: 2 }}>
-            {salesOrders.length} order terdaftar
-            {filtered.length !== salesOrders.length && (
+            {quotations.length} order terdaftar
+            {filtered.length !== quotations.length && (
               <span style={{ color: S.cyan }}> · {filtered.length} ditampilkan</span>
             )}
           </p>
@@ -257,8 +257,8 @@ export function SOList({ onNavigate }: SOListProps) {
           />
           <HoverBtn
             icon={<Plus size={12} />}
-            label="Buat SO"
-            onClick={() => onNavigate("so-create")}
+            label="Buat QUT"
+            onClick={() => onNavigate("quotation-create")}
             style={{ background: S.cyan, border: `1px solid ${S.cyan}`, color: "#fff" }}
             hoverStyle={{ opacity: "0.88" }}
             primary
@@ -280,7 +280,7 @@ export function SOList({ onNavigate }: SOListProps) {
             <Search size={13} style={{ color: "#94A3B8", flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Cari no. SO, nama pelanggan, produk..."
+              placeholder="Cari no. QUT, nama pelanggan, produk..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               onFocus={() => setSearchFocused(true)}
@@ -376,7 +376,7 @@ export function SOList({ onNavigate }: SOListProps) {
           <thead>
             <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
               {[
-                { label: "No. SO",          align: "left"  },
+                { label: "No. QUT",          align: "left"  },
                 { label: "Pelanggan",        align: "left"  },
                 { label: "Produk",           align: "left"  },
                 { label: "Qty",              align: "left"  },
@@ -409,9 +409,9 @@ export function SOList({ onNavigate }: SOListProps) {
                 order={order}
                 customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
                 isLast={idx === paginated.length - 1}
-                onView={() => onNavigate("so-detail", order.id)}
-                onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
-                onDuplicate={() => onNavigate("so-create")}
+                onView={() => onNavigate("quotation-detail", order.id)}
+                onEdit={() => onNavigate("quotation-detail", { id: order.id, isEditMode: true })}
+                onDuplicate={() => onNavigate("quotation-create")}
                 onPrint={() => window.print()}
               />
             ))}
@@ -435,7 +435,7 @@ export function SOList({ onNavigate }: SOListProps) {
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
 function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, onPrint }: {
-  order: SalesOrder;
+  order: Quotation;
   customerName: string;
   isLast: boolean;
   onView: () => void;
@@ -483,7 +483,7 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
         <InvoiceBadge status={(order.invoice?.status ?? "not_created") as InvoiceStatus} />
       </td>
       <td style={{ padding: "9px 14px" }}>
-        <StatusBadge status={order.status as SOStatus} />
+        <StatusBadge status={order.status as QuotationStatus} />
       </td>
       <td style={{ padding: "9px 14px" }}>
         <span style={{ color: "#64748B", fontSize: "12px" }}>{order.createdAt}</span>
@@ -493,7 +493,7 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
           <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
           <ActionBtn icon={<Copy size={12} />}    label="Duplikat" hoverBg="#F5F3FF" hoverColor="#7C3AED" onClick={onDuplicate} title="Duplikat order" />
-          <ActionBtn icon={<Printer size={12} />} label="Cetak"    hoverBg="#F8FAFC" hoverColor="#475569" onClick={onPrint}     title="Cetak SO" />
+          <ActionBtn icon={<Printer size={12} />} label="Cetak"    hoverBg="#F8FAFC" hoverColor="#475569" onClick={onPrint}     title="Cetak QUT" />
         </div>
       </td>
     </tr>

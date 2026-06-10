@@ -91,7 +91,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       className="rounded border shadow-lg px-3 py-2"
       style={{ background: "#fff", borderColor: "#e2e8f0", fontSize: 12 }}
     >
-      <p style={{ fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>{label}</p>
+      <p style={{ fontWeight: 600, color: "#1F1F1F", marginBottom: 4 }}>{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} style={{ color: p.color }}>
           {p.name === "actual" ? "Realisasi" : p.name === "budget" ? "Anggaran" : p.name}: Rp {p.value} Jt
@@ -125,7 +125,7 @@ function KPICard({
         </div>
       </div>
       <div>
-        <p style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>{value}</p>
+        <p style={{ fontSize: 22, fontWeight: 700, color: "#1F1F1F", lineHeight: 1.2 }}>{value}</p>
         <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{sub}</p>
       </div>
       <div className="flex items-center gap-1" style={{ fontSize: 11 }}>
@@ -151,7 +151,7 @@ function Section({ title, action, children }: { title: string; action?: React.Re
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "1px solid #f1f5f9" }}
       >
-        <p style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
           {title}
         </p>
         {action}
@@ -172,7 +172,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
       {/* Page header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ color: "#0f172a" }}>Procurement Overview</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Procurement Overview</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             PT Pratama Jaya Tekindo · Minggu, 24 Mei 2026 · Shift Pagi
           </p>
@@ -213,7 +213,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
           trend="+3 minggu ini"
           trendUp={true}
           icon={<ShoppingCart size={16} />}
-          accentColor="#2563eb"
+          accentColor="#C8102E"
           accentBg="#eff6ff"
         />
         <KPICard
@@ -253,8 +253,8 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                 <AreaChart data={spendTrend} margin={{ top: 5, right: 16, left: -16, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradActual" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#C8102E" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#C8102E" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -273,17 +273,17 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                   <Area
                     type="monotone"
                     dataKey="actual"
-                    stroke="#2563eb"
+                    stroke="#C8102E"
                     strokeWidth={2}
                     fill="url(#gradActual)"
-                    dot={{ r: 3, fill: "#2563eb", strokeWidth: 0 }}
+                    dot={{ r: 3, fill: "#C8102E", strokeWidth: 0 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
               <div className="flex items-center gap-5 px-2 mt-1">
                 {[
                   { color: "#cbd5e1", dash: true, label: "Anggaran" },
-                  { color: "#2563eb", dash: false, label: "Realisasi" },
+                  { color: "#C8102E", dash: false, label: "Realisasi" },
                 ].map((l) => (
                   <div key={l.label} className="flex items-center gap-1.5">
                     <div
@@ -331,7 +331,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                 {[
                   { label: "Rata-rata", val: "93%", color: "#16a34a" },
                   { label: "Terendah", val: "88%", color: "#dc2626" },
-                  { label: "Tertinggi", val: "97%", color: "#2563eb" },
+                  { label: "Tertinggi", val: "97%", color: "#C8102E" },
                 ].map((s) => (
                   <div key={s.label} className="text-center">
                     <p style={{ fontSize: 14, fontWeight: 700, color: s.color }}>{s.val}</p>
@@ -351,7 +351,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
           <Section
             title="Aktivitas Hari Ini"
             action={
-              <button className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors" style={{ fontSize: 11 }}>
+              <button className="flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors" style={{ fontSize: 11 }}>
                 Lihat Semua <ArrowRight size={11} />
               </button>
             }
@@ -365,7 +365,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{a.type}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{a.type}</span>
                       <span style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>{a.time}</span>
                     </div>
                     <p style={{ fontSize: 12, color: "#64748b", marginTop: 1 }}>{a.detail}</p>
@@ -396,7 +396,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                 <div key={mr.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/60 transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{mr.id}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{mr.id}</span>
                       <span
                         className="rounded px-1.5"
                         style={{
@@ -426,7 +426,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
               {incomingDeliveries.map((d) => (
                 <div key={d.po} className="px-4 py-2.5 hover:bg-slate-50/60 transition-colors">
                   <div className="flex items-center justify-between gap-2">
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{d.po}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{d.po}</span>
                     <span
                       className="rounded px-1.5 py-0.5"
                       style={{

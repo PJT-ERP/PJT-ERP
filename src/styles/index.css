@@ -6,11 +6,11 @@
 
 /* Force shadow globally for all buttons */
 button, .p-button {
-  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15), 0 3px 7px -3px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
   transition: all 0.2s ease-in-out !important;
 }
 button:hover, .p-button:hover {
-  box-shadow: 0 12px 20px -4px rgba(0, 0, 0, 0.2), 0 4px 8px -4px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
   transform: translateY(-1px) !important;
 }
 

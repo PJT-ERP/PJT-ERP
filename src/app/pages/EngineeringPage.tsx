@@ -5,15 +5,14 @@ import {
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, SOStatus, getStatusColor } from "../components/data/mockData";
+import { Quotation, QuotationStatus, getQuotationStatusColor, USERS } from "../components/data/mockData";
 import { useNavigate } from "react-router";
 
-// Theme constants based on SO Dashboard
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
@@ -21,27 +20,29 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-function StatusBadge({ status }: { status: SOStatus }) {
-  const cfg = getStatusColor(status as any);
+function StatusBadge({ status }: { status: string }) {
+  const cfg = getQuotationStatusColor(status);
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {status}
+      {cfg.label}
     </span>
   );
 }
 
-function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, customers } = useApp();
-  const [designLink, setDesignLink] = useState(so.designLink ?? '');
+function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
+  const { updateQuotation, customers, currentUser } = useApp();
+  const [designLink, setDesignLink] = useState(qut.designLink ?? '');
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
-  const customer = customers.find(c => c.code === so.customerId);
+  const customer = customers.find(c => c.code === qut.customerId);
+  
+  const isSpv = currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv';
+  const isPendingSpv = qut.status === 'design_review';
 
   const handleForward = () => {
-    updateSalesOrder(so.id, {
+    updateQuotation(qut.id, {
       designLink,
-      status: 'Waiting Approval',
-      submittedAt: new Date().toISOString(),
+      status: isSpv ? 'client_design_approval' : 'design_review',
     });
     setStep('done');
   };
@@ -51,8 +52,8 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
-            <h2 className="text-gray-900 m-0">{so.id}</h2>
-            <p className="text-xs text-gray-500 m-0 mt-1">{so.partNumber} - {so.description}</p>
+            <h2 className="text-gray-900 m-0">{qut.id}</h2>
+            <p className="text-xs text-gray-500 m-0 mt-1">{qut.productName} - {qut.description}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold bg-transparent border-none cursor-pointer">&times;</button>
         </div>
@@ -62,27 +63,33 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CheckCircle size={32} className="text-green-500" />
               </div>
-              <h3 className="text-gray-900 mb-1">Desain Diteruskan ke Owner</h3>
-              <p className="text-sm text-gray-500 mb-4">Status SO diubah menjadi "Waiting Approval"</p>
-              <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white text-sm rounded-lg border-none cursor-pointer">Tutup</button>
+              <h3 className="text-gray-900 mb-1">
+                {isSpv ? 'Desain Disetujui (Diteruskan ke Sales)' : 'Desain Menunggu Approval Supervisor'}
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {isSpv ? 'Status Penawaran dikembalikan ke Sales untuk Validasi Klien.' : 'Status Penawaran menjadi "Design Review"'}
+              </p>
+              <button onClick={onClose} className="px-6 py-2 bg-red-600 text-white text-sm rounded-lg border-none cursor-pointer">Tutup</button>
             </div>
           ) : step === 'confirm' ? (
             <div className="space-y-4 flex flex-col gap-4">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm text-amber-800 m-0">Konfirmasi meneruskan desain ke Owner untuk approval?</p>
+                <p className="text-sm text-amber-800 m-0">
+                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? Dokumen akan masuk ke tahap Validasi Klien.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
+                </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 flex flex-col gap-2 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">Customer</span><span className="text-gray-900 font-medium">{customer?.name}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Qty</span><span className="text-gray-900 font-medium">{so.quantity} {so.unit}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Qty</span><span className="text-gray-900 font-medium">{qut.quantity} {qut.unit}</span></div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Link Desain</span>
-                  <a href={designLink} target="_blank" rel="noreferrer" className="text-blue-600 text-xs flex items-center gap-1 font-medium decoration-transparent hover:underline">Lihat <ExternalLink size={11} /></a>
+                  <a href={designLink} target="_blank" rel="noreferrer" className="text-red-600 text-xs flex items-center gap-1 font-medium decoration-transparent hover:underline">Lihat <ExternalLink size={11} /></a>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setStep('upload')} className="flex-1 py-2 border border-gray-300 text-gray-700 bg-white text-sm rounded-lg hover:bg-gray-50 cursor-pointer">Kembali</button>
-                <button onClick={handleForward} className="flex-1 py-2 bg-blue-600 text-white text-sm border-none rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 cursor-pointer font-medium">
-                  <Send size={15} /> Forward ke Owner
+                <button onClick={handleForward} className="flex-1 py-2 bg-red-600 text-white text-sm border-none rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 cursor-pointer font-medium">
+                  <Send size={15} /> {isSpv ? 'Approve & Forward' : 'Forward ke Supervisor'}
                 </button>
               </div>
             </div>
@@ -90,26 +97,26 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
             <div className="space-y-4 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><p className="text-xs text-gray-500 m-0">Customer</p><p className="text-gray-900 m-0 font-medium">{customer?.name}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Qty</p><p className="text-gray-900 m-0 font-medium">{so.quantity} {so.unit}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Deadline</p><p className="text-gray-900 m-0 font-medium">{so.deadline}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Input SO</p><p className="text-gray-900 m-0 font-medium">{so.createdAt}</p></div>
+                <div><p className="text-xs text-gray-500 m-0">Qty</p><p className="text-gray-900 m-0 font-medium">{qut.quantity} {qut.unit}</p></div>
+                <div><p className="text-xs text-gray-500 m-0">Deadline</p><p className="text-gray-900 m-0 font-medium">{qut.deadline}</p></div>
+                <div><p className="text-xs text-gray-500 m-0">Tanggal Request</p><p className="text-gray-900 m-0 font-medium">{qut.createdAt}</p></div>
               </div>
-              {so.rejectionReason && (
-                <div className="bg-rose-50 border border-rose-200 rounded-lg p-3">
-                  <p className="text-xs text-rose-700 m-0"><strong>Catatan Revisi dari Owner:</strong> {so.rejectionReason}</p>
-                </div>
-              )}
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800 m-0">Silakan unggah dokumen CAD dan daftar material (BOM) ke folder cloud proyek ini, lalu tempelkan linknya di bawah.</p>
+              </div>
+              
               <div>
-                <label className="block text-sm text-gray-700 mb-1.5 font-medium">Link Desain / Drawing <span className="text-red-500">*</span></label>
+                <label className="block text-sm text-gray-700 mb-1.5 font-medium">Link Desain / Drawing & BOM <span className="text-red-500">*</span></label>
                 <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600" />
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-red-600" />
               </div>
               <div className="flex gap-2">
                 <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 bg-white text-gray-700 text-sm rounded-lg hover:bg-gray-50 cursor-pointer">Batal</button>
                 <button onClick={() => setStep('confirm')} disabled={!designLink.trim()}
-                  className="flex-1 py-2.5 bg-blue-600 border-none text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer font-medium">
-                  <Send size={15} /> Submit & Forward
+                  className="flex-1 py-2.5 bg-red-600 border-none text-white text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer font-medium">
+                  <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}
                 </button>
               </div>
             </div>
@@ -120,52 +127,74 @@ function DesignModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   );
 }
 
+function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
+  const { updateQuotation } = useApp();
+  const engineers = USERS.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
+  
+  const handleAssign = (userId: string) => {
+    updateQuotation(qut.id, { assignedTo: userId });
+    onClose();
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <h2 className="text-lg text-gray-900 m-0 mb-4 font-semibold font-sans">Tugaskan Desain</h2>
+        <div className="space-y-2 flex flex-col gap-2">
+          {engineers.map(eng => (
+            <button key={eng.id} onClick={() => handleAssign(eng.id)} className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer bg-white">
+              <p className="m-0 font-medium text-gray-900 text-sm">{eng.name}</p>
+              <p className="m-0 text-xs text-gray-500">{eng.email}</p>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="w-full mt-4 py-2 border border-gray-300 text-gray-700 bg-white text-sm font-medium rounded-lg hover:bg-gray-50 cursor-pointer">Batal</button>
+      </div>
+    </div>
+  );
+}
+
 export function EngineeringPage() {
   const navigate = useNavigate();
-  const { salesOrders, customers } = useApp();
-  const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
+  const { quotations, salesOrders, customers, currentUser } = useApp();
+  const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
+  const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
-  // Stats
-  const pendingDesign = salesOrders.filter(so => so.status === 'Pending Design').length;
-  const revisionRequired = salesOrders.filter(so => so.status === 'Revision Required').length;
-  const waitingApproval = salesOrders.filter(so => so.status === 'Waiting Approval').length;
-  const inProduction = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
-  const qc = salesOrders.filter(so => so.status === 'QC').length;
+  const isSpv = currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv';
 
-  // Queue sorting exactly as old EngineeringPage
-  const STATUS_ORDER = ['Revision Required', 'Pending Design', 'Waiting Approval'];
-  const queue = salesOrders
-    .filter(so => STATUS_ORDER.includes(so.status))
-    .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
+  // Pre-Sales Design Queue
+  const designQueue = quotations.filter(q => {
+    if (q.status !== 'pending_design' && q.status !== 'design_review') return false;
+    if (isSpv) return true;
+    return q.assignedTo === currentUser?.id;
+  });
+  const pendingDesignCount = quotations.filter(q => q.status === 'pending_design').length;
+  const designReviewCount = quotations.filter(q => q.status === 'design_review').length;
+
+  // Production Stats
+  const inProductionCount = salesOrders.filter(so => so.status === 'in_production' || so.status === 'material_preparation').length;
+  const qcCount = salesOrders.filter(so => so.status === 'qc_check').length;
 
   const summaryCards = [
     {
-      label: "Total Antrian",
-      value: queue.length,
+      label: "Antrian Desain Baru",
+      value: pendingDesignCount,
       icon: <List size={18} />,
-      accent: "#06B6D4",
-      bg: "rgba(6,182,212,0.08)",
-      change: "Tugas Desain Aktif",
+      accent: "#C8102E",
+      bg: "rgba(200,16,46,0.08)",
+      change: "Dari Tim Sales",
     },
     {
-      label: "Perlu Revisi",
-      value: revisionRequired,
-      icon: <AlertTriangle size={18} />,
-      accent: "#EF4444",
-      bg: "rgba(239,68,68,0.08)",
-      change: "Dari Owner",
-    },
-    {
-      label: "Menunggu Approval",
-      value: waitingApproval,
+      label: "Waiting Spv Approval",
+      value: designReviewCount,
       icon: <Clock size={18} />,
-      accent: "#F59E0B",
-      bg: "rgba(245,158,11,0.08)",
-      change: "Sedang di-review",
+      accent: "#8B5CF6",
+      bg: "rgba(139,92,246,0.08)",
+      change: "Review Supervisor",
     },
     {
-      label: "In Production",
-      value: inProduction,
+      label: "Proses Produksi",
+      value: inProductionCount,
       icon: <Factory size={18} />,
       accent: "#3B82F6",
       bg: "rgba(59,130,246,0.08)",
@@ -174,11 +203,10 @@ export function EngineeringPage() {
   ];
 
   const workflowStats = [
-    { label: "Pending Design",    count: pendingDesign,    color: "#94A3B8" },
-    { label: "Revision Required", count: revisionRequired, color: "#EF4444" },
-    { label: "Waiting Approval",  count: waitingApproval,  color: "#F59E0B" },
-    { label: "In Production",     count: inProduction,     color: "#3B82F6" },
-    { label: "QC",                count: qc,               color: "#06B6D4" },
+    { label: "Pending Design",    count: pendingDesignCount,    color: "#94A3B8" },
+    { label: "Waiting Spv",       count: designReviewCount,     color: "#8B5CF6" },
+    { label: "In Production",     count: inProductionCount,     color: "#3B82F6" },
+    { label: "QC",                count: qcCount,               color: "#C8102E" },
   ];
 
   return (
@@ -218,67 +246,77 @@ export function EngineeringPage() {
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           
-          {/* Design Queue Table */}
+          {/* Pre-Sales Design Queue Table */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Pencil size={14} style={{ color: S.cyan }} />
-                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain</span>
+                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
               </div>
             </div>
 
             {/* Table header */}
             <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-              {["No. SO", "Pelanggan", "Produk", "Deadline", "Status"].map((h) => (
+              {["No. QUT", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
                 <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
 
-            {queue.length === 0 ? (
+            {designQueue.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                 <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                <p style={{ margin: 0 }}>Semua pesanan sudah selesai didesain.</p>
+                <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
               </div>
             ) : (
-              queue.slice(0, 5).map((order, idx) => (
+              designQueue.slice(0, 10).map((qut, idx) => (
                 <div
-                  key={order.id}
-                  onClick={() => {
-                    if (order.status !== 'Waiting Approval') {
-                      setSelectedSO(order);
-                    }
-                  }}
+                  key={qut.id}
+                  onClick={() => setSelectedQUT(qut)}
                   style={{
                     display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                    padding: "10px 18px", cursor: order.status !== 'Waiting Approval' ? "pointer" : "default",
-                    borderBottom: idx < queue.length - 1 ? `1px solid ${S.border}` : "none",
+                    padding: "10px 18px", cursor: "pointer",
+                    borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
                     transition: "background 0.1s",
-                    opacity: order.status === 'Waiting Approval' ? 0.8 : 1,
                   }}
-                  onMouseEnter={e => { if(order.status !== 'Waiting Approval') e.currentTarget.style.background = "#F8FAFC" }}
-                  onMouseLeave={e => { if(order.status !== 'Waiting Approval') e.currentTarget.style.background = "transparent" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
+                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{qut.id}</span>
                   <div>
-                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
                   </div>
-                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.description}</span>
-                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", fontWeight: 500 }}>{order.deadline}</span>
+                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
                   <div style={{ alignSelf: "center" }}>
-                    <StatusBadge status={order.status as SOStatus} />
+                    {qut.assignedTo ? (
+                      <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                        {USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer'}
+                      </span>
+                    ) : isSpv ? (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setAssignModalQUT(qut); }}
+                        style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
+                      >
+                        Tugaskan
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                    )}
+                  </div>
+                  <div style={{ alignSelf: "center" }}>
+                    <StatusBadge status={qut.status} />
                   </div>
                 </div>
               ))
             )}
             
-            {queue.length > 5 && (
+            {designQueue.length > 10 && (
               <div 
                 onClick={() => navigate('/erp/engineer-tasks')}
                 style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
                 onMouseLeave={e => e.currentTarget.style.background = S.bg}
               >
-                Lihat Semua Tugas ({queue.length})
+                Lihat Semua Tugas Desain ({designQueue.length})
               </div>
             )}
           </div>
@@ -291,7 +329,7 @@ export function EngineeringPage() {
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>
               <TrendingUp size={14} style={{ color: S.cyan }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Pipeline Status</span>
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Statistik Beban Kerja</span>
             </div>
             {workflowStats.map((w) => (
               <div key={w.label} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -339,7 +377,8 @@ export function EngineeringPage() {
         </div>
       </div>
 
-      {selectedSO && <DesignModal so={selectedSO} onClose={() => setSelectedSO(null)} />}
+      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
 }

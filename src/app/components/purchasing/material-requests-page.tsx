@@ -250,7 +250,7 @@ export function MaterialRequestsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ color: "#0f172a" }}>Material Requests</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Material Requests</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             Manajemen permintaan material ke departemen Purchasing
           </p>
@@ -291,7 +291,7 @@ export function MaterialRequestsPage() {
               }}
             >
               <span className="rounded-full" style={{ width: 6, height: 6, background: cfg.dot }} />
-              {s} <strong style={{ color: active ? cfg.color : "#0f172a" }}>{n}</strong>
+              {s} <strong style={{ color: active ? cfg.color : "#1F1F1F" }}>{n}</strong>
             </button>
           );
         })}
@@ -309,7 +309,7 @@ export function MaterialRequestsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari No. MR, requestor, departemen..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
-            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#0f172a" }}
+            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -371,11 +371,11 @@ export function MaterialRequestsPage() {
                     <TD>
                       <div className="flex items-center gap-2">
                         <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: sc.dot }} />
-                        <span style={{ fontWeight: 600, color: "#0f172a", fontSize: 12 }}>{mr.id}</span>
+                        <span style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{mr.id}</span>
                       </div>
                     </TD>
                     <TD className="hidden sm:table-cell">
-                      <p style={{ fontWeight: 500, color: "#0f172a" }}>{mr.requestor}</p>
+                      <p style={{ fontWeight: 500, color: "#1F1F1F" }}>{mr.requestor}</p>
                       <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.department}</p>
                     </TD>
                     <TD className="hidden md:table-cell">
@@ -402,8 +402,8 @@ export function MaterialRequestsPage() {
                     </TD>
                     <TD>
                       <button
-                        className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-blue-50"
-                        style={{ fontSize: 11, color: "#2563eb", borderColor: "#bfdbfe" }}
+                        className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-red-50"
+                        style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                         onClick={(e) => { e.stopPropagation(); setDetail(mr); }}
                       >
                         <Eye size={12} /> Detail
@@ -450,7 +450,7 @@ export function MaterialRequestsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 style={{ color: "#0f172a" }}>{detail.id}</h2>
+                        <h2 style={{ color: "#1F1F1F" }}>{detail.id}</h2>
                         <Pill cfg={sc} label={detail.status} />
                         <Pill cfg={pc} label={detail.priority} />
                       </div>
@@ -491,7 +491,7 @@ export function MaterialRequestsPage() {
                     ].map(({ label, val }) => (
                       <div key={label}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                        <p style={{ fontSize: 13, color: "#0f172a", marginTop: 2 }}>{val}</p>
+                        <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 2 }}>{val}</p>
                       </div>
                     ))}
                   </div>
@@ -514,9 +514,9 @@ export function MaterialRequestsPage() {
                           {detail.items.map((item, i) => (
                             <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                               <td style={{ padding: "9px 12px", fontSize: 12, color: "#475569", fontFamily: "monospace" }}>{item.code}</td>
-                              <td style={{ padding: "9px 12px", fontSize: 12, fontWeight: 500, color: "#0f172a" }}>{item.name}</td>
+                              <td style={{ padding: "9px 12px", fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>{item.name}</td>
                               <td style={{ padding: "9px 12px", fontSize: 12, color: "#64748b" }}>{item.spec}</td>
-                              <td style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#0f172a" }}>{item.qty} {item.unit}</td>
+                              <td style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{item.qty} {item.unit}</td>
                               <td style={{ padding: "9px 12px" }}>
                                 <span
                                   style={{
@@ -596,7 +596,7 @@ export function MaterialRequestsPage() {
                   <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Pilih SO (Opsional)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— Tanpa SO —</SelectItem>
-                    {allSOs.map(so => <SelectItem key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerName}</SelectItem>)}
+                    {allSOs.map(so => <SelectItem key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</SelectItem>)}
                     <SelectItem value="SO-MOCK-01">SO-MOCK-01 (Dummy)</SelectItem>
                   </SelectContent>
                 </Select>
@@ -628,7 +628,7 @@ export function MaterialRequestsPage() {
                 <button
                   onClick={addFormItem}
                   className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-slate-50 transition-colors"
-                  style={{ fontSize: 11, color: "#2563eb", borderColor: "#bfdbfe" }}
+                  style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                 >
                   <Plus size={12} /> Tambah Material
                 </button>

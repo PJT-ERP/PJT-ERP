@@ -11,7 +11,7 @@ import { useApp } from "../context/AppContext";
 import type { Page } from "../layout/erp-layout";
 import { useERPStore } from "../../store/useERPStore";
 
-interface SOCreateProps {
+interface QuotationCreateProps {
   onNavigate: (page: Page, data?: unknown) => void;
   initialData?: { customerId?: string; orderType?: "new" | "repeat" };
 }
@@ -381,15 +381,14 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, addSalesOrder, addCustomer, salesOrders, updateSalesOrder } = useApp();
-  const { submitSOToFinance, updateSOInFinance, allSOs } = useERPStore();
-  const allSos = allSOs;
+export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProps) {
+  const { customers, addQuotation, addCustomer, quotations, updateQuotation } = useApp();
+  const allSos = quotations; // rename later if needed
 
   const isEdit = initialData?.mode === "edit";
   const editSoId = initialData?.soId;
-  const existingAppSo = isEdit ? salesOrders.find(s => s.id === editSoId) : null;
-  const existingFinanceSo = isEdit ? allSOs.find(s => s.soNumber === editSoId) : null;
+  const existingAppSo = isEdit ? quotations.find(s => s.id === editSoId) : null;
+  const existingFinanceSo = null;
 
   const prefillCustomer = initialData?.customerId
     ? customers.find(c => c.code === initialData.customerId)
@@ -403,27 +402,19 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     company: existingFinanceSo?.company ?? prefillCustomer?.name ?? "",
     phone: existingFinanceSo?.phone ?? prefillCustomer?.phone ?? "",
     email: existingFinanceSo?.email ?? prefillCustomer?.contact ?? "",
-    address: existingFinanceSo?.address ?? prefillCustomer?.address ?? "",
+    address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
-    generalNotes: existingFinanceSo?.notes ?? "",
-    customerImageUrl: existingFinanceSo?.customerImageUrl ?? "",
-    estimatedAmount: existingFinanceSo?.estimatedAmount ?? 0,
+    generalNotes: "",
+    customerImageUrl: "",
+    estimatedAmount: 0,
   });
 
   const [products, setProducts] = useState<ProductRow[]>([
-    existingFinanceSo ? {
+    existingAppSo ? {
       ...emptyProduct(),
       type: "custom",
-      productName: existingFinanceSo.productName,
-      customName: existingFinanceSo.productName,
-      quantity: String(existingFinanceSo.quantity),
-      unit: existingFinanceSo.unit,
-      materials: existingFinanceSo.materials || emptyProduct().materials,
-    } : existingAppSo ? {
-      ...emptyProduct(),
-      type: "custom",
-      productName: existingAppSo.description,
-      customName: existingAppSo.description,
+      productName: existingAppSo.productName,
+      customName: existingAppSo.productName,
       quantity: String(existingAppSo.quantity),
       unit: existingAppSo.unit,
       materials: existingAppSo.materials || emptyProduct().materials,
@@ -432,7 +423,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [repeatForm, setRepeatForm] = useState<RepeatForm>({ customerId: initialData?.customerId ?? "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
   const [submitted, setSubmitted] = useState(false);
-  const [generatedSONumber, setGeneratedSONumber] = useState("");
+  const [generatedQuotationID, setGeneratedQuotationID] = useState("");
 
   const selectedCustomer = customers.find(c => c.code === repeatForm.customerId);
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
@@ -445,7 +436,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const removeProduct = (id: string, setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => setter(prev => prev.filter(p => p.id !== id));
 
   const handleReset = () => {
-    setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
+    setSubmitted(false); setOrderType(null); setGeneratedQuotationID("");
     setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setRepeatProducts([]);
@@ -487,72 +478,39 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
 
     if (isEdit && editSoId) {
-      updateSalesOrder(editSoId, {
+      updateQuotation(editSoId, {
         customerId: customerForm.customerCode,
-        description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+        productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
         quantity: Number(primaryProduct.quantity) || 1,
         unit: primaryProduct.unit,
         designId: primaryProduct.designId,
         customerImageUrl: customerForm.customerImageUrl,
         materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
         deadline: customerForm.deadline,
+        description: primaryProduct.notes,
       });
 
-      if (existingFinanceSo) {
-        updateSOInFinance(existingFinanceSo.id, {
-          customerName: customerForm.customerName,
-          customerCode: customerForm.customerCode,
-          company: customerForm.company,
-          email: customerForm.email,
-          phone: customerForm.phone,
-          address: customerForm.address,
-          customerImageUrl: customerForm.customerImageUrl,
-          productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-          designId: primaryProduct.designId,
-          quantity: Number(primaryProduct.quantity) || 1,
-          unit: primaryProduct.unit,
-          materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-          notes: customerForm.generalNotes,
-        });
-      }
-
-      setGeneratedSONumber(editSoId);
+      setGeneratedQuotationID(editSoId);
       setSubmitted(true);
       return;
     }
 
-    const newSO = addSalesOrder({
+    const newQUT = addQuotation({
       customerId: customerForm.customerCode,
-      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      description: primaryProduct.notes,
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
-      designId: primaryProduct.designId,
+      designId: primaryProduct.designId === 'none' ? '' : primaryProduct.designId,
       customerImageUrl: customerForm.customerImageUrl,
       materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
       deadline: customerForm.deadline,
-    });
-
-    const soNumber = newSO.id;
-    setGeneratedSONumber(soNumber);
-
-    submitSOToFinance({
-      id: crypto.randomUUID(),
-      soNumber,
-      customerName: customerForm.customerName,
-      customerCode: customerForm.customerCode,
-      company: customerForm.company,
-      email: customerForm.email,
-      phone: customerForm.phone,
-      address: customerForm.address,
-      customerImageUrl: customerForm.customerImageUrl,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      designId: primaryProduct.designId,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
       estimatedAmount: customerForm.estimatedAmount || 0,
       notes: customerForm.generalNotes,
+      status: (!primaryProduct.designId || primaryProduct.designId === 'none') ? 'pending_design' : 'waiting_pricing',
     });
+
+    setGeneratedQuotationID(newQUT.id);
 
     setSubmitted(true);
   };
@@ -564,36 +522,20 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     // Using the first product for the store representation (simplification for the mock store)
     const primaryProduct = repeatProducts[0];
 
-    const newSO = addSalesOrder({
+    const newQUT = addQuotation({
       customerId: selectedCustomer.code,
-      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
+      description: primaryProduct.notes,
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
       materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
       deadline: repeatForm.deadline,
-    });
-
-    const soNumber = newSO.id;
-    setGeneratedSONumber(soNumber);
-
-    submitSOToFinance({
-      id: crypto.randomUUID(),
-      soNumber,
-      customerName: selectedCustomer.name,
-      customerCode: selectedCustomer.code,
-      company: selectedCustomer.name,
-      email: selectedCustomer.contact,
-      phone: selectedCustomer.phone,
-      address: selectedCustomer.address,
-      customerImageUrl: repeatForm.customerImageUrl,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      designId: primaryProduct.designId,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
       estimatedAmount: repeatForm.estimatedAmount || 0,
       notes: repeatForm.generalNotes,
+      status: 'waiting_pricing',
     });
+
+    setGeneratedQuotationID(newQUT.id);
 
     setSubmitted(true);
   };
@@ -607,16 +549,16 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
             <CheckCircle2 size={28} style={{ color: "#22C55E" }} />
           </div>
-          <h2 style={{ color: S.slate, marginBottom: 6 }}>{isEdit ? "Sales Order Diperbarui" : "Sales Order Dibuat"}</h2>
-          <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Sales Order:</p>
-          <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedSONumber}</p>
+          <h2 style={{ color: S.slate, marginBottom: 6 }}>{isEdit ? "Penawaran Diperbarui" : "Penawaran Dibuat"}</h2>
+          <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Penawaran:</p>
+          <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedQuotationID}</p>
           <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
             {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Dikirim ke Finance untuk review"}
           </p>
           <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
-              {" "}Departemen Finance akan mereview dan memverifikasi SO ini dalam 1×24 jam kerja.
+              {" "}Departemen Finance akan mereview dan memverifikasi QUT ini dalam 1×24 jam kerja.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -624,12 +566,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
-            >Buat SO Lagi</button>
+            >Buat QUT Lagi</button>
             <button onClick={() => onNavigate("so-list")}
               style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "opacity 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-            >Lihat Daftar SO</button>
+            >Lihat Daftar QUT</button>
           </div>
         </div>
       </div>
@@ -650,7 +592,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </button>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>
-            {!orderType ? "Buat Sales Order" : orderType === "new" ? "New Order" : "Repeat Order"}
+            {!orderType ? "Buat Penawaran" : orderType === "new" ? "New Order" : "Repeat Order"}
           </h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             {!orderType
@@ -682,7 +624,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       {!orderType && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, maxWidth: 600 }}>
           {[
-            { type: "new" as const, icon: <Plus size={22} style={{ color: S.cyan }} />, title: "New Order", desc: "Buat sales order dengan pelanggan baru atau produk yang belum pernah dipesan. Mendukung multi-produk dalam satu SO.", accentColor: S.cyan },
+            { type: "new" as const, icon: <Plus size={22} style={{ color: S.cyan }} />, title: "New Order", desc: "Buat sales order dengan pelanggan baru atau produk yang belum pernah dipesan. Mendukung multi-produk dalam satu QUT.", accentColor: S.cyan },
             { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.", accentColor: "#6366F1" },
           ].map(card => (
             <button key={card.type} onClick={() => setOrderType(card.type)}
@@ -782,7 +724,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
-              <CheckCircle2 size={14} /> Submit Sales Order
+              <CheckCircle2 size={14} /> Submit Penawaran
             </button>
           </div>
         </form>
@@ -805,11 +747,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             </div>
             {selectedCustomer && (
               <div style={{ marginBottom: 14 }}>
-                <Label text="Sales Order Sebelumnya" required />
+                <Label text="Penawaran Sebelumnya" required />
                 <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
-                  <option value="">— Pilih SO untuk di-repeat —</option>
+                  <option value="">— Pilih QUT untuk di-repeat —</option>
                   {allSos.filter(so => so.customerName === selectedCustomer.name || so.company === selectedCustomer.name).map(so => (
-                    <option key={so.id} value={so.id}>{so.soNumber} - {so.productName}</option>
+                    <option key={so.id} value={so.id}>{so.quotationId} - {so.productName}</option>
                   ))}
                 </Select>
               </div>
@@ -863,7 +805,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               </div>
             ) : (
               <div style={{ fontSize: "12.5px", color: S.secondary, padding: "10px 0" }}>
-                Pilih Sales Order sebelumnya untuk memuat produk secara otomatis.
+                Pilih Penawaran sebelumnya untuk memuat produk secara otomatis.
               </div>
             )}
           </SectionCard>

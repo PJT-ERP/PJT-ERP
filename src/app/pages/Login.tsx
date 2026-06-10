@@ -50,21 +50,21 @@ export function Login() {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-[#06B6D4] rounded-xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 bg-[#C8102E] rounded-xl flex items-center justify-center mx-auto mb-4">
             <Factory className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-[#1E293B] mb-2">Welcome Back</h1>
+          <h1 className="text-2xl font-bold text-[#111827] mb-2">Welcome Back</h1>
           <p className="text-[#64748B] text-sm">Sign in to the Manufacturing ERP System</p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Login As (Demo Auto-fill)</label>
+            <label className="block text-sm font-medium text-[#111827] mb-1.5">Login As (Demo Auto-fill)</label>
             <select 
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all"
             >
               <option value="so">Sales Order (SO)</option>
               <option value="finance">Finance</option>
@@ -77,7 +77,7 @@ export function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Username</label>
+            <label className="block text-sm font-medium text-[#111827] mb-1.5">Username</label>
             <div className="relative">
               <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
@@ -86,13 +86,13 @@ export function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">Password</label>
+            <label className="block text-sm font-medium text-[#111827] mb-1.5">Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
@@ -101,7 +101,7 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06B6D4] focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all"
               />
             </div>
           </div>
@@ -114,7 +114,7 @@ export function Login() {
 
           <button 
             type="submit"
-            className="w-full flex items-center justify-center gap-2 bg-[#0F172A] hover:bg-[#1E293B] text-white py-3 rounded-xl font-medium transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-[#1F1F1F] hover:bg-[#111827] text-white py-3 rounded-xl font-medium transition-colors"
           >
             Sign In to System
             <ArrowRight className="w-4 h-4" />

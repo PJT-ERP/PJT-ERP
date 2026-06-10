@@ -26,7 +26,7 @@ function daysBetween(a: string, b: string) {
 }
 
 const CUSTOMER_COLORS = [
-  '#06B6D4', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
+  '#C8102E', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
   '#EC4899', '#14B8A6', '#F97316',
 ];
 
@@ -45,7 +45,7 @@ function MiniBarChart({ data }: { data: { label: string; value: number }[] }) {
             <div className="w-full flex items-end" style={{ height: '120px' }}>
               <div
                 className="w-full rounded-t transition-all"
-                style={{ height: `${Math.max(pct, d.value > 0 ? 4 : 0)}%`, backgroundColor: '#06B6D4' }}
+                style={{ height: `${Math.max(pct, d.value > 0 ? 4 : 0)}%`, backgroundColor: '#C8102E' }}
               />
             </div>
             <span className="text-[10px] text-slate-400 truncate w-full text-center">{d.label}</span>
@@ -96,13 +96,13 @@ function MiniLineChart({ data }: { data: { label: string; value: number }[] }) {
         </text>
       ))}
       {/* Area fill */}
-      <polygon points={area} fill="#06B6D4" fillOpacity={0.08} />
+      <polygon points={area} fill="#C8102E" fillOpacity={0.08} />
       {/* Line */}
-      <polyline points={polyline} fill="none" stroke="#06B6D4" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={polyline} fill="none" stroke="#C8102E" strokeWidth={2} strokeLinejoin="round" />
       {/* Dots + X labels */}
       {data.map((d, i) => (
         <g key={d.label}>
-          <circle cx={px(i)} cy={py(d.value)} r={3.5} fill="#06B6D4" />
+          <circle cx={px(i)} cy={py(d.value)} r={3.5} fill="#C8102E" />
           <text x={px(i)} y={H - 4} textAnchor="middle" fontSize={9} fill="#94A3B8">
             {d.label}
           </text>
@@ -233,14 +233,14 @@ export function CustomerAnalyticsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 border-l-4 border-l-blue-500 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
-            <Users size={16} className="text-blue-500" />
+            <Users size={16} className="text-red-500" />
             <p className="text-xs text-slate-500">Customer Aktif</p>
           </div>
           <p className="text-2xl text-slate-800">{activeCustomers}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 border-l-4 border-l-[#06B6D4] shadow-sm">
+        <div className="bg-white rounded-xl p-4 border-l-4 border-l-[#C8102E] shadow-sm">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={16} className="text-[#06B6D4]" />
+            <TrendingUp size={16} className="text-[#C8102E]" />
             <p className="text-xs text-slate-500">Customer Teraktif</p>
           </div>
           <p className="text-sm text-slate-800 truncate">{mostFrequent?.customer.name.split(' ').slice(0, 3).join(' ')}</p>
@@ -277,7 +277,7 @@ export function CustomerAnalyticsPage() {
           <div className="flex items-center justify-between mb-1">
             <h3 className="text-slate-800">Tren Pembelian</h3>
             <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}
-              className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#06B6D4]/20">
+              className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20">
               <option value="all">Semua Customer</option>
               {customerStats.map(cs => (
                 <option key={cs.customer.code} value={cs.customer.code}>
@@ -331,7 +331,7 @@ export function CustomerAnalyticsPage() {
                       <td key={m.key} className="px-1 py-2">
                         <div className={`mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px] ${
                           isPredicted
-                            ? 'border-2 border-dashed border-[#06B6D4] bg-cyan-50 text-[#06B6D4]'
+                            ? 'border-2 border-dashed border-[#C8102E] bg-red-50 text-[#C8102E]'
                             : 'bg-slate-50'
                         }`}>
                           {isPredicted ? '?' : ''}
@@ -417,7 +417,7 @@ export function CustomerAnalyticsPage() {
                         {cs.predictedMonth}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[#06B6D4] bg-[#ECFEFF] px-2 py-0.5 rounded-full border border-cyan-200">
+                      <span className="text-[10px] text-[#C8102E] bg-[#ECFEFF] px-2 py-0.5 rounded-full border border-cyan-200">
                         {cs.predictedMonth}
                       </span>
                     )}
@@ -504,7 +504,7 @@ export function CustomerAnalyticsPage() {
                               <div className="flex flex-col items-center shrink-0">
                                 <div className="w-3 h-3 rounded-full border-2 border-dashed shrink-0"
                                   style={{ borderColor: cs.color, backgroundColor: 'white' }} />
-                                <span className="text-[9px] text-[#06B6D4] mt-0.5 whitespace-nowrap">
+                                <span className="text-[9px] text-[#C8102E] mt-0.5 whitespace-nowrap">
                                   {cs.predictedDate.toISOString().slice(5, 10)}?
                                 </span>
                               </div>

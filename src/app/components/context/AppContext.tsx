@@ -1,18 +1,21 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import {
   User, SalesOrder, Customer, UserRole,
-  PurchasingRequest, PurchasingStatus,
-  USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING,
+  PurchasingRequest, PurchasingStatus, Quotation,
+  USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING, INITIAL_QUOTATIONS
 } from "../data/mockData";
 
 interface AppContextType {
   currentUser: User | null;
   login: (username: string, password: string) => boolean;
   logout: () => void;
+  quotations: Quotation[];
   salesOrders: SalesOrder[];
   customers: Customer[];
   users: User[];
   purchasingRequests: PurchasingRequest[];
+  addQuotation: (q: Omit<Quotation, 'id' | 'createdAt' | 'status' | 'createdBy'>) => Quotation;
+  updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addSalesOrder: (so: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>) => SalesOrder;
   updateSalesOrder: (id: string, updates: Partial<SalesOrder>) => void;
   addUser: (user: Omit<User, 'id'>) => void;
@@ -29,10 +32,12 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [quotations, setQuotations] = useState<Quotation[]>(INITIAL_QUOTATIONS);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>(INITIAL_SALES_ORDERS);
   const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS);
   const [users, setUsers] = useState<User[]>(USERS);
   const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>(INITIAL_PURCHASING);
+  const [qutCounter, setQutCounter] = useState(5);
   const [soCounter, setSoCounter] = useState(75);
   const [prCounter, setPrCounter] = useState(5);
 
@@ -44,6 +49,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = () => setCurrentUser(null);
 
+  const addQuotation = (data: Omit<Quotation, 'id' | 'createdAt' | 'status' | 'createdBy'>): Quotation => {
+    const next = qutCounter + 1;
+    setQutCounter(next);
+    const q: Quotation = {
+      ...data,
+      id: `QUT-2026-${String(next).padStart(3, '0')}`,
+      createdAt: new Date().toISOString().split('T')[0],
+      status: 'draft',
+      createdBy: currentUser?.id ?? 'u1',
+    };
+    setQuotations(prev => [q, ...prev]);
+    return q;
+  };
+
+  const updateQuotation = (id: string, updates: Partial<Quotation>) => {
+    setQuotations(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
+  };
+
   const addSalesOrder = (data: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>): SalesOrder => {
     const next = soCounter + 1;
     setSoCounter(next);
@@ -51,7 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...data,
       id: `SO-2026${String(next).padStart(3, '0')}`,
       createdAt: new Date().toISOString().split('T')[0],
-      status: 'Pending Design',
+      status: 'waiting_dp',
       createdBy: currentUser?.id ?? 'u1',
     };
     setSalesOrders(prev => [so, ...prev]);
@@ -105,7 +128,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, login, logout,
-      salesOrders, customers, users, purchasingRequests,
+      quotations, salesOrders, customers, users, purchasingRequests,
+      addQuotation, updateQuotation,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
       addCustomer, updateCustomer,

@@ -39,7 +39,7 @@ export function Footer() {
   };
 
   return (
-    <footer style={{ backgroundColor: "#0F172A" }}>
+    <footer style={{ backgroundColor: "#1F1F1F" }}>
       {/* Main footer */}
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
@@ -50,7 +50,7 @@ export function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2.5 mb-5">
               <div
-                style={{ backgroundColor: "#06B6D4" }}
+                style={{ backgroundColor: "#C8102E" }}
                 className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
               >
                 <Cog className="w-5 h-5 text-white" />
@@ -59,7 +59,7 @@ export function Footer() {
                 <span style={{ color: "#FFFFFF", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700 }}>
                   PT Pratama Jaya
                 </span>
-                <span style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700 }}>
+                <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700 }}>
                   {" "}Tekindo
                 </span>
               </div>
@@ -82,7 +82,7 @@ export function Footer() {
                 const Icon = item.icon;
                 return (
                   <div key={item.text} className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "#06B6D4" }} />
+                    <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "#C8102E" }} />
                     <span style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "13px" }}>
                       {item.text}
                     </span>
@@ -139,7 +139,7 @@ export function Footer() {
               href={href}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
               style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "#64748B" }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(6,182,212,0.15)"; e.currentTarget.style.color = "#06B6D4"; }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(200,16,46,0.15)"; e.currentTarget.style.color = "#C8102E"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#64748B"; }}
             >
               <Icon className="w-4 h-4" />

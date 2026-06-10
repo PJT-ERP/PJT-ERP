@@ -12,7 +12,7 @@ import {
   invoices, formatIDR
 } from './mockData';
 
-const PIE_COLORS = ['#16a34a', '#d97706', '#dc2626', '#2563eb'];
+const PIE_COLORS = ['#16a34a', '#d97706', '#dc2626', '#C8102E'];
 
 const formatIDRShort = (v: number) => {
   if (v >= 1_000_000_000) return `Rp ${(v / 1_000_000_000).toFixed(1)}M`;
@@ -92,7 +92,7 @@ export function FinanceReports() {
       {/* Summary KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Total Ditagihkan', value: formatIDRShort(totalInvoiced), sub: '6 bulan', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Total Ditagihkan', value: formatIDRShort(totalInvoiced), sub: '6 bulan', icon: FileText, color: 'text-red-600', bg: 'bg-red-50' },
           { label: 'Total Terkumpul', value: formatIDRShort(totalCollected), sub: 'sudah diterima', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Collection Rate', value: `${collectionRate}%`, sub: 'performa penagihan', icon: PieIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
           { label: 'Rata-rata/Bulan', value: formatIDRShort(totalCollected / 6), sub: '6 bulan terakhir', icon: BarChart3, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -118,7 +118,7 @@ export function FinanceReports() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${
               activeTab === tab.id
-                ? 'text-blue-600 border-blue-600'
+                ? 'text-red-600 border-red-600'
                 : 'text-slate-500 border-transparent hover:text-slate-700'
             }`}
           >
@@ -146,15 +146,15 @@ export function FinanceReports() {
                       <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="invGrad2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#C8102E" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#C8102E" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis tickFormatter={formatIDRShort} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={70} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="invoiced" name="Ditagihkan" stroke="#2563eb" strokeWidth={2} fill="url(#invGrad2)" dot={false} />
+                  <Area type="monotone" dataKey="invoiced" name="Ditagihkan" stroke="#C8102E" strokeWidth={2} fill="url(#invGrad2)" dot={false} />
                   <Area type="monotone" dataKey="revenue" name="Terkumpul" stroke="#16a34a" strokeWidth={2.5} fill="url(#colGrad)" dot={{ r: 3, fill: '#16a34a' }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -173,7 +173,7 @@ export function FinanceReports() {
                   <YAxis tickFormatter={formatIDRShort} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={70} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="target" name="Target" fill="#e2e8f0" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="revenue" name="Realisasi" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="revenue" name="Realisasi" fill="#C8102E" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -230,7 +230,7 @@ export function FinanceReports() {
                     <td className="px-5 py-3 font-bold text-green-700">{formatIDR(totalCollected)}</td>
                     <td className="px-5 py-3 font-bold text-amber-600">{formatIDR(totalInvoiced - totalCollected)}</td>
                     <td className="px-5 py-3 font-bold text-slate-700">{monthlyTableData.reduce((s, m) => s + m.invoiceCount, 0)}</td>
-                    <td className="px-5 py-3 font-bold text-blue-700">{collectionRate}%</td>
+                    <td className="px-5 py-3 font-bold text-red-700">{collectionRate}%</td>
                   </tr>
                 </tfoot>
               </table>
@@ -287,7 +287,7 @@ export function FinanceReports() {
                   <YAxis tickFormatter={formatIDRShort} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={65} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" name="Nilai" radius={[4, 4, 0, 0]}>
-                    {['#16a34a', '#d97706', '#dc2626', '#2563eb'].map((c, i) => (
+                    {['#16a34a', '#d97706', '#dc2626', '#C8102E'].map((c, i) => (
                       <Cell key={`bar-cell-${c}`} fill={c} />
                     ))}
                   </Bar>
@@ -313,17 +313,17 @@ export function FinanceReports() {
                 <tbody className="divide-y divide-slate-50">
                   {invoices.map(inv => (
                     <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-3 font-medium text-blue-600 text-xs">{inv.invoiceNumber}</td>
+                      <td className="px-5 py-3 font-medium text-red-600 text-xs">{inv.invoiceNumber}</td>
                       <td className="px-5 py-3 text-slate-700">{inv.customerName}</td>
                       <td className="px-5 py-3 font-semibold text-slate-800">{formatIDR(inv.amount)}</td>
                       <td className="px-5 py-3 text-green-600">{formatIDR(inv.paidAmount)}</td>
                       <td className="px-5 py-3 text-amber-600">{formatIDR(inv.amount - inv.paidAmount)}</td>
                       <td className="px-5 py-3">
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
-                          inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                          inv.status === 'PARTIAL' ? 'bg-blue-100 text-blue-700' :
-                          'bg-amber-100 text-amber-700'
+                          inv.status === 'PAID' ? 'bg-green-600 text-white border-transparent shadow-sm' :
+                          inv.status === 'OVERDUE' ? 'bg-red-600 text-white border-transparent shadow-sm' :
+                          inv.status === 'PARTIAL' ? 'bg-red-600 text-white border-transparent shadow-sm' :
+                          'bg-amber-500 text-white border-transparent shadow-sm'
                         }`}>
                           {inv.status === 'PAID' ? 'Lunas' : inv.status === 'OVERDUE' ? 'Jth Tempo' : inv.status === 'PARTIAL' ? 'Sebagian' : 'Menunggu'}
                         </span>
@@ -350,7 +350,7 @@ export function FinanceReports() {
                   <XAxis type="number" tickFormatter={formatIDRShort} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={100} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="revenue" name="Pendapatan" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenue" name="Pendapatan" fill="#C8102E" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -376,15 +376,15 @@ export function FinanceReports() {
                     <tr key={c.name} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-5 py-3.5">
                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-slate-100 text-slate-600' : 'bg-orange-50 text-orange-600'
+                          i === 0 ? 'bg-amber-500 text-white border-transparent shadow-sm' : i === 1 ? 'bg-slate-600 text-white border-transparent shadow-sm' : 'bg-orange-50 text-orange-600'
                         }`}>{i + 1}</span>
                       </td>
                       <td className="px-5 py-3.5 font-medium text-slate-800">{c.name}</td>
                       <td className="px-5 py-3.5 text-slate-600">{invoices.filter(inv => inv.customerName.includes(c.name.split(' ')[1] ?? c.name)).length} invoice</td>
-                      <td className="px-5 py-3.5 font-semibold text-blue-700">{formatIDR(c.revenue)}</td>
+                      <td className="px-5 py-3.5 font-semibold text-red-700">{formatIDR(c.revenue)}</td>
                       <td className="px-5 py-3.5 text-slate-500 text-xs">Nov 2024</td>
                       <td className="px-5 py-3.5">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Aktif</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-600 text-white border-transparent shadow-sm">Aktif</span>
                       </td>
                     </tr>
                   ))}

@@ -174,7 +174,7 @@ export function CreateInvoice() {
             <button onClick={handlePreview} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
               <Eye size={16} /> Preview
             </button>
-            <button onClick={handleSubmit} disabled={!selectedSO || items.some(i => !i.description || i.unitPrice === 0)} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
+            <button onClick={handleSubmit} disabled={!selectedSO || items.some(i => !i.description || i.unitPrice === 0)} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
               <Save size={16} /> Simpan Invoice
             </button>
           </div>
@@ -184,21 +184,21 @@ export function CreateInvoice() {
         <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden relative">
           
           {/* Top blue accent bar */}
-          <div className="h-2 w-full bg-blue-600"></div>
+          <div className="h-2 w-full bg-red-600"></div>
 
           <div className="p-8 sm:p-12">
             
             {/* SO Selector Banner */}
-            <div className="mb-10 bg-blue-50/50 border border-blue-100 rounded-lg p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
+            <div className="mb-10 bg-red-50/50 border border-red-100 rounded-lg p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
               <div>
-                <h3 className="text-sm font-bold text-blue-900 mb-1">Pilih Basis Sales Order</h3>
-                <p className="text-xs text-blue-700 font-medium">Data pelanggan dan detail pesanan akan diisi secara otomatis ke dalam dokumen invoice.</p>
+                <h3 className="text-sm font-bold text-red-900 mb-1">Pilih Basis Sales Order</h3>
+                <p className="text-xs text-red-700 font-medium">Data pelanggan dan detail pesanan akan diisi secara otomatis ke dalam dokumen invoice.</p>
               </div>
               <div className="relative w-full sm:w-72 flex-shrink-0">
                 <select
                   value={selectedSO}
                   onChange={e => setSelectedSO(e.target.value)}
-                  className="w-full appearance-none border border-blue-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all shadow-sm pr-10"
+                  className="w-full appearance-none border border-red-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-red-500 transition-all shadow-sm pr-10"
                 >
                   <option value="">— Pilih Sales Order —</option>
                   {pendingSOs.length > 0 && (
@@ -221,7 +221,7 @@ export function CreateInvoice() {
             {/* Document Header */}
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12">
               <div className="flex gap-4">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
                   <Building2 size={32} className="text-white" />
                 </div>
                 <div>
@@ -239,12 +239,12 @@ export function CreateInvoice() {
                   
                   <div className="text-slate-500 font-medium pt-1">Tanggal Terbit</div>
                   <div className="font-semibold text-slate-800">
-                    <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:outline-none w-full text-left md:text-right transition-colors" />
+                    <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-red-400 focus:border-red-500 focus:outline-none w-full text-left md:text-right transition-colors" />
                   </div>
                   
                   <div className="text-slate-500 font-medium pt-1">Jatuh Tempo</div>
                   <div className="font-semibold text-slate-800">
-                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:outline-none w-full text-left md:text-right transition-colors" />
+                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-red-400 focus:border-red-500 focus:outline-none w-full text-left md:text-right transition-colors" />
                   </div>
                 </div>
               </div>
@@ -300,7 +300,7 @@ export function CreateInvoice() {
                               min="0"
                               value={item.quantity}
                               onChange={e => updateItem(item.id, 'quantity', Number(e.target.value))}
-                              className="w-16 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                              className="w-16 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-red-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
                             />
                             <select
                               value={item.unit}
@@ -318,7 +318,7 @@ export function CreateInvoice() {
                             value={item.unitPrice || ''}
                             onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
                             placeholder="0"
-                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-red-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
                           />
                         </td>
                         <td className="py-3 px-2 align-top text-right font-bold text-slate-800">
@@ -336,7 +336,7 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-              <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-blue-50">
+              <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
                 <Plus size={16} /> Tambah Baris
               </button>
             </div>
@@ -354,7 +354,7 @@ export function CreateInvoice() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-700">Jenis Tagihan</span>
-                      <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 text-slate-800 transition-colors cursor-pointer">
+                      <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 text-slate-800 transition-colors cursor-pointer">
                         {['Full Payment', 'Down Payment (DP)', 'Pelunasan'].map(t => <option key={t}>{t}</option>)}
                       </select>
                     </div>
@@ -364,26 +364,26 @@ export function CreateInvoice() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-slate-700">DP (%)</span>
                           <div className="flex gap-2">
-                            <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 w-24 transition-colors cursor-pointer">
+                            <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 w-24 transition-colors cursor-pointer">
                               <option value="25">25%</option>
                               <option value="50">50%</option>
                               <option value="Custom">Custom</option>
                             </select>
                             {dpPercentage === 'Custom' && (
-                              <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-blue-500 transition-colors" />
+                              <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-red-500 transition-colors" />
                             )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-slate-700">Jatuh Tempo DP</span>
-                          <input type="date" value={dpDeadline} onChange={e => setDpDeadline(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 transition-colors" />
+                          <input type="date" value={dpDeadline} onChange={e => setDpDeadline(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 transition-colors" />
                         </div>
                       </div>
                     )}
                     
                     <div className="flex items-center justify-between pt-4 border-t border-slate-200/60">
                       <span className="text-sm font-semibold text-slate-700">Termasuk PPN (11%)</span>
-                      <button onClick={() => setPpnEnabled(!ppnEnabled)} className={`w-12 h-6 rounded-full transition-colors relative shadow-inner ${ppnEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                      <button onClick={() => setPpnEnabled(!ppnEnabled)} className={`w-12 h-6 rounded-full transition-colors relative shadow-inner ${ppnEnabled ? 'bg-red-600' : 'bg-slate-300'}`}>
                         <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ease-out ${ppnEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
@@ -397,7 +397,7 @@ export function CreateInvoice() {
                     onChange={e => setNotes(e.target.value)}
                     placeholder="Contoh: Pengiriman dilakukan setelah pelunasan..."
                     rows={4}
-                    className="w-full border border-slate-200 shadow-sm rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-white resize-none text-slate-700 placeholder:text-slate-400 transition-colors"
+                    className="w-full border border-slate-200 shadow-sm rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 bg-white resize-none text-slate-700 placeholder:text-slate-400 transition-colors"
                   />
                 </div>
               </div>
@@ -421,7 +421,7 @@ export function CreateInvoice() {
                   </div>
 
                   {isDP && (
-                    <div className="flex justify-between items-center text-blue-900 bg-blue-50 px-5 py-4 rounded-xl mt-6 border border-blue-100 shadow-sm">
+                    <div className="flex justify-between items-center text-red-900 bg-red-50 px-5 py-4 rounded-xl mt-6 border border-red-100 shadow-sm">
                       <span className="font-bold">Tagihan DP ({pct}%)</span>
                       <span className="font-black text-2xl tracking-tight">{formatIDR(invoiceTotal)}</span>
                     </div>
@@ -430,7 +430,7 @@ export function CreateInvoice() {
                   {!isDP && (
                     <div className="flex justify-between items-center text-slate-900 bg-slate-100 px-5 py-4 rounded-xl mt-6 border border-slate-200 shadow-sm">
                       <span className="font-bold">Total Penagihan</span>
-                      <span className="font-black text-2xl tracking-tight text-blue-700">{formatIDR(invoiceTotal)}</span>
+                      <span className="font-black text-2xl tracking-tight text-red-700">{formatIDR(invoiceTotal)}</span>
                     </div>
                   )}
                 </div>
@@ -444,7 +444,7 @@ export function CreateInvoice() {
                 <p className="text-sm font-bold text-slate-800 mb-3">Informasi Pembayaran</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 inline-block shadow-sm">
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Transfer Ke:</p>
-                  <p className="text-lg font-black text-blue-800 tracking-tight">Bank BCA - 1234567890</p>
+                  <p className="text-lg font-black text-red-800 tracking-tight">Bank BCA - 1234567890</p>
                   <p className="text-sm font-semibold text-slate-700">a/n PT Pratama Jaya</p>
                 </div>
               </div>

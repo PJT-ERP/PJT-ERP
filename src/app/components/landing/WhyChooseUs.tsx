@@ -46,17 +46,17 @@ export function WhyChooseUs() {
         {/* Header */}
         <div className="text-center mb-14">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+            <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
             <span
-              style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
+              style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
             >
               WHY CHOOSE US
             </span>
-            <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+            <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           </div>
           <h2
             style={{
-              color: "#1E293B",
+              color: "#111827",
               fontFamily: "Inter, sans-serif",
               fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
               fontWeight: 800,
@@ -97,14 +97,14 @@ export function WhyChooseUs() {
               >
                 <div
                   className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: "#0F172A" }}
+                  style={{ backgroundColor: "#1F1F1F" }}
                 >
-                  <Icon className="w-5 h-5" style={{ color: "#06B6D4" }} />
+                  <Icon className="w-5 h-5" style={{ color: "#C8102E" }} />
                 </div>
                 <div>
                   <h3
                     style={{
-                      color: "#1E293B",
+                      color: "#111827",
                       fontFamily: "Inter, sans-serif",
                       fontSize: "15px",
                       fontWeight: 700,

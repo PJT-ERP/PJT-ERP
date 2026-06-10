@@ -5,9 +5,9 @@ import { PurchasingRequest, PurchasingItem, PurchasingUrgency, PurchasingStatus 
 
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
@@ -16,16 +16,16 @@ const S = {
 };
 
 const URGENCY_COLORS: Record<PurchasingUrgency, string> = {
-  Normal: 'bg-gray-100 text-gray-700 border-gray-300',
-  Urgent: 'bg-amber-100 text-amber-700 border-amber-300',
-  Critical: 'bg-red-100 text-red-700 border-red-300',
+  Normal: 'bg-slate-600 text-white border-transparent shadow-sm border-gray-300',
+  Urgent: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-300',
+  Critical: 'bg-red-600 text-white border-transparent shadow-sm border-red-300',
 };
 
 const PR_STATUS_COLORS: Record<PurchasingStatus, string> = {
-  Pending:  'bg-gray-100 text-gray-600',
-  Diproses: 'bg-blue-100 text-blue-700',
-  Selesai:  'bg-green-100 text-green-700',
-  Ditolak:  'bg-red-100 text-red-700',
+  Pending:  'bg-slate-600 text-white border-transparent shadow-sm',
+  Diproses: 'bg-red-600 text-white border-transparent shadow-sm',
+  Selesai:  'bg-green-600 text-white border-transparent shadow-sm',
+  Ditolak:  'bg-red-600 text-white border-transparent shadow-sm',
 };
 
 const UNITS = ['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'];
@@ -112,7 +112,7 @@ function SOCombobox({ value, onChange, options }: {
             <div
               key={o.id}
               onMouseDown={() => handleSelect(o.id)}
-              style={{ padding: "10px 12px", fontSize: "13.5px", cursor: "pointer", background: value === o.id ? "#EFF6FF" : "transparent", color: value === o.id ? "#2563EB" : S.slate }}
+              style={{ padding: "10px 12px", fontSize: "13.5px", cursor: "pointer", background: value === o.id ? "#EFF6FF" : "transparent", color: value === o.id ? "#C8102E" : S.slate }}
             >
               <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 500 }}>{o.id}</span>
               <span style={{ color: S.secondary }}> — </span>
