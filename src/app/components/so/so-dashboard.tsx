@@ -151,7 +151,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         {summaryCards.map((card) => (
-          <div key={card.label} style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+          <div key={card.label} style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>{card.label}</p>
@@ -258,7 +258,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       {(sentInvoices.length > 0 || paidInvoices.length > 0) && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
           {sentInvoices.length > 0 && (
-            <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: 14 }}>
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <div>
                   <p style={{ margin: 0, color: S.slate, fontSize: "13px", fontWeight: 700 }}>Invoice sudah dikirim</p>
@@ -303,7 +303,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
 
           {/* Recent orders table */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <ShoppingCart size={14} style={{ color: S.cyan }} />
@@ -352,7 +352,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           </div>
 
           {/* Activity log */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
               <Activity size={14} style={{ color: S.cyan }} />
               <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Aktivitas Terbaru</span>
@@ -391,7 +391,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
           {/* Workflow stats */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>
               <TrendingUp size={14} style={{ color: S.cyan }} />
               <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Pipeline Status</span>
@@ -411,7 +411,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           </div>
 
           {/* Quick actions */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
@@ -440,7 +440,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           </div>
 
           {/* Deadline reminder */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <Clock size={14} style={{ color: "#F59E0B" }} />
               <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>

@@ -96,7 +96,7 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
         )}
 
         {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
           <div>
             <h2 className="text-slate-900 text-base">{invoice.invoiceNumber}</h2>
             <p className="text-xs text-slate-400 mt-0.5">{invoice.soNumber}</p>
@@ -212,7 +212,7 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
             </button>
             <button
               onClick={exportInvoice}
-              className="flex-1 flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg py-2.5 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg py-2.5 transition-colors shadow-md"
             >
               <Download size={15} />
               Export CSV

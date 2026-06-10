@@ -404,7 +404,7 @@ export function CreateInvoice() {
 
               {/* Right Side: Calculation */}
               <div className="w-full sm:w-[50%]">
-                <div className="bg-white rounded-xl space-y-4 text-sm font-medium">
+                <div className="bg-white rounded-xl space-y-4 text-sm font-medium shadow-md">
                   <div className="flex justify-between items-center text-slate-600 px-2">
                     <span>Subtotal</span>
                     <span className="font-bold text-slate-900 text-base">{formatIDR(subtotal)}</span>

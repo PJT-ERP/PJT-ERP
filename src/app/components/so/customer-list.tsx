@@ -92,9 +92,8 @@ function CustomerModal({ state, onSave, onClose }: {
       {/* Modal */}
       <div style={{
         position: "relative", zIndex: 1,
-        background: S.white, borderRadius: 8,
+        background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", borderRadius: 8,
         border: `1px solid ${S.border}`,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
         width: "100%", maxWidth: 520,
         margin: "0 16px",
         fontFamily: S.font,
@@ -110,7 +109,7 @@ function CustomerModal({ state, onSave, onClose }: {
             </p>
           </div>
           <button onClick={onClose}
-            style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, cursor: "pointer", transition: "all 0.1s" }}
+            style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", transition: "all 0.1s" }}
             onMouseEnter={e => { (e.currentTarget).style.background = "#FEF2F2"; (e.currentTarget).style.color = S.red; (e.currentTarget).style.borderColor = "#FCA5A5"; }}
             onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; (e.currentTarget).style.borderColor = S.border; }}
           >
@@ -144,7 +143,7 @@ function CustomerModal({ state, onSave, onClose }: {
           {/* Footer */}
           <div style={{ display: "flex", gap: 8, padding: "12px 20px", borderTop: `1px solid ${S.border}`, justifyContent: "flex-end" }}>
             <button type="button" onClick={onClose}
-              style={{ padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, transition: "background 0.1s" }}
+              style={{ padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, transition: "background 0.1s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
@@ -242,7 +241,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
         {summaryCards.map(c => (
-          <div key={c.label} style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <div key={c.label} style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Users size={16} style={{ color: c.color }} />
             </div>
@@ -255,7 +254,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       </div>
 
       {/* Controls */}
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: "11px 14px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "11px 14px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "6px 10px", flex: 1, minWidth: 200 }}>
           <Search size={13} style={{ color: "#94A3B8", flexShrink: 0 }} />
           <input
@@ -288,7 +287,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 
       {/* ── Table view ────────────────────────────────────────────────────────── */}
       {viewMode === "table" && (
-        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -330,7 +329,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       {viewMode === "card" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {paginated.length === 0 ? (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 6, border: `1px solid ${S.border}` }}>
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px", background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", borderRadius: 6, border: `1px solid ${S.border}` }}>
               Tidak ada pelanggan yang sesuai pencarian
             </div>
           ) : paginated.map(c => {
@@ -338,7 +337,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
             const active   = getActiveOrders(c.code);
             return (
               <div key={c.code}
-                style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: 16, transition: "border-color 0.15s, box-shadow 0.15s" }}
+                style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: 16, transition: "border-color 0.15s, box-shadow 0.15s" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.cyan; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.border; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
               >

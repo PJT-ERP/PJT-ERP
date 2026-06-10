@@ -155,7 +155,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <AlertTriangle size={36} style={{ color: "#CBD5E1", margin: "0 auto 12px" }} />
           <p style={{ color: S.secondary }}>Sales Order tidak ditemukan</p>
           <button onClick={() => onNavigate("so-list")}
-            style={{ marginTop: 12, padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font }}>
+            style={{ marginTop: 12, padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font }}>
             Kembali ke Daftar SO
           </button>
         </div>
@@ -174,7 +174,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <button
             onClick={() => onNavigate("so-list")}
             title="Kembali ke Daftar SO"
-            style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, cursor: "pointer", flexShrink: 0, transition: "background 0.1s, color 0.1s" }}
+            style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", flexShrink: 0, transition: "background 0.1s, color 0.1s" }}
             onMouseEnter={e => { (e.currentTarget).style.background = S.bg; (e.currentTarget).style.color = S.slate; }}
             onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; }}
           >
@@ -202,7 +202,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
       {/* ── Workflow Pipeline ─────────────────────────────────────────────────── */}
       {order.status !== "cancelled" && (
-        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: "18px 20px" }}>
+        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "18px 20px" }}>
           <p style={{ margin: "0 0 16px", fontSize: "11px", fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Workflow Pipeline
           </p>
@@ -324,7 +324,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           {isEditMode && (
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
               <button type="button" onClick={() => setIsEditMode(false)}
-                style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+                style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
                 onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
                 onMouseLeave={e => (e.currentTarget.style.background = S.white)}
               >
@@ -345,7 +345,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
           {/* Key order info — compact, non-redundant */}
-          <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
               <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Info Order</p>
             </div>
@@ -396,7 +396,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
 
   return (
     <>
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -587,7 +587,7 @@ function InvoiceBtn({ icon, label, onClick, primary }: { icon: React.ReactNode; 
 // ─── InfoCard ──────────────────────────────────────────────────────────────────
 function InfoCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
         <span style={{ color: S.cyan }}>{icon}</span>
         <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{title}</span>

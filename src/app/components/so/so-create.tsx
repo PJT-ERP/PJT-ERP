@@ -162,7 +162,7 @@ function SectionCard({ title, icon, children, action }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
 }) {
   return (
-    <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg }}>
         <span style={{ color: S.cyan }}>{icon}</span>
         <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate, fontFamily: S.font, flex: 1 }}>{title}</span>
@@ -194,7 +194,7 @@ function ProductLineItem({ row, index, total, onChange, onRemove }: ProductRowPr
   const isCustom = row.type === "custom";
 
   return (
-    <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", background: S.white, transition: "border-color 0.12s" }}>
+    <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", transition: "border-color 0.12s" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
         <GripVertical size={13} style={{ color: "#CBD5E1", cursor: "grab", flexShrink: 0 }} />
@@ -351,7 +351,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       quantity: String(existingFinanceSo.quantity),
       unit: existingFinanceSo.unit,
       material: existingFinanceSo.material || "",
-      spec: existingFinanceSo.spec || "",
+      specification: existingFinanceSo.spec || "",
     } : existingAppSo ? {
       ...emptyProduct(),
       type: "custom",
@@ -360,7 +360,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       quantity: String(existingAppSo.quantity),
       unit: existingAppSo.unit,
       material: existingAppSo.material || "",
-      spec: existingAppSo.spec || "",
+      specification: existingAppSo.spec || "",
     } : emptyProduct()
   ]);
   const [repeatForm, setRepeatForm]       = useState<RepeatForm>({ customerId: initialData?.customerId ?? "", previousSoId: "", deadline: "", generalNotes: "", designUrl: "" });
@@ -427,7 +427,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         quantity: Number(primaryProduct.quantity) || 1,
         unit: primaryProduct.unit,
         material: primaryProduct.material,
-        spec: primaryProduct.spec,
+        spec: primaryProduct.specification,
         deadline: customerForm.deadline,
       });
 
@@ -444,7 +444,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           quantity: Number(primaryProduct.quantity) || 1,
           unit: primaryProduct.unit,
           material: primaryProduct.material,
-          spec: primaryProduct.spec,
+          spec: primaryProduct.specification,
           notes: customerForm.generalNotes,
         });
       }
@@ -460,7 +460,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
       material: primaryProduct.material,
-      spec: primaryProduct.spec,
+      spec: primaryProduct.specification,
       deadline: customerForm.deadline,
     });
 
@@ -530,7 +530,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const totalItems = orderType === "new" ? products.length : repeatProducts.length;
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
-        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
+        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
             <CheckCircle2 size={28} style={{ color: "#22C55E" }} />
           </div>
@@ -548,7 +548,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={handleReset}
-              style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+              style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Buat SO Lagi</button>
@@ -569,7 +569,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button onClick={handleBack}
-          style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, cursor: "pointer", transition: "background 0.12s, color 0.12s", flexShrink: 0 }}
+          style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", transition: "background 0.12s, color 0.12s", flexShrink: 0 }}
           onMouseEnter={e => { (e.currentTarget).style.background = S.bg; (e.currentTarget).style.color = S.slate; }}
           onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; }}
         >
@@ -613,7 +613,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.",           accentColor: "#6366F1" },
           ].map(card => (
             <button key={card.type} onClick={() => setOrderType(card.type)}
-              style={{ background: S.white, border: `2px solid ${S.border}`, borderRadius: 8, padding: 22, textAlign: "left", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s, transform 0.1s", fontFamily: S.font, boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}
+                style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `2px solid ${S.border}`, borderRadius: 8, padding: 22, textAlign: "left", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s, transform 0.1s", fontFamily: S.font }}
               onMouseEnter={e => { (e.currentTarget).style.borderColor = card.accentColor; (e.currentTarget).style.boxShadow = `0 4px 12px ${card.accentColor}33`; (e.currentTarget).style.transform = "translateY(-2px)"; }}
               onMouseLeave={e => { (e.currentTarget).style.borderColor = S.border; (e.currentTarget).style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)"; (e.currentTarget).style.transform = "translateY(0)"; }}
             >
@@ -697,7 +697,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
           <div style={{ display: "flex", gap: 10 }}>
             <button type="button" onClick={() => setOrderType(null)}
-              style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+              style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
@@ -794,7 +794,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
           <div style={{ display: "flex", gap: 10 }}>
             <button type="button" onClick={() => setOrderType(null)}
-              style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
+              style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>

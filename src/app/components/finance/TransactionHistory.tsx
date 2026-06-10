@@ -66,7 +66,7 @@ export function TransactionHistory() {
           <p className="text-sm text-slate-500 mt-0.5">Log lengkap semua aktivitas keuangan</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors">
+          <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors shadow-md">
             <Download size={14} />
             <span className="hidden sm:inline">Export</span>
           </button>

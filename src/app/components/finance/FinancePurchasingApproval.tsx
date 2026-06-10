@@ -241,7 +241,7 @@ export function FinancePurchasingApproval() {
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button 
                 onClick={handleReject}
-                className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 py-2.5 rounded-lg text-sm font-bold transition-colors"
+                className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-md"
               >
                 Tolak Pengajuan
               </button>

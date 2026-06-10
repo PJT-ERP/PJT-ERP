@@ -235,7 +235,7 @@ export function SOList({ onNavigate }: SOListProps) {
             icon={<Download size={12} />}
             label="Export"
             onClick={exportOrders}
-            style={{ background: S.white, border: `1px solid ${S.border}`, color: S.secondary }}
+            style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, color: S.secondary }}
             hoverStyle={{ background: S.bg, color: S.slate }}
           />
           <HoverBtn
@@ -250,7 +250,7 @@ export function SOList({ onNavigate }: SOListProps) {
       </div>
 
       {/* ── Filter panel ─────────────────────────────────────────────────────── */}
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6 }}>
+      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6 }}>
         {/* Row 1: Search + actions */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px", borderBottom: `1px solid ${S.border}` }}>
           {/* Search */}
@@ -353,7 +353,7 @@ export function SOList({ onNavigate }: SOListProps) {
       </div>
 
       {/* ── Desktop table ─────────────────────────────────────────────────────── */}
-      <div className="hidden lg:block" style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+      <div className="hidden lg:block" style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
           <thead>
@@ -416,13 +416,13 @@ export function SOList({ onNavigate }: SOListProps) {
       {/* ── Mobile card list ──────────────────────────────────────────────────── */}
       <div className="lg:hidden" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {paginated.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 6, border: `1px solid ${S.border}` }}>
+          <div style={{ textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px", background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", borderRadius: 6, border: `1px solid ${S.border}` }}>
             Tidak ada data yang sesuai filter
           </div>
         ) : paginated.map(order => (
           <div
             key={order.id}
-            style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", transition: "border-color 0.12s, box-shadow 0.12s" }}
+            style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", transition: "border-color 0.12s, box-shadow 0.12s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#CBD5E1"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.border; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
           >

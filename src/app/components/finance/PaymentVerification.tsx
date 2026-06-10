@@ -32,7 +32,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
           <div>
             <h2 className="text-slate-900 text-base">Detail Pembayaran</h2>
             <p className="text-xs text-slate-400 mt-0.5">{payment.invoiceNumber}</p>
@@ -266,7 +266,7 @@ export function PaymentVerification() {
       {/* Payment Cards */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-md">
             <ShieldCheck size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-slate-400 text-sm">Tidak ada data pembayaran</p>
           </div>

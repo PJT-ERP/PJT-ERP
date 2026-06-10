@@ -159,7 +159,7 @@ export function FinanceDashboard() {
           <p className="text-sm text-slate-500 mt-0.5">Ringkasan keuangan PT Pratama Jaya Tekindo · November 2026</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-md px-3 py-1.5 transition-colors">
+          <button className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-md px-3 py-1.5 transition-colors shadow-md">
             <RefreshCw size={14} />
             <span>Refresh</span>
           </button>
@@ -393,7 +393,7 @@ export function FinanceDashboard() {
                       {a.label}
                     </span>
                     <span className="flex items-center gap-1">
-                      {a.badge && <span className="bg-white/30 text-xs rounded-full px-1.5">{a.badge}</span>}
+                      {a.badge && <span className="bg-white/30 text-xs rounded-full px-1.5 shadow-md">{a.badge}</span>}
                       <ArrowUpRight size={13} />
                     </span>
                   </button>
