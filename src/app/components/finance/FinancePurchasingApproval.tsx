@@ -140,7 +140,7 @@ export function FinancePurchasingApproval() {
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. MR</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Items</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Dana</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Estimasi Dana</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
               </tr>
@@ -156,7 +156,9 @@ export function FinancePurchasingApproval() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-slate-500 truncate max-w-[200px]" title={po.items}>{po.items}</td>
-                  <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(po.totalAmount)}</td>
+                  <td className="px-5 py-4 text-right font-semibold text-slate-800">
+                    {po.totalAmount > 0 ? formatIDR(po.totalAmount) : <span className="text-slate-400">Belum diinput</span>}
+                  </td>
                   <td className="px-5 py-4 text-center">
                     {po.status === 'PENDING' && <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">PENDING</span>}
                     {po.status === 'APPROVED' && <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">APPROVED</span>}
@@ -197,7 +199,7 @@ export function FinancePurchasingApproval() {
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <PackageOpen size={18} className="text-red-600" />
-                  Review Finance PO
+                  Review Finance MR
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">{selectedPo.poNumber}</p>
               </div>
@@ -222,11 +224,16 @@ export function FinancePurchasingApproval() {
                   <p className="text-sm font-medium text-slate-700">{selectedPo.items}</p>
                 </div>
                 <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-red-100 shadow-sm mt-2">
-                    <span className="text-sm font-bold text-slate-700">Total Pengajuan Dana</span>
+                    <span className="text-sm font-bold text-slate-700">Estimasi Dana</span>
                   <span className="text-lg font-black text-red-700 flex items-center gap-1">
-                    {formatIDR(selectedPo.totalAmount)}
+                    {selectedPo.totalAmount > 0 ? formatIDR(selectedPo.totalAmount) : 'Belum diinput'}
                   </span>
                 </div>
+                {selectedPo.totalAmount <= 0 && (
+                  <p className="text-xs text-slate-500">
+                    Harga belum diinput pada MR. Purchasing akan mengisi total harga saat proses PO.
+                  </p>
+                )}
               </div>
 
               {/* Finance Form */}
