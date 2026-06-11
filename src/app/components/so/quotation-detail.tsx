@@ -114,6 +114,12 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const [workflowNotice, setWorkflowNotice] = useState<{
+    title: string;
+    message: string;
+    tone: "success" | "error" | "info";
+    nextPage?: Page;
+  } | null>(null);
   const [editForm, setEditForm] = useState({
     customerName: customer?.name || "",
     company: customer?.name || "",
@@ -146,7 +152,11 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
 
     const backendId = order.backendId;
     if (!backendId) {
-      alert("QUT ini belum punya backend ID. Refresh data backend dulu sebelum menjalankan aksi workflow.");
+      setWorkflowNotice({
+        title: "Data Backend Belum Siap",
+        message: "QUT ini belum punya backend ID. Refresh data backend dulu sebelum menjalankan aksi workflow.",
+        tone: "error",
+      });
       return;
     }
 
@@ -154,25 +164,48 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
       setIsSubmittingAction(true);
       if (action === 'approve_design') {
         await quotationApi.approveClientDesign(backendId);
+        setWorkflowNotice({
+          title: "Desain Disetujui Klien",
+          message: "Quotation diteruskan ke Finance untuk costing dan pricing.",
+          tone: "success",
+        });
       } else if (action === 'reject_design') {
         await quotationApi.requestDesignRevision(backendId, { notes: 'Klien meminta revisi desain.' });
+        setWorkflowNotice({
+          title: "Revisi Desain Diminta",
+          message: "Quotation dikembalikan ke Engineering untuk revisi desain.",
+          tone: "info",
+        });
       } else if (action === 'deal') {
         await quotationApi.markWon(backendId);
         await quotationApi.convertToSalesOrder(backendId, {
           dpPercentage: 50,
           dueDate: addDaysIso(new Date(), 7),
         });
-        alert("Quotation WON. Sales Order dibuat dari backend dan tagihan DP akan muncul di Finance.");
-        onNavigate('quotation-list');
+        setWorkflowNotice({
+          title: "Deal Berhasil",
+          message: "Dokumen Penawaran (Quotation) telah disetujui. Sales Order otomatis terbuat dan diteruskan ke Finance untuk pembuatan Invoice.",
+          tone: "success",
+          nextPage: "quotation-list",
+        });
       } else if (action === 'revise_price') {
         window.location.href = "#/erp/finance/costing";
       } else if (action === 'lost') {
         await quotationApi.markLost(backendId, { reason: 'Klien menolak penawaran harga akhir.' });
+        setWorkflowNotice({
+          title: "Quotation Ditutup",
+          message: "Quotation ditandai Lost dan tidak bisa dikonversi menjadi SO.",
+          tone: "info",
+        });
       }
       await refreshBackendData();
     } catch (error) {
       console.error(error);
-      alert("Aksi workflow gagal disimpan ke backend. Cek console atau response API untuk detail.");
+      setWorkflowNotice({
+        title: "Aksi Gagal",
+        message: "Aksi workflow gagal disimpan ke backend. Cek koneksi API atau status dokumen.",
+        tone: "error",
+      });
     } finally {
       setIsSubmittingAction(false);
     }
@@ -198,6 +231,20 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+      {workflowNotice && (
+        <WorkflowNoticeModal
+          title={workflowNotice.title}
+          message={workflowNotice.message}
+          tone={workflowNotice.tone}
+          onClose={() => {
+            const nextPage = workflowNotice.nextPage;
+            setWorkflowNotice(null);
+            if (nextPage) {
+              onNavigate(nextPage);
+            }
+          }}
+        />
+      )}
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -520,6 +567,47 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
               </div>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkflowNoticeModal({
+  title,
+  message,
+  tone,
+  onClose,
+}: {
+  title: string;
+  message: string;
+  tone: "success" | "error" | "info";
+  onClose: () => void;
+}) {
+  const config = {
+    success: { bg: "#ECFDF5", color: "#059669", border: "#A7F3D0", icon: <CheckCircle2 size={30} /> },
+    error: { bg: "#FEF2F2", color: "#DC2626", border: "#FCA5A5", icon: <AlertTriangle size={30} /> },
+    info: { bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE", icon: <Activity size={30} /> },
+  }[tone];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+      <div style={{ position: "relative", width: "100%", maxWidth: 420, background: "#fff", borderRadius: 12, border: `1px solid ${S.border}`, boxShadow: "0 24px 60px rgba(15,23,42,0.22)", overflow: "hidden", fontFamily: S.font }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, border: "none", background: "transparent", color: "#94A3B8", cursor: "pointer" }}>
+          <X size={18} />
+        </button>
+        <div style={{ padding: "28px 28px 20px", textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, margin: "0 auto 16px", borderRadius: "50%", background: config.bg, color: config.color, border: `1px solid ${config.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {config.icon}
+          </div>
+          <h2 style={{ margin: 0, color: S.slate, fontSize: 18, fontWeight: 700 }}>{title}</h2>
+          <p style={{ margin: "8px 0 0", color: S.secondary, fontSize: 13, lineHeight: 1.5 }}>{message}</p>
+        </div>
+        <div style={{ padding: "14px 20px", borderTop: `1px solid ${S.border}`, background: "#F8FAFC" }}>
+          <button onClick={onClose} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: S.cyan, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            Mengerti
+          </button>
         </div>
       </div>
     </div>

@@ -359,7 +359,8 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
                     item.ProductId,
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.UnitPrice))
                 .ToArray());
     }
 
