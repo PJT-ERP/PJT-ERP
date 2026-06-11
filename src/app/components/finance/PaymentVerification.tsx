@@ -339,12 +339,140 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
   );
 }
 
+function InvoiceVerificationDetailModal({ invoice, onClose, onRecordPayment }: {
+  invoice: Invoice;
+  onClose: () => void;
+  onRecordPayment: () => void;
+}) {
+  const remainingAmount = getRemainingAmount(invoice);
+  const nextSchedule = getNextSchedule(invoice);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
+          <div>
+            <h2 className="text-slate-900 text-base font-semibold">Detail Verifikasi Pembayaran</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{invoice.invoiceNumber} · {invoice.soNumber}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full border bg-amber-500 text-white border-transparent shadow-sm">
+              Menunggu Verifikasi
+            </span>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={20} /></button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4">
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Pelanggan</p>
+              <p className="text-sm font-semibold text-slate-800">{invoice.customerName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Jatuh Tempo</p>
+              <p className="text-sm text-slate-700">{formatDate(invoice.dueDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Total Invoice</p>
+              <p className="text-sm font-bold text-slate-900">{formatIDR(invoice.amount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Sisa Tagihan</p>
+              <p className="text-sm font-bold text-red-700">{formatIDR(remainingAmount)}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Detail Item</p>
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                  <tr>
+                    <th className="text-left px-4 py-2">Deskripsi</th>
+                    <th className="text-right px-4 py-2">Qty</th>
+                    <th className="text-right px-4 py-2">Harga</th>
+                    <th className="text-right px-4 py-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {invoice.items.map(item => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3 text-slate-700">{item.description}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{item.quantity} {item.unit}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{formatIDR(item.unitPrice)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-800">{formatIDR(item.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Jadwal Pembayaran</p>
+            <div className="grid gap-2">
+              {invoice.paymentSchedules.map(schedule => (
+                <div key={schedule.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">{schedule.label}</p>
+                    <p className="text-xs text-slate-400">{schedule.percentage}% · jatuh tempo {formatDate(schedule.dueDate)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-slate-900">{formatIDR(schedule.amount)}</p>
+                    <p className={`text-xs font-semibold ${schedule.isPaid ? 'text-green-600' : 'text-amber-600'}`}>
+                      {schedule.isPaid ? 'Sudah dibayar' : 'Menunggu verifikasi'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Bukti Pembayaran</p>
+            <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Belum ada bukti bayar final yang tercatat</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Gunakan Catat Bayar setelah bukti transfer diterima. Setelah pembayaran tercatat, bukti dan detailnya muncul di Riwayat Pembayaran.
+                </p>
+                {nextSchedule && (
+                  <p className="text-xs text-amber-700 mt-2">
+                    Jadwal berikutnya: {nextSchedule.label} sebesar {formatIDR(nextSchedule.amount)}.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+              Tutup
+            </button>
+            <button
+              onClick={onRecordPayment}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors"
+            >
+              <PlusCircle size={15} />
+              Catat Bayar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PaymentVerification() {
   const { payments: financePayments, invoices, refresh, isLoading } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState<Invoice | null>(null);
   const [hiddenInvoiceIds, setHiddenInvoiceIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -374,6 +502,10 @@ export function PaymentVerification() {
   const rejectedCount = paymentData.filter(p => p.status === 'REJECTED').length;
   const pendingAmount = paymentData.filter(p => p.status === 'PENDING').reduce((s, p) => s + p.amount, 0);
   const unpaidAmount = unpaidInvoices.reduce((sum, invoice) => sum + getRemainingAmount(invoice), 0);
+  const pendingVerificationCount = pendingCount + unpaidInvoices.length;
+  const pendingVerificationAmount = pendingAmount + unpaidAmount;
+  const showInvoiceVerificationQueue = filterStatus === 'ALL' || filterStatus === 'PENDING';
+  const showPaymentHistory = filterStatus !== 'PENDING' || filtered.length > 0;
 
   return (
     <div className="p-4 lg:p-6 space-y-5 min-h-full">
@@ -383,10 +515,10 @@ export function PaymentVerification() {
           <h1 className="text-xl text-slate-900">Verifikasi Pembayaran</h1>
           <p className="text-sm text-slate-500 mt-0.5">Periksa dan verifikasi bukti pembayaran dari pelanggan</p>
         </div>
-        {unpaidInvoices.length > 0 && (
+        {pendingVerificationCount > 0 && (
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             <AlertTriangle size={14} className="text-amber-600" />
-            <span className="text-sm text-amber-700 font-medium">{unpaidInvoices.length} invoice belum dibayar</span>
+            <span className="text-sm text-amber-700 font-medium">{pendingVerificationCount} menunggu verifikasi</span>
           </div>
         )}
       </div>
@@ -394,7 +526,7 @@ export function PaymentVerification() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Belum Dibayar', value: unpaidInvoices.length, sub: formatIDR(unpaidAmount), color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
+          { label: 'Menunggu Verifikasi', value: pendingVerificationCount, sub: formatIDR(pendingVerificationAmount), color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
           { label: 'Terverifikasi', value: verifiedCount, sub: 'bulan ini', color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
           { label: 'Ditolak', value: rejectedCount, sub: 'perlu tindak lanjut', color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
           { label: 'Total Diterima', value: formatIDR(paymentData.filter(p => p.status === 'VERIFIED').reduce((s, p) => s + p.amount, 0)), sub: 'terverifikasi', color: 'text-red-700', bg: 'bg-red-50 border-red-100', wide: true },
@@ -418,19 +550,20 @@ export function PaymentVerification() {
             }`}
           >
             {s === 'ALL' ? 'Semua' : STATUS_CONFIG[s].label}
-            {s === 'PENDING' && pendingCount > 0 && (
-              <span className="ml-1.5 bg-amber-500 text-white text-[10px] rounded-full px-1.5">{pendingCount}</span>
+            {s === 'PENDING' && pendingVerificationCount > 0 && (
+              <span className="ml-1.5 bg-amber-500 text-white text-[10px] rounded-full px-1.5">{pendingVerificationCount}</span>
             )}
           </button>
         ))}
       </div>
 
       {/* Unpaid Invoice Queue */}
+      {showInvoiceVerificationQueue && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Invoice Belum Dibayar</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Catat pembayaran DP, pelunasan, atau pembayaran penuh dari pelanggan</p>
+            <h2 className="text-sm font-semibold text-slate-900">Menunggu Verifikasi Pembayaran</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Periksa detail invoice dan catat bukti pembayaran DP, pelunasan, atau pembayaran penuh dari pelanggan</p>
           </div>
           <button
             onClick={refresh}
@@ -456,6 +589,7 @@ export function PaymentVerification() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-800">{invoice.customerName}</p>
                       <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">{invoice.soNumber}</span>
+                      <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">Menunggu Verifikasi</span>
                       {nextSchedule && (
                         <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">{nextSchedule.label}</span>
                       )}
@@ -476,21 +610,32 @@ export function PaymentVerification() {
                       <p className="text-sm font-bold text-red-700">{formatIDR(remainingAmount)}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedInvoice(invoice)}
-                    className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg px-3 py-2 transition-colors"
-                  >
-                    <PlusCircle size={13} />
-                    Catat Bayar
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => setSelectedInvoiceDetail(invoice)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <Eye size={13} />
+                      Detail & Bukti
+                    </button>
+                    <button
+                      onClick={() => setSelectedInvoice(invoice)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <PlusCircle size={13} />
+                      Catat Bayar
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+      )}
 
       {/* Payment Cards */}
+      {showPaymentHistory && (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">Riwayat Pembayaran</h2>
@@ -573,6 +718,7 @@ export function PaymentVerification() {
           );
         })}
       </div>
+      )}
 
       {selectedPayment && (
         <PaymentDetailModal
@@ -590,6 +736,17 @@ export function PaymentVerification() {
           onRecorded={async () => {
             setHiddenInvoiceIds(prev => new Set(prev).add(selectedInvoice.id));
             await refresh();
+          }}
+        />
+      )}
+
+      {selectedInvoiceDetail && (
+        <InvoiceVerificationDetailModal
+          invoice={selectedInvoiceDetail}
+          onClose={() => setSelectedInvoiceDetail(null)}
+          onRecordPayment={() => {
+            setSelectedInvoice(selectedInvoiceDetail);
+            setSelectedInvoiceDetail(null);
           }}
         />
       )}
