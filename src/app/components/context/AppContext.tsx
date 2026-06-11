@@ -427,9 +427,10 @@ async function syncCreateQuotation(
 ) {
   try {
     let customerId = customerIdsByCode[quotation.customerId];
+    let customer = customers.find(item => item.code === quotation.customerId)
+      || pendingCustomersByCode[quotation.customerId];
+
     if (!customerId) {
-      const customer = customers.find(item => item.code === quotation.customerId)
-        || pendingCustomersByCode[quotation.customerId];
       if (!customer) {
         return;
       }
@@ -442,6 +443,7 @@ async function syncCreateQuotation(
         email: customer.contact,
       });
       customerId = created.id;
+      customer = mapCustomerDto(created);
       setCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
     }
 
@@ -449,6 +451,11 @@ async function syncCreateQuotation(
       customerId,
       deadline: quotation.deadline,
       notes: quotation.notes || null,
+      customer: customer ? {
+        code: customer.code,
+        name: customer.name,
+        email: customer.contact || null,
+      } : null,
       items: [
         {
           productId: null,

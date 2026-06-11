@@ -42,11 +42,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
     {
         ValidateCreateRequest(request);
 
-        var customer = await db.CustomerReplicas.AsNoTracking()
-            .FirstOrDefaultAsync(customer => customer.Id == request.CustomerId, cancellationToken)
+        var now = DateTime.UtcNow;
+        var customer = await GetOrCreateCustomerReplicaAsync(request, now, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in production replica.");
 
-        var now = DateTime.UtcNow;
         var quotation = new Quotation
         {
             QuotationNumber = GenerateNumber("QU"),
@@ -85,6 +84,38 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
 
         return await GetAsync(quotation.Id, cancellationToken)
             ?? throw new InvalidOperationException("Quotation was not found after creation.");
+    }
+
+    private async Task<CustomerReplica?> GetOrCreateCustomerReplicaAsync(
+        CreateQuotationRequest request,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var customer = await db.CustomerReplicas.AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.Id == request.CustomerId, cancellationToken);
+
+        if (customer is not null)
+        {
+            return customer;
+        }
+
+        if (request.Customer is null)
+        {
+            return null;
+        }
+
+        customer = new CustomerReplica
+        {
+            Id = request.CustomerId,
+            Code = Required(request.Customer.Code, "Customer code"),
+            Name = Required(request.Customer.Name, "Customer name"),
+            Email = NormalizeOptional(request.Customer.Email),
+            IsActive = true,
+            UpdatedAtUtc = now
+        };
+
+        await db.CustomerReplicas.AddAsync(customer, cancellationToken);
+        return customer;
     }
 
     public async Task<QuotationDto?> AssignEngineerAsync(Guid quotationId, AssignQuotationEngineerRequest request, CancellationToken cancellationToken)

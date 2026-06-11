@@ -66,6 +66,11 @@ export interface CreateQuotationRequest {
   deadline: string;
   notes?: string | null;
   items: QuotationItemDto[];
+  customer?: {
+    code: string;
+    name: string;
+    email?: string | null;
+  } | null;
 }
 
 export interface SubmitDesignRequest {
