@@ -179,11 +179,21 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             item.UpdatedAtUtc = now;
         }
 
-        quotation.BomItems.Clear();
-        quotation.BomItems.AddRange(request.BomItems.Select(item => ToBomEntity(item, null)));
+        var replacementBomItems = request.BomItems
+            .Select(item =>
+            {
+                var entity = ToBomEntity(item, null);
+                entity.QuotationId = quotation.Id;
+                return entity;
+            })
+            .ToArray();
+
+        db.QuotationBomItems.RemoveRange(quotation.BomItems);
+        await db.QuotationBomItems.AddRangeAsync(replacementBomItems, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
-        return ToDto(quotation);
+        return await GetAsync(quotation.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Quotation was not found after design submission.");
     }
 
     public async Task<QuotationDto?> ApproveClientDesignAsync(Guid quotationId, CancellationToken cancellationToken)
