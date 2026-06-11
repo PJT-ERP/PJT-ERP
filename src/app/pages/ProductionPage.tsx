@@ -482,9 +482,13 @@ export function ProductionPage() {
     );
   };
 
-  const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'approved' | 'completed' | 'rejected' => {
+  const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'finance_pending' | 'approved' | 'completed' | 'rejected' => {
     const request = getMaterialRequest(so);
     if (!request) return 'none';
+    if (request.backendStatus === 'SupervisorRejected' || request.backendStatus === 'FinanceRejected' || request.backendStatus === 'Rejected') return 'rejected';
+    if (request.backendStatus === 'Completed') return 'completed';
+    if (request.backendStatus === 'Processing' || request.backendStatus === 'FinanceApproved') return 'approved';
+    if (request.backendStatus === 'SupervisorApproved') return 'finance_pending';
     if (request.status === 'Ditolak') return 'rejected';
     if (request.status === 'Selesai') return 'completed';
     if (request.status === 'Diproses') return 'approved';
@@ -497,6 +501,20 @@ export function ProductionPage() {
 
     if (!request?.backendId || !reviewerId) {
       alert("MR belum punya data backend lengkap untuk approval.");
+      return;
+    }
+
+    if (request.backendStatus && request.backendStatus !== 'Submitted') {
+      await refreshBackendData();
+      if (request.backendStatus === 'SupervisorApproved') {
+        alert("MR sudah disetujui Supervisor dan sedang menunggu approval Finance.");
+        return;
+      }
+      if (request.backendStatus === 'FinanceApproved' || request.backendStatus === 'Processing' || request.backendStatus === 'Completed') {
+        alert("MR sudah diteruskan ke Purchasing.");
+        return;
+      }
+      alert("MR tidak bisa di-approve pada status saat ini.");
       return;
     }
 
@@ -578,6 +596,7 @@ export function ProductionPage() {
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
                       {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                      {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Finance</span>}
                       {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
                       {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                       {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}

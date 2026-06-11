@@ -376,11 +376,11 @@ function InvoiceVerificationDetailModal({ invoice, onClose, onRecordPayment }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
           <div>
-            <h2 className="text-slate-900 text-base font-semibold">Detail Verifikasi Pembayaran</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{invoice.invoiceNumber} · {invoice.soNumber}</p>
+            <h2 className="text-slate-900 text-base font-semibold">Detail Pembayaran</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{invoice.invoiceNumber} - {invoice.soNumber}</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold px-3 py-1 rounded-full border bg-amber-500 text-white border-transparent shadow-sm">
@@ -411,68 +411,43 @@ function InvoiceVerificationDetailModal({ invoice, onClose, onRecordPayment }: {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Detail Item</p>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Bukti Pembayaran</p>
             <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
-                  <tr>
-                    <th className="text-left px-4 py-2">Deskripsi</th>
-                    <th className="text-right px-4 py-2">Qty</th>
-                    <th className="text-right px-4 py-2">Harga</th>
-                    <th className="text-right px-4 py-2">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {invoice.items.map(item => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 text-slate-700">{item.description}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{item.quantity} {item.unit}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{formatIDR(item.unitPrice)}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-800">{formatIDR(item.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Jadwal Pembayaran</p>
-            <div className="grid gap-2">
-              {invoice.paymentSchedules.map(schedule => (
-                <div key={schedule.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">{schedule.label}</p>
-                    <p className="text-xs text-slate-400">{schedule.percentage}% · jatuh tempo {formatDate(schedule.dueDate)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900">{formatIDR(schedule.amount)}</p>
-                    <p className={`text-xs font-semibold ${schedule.isPaid ? 'text-green-600' : 'text-amber-600'}`}>
-                      {schedule.isPaid ? 'Sudah dibayar' : 'Menunggu verifikasi'}
-                    </p>
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex flex-col items-center gap-2 border-b border-slate-100">
+                <div className="w-16 h-20 bg-white rounded-lg shadow-md flex flex-col items-center justify-center gap-2 border border-slate-200">
+                  <Banknote size={24} className="text-red-500" />
+                  <div className="space-y-1 w-8">
+                    <div className="h-0.5 bg-slate-200 rounded" />
+                    <div className="h-0.5 bg-slate-200 rounded w-3/4" />
+                    <div className="h-0.5 bg-slate-200 rounded" />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Bukti Pembayaran</p>
-            <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 flex items-start gap-3">
-              <AlertTriangle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-amber-800">Belum ada bukti bayar final yang tercatat</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  Gunakan Catat Bayar setelah bukti transfer diterima. Setelah pembayaran tercatat, bukti dan detailnya muncul di Riwayat Pembayaran.
-                </p>
-                {nextSchedule && (
-                  <p className="text-xs text-amber-700 mt-2">
-                    Jadwal berikutnya: {nextSchedule.label} sebesar {formatIDR(nextSchedule.amount)}.
+                <p className="text-xs text-slate-500 font-medium mt-1">Bukti pembayaran belum dikirim</p>
+              </div>
+              <div className="bg-amber-50 border-t border-amber-100 p-3 flex items-start gap-2">
+                <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">Menunggu bukti dari Sales atau pelanggan</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Gunakan Catat Bayar kalau Finance menerima transfer langsung. Bukti yang sudah dikirim akan muncul di Riwayat Pembayaran.
                   </p>
-                )}
+                </div>
               </div>
             </div>
           </div>
+
+          {nextSchedule && (
+            <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1">Jadwal Berikutnya</p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{nextSchedule.label}</p>
+                  <p className="text-xs text-slate-400">Jatuh tempo {formatDate(nextSchedule.dueDate)}</p>
+                </div>
+                <p className="text-sm font-bold text-slate-900">{formatIDR(nextSchedule.amount)}</p>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
