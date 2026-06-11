@@ -160,6 +160,21 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             throw new InvalidOperationException("Quotation is not waiting for design work.");
         }
 
+        if (!quotation.AssignedEngineerId.HasValue)
+        {
+            throw new InvalidOperationException("Quotation must be assigned by Engineering Supervisor before design work can be submitted.");
+        }
+
+        if (request.EngineerId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Engineer id is required.");
+        }
+
+        if (quotation.AssignedEngineerId.Value != request.EngineerId)
+        {
+            throw new InvalidOperationException("Only the assigned engineer can submit this quotation design.");
+        }
+
         if (request.BomItems.Count == 0)
         {
             throw new InvalidOperationException("BOM must contain at least one material item.");
@@ -168,7 +183,6 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         var designLink = Required(request.DesignLink, "Design link");
         var now = DateTime.UtcNow;
         quotation.DesignLink = designLink;
-        quotation.AssignedEngineerId = request.EngineerId == Guid.Empty ? quotation.AssignedEngineerId : request.EngineerId;
         quotation.AssignedEngineerName = string.IsNullOrWhiteSpace(request.EngineerName) ? quotation.AssignedEngineerName : request.EngineerName.Trim();
         quotation.Status = QuotationStatuses.DesignReview;
         quotation.UpdatedAtUtc = now;
@@ -196,6 +210,35 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             ?? throw new InvalidOperationException("Quotation was not found after design submission.");
     }
 
+    public async Task<QuotationDto?> ApproveDesignBySupervisorAsync(Guid quotationId, CancellationToken cancellationToken)
+    {
+        var quotation = await GetTrackedQuotationAsync(quotationId, cancellationToken);
+        if (quotation is null)
+        {
+            return null;
+        }
+
+        if (quotation.Status != QuotationStatuses.DesignReview)
+        {
+            throw new InvalidOperationException("Only quotations in design review can be approved by Engineering Supervisor.");
+        }
+
+        if (string.IsNullOrWhiteSpace(quotation.DesignLink))
+        {
+            throw new InvalidOperationException("Design link is required before supervisor approval.");
+        }
+
+        if (quotation.BomItems.Count == 0)
+        {
+            throw new InvalidOperationException("BOM is required before supervisor approval.");
+        }
+
+        quotation.Status = QuotationStatuses.ClientDesignApproval;
+        quotation.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(quotation);
+    }
+
     public async Task<QuotationDto?> ApproveClientDesignAsync(Guid quotationId, CancellationToken cancellationToken)
     {
         var quotation = await GetTrackedQuotationAsync(quotationId, cancellationToken);
@@ -204,7 +247,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
-        if (quotation.Status is not (QuotationStatuses.DesignReview or QuotationStatuses.ClientDesignApproval))
+        if (quotation.Status != QuotationStatuses.ClientDesignApproval)
         {
             throw new InvalidOperationException("Quotation design is not ready for client approval.");
         }

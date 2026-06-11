@@ -124,10 +124,15 @@ export interface Quotation {
   deadline: string;
   status: QuotationStatus;
   designId?: string;
+  designLink?: string;
   estimatedAmount?: number;
   customerImageUrl?: string;
   createdBy: string;
   createdAt: string;
+  assignedTo?: string;
+  assignedName?: string;
+  assignedEngineerId?: string;
+  assignedEngineerName?: string;
   revisions?: { revNumber: number; amount: number; date: string; notes: string }[];
   materials?: any[];
   notes?: string;

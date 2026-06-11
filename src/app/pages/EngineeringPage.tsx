@@ -32,7 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, customers, currentUser } = useApp();
-  const [designLink, setDesignLink] = useState(qut.designLink ?? '');
+  const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
   const customer = customers.find(c => c.code === qut.customerId);
   
@@ -42,6 +42,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   const handleForward = () => {
     updateQuotation(qut.id, {
       designLink,
+      designId: designLink,
       status: isSpv ? 'client_design_approval' : 'design_review',
     });
     setStep('done');
@@ -132,7 +133,11 @@ function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => 
   const engineers = USERS.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
   
   const handleAssign = (userId: string) => {
-    updateQuotation(qut.id, { assignedTo: userId });
+    const engineer = engineers.find(user => user.id === userId);
+    updateQuotation(qut.id, {
+      assignedTo: userId,
+      assignedName: engineer?.name,
+    });
     onClose();
   };
   
@@ -268,13 +273,26 @@ export function EngineeringPage() {
                 <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
               </div>
             ) : (
-              designQueue.slice(0, 10).map((qut, idx) => (
+              designQueue.slice(0, 10).map((qut, idx) => {
+                const canOpen = isSpv ? qut.status === 'design_review' : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
+                const assignedName = qut.assignedName || USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer';
+
+                return (
                 <div
                   key={qut.id}
-                  onClick={() => setSelectedQUT(qut)}
+                  onClick={() => {
+                    if (canOpen) {
+                      if (!isSpv) {
+                        navigate('/erp/engineer-tasks');
+                        return;
+                      }
+
+                      setSelectedQUT(qut);
+                    }
+                  }}
                   style={{
                     display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                    padding: "10px 18px", cursor: "pointer",
+                    padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
                     borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
                     transition: "background 0.1s",
                   }}
@@ -289,7 +307,7 @@ export function EngineeringPage() {
                   <div style={{ alignSelf: "center" }}>
                     {qut.assignedTo ? (
                       <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                        {USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer'}
+                        {assignedName}
                       </span>
                     ) : isSpv ? (
                       <button 
@@ -306,7 +324,8 @@ export function EngineeringPage() {
                     <StatusBadge status={qut.status} />
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
             
             {designQueue.length > 10 && (

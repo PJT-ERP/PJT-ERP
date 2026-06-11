@@ -9,6 +9,7 @@ public interface IQuotationService
     Task<QuotationDto> CreateAsync(CreateQuotationRequest request, CancellationToken cancellationToken);
     Task<QuotationDto?> AssignEngineerAsync(Guid quotationId, AssignQuotationEngineerRequest request, CancellationToken cancellationToken);
     Task<QuotationDto?> SubmitDesignAsync(Guid quotationId, SubmitQuotationDesignRequest request, CancellationToken cancellationToken);
+    Task<QuotationDto?> ApproveDesignBySupervisorAsync(Guid quotationId, CancellationToken cancellationToken);
     Task<QuotationDto?> ApproveClientDesignAsync(Guid quotationId, CancellationToken cancellationToken);
     Task<QuotationDto?> RequestDesignRevisionAsync(Guid quotationId, RequestQuotationRevisionRequest request, CancellationToken cancellationToken);
     Task<QuotationDto?> SubmitPricingAsync(Guid quotationId, SubmitQuotationPricingRequest request, CancellationToken cancellationToken);

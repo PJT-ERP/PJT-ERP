@@ -391,6 +391,75 @@ public sealed class ProductionServiceTests
     }
 
     [Fact]
+    public async Task SubmitDesignAsync_requires_supervisor_assignment()
+    {
+        await using var db = CreateDbContext();
+        var customer = await SeedQuotationCustomerAsync(db);
+        var service = new QuotationService(db, new RecordingEventPublisher());
+        var quotation = await CreatePendingDesignQuotationAsync(service, customer.Id);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SubmitDesignAsync(
+                quotation.Id,
+                new SubmitQuotationDesignRequest(
+                    "https://drive.example/design.pdf",
+                    [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")],
+                    WorkerUserId,
+                    "Worker Engineer"),
+                CancellationToken.None));
+
+        Assert.Contains("assigned by Engineering Supervisor", exception.Message);
+    }
+
+    [Fact]
+    public async Task SubmitDesignAsync_accepts_only_assigned_engineer_then_waits_for_supervisor_approval()
+    {
+        await using var db = CreateDbContext();
+        var customer = await SeedQuotationCustomerAsync(db);
+        var service = new QuotationService(db, new RecordingEventPublisher());
+        var quotation = await CreatePendingDesignQuotationAsync(service, customer.Id);
+
+        await service.AssignEngineerAsync(
+            quotation.Id,
+            new AssignQuotationEngineerRequest(WorkerUserId, "Worker Engineer"),
+            CancellationToken.None);
+
+        var wrongEngineerException = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SubmitDesignAsync(
+                quotation.Id,
+                new SubmitQuotationDesignRequest(
+                    "https://drive.example/design.pdf",
+                    [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")],
+                    ReviewerUserId,
+                    "Reviewer Engineer"),
+                CancellationToken.None));
+
+        Assert.Contains("assigned engineer", wrongEngineerException.Message);
+
+        var submitted = await service.SubmitDesignAsync(
+            quotation.Id,
+            new SubmitQuotationDesignRequest(
+                "https://drive.example/design.pdf",
+                [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")],
+                WorkerUserId,
+                "Worker Engineer"),
+            CancellationToken.None);
+
+        Assert.NotNull(submitted);
+        Assert.Equal(QuotationStatuses.DesignReview, submitted.Status);
+
+        var clientApprovalException = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.ApproveClientDesignAsync(quotation.Id, CancellationToken.None));
+
+        Assert.Contains("not ready for client approval", clientApprovalException.Message);
+
+        var supervisorApproved = await service.ApproveDesignBySupervisorAsync(quotation.Id, CancellationToken.None);
+
+        Assert.NotNull(supervisorApproved);
+        Assert.Equal(QuotationStatuses.ClientDesignApproval, supervisorApproved.Status);
+    }
+
+    [Fact]
     public async Task ConvertQuotationToSalesOrderAsync_publishes_dp_invoice_request()
     {
         await using var db = CreateDbContext();
@@ -462,6 +531,41 @@ public sealed class ProductionServiceTests
             .Options;
 
         return new ProductionContext(options);
+    }
+
+    private static async Task<CustomerReplica> SeedQuotationCustomerAsync(ProductionContext db)
+    {
+        var customer = new CustomerReplica
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Code = "CUST-001",
+            Name = "PT Customer",
+            Email = "customer@example.com"
+        };
+        await db.CustomerReplicas.AddAsync(customer);
+        await db.SaveChangesAsync();
+        return customer;
+    }
+
+    private static Task<QuotationDto> CreatePendingDesignQuotationAsync(QuotationService service, Guid customerId)
+    {
+        return service.CreateAsync(
+            new CreateQuotationRequest(
+                customerId,
+                new DateOnly(2026, 7, 1),
+                null,
+                [
+                    new CreateQuotationItemRequest(
+                        null,
+                        "Baut 0.05 mm",
+                        "Baut presisi",
+                        10,
+                        "pcs",
+                        "https://drive.example/customer-reference.jpg",
+                        null,
+                        null)
+                ]),
+            CancellationToken.None);
     }
 
     private static async Task<(SalesOrder SalesOrder, ProductionOrder ProductionOrder)> SeedSalesOrderWithProductionOrderAsync(ProductionContext db)

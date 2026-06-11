@@ -108,6 +108,11 @@ export const quotationApi = {
     return response.data;
   },
 
+  async approveSupervisorDesign(quotationId: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${quotationId}/supervisor-design-approval`);
+    return response.data;
+  },
+
   async approveClientDesign(quotationId: string) {
     const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${quotationId}/client-design-approval`);
     return response.data;

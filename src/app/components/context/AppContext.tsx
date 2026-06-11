@@ -34,6 +34,15 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 const AUTH_USER_KEY = "erp_current_username";
+const BACKEND_USER_IDS_BY_LOCAL_ID: Record<string, string> = {
+  u1: "90000000-0000-4000-8000-000000000001",
+  u2: "90000000-0000-4000-8000-000000000002",
+  u3: "90000000-0000-4000-8000-000000000003",
+  u4: "90000000-0000-4000-8000-000000000004",
+  u5: "90000000-0000-4000-8000-000000000005",
+  u6: "90000000-0000-4000-8000-000000000006",
+  u7: "90000000-0000-4000-8000-000000000007",
+};
 
 function restoreStoredUser(): User | null {
   try {
@@ -256,6 +265,10 @@ function mapCustomerDto(customer: CustomerDto): Customer {
 
 function mapQuotationDto(quotation: QuotationDto): Quotation {
   const primaryItem = quotation.items[0];
+  const assignedUser = findLocalUserByBackendAssignment(
+    quotation.assignedEngineerId,
+    quotation.assignedEngineerName,
+  );
 
   return {
     id: quotation.quotationNumber || quotation.id,
@@ -269,10 +282,15 @@ function mapQuotationDto(quotation: QuotationDto): Quotation {
     deadline: quotation.deadline,
     status: quotation.status,
     designId: quotation.designLink || primaryItem?.designLink || "",
+    designLink: quotation.designLink || primaryItem?.designLink || "",
     estimatedAmount: quotation.estimatedAmount || 0,
     customerImageUrl: primaryItem?.customerImageUrl || "",
     createdBy: "backend",
     createdAt: quotation.createdAtUtc?.split("T")[0] || new Date().toISOString().split("T")[0],
+    assignedTo: assignedUser?.id || quotation.assignedEngineerId || undefined,
+    assignedName: quotation.assignedEngineerName || assignedUser?.name,
+    assignedEngineerId: quotation.assignedEngineerId || undefined,
+    assignedEngineerName: quotation.assignedEngineerName || undefined,
     revisions: quotation.revisions.map(revision => ({
       revNumber: revision.revisionNumber,
       amount: revision.amount,
@@ -464,7 +482,7 @@ async function syncCreateQuotation(
           quantity: quotation.quantity,
           unit: quotation.unit,
           customerImageUrl: quotation.customerImageUrl || null,
-          designLink: quotation.designId || null,
+          designLink: quotation.designId || quotation.designLink || null,
           bomItems: (quotation.materials || []).map(material => ({
             itemCode: material.id || null,
             name: material.name,
@@ -494,6 +512,48 @@ async function syncUpdateQuotation(
   }
 
   try {
+    if (updates.assignedTo !== undefined) {
+      const assignedUser = USERS.find(user => user.id === updates.assignedTo);
+      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
+      const engineerName = updates.assignedName || assignedUser?.name || quotation.assignedName || "Engineer";
+
+      if (!engineerId) {
+        console.warn("Failed to sync engineer assignment: missing backend engineer id.");
+        return;
+      }
+
+      await quotationApi.assignEngineer(backendId, {
+        engineerId,
+        engineerName,
+      });
+      return;
+    }
+
+    if (updates.status === "design_review") {
+      const designLink = updates.designLink || updates.designId || quotation.designLink || quotation.designId || "";
+      const materials = updates.materials || quotation.materials || [];
+      const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : "");
+
+      await quotationApi.submitDesign(backendId, {
+        designLink,
+        bomItems: materials.map(material => ({
+          itemCode: material.id || null,
+          name: material.name,
+          specification: material.spec || material.specification || null,
+          quantity: Number(material.quantity) || 1,
+          unit: material.unit || "pcs",
+        })),
+        engineerId,
+        engineerName: currentUser?.name || "Engineer",
+      });
+      return;
+    }
+
+    if (updates.status === "client_design_approval") {
+      await quotationApi.approveSupervisorDesign(backendId);
+      return;
+    }
+
     if (updates.estimatedAmount !== undefined && updates.status === "client_price_approval") {
       await quotationApi.submitPricing(backendId, {
         amount: updates.estimatedAmount,
@@ -537,6 +597,36 @@ async function syncUpdateQuotation(
 
 function isGuid(value?: string | null): value is string {
   return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function toBackendUserId(user?: User | null): string | null {
+  if (!user) {
+    return null;
+  }
+
+  if (isGuid(user.id)) {
+    return user.id;
+  }
+
+  return BACKEND_USER_IDS_BY_LOCAL_ID[user.id] || null;
+}
+
+function findLocalUserByBackendAssignment(
+  backendUserId?: string | null,
+  backendUserName?: string | null,
+): User | undefined {
+  if (backendUserId) {
+    const userById = USERS.find(user => BACKEND_USER_IDS_BY_LOCAL_ID[user.id] === backendUserId || user.id === backendUserId);
+    if (userById) {
+      return userById;
+    }
+  }
+
+  if (backendUserName) {
+    return USERS.find(user => user.name === backendUserName);
+  }
+
+  return undefined;
 }
 
 function addDaysIso(date: Date, days: number) {
