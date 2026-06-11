@@ -26,6 +26,8 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.Property(inspection => inspection.ProductCode).HasMaxLength(100).HasColumnName("product_code");
             builder.Property(inspection => inspection.PorNumber).HasMaxLength(100).HasColumnName("por_number");
             builder.Property(inspection => inspection.DrawingRef).HasMaxLength(255).HasColumnName("drawing_ref");
+            builder.Property(inspection => inspection.CustomerDrawingUrl).HasMaxLength(1000).HasColumnName("customer_drawing_url");
+            builder.Property(inspection => inspection.DesignReference).HasMaxLength(255).HasColumnName("design_reference");
             builder.Property(inspection => inspection.OrderQty).HasColumnName("order_qty");
             builder.Property(inspection => inspection.MaterialSpec).HasColumnName("material_spec");
             builder.Property(inspection => inspection.ProductionFinishedAtUtc).HasColumnName("production_finished_at_utc");

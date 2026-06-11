@@ -1,7 +1,9 @@
-import React, { useState, useRef } from "react";
-import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
+import { qcApi } from "../services/qcApi";
+import type { QcInspectionDto } from "../services/qcApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -25,9 +27,49 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function isGuid(value?: string | null): value is string {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
+}
+
+function isGo(value?: string | null) {
+  return value === "Go" || value === "Pass";
+}
+
+function isNoGo(value?: string | null) {
+  return value === "NoGo" || value === "Fail";
+}
+
+function findInspectionForSo(inspections: QcInspectionDto[], so: SalesOrder) {
+  const soNumber = so.soNumber || so.id;
+  return inspections.find(inspection =>
+    inspection.salesOrderNumber === soNumber ||
+    inspection.salesOrderNumber === so.id ||
+    inspection.refNo.endsWith(soNumber),
+  );
+}
+
+function DrawingLink({ so, inspection }: { so: SalesOrder; inspection?: QcInspectionDto }) {
+  const drawingUrl = inspection?.customerDrawingUrl || so.customerDrawingUrl || so.designLink;
+  const designRef = inspection?.designReference || so.backendDesignStatus;
+  if (!drawingUrl && !designRef) {
+    return null;
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {drawingUrl && (
+        <a href={drawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "12px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+          <ExternalLink size={12} /> Gambar SO
+        </a>
+      )}
+      {designRef && <span style={{ color: S.secondary, fontSize: "12px" }}>Ref: {designRef}</span>}
+    </div>
+  );
+}
+
 // ─── Modals ──────────────────────────────────────────────────────────────────
 
-function QCHistoryModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspection?: QcInspectionDto; onClose: () => void }) {
   const { customers } = useApp();
   const customer = customers.find(c => c.code === so.customerId);
 
@@ -48,10 +90,10 @@ function QCHistoryModal({ so, onClose }: { so: SalesOrder; onClose: () => void }
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{
               padding: "4px 12px", borderRadius: 99, fontSize: "13px", fontWeight: 600,
-              background: so.qcStatus === 'Pass' ? "#DCFCE7" : "#FEE2E2",
-              color: so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626",
+              background: isGo(so.qcStatus) ? "#DCFCE7" : "#FEE2E2",
+              color: isGo(so.qcStatus) ? "#16A34A" : "#DC2626",
             }}>
-              Hasil: {so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}
+              Hasil: {isGo(so.qcStatus) ? 'Go' : 'NoGo'}
             </span>
             <span style={{ color: S.secondary, fontSize: "12.5px" }}>{so.qcAt ? new Date(so.qcAt).toLocaleString('id-ID') : '-'}</span>
           </div>
@@ -66,6 +108,8 @@ function QCHistoryModal({ so, onClose }: { so: SalesOrder; onClose: () => void }
               <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{so.quantity} {so.unit}</p>
             </div>
           </div>
+
+          <DrawingLink so={so} inspection={inspection} />
 
           {so.qcNotes && (
             <div>
@@ -98,14 +142,15 @@ function QCHistoryModal({ so, onClose }: { so: SalesOrder; onClose: () => void }
   );
 }
 
-function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, customers } = useApp();
+function QCInspectionModal({ so, inspection, onClose }: { so: SalesOrder; inspection?: QcInspectionDto; onClose: () => void }) {
+  const { updateSalesOrder, customers, currentUser } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customer = customers.find(c => c.code === so.customerId);
 
   const [photos, setPhotos] = useState<{ name: string; url: string }[]>([]);
+  const [qcImageUrl, setQcImageUrl] = useState(inspection?.qcImageUrl || "");
   const [notes, setNotes] = useState('');
-  const [result, setResult] = useState<'Pass' | 'Fail' | ''>('');
+  const [result, setResult] = useState<'Go' | 'NoGo' | ''>('');
   const [done, setDone] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,23 +169,46 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
     });
   };
 
-  const handleSubmit = () => {
-    if (result === 'Pass') {
+  const handleSubmit = async () => {
+    if (!result) return;
+
+    if (inspection && isGuid(currentUser?.id)) {
+      if (!/^https?:\/\//i.test(qcImageUrl.trim())) {
+        alert("Isi link foto/form QC valid sebelum submit ke backend.");
+        return;
+      }
+
+      try {
+        await qcApi.uploadResult(inspection.id, {
+          reviewerUserId: currentUser.id,
+          reviewerName: currentUser.name,
+          qcImageUrl: qcImageUrl.trim(),
+          notes: notes || null,
+          decision: result,
+        });
+      } catch (error) {
+        console.warn("Failed to submit QC result to backend.", error);
+        alert("Gagal submit hasil QC ke backend. Cek assignment reviewer atau koneksi API.");
+        return;
+      }
+    }
+
+    if (result === 'Go') {
       updateSalesOrder(so.id, {
         status: 'Completed',
-        qcStatus: 'Pass',
+        qcStatus: 'Go',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
         completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: photos.map(p => p.name),
+        qcPhotos: qcImageUrl ? [qcImageUrl] : photos.map(p => p.name),
       });
     } else {
       updateSalesOrder(so.id, {
         status: 'Ready for Production',
-        qcStatus: 'Fail',
+        qcStatus: 'NoGo',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
-        qcPhotos: photos.map(p => p.name),
+        qcPhotos: qcImageUrl ? [qcImageUrl] : photos.map(p => p.name),
         isRework: true,
       });
     }
@@ -150,12 +218,12 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
   if (done) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 400, padding: 32, textAlign: "center", fontFamily: S.font }}>
-        <div style={{ width: 64, height: 64, background: result === 'Pass' ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-          {result === 'Pass' ? <CheckCircle size={32} style={{ color: "#22C55E" }} /> : <X size={32} style={{ color: "#EF4444" }} />}
+        <div style={{ width: 64, height: 64, background: result === 'Go' ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          {result === 'Go' ? <CheckCircle size={32} style={{ color: "#22C55E" }} /> : <X size={32} style={{ color: "#EF4444" }} />}
         </div>
-        <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>QC {result === 'Pass' ? 'Go' : 'NoGo'}</h3>
+        <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>QC {result}</h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {so.id} — {result === 'Pass' ? 'Status: Completed' : 'Dikembalikan ke produksi untuk rework'}
+          {so.id} — {result === 'Go' ? 'Status: Completed' : 'Dikembalikan ke produksi untuk rework'}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
           Selesai
@@ -178,6 +246,8 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
         </div>
 
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", maxHeight: "70vh" }}>
+          <DrawingLink so={so} inspection={inspection} />
+
           {/* Photo Upload */}
           <div>
             <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Foto Hasil Produksi</p>
@@ -207,6 +277,13 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
             )}
           </div>
 
+          <div>
+            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Link Foto / Form QC</label>
+            <input value={qcImageUrl} onChange={e => setQcImageUrl(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white, boxSizing: "border-box" }} />
+          </div>
+
           {/* Notes */}
           <div>
             <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Catatan Hasil Inspeksi</label>
@@ -215,26 +292,26 @@ function QCInspectionModal({ so, onClose }: { so: SalesOrder; onClose: () => voi
               style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white, resize: "none" }} />
           </div>
 
-          {/* Pass / Fail */}
+          {/* Go / NoGo */}
           <div>
             <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Hasil QC</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <button type="button" onClick={() => setResult('Pass')}
+              <button type="button" onClick={() => setResult('Go')}
                 style={{
                   padding: "12px", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer",
-                  background: result === 'Pass' ? "#22C55E" : S.white,
-                  color: result === 'Pass' ? "#fff" : S.secondary,
-                  border: `2px solid ${result === 'Pass' ? "#22C55E" : S.border}`,
+                  background: result === 'Go' ? "#22C55E" : S.white,
+                  color: result === 'Go' ? "#fff" : S.secondary,
+                  border: `2px solid ${result === 'Go' ? "#22C55E" : S.border}`,
                   transition: "all 0.1s"
                 }}>
                 ✓ Go
               </button>
-              <button type="button" onClick={() => setResult('Fail')}
+              <button type="button" onClick={() => setResult('NoGo')}
                 style={{
                   padding: "12px", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer",
-                  background: result === 'Fail' ? "#EF4444" : S.white,
-                  color: result === 'Fail' ? "#fff" : S.secondary,
-                  border: `2px solid ${result === 'Fail' ? "#EF4444" : S.border}`,
+                  background: result === 'NoGo' ? "#EF4444" : S.white,
+                  color: result === 'NoGo' ? "#fff" : S.secondary,
+                  border: `2px solid ${result === 'NoGo' ? "#EF4444" : S.border}`,
                   transition: "all 0.1s"
                 }}>
                 ✕ NoGo
@@ -261,11 +338,24 @@ export function EngineeringQCPage() {
   const { salesOrders, customers } = useApp();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
+  const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
+
+  useEffect(() => {
+    const loadInspections = async () => {
+      try {
+        setInspections(await qcApi.listInspections());
+      } catch (error) {
+        console.warn("Backend QC inspections unavailable, using local QC queue.", error);
+      }
+    };
+
+    void loadInspections();
+  }, []);
 
   const qcQueue = salesOrders.filter(so => so.status === 'QC');
   const recentCompleted = salesOrders.filter(so => so.status === 'Completed').slice(0, 8);
-  const passCount = recentCompleted.filter(s => s.qcStatus === 'Pass').length;
-  const failCount = recentCompleted.filter(s => s.qcStatus === 'Fail').length;
+  const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
+  const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -334,6 +424,7 @@ export function EngineeringQCPage() {
           <div style={{ display: "flex", flexDirection: "column" }}>
             {qcQueue.map((so, idx) => {
               const customer = customers.find(c => c.code === so.customerId);
+              const inspection = findInspectionForSo(inspections, so);
               const durationHours = so.startTime && so.endTime
                 ? Math.round((new Date(so.endTime).getTime() - new Date(so.startTime).getTime()) / (1000 * 60 * 60))
                 : null;
@@ -351,6 +442,10 @@ export function EngineeringQCPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
                       <span>{customer?.name}</span><span>·</span><span>{so.quantity} {so.unit}</span>
                       {durationHours !== null && <><span>·</span><span>Durasi Produksi: {durationHours} jam</span></>}
+                      {inspection?.refNo && <><span>·</span><span>{inspection.refNo}</span></>}
+                    </div>
+                    <div style={{ marginTop: 4 }}>
+                      <DrawingLink so={so} inspection={inspection} />
                     </div>
                   </div>
                   <button onClick={() => setSelectedSO(so)}
@@ -399,7 +494,7 @@ export function EngineeringQCPage() {
                 </div>
                 <div style={{ alignSelf: "center" }}>
                   {so.qcStatus
-                    ? <span style={{ fontSize: "12px", fontWeight: 600, color: so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626" }}>{so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}</span>
+                    ? <span style={{ fontSize: "12px", fontWeight: 600, color: isGo(so.qcStatus) ? "#16A34A" : "#DC2626" }}>{isGo(so.qcStatus) ? 'Go' : 'NoGo'}</span>
                     : <span style={{ fontSize: "11.5px", color: S.secondary }}>—</span>
                   }
                 </div>
@@ -411,8 +506,8 @@ export function EngineeringQCPage() {
         </div>
       )}
 
-      {selectedSO && <QCInspectionModal so={selectedSO} onClose={() => setSelectedSO(null)} />}
-      {historyDetail && <QCHistoryModal so={historyDetail} onClose={() => setHistoryDetail(null)} />}
+      {selectedSO && <QCInspectionModal so={selectedSO} inspection={findInspectionForSo(inspections, selectedSO)} onClose={() => setSelectedSO(null)} />}
+      {historyDetail && <QCHistoryModal so={historyDetail} inspection={findInspectionForSo(inspections, historyDetail)} onClose={() => setHistoryDetail(null)} />}
     </div>
   );
 }

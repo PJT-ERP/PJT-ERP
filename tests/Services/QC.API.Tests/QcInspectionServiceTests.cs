@@ -29,12 +29,12 @@ public sealed class QcInspectionServiceTests
                 "Reviewer Engineer",
                 "https://drive.example/qc-image.jpg",
                 "Visual condition is acceptable.",
-                "Approve"),
+                "Go"),
             CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal(QcInspectionStatuses.Approved, result.Status);
-        Assert.Equal(QcInspectionStatuses.Approved, result.Decision);
+        Assert.Equal(QcInspectionStatuses.Go, result.Status);
+        Assert.Equal(QcInspectionStatuses.Go, result.Decision);
         Assert.Equal("https://drive.example/qc-image.jpg", result.QcImageUrl);
         Assert.Equal("Visual condition is acceptable.", result.Notes);
         Assert.Equal(ReviewerUserId, result.ReviewedByUserId);
@@ -43,7 +43,36 @@ public sealed class QcInspectionServiceTests
         var completedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<QcCheckCompletedEvent>());
         Assert.Equal(inspection.Id, completedEvent.QcInspectionId);
         Assert.Equal(inspection.ProductionOrderId, completedEvent.ProductionOrderId);
-        Assert.Equal(QcInspectionStatuses.Approved, completedEvent.Decision);
+        Assert.Equal(QcInspectionStatuses.Go, completedEvent.Decision);
+    }
+
+    [Fact]
+    public async Task UploadResultAsync_saves_nogo_decision()
+    {
+        await using var db = CreateDbContext();
+        var inspection = CreateReadyInspection();
+        await db.QcInspections.AddAsync(inspection);
+        await db.SaveChangesAsync();
+
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new QcInspectionService(db, eventPublisher);
+
+        var result = await service.UploadResultAsync(
+            inspection.Id,
+            new UploadQcResultRequest(
+                ReviewerUserId,
+                "Reviewer Engineer",
+                "https://drive.example/qc-image.jpg",
+                "Diameter outside tolerance.",
+                "NoGo"),
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(QcInspectionStatuses.NoGo, result.Status);
+        Assert.Equal(QcInspectionStatuses.NoGo, result.Decision);
+
+        var completedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<QcCheckCompletedEvent>());
+        Assert.Equal(QcInspectionStatuses.NoGo, completedEvent.Decision);
     }
 
     [Fact]
@@ -64,7 +93,7 @@ public sealed class QcInspectionServiceTests
                     "Other Reviewer",
                     "https://drive.example/qc-image.jpg",
                     "Not assigned.",
-                    "Approve"),
+                    "Go"),
                 CancellationToken.None));
 
         Assert.Contains("assigned QC reviewer", exception.Message);
@@ -89,7 +118,7 @@ public sealed class QcInspectionServiceTests
                     "Reviewer Engineer",
                     "https://drive.example/qc-image.jpg",
                     null,
-                    "Approve"),
+                    "Go"),
                 CancellationToken.None));
 
         Assert.Contains("Production must be finished", exception.Message);

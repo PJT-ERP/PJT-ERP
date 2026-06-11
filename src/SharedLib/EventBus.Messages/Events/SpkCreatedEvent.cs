@@ -16,7 +16,9 @@ public record SpkCreatedEvent(
     string? ProductionWorkerName = null,
     Guid? QcReviewerUserId = null,
     string? QcReviewerName = null,
-    IReadOnlyCollection<SpkCreatedItem>? Items = null) : IntegrationEvent;
+    IReadOnlyCollection<SpkCreatedItem>? Items = null,
+    string? CustomerDrawingUrl = null,
+    string? DesignReference = null) : IntegrationEvent;
 
 public record SpkCreatedItem(
     Guid SalesOrderItemId,

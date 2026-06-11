@@ -9,6 +9,14 @@ interface SODetailModalProps {
   onClose: () => void;
 }
 
+function isGo(value?: string | null) {
+  return value === 'Go' || value === 'Pass';
+}
+
+function isNoGo(value?: string | null) {
+  return value === 'NoGo' || value === 'Fail';
+}
+
 export function SODetailModal({ so, customer, onClose }: SODetailModalProps) {
   const currentStepIdx = STATUS_STEPS.indexOf(so.status as any);
 
@@ -123,13 +131,13 @@ export function SODetailModal({ so, customer, onClose }: SODetailModalProps) {
               </div>
             )}
             {so.qcStatus && (
-              <div className={so.qcStatus === 'Fail' && so.qcNotes ? 'col-span-2' : ''}>
+              <div className={isNoGo(so.qcStatus) && so.qcNotes ? 'col-span-2' : ''}>
                 <p className="text-xs text-gray-500 mb-1">Hasil QC</p>
-                <div className={`rounded-lg px-3 py-2 ${so.qcStatus === 'Pass' ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <span className={`text-sm font-medium ${so.qcStatus === 'Pass' ? 'text-green-700' : 'text-red-700'}`}>
-                    {so.qcStatus}
+                <div className={`rounded-lg px-3 py-2 ${isGo(so.qcStatus) ? 'bg-green-50' : 'bg-red-50'}`}>
+                  <span className={`text-sm font-medium ${isGo(so.qcStatus) ? 'text-green-700' : 'text-red-700'}`}>
+                    {isGo(so.qcStatus) ? 'Go' : 'NoGo'}
                   </span>
-                  {so.qcStatus === 'Fail' && so.qcNotes && (
+                  {isNoGo(so.qcStatus) && so.qcNotes && (
                     <p className="text-xs text-gray-600 mt-1">{so.qcNotes}</p>
                   )}
                 </div>

@@ -228,7 +228,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 salesOrder.ProductionWorkerName,
                 salesOrder.QcReviewerUserId,
                 salesOrder.QcReviewerName,
-                BuildSpkItems(salesOrder)),
+                BuildSpkItems(salesOrder),
+                salesOrder.CustomerDrawingUrl,
+                salesOrder.DesignReference),
             cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
@@ -407,7 +409,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     salesOrder.Id,
                     salesOrder.SoNumber,
                     salesOrder.QcReviewerUserId,
-                    salesOrder.QcReviewerName),
+                    salesOrder.QcReviewerName,
+                    salesOrder.CustomerDrawingUrl,
+                    salesOrder.DesignReference),
                 cancellationToken);
         }
 
@@ -418,19 +422,19 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
     {
         var orders = await db.ProductionOrders.AsNoTracking().ToListAsync(cancellationToken);
-        var approved = orders.Count(order => order.QcDecision == "Approved");
-        var rejected = orders.Count(order => order.QcDecision == "Rejected");
-        var reviewedOrders = approved + rejected;
-        var rejectionRate = reviewedOrders == 0 ? 0 : decimal.Round((decimal)rejected / reviewedOrders * 100, 2);
+        var goQc = orders.Count(order => IsQcGo(order.QcDecision));
+        var noGoQc = orders.Count(order => IsQcNoGo(order.QcDecision));
+        var reviewedOrders = goQc + noGoQc;
+        var noGoRate = reviewedOrders == 0 ? 0 : decimal.Round((decimal)noGoQc / reviewedOrders * 100, 2);
 
         return new ExecutiveDashboardDto(
             orders.Count(order => order.Status == ProductionOrderStatuses.Waiting),
             orders.Count(order => order.Status == ProductionOrderStatuses.InProgress),
             orders.Count(order => order.Status == ProductionOrderStatuses.Finished),
             orders.Count(order => order.Status == ProductionOrderStatuses.Closed),
-            approved,
-            rejected,
-            rejectionRate);
+            goQc,
+            noGoQc,
+            noGoRate);
     }
 
     private async Task<SalesOrder?> FindSalesOrderByTrackingCodeAsync(
@@ -608,6 +612,25 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         return Math.Max(0, (long)Math.Round((end.Value - order.StartedAtUtc.Value).TotalSeconds));
+    }
+
+    private static bool IsQcGo(string? decision)
+    {
+        return decision is not null
+            && (decision.Equals("Go", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Pass", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsQcNoGo(string? decision)
+    {
+        return decision is not null
+            && (decision.Equals("NoGo", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("No Go", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Reject", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Fail", StringComparison.OrdinalIgnoreCase));
     }
 
     private static IQueryable<SalesOrder> IncludeProduction(IQueryable<SalesOrder> query)

@@ -7,6 +7,8 @@ public sealed record QcInspectionDto(
     string? ProductName,
     string? ProductCode,
     string? DrawingRef,
+    string? CustomerDrawingUrl,
+    string? DesignReference,
     int? OrderQty,
     string? MaterialSpec,
     DateTime? ProductionFinishedAtUtc,

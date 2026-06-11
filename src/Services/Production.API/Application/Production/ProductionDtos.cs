@@ -142,9 +142,14 @@ public sealed record ExecutiveDashboardDto(
     int InProgressOrders,
     int FinishedOrders,
     int ClosedOrders,
-    int ApprovedQc,
-    int RejectedQc,
-    decimal RejectionRate);
+    int GoQc,
+    int NoGoQc,
+    decimal NoGoRate)
+{
+    public int ApprovedQc => GoQc;
+    public int RejectedQc => NoGoQc;
+    public decimal RejectionRate => NoGoRate;
+}
 
 public sealed record SubmitProductionMaterialRequest(
     Guid RequestedByUserId,

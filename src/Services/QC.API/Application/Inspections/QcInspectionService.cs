@@ -64,7 +64,7 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             throw new InvalidOperationException("Production must be finished before QC can be reviewed.");
         }
 
-        if (inspection.Status is QcInspectionStatuses.Approved or QcInspectionStatuses.Rejected)
+        if (inspection.Status is QcInspectionStatuses.Go or QcInspectionStatuses.NoGo)
         {
             throw new InvalidOperationException("Reviewed QC inspections cannot be changed.");
         }
@@ -100,19 +100,24 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
 
     private static string NormalizeDecision(string decision)
     {
-        if (decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
-            || decision.Equals(QcInspectionStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+        if (decision.Equals("Go", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Pass", StringComparison.OrdinalIgnoreCase))
         {
-            return QcInspectionStatuses.Approved;
+            return QcInspectionStatuses.Go;
         }
 
-        if (decision.Equals("Reject", StringComparison.OrdinalIgnoreCase)
-            || decision.Equals(QcInspectionStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
+        if (decision.Equals("NoGo", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("No Go", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Reject", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Fail", StringComparison.OrdinalIgnoreCase))
         {
-            return QcInspectionStatuses.Rejected;
+            return QcInspectionStatuses.NoGo;
         }
 
-        throw new InvalidOperationException("QC decision must be Approve or Reject.");
+        throw new InvalidOperationException("QC decision must be Go or NoGo.");
     }
 
     private static QcInspectionDto ToDto(QcInspection inspection)
@@ -124,6 +129,8 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             inspection.ProductName,
             inspection.ProductCode,
             inspection.DrawingRef,
+            inspection.CustomerDrawingUrl,
+            inspection.DesignReference,
             inspection.OrderQty,
             inspection.MaterialSpec,
             inspection.ProductionFinishedAtUtc,

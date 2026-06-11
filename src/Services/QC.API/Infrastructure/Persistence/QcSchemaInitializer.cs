@@ -13,6 +13,8 @@ public static class QcSchemaInitializer
             """
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS assigned_reviewer_user_id uuid;
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS assigned_reviewer_name character varying(160);
+            ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
+            ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS qc_image_url character varying(1000);
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS notes text;
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS decision character varying(40);
@@ -35,6 +37,22 @@ public static class QcSchemaInitializer
                             reviewed_at_utc = COALESCE(reviewed_at_utc, owner_reviewed_at_utc)';
                 END IF;
             END $$;
+
+            UPDATE qc_inspections
+            SET status = 'Go'
+            WHERE status IN ('Approved', 'Approve', 'Pass');
+
+            UPDATE qc_inspections
+            SET status = 'NoGo'
+            WHERE status IN ('Rejected', 'Reject', 'Fail', 'No Go');
+
+            UPDATE qc_inspections
+            SET decision = 'Go'
+            WHERE decision IN ('Approved', 'Approve', 'Pass');
+
+            UPDATE qc_inspections
+            SET decision = 'NoGo'
+            WHERE decision IN ('Rejected', 'Reject', 'Fail', 'No Go');
             """,
             cancellationToken);
     }

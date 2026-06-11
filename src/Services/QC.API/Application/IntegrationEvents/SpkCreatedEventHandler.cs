@@ -25,6 +25,8 @@ public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHand
                 ProductName = integrationEvent.ProductName,
                 PorNumber = integrationEvent.SpkNumber,
                 DrawingRef = integrationEvent.DrawingRef,
+                CustomerDrawingUrl = integrationEvent.CustomerDrawingUrl,
+                DesignReference = integrationEvent.DesignReference,
                 OrderQty = Decimal.ToInt32(integrationEvent.Quantity),
                 MaterialSpec = integrationEvent.MaterialSpec,
                 AssignedReviewerUserId = integrationEvent.QcReviewerUserId,
@@ -40,6 +42,8 @@ public sealed class SpkCreatedEventHandler(QcContext db) : IIntegrationEventHand
             inspection.ProductName = integrationEvent.ProductName;
             inspection.PorNumber = integrationEvent.SpkNumber;
             inspection.DrawingRef = integrationEvent.DrawingRef;
+            inspection.CustomerDrawingUrl = integrationEvent.CustomerDrawingUrl ?? inspection.CustomerDrawingUrl;
+            inspection.DesignReference = integrationEvent.DesignReference ?? inspection.DesignReference;
             inspection.OrderQty = Decimal.ToInt32(integrationEvent.Quantity);
             inspection.MaterialSpec = integrationEvent.MaterialSpec;
             inspection.AssignedReviewerUserId = integrationEvent.QcReviewerUserId;

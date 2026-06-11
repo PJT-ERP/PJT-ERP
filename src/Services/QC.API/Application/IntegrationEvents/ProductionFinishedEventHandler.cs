@@ -22,6 +22,8 @@ public sealed class ProductionFinishedEventHandler(QcContext db) : IIntegrationE
                 SpkNumber = integrationEvent.SpkNumber,
                 BarcodeUid = integrationEvent.BarcodeValue,
                 PorNumber = integrationEvent.SpkNumber,
+                CustomerDrawingUrl = integrationEvent.CustomerDrawingUrl,
+                DesignReference = integrationEvent.DesignReference,
                 AssignedReviewerUserId = integrationEvent.QcReviewerUserId,
                 AssignedReviewerName = integrationEvent.QcReviewerName
             };
@@ -31,6 +33,8 @@ public sealed class ProductionFinishedEventHandler(QcContext db) : IIntegrationE
         inspection.Status = QcInspectionStatuses.ReadyForInspection;
         inspection.AssignedReviewerUserId = integrationEvent.QcReviewerUserId ?? inspection.AssignedReviewerUserId;
         inspection.AssignedReviewerName = integrationEvent.QcReviewerName ?? inspection.AssignedReviewerName;
+        inspection.CustomerDrawingUrl = integrationEvent.CustomerDrawingUrl ?? inspection.CustomerDrawingUrl;
+        inspection.DesignReference = integrationEvent.DesignReference ?? inspection.DesignReference;
         inspection.ProductionFinishedAtUtc = integrationEvent.FinishedAtUtc;
         inspection.UpdatedAtUtc = integrationEvent.FinishedAtUtc;
         await db.SaveChangesAsync(cancellationToken);

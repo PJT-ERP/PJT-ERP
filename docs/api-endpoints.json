@@ -60,7 +60,7 @@
       }
     },
     "qc": {
-      "summary": "QC is image/form upload, notes, and approve/reject by Engineering Reviewer. There are no visual/dimension checklist endpoints.",
+      "summary": "QC is image/form upload, notes, and Go/NoGo decision by Engineering Reviewer. There are no visual/dimension checklist endpoints.",
       "writeAccess": {
         "qcResultUpload": ["Admin", "Engineering Reviewer"]
       },
@@ -245,13 +245,16 @@
       "method": "PUT",
       "path": "/api/v1/qc/inspections/{id}/result",
       "roles": ["Admin", "Engineering Reviewer"],
-      "description": "Upload QC image/form URL, notes, and approve/reject decision.",
+      "description": "Upload QC image/form URL, notes, and Go/NoGo decision.",
       "requestBody": {
         "reviewerUserId": "00000000-0000-0000-0000-000000000002",
         "reviewerName": "Engineering Reviewer",
         "qcImageUrl": "https://drive.example/qc-form.jpg",
         "notes": "Visual condition acceptable.",
-        "decision": "Approve"
+        "decision": "Go"
+      },
+      "allowedValues": {
+        "decision": ["Go", "NoGo"]
       }
     },
     {
@@ -415,7 +418,7 @@
       "method": "GET",
       "path": "/api/v1/finance/invoice-candidates?customerId={customerId}",
       "roles": ["Admin", "Finance", "Owner"],
-      "description": "List completed Sales Orders that are ready to be invoiced. Rows are created automatically after QC approves the production order."
+      "description": "List completed Sales Orders that are ready to be invoiced. Rows are created automatically after QC returns Go for the production order."
     },
     {
       "service": "Finance.API",

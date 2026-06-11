@@ -20,21 +20,22 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db, IEventPub
             return;
         }
 
-        var isApproved = integrationEvent.Decision.Equals("Approved", StringComparison.OrdinalIgnoreCase);
-        productionOrder.QcDecision = integrationEvent.Decision;
-        productionOrder.Status = isApproved
+        var decision = NormalizeDecision(integrationEvent.Decision);
+        var isGo = decision == "Go";
+        productionOrder.QcDecision = decision;
+        productionOrder.Status = isGo
             ? ProductionOrderStatuses.Closed
             : productionOrder.Status;
         productionOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
 
         if (productionOrder.SalesOrder is not null)
         {
-            productionOrder.SalesOrder.Status = isApproved
+            productionOrder.SalesOrder.Status = isGo
                 ? SalesOrderStatuses.Completed
                 : productionOrder.SalesOrder.Status;
             productionOrder.SalesOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
 
-            if (isApproved)
+            if (isGo)
             {
                 await eventPublisher.PublishAsync(
                     new SalesOrderReadyForInvoiceEvent(
@@ -60,5 +61,27 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db, IEventPub
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string NormalizeDecision(string decision)
+    {
+        if (decision.Equals("Go", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Pass", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Go";
+        }
+
+        if (decision.Equals("NoGo", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("No Go", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Reject", StringComparison.OrdinalIgnoreCase)
+            || decision.Equals("Fail", StringComparison.OrdinalIgnoreCase))
+        {
+            return "NoGo";
+        }
+
+        return decision;
     }
 }

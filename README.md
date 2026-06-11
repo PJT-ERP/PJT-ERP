@@ -458,7 +458,7 @@ Finance membuat invoice dari Sales Order yang sudah selesai QC. Item invoice tid
 
 Alur kerja:
 
-1. Engineering Reviewer approve QC.
+1. Engineering Reviewer memberi keputusan QC `Go`.
 2. Production API menutup production order, mengubah Sales Order menjadi `Completed`, lalu mengirim `SalesOrderReadyForInvoiceEvent`.
 3. Finance API membuat invoice candidate berisi customer, email, nomor SO, target date, dan list item SO.
 4. User Finance membuat invoice dengan mengisi harga satuan per item, pajak, tanggal invoice, jatuh tempo, rekening transfer, dan termin pembayaran seperti DP 25%, DP 50%, atau pelunasan.
@@ -493,15 +493,15 @@ Alur kerja:
 1. Owner login ke sistem.
 2. Owner membuka Executive Dashboard.
 3. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
-4. Owner melihat ringkasan hasil QC dari Engineering Reviewer: approved dan rejected.
-5. Owner melihat rejection rate.
+4. Owner melihat ringkasan hasil QC dari Engineering Reviewer: `Go` dan `NoGo`.
+5. Owner melihat NoGo rate.
 6. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
 
 Output utama:
 
 - Ringkasan status produksi.
 - Ringkasan hasil review QC.
-- Rejection rate.
+- NoGo rate.
 - Gambaran performa pabrik.
 
 ## Cara Menjalankan
@@ -526,24 +526,26 @@ http://localhost:5000
 
 ## CI/CD
 
-Workflow GitHub Actions untuk test service tersedia di:
+Workflow GitHub Actions dipisah untuk frontend dan backend:
 
 ```text
-.github/workflows/qc-tests.yml
-.github/workflows/production-tests.yml
-.github/workflows/purchasing-tests.yml
+.github/workflows/frontend-build.yml
+.github/workflows/backend-ci.yml
 ```
 
 Setiap Pull Request akan menjalankan:
 
 ```powershell
+npm ci
+npm run build
+dotnet build PtPjtErp.slnx --configuration Release --no-restore
 dotnet test tests/Services/QC.API.Tests/QC.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Finance.API.Tests/Finance.API.Tests.csproj --configuration Release --no-restore
 ```
 
-Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Engineering Reviewer, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke reviewer/admin.
+Test ini fokus ke logic QC: upload image/form QC, notes, keputusan `Go`/`NoGo` dari Engineering Reviewer, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke reviewer/admin.
 
 Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 

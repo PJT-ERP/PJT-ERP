@@ -37,6 +37,10 @@ const S = {
   white:     "#FFFFFF",
 };
 
+function isGo(value?: string | null) {
+  return value === 'Go' || value === 'Pass';
+}
+
 const WORKFLOW_STEPS = [
   { key: "customer_request", label: "Customer Request", dept: "SO Team"         },
   { key: "finance",          label: "Finance",          dept: "Finance Dept"    },
@@ -431,8 +435,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Laporan QC</p>
-                <span style={{ padding: "3px 8px", borderRadius: 4, background: order.qcStatus === 'Pass' ? "#ECFDF5" : "#FEF2F2", color: order.qcStatus === 'Pass' ? "#059669" : "#DC2626", border: `1px solid ${order.qcStatus === 'Pass' ? "#10B981" : "#EF4444"}`, fontSize: "10px", fontWeight: 600 }}>
-                  {order.qcStatus === 'Pass' ? 'LULUS (PASS)' : 'GAGAL (FAIL)'}
+                <span style={{ padding: "3px 8px", borderRadius: 4, background: isGo(order.qcStatus) ? "#ECFDF5" : "#FEF2F2", color: isGo(order.qcStatus) ? "#059669" : "#DC2626", border: `1px solid ${isGo(order.qcStatus) ? "#10B981" : "#EF4444"}`, fontSize: "10px", fontWeight: 600 }}>
+                  {isGo(order.qcStatus) ? 'Go' : 'NoGo'}
                 </span>
               </div>
               <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
