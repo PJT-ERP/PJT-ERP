@@ -56,7 +56,7 @@ function StatusBadge({ status }: { status: SOStatus }) {
 export function SODashboard({ onNavigate }: SODashboardProps) {
   const { salesOrders, customers } = useApp();
   const { invoices } = useFinanceData();
-  const readyInvoices = invoices.filter(invoice => invoice.status !== "PAID");
+  const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
   const total = salesOrders.length;
   const waitingFinance = salesOrders.filter((o) => o.status === "Menunggu Invoice DP" || o.status === "Pending Design" || o.status === "Waiting Approval").length;

@@ -143,7 +143,7 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   );
 }
 
-function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; onClose: () => void; onSubmitted: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -220,6 +220,7 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
           purchaseCategory: item.purchaseCategory,
         })),
       });
+      onSubmitted();
       await refreshBackendData();
       window.setTimeout(() => {
         void refreshBackendData();
@@ -464,6 +465,7 @@ export function ProductionPage() {
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
   const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
+  const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
 
   // Lists
   const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
@@ -482,9 +484,23 @@ export function ProductionPage() {
     );
   };
 
+  const rememberMaterialRequest = (so: SalesOrder) => {
+    const keys = [so.id, so.backendId, so.soNumber, getBackendSalesOrderId(so)].filter(Boolean) as string[];
+    setLocalMaterialRequestSoIds(prev => {
+      const next = new Set(prev);
+      keys.forEach(key => next.add(key));
+      return next;
+    });
+  };
+
+  const hasLocalMaterialRequest = (so: SalesOrder) =>
+    [so.id, so.backendId, so.soNumber, getBackendSalesOrderId(so)]
+      .filter(Boolean)
+      .some(key => localMaterialRequestSoIds.has(key as string));
+
   const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'finance_pending' | 'approved' | 'completed' | 'rejected' => {
     const request = getMaterialRequest(so);
-    if (!request) return 'none';
+    if (!request) return hasLocalMaterialRequest(so) ? 'requested' : 'none';
     if (request.backendStatus === 'SupervisorRejected' || request.backendStatus === 'FinanceRejected' || request.backendStatus === 'Rejected') return 'rejected';
     if (request.backendStatus === 'Completed') return 'completed';
     if (request.backendStatus === 'Processing' || request.backendStatus === 'FinanceApproved') return 'approved';
@@ -678,7 +694,13 @@ export function ProductionPage() {
       </div>
 
       {assignModal && <AssignOperatorModal so={assignModal} onClose={() => setAssignModal(null)} />}
-      {reqModal && <MaterialRequestModal so={reqModal} onClose={() => setReqModal(null)} />}
+      {reqModal && (
+        <MaterialRequestModal
+          so={reqModal}
+          onClose={() => setReqModal(null)}
+          onSubmitted={() => rememberMaterialRequest(reqModal)}
+        />
+      )}
       {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} />}
       {completeModal && <CompleteProductionModal so={completeModal} onClose={() => setCompleteModal(null)} />}
     </div>

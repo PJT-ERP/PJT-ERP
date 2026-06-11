@@ -498,23 +498,28 @@ export function PaymentVerification() {
     }
   };
 
-  const filtered = filterStatus === 'ALL' ? paymentData : paymentData.filter(p => p.status === filterStatus);
-  const pendingProofInvoiceIds = new Set(paymentData.filter(payment => payment.status === 'PENDING').map(payment => payment.invoiceId));
+  const pendingPayments = paymentData.filter(payment => payment.status === 'PENDING');
+  const historyPayments = filterStatus === 'ALL'
+    ? paymentData.filter(payment => payment.status !== 'PENDING')
+    : filterStatus === 'PENDING'
+      ? []
+      : paymentData.filter(payment => payment.status === filterStatus);
+  const pendingProofInvoiceIds = new Set(pendingPayments.map(payment => payment.invoiceId));
   const unpaidInvoices = invoices.filter(invoice =>
     getRemainingAmount(invoice) > 0 &&
     !hasRecordedPayment(invoice) &&
     !pendingProofInvoiceIds.has(invoice.id) &&
     !hiddenInvoiceIds.has(invoice.id)
   );
-  const pendingCount = paymentData.filter(p => p.status === 'PENDING').length;
+  const pendingCount = pendingPayments.length;
   const verifiedCount = paymentData.filter(p => p.status === 'VERIFIED').length;
   const rejectedCount = paymentData.filter(p => p.status === 'REJECTED').length;
-  const pendingAmount = paymentData.filter(p => p.status === 'PENDING').reduce((s, p) => s + p.amount, 0);
+  const pendingAmount = pendingPayments.reduce((s, p) => s + p.amount, 0);
   const unpaidAmount = unpaidInvoices.reduce((sum, invoice) => sum + getRemainingAmount(invoice), 0);
   const pendingVerificationCount = pendingCount + unpaidInvoices.length;
   const pendingVerificationAmount = pendingAmount + unpaidAmount;
   const showInvoiceVerificationQueue = filterStatus === 'ALL' || filterStatus === 'PENDING';
-  const showPaymentHistory = filterStatus !== 'PENDING' || filtered.length > 0;
+  const showPaymentHistory = filterStatus !== 'PENDING';
 
   return (
     <div className="p-4 lg:p-6 space-y-5 min-h-full">
@@ -582,13 +587,72 @@ export function PaymentVerification() {
             Refresh
           </button>
         </div>
-        {unpaidInvoices.length === 0 ? (
+        {pendingPayments.length === 0 && unpaidInvoices.length === 0 ? (
           <div className="p-8 text-center">
             <CheckCircle2 size={28} className="text-green-500 mx-auto mb-2" />
             <p className="text-sm text-slate-500">Semua invoice sudah tercatat pembayarannya</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
+            {pendingPayments.map(payment => {
+              const cfg = STATUS_CONFIG[payment.status];
+              const Icon = cfg.icon;
+              return (
+                <div key={`pending-${payment.id}`} className="px-5 py-4 bg-amber-50/40 flex flex-col lg:flex-row lg:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-slate-800">{payment.customerName}</p>
+                      {payment.soNumber && (
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">{payment.soNumber}</span>
+                      )}
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${cfg.color}`}>
+                        <Icon size={10} />
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">{payment.invoiceNumber} · {payment.bankName} · {payment.bankRef}</p>
+                    {payment.notes && <p className="text-xs text-slate-500 mt-1 italic">"{payment.notes}"</p>}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 lg:w-[420px]">
+                    <div>
+                      <p className="text-[11px] text-slate-400">Jumlah</p>
+                      <p className="text-sm font-semibold text-slate-800">{formatIDR(payment.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-slate-400">Tanggal Bayar</p>
+                      <p className="text-sm font-semibold text-slate-800">{formatDate(payment.paymentDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-slate-400">Bukti</p>
+                      <p className="text-sm font-semibold text-slate-800 truncate">{payment.proofFileName || 'Tersedia'}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => setSelectedPayment(payment)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <Eye size={13} />
+                      Detail & Bukti
+                    </button>
+                    <button
+                      onClick={() => handleVerify(payment.id)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <CheckCircle2 size={13} />
+                      Verifikasi
+                    </button>
+                    <button
+                      onClick={() => setSelectedPayment(payment)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 border border-red-200 bg-white hover:bg-red-50 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <XCircle size={13} />
+                      Tolak
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
             {unpaidInvoices.map(invoice => {
               const remainingAmount = getRemainingAmount(invoice);
               const nextSchedule = getNextSchedule(invoice);
@@ -648,14 +712,13 @@ export function PaymentVerification() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">Riwayat Pembayaran</h2>
-          {pendingCount > 0 && <p className="text-xs text-amber-600">{formatIDR(pendingAmount)} menunggu verifikasi</p>}
         </div>
-        {filtered.length === 0 ? (
+        {historyPayments.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-md">
             <ShieldCheck size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-slate-400 text-sm">Tidak ada data pembayaran</p>
           </div>
-        ) : filtered.map(payment => {
+        ) : historyPayments.map(payment => {
           const cfg = STATUS_CONFIG[payment.status];
           const Icon = cfg.icon;
           return (
