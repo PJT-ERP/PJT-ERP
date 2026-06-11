@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, CheckSquare, X, DollarSign, PackageOpen, CheckCircle2, AlertCircle } from 'lucide-react';
 import { formatIDR, formatDate } from './mockData';
+import { purchasingApi, PurchaseRequestDto } from '../../services/purchasingApi';
 
 type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | '';
 
@@ -15,47 +16,49 @@ interface PendingPO {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
-const mockPendingPOs: PendingPO[] = [
-  {
-    id: 'PO-2026-001',
-    poNumber: 'PO/ENG/2026/001',
-    department: 'Engineering',
-    requestor: 'Budi Santoso',
-    items: 'Plat Besi 3mm, Baut M8, Las Argon',
-    totalAmount: 15500000,
-    date: '2026-06-05T08:00:00Z',
-    status: 'PENDING'
-  },
-  {
-    id: 'PO-2026-002',
-    poNumber: 'PO/PROD/2026/089',
-    department: 'Production',
-    requestor: 'Joko Anwar',
-    items: 'Mata Bor Set, Oli Mesin',
-    totalAmount: 3200000,
-    date: '2026-06-06T10:30:00Z',
-    status: 'PENDING'
-  },
-  {
-    id: 'PO-2026-003',
-    poNumber: 'PO/ENG/2026/002',
-    department: 'Engineering',
-    requestor: 'Andi Wijaya',
-    items: 'Lisensi AutoCAD 1 Tahun',
-    totalAmount: 25000000,
-    date: '2026-06-07T09:15:00Z',
-    status: 'PENDING'
+function mapPurchaseRequestToApproval(request: PurchaseRequestDto): PendingPO | null {
+  if (!['SupervisorApproved', 'FinanceApproved', 'FinanceRejected'].includes(request.status)) {
+    return null;
   }
-];
+
+  return {
+    id: request.id,
+    poNumber: request.prNumber,
+    department: request.projectName?.split(' - ')[0] || 'Engineering',
+    requestor: request.requesterName,
+    items: request.items.map(item => item.itemName).join(', '),
+    totalAmount: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0),
+    date: request.updatedAtUtc || request.requestDate,
+    status: request.status === 'FinanceApproved'
+      ? 'APPROVED'
+      : request.status === 'FinanceRejected'
+        ? 'REJECTED'
+        : 'PENDING',
+  };
+}
 
 export function FinancePurchasingApproval() {
-  const [pos, setPos] = useState<PendingPO[]>(mockPendingPOs);
+  const [pos, setPos] = useState<PendingPO[]>([]);
   const [search, setSearch] = useState('');
   const [selectedPo, setSelectedPo] = useState<PendingPO | null>(null);
   
   // Modal states
   const [category, setCategory] = useState<POCategory>('');
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    const loadApprovals = async () => {
+      try {
+        const requests = await purchasingApi.listPurchaseRequests();
+        setPos(requests.map(mapPurchaseRequestToApproval).filter(Boolean) as PendingPO[]);
+      } catch (error) {
+        console.warn('Purchasing API unavailable; finance approval seed data was not loaded.', error);
+        setPos([]);
+      }
+    };
+
+    void loadApprovals();
+  }, []);
 
   const filtered = pos.filter(po => 
     po.poNumber.toLowerCase().includes(search.toLowerCase()) || 
@@ -66,20 +69,38 @@ export function FinancePurchasingApproval() {
 
   const handleApprove = () => {
     if (!selectedPo) return;
-    
-    // In a real app, this would call an API
-    setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'APPROVED' } : p));
-    setSelectedPo(null);
-    setCategory('');
-    setNotes('');
+
+    void purchasingApi.financeReviewPurchaseRequest(selectedPo.id, {
+      reviewedByUserId: '90000000-0000-4000-8000-000000000005',
+      decision: 'Accept',
+      rejectionReason: notes || null,
+    }).then(() => {
+      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'APPROVED' } : p));
+      setSelectedPo(null);
+      setCategory('');
+      setNotes('');
+    }).catch(error => {
+      console.warn('Failed to approve purchasing request in backend.', error);
+      window.alert('Gagal approve Finance. Cek koneksi API atau status PR.');
+    });
   };
 
   const handleReject = () => {
     if (!selectedPo) return;
-    setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'REJECTED' } : p));
-    setSelectedPo(null);
-    setCategory('');
-    setNotes('');
+
+    void purchasingApi.financeReviewPurchaseRequest(selectedPo.id, {
+      reviewedByUserId: '90000000-0000-4000-8000-000000000005',
+      decision: 'Reject',
+      rejectionReason: notes || 'Ditolak Finance.',
+    }).then(() => {
+      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'REJECTED' } : p));
+      setSelectedPo(null);
+      setCategory('');
+      setNotes('');
+    }).catch(error => {
+      console.warn('Failed to reject purchasing request in backend.', error);
+      window.alert('Gagal reject Finance. Cek koneksi API atau status PR.');
+    });
   };
 
   return (
@@ -87,12 +108,12 @@ export function FinancePurchasingApproval() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PO)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk PO yang sudah disiapkan Purchasing sebelum pembelian dijalankan.</p>
+          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PR)</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk PR yang sudah disetujui Engineering Supervisor sebelum Purchasing PO.</p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
-          {pendingCount} PO Menunggu Finance Approval
+          {pendingCount} PR Menunggu Finance Approval
         </div>
       </div>
 
@@ -104,7 +125,7 @@ export function FinancePurchasingApproval() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Cari No. PO atau Departemen..."
+              placeholder="Cari No. PR atau Departemen..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all shadow-sm"
             />
           </div>
@@ -115,7 +136,7 @@ export function FinancePurchasingApproval() {
             <thead className="bg-white border-b border-slate-100">
               <tr>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tanggal</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Items</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Dana</th>
@@ -158,7 +179,7 @@ export function FinancePurchasingApproval() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada PO menunggu Finance approval saat ini.</td>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada PR menunggu Finance approval saat ini.</td>
                 </tr>
               )}
             </tbody>

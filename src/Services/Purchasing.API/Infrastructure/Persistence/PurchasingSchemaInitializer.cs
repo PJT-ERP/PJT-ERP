@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PJT_ERP.Shared.Infrastructure.Persistence;
 
 namespace PJT_ERP.Purchasing.Api.Infrastructure.Persistence;
 
@@ -210,5 +211,7 @@ public static class PurchasingSchemaInitializer
                 ON purchase_request_items (material_requirement_id);
             """,
             cancellationToken);
+
+        await db.Database.ExecuteSeedSqlAsync(cancellationToken: cancellationToken);
     }
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -13,6 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useERPStore } from "../../store/useERPStore";
+import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
 
@@ -45,122 +46,6 @@ interface MR {
   financeApproval?: "Pending" | "Approved" | "Rejected";
 }
 
-const MR_DATA: MR[] = [
-  {
-    id: "MR-2405-018",
-    requestor: "Budi Santoso",
-    department: "Produksi",
-    date: "24 Mei 2026",
-    priority: "High",
-    status: "Submitted",
-    soRef: "SO-2026-014",
-    category: "Project",
-    urgency: "Lini produksi A terhenti, stok habis",
-    notes: "Kebutuhan mendesak — mesin berhenti tanpa material ini",
-    financeApproval: "Pending",
-    items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "6m/batang", qty: 20, unit: "batang", currentStock: 5 },
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 5, unit: "batang", currentStock: 2 },
-      { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "6m/batang", qty: 15, unit: "batang", currentStock: 0 },
-      { code: "MAT-011", name: "Baut M12 x 50", spec: "Grade 8.8", qty: 200, unit: "pcs", currentStock: 50 },
-      { code: "MAT-012", name: "Mur M12", spec: "Grade 8.8", qty: 200, unit: "pcs", currentStock: 80 },
-    ],
-  },
-  {
-    id: "MR-2405-017",
-    requestor: "Dewi Rahayu",
-    department: "Maintenance",
-    date: "22 Mei 2026",
-    priority: "Medium",
-    status: "Approved",
-    category: "Maintenance",
-    urgency: "Preventif maintenance terjadwal",
-    notes: "Spare parts rutin bulanan — PM schedule mesin press",
-    approvedBy: "Ir. Agung Pramono",
-    approvedAt: "23 Mei 2026, 09:15",
-    supplierAssigned: "PT Sumber Teknik",
-    financeApproval: "Approved",
-    items: [
-      { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 6, unit: "pcs", currentStock: 3 },
-      { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 4, unit: "pcs", currentStock: 2 },
-      { code: "MAT-008", name: "Mata Gerinda 4\"", spec: "x 1.2mm", qty: 20, unit: "pcs", currentStock: 10 },
-    ],
-  },
-  {
-    id: "MR-2405-016",
-    requestor: "Ahmad Fauzi",
-    department: "QC",
-    date: "21 Mei 2026",
-    priority: "Low",
-    status: "Processing",
-    category: "Consumable",
-    urgency: "Stok laboratorium habis",
-    notes: "Bahan uji kualitas akhir bulan",
-    supplierAssigned: "CV Tekno Prima",
-    financeApproval: "Approved",
-    items: [
-      { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "4L/kaleng", qty: 4, unit: "kaleng", currentStock: 1 },
-      { code: "MAT-010", name: "Thinner Epoxy 4L", spec: "Standard", qty: 4, unit: "kaleng", currentStock: 2 },
-    ],
-  },
-  {
-    id: "MR-2405-015",
-    requestor: "Siti Nurhaliza",
-    department: "Engineering",
-    date: "20 Mei 2026",
-    priority: "High",
-    status: "Approved",
-    soRef: "SO-2026-011",
-    category: "Project",
-    urgency: "Deadline proyek gedung C: 30 Juni",
-    notes: "Proyek ekspansi gedung C — material struktur utama",
-    approvedBy: "Ir. Agung Pramono",
-    approvedAt: "20 Mei 2026, 16:30",
-    supplierAssigned: "PT Indo Steel",
-    financeApproval: "Approved",
-    items: [
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 30, unit: "batang", currentStock: 18 },
-      { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 20, unit: "batang", currentStock: 0 },
-      { code: "MAT-002", name: "Plat Besi 3mm", spec: "120x240cm", qty: 15, unit: "lembar", currentStock: 8 },
-    ],
-  },
-  {
-    id: "MR-2405-014",
-    requestor: "Eko Prasetyo",
-    department: "Produksi",
-    date: "19 Mei 2026",
-    priority: "Low",
-    status: "Rejected",
-    soRef: "SO-2026-010",
-    category: "Project",
-    urgency: "",
-    notes: "Tidak memenuhi spesifikasi standar yang berlaku",
-    financeApproval: "Rejected",
-    items: [
-      { code: "MAT-099", name: "Elektroda non-standar", spec: "3mm", qty: 10, unit: "box", currentStock: 0 },
-    ],
-  },
-  {
-    id: "MR-2405-013",
-    requestor: "Rina Wati",
-    department: "K3",
-    date: "18 Mei 2026",
-    priority: "Medium",
-    status: "Processing",
-    category: "Tools",
-    urgency: "Audit K3 tanggal 3 Juni",
-    notes: "Perlengkapan safety tahunan — sesuai regulasi Kemenaker",
-    supplierAssigned: "CV Tekno Prima",
-    items: [
-      { code: "SAF-001", name: "Helm Safety MSA", spec: "Type E, ANSI Z89.1", qty: 20, unit: "pcs", currentStock: 0 },
-      { code: "SAF-002", name: "Sepatu Safety Cheetah", spec: "Size 38-44", qty: 20, unit: "pasang", currentStock: 5 },
-      { code: "SAF-003", name: "Kacamata Safety", spec: "Clear Lens", qty: 30, unit: "pcs", currentStock: 8 },
-      { code: "SAF-004", name: "Ear Plug 3M", spec: "NRR 29dB", qty: 100, unit: "pasang", currentStock: 20 },
-    ],
-    financeApproval: "Approved",
-  },
-];
-
 /* ── Pill configs ──────────────────────────────────────────── */
 
 const statusCfg: Record<string, { bg: string; color: string; icon: React.ReactNode; dot: string }> = {
@@ -176,6 +61,71 @@ const priorityCfg: Record<string, { bg: string; color: string }> = {
   Medium: { bg: "#fef9c3", color: "#92400e" },
   Low:    { bg: "#f0f9ff", color: "#0369a1" },
 };
+
+function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
+  const firstItem = request.items[0];
+  const status = mapRequestStatus(request);
+  const priority: MR["priority"] = request.items.some(item => item.urgency === "Critical")
+    ? "High"
+    : request.items.some(item => item.urgency === "Urgent")
+      ? "High"
+      : "Medium";
+
+  return {
+    id: request.prNumber,
+    requestor: request.requesterName,
+    department: request.projectName?.split(" - ")[0] || "Engineering",
+    date: formatDisplayDate(request.requestDate),
+    priority,
+    status,
+    soRef: request.salesOrderNumber || undefined,
+    category: (firstItem?.purchaseCategory || "Project") as MR["category"],
+    urgency: request.items.map(item => item.notes).filter(Boolean).join("; "),
+    notes: request.items.map(item => item.notes).filter(Boolean).join("; ") || request.projectName || "",
+    approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
+    approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
+    supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
+    financeApproval: request.financeReviewedAtUtc
+      ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
+      : "Pending",
+    items: request.items.map(item => ({
+      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+      name: item.itemName,
+      spec: item.size || item.notes || "-",
+      qty: item.qty,
+      unit: "pcs",
+      currentStock: 0,
+    })),
+  };
+}
+
+function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
+  if (request.status === "Completed" || request.items.every(item => item.purchaseStatus === "Received")) {
+    return "Completed";
+  }
+
+  if (request.status === "Processing" || request.items.some(item => item.purchaseStatus === "Ordered")) {
+    return "Processing";
+  }
+
+  if (request.status === "SupervisorRejected" || request.status === "FinanceRejected" || request.status === "Rejected") {
+    return "Rejected";
+  }
+
+  if (request.status === "SupervisorApproved" || request.status === "FinanceApproved" || request.items.some(item => item.purchaseStatus === "Approved")) {
+    return "Approved";
+  }
+
+  return "Submitted";
+}
+
+function formatDisplayDate(value: string) {
+  return new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatDisplayDateTime(value: string) {
+  return new Date(value).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 /* ── Components ────────────────────────────────────────────── */
 
@@ -220,6 +170,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 
 export function MaterialRequestsPage() {
   const { allSOs } = useERPStore();
+  const [requests, setRequests] = useState<MR[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -230,6 +181,20 @@ export function MaterialRequestsPage() {
   const [formPriority, setFormPriority] = useState("Medium");
   const [formUrgency, setFormUrgency] = useState("");
   const [formNotes, setFormNotes] = useState("");
+
+  useEffect(() => {
+    const loadRequests = async () => {
+      try {
+        const data = await purchasingApi.listPurchaseRequests();
+        setRequests(data.map(mapPurchaseRequestToMr));
+      } catch (error) {
+        console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
+        setRequests([]);
+      }
+    };
+
+    void loadRequests();
+  }, []);
 
   const availableMaterials = useMemo(() => {
     if (!formSoNumber) return [];
@@ -246,7 +211,7 @@ export function MaterialRequestsPage() {
     setFormItems(next);
   };
 
-  const filtered = MR_DATA.filter((m) => {
+  const filtered = requests.filter((m) => {
     const q = search.toLowerCase();
     const matchQ = !q || m.id.toLowerCase().includes(q) || m.requestor.toLowerCase().includes(q) || m.department.toLowerCase().includes(q);
     const matchS = filterStatus === "all" || m.status === filterStatus;
@@ -255,10 +220,10 @@ export function MaterialRequestsPage() {
   });
 
   const counts = {
-    Submitted: MR_DATA.filter((m) => m.status === "Submitted").length,
-    Approved: MR_DATA.filter((m) => m.status === "Approved").length,
-    Processing: MR_DATA.filter((m) => m.status === "Processing").length,
-    Rejected: MR_DATA.filter((m) => m.status === "Rejected").length,
+    Submitted: requests.filter((m) => m.status === "Submitted").length,
+    Approved: requests.filter((m) => m.status === "Approved").length,
+    Processing: requests.filter((m) => m.status === "Processing").length,
+    Rejected: requests.filter((m) => m.status === "Rejected").length,
   };
 
   return (
@@ -445,7 +410,7 @@ export function MaterialRequestsPage() {
           style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}
         >
           <p style={{ fontSize: 11, color: "#94a3b8" }}>
-            Menampilkan {filtered.length} dari {MR_DATA.length} permintaan
+            Menampilkan {filtered.length} dari {requests.length} permintaan
           </p>
         </div>
       </div>
@@ -615,7 +580,6 @@ export function MaterialRequestsPage() {
                   <SelectContent>
                     <SelectItem value="none">— Tanpa SO —</SelectItem>
                     {allSOs.map(so => <SelectItem key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</SelectItem>)}
-                    <SelectItem value="SO-MOCK-01">SO-MOCK-01 (Dummy)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

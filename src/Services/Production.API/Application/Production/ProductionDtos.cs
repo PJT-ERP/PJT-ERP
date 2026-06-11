@@ -48,6 +48,11 @@ public sealed record SalesOrderDto(
     Guid? QcReviewerUserId,
     string? QcReviewerName,
     string Status,
+    string ProductionStatus,
+    DateTime? StartedAtUtc,
+    DateTime? FinishedAtUtc,
+    string? QcDecision,
+    string? DrawingFileUrl,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderItemDto> Items);

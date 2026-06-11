@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Search, FileText, CreditCard, MinusCircle,
   PlusCircle, Download, LayoutList, Clock3,
   ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
-import { transactions, formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
+import { financeApi, InvoiceDto } from '../../services/financeApi';
+import { formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
   INVOICE: { label: 'Invoice', icon: FileText, color: 'text-red-600', bg: 'bg-red-100' },
@@ -25,13 +26,28 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function TransactionHistory() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'ALL'>('ALL');
   const [customerFilter, setCustomerFilter] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
 
-  const uniqueCustomers = useMemo(() => Array.from(new Set(transactions.map(t => t.customerName))), []);
+  useEffect(() => {
+    const loadTransactions = async () => {
+      try {
+        const invoices = await financeApi.listInvoices();
+        setTransactions(buildTransactions(invoices));
+      } catch (error) {
+        console.warn('Finance API unavailable; transaction seed data was not loaded.', error);
+        setTransactions([]);
+      }
+    };
+
+    void loadTransactions();
+  }, []);
+
+  const uniqueCustomers = useMemo(() => Array.from(new Set(transactions.map(t => t.customerName))), [transactions]);
 
   const filtered = useMemo(() => {
     const result = transactions.filter(t => {
@@ -51,7 +67,7 @@ export function TransactionHistory() {
     });
 
     return result;
-  }, [search, typeFilter, customerFilter, sortOrder]);
+  }, [search, typeFilter, customerFilter, sortOrder, transactions]);
 
   const totalCredit = transactions.reduce((s, t) => s + t.credit, 0);
   const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
@@ -294,4 +310,48 @@ export function TransactionHistory() {
       </div>
     </div>
   );
+}
+
+function buildTransactions(invoices: InvoiceDto[]): Transaction[] {
+  const rows: Transaction[] = [];
+
+  invoices.forEach(invoice => {
+    rows.push({
+      id: `INV-${invoice.id}`,
+      type: 'INVOICE',
+      referenceNumber: invoice.invoiceNumber,
+      description: `Penerbitan invoice ${invoice.salesOrderNumber}`,
+      debit: invoice.totalAmount,
+      credit: 0,
+      balance: 0,
+      date: invoice.invoiceDate,
+      status: invoice.status === 'Paid' ? 'COMPLETED' : 'OUTSTANDING',
+      customerName: invoice.customerName,
+      category: 'Piutang',
+    });
+
+    invoice.payments.forEach(payment => {
+      rows.push({
+        id: `PAY-${payment.id}`,
+        type: 'PAYMENT',
+        referenceNumber: `PAY-${payment.id.slice(0, 8).toUpperCase()}`,
+        description: `Penerimaan pembayaran ${invoice.invoiceNumber}`,
+        debit: 0,
+        credit: payment.amount,
+        balance: 0,
+        date: payment.paymentDate,
+        status: 'COMPLETED',
+        customerName: invoice.customerName,
+        category: 'Penerimaan',
+      });
+    });
+  });
+
+  let balance = 0;
+  return rows
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map(row => {
+      balance += row.debit - row.credit;
+      return { ...row, balance: Math.max(0, balance) };
+    });
 }

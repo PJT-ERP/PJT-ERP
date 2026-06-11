@@ -282,7 +282,7 @@ export function InvoiceList() {
         <div>
           <h1 className="text-xl text-slate-900">Daftar Invoice</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Kelola semua invoice proyek manufaktur {isUsingBackend ? '· data backend' : '· data mock'}
+            Kelola semua invoice proyek manufaktur {isUsingBackend ? '· data backend' : '· backend belum tersedia'}
           </p>
         </div>
         <div className="flex items-center gap-2">

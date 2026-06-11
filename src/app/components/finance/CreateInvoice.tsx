@@ -4,7 +4,7 @@ import {
   Plus, Trash2, ChevronDown, Save, Eye, ArrowLeft,
   CheckCircle2, Building2, FileText, Hash, Calendar, Printer
 } from 'lucide-react';
-import { salesOrders, customers, formatIDR } from './mockData';
+import { formatIDR } from './mockData';
 import { useERPStore } from '../../store/useERPStore';
 import { financeApi } from '../../services/financeApi';
 import { useFinanceData } from './useFinanceData';
@@ -32,7 +32,7 @@ const newItem = (): LineItem => ({
 export function CreateInvoice() {
   const navigate = useNavigate();
   const { pendingSOs, createInvoiceFromSO } = useERPStore();
-  const { invoiceCandidates, isUsingBackend, refresh } = useFinanceData();
+  const { invoiceCandidates, refresh } = useFinanceData();
   
   const [selectedSO, setSelectedSO] = useState('');
   const [paymentTerm, setPaymentTerm] = useState('30 Hari');
@@ -49,13 +49,8 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  // Find SO from either mock data or live store
-  const mockSo = salesOrders.find(s => s.id === selectedSO);
   const liveSo = pendingSOs.find(s => s.id === selectedSO);
   const backendCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
-  
-  // For mock SOs, we use mock customers
-  const mockCustomer = mockSo ? customers.find(c => c.id === mockSo.customerId) : null;
   
   // Unified data for display
   const displayCustomer = backendCandidate ? {
@@ -70,10 +65,10 @@ export function CreateInvoice() {
     email: liveSo.email,
     npwp: '-',
     address: liveSo.address,
-  } : mockCustomer;
+  } : null;
   
-  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : liveSo ? liveSo.soNumber : (mockSo ? mockSo.soNumber : '');
-  const displayCustomerName = backendCandidate ? backendCandidate.customerName : liveSo ? liveSo.company : (mockSo ? mockSo.customerName : '');
+  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : liveSo ? liveSo.soNumber : '';
+  const displayCustomerName = backendCandidate ? backendCandidate.customerName : liveSo ? liveSo.company : '';
 
   // Auto-fill items when SO is selected
   useEffect(() => {
@@ -92,14 +87,6 @@ export function CreateInvoice() {
         quantity: liveSo.quantity,
         unit: liveSo.unit,
         unitPrice: liveSo.estimatedAmount || 0,
-      }]);
-    } else if (mockSo) {
-      setItems([{
-        id: String(idCounter++),
-        description: mockSo.description,
-        quantity: 1,
-        unit: 'LS',
-        unitPrice: mockSo.totalAmount,
       }]);
     } else {
       setItems([newItem()]);
@@ -194,7 +181,7 @@ export function CreateInvoice() {
           </div>
           <h2 className="text-lg text-slate-900 mb-2">Invoice Berhasil Dibuat!</h2>
           <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{invoiceNumber}</span></p>
-          {(liveSo || mockSo) && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
+          {(liveSo || backendCandidate) && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
           <div className="flex gap-3">
             <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Lihat Daftar Invoice
@@ -246,7 +233,7 @@ export function CreateInvoice() {
               <div>
                 <h3 className="text-sm font-bold text-red-900 mb-1">Pilih Basis Sales Order</h3>
                 <p className="text-xs text-red-700 font-medium">
-                  Data pelanggan dan detail pesanan akan diisi otomatis {isUsingBackend ? 'dari backend Finance' : 'dari data testing'}.
+                  Data pelanggan dan detail pesanan akan diisi otomatis dari backend Finance.
                 </p>
               </div>
               <div className="relative w-full sm:w-72 flex-shrink-0">
@@ -270,11 +257,6 @@ export function CreateInvoice() {
                       ))}
                     </optgroup>
                   )}
-                  <optgroup label="Mock Sales Orders">
-                    {salesOrders.map(so => (
-                      <option key={so.id} value={so.id}>{so.soNumber} · {so.customerName}</option>
-                    ))}
-                  </optgroup>
                 </select>
                 <ChevronDown size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>

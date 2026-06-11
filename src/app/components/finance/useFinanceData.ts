@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { financeApi, InvoiceCandidateDto, InvoiceDto } from '../../services/financeApi';
-import { invoices as mockInvoices, type Invoice, type InvoiceStatus } from './mockData';
+import { type Invoice, type InvoiceStatus } from './mockData';
 
 function mapStatus(status: string, paidAmount: number, totalAmount: number): InvoiceStatus {
   const normalized = status.toLowerCase();
@@ -85,7 +85,7 @@ export function useFinanceData() {
       setInvoiceCandidates(candidates);
       setIsUsingBackend(true);
     } catch (error) {
-      console.warn('Finance API unavailable, using mock finance data.', error);
+      console.warn('Finance API unavailable; finance seed data was not loaded.', error);
       setBackendInvoices([]);
       setInvoiceCandidates([]);
       setIsUsingBackend(false);
@@ -98,7 +98,7 @@ export function useFinanceData() {
     void refresh();
   }, [refresh]);
 
-  const invoices = isUsingBackend ? backendInvoices : mockInvoices;
+  const invoices = backendInvoices;
 
   return useMemo(() => ({
     invoices,

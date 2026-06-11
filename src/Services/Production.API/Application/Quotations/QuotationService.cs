@@ -504,6 +504,11 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             salesOrder.QcReviewerUserId,
             salesOrder.QcReviewerName,
             salesOrder.Status,
+            ProductionOrderStatuses.Waiting,
+            null,
+            null,
+            null,
+            null,
             salesOrder.CreatedAtUtc,
             salesOrder.UpdatedAtUtc,
             salesOrder.Items

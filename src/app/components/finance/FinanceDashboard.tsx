@@ -10,7 +10,6 @@ import {
   AlertCircle, Wallet, RefreshCw, Users
 } from 'lucide-react';
 import {
-  payments, monthlyRevenueData as mockMonthlyRevenueData, invoiceStatusData as mockInvoiceStatusData,
   formatIDR, formatDate
 } from './mockData';
 import { useFinanceData } from './useFinanceData';
@@ -122,9 +121,12 @@ export function FinanceDashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
 
   const recentInvoices = [...invoices].slice(0, 5);
-  const pendingPayments = payments.filter(p => p.status === 'PENDING');
-  const chartRevenueData = monthlyRevenueData.length > 0 ? monthlyRevenueData : mockMonthlyRevenueData;
-  const chartStatusData = invoiceStatusData.length > 0 ? invoiceStatusData : mockInvoiceStatusData;
+  const pendingPayments = invoices.filter(invoice => invoice.status === 'PENDING' || invoice.status === 'OVERDUE');
+  const chartRevenueData = monthlyRevenueData;
+  const chartStatusData = invoiceStatusData;
+  const quickActions = QUICK_ACTIONS.map(action => action.label === 'Verifikasi Pembayaran'
+    ? { ...action, badge: pendingPayments.length > 0 ? String(pendingPayments.length) : undefined }
+    : action);
 
   const uniqueCustomers = useMemo(() => Array.from(new Set(invoices.map(t => t.customerName))), [invoices]);
 
@@ -145,6 +147,20 @@ export function FinanceDashboard() {
       ...data
     })).sort((a, b) => b.total - a.total);
   }, [activeTab, selectedCustomer, invoices]);
+
+  const financeSummary = useMemo(() => {
+    const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
+    const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
+    const overdueAmount = invoices
+      .filter(invoice => invoice.status === 'OVERDUE')
+      .reduce((sum, invoice) => sum + Math.max(0, invoice.amount - invoice.paidAmount), 0);
+
+    return {
+      outstandingAmount: Math.max(0, totalBilled - totalPaid),
+      overdueAmount,
+      collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
+    };
+  }, [invoices]);
 
   // Adjust KPIs dynamically based on tab and selected customer
   const displayKPIs = useMemo(() => {
@@ -171,7 +187,7 @@ export function FinanceDashboard() {
         <div>
           <h1 className="text-xl text-slate-900">Dashboard Keuangan</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Ringkasan keuangan PT Pratama Jaya Tekindo · {isUsingBackend ? 'data backend' : 'data mock'}
+            Ringkasan keuangan PT Pratama Jaya Tekindo · {isUsingBackend ? 'data backend' : 'backend belum tersedia'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -405,7 +421,7 @@ export function FinanceDashboard() {
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
               <h3 className="text-slate-800 text-sm font-semibold mb-3">Aksi Cepat</h3>
               <div className="space-y-2">
-                {QUICK_ACTIONS.map(a => (
+                {quickActions.map(a => (
                   <button
                     key={a.label}
                     onClick={() => navigate(a.to)}
@@ -427,15 +443,15 @@ export function FinanceDashboard() {
             {/* Finance Summary */}
             <div className="bg-[#0D1B2A] rounded-xl p-5 text-white shadow-sm">
               <p className="text-xs text-slate-400 mb-1">Total Piutang Aktif</p>
-              <p className="text-2xl font-bold text-white">{formatIDR(1392450000)}</p>
+              <p className="text-2xl font-bold text-white">{formatIDR(financeSummary.outstandingAmount)}</p>
               <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[10px] text-slate-500">Overdue</p>
-                  <p className="text-sm font-semibold text-red-400">{formatIDR(343200000)}</p>
+                  <p className="text-sm font-semibold text-red-400">{formatIDR(financeSummary.overdueAmount)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-500">Collection Rate</p>
-                  <p className="text-sm font-semibold text-green-400">74.2%</p>
+                  <p className="text-sm font-semibold text-green-400">{financeSummary.collectionRate}%</p>
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -52,137 +53,6 @@ interface PO {
   financeApproval?: "Pending" | "Approved" | "Rejected";
 }
 
-const PO_DATA: PO[] = [
-  {
-    id: "PO-2405-031",
-    supplier: "CV Bintang Logam",
-    supplierCode: "SUP-012",
-    contact: "Bambang Suprapto",
-    contactPhone: "+62 813-5678-9012",
-    orderDate: "20 Mei 2026",
-    dueDate: "27 Mei 2026",
-    deliveryStatus: "In Transit",
-    paymentStatus: "Unpaid",
-    paymentTerms: "Net 7",
-    requestRefs: ["MR-2405-018"],
-    soRefs: ["SO-2026-014"],
-    category: "Project",
-    shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
-    notes: "Koordinasi pengiriman dengan Pak Wahyu (08xx-xxxx-xxxx). Minta SJ dan CoC.",
-    items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 20, unit: "batang", totalPrice: 3700000, received: 0 },
-      { code: "MAT-002", name: "Plat Besi 3mm", spec: "3mm, 120x240cm", qty: 10, unit: "lembar", totalPrice: 4200000, received: 0 },
-      { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "40x40x3mm, 6m", qty: 15, unit: "batang", totalPrice: 2175000, received: 0 },
-    ],
-    financeApproval: "Approved",
-  },
-  {
-    id: "PO-2405-030",
-    supplier: "PT Sumber Teknik",
-    supplierCode: "SUP-007",
-    contact: "Agus Setiawan",
-    contactPhone: "+62 811-2233-4455",
-    orderDate: "19 Mei 2026",
-    dueDate: "26 Mei 2026",
-    deliveryStatus: "Open",
-    paymentStatus: "Unpaid",
-    paymentTerms: "Net 14",
-    requestRefs: ["MR-2405-017"],
-    soRefs: [],
-    category: "Maintenance",
-    shippingAddress: "Gudang Spare Parts — Jl. Industri No. 1, Bekasi",
-    notes: "Sertakan certificate of conformance untuk bearing.",
-    items: [
-      { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 12, unit: "pcs", totalPrice: 1020000, received: 0 },
-      { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 6, unit: "pcs", totalPrice: 450000, received: 0 },
-    ],
-  },
-  {
-    id: "PO-2405-029",
-    supplier: "UD Maju Jaya",
-    supplierCode: "SUP-021",
-    contact: "Joko Widodo",
-    contactPhone: "+62 819-8765-4321",
-    orderDate: "18 Mei 2026",
-    dueDate: "24 Mei 2026",
-    deliveryStatus: "Partial",
-    paymentStatus: "Partial",
-    paymentTerms: "Net 14",
-    requestRefs: ["MR-2405-016", "MR-2405-012"],
-    soRefs: [],
-    category: "Consumable",
-    shippingAddress: "Gudang Bahan Kimia — Jl. Industri No. 1, Bekasi",
-    notes: "Sisa kiriman (4 kaleng cat + 4 kaleng thinner) dalam proses.",
-    items: [
-      { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "Grey, 4L", qty: 10, unit: "kaleng", totalPrice: 1850000, received: 6 },
-      { code: "MAT-010", name: "Thinner Epoxy", spec: "4L", qty: 10, unit: "kaleng", totalPrice: 650000, received: 6 },
-      { code: "MAT-008", name: "Kuas 4\"", spec: "Synthetic Bristle", qty: 20, unit: "pcs", totalPrice: 300000, received: 20 },
-    ],
-  },
-  {
-    id: "PO-2405-028",
-    supplier: "PT Indo Steel",
-    supplierCode: "SUP-003",
-    contact: "Hendra Wijaya",
-    contactPhone: "+62 812-3456-7890",
-    orderDate: "15 Mei 2026",
-    dueDate: "22 Mei 2026",
-    deliveryStatus: "Closed",
-    paymentStatus: "Paid",
-    paymentTerms: "Net 30",
-    requestRefs: ["MR-2405-015"],
-    soRefs: ["SO-2026-011"],
-    category: "Project",
-    shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
-    notes: "Selesai. Semua item diterima dalam kondisi baik.",
-    items: [
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 10, unit: "batang", totalPrice: 18500000, received: 10 },
-      { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 10, unit: "batang", totalPrice: 7800000, received: 10 },
-    ],
-  },
-  {
-    id: "PO-2405-027",
-    supplier: "CV Tekno Prima",
-    supplierCode: "SUP-015",
-    contact: "Doni Prakoso",
-    contactPhone: "+62 878-1234-5678",
-    orderDate: "17 Mei 2026",
-    dueDate: "24 Mei 2026",
-    deliveryStatus: "Confirmed",
-    paymentStatus: "Unpaid",
-    paymentTerms: "Cash",
-    requestRefs: ["MR-2405-013"],
-    soRefs: [],
-    category: "Tools",
-    shippingAddress: "Gudang K3 — Jl. Industri No. 1, Bekasi",
-    notes: "",
-    items: [
-      { code: "MAT-005", name: "Elektroda Las E6013", spec: "3.2mm, 5kg/box", qty: 4, unit: "box", totalPrice: 860000, received: 0 },
-      { code: "MAT-008", name: "Mata Gerinda Potong 4\"", spec: "4\" x 1.2mm", qty: 20, unit: "pcs", totalPrice: 170000, received: 0 },
-    ],
-  },
-  {
-    id: "PO-2405-026",
-    supplier: "PT Indo Steel",
-    supplierCode: "SUP-003",
-    contact: "Hendra Wijaya",
-    contactPhone: "+62 812-3456-7890",
-    orderDate: "10 Mei 2026",
-    dueDate: "18 Mei 2026",
-    deliveryStatus: "Closed",
-    paymentStatus: "Paid",
-    paymentTerms: "Net 30",
-    requestRefs: ["MR-2405-010"],
-    soRefs: ["SO-2026-009"],
-    category: "Project",
-    shippingAddress: "Gudang Utama",
-    notes: "",
-    items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 50, unit: "batang", totalPrice: 9100000, received: 50 },
-    ],
-  },
-];
-
 const SUPPLIERS = ["CV Bintang Logam", "PT Sumber Teknik", "UD Maju Jaya", "PT Indo Steel", "CV Tekno Prima", "PT Karya Mandiri"];
 
 /* ── Status configs ────────────────────────────────────────── */
@@ -209,6 +79,92 @@ const formatRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
 const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / item.qty : 0;
 const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
+
+function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
+  const byPo = new Map<string, PO>();
+
+  requests.forEach(request => {
+    request.items
+      .filter(item => item.poNumber)
+      .forEach(item => {
+        const poNumber = item.poNumber!;
+        const existing = byPo.get(poNumber);
+        const totalPrice = item.totalPrice ?? item.estimatedPrice ?? 0;
+        const poItem: POItem = {
+          code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          name: item.itemName,
+          spec: item.size || item.notes || "-",
+          qty: item.qty,
+          unit: "pcs",
+          totalPrice,
+          received: item.purchaseStatus === "Received" ? item.qty : 0,
+        };
+
+        if (existing) {
+          existing.items.push(poItem);
+          if (request.prNumber && !existing.requestRefs.includes(request.prNumber)) {
+            existing.requestRefs.push(request.prNumber);
+          }
+          if (item.salesOrderNumber && !existing.soRefs.includes(item.salesOrderNumber)) {
+            existing.soRefs.push(item.salesOrderNumber);
+          }
+          existing.deliveryStatus = mergeDeliveryStatus(existing.deliveryStatus, mapDeliveryStatus(item.purchaseStatus));
+          existing.paymentStatus = calcReceived(existing.items) > 0 && calcReceived(existing.items) < calcTotal(existing.items) ? "Partial" : existing.paymentStatus;
+          return;
+        }
+
+        byPo.set(poNumber, {
+          id: poNumber,
+          supplier: item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan",
+          supplierCode: "SUP-BACKEND",
+          contact: "-",
+          contactPhone: "-",
+          orderDate: formatPoDate(item.purchaseDate || request.requestDate),
+          dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
+          deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
+          paymentStatus: item.purchaseStatus === "Received" ? "Paid" : "Unpaid",
+          paymentTerms: "Net 14",
+          requestRefs: [request.prNumber],
+          soRefs: item.salesOrderNumber ? [item.salesOrderNumber] : [],
+          category: (item.purchaseCategory || "Project") as PO["category"],
+          shippingAddress: "Gudang Utama - PT Pratama Jaya Tekindo",
+          notes: item.purchaseNotes || item.notes || "",
+          financeApproval: request.financeReviewedAtUtc
+            ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
+            : "Pending",
+          items: [poItem],
+        });
+      });
+  });
+
+  return [...byPo.values()].sort((a, b) => b.id.localeCompare(a.id));
+}
+
+function mapDeliveryStatus(status: string): PO["deliveryStatus"] {
+  if (status === "Received") return "Closed";
+  if (status === "Ordered") return "In Transit";
+  if (status === "Approved") return "Confirmed";
+  if (status === "Rejected") return "Cancelled";
+  return "Open";
+}
+
+function mergeDeliveryStatus(current: PO["deliveryStatus"], next: PO["deliveryStatus"]): PO["deliveryStatus"] {
+  const rank: Record<PO["deliveryStatus"], number> = {
+    Cancelled: 0,
+    Open: 1,
+    Confirmed: 2,
+    "In Transit": 3,
+    Partial: 4,
+    Received: 5,
+    Closed: 6,
+  };
+
+  return rank[next] > rank[current] ? next : current;
+}
+
+function formatPoDate(value: string) {
+  return new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
@@ -257,6 +213,7 @@ interface PurchaseOrdersPageProps {
 }
 
 export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
+  const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [detail, setDetail] = useState<PO | null>(null);
@@ -271,7 +228,21 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const [formNotes, setFormNotes] = useState("");
   const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", totalPrice: "" }]);
 
-  const filtered = PO_DATA.filter((p) => {
+  useEffect(() => {
+    const loadPurchaseOrders = async () => {
+      try {
+        const requests = await purchasingApi.listPurchaseRequests();
+        setPurchaseOrders(mapPurchaseRequestsToPos(requests));
+      } catch (error) {
+        console.warn("Purchasing API unavailable; purchase order seed data was not loaded.", error);
+        setPurchaseOrders([]);
+      }
+    };
+
+    void loadPurchaseOrders();
+  }, []);
+
+  const filtered = purchaseOrders.filter((p) => {
     const q = search.toLowerCase();
     const matchQ = !q
       || p.id.toLowerCase().includes(q)
@@ -355,7 +326,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* Status summary */}
       <div className="flex flex-wrap gap-2">
         {(Object.keys(deliveryCfg) as string[]).map((s) => {
-          const n = PO_DATA.filter((p) => p.deliveryStatus === s).length;
+          const n = purchaseOrders.filter((p) => p.deliveryStatus === s).length;
           if (!n) return null;
           const cfg = deliveryCfg[s];
           const active = filterStatus === s;
@@ -573,7 +544,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
         </div>
 
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {PO_DATA.length} purchase order</p>
+          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {purchaseOrders.length} purchase order</p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
             Total: {formatRp(filtered.reduce((s, p) => s + calcTotal(p.items), 0))}
           </p>

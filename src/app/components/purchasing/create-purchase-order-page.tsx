@@ -157,7 +157,6 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
               <option value="">Pilih SO opsional</option>
               <option value="none">Tanpa SO / Non-project</option>
               {allSOs.map(so => <option key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</option>)}
-              <option value="SO-MOCK-01">SO-MOCK-01 (Dummy)</option>
             </select>
           </div>
           <div className="space-y-1.5">

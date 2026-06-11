@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PJT_ERP.Shared.Infrastructure.Persistence;
 
 namespace PJT_ERP.QC.Api.Infrastructure.Persistence;
 
@@ -55,5 +56,7 @@ public static class QcSchemaInitializer
             WHERE decision IN ('Rejected', 'Reject', 'Fail', 'No Go');
             """,
             cancellationToken);
+
+        await db.Database.ExecuteSeedSqlAsync(cancellationToken: cancellationToken);
     }
 }

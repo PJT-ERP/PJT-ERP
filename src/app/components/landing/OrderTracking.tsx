@@ -49,45 +49,6 @@ type TrackingResult = {
   designReference?: string | null;
 };
 
-const MOCK_ORDERS: Record<string, TrackingResult> = {
-  "SO-2024-001": {
-    soNumber: "SO-2024-001",
-    customer: "PT Energi Nusantara",
-    product: "Shaft Coupling CNC — Ø80mm",
-    quantity: "25 pcs",
-    status: "in_production",
-    estimatedCompletion: "2 June 2026",
-    notes: "Material certified, machining in progress — Batch 1 of 2",
-  },
-  "SO-2024-002": {
-    soNumber: "SO-2024-002",
-    customer: "CV Mitra Konstruksi",
-    product: "Custom Bracket Assembly",
-    quantity: "50 pcs",
-    status: "qc_checking",
-    estimatedCompletion: "28 May 2026",
-    notes: "Production complete, undergoing dimensional inspection",
-  },
-  "SO-2024-003": {
-    soNumber: "SO-2024-003",
-    customer: "PT Alat Berat Sejahtera",
-    product: "Precision Bushing Ø45mm",
-    quantity: "100 pcs",
-    status: "completed",
-    estimatedCompletion: "20 May 2026",
-    notes: "Delivered with CoC documentation",
-  },
-  "SO-2024-004": {
-    soNumber: "SO-2024-004",
-    customer: "PT Industri Prima",
-    product: "Flange Plate — Custom Spec",
-    quantity: "12 pcs",
-    status: "engineering_review",
-    estimatedCompletion: "15 June 2026",
-    notes: "DFM review in progress, awaiting engineering sign-off",
-  },
-};
-
 function StatusBadge({ status }: { status: StatusKey }) {
   const cfg = STATUS_CONFIG[status];
   return (
@@ -222,21 +183,12 @@ export function OrderTracking() {
     try {
       const tracking = await productionApi.getPublicTracking(trimmed);
       setResult(mapBackendTracking(tracking));
-      setLoading(false);
-      return;
     } catch (error) {
-      console.warn("Backend tracking unavailable or order not found, falling back to mock data.", error);
-    }
-
-    window.setTimeout(() => {
-      const found = MOCK_ORDERS[trimmed];
-      if (found) {
-        setResult(found);
-      } else {
-        setNotFound(true);
-      }
+      console.warn("Backend tracking unavailable or order not found.", error);
+      setNotFound(true);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -350,17 +302,17 @@ export function OrderTracking() {
             className="mb-6"
           >
             Try: <button
-              onClick={() => { setSoInput("SO-2024-001"); }}
+              onClick={() => { setSoInput("SO-2026001"); }}
               style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2024-001</button>,{" "}
+            >SO-2026001</button>,{" "}
             <button
-              onClick={() => { setSoInput("SO-2024-002"); }}
+              onClick={() => { setSoInput("SO-2026038"); }}
               style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2024-002</button>,{" "}
+            >SO-2026038</button>,{" "}
             <button
-              onClick={() => { setSoInput("SO-2024-003"); }}
+              onClick={() => { setSoInput("SO-2026025"); }}
               style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2024-003</button>
+            >SO-2026025</button>
           </p>
 
           {/* Not found state */}

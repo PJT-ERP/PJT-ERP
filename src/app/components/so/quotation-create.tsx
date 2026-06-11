@@ -6,7 +6,7 @@ import {
   ChevronRight, Trash2, GripVertical,
   Layers, Link as LinkIcon
 } from "lucide-react";
-import { productOptions, ENGINEERING_DESIGNS, STANDARD_PRODUCTS_BOM } from "../data/mockData";
+import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import type { Page } from "../layout/erp-layout";
 import { useERPStore } from "../../store/useERPStore";
@@ -50,6 +50,14 @@ interface ProductRow {
   quantity: string;
   unit: string;
   notes: string;
+}
+
+interface ProductOption {
+  id: string;
+  label: string;
+  partNumber: string;
+  unit: string;
+  materialSpec?: string | null;
 }
 
 const emptyProduct = (): ProductRow => ({
@@ -197,11 +205,12 @@ interface ProductRowProps {
   row: ProductRow;
   index: number;
   total: number;
+  productOptions: ProductOption[];
   onChange: (updated: ProductRow) => void;
   onRemove: () => void;
 }
 
-function ProductLineItem({ row, index, total, onChange, onRemove }: ProductRowProps) {
+function ProductLineItem({ row, index, total, productOptions, onChange, onRemove }: ProductRowProps) {
   const isCustom = row.type === "custom";
 
   return (
@@ -260,16 +269,25 @@ function ProductLineItem({ row, index, total, onChange, onRemove }: ProductRowPr
           ) : (
             <Select value={row.productName} onChange={e => {
               const pName = e.target.value;
-              const stdBom = STANDARD_PRODUCTS_BOM[pName];
+              const selected = productOptions.find(product => product.label === pName);
               onChange({
                 ...row,
                 productName: pName,
                 designId: "",
-                materials: stdBom ? stdBom.map(m => ({ id: m.id, name: m.name, specification: m.spec, quantity: String(m.quantity), unit: m.unit })) : []
+                unit: selected?.unit.toLowerCase() || row.unit,
+                materials: selected?.materialSpec ? [{
+                  id: selected.id,
+                  name: selected.partNumber,
+                  specification: selected.materialSpec,
+                  quantity: "1",
+                  unit: selected.unit.toLowerCase(),
+                }] : [],
               });
             }} required>
               <option value="">— Pilih produk —</option>
-              {productOptions.map(p => <option key={p} value={p}>{p}</option>)}
+              {productOptions.map(product => (
+                <option key={product.id} value={product.label}>{product.label}</option>
+              ))}
             </Select>
           )}
         </div>
@@ -383,8 +401,15 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProps) {
-  const { customers, addQuotation, addCustomer, quotations, updateQuotation } = useApp();
+  const { customers, productCatalog, addQuotation, addCustomer, quotations, updateQuotation } = useApp();
   const allSos = quotations; // rename later if needed
+  const catalogProductOptions = productCatalog.map(product => ({
+    id: product.id,
+    label: `${product.partNumber} - ${product.description}`,
+    partNumber: product.partNumber,
+    unit: product.unit || "pcs",
+    materialSpec: product.materialSpec,
+  }));
 
   const isEdit = initialData?.mode === "edit";
   const editSoId = initialData?.soId;
@@ -461,7 +486,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
   const handleNewOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Using the first product for the store representation (simplification for the mock store)
+    // Using the first product for the local store representation.
     const primaryProduct = products[0];
 
     // Check if customer exists, if not create
@@ -520,7 +545,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
     e.preventDefault();
     if (!selectedCustomer) return;
 
-    // Using the first product for the store representation (simplification for the mock store)
+    // Using the first product for the local store representation.
     const primaryProduct = repeatProducts[0];
 
     const newQUT = addQuotation({
@@ -707,6 +732,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <ProductLineItem
                   key={row.id}
                   row={row} index={idx} total={products.length}
+                  productOptions={catalogProductOptions}
                   onChange={updated => updateProduct(row.id, updated, products, setProducts)}
                   onRemove={() => removeProduct(row.id, setProducts)}
                 />

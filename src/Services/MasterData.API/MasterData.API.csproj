@@ -24,4 +24,10 @@
     <ProjectReference Include="..\..\SharedLib\Shared.Logging\Shared.Logging.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Infrastructure\Persistence\SeedData.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
+      <TargetPath>SeedData.sql</TargetPath>
+    </Content>
+  </ItemGroup>
+
 </Project>

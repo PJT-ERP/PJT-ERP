@@ -2,10 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode, Disp
 import {
   User, SalesOrder, Customer, UserRole,
   PurchasingRequest, PurchasingStatus, Quotation,
-  USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING, INITIAL_QUOTATIONS
+  USERS
 } from "../data/mockData";
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
-import { salesApi, CustomerDto, SalesOrderDto } from "../../services/salesApi";
+import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../services/salesApi";
+import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 
 interface AppContextType {
   currentUser: User | null;
@@ -14,6 +15,7 @@ interface AppContextType {
   quotations: Quotation[];
   salesOrders: SalesOrder[];
   customers: Customer[];
+  productCatalog: ProductDto[];
   users: User[];
   purchasingRequests: PurchasingRequest[];
   addQuotation: (q: Omit<Quotation, 'id' | 'createdAt' | 'createdBy'>) => Quotation;
@@ -34,11 +36,12 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [quotations, setQuotations] = useState<Quotation[]>(INITIAL_QUOTATIONS);
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>(INITIAL_SALES_ORDERS);
-  const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [productCatalog, setProductCatalog] = useState<ProductDto[]>([]);
   const [users, setUsers] = useState<User[]>(USERS);
-  const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>(INITIAL_PURCHASING);
+  const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>([]);
   const [backendCustomerIdsByCode, setBackendCustomerIdsByCode] = useState<Record<string, string>>({});
   const pendingCustomersByCode = useRef<Record<string, Customer>>({});
   const [qutCounter, setQutCounter] = useState(5);
@@ -56,22 +59,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadBackendData = async () => {
       try {
-        const [backendCustomers, backendQuotations, backendSalesOrders] = await Promise.all([
+        const [backendCustomers, backendProducts, backendQuotations, backendSalesOrders, backendPurchaseRequests] = await Promise.all([
           salesApi.listCustomers(),
+          salesApi.listProducts(),
           quotationApi.list(),
           salesApi.listSalesOrders(),
+          purchasingApi.listPurchaseRequests(),
         ]);
 
         setBackendCustomerIdsByCode(
           Object.fromEntries(backendCustomers.map(customer => [customer.code, customer.id])),
         );
         setCustomers(backendCustomers.map(mapCustomerDto));
+        setProductCatalog(backendProducts.filter(product => product.isActive !== false));
         setQuotations(backendQuotations.map(mapQuotationDto));
-        if (backendSalesOrders.length > 0) {
-          setSalesOrders(backendSalesOrders.map(mapSalesOrderDto));
-        }
+        setSalesOrders(backendSalesOrders.map(mapSalesOrderDto));
+        setPurchasingRequests(backendPurchaseRequests.map(mapPurchaseRequestDto));
       } catch (error) {
-        console.warn("Backend unavailable, using local mock ERP data.", error);
+        console.warn("Backend unavailable; business seed data was not loaded.", error);
       }
     };
 
@@ -163,7 +168,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, login, logout,
-      quotations, salesOrders, customers, users, purchasingRequests,
+      quotations, salesOrders, customers, productCatalog, users, purchasingRequests,
       addQuotation, updateQuotation,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
@@ -243,13 +248,61 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     status: mapSalesOrderStatus(order),
     createdBy: "backend",
     createdAt: order.soDate,
-    designLink: order.designReference || order.customerDrawingUrl || undefined,
+    designLink: order.drawingFileUrl || order.designReference || order.customerDrawingUrl || undefined,
+    startTime: order.startedAtUtc || undefined,
+    endTime: order.finishedAtUtc || undefined,
+    qcStatus: mapQcDecision(order.qcDecision),
+    qcAt: order.finishedAtUtc || undefined,
+    completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")[0] : undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
     notes: order.items.map(item => item.notes).filter(Boolean).join("; ") || undefined,
     backendDesignStatus: order.designStatus,
   };
+}
+
+function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
+  const firstItem = request.items[0];
+  const urgency: PurchasingRequest["urgency"] = request.items.some(item => item.urgency === "Critical")
+    ? "Critical"
+    : request.items.some(item => item.urgency === "Urgent")
+      ? "Urgent"
+      : "Normal";
+
+  return {
+    id: request.prNumber,
+    soId: request.salesOrderNumber || undefined,
+    salesOrderId: request.salesOrderId || undefined,
+    itemName: request.items.length === 1 ? firstItem?.itemName || "-" : `${request.items.length} item material`,
+    specification: request.items.map(item => item.itemName).join(", "),
+    quantity: firstItem?.qty || request.items.length,
+    unit: "PCS",
+    items: request.items.map(item => ({
+      itemName: item.itemName,
+      specification: item.size || item.notes || "",
+      quantity: item.qty,
+      unit: "PCS",
+    })),
+    urgency,
+    notes: request.projectName || "",
+    requestedBy: request.requestedByUserId,
+    requestedAt: request.requestDate,
+    status: mapPurchasingStatus(request.status),
+    supplier: request.items.map(item => item.supplierName).find(Boolean) || undefined,
+    poNumber: request.items.map(item => item.poNumber).find(Boolean) || undefined,
+    estimatedPrice: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0) || undefined,
+    expectedDelivery: request.items.map(item => item.expectedArrivalDate).find(Boolean) || undefined,
+    receivedAt: request.items.map(item => item.receivedDate).find(Boolean) || undefined,
+    rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+  };
+}
+
+function mapPurchasingStatus(status: string): PurchasingStatus {
+  if (status === "Completed") return "Selesai";
+  if (status === "Processing" || status === "FinanceApproved") return "Diproses";
+  if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
+  return "Pending";
 }
 
 function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
@@ -259,6 +312,14 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
 
   if (order.status === "Cancelled" || order.designStatus === "Rejected") {
     return "Rejected";
+  }
+
+  if (order.productionStatus === "Finished") {
+    return "QC";
+  }
+
+  if (order.productionStatus === "InProgress") {
+    return "In Production";
   }
 
   if (order.status === "InProduction" || order.status === "Confirmed") {
@@ -277,6 +338,22 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     default:
       return "Pending Design";
   }
+}
+
+function mapQcDecision(decision?: string | null): SalesOrder["qcStatus"] | undefined {
+  if (!decision) {
+    return undefined;
+  }
+
+  if (decision.toLowerCase() === "go") {
+    return "Go";
+  }
+
+  if (decision.toLowerCase() === "nogo" || decision.toLowerCase() === "no go") {
+    return "NoGo";
+  }
+
+  return undefined;
 }
 
 async function syncCreateQuotation(

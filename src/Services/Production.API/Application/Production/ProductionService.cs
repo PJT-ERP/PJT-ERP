@@ -13,6 +13,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         var orders = await db.SalesOrders
             .AsNoTracking()
             .Include(order => order.Items)
+            .Include(order => order.ProductionOrders)
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
@@ -460,6 +461,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     private static SalesOrderDto ToDto(SalesOrder order)
     {
+        var productionOrder = GetPrimaryProductionOrder(order);
+
         return new SalesOrderDto(
             order.Id,
             order.SoNumber,
@@ -480,6 +483,11 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.QcReviewerUserId,
             order.QcReviewerName,
             order.Status,
+            productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
+            productionOrder?.StartedAtUtc,
+            productionOrder?.FinishedAtUtc,
+            productionOrder?.QcDecision,
+            productionOrder?.DrawingFileUrl,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray());

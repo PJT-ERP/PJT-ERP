@@ -53,6 +53,11 @@ export interface SalesOrderDto {
   qcReviewerUserId?: string | null;
   qcReviewerName?: string | null;
   status: string;
+  productionStatus: string;
+  startedAtUtc?: string | null;
+  finishedAtUtc?: string | null;
+  qcDecision?: string | null;
+  drawingFileUrl?: string | null;
   items: Array<{
     id: string;
     productId: string;

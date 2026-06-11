@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PJT_ERP.Shared.Infrastructure.Persistence;
 
 namespace PJT_ERP.MasterData.Api.Infrastructure.Persistence;
 
@@ -13,5 +14,7 @@ public static class MasterDataSchemaInitializer
             ALTER TABLE customers ADD COLUMN IF NOT EXISTS email character varying(160);
             """,
             cancellationToken);
+
+        await db.Database.ExecuteSeedSqlAsync(cancellationToken: cancellationToken);
     }
 }
