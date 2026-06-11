@@ -42,9 +42,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             throw new InvalidOperationException("One or more products have not been replicated from MasterData yet.");
         }
 
+        var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
         var order = new SalesOrder
         {
-            SoNumber = GenerateNumber("SO"),
+            SoNumber = soNumber,
             CustomerId = customer.Id,
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
@@ -942,8 +943,34 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         };
     }
 
-    private static string GenerateNumber(string prefix)
+    private async Task<string> GenerateSalesOrderNumberAsync(CancellationToken cancellationToken)
     {
-        return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
+        var prefix = $"SO-{DateTime.UtcNow:yyyy}";
+        var existingNumbers = await db.SalesOrders
+            .AsNoTracking()
+            .Where(order => order.SoNumber.StartsWith(prefix))
+            .Select(order => order.SoNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length)
+            {
+                continue;
+            }
+
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max + 1;
     }
 }

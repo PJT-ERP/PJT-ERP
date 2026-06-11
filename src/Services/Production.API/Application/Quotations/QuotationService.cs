@@ -46,9 +46,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         var customer = await GetOrCreateCustomerReplicaAsync(request, now, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in production replica.");
 
+        var quotationNumber = await GenerateQuotationNumberAsync(cancellationToken);
         var quotation = new Quotation
         {
-            QuotationNumber = GenerateNumber("QU"),
+            QuotationNumber = quotationNumber,
             CustomerId = customer.Id,
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
@@ -324,9 +325,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         }
 
         var now = DateTime.UtcNow;
+        var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
         var order = new SalesOrder
         {
-            SoNumber = GenerateNumber("SO"),
+            SoNumber = soNumber,
             CustomerId = quotation.CustomerId,
             CustomerCode = quotation.CustomerCode,
             CustomerName = quotation.CustomerName,
@@ -574,8 +576,46 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static string GenerateNumber(string prefix)
+    private async Task<string> GenerateQuotationNumberAsync(CancellationToken cancellationToken)
     {
-        return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
+        var prefix = $"QU-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.Quotations
+            .AsNoTracking()
+            .Where(quotation => quotation.QuotationNumber.StartsWith(prefix))
+            .Select(quotation => quotation.QuotationNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private async Task<string> GenerateSalesOrderNumberAsync(CancellationToken cancellationToken)
+    {
+        var prefix = $"SO-{DateTime.UtcNow:yyyy}";
+        var existingNumbers = await db.SalesOrders
+            .AsNoTracking()
+            .Where(order => order.SoNumber.StartsWith(prefix))
+            .Select(order => order.SoNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length)
+            {
+                continue;
+            }
+
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max + 1;
     }
 }
