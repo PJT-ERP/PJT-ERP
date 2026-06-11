@@ -58,25 +58,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loadBackendData = async () => {
-      try {
-        const [backendCustomers, backendProducts, backendQuotations, backendSalesOrders, backendPurchaseRequests] = await Promise.all([
-          salesApi.listCustomers(),
-          salesApi.listProducts(),
-          quotationApi.list(),
-          salesApi.listSalesOrders(),
-          purchasingApi.listPurchaseRequests(),
-        ]);
+      const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult] = await Promise.allSettled([
+        salesApi.listCustomers(),
+        salesApi.listProducts(),
+        quotationApi.list(),
+        salesApi.listSalesOrders(),
+        purchasingApi.listPurchaseRequests(),
+      ]);
 
+      if (customersResult.status === "fulfilled") {
+        const backendCustomers = customersResult.value;
         setBackendCustomerIdsByCode(
           Object.fromEntries(backendCustomers.map(customer => [customer.code, customer.id])),
         );
         setCustomers(backendCustomers.map(mapCustomerDto));
-        setProductCatalog(backendProducts.filter(product => product.isActive !== false));
-        setQuotations(backendQuotations.map(mapQuotationDto));
-        setSalesOrders(backendSalesOrders.map(mapSalesOrderDto));
-        setPurchasingRequests(backendPurchaseRequests.map(mapPurchaseRequestDto));
-      } catch (error) {
-        console.warn("Backend unavailable; business seed data was not loaded.", error);
+      } else {
+        console.warn("Customer seed data was not loaded.", customersResult.reason);
+      }
+
+      if (productsResult.status === "fulfilled") {
+        setProductCatalog(productsResult.value.filter(product => product.isActive !== false));
+      } else {
+        console.warn("Product seed data was not loaded.", productsResult.reason);
+      }
+
+      if (quotationsResult.status === "fulfilled") {
+        setQuotations(quotationsResult.value.map(mapQuotationDto));
+      } else {
+        console.warn("Quotation seed data was not loaded.", quotationsResult.reason);
+      }
+
+      if (salesOrdersResult.status === "fulfilled") {
+        setSalesOrders(salesOrdersResult.value.map(mapSalesOrderDto));
+      } else {
+        console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
+      }
+
+      if (purchaseRequestsResult.status === "fulfilled") {
+        setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
+      } else {
+        console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
       }
     };
 
