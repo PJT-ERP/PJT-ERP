@@ -45,6 +45,14 @@ export interface Invoice {
   notes: string;
   items: InvoiceItem[];
   ppn: number;
+  paymentSchedules?: Array<{
+    id: string;
+    label: string;
+    percentage: number;
+    amount: number;
+    dueDate: string;
+    isPaid: boolean;
+  }>;
 }
 
 export interface Payment {

@@ -29,6 +29,7 @@ function mapInvoice(invoice: InvoiceDto): Invoice {
     status: mapStatus(invoice.status, invoice.paidAmount, invoice.totalAmount),
     notes: invoice.paymentSchedules.map(schedule => `${schedule.label}: ${schedule.percentage}%`).join(', '),
     ppn: invoice.taxAmount,
+    paymentSchedules: invoice.paymentSchedules,
     items: invoice.items.map(item => ({
       id: item.salesOrderItemId,
       description: item.description,
