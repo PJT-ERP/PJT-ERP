@@ -1,17 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
   AlertTriangle, X, Banknote
 } from 'lucide-react';
 import { payments, formatIDR, formatDate, type Payment, type PaymentStatus } from './mockData';
-import { financeApi } from '../../services/financeApi';
-import { useFinanceData } from './useFinanceData';
 
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: React.ComponentType<any> }> = {
-  PENDING: { label: 'Menunggu Verifikasi', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
-  VERIFIED: { label: 'Terverifikasi', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2 },
-  REJECTED: { label: 'Ditolak', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
+  PENDING: { label: 'Menunggu Verifikasi', color: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-200', icon: Clock },
+  VERIFIED: { label: 'Terverifikasi', color: 'bg-green-600 text-white border-transparent shadow-sm border-green-200', icon: CheckCircle2 },
+  REJECTED: { label: 'Ditolak', color: 'bg-red-600 text-white border-transparent shadow-sm border-red-200', icon: XCircle },
 };
 
 function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
@@ -34,7 +32,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
           <div>
             <h2 className="text-slate-900 text-base">Detail Pembayaran</h2>
             <p className="text-xs text-slate-400 mt-0.5">{payment.invoiceNumber}</p>
@@ -58,7 +56,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-1">Jumlah Pembayaran</p>
-              <p className="text-sm font-bold text-blue-700">{formatIDR(payment.amount)}</p>
+              <p className="text-sm font-bold text-red-700">{formatIDR(payment.amount)}</p>
             </div>
             <div>
               <p className="text-xs text-slate-400 mb-1">Tanggal Bayar</p>
@@ -86,7 +84,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
                 {/* Simulated receipt */}
                 <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex flex-col items-center gap-2 border-b border-slate-100">
                   <div className="w-16 h-20 bg-white rounded-lg shadow-md flex flex-col items-center justify-center gap-2 border border-slate-200">
-                    <Banknote size={24} className="text-blue-500" />
+                    <Banknote size={24} className="text-red-500" />
                     <div className="space-y-1 w-8">
                       <div className="h-0.5 bg-slate-200 rounded" />
                       <div className="h-0.5 bg-slate-200 rounded w-3/4" />
@@ -99,7 +97,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
                   <button className="flex-1 flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg py-2 text-xs font-medium transition-colors">
                     <Eye size={13} /> Lihat Bukti
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg py-2 text-xs font-medium transition-colors">
+                  <button className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg py-2 text-xs font-medium transition-colors">
                     <Upload size={13} /> Download
                   </button>
                 </div>
@@ -113,9 +111,9 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
           </div>
 
           {payment.notes && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-              <p className="text-xs font-semibold text-blue-700 mb-1">Catatan dari Pelanggan</p>
-              <p className="text-xs text-blue-600">{payment.notes}</p>
+            <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+              <p className="text-xs font-semibold text-red-700 mb-1">Catatan dari Pelanggan</p>
+              <p className="text-xs text-red-600">{payment.notes}</p>
             </div>
           )}
 
@@ -193,72 +191,27 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 }
 
 export function PaymentVerification() {
-  const { backendInvoices, isLoading, error, refresh } = useFinanceData();
   const [paymentData, setPaymentData] = useState(payments);
-  const [rejectedBackendPaymentIds, setRejectedBackendPaymentIds] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
-  const backendPayments = useMemo<Payment[]>(() => {
-    return backendInvoices
-      .filter(invoice => invoice.remainingAmount > 0)
-      .map(invoice => {
-        const paymentId = `backend:${invoice.id}`;
-        return {
-          id: paymentId,
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          customerName: invoice.customerName,
-          amount: invoice.remainingAmount,
-          paymentDate: new Date().toISOString().split('T')[0],
-          paymentMethod: 'Transfer',
-          bankRef: invoice.bankAccountNumber || 'BACKEND',
-          bankName: invoice.bankName || 'Bank',
-          status: rejectedBackendPaymentIds.has(paymentId) ? 'REJECTED' : 'PENDING',
-          proofAvailable: false,
-          notes: `Outstanding ${invoice.salesOrderNumber}`,
-          rejectionReason: rejectedBackendPaymentIds.has(paymentId) ? 'Ditolak dari UI demo' : undefined,
-        };
-      });
-  }, [backendInvoices, rejectedBackendPaymentIds]);
-
-  const allPayments = useMemo(() => [...backendPayments, ...paymentData], [backendPayments, paymentData]);
-
-  const handleVerify = async (id: string) => {
-    if (id.startsWith('backend:')) {
-      const payment = backendPayments.find(payment => payment.id === id);
-      if (!payment) return;
-
-      await financeApi.recordPayment(payment.invoiceId, {
-        paymentDate: payment.paymentDate,
-        amount: payment.amount,
-        notes: 'Verified from Finance UI',
-      });
-      await refresh();
-      return;
-    }
-
+  const handleVerify = (id: string) => {
     setPaymentData(prev => prev.map(p =>
       p.id === id ? { ...p, status: 'VERIFIED' as PaymentStatus, verifiedBy: 'Ahmad Fauzi', verifiedAt: new Date().toLocaleString('id-ID') } : p
     ));
   };
 
   const handleReject = (id: string, reason: string) => {
-    if (id.startsWith('backend:')) {
-      setRejectedBackendPaymentIds(prev => new Set(prev).add(id));
-      return;
-    }
-
     setPaymentData(prev => prev.map(p =>
       p.id === id ? { ...p, status: 'REJECTED' as PaymentStatus, rejectionReason: reason } : p
     ));
   };
 
-  const filtered = filterStatus === 'ALL' ? allPayments : allPayments.filter(p => p.status === filterStatus);
-  const pendingCount = allPayments.filter(p => p.status === 'PENDING').length;
-  const verifiedCount = allPayments.filter(p => p.status === 'VERIFIED').length;
-  const rejectedCount = allPayments.filter(p => p.status === 'REJECTED').length;
-  const pendingAmount = allPayments.filter(p => p.status === 'PENDING').reduce((s, p) => s + p.amount, 0);
+  const filtered = filterStatus === 'ALL' ? paymentData : paymentData.filter(p => p.status === filterStatus);
+  const pendingCount = paymentData.filter(p => p.status === 'PENDING').length;
+  const verifiedCount = paymentData.filter(p => p.status === 'VERIFIED').length;
+  const rejectedCount = paymentData.filter(p => p.status === 'REJECTED').length;
+  const pendingAmount = paymentData.filter(p => p.status === 'PENDING').reduce((s, p) => s + p.amount, 0);
 
   return (
     <div className="p-4 lg:p-6 space-y-5 min-h-full">
@@ -274,18 +227,7 @@ export function PaymentVerification() {
             <span className="text-sm text-amber-700 font-medium">{pendingCount} pembayaran menunggu</span>
           </div>
         )}
-        {isLoading && (
-          <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-            Memuat invoice backend...
-          </div>
-        )}
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -293,7 +235,7 @@ export function PaymentVerification() {
           { label: 'Menunggu Verifikasi', value: pendingCount, sub: formatIDR(pendingAmount), color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
           { label: 'Terverifikasi', value: verifiedCount, sub: 'bulan ini', color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
           { label: 'Ditolak', value: rejectedCount, sub: 'perlu tindak lanjut', color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
-          { label: 'Total Diterima', value: formatIDR(allPayments.filter(p => p.status === 'VERIFIED').reduce((s, p) => s + p.amount, 0)), sub: 'terverifikasi', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-100', wide: true },
+          { label: 'Total Diterima', value: formatIDR(paymentData.filter(p => p.status === 'VERIFIED').reduce((s, p) => s + p.amount, 0)), sub: 'terverifikasi', color: 'text-red-700', bg: 'bg-red-50 border-red-100', wide: true },
         ].map(s => (
           <div key={s.label} className={`bg-white border rounded-xl px-4 py-3 shadow-sm ${s.bg.split(' ')[1]}`}>
             <p className="text-xs text-slate-400">{s.label}</p>
@@ -324,7 +266,7 @@ export function PaymentVerification() {
       {/* Payment Cards */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-md">
             <ShieldCheck size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-slate-400 text-sm">Tidak ada data pembayaran</p>
           </div>

@@ -9,8 +9,6 @@ import {
 import { useApp } from "../context/AppContext";
 import type { Customer } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
-import { salesApi } from "../../services/salesApi";
-import { useSalesData } from "./useSalesData";
 
 interface CustomerListProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -18,8 +16,8 @@ interface CustomerListProps {
 
 const S = {
   font:      "Inter, sans-serif",
-  cyan:      "#06B6D4",
-  slate:     "#1E293B",
+  cyan:      "#C8102E",
+  slate:     "#111827",
   secondary: "#64748B",
   border:    "#E2E8F0",
   bg:        "#F8FAFC",
@@ -71,7 +69,7 @@ interface ModalState {
 
 function CustomerModal({ state, onSave, onClose }: {
   state: ModalState;
-  onSave: (c: Partial<Customer>) => void | Promise<void>;
+  onSave: (c: Partial<Customer>) => void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Partial<Customer>>(state.customer);
@@ -94,9 +92,8 @@ function CustomerModal({ state, onSave, onClose }: {
       {/* Modal */}
       <div style={{
         position: "relative", zIndex: 1,
-        background: S.white, borderRadius: 8,
+        background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", borderRadius: 8,
         border: `1px solid ${S.border}`,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
         width: "100%", maxWidth: 520,
         margin: "0 16px",
         fontFamily: S.font,
@@ -104,7 +101,7 @@ function CustomerModal({ state, onSave, onClose }: {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${S.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(6,182,212,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(200,16,46,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Users size={14} style={{ color: S.cyan }} />
             </div>
             <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.slate }}>
@@ -112,7 +109,7 @@ function CustomerModal({ state, onSave, onClose }: {
             </p>
           </div>
           <button onClick={onClose}
-            style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, cursor: "pointer", transition: "all 0.1s" }}
+            style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", transition: "all 0.1s" }}
             onMouseEnter={e => { (e.currentTarget).style.background = "#FEF2F2"; (e.currentTarget).style.color = S.red; (e.currentTarget).style.borderColor = "#FCA5A5"; }}
             onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; (e.currentTarget).style.borderColor = S.border; }}
           >
@@ -146,7 +143,7 @@ function CustomerModal({ state, onSave, onClose }: {
           {/* Footer */}
           <div style={{ display: "flex", gap: 8, padding: "12px 20px", borderTop: `1px solid ${S.border}`, justifyContent: "flex-end" }}>
             <button type="button" onClick={onClose}
-              style={{ padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.secondary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, transition: "background 0.1s" }}
+              style={{ padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, transition: "background 0.1s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
@@ -167,9 +164,7 @@ function CustomerModal({ state, onSave, onClose }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function CustomerList({ onNavigate }: CustomerListProps) {
-  const app = useApp();
-  const { customers, salesOrders, error, refresh, isUsingBackend } = useSalesData(app.salesOrders, app.customers);
-  const { addCustomer, updateCustomer } = app;
+  const { customers, salesOrders, addCustomer, updateCustomer } = useApp();
   const [search, setSearch]   = useState("");
   const [page, setPage]       = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -196,7 +191,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
     salesOrders.filter(o => o.customerId === cid && !["Completed", "Rejected", "Cancelled"].includes(o.status)).length;
 
   const summaryCards = [
-    { label: "Total Pelanggan",  value: customers.length,                                             color: "#06B6D4", bg: "rgba(6,182,212,0.08)"   },
+    { label: "Total Pelanggan",  value: customers.length,                                             color: "#C8102E", bg: "rgba(200,16,46,0.08)"   },
     { label: "Pelanggan Aktif",  value: activeCustomers,                                                   color: "#22C55E", bg: "rgba(34,197,94,0.08)"   },
     { label: "Order Bulan Ini",  value: salesOrders.filter(o => o.createdAt.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
     { label: "Kota Terjangkau",  value: new Set(customers.map(c => c.address)).size,                     color: "#8B5CF6", bg: "rgba(139,92,246,0.08)"  },
@@ -206,7 +201,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
   const openAdd  = () => setModal({ mode: "add",  customer: emptyForm() });
   const openEdit = (c: Customer) => setModal({ mode: "edit", customer: { ...c } });
 
-  const handleSave = async (data: Partial<Customer>) => {
+  const handleSave = (data: Partial<Customer>) => {
     if (modal?.mode === "add") {
       const newCustomer: Customer = {
         code:          `C${String(customers.length + 1).padStart(3, "0")}`,
@@ -215,22 +210,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
         phone:         data.phone   ?? "",
         address:       data.address ?? "",
       };
-      if (isUsingBackend) {
-        try {
-          await salesApi.createCustomer({
-            code: newCustomer.code,
-            name: newCustomer.name,
-            address: newCustomer.address,
-            contactPerson: newCustomer.contact,
-            email: newCustomer.contact.includes("@") ? newCustomer.contact : undefined,
-          });
-          await refresh();
-        } catch {
-          addCustomer(newCustomer);
-        }
-      } else {
-        addCustomer(newCustomer);
-      }
+      addCustomer(newCustomer);
     } else if (modal?.mode === "edit" && data.code) {
       updateCustomer(data.code, data);
     }
@@ -258,16 +238,10 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
         </div>
       </div>
 
-      {error && !isUsingBackend && (
-        <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", borderRadius: 6, padding: "9px 12px", fontSize: "12px" }}>
-          Master Data API belum tersedia, halaman memakai data pelanggan mock lokal untuk testing FE.
-        </div>
-      )}
-
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
         {summaryCards.map(c => (
-          <div key={c.label} style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <div key={c.label} style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: 6, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Users size={16} style={{ color: c.color }} />
             </div>
@@ -280,7 +254,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       </div>
 
       {/* Controls */}
-      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: "11px 14px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "11px 14px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "6px 10px", flex: 1, minWidth: 200 }}>
           <Search size={13} style={{ color: "#94A3B8", flexShrink: 0 }} />
           <input
@@ -313,7 +287,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 
       {/* ── Table view ────────────────────────────────────────────────────────── */}
       {viewMode === "table" && (
-        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -355,7 +329,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       {viewMode === "card" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {paginated.length === 0 ? (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 6, border: `1px solid ${S.border}` }}>
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px", background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", borderRadius: 6, border: `1px solid ${S.border}` }}>
               Tidak ada pelanggan yang sesuai pencarian
             </div>
           ) : paginated.map(c => {
@@ -363,13 +337,13 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
             const active   = getActiveOrders(c.code);
             return (
               <div key={c.code}
-                style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, padding: 16, transition: "border-color 0.15s, box-shadow 0.15s" }}
+                style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: 16, transition: "border-color 0.15s, box-shadow 0.15s" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.cyan; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = S.border; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg, #0F172A, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.cyan, fontSize: "13px", fontWeight: 700 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(135deg, #1F1F1F, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: S.cyan, fontSize: "13px", fontWeight: 700 }}>
                       {initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -453,7 +427,7 @@ function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCre
     >
       <td style={{ padding: "10px 14px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 6, background: "linear-gradient(135deg, #0F172A, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#06B6D4", fontSize: "10px", fontWeight: 700 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 6, background: "linear-gradient(135deg, #1F1F1F, #1E3A5F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#C8102E", fontSize: "10px", fontWeight: 700 }}>
             {initials}
           </div>
           <div>

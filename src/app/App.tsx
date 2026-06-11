@@ -10,6 +10,7 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
 import { FinanceLayout } from "./components/finance/FinanceLayout";
 import { FinanceDashboard } from "./components/finance/FinanceDashboard";
+import { FinanceCosting } from "./components/finance/FinanceCosting";
 import { InvoiceList } from "./components/finance/InvoiceList";
 import { CreateInvoice } from "./components/finance/CreateInvoice";
 import { PaymentVerification } from "./components/finance/PaymentVerification";
@@ -31,6 +32,7 @@ import { QCPage } from "./pages/QCPage";
 
 const financeRoutes = [
   { path: "dashboard", element: <FinanceDashboard /> },
+  { path: "costing", element: <FinanceCosting /> },
   { path: "invoices", element: <InvoiceList /> },
   { path: "create-invoice", element: <CreateInvoice /> },
   { path: "payment-verification", element: <PaymentVerification /> },

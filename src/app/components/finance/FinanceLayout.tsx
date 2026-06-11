@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import {
   LayoutDashboard, FileText, FilePlus, ShieldCheck,
-  History, BarChart3, Menu, X, Bell, ChevronRight,
+  History, BarChart3, Menu, X, Bell, ChevronRight, Calculator,
   LogOut, Settings, Factory, ChevronDown, User, CheckSquare
 } from 'lucide-react';
 
 const navItems = [
   { to: '/erp/finance/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/erp/finance/costing', label: 'Costing & Pricing', icon: Calculator },
   { to: '/erp/finance/invoices', label: 'Daftar Invoice', icon: FileText },
   { to: '/erp/finance/payment-verification', label: 'Verifikasi Pembayaran', icon: ShieldCheck, badge: 2 },
   { to: '/erp/finance/transactions', label: 'Riwayat Transaksi', icon: History },
@@ -17,6 +18,7 @@ const navItems = [
 
 const breadcrumbMap: Record<string, string[]> = {
   '/erp/finance/dashboard': ['Finance', 'Dashboard'],
+  '/erp/finance/costing': ['Finance', 'Costing & Pricing'],
   '/erp/finance/invoices': ['Finance', 'Daftar Invoice'],
   '/erp/finance/create-invoice': ['Finance', 'Buat Invoice'],
   '/erp/finance/payment-verification': ['Finance', 'Verifikasi Pembayaran'],
@@ -35,7 +37,7 @@ export function FinanceLayout() {
       {/* Brand */}
       <div className="px-5 py-5 border-b border-white/10">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center flex-shrink-0">
             <Factory size={18} className="text-white" />
           </div>
           <div>
@@ -48,9 +50,9 @@ export function FinanceLayout() {
 
       {/* Module Badge */}
       <div className="px-5 py-3 border-b border-white/10">
-        <div className="flex items-center gap-2 bg-blue-600/20 border border-blue-500/30 rounded-md px-3 py-2">
-          <BarChart3 size={14} className="text-blue-400" />
-          <span className="text-blue-300 text-xs font-semibold uppercase tracking-wider">Finance Module</span>
+        <div className="flex items-center gap-2 bg-red-600/20 border border-red-500/30 rounded-md px-3 py-2">
+          <BarChart3 size={14} className="text-red-400" />
+          <span className="text-red-300 text-xs font-semibold uppercase tracking-wider">Finance Module</span>
         </div>
       </div>
 
@@ -65,15 +67,15 @@ export function FinanceLayout() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all group relative ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-red-600 text-white shadow-sm'
                   : 'text-slate-400 hover:bg-white/8 hover:text-slate-100'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-blue-300 rounded-r-full" />}
-                <Icon size={16} className={isActive ? 'text-blue-100' : 'text-slate-500 group-hover:text-slate-300'} />
+                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-red-300 rounded-r-full" />}
+                <Icon size={16} className={isActive ? 'text-red-100' : 'text-slate-500 group-hover:text-slate-300'} />
                 <span className="flex-1">{label}</span>
                 {badge && !isActive && (
                   <span className="text-[10px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-semibold min-w-[18px] text-center">
@@ -167,7 +169,7 @@ export function FinanceLayout() {
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
             </button>
             <div className="hidden sm:flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
-              <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
                 <span className="text-white text-[10px] font-bold">AF</span>
               </div>
               <span className="text-sm text-slate-700 font-medium">Ahmad Fauzi</span>

@@ -6,12 +6,9 @@ import {
 } from 'lucide-react';
 import { salesOrders, customers, formatIDR } from './mockData';
 import { useERPStore } from '../../store/useERPStore';
-import { financeApi } from '../../services/financeApi';
-import { useFinanceData } from './useFinanceData';
 
 interface LineItem {
   id: string;
-  salesOrderItemId?: string;
   description: string;
   quantity: number;
   unit: string;
@@ -33,7 +30,6 @@ const newItem = (): LineItem => ({
 export function CreateInvoice() {
   const navigate = useNavigate();
   const { pendingSOs, createInvoiceFromSO } = useERPStore();
-  const { invoiceCandidates, isLoading, error, refresh } = useFinanceData();
   
   const [selectedSO, setSelectedSO] = useState('');
   const [paymentTerm, setPaymentTerm] = useState('30 Hari');
@@ -43,9 +39,6 @@ export function CreateInvoice() {
   const [ppnEnabled, setPpnEnabled] = useState(true);
   const [items, setItems] = useState<LineItem[]>([newItem()]);
   const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [createdInvoiceNumber, setCreatedInvoiceNumber] = useState('');
   
   // New Finance features
   const [invoiceType, setInvoiceType] = useState('Full Payment');
@@ -53,8 +46,7 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  // Find SO from backend candidates first, then legacy live store, then mock data.
-  const backendCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO);
+  // Find SO from either mock data or live store
   const mockSo = salesOrders.find(s => s.id === selectedSO);
   const liveSo = pendingSOs.find(s => s.id === selectedSO);
   
@@ -62,13 +54,7 @@ export function CreateInvoice() {
   const mockCustomer = mockSo ? customers.find(c => c.id === mockSo.customerId) : null;
   
   // Unified data for display
-  const displayCustomer = backendCandidate ? {
-    name: backendCandidate.customerName,
-    contact: backendCandidate.customerEmail || '-',
-    email: backendCandidate.customerEmail || '-',
-    npwp: '-',
-    address: backendCandidate.customerCode,
-  } : liveSo ? {
+  const displayCustomer = liveSo ? {
     name: liveSo.company,
     contact: liveSo.customerName,
     email: liveSo.email,
@@ -76,21 +62,12 @@ export function CreateInvoice() {
     address: liveSo.address,
   } : mockCustomer;
   
-  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : liveSo ? liveSo.soNumber : (mockSo ? mockSo.soNumber : '');
-  const displayCustomerName = backendCandidate ? backendCandidate.customerName : liveSo ? liveSo.company : (mockSo ? mockSo.customerName : '');
+  const displaySoNumber = liveSo ? liveSo.soNumber : (mockSo ? mockSo.soNumber : '');
+  const displayCustomerName = liveSo ? liveSo.company : (mockSo ? mockSo.customerName : '');
 
   // Auto-fill items when SO is selected
   useEffect(() => {
-    if (backendCandidate) {
-      setItems(backendCandidate.items.map(item => ({
-        id: item.salesOrderItemId,
-        salesOrderItemId: item.salesOrderItemId,
-        description: `${item.productPartNumber} - ${item.productDescription}`,
-        quantity: item.qty,
-        unit: 'Pcs',
-        unitPrice: 0,
-      })));
-    } else if (liveSo) {
+    if (liveSo) {
       setItems([{
         id: String(idCounter++),
         description: liveSo.productName,
@@ -109,7 +86,7 @@ export function CreateInvoice() {
     } else {
       setItems([newItem()]);
     }
-  }, [selectedSO, backendCandidate, liveSo, mockSo]);
+  }, [selectedSO]); // Ignore other deps to prevent infinite loops
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
@@ -128,59 +105,17 @@ export function CreateInvoice() {
 
   const invoiceNumber = `INV-2026-${String(Math.floor(Math.random() * 900) + 271).padStart(4, '0')}`;
 
-  const handleSubmit = async () => {
-    setSubmitError('');
-    setIsSubmitting(true);
-
-    try {
-      if (backendCandidate) {
-        const invoiceDate = issueDate || new Date().toISOString().split('T')[0];
-        const finalDueDate = dueDate || backendCandidate.targetDate || invoiceDate;
-        const taxPercent = ppnEnabled ? 11 : 0;
-        const dpPct = Math.min(100, Math.max(0, pct || 0));
-        const paymentSchedules = isDP
-          ? [
-              { label: `DP ${dpPct}%`, percentage: dpPct, dueDate: dpDeadline || finalDueDate },
-              ...(dpPct < 100 ? [{ label: `Pelunasan ${100 - dpPct}%`, percentage: 100 - dpPct, dueDate: finalDueDate }] : []),
-            ]
-          : [{ label: 'Full Payment', percentage: 100, dueDate: finalDueDate }];
-
-        const created = await financeApi.createInvoice({
-          salesOrderId: backendCandidate.salesOrderId,
-          invoiceDate,
-          dueDate: finalDueDate,
-          taxPercent,
-          items: items.map(item => ({
-            salesOrderItemId: item.salesOrderItemId || item.id,
-            unitPrice: item.unitPrice,
-          })),
-          paymentSchedules,
-          bankName: 'BCA',
-          bankAccountName: 'PT Pratama Jaya',
-          bankAccountNumber: '1234567890',
-        });
-
-        setCreatedInvoiceNumber(created.invoiceNumber);
-        await refresh();
-      } else if (liveSo) {
-        createInvoiceFromSO(liveSo.id, {
-          invoiceNumber,
-          amount: invoiceTotal,
-          dueDate,
-          issueDate,
-          notes,
-        });
-        setCreatedInvoiceNumber(invoiceNumber);
-      } else {
-        setCreatedInvoiceNumber(invoiceNumber);
-      }
-
-      setSubmitted(true);
-    } catch (err: any) {
-      setSubmitError(err?.response?.data?.message || err?.message || 'Gagal membuat invoice.');
-    } finally {
-      setIsSubmitting(false);
+  const handleSubmit = () => {
+    if (liveSo) {
+      createInvoiceFromSO(liveSo.id, {
+        invoiceNumber,
+        amount: invoiceTotal,
+        dueDate,
+        issueDate,
+        notes,
+      });
     }
+    setSubmitted(true);
   };
 
   const handlePreview = () => {
@@ -205,8 +140,8 @@ export function CreateInvoice() {
             <CheckCircle2 size={32} className="text-green-600" />
           </div>
           <h2 className="text-lg text-slate-900 mb-2">Invoice Berhasil Dibuat!</h2>
-          <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{createdInvoiceNumber || invoiceNumber}</span></p>
-          {(backendCandidate || liveSo || mockSo) && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
+          <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{invoiceNumber}</span></p>
+          {(liveSo || mockSo) && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
           <div className="flex gap-3">
             <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Lihat Daftar Invoice
@@ -214,7 +149,7 @@ export function CreateInvoice() {
             <button onClick={() => window.print()} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2">
               <Printer size={15} /> Cetak Surat Penagihan
             </button>
-            <button onClick={() => { setSubmitted(false); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); setCreatedInvoiceNumber(''); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+            <button onClick={() => { setSubmitted(false); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Buat Lagi
             </button>
           </div>
@@ -239,48 +174,33 @@ export function CreateInvoice() {
             <button onClick={handlePreview} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
               <Eye size={16} /> Preview
             </button>
-            <button onClick={handleSubmit} disabled={isSubmitting || !selectedSO || items.some(i => !i.description || i.unitPrice === 0)} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
-              <Save size={16} /> {isSubmitting ? 'Menyimpan...' : 'Simpan Invoice'}
+            <button onClick={handleSubmit} disabled={!selectedSO || items.some(i => !i.description || i.unitPrice === 0)} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
+              <Save size={16} /> Simpan Invoice
             </button>
           </div>
         </div>
-
-        {(error || submitError) && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {submitError || error}
-          </div>
-        )}
 
         {/* Paper Document Wrapper */}
         <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden relative">
           
           {/* Top blue accent bar */}
-          <div className="h-2 w-full bg-blue-600"></div>
+          <div className="h-2 w-full bg-red-600"></div>
 
           <div className="p-8 sm:p-12">
             
             {/* SO Selector Banner */}
-            <div className="mb-10 bg-blue-50/50 border border-blue-100 rounded-lg p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
+            <div className="mb-10 bg-red-50/50 border border-red-100 rounded-lg p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
               <div>
-                <h3 className="text-sm font-bold text-blue-900 mb-1">Pilih Basis Sales Order</h3>
-                <p className="text-xs text-blue-700 font-medium">Data pelanggan dan detail pesanan akan diisi secara otomatis ke dalam dokumen invoice.</p>
+                <h3 className="text-sm font-bold text-red-900 mb-1">Pilih Basis Sales Order</h3>
+                <p className="text-xs text-red-700 font-medium">Data pelanggan dan detail pesanan akan diisi secara otomatis ke dalam dokumen invoice.</p>
               </div>
               <div className="relative w-full sm:w-72 flex-shrink-0">
                 <select
                   value={selectedSO}
                   onChange={e => setSelectedSO(e.target.value)}
-                  className="w-full appearance-none border border-blue-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all shadow-sm pr-10"
+                  className="w-full appearance-none border border-red-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-red-500 transition-all shadow-sm pr-10"
                 >
                   <option value="">— Pilih Sales Order —</option>
-                  {invoiceCandidates.length > 0 && (
-                    <optgroup label="Backend Invoice Candidates">
-                      {invoiceCandidates.map(candidate => (
-                        <option key={candidate.salesOrderId} value={candidate.salesOrderId}>
-                          {candidate.salesOrderNumber} · {candidate.customerName}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
                   {pendingSOs.length > 0 && (
                     <optgroup label="Live Sales Orders">
                       {pendingSOs.map(so => (
@@ -301,7 +221,7 @@ export function CreateInvoice() {
             {/* Document Header */}
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12">
               <div className="flex gap-4">
-                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
                   <Building2 size={32} className="text-white" />
                 </div>
                 <div>
@@ -319,12 +239,12 @@ export function CreateInvoice() {
                   
                   <div className="text-slate-500 font-medium pt-1">Tanggal Terbit</div>
                   <div className="font-semibold text-slate-800">
-                    <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:outline-none w-full text-left md:text-right transition-colors" />
+                    <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-red-400 focus:border-red-500 focus:outline-none w-full text-left md:text-right transition-colors" />
                   </div>
                   
                   <div className="text-slate-500 font-medium pt-1">Jatuh Tempo</div>
                   <div className="font-semibold text-slate-800">
-                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-blue-400 focus:border-blue-500 focus:outline-none w-full text-left md:text-right transition-colors" />
+                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="bg-transparent border-b border-slate-200 hover:border-red-400 focus:border-red-500 focus:outline-none w-full text-left md:text-right transition-colors" />
                   </div>
                 </div>
               </div>
@@ -342,7 +262,7 @@ export function CreateInvoice() {
                 </div>
               ) : (
                 <div className="p-4 border-2 border-dashed border-slate-200 rounded-lg text-sm text-slate-400 max-w-sm font-medium">
-                  {isLoading ? 'Memuat kandidat invoice dari backend...' : 'Pilih Sales Order di atas untuk mengisi data pelanggan secara otomatis.'}
+                  Pilih Sales Order di atas untuk mengisi data pelanggan secara otomatis.
                 </div>
               )}
             </div>
@@ -380,7 +300,7 @@ export function CreateInvoice() {
                               min="0"
                               value={item.quantity}
                               onChange={e => updateItem(item.id, 'quantity', Number(e.target.value))}
-                              className="w-16 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                              className="w-16 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-red-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
                             />
                             <select
                               value={item.unit}
@@ -398,7 +318,7 @@ export function CreateInvoice() {
                             value={item.unitPrice || ''}
                             onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
                             placeholder="0"
-                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-red-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
                           />
                         </td>
                         <td className="py-3 px-2 align-top text-right font-bold text-slate-800">
@@ -416,7 +336,7 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-              <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-blue-50">
+              <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
                 <Plus size={16} /> Tambah Baris
               </button>
             </div>
@@ -434,7 +354,7 @@ export function CreateInvoice() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-700">Jenis Tagihan</span>
-                      <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 text-slate-800 transition-colors cursor-pointer">
+                      <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 text-slate-800 transition-colors cursor-pointer">
                         {['Full Payment', 'Down Payment (DP)', 'Pelunasan'].map(t => <option key={t}>{t}</option>)}
                       </select>
                     </div>
@@ -444,26 +364,26 @@ export function CreateInvoice() {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-slate-700">DP (%)</span>
                           <div className="flex gap-2">
-                            <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 w-24 transition-colors cursor-pointer">
+                            <select value={dpPercentage} onChange={e => setDpPercentage(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 w-24 transition-colors cursor-pointer">
                               <option value="25">25%</option>
                               <option value="50">50%</option>
                               <option value="Custom">Custom</option>
                             </select>
                             {dpPercentage === 'Custom' && (
-                              <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-blue-500 transition-colors" />
+                              <input type="number" placeholder="%" value={customDp} onChange={e => setCustomDp(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium w-16 text-center focus:outline-none focus:border-red-500 transition-colors" />
                             )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold text-slate-700">Jatuh Tempo DP</span>
-                          <input type="date" value={dpDeadline} onChange={e => setDpDeadline(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-blue-500 transition-colors" />
+                          <input type="date" value={dpDeadline} onChange={e => setDpDeadline(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 transition-colors" />
                         </div>
                       </div>
                     )}
                     
                     <div className="flex items-center justify-between pt-4 border-t border-slate-200/60">
                       <span className="text-sm font-semibold text-slate-700">Termasuk PPN (11%)</span>
-                      <button onClick={() => setPpnEnabled(!ppnEnabled)} className={`w-12 h-6 rounded-full transition-colors relative shadow-inner ${ppnEnabled ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                      <button onClick={() => setPpnEnabled(!ppnEnabled)} className={`w-12 h-6 rounded-full transition-colors relative shadow-inner ${ppnEnabled ? 'bg-red-600' : 'bg-slate-300'}`}>
                         <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ease-out ${ppnEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
@@ -477,14 +397,14 @@ export function CreateInvoice() {
                     onChange={e => setNotes(e.target.value)}
                     placeholder="Contoh: Pengiriman dilakukan setelah pelunasan..."
                     rows={4}
-                    className="w-full border border-slate-200 shadow-sm rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-white resize-none text-slate-700 placeholder:text-slate-400 transition-colors"
+                    className="w-full border border-slate-200 shadow-sm rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 bg-white resize-none text-slate-700 placeholder:text-slate-400 transition-colors"
                   />
                 </div>
               </div>
 
               {/* Right Side: Calculation */}
               <div className="w-full sm:w-[50%]">
-                <div className="bg-white rounded-xl space-y-4 text-sm font-medium">
+                <div className="bg-white rounded-xl space-y-4 text-sm font-medium shadow-md">
                   <div className="flex justify-between items-center text-slate-600 px-2">
                     <span>Subtotal</span>
                     <span className="font-bold text-slate-900 text-base">{formatIDR(subtotal)}</span>
@@ -501,7 +421,7 @@ export function CreateInvoice() {
                   </div>
 
                   {isDP && (
-                    <div className="flex justify-between items-center text-blue-900 bg-blue-50 px-5 py-4 rounded-xl mt-6 border border-blue-100 shadow-sm">
+                    <div className="flex justify-between items-center text-red-900 bg-red-50 px-5 py-4 rounded-xl mt-6 border border-red-100 shadow-sm">
                       <span className="font-bold">Tagihan DP ({pct}%)</span>
                       <span className="font-black text-2xl tracking-tight">{formatIDR(invoiceTotal)}</span>
                     </div>
@@ -510,7 +430,7 @@ export function CreateInvoice() {
                   {!isDP && (
                     <div className="flex justify-between items-center text-slate-900 bg-slate-100 px-5 py-4 rounded-xl mt-6 border border-slate-200 shadow-sm">
                       <span className="font-bold">Total Penagihan</span>
-                      <span className="font-black text-2xl tracking-tight text-blue-700">{formatIDR(invoiceTotal)}</span>
+                      <span className="font-black text-2xl tracking-tight text-red-700">{formatIDR(invoiceTotal)}</span>
                     </div>
                   )}
                 </div>
@@ -524,7 +444,7 @@ export function CreateInvoice() {
                 <p className="text-sm font-bold text-slate-800 mb-3">Informasi Pembayaran</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 inline-block shadow-sm">
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Transfer Ke:</p>
-                  <p className="text-lg font-black text-blue-800 tracking-tight">Bank BCA - 1234567890</p>
+                  <p className="text-lg font-black text-red-800 tracking-tight">Bank BCA - 1234567890</p>
                   <p className="text-sm font-semibold text-slate-700">a/n PT Pratama Jaya</p>
                 </div>
               </div>

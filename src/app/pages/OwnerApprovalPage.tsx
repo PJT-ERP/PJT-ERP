@@ -5,9 +5,9 @@ import { SalesOrder, SOStatus, getStatusColor } from "../components/data/mockDat
 
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",

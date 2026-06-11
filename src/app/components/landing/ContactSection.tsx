@@ -18,7 +18,7 @@ export function ContactSection() {
     width: "100%",
     fontFamily: "Inter, sans-serif",
     fontSize: "14px",
-    color: "#1E293B",
+    color: "#111827",
     backgroundColor: "#F8FAFC",
     border: "1px solid #E2E8F0",
     borderRadius: "10px",
@@ -29,7 +29,7 @@ export function ContactSection() {
 
   const labelStyle: React.CSSProperties = {
     display: "block",
-    color: "#1E293B",
+    color: "#111827",
     fontFamily: "Inter, sans-serif",
     fontSize: "13px",
     fontWeight: 600,
@@ -41,9 +41,9 @@ export function ContactSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+          <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           <span
-            style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
+            style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
             GET IN TOUCH
           </span>
@@ -51,7 +51,7 @@ export function ContactSection() {
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-12">
           <h2
             style={{
-              color: "#1E293B",
+              color: "#111827",
               fontFamily: "Inter, sans-serif",
               fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
               fontWeight: 800,
@@ -109,9 +109,9 @@ export function ContactSection() {
                 >
                   <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: "#0F172A" }}
+                    style={{ backgroundColor: "#1F1F1F" }}
                   >
-                    <Icon className="w-4.5 h-4.5" style={{ color: "#06B6D4", width: 18, height: 18 }} />
+                    <Icon className="w-4.5 h-4.5" style={{ color: "#C8102E", width: 18, height: 18 }} />
                   </div>
                   <div>
                     <div
@@ -122,7 +122,7 @@ export function ContactSection() {
                     {item.lines.map((line) => (
                       <div
                         key={line}
-                        style={{ color: "#1E293B", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 500, lineHeight: 1.6 }}
+                        style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 500, lineHeight: 1.6 }}
                       >
                         {line}
                       </div>
@@ -160,7 +160,7 @@ export function ContactSection() {
           <div className="lg:col-span-3">
             <div
               className="rounded-2xl p-8"
-              style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", boxShadow: "0 4px 24px rgba(15,23,42,0.05)" }}
+              style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", boxShadow: "0 4px 24px rgba(24,24,24,0.05)" }}
             >
               {submitted ? (
                 <div className="flex flex-col items-center justify-center text-center py-12 gap-4">
@@ -171,7 +171,7 @@ export function ContactSection() {
                     <CheckCircle className="w-8 h-8" style={{ color: "#10B981" }} />
                   </div>
                   <h3
-                    style={{ color: "#1E293B", fontFamily: "Inter, sans-serif", fontSize: "20px", fontWeight: 700 }}
+                    style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "20px", fontWeight: 700 }}
                   >
                     Message Sent
                   </h3>
@@ -182,7 +182,7 @@ export function ContactSection() {
                   </p>
                   <button
                     onClick={() => { setSubmitted(false); setForm({ name: "", company: "", email: "", phone: "", message: "" }); }}
-                    style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}
+                    style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}
                   >
                     Send another message
                   </button>
@@ -200,7 +200,7 @@ export function ContactSection() {
                         onChange={handleChange}
                         placeholder="Your full name"
                         style={inputStyle}
-                        onFocus={(e) => { e.target.style.borderColor = "#06B6D4"; e.target.style.boxShadow = "0 0 0 3px rgba(6,182,212,0.12)"; }}
+                        onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
@@ -213,7 +213,7 @@ export function ContactSection() {
                         onChange={handleChange}
                         placeholder="Your company"
                         style={inputStyle}
-                        onFocus={(e) => { e.target.style.borderColor = "#06B6D4"; e.target.style.boxShadow = "0 0 0 3px rgba(6,182,212,0.12)"; }}
+                        onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
@@ -229,7 +229,7 @@ export function ContactSection() {
                         onChange={handleChange}
                         placeholder="you@company.com"
                         style={inputStyle}
-                        onFocus={(e) => { e.target.style.borderColor = "#06B6D4"; e.target.style.boxShadow = "0 0 0 3px rgba(6,182,212,0.12)"; }}
+                        onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
@@ -242,7 +242,7 @@ export function ContactSection() {
                         onChange={handleChange}
                         placeholder="+62 8xx xxxx xxxx"
                         style={inputStyle}
-                        onFocus={(e) => { e.target.style.borderColor = "#06B6D4"; e.target.style.boxShadow = "0 0 0 3px rgba(6,182,212,0.12)"; }}
+                        onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
@@ -257,7 +257,7 @@ export function ContactSection() {
                       rows={5}
                       placeholder="Describe your project, part specifications, or questions..."
                       style={{ ...inputStyle, resize: "vertical", minHeight: "130px" }}
-                      onFocus={(e) => { e.target.style.borderColor = "#06B6D4"; e.target.style.boxShadow = "0 0 0 3px rgba(6,182,212,0.12)"; }}
+                      onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                     />
                   </div>
@@ -265,7 +265,7 @@ export function ContactSection() {
                     type="submit"
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
                     style={{
-                      backgroundColor: "#0F172A",
+                      backgroundColor: "#1F1F1F",
                       color: "#FFFFFF",
                       fontFamily: "Inter, sans-serif",
                       fontSize: "15px",

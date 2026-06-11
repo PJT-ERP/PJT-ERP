@@ -5,9 +5,9 @@ import { SalesOrder, getStatusColor } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
@@ -51,7 +51,7 @@ function QCHistoryModal({ so, onClose }: { so: SalesOrder; onClose: () => void }
               background: so.qcStatus === 'Pass' ? "#DCFCE7" : "#FEE2E2",
               color: so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626",
             }}>
-              Hasil: {so.qcStatus === 'Pass' ? 'Go (Lulus QC)' : 'NoGo (Gagal QC)'}
+              Hasil: {so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}
             </span>
             <span style={{ color: S.secondary, fontSize: "12.5px" }}>{so.qcAt ? new Date(so.qcAt).toLocaleString('id-ID') : '-'}</span>
           </div>
@@ -286,7 +286,7 @@ export function EngineeringQCPage() {
               <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Menunggu Inspeksi</p>
               <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{qcQueue.length}</p>
             </div>
-            <div style={{ width: 36, height: 36, borderRadius: 6, background: "rgba(6,182,212,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "rgba(200,16,46,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
               <Shield size={18} />
             </div>
           </div>
@@ -294,7 +294,7 @@ export function EngineeringQCPage() {
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go (Lulus)</p>
+              <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go</p>
               <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{passCount}</p>
             </div>
             <div style={{ width: 36, height: 36, borderRadius: 6, background: "rgba(34,197,94,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#22C55E", flexShrink: 0 }}>
@@ -305,7 +305,7 @@ export function EngineeringQCPage() {
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>NoGo (Tidak Lulus)</p>
+              <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>NoGo</p>
               <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{failCount}</p>
             </div>
             <div style={{ width: 36, height: 36, borderRadius: 6, background: "rgba(239,68,68,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#EF4444", flexShrink: 0 }}>
@@ -339,7 +339,7 @@ export function EngineeringQCPage() {
                 : null;
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < qcQueue.length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ width: 40, height: 40, background: "rgba(6,182,212,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 40, background: "rgba(200,16,46,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
                     <Shield size={20} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

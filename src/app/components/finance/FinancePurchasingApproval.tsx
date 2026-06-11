@@ -90,7 +90,7 @@ export function FinancePurchasingApproval() {
           <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PO)</h1>
           <p className="text-sm text-slate-500 mt-0.5">Otorisasi pencairan dana dan kategorisasi aset dari pengajuan departemen lain.</p>
         </div>
-        <div className="bg-amber-100 text-amber-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
+        <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
           {pendingCount} PO Menunggu Approval
         </div>
@@ -105,7 +105,7 @@ export function FinancePurchasingApproval() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Cari No. PO atau Departemen..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all shadow-sm"
             />
           </div>
         </div>
@@ -144,7 +144,7 @@ export function FinancePurchasingApproval() {
                     {po.status === 'PENDING' ? (
                       <button 
                         onClick={() => setSelectedPo(po)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto"
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto"
                       >
                         <CheckSquare size={14} /> Review
                       </button>
@@ -174,7 +174,7 @@ export function FinancePurchasingApproval() {
             <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <PackageOpen size={18} className="text-blue-600" />
+                  <PackageOpen size={18} className="text-red-600" />
                   Review & Checkout PO
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">{selectedPo.poNumber}</p>
@@ -186,7 +186,7 @@ export function FinancePurchasingApproval() {
             
             <div className="p-6 space-y-6">
               {/* Info Box */}
-              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-3">
+              <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">Departemen Pengaju</span>
                   <span className="font-semibold text-slate-800">{selectedPo.department}</span>
@@ -195,13 +195,13 @@ export function FinancePurchasingApproval() {
                   <span className="text-slate-500">Requestor</span>
                   <span className="font-semibold text-slate-800">{selectedPo.requestor}</span>
                 </div>
-                <div className="border-t border-blue-100 pt-3">
+                <div className="border-t border-red-100 pt-3">
                   <span className="block text-xs text-slate-500 mb-1">Item yang dibeli:</span>
                   <p className="text-sm font-medium text-slate-700">{selectedPo.items}</p>
                 </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm mt-2">
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-red-100 shadow-sm mt-2">
                   <span className="text-sm font-bold text-slate-700">Total Pengajuan Dana</span>
-                  <span className="text-lg font-black text-blue-700 flex items-center gap-1">
+                  <span className="text-lg font-black text-red-700 flex items-center gap-1">
                     {formatIDR(selectedPo.totalAmount)}
                   </span>
                 </div>
@@ -214,7 +214,7 @@ export function FinancePurchasingApproval() {
                   <select 
                     value={category}
                     onChange={e => setCategory(e.target.value as POCategory)}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-500 bg-white shadow-sm"
                   >
                     <option value="" disabled>-- Pilih Kategori Pembukuan --</option>
                     <option value="Asset">Asset (Inventaris Jangka Panjang)</option>
@@ -232,7 +232,7 @@ export function FinancePurchasingApproval() {
                     onChange={e => setNotes(e.target.value)}
                     placeholder="Catatan persetujuan atau alasan penolakan..."
                     rows={3}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none bg-white shadow-sm"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-500 resize-none bg-white shadow-sm"
                   />
                 </div>
               </div>
@@ -241,14 +241,14 @@ export function FinancePurchasingApproval() {
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button 
                 onClick={handleReject}
-                className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 py-2.5 rounded-lg text-sm font-bold transition-colors"
+                className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-md"
               >
                 Tolak Pengajuan
               </button>
               <button 
                 onClick={handleApprove}
                 disabled={!category}
-                className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
+                className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
                 <DollarSign size={16} /> Approve & Checkout
               </button>

@@ -241,7 +241,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
           </div>
           <button
             className="flex items-center gap-1.5 rounded px-3 py-2 text-white hover:opacity-90 transition-opacity shrink-0"
-            style={{ fontSize: 12, background: "#2563eb" }}
+            style={{ fontSize: 12, background: "#C8102E" }}
           >
             <ShoppingCart size={13} /> Buat PO
           </button>
@@ -304,12 +304,12 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
               ].map(({ label, val }) => (
                 <div key={label}>
                   <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                  <p style={{ fontSize: 13, color: "#0f172a", marginTop: 3 }}>{val}</p>
+                  <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{val}</p>
                 </div>
               ))}
               <div className="sm:col-span-2 lg:col-span-3">
                 <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Alamat Lengkap</p>
-                <p style={{ fontSize: 13, color: "#0f172a", marginTop: 3 }}>{supplier.address}</p>
+                <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{supplier.address}</p>
               </div>
             </div>
           </div>
@@ -332,7 +332,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{c.name}</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#1F1F1F" }}>{c.name}</p>
                     {c.isPrimary && (
                       <span className="rounded px-1.5 py-0.5" style={{ fontSize: 10, fontWeight: 600, background: "#eff6ff", color: "#1d4ed8" }}>
                         Kontak Utama
@@ -341,10 +341,10 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
                   </div>
                   <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{c.role}</p>
                   <div className="flex flex-wrap gap-4 mt-3">
-                    <a href={`tel:${c.phone}`} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ fontSize: 13, color: "#0f172a" }}>
+                    <a href={`tel:${c.phone}`} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ fontSize: 13, color: "#1F1F1F" }}>
                       <Phone size={14} style={{ color: "#94a3b8" }} /> {c.phone}
                     </a>
-                    <a href={`mailto:${c.email}`} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ fontSize: 13, color: "#0f172a" }}>
+                    <a href={`mailto:${c.email}`} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ fontSize: 13, color: "#1F1F1F" }}>
                       <Mail size={14} style={{ color: "#94a3b8" }} /> {c.email}
                     </a>
                   </div>
@@ -378,7 +378,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [`Rp ${v} Jt`]} />
-                <Bar dataKey="value" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="value" fill="#C8102E" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -400,9 +400,9 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                   >
-                    <TD><span style={{ fontWeight: 500, color: "#0f172a" }}>{h.month} 2026</span></TD>
+                    <TD><span style={{ fontWeight: 500, color: "#1F1F1F" }}>{h.month} 2026</span></TD>
                     <TD><span style={{ color: "#475569" }}>{h.pos} PO</span></TD>
-                    <TD><span style={{ fontWeight: 600, color: "#0f172a" }}>Rp {h.value} Jt</span></TD>
+                    <TD><span style={{ fontWeight: 600, color: "#1F1F1F" }}>Rp {h.value} Jt</span></TD>
                     <TD><span style={{ color: "#64748b" }}>Rp {Math.round(h.value / h.pos)} Jt</span></TD>
                   </tr>
                 ))}
@@ -415,14 +415,14 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
         <TabsContent value="performance" className="mt-4 space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "On-Time Delivery", val: `${supplier.onTimeRate}%`, target: "≥ 90%", ok: supplier.onTimeRate >= 90, bar: supplier.onTimeRate, color: "#2563eb" },
+              { label: "On-Time Delivery", val: `${supplier.onTimeRate}%`, target: "≥ 90%", ok: supplier.onTimeRate >= 90, bar: supplier.onTimeRate, color: "#C8102E" },
               { label: "Defect Rate", val: `${supplier.defectRate}%`, target: "≤ 2%", ok: supplier.defectRate <= 2, bar: Math.min(supplier.defectRate * 10, 100), color: "#dc2626", invert: true },
               { label: "Total PO (6 bln)", val: supplier.totalPOs.toString(), target: "—", ok: true, bar: Math.min((supplier.totalPOs / 60) * 100, 100), color: "#0891b2" },
               { label: "Rating", val: `${supplier.rating}/5.0`, target: "≥ 4.0", ok: supplier.rating >= 4.0, bar: (supplier.rating / 5) * 100, color: "#f59e0b" },
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-lg p-4" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{kpi.label}</p>
-                <p style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", marginTop: 6 }}>{kpi.val}</p>
+                <p style={{ fontSize: 20, fontWeight: 700, color: "#1F1F1F", marginTop: 6 }}>{kpi.val}</p>
                 <div className="flex items-center justify-between mt-2 mb-1.5">
                   <span style={{ fontSize: 10, color: "#94a3b8" }}>Target: {kpi.target}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: kpi.ok ? "#16a34a" : "#dc2626" }}>
@@ -462,7 +462,7 @@ export function SuppliersPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ color: "#0f172a" }}>Supplier Management</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Supplier Management</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             Database supplier dan manajemen vendor PT Pratama Jaya Tekindo
           </p>
@@ -486,7 +486,7 @@ export function SuppliersPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama, kode, kategori, kota..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
-            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#0f172a" }}
+            style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
         <div className="flex gap-2">
@@ -542,7 +542,7 @@ export function SuppliersPage() {
                           {s.name.charAt(0)}
                         </div>
                         <div>
-                          <p style={{ fontWeight: 600, color: "#0f172a", fontSize: 13 }}>{s.name}</p>
+                          <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 13 }}>{s.name}</p>
                           <p style={{ fontSize: 11, color: "#94a3b8" }}>{s.code}</p>
                         </div>
                       </div>
@@ -557,7 +557,7 @@ export function SuppliersPage() {
                       <Stars r={s.rating} />
                     </TD>
                     <TD className="hidden sm:table-cell">
-                      <span style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>{s.totalPOs}</span>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>{s.totalPOs}</span>
                     </TD>
                     <TD className="hidden md:table-cell">
                       <span style={{ fontSize: 12, fontWeight: 600, color: s.onTimeRate >= 90 ? "#16a34a" : s.onTimeRate >= 80 ? "#d97706" : "#dc2626" }}>
@@ -565,7 +565,7 @@ export function SuppliersPage() {
                       </span>
                     </TD>
                     <TD className="hidden lg:table-cell">
-                      <span style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>Rp {formatRpM(s.totalValue)}</span>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>Rp {formatRpM(s.totalValue)}</span>
                     </TD>
                     <TD>
                       <Pill bg={sc.bg} color={sc.color}>
@@ -581,8 +581,8 @@ export function SuppliersPage() {
                           </button>
                         </a>
                         <button
-                          className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-blue-50 transition-colors"
-                          style={{ fontSize: 11, color: "#2563eb", borderColor: "#bfdbfe" }}
+                          className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-red-50 transition-colors"
+                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                           onClick={() => setSelected(s)}
                         >
                           <Eye size={12} /> Detail

@@ -8,16 +8,15 @@ import {
 import { invoices, formatIDR, formatDate, type Invoice, type InvoiceStatus } from './mockData';
 import { useERPStore } from '../../store/useERPStore';
 import type { ERPInvoice } from '../../store/erpStore';
-import { useFinanceData } from './useFinanceData';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   PAID: 'Lunas', PENDING: 'Menunggu', OVERDUE: 'Jatuh Tempo', PARTIAL: 'Sebagian',
 };
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  PAID: 'bg-green-100 text-green-700 border-green-200',
-  PENDING: 'bg-amber-100 text-amber-700 border-amber-200',
-  OVERDUE: 'bg-red-100 text-red-700 border-red-200',
-  PARTIAL: 'bg-blue-100 text-blue-700 border-blue-200',
+  PAID: '#16A34A',
+  PENDING: '#F59E0B',
+  OVERDUE: '#DC2626',
+  PARTIAL: '#DC2626',
 };
 const STATUS_ICONS: Record<InvoiceStatus, React.ComponentType<any>> = {
   PAID: CheckCircle2, PENDING: Clock, OVERDUE: AlertTriangle, PARTIAL: AlertCircle,
@@ -97,7 +96,7 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
         )}
 
         {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
           <div>
             <h2 className="text-slate-900 text-base">{invoice.invoiceNumber}</h2>
             <p className="text-xs text-slate-400 mt-0.5">{invoice.soNumber}</p>
@@ -196,9 +195,9 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
 
           {/* Notes */}
           {invoice.notes && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-              <p className="text-xs font-semibold text-blue-700 mb-1">Catatan</p>
-              <p className="text-xs text-blue-600">{invoice.notes}</p>
+            <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+              <p className="text-xs font-semibold text-red-700 mb-1">Catatan</p>
+              <p className="text-xs text-red-600">{invoice.notes}</p>
             </div>
           )}
 
@@ -206,14 +205,14 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
           <div className="flex gap-3 pt-2 relative z-10">
             <button
               onClick={() => window.print()}
-              className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-medium rounded-lg py-2.5 transition-colors ${invoice.status === 'OVERDUE' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+              className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-medium rounded-lg py-2.5 transition-colors ${invoice.status === 'OVERDUE' ? 'bg-red-600 hover:bg-red-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
               <Printer size={15} />
               {invoice.status === 'OVERDUE' ? 'Cetak Surat Penagihan Khusus' : 'Print Invoice'}
             </button>
             <button
               onClick={exportInvoice}
-              className="flex-1 flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg py-2.5 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg py-2.5 transition-colors shadow-md"
             >
               <Download size={15} />
               Export CSV
@@ -228,15 +227,14 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
 export function InvoiceList() {
   const navigate = useNavigate();
   const { liveInvoices } = useERPStore();
-  const { invoices: backendInvoices, isLoading, error, refresh } = useFinanceData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const invoiceData = useMemo(
-    () => [...backendInvoices, ...liveInvoices.map(mapLiveInvoice), ...invoices],
-    [backendInvoices, liveInvoices]
+    () => [...liveInvoices.map(mapLiveInvoice), ...invoices],
+    [liveInvoices]
   );
 
   const filtered = useMemo(() => {
@@ -285,27 +283,12 @@ export function InvoiceList() {
         </div>
         <button
           onClick={() => navigate('/erp/finance/create-invoice')}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm"
         >
           <FilePlus size={15} />
           Buat Invoice Baru
         </button>
       </div>
-
-      {(isLoading || error) && (
-        <div className={`rounded-lg border px-4 py-3 text-sm ${
-          error ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'
-        }`}>
-          <div className="flex items-center justify-between gap-3">
-            <span>{error || 'Memuat invoice dari backend...'}</span>
-            {error && (
-              <button onClick={() => void refresh()} className="text-xs font-semibold underline">
-                Coba lagi
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Stats Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -332,7 +315,7 @@ export function InvoiceList() {
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Cari no. invoice, pelanggan, atau no. SO..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all"
             />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 xl:flex-shrink-0">
@@ -394,9 +377,9 @@ export function InvoiceList() {
               ) : paginated.map(inv => {
                 const Icon = STATUS_ICONS[inv.status];
                 return (
-                  <tr key={inv.id} className="hover:bg-blue-50/30 transition-colors cursor-pointer" onClick={() => setSelectedInvoice(inv)}>
+                  <tr key={inv.id} className="hover:bg-red-50/30 transition-colors cursor-pointer" onClick={() => setSelectedInvoice(inv)}>
                     <td className="px-5 py-4">
-                      <span className="font-medium text-blue-600 hover:text-blue-700">{inv.invoiceNumber}</span>
+                      <span className="font-medium text-red-600 hover:text-red-700">{inv.invoiceNumber}</span>
                     </td>
                     <td className="px-5 py-4 text-slate-500">{inv.soNumber}</td>
                     <td className="px-5 py-4">
@@ -414,15 +397,18 @@ export function InvoiceList() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_COLORS[inv.status]}`}>
-                        <Icon size={11} />
+                      <span 
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm tracking-wide uppercase"
+                        style={{ backgroundColor: STATUS_COLORS[inv.status] || '#64748B', color: '#FFFFFF', border: 'none' }}
+                      >
+                        <Icon size={12} className="text-white" />
                         {STATUS_LABELS[inv.status]}
                       </span>
                     </td>
                     <td className="px-5 py-4">
                       <button
                         onClick={e => { e.stopPropagation(); setSelectedInvoice(inv); }}
-                        className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-all"
+                        className="text-slate-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-all"
                       >
                         <Eye size={16} />
                       </button>
@@ -444,7 +430,7 @@ export function InvoiceList() {
               <div key={inv.id} className="p-4 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedInvoice(inv)}>
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <p className="font-medium text-blue-600 text-sm">{inv.invoiceNumber}</p>
+                    <p className="font-medium text-red-600 text-sm">{inv.invoiceNumber}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{inv.soNumber} · {inv.customerName}</p>
                   </div>
                   <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_COLORS[inv.status]}`}>
@@ -480,7 +466,7 @@ export function InvoiceList() {
                 key={p}
                 onClick={() => setPage(p)}
                 className={`w-7 h-7 rounded-md text-xs font-medium transition-all ${
-                  page === p ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-200'
+                  page === p ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-200'
                 }`}
               >
                 {p}

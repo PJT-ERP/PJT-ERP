@@ -5,19 +5,18 @@ import {
   ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
 import { transactions, formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
-import { useFinanceData } from './useFinanceData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
-  INVOICE: { label: 'Invoice', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100' },
+  INVOICE: { label: 'Invoice', icon: FileText, color: 'text-red-600', bg: 'bg-red-100' },
   PAYMENT: { label: 'Pembayaran', icon: CreditCard, color: 'text-green-600', bg: 'bg-green-100' },
   CREDIT_NOTE: { label: 'Kredit Nota', icon: MinusCircle, color: 'text-purple-600', bg: 'bg-purple-100' },
   DEBIT_NOTE: { label: 'Debit Nota', icon: PlusCircle, color: 'text-orange-600', bg: 'bg-orange-100' },
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  COMPLETED: 'bg-green-100 text-green-700',
-  OUTSTANDING: 'bg-amber-100 text-amber-700',
-  PENDING_VERIFICATION: 'bg-blue-100 text-blue-700',
+  COMPLETED: '#16A34A',
+  OUTSTANDING: '#F59E0B',
+  PENDING_VERIFICATION: '#DC2626',
 };
 const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Selesai',
@@ -26,59 +25,16 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function TransactionHistory() {
-  const { backendInvoices, isLoading, error, refresh } = useFinanceData();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'ALL'>('ALL');
   const [customerFilter, setCustomerFilter] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
 
-  const backendTransactions = useMemo<Transaction[]>(() => {
-    let runningBalance = 0;
-    const rows: Transaction[] = [];
-
-    backendInvoices.forEach(invoice => {
-      runningBalance += invoice.totalAmount;
-      rows.push({
-        id: `${invoice.id}-invoice`,
-        type: 'INVOICE',
-        referenceNumber: invoice.invoiceNumber,
-        description: `Invoice ${invoice.salesOrderNumber}`,
-        debit: invoice.totalAmount,
-        credit: 0,
-        balance: runningBalance,
-        date: invoice.invoiceDate,
-        status: invoice.status === 'Paid' ? 'COMPLETED' : 'OUTSTANDING',
-        customerName: invoice.customerName,
-        category: 'Invoice',
-      });
-
-      invoice.payments.forEach(payment => {
-        runningBalance -= payment.amount;
-        rows.push({
-          id: payment.id,
-          type: 'PAYMENT',
-          referenceNumber: invoice.invoiceNumber,
-          description: payment.notes || `Pembayaran ${invoice.invoiceNumber}`,
-          debit: 0,
-          credit: payment.amount,
-          balance: runningBalance,
-          date: payment.paymentDate,
-          status: 'COMPLETED',
-          customerName: invoice.customerName,
-          category: 'Payment',
-        });
-      });
-    });
-
-    return rows;
-  }, [backendInvoices]);
-
-  const transactionData = useMemo(() => [...backendTransactions, ...transactions], [backendTransactions]);
-  const uniqueCustomers = useMemo(() => Array.from(new Set(transactionData.map(t => t.customerName))), [transactionData]);
+  const uniqueCustomers = useMemo(() => Array.from(new Set(transactions.map(t => t.customerName))), []);
 
   const filtered = useMemo(() => {
-    const result = transactionData.filter(t => {
+    const result = transactions.filter(t => {
       const matchSearch = !search ||
         t.referenceNumber.toLowerCase().includes(search.toLowerCase()) ||
         t.description.toLowerCase().includes(search.toLowerCase()) ||
@@ -95,11 +51,11 @@ export function TransactionHistory() {
     });
 
     return result;
-  }, [search, typeFilter, customerFilter, sortOrder, transactionData]);
+  }, [search, typeFilter, customerFilter, sortOrder]);
 
-  const totalCredit = transactionData.reduce((s, t) => s + t.credit, 0);
-  const totalDebit = transactionData.reduce((s, t) => s + t.debit, 0);
-  const currentBalance = transactionData[transactionData.length - 1]?.balance ?? 0;
+  const totalCredit = transactions.reduce((s, t) => s + t.credit, 0);
+  const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
+  const currentBalance = transactions[transactions.length - 1]?.balance ?? 0;
 
   return (
     <div className="p-4 lg:p-6 space-y-5 min-h-full">
@@ -110,22 +66,12 @@ export function TransactionHistory() {
           <p className="text-sm text-slate-500 mt-0.5">Log lengkap semua aktivitas keuangan</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors">
+          <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors shadow-md">
             <Download size={14} />
             <span className="hidden sm:inline">Export</span>
           </button>
-          <button onClick={() => void refresh()} className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors">
-            <RefreshCw size={14} />
-            <span className="hidden sm:inline">{isLoading ? 'Loading...' : 'Refresh'}</span>
-          </button>
         </div>
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {error}
-        </div>
-      )}
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -135,7 +81,7 @@ export function TransactionHistory() {
             <ArrowDownLeft size={16} className="text-green-200" />
           </div>
           <p className="text-xl font-bold">{formatIDR(totalCredit)}</p>
-          <p className="text-xs text-green-200 mt-1">{transactionData.filter(t => t.credit > 0).length} transaksi kredit</p>
+          <p className="text-xs text-green-200 mt-1">{transactions.filter(t => t.credit > 0).length} transaksi kredit</p>
         </div>
         <div className="bg-slate-700 rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -143,7 +89,7 @@ export function TransactionHistory() {
             <ArrowUpRight size={16} className="text-slate-300" />
           </div>
           <p className="text-xl font-bold">{formatIDR(totalDebit)}</p>
-          <p className="text-xs text-slate-400 mt-1">{transactionData.filter(t => t.debit > 0).length} transaksi debit</p>
+          <p className="text-xs text-slate-400 mt-1">{transactions.filter(t => t.debit > 0).length} transaksi debit</p>
         </div>
         <div className="bg-[#0D1B2A] rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -164,7 +110,7 @@ export function TransactionHistory() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Cari referensi, deskripsi, atau pelanggan..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all"
             />
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -172,7 +118,7 @@ export function TransactionHistory() {
             <select
               value={customerFilter}
               onChange={e => setCustomerFilter(e.target.value)}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-red-500 font-medium cursor-pointer"
             >
               <option value="ALL">Semua Pelanggan</option>
               {uniqueCustomers.map(c => <option key={c} value={c}>{c}</option>)}
@@ -224,7 +170,7 @@ export function TransactionHistory() {
                       <div className="flex items-center gap-1">
                         {h}
                         {h === 'Tanggal' && (
-                          <span className="text-[10px] text-slate-400 group-hover:text-blue-500">
+                          <span className="text-[10px] text-slate-400 group-hover:text-red-500">
                             {sortOrder === 'ASC' ? '▲' : '▼'}
                           </span>
                         )}
@@ -239,7 +185,7 @@ export function TransactionHistory() {
                 ) : filtered.map(trx => {
                   const cfg = TYPE_CONFIG[trx.type];
                   return (
-                    <tr key={trx.id} className="hover:bg-blue-50/20 transition-colors">
+                    <tr key={trx.id} className="hover:bg-red-50/20 transition-colors">
                       <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{formatDate(trx.date)}</td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
@@ -268,7 +214,10 @@ export function TransactionHistory() {
                         <span className="font-medium text-slate-800 text-xs">{formatIDR(trx.balance)}</span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[trx.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                        <span 
+                          className="text-[10px] font-bold px-2 py-1 rounded-md shadow-sm uppercase tracking-wide"
+                          style={{ backgroundColor: STATUS_COLORS[trx.status] || '#64748B', color: '#FFFFFF', border: 'none' }}
+                        >
                           {STATUS_LABELS[trx.status] ?? trx.status}
                         </span>
                       </td>
@@ -303,7 +252,10 @@ export function TransactionHistory() {
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium text-slate-800 text-sm">{trx.description}</span>
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[trx.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                                <span 
+                                  className="text-[10px] font-bold px-2 py-1 rounded-md shadow-sm uppercase tracking-wide"
+                                  style={{ backgroundColor: STATUS_COLORS[trx.status] || '#64748B', color: '#FFFFFF', border: 'none' }}
+                                >
                                   {STATUS_LABELS[trx.status] ?? trx.status}
                                 </span>
                               </div>
@@ -336,7 +288,7 @@ export function TransactionHistory() {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
-          <p className="text-xs text-slate-400">{filtered.length} dari {transactionData.length} transaksi</p>
+          <p className="text-xs text-slate-400">{filtered.length} dari {transactions.length} transaksi</p>
           <p className="text-xs text-slate-500">Update terakhir: hari ini, 14:30 WIB</p>
         </div>
       </div>

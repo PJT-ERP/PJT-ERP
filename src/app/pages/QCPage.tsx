@@ -5,9 +5,9 @@ import { SalesOrder } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
@@ -40,7 +40,7 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
               {so.status === 'QC' ? (
                 <>Menunggu QC</>
               ) : (
-                <>{so.qcStatus === 'Pass' ? <CheckCircle size={14} /> : <XCircle size={14} />} {so.qcStatus === 'Pass' ? 'Go (Lulus QC)' : 'NoGo (Gagal QC)'}</>
+                <>{so.qcStatus === 'Pass' ? <CheckCircle size={14} /> : <XCircle size={14} />} {so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}</>
               )}
             </span>
             {so.qcAt && <span style={{ color: S.secondary, fontSize: "12.5px" }}>{new Date(so.qcAt).toLocaleString('id-ID')}</span>}
@@ -135,15 +135,15 @@ export function QCPage() {
           <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{completed.length}</p>
         </div>
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go (Lulus)</p>
+          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go</p>
           <p style={{ color: "#16A34A", fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{passCount}</p>
         </div>
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>NoGo (Tidak Lulus)</p>
+          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>NoGo</p>
           <p style={{ color: "#DC2626", fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{failCount}</p>
         </div>
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Pass Rate</p>
+          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go Rate</p>
           <p style={{ color: "#9333EA", fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{passRate}%</p>
         </div>
       </div>
@@ -152,7 +152,7 @@ export function QCPage() {
       {completed.length > 0 && (
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, fontSize: "13.5px", fontWeight: 500 }}>
-            <span style={{ color: S.slate }}>Pass Rate Keseluruhan</span>
+            <span style={{ color: S.slate }}>Go Rate Keseluruhan</span>
             <span style={{ color: passRate >= 80 ? "#16A34A" : passRate >= 60 ? "#D97706" : "#DC2626" }}>{passRate}%</span>
           </div>
           <div style={{ height: 12, background: S.bg, borderRadius: 99, overflow: "hidden" }}>

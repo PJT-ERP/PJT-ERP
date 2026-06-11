@@ -265,7 +265,7 @@ export const invoiceStatusData = [
   { name: 'Lunas', value: 3, color: '#16a34a' },
   { name: 'Menunggu', value: 3, color: '#d97706' },
   { name: 'Jatuh Tempo', value: 1, color: '#dc2626' },
-  { name: 'Sebagian', value: 1, color: '#2563eb' },
+  { name: 'Sebagian', value: 1, color: '#C8102E' },
 ];
 
 export const topCustomersData = [

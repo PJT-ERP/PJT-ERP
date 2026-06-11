@@ -121,9 +121,9 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{
-                    backgroundColor: isCompleted || isCurrent ? "#06B6D4" : "#E2E8F0",
-                    border: isCurrent ? "3px solid #0F172A" : "none",
-                    boxShadow: isCurrent ? "0 0 0 3px #06B6D4" : "none",
+                    backgroundColor: isCompleted || isCurrent ? "#C8102E" : "#E2E8F0",
+                    border: isCurrent ? "3px solid #1F1F1F" : "none",
+                    boxShadow: isCurrent ? "0 0 0 3px #C8102E" : "none",
                   }}
                 >
                   {isCompleted ? (
@@ -136,7 +136,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
                 </div>
                 <span
                   style={{
-                    color: isCompleted || isCurrent ? "#1E293B" : "#94A3B8",
+                    color: isCompleted || isCurrent ? "#111827" : "#94A3B8",
                     fontFamily: "Inter, sans-serif",
                     fontSize: "11px",
                     fontWeight: isCurrent ? 700 : 500,
@@ -151,7 +151,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
               {idx < TIMELINE_STEPS.length - 1 && (
                 <div
                   className="flex-1 h-0.5 mx-1 mb-5"
-                  style={{ backgroundColor: idx < currentIdx ? "#06B6D4" : "#E2E8F0" }}
+                  style={{ backgroundColor: idx < currentIdx ? "#C8102E" : "#E2E8F0" }}
                 />
               )}
             </div>
@@ -169,7 +169,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{
-                  backgroundColor: isCompleted || isCurrent ? "#06B6D4" : "#E2E8F0",
+                  backgroundColor: isCompleted || isCurrent ? "#C8102E" : "#E2E8F0",
                 }}
               >
                 {isCompleted ? (
@@ -182,7 +182,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
               </div>
               <span
                 style={{
-                  color: isCompleted || isCurrent ? "#1E293B" : "#94A3B8",
+                  color: isCompleted || isCurrent ? "#111827" : "#94A3B8",
                   fontFamily: "Inter, sans-serif",
                   fontSize: "13px",
                   fontWeight: isCurrent ? 700 : 400,
@@ -190,7 +190,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
               >
                 {step.label}
                 {isCurrent && (
-                  <span style={{ color: "#06B6D4", fontWeight: 700 }}> ← Current</span>
+                  <span style={{ color: "#C8102E", fontWeight: 700 }}> ← Current</span>
                 )}
               </span>
             </div>
@@ -238,17 +238,17 @@ export function OrderTracking() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+            <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
             <span
-              style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
+              style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
             >
               ORDER TRACKING
             </span>
-            <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+            <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           </div>
           <h2
             style={{
-              color: "#1E293B",
+              color: "#111827",
               fontFamily: "Inter, sans-serif",
               fontSize: "clamp(1.75rem, 3vw, 2.5rem)",
               fontWeight: 800,
@@ -279,7 +279,7 @@ export function OrderTracking() {
           style={{
             backgroundColor: "#FFFFFF",
             border: "1px solid #E2E8F0",
-            boxShadow: "0 4px 24px rgba(15,23,42,0.06)",
+            boxShadow: "0 4px 24px rgba(24,24,24,0.06)",
           }}
         >
           {/* Search input */}
@@ -299,14 +299,14 @@ export function OrderTracking() {
                   width: "100%",
                   fontFamily: "Inter, sans-serif",
                   fontSize: "15px",
-                  color: "#1E293B",
+                  color: "#111827",
                   backgroundColor: "#F8FAFC",
                   border: "1px solid #E2E8F0",
                   borderRadius: "12px",
                   padding: "12px 16px 12px 40px",
                   outline: "none",
                 }}
-                onFocus={(e) => { e.target.style.borderColor = "#06B6D4"; e.target.style.boxShadow = "0 0 0 3px rgba(6,182,212,0.15)"; }}
+                onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.15)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
               />
             </div>
@@ -315,7 +315,7 @@ export function OrderTracking() {
               disabled={loading}
               className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
               style={{
-                backgroundColor: "#0F172A",
+                backgroundColor: "#1F1F1F",
                 color: "#FFFFFF",
                 fontFamily: "Inter, sans-serif",
                 fontSize: "15px",
@@ -336,15 +336,15 @@ export function OrderTracking() {
           >
             Try: <button
               onClick={() => { setSoInput("SO-2024-001"); }}
-              style={{ color: "#06B6D4", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
+              style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
             >SO-2024-001</button>,{" "}
             <button
               onClick={() => { setSoInput("SO-2024-002"); }}
-              style={{ color: "#06B6D4", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
+              style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
             >SO-2024-002</button>,{" "}
             <button
               onClick={() => { setSoInput("SO-2024-003"); }}
-              style={{ color: "#06B6D4", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
+              style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
             >SO-2024-003</button>
           </p>
 
@@ -379,7 +379,7 @@ export function OrderTracking() {
                     <div style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "12px", fontWeight: 600, letterSpacing: "0.06em" }} className="mb-1">
                       SALES ORDER
                     </div>
-                    <div style={{ color: "#0F172A", fontFamily: "Inter, sans-serif", fontSize: "20px", fontWeight: 800, letterSpacing: "-0.01em" }}>
+                    <div style={{ color: "#1F1F1F", fontFamily: "Inter, sans-serif", fontSize: "20px", fontWeight: 800, letterSpacing: "-0.01em" }}>
                       {result.soNumber}
                     </div>
                   </div>
@@ -399,15 +399,15 @@ export function OrderTracking() {
                       <div key={item.label} className="flex items-start gap-3">
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: "rgba(6,182,212,0.1)" }}
+                          style={{ backgroundColor: "rgba(200,16,46,0.1)" }}
                         >
-                          <Icon className="w-4 h-4" style={{ color: "#06B6D4" }} />
+                          <Icon className="w-4 h-4" style={{ color: "#C8102E" }} />
                         </div>
                         <div>
                           <div style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em" }}>
                             {item.label.toUpperCase()}
                           </div>
-                          <div style={{ color: "#1E293B", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 600, lineHeight: 1.4, marginTop: "2px" }}>
+                          <div style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 600, lineHeight: 1.4, marginTop: "2px" }}>
                             {item.value}
                           </div>
                         </div>
@@ -419,16 +419,16 @@ export function OrderTracking() {
                 {/* Notes */}
                 <div
                   className="mt-4 p-3 rounded-lg"
-                  style={{ backgroundColor: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.15)" }}
+                  style={{ backgroundColor: "rgba(200,16,46,0.06)", border: "1px solid rgba(200,16,46,0.15)" }}
                 >
-                  <span style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "12px", fontWeight: 700 }}>NOTE: </span>
+                  <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "12px", fontWeight: 700 }}>NOTE: </span>
                   <span style={{ color: "#475569", fontFamily: "Inter, sans-serif", fontSize: "13px" }}>{result.notes}</span>
                 </div>
               </div>
 
               {/* Progress timeline */}
               <div>
-                <div style={{ color: "#1E293B", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 700 }} className="mb-3">
+                <div style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 700 }} className="mb-3">
                   Production Progress
                 </div>
                 <ProgressTimeline currentStatus={result.status} />

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useERPStore } from "../../store/useERPStore";
-import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
+import { getStatusColor, getQuotationStatusColor, QuotationStatus, Quotation } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";
@@ -20,7 +20,7 @@ const invoiceStatusConfig: Record<string, { label: string; textColor: string; bg
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
 };
 
-interface SODetailProps {
+interface QuotationDetailProps {
   orderId: string;
   onNavigate: (page: Page, data?: unknown) => void;
   initialEditMode?: boolean;
@@ -38,7 +38,7 @@ const S = {
 };
 
 const WORKFLOW_STEPS = [
-  { key: "customer_request", label: "Customer Request", dept: "SO Team"         },
+  { key: "customer_request", label: "Customer Request", dept: "QUT Team"         },
   { key: "finance",          label: "Finance",          dept: "Finance Dept"    },
   { key: "engineering",      label: "Engineering",      dept: "Engineering"     },
   { key: "production",       label: "Production",       dept: "Production Floor"},
@@ -95,13 +95,15 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
   );
 }
 
-export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
-  const { salesOrders, customers, updateSalesOrder } = useApp();
+
+
+export function QuotationDetail({ orderId, onNavigate, initialEditMode }: QuotationDetailProps) {
+  const { quotations, customers, updateQuotation, addSalesOrder, currentUser } = useApp();
   const { allSOs, updateSOInFinance } = useERPStore();
   
-  const order = salesOrders.find(o => o.id === orderId);
+  const order = quotations.find(o => o.id === orderId);
   const customer = customers.find(c => c.code === order?.customerId);
-  const financeSo = allSOs.find(s => s.soNumber === orderId);
+  const financeSo = allSOs.find(s => s.quotationId === orderId);
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [editForm, setEditForm] = useState({
@@ -119,7 +121,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   const handleSave = () => {
     if (!order) return;
-    updateSalesOrder(orderId, {
+    updateQuotation(orderId, {
       description: editForm.description,
       quantity: Number(editForm.quantity),
       unit: editForm.unit,
@@ -142,22 +144,54 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     setIsEditMode(false);
   };
 
+  const isSales = currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+
+  const handleAction = (action: string) => {
+    if (!order) return;
+    if (action === 'approve_design') {
+      updateQuotation(order.id, { status: 'waiting_pricing' });
+    } else if (action === 'reject_design') {
+      updateQuotation(order.id, { status: 'pending_design' });
+    } else if (action === 'deal') {
+      updateQuotation(order.id, { status: 'won' });
+      // Auto generate SO
+      addSalesOrder({
+        customerId: order.customerId,
+        partNumber: order.productName, // Simplify
+        description: order.description,
+        quantity: order.quantity,
+        unit: order.unit,
+        deadline: order.deadline,
+        materials: order.materials,
+        designId: order.designId,
+        customerImageUrl: order.customerImageUrl,
+      });
+      // Give success feedback
+      alert("Quotation WON! Sales Order dan Invoice DP 50% berhasil dibuat secara otomatis.");
+      onNavigate('quotation-list');
+    } else if (action === 'revise_price') {
+      updateQuotation(order.id, { status: 'waiting_pricing' });
+    } else if (action === 'lost') {
+      updateQuotation(order.id, { status: 'lost', lostReason: 'Klien menolak penawaran harga akhir.' });
+    }
+  };
+
   if (!order) {
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
         <div style={{ textAlign: "center" }}>
           <AlertTriangle size={36} style={{ color: "#CBD5E1", margin: "0 auto 12px" }} />
-          <p style={{ color: S.secondary }}>Sales Order tidak ditemukan</p>
-          <button onClick={() => onNavigate("so-list")}
+          <p style={{ color: S.secondary }}>Penawaran tidak ditemukan</p>
+          <button onClick={() => onNavigate("quotation-list")}
             style={{ marginTop: 12, padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font }}>
-            Kembali ke Daftar SO
+            Kembali ke Daftar QUT
           </button>
         </div>
       </div>
     );
   }
 
-  const cfg = getStatusColor(order.status as SOStatus);
+  const cfg = getQuotationStatusColor(order.status as QuotationStatus);
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -166,8 +200,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
-            onClick={() => onNavigate("so-list")}
-            title="Kembali ke Daftar SO"
+            onClick={() => onNavigate("quotation-list")}
+            title="Kembali ke Daftar QUT"
             style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", flexShrink: 0, transition: "background 0.1s, color 0.1s" }}
             onMouseEnter={e => { (e.currentTarget).style.background = S.bg; (e.currentTarget).style.color = S.slate; }}
             onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; }}
@@ -179,7 +213,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               <h1 style={{ color: S.slate, margin: 0 }}>{order.id}</h1>
               <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
                 <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-                {order.status}
+                {cfg.label}
               </span>
             </div>
             <p style={{ color: S.secondary, fontSize: "12px", margin: "3px 0 0" }}>
@@ -189,7 +223,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <HeaderBtn icon={<Printer size={13} />} label="Cetak"    />
-          <HeaderBtn icon={<Copy size={13} />}    label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
+          <HeaderBtn icon={<Copy size={13} />}    label="Duplikat" onClick={() => onNavigate("quotation-create", { customerId: order.customerId, orderType: "repeat" })} />
           <HeaderBtn icon={<Edit size={13} />}    label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
       </div>
@@ -240,10 +274,15 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       )}
 
-      {order.status === "cancelled" && (
-        <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <AlertTriangle size={16} style={{ color: "#EF4444", flexShrink: 0 }} />
-          <p style={{ margin: 0, color: "#991B1B", fontSize: "13px" }}>Sales Order ini telah dibatalkan.</p>
+      {(order.status === "cancelled" || order.status === "lost") && (
+        <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <AlertTriangle size={16} style={{ color: "#EF4444", flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <p style={{ margin: 0, color: "#991B1B", fontSize: "13px", fontWeight: 600 }}>Penawaran ini telah dibatalkan / gagal (Lost).</p>
+            {order.lostReason && (
+              <p style={{ margin: "4px 0 0", color: "#B91C1C", fontSize: "12px" }}>Alasan: {order.lostReason}</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -269,8 +308,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           {/* Product info */}
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <InfoRow icon={<Hash size={11} />} label="Nomor Part" value={order.partNumber || "-"} isEdit={false} />
+              <div style={{ gridColumn: "1 / -1" }}>
                 <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, description: v}))} />
               </div>
               <InfoRow icon={<Hash size={11} />}    label="Jumlah"   value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({...prev, quantity: v}))} />
@@ -311,34 +349,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </InfoCard>
 
 
-          {/* Jadwal Eksekusi Produksi */}
-          {(order.startTime || order.endTime) && (
-            <InfoCard title="Jadwal Eksekusi Produksi" icon={<Clock size={13} />}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Mulai Mesin</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.startTime?.replace('T', ' ') || '-'}</p>
-                  </div>
-                  <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Selesai Produksi</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.endTime?.replace('T', ' ') || '-'}</p>
-                  </div>
-                </div>
-                {order.lateReason && (
-                  <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", padding: "10px 14px", borderRadius: 6, display: "flex", gap: 10 }}>
-                    <AlertTriangle size={14} style={{ color: "#D97706", flexShrink: 0, marginTop: 2 }} />
-                    <div>
-                      <p style={{ margin: 0, fontSize: "11px", fontWeight: 600, color: "#B45309" }}>Catatan Keterlambatan</p>
-                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#92400E" }}>{order.lateReason}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </InfoCard>
-          )}
-
-          {/* Invoice Information — read-only for SO staff */}
+          {/* Invoice Information — read-only for QUT staff */}
           <InvoiceSection invoice={order.invoice} />
 
           {/* Activity log */}
@@ -400,7 +411,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
             <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. SO</p>
+                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. QUT</p>
                 <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{order.id}</p>
               </div>
               <div style={{ height: 1, background: "#F8FAFC" }} />
@@ -426,77 +437,70 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           </div>
 
-          {/* ── Laporan Quality Control (QC) ── */}
-          {order.qcStatus && (
+          {/* ── Customer Image Reference ── */}
+          {order.customerImageUrl && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Laporan QC</p>
-                <span style={{ padding: "3px 8px", borderRadius: 4, background: order.qcStatus === 'Pass' ? "#ECFDF5" : "#FEF2F2", color: order.qcStatus === 'Pass' ? "#059669" : "#DC2626", border: `1px solid ${order.qcStatus === 'Pass' ? "#10B981" : "#EF4444"}`, fontSize: "10px", fontWeight: 600 }}>
-                  {order.qcStatus === 'Pass' ? 'LULUS (PASS)' : 'GAGAL (FAIL)'}
-                </span>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Referensi dari Pelanggan</p>
               </div>
-              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-                {order.qcAt && (
-                  <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Inspeksi</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{order.qcAt}</p>
-                  </div>
-                )}
-                {order.qcNotes && (
+              <div style={{ padding: "12px 14px" }}>
+                <img src={order.customerImageUrl} alt="Referensi" style={{ width: "100%", borderRadius: 4, border: `1px solid ${S.border}`, objectFit: "cover", maxHeight: 200 }} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Action Panel (Sales Validation) ── */}
+          {isSales && (order.status === 'client_design_approval' || order.status === 'client_price_approval') && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FFFBEB" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#D97706", display: "flex", alignItems: "center", gap: 6 }}>
+                  <AlertTriangle size={14} /> Validasi Klien
+                </p>
+              </div>
+              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                {order.status === 'client_design_approval' && (
                   <>
-                    <div style={{ height: 1, background: "#F8FAFC" }} />
-                    <div>
-                      <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Catatan QC</p>
-                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary, lineHeight: 1.5 }}>{order.qcNotes}</p>
-                    </div>
+                    <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
+                      Desain telah disetujui Supervisor. Apakah Klien setuju dengan desain ini?
+                    </p>
+                    <ActionBtn icon={<CheckCircle2 size={13} />} label="Klien Setuju Desain" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('approve_design')} />
+                    <ActionBtn icon={<RefreshCw size={13} />} label="Minta Revisi Desain" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('reject_design')} />
                   </>
                 )}
-                {order.qcPhotos && order.qcPhotos.length > 0 && (
+                {order.status === 'client_price_approval' && (
                   <>
-                    <div style={{ height: 1, background: "#F8FAFC" }} />
-                    <div>
-                      <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
-                      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                        {order.qcPhotos.map((photo, i) => (
-                          <img key={i} src={photo} alt={`QC Photo ${i+1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />
-                        ))}
-                      </div>
-                    </div>
+                    <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
+                      Finance telah memberikan Harga Jual final: <strong style={{ color: S.slate }}>Rp {(order.estimatedAmount || 0).toLocaleString("id-ID")}</strong>
+                    </p>
+                    <ActionBtn icon={<CheckCircle2 size={13} />} label="Klien Deal (Convert to SO)" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('deal')} />
+                    <ActionBtn icon={<RefreshCw size={13} />} label="Nego / Revisi Harga" bg="#FFFBEB" color="#D97706" border="1px solid #F59E0B" onClick={() => handleAction('revise_price')} />
+                    <ActionBtn icon={<X size={13} />} label="Gagal / Batal (Lost)" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('lost')} />
                   </>
                 )}
               </div>
             </div>
           )}
 
-          {/* ── End-to-End History (Jejak Rekam Proyek) ── */}
-          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-            <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-              <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>End-to-End History</p>
-            </div>
-            <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
-              {[
-                { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
-                { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
-                { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
-                { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate },
-                { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
-              ].map((step, idx, arr) => (
-                <div key={idx} style={{ display: "flex", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ width: 14, height: 14, borderRadius: "50%", background: step.active ? S.cyan : "#F1F5F9", border: `2px solid ${step.active ? S.cyan : "#CBD5E1"}`, zIndex: 1 }} />
-                    {idx < arr.length - 1 && (
-                      <div style={{ width: 2, flex: 1, background: step.active ? "#A5F3FC" : "#F1F5F9", marginTop: -2, marginBottom: -4 }} />
-                    )}
+          {/* ── Revision History (Pricing) ── */}
+          {order.revisions && order.revisions.length > 0 && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Riwayat Harga (Revisi)</p>
+              </div>
+              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {order.revisions.map((rev, idx) => (
+                  <div key={idx} style={{ paddingBottom: idx < order.revisions!.length - 1 ? 10 : 0, borderBottom: idx < order.revisions!.length - 1 ? `1px solid ${S.border}` : 'none' }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: S.cyan }}>Rev {rev.revNumber}</span>
+                      <span style={{ fontSize: "10px", color: S.secondary }}>{rev.date}</span>
+                    </div>
+                    <p style={{ margin: "4px 0 2px", fontSize: "13px", fontWeight: 600, color: S.slate }}>Rp {rev.amount.toLocaleString("id-ID")}</p>
+                    {rev.notes && <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{rev.notes}</p>}
                   </div>
-                  <div style={{ paddingTop: -1, paddingBottom: 4 }}>
-                    <p style={{ margin: 0, fontSize: "12px", fontWeight: step.active ? 600 : 400, color: step.active ? S.slate : "#94A3B8" }}>{step.label}</p>
-                    {step.date && <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>{step.date}</p>}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-
+          )}
         </div>
       </div>
     </div>
@@ -504,7 +508,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 }
 
 // ─── InvoiceSection ───────────────────────────────────────────────────────────
-function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
+function InvoiceSection({ invoice }: { invoice?: Quotation["invoice"] }) {
   const status: InvoiceStatus = invoice?.status ?? "not_created";
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
@@ -541,7 +545,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#F8FAFC", borderRadius: 4, border: "1px solid #E2E8F0" }}>
               <Receipt size={16} style={{ color: "#94A3B8", flexShrink: 0 }} />
               <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary }}>
-                Invoice belum dibuat. Finance akan menerbitkan invoice setelah SO disetujui.
+                Invoice belum dibuat. Finance akan menerbitkan invoice setelah QUT disetujui.
               </p>
             </div>
           ) : (

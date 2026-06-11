@@ -7,9 +7,13 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps) {
   const colors = getStatusColor(status);
-  const sizeClass = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-3 py-1';
+  const sizeClass = size === 'sm' ? 'text-[11px] px-2.5 py-1' : 'text-xs px-3 py-1.5';
+  
   return (
-    <span className={`inline-flex items-center rounded-full border font-medium ${colors.bg} ${colors.text} ${colors.border} ${sizeClass}`}>
+    <span 
+      className={`inline-flex items-center rounded-md font-bold shadow-sm tracking-wide ${sizeClass} ${colors.bg} ${colors.text} ${colors.border}`}
+      style={{ textTransform: 'uppercase' }}
+    >
       {status}
     </span>
   );

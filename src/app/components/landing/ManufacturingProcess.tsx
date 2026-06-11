@@ -41,18 +41,18 @@ const steps = [
 
 export function ManufacturingProcess() {
   return (
-    <section style={{ backgroundColor: "#0F172A" }} className="py-20 lg:py-28">
+    <section style={{ backgroundColor: "#1F1F1F" }} className="py-20 lg:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-14">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+            <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
             <span
-              style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
+              style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
             >
               HOW WE WORK
             </span>
-            <div style={{ backgroundColor: "#06B6D4" }} className="w-1 h-6 rounded-full" />
+            <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           </div>
           <h2
             style={{
@@ -86,7 +86,7 @@ export function ManufacturingProcess() {
           {/* Connector line */}
           <div
             className="absolute top-10 left-0 right-0 h-px"
-            style={{ backgroundColor: "rgba(6,182,212,0.2)", margin: "0 60px" }}
+            style={{ backgroundColor: "rgba(200,16,46,0.2)", margin: "0 60px" }}
           />
 
           <div className="grid grid-cols-6 gap-4">
@@ -98,16 +98,16 @@ export function ManufacturingProcess() {
                   <div
                     className="relative z-10 w-20 h-20 rounded-full flex items-center justify-center mb-5"
                     style={{
-                      backgroundColor: "#0F172A",
-                      border: "2px solid #06B6D4",
-                      boxShadow: "0 0 0 6px rgba(6,182,212,0.1)",
+                      backgroundColor: "#1F1F1F",
+                      border: "2px solid #C8102E",
+                      boxShadow: "0 0 0 6px rgba(200,16,46,0.1)",
                     }}
                   >
-                    <Icon className="w-6 h-6" style={{ color: "#06B6D4" }} />
+                    <Icon className="w-6 h-6" style={{ color: "#C8102E" }} />
                     <span
                       className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
                       style={{
-                        backgroundColor: "#06B6D4",
+                        backgroundColor: "#C8102E",
                         color: "#FFFFFF",
                         fontFamily: "Inter, sans-serif",
                         fontSize: "10px",
@@ -156,14 +156,14 @@ export function ManufacturingProcess() {
                 <div className="flex flex-col items-center">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: "#1E293B", border: "2px solid #06B6D4" }}
+                    style={{ backgroundColor: "#111827", border: "2px solid #C8102E" }}
                   >
-                    <Icon className="w-5 h-5" style={{ color: "#06B6D4" }} />
+                    <Icon className="w-5 h-5" style={{ color: "#C8102E" }} />
                   </div>
                   {!isLast && (
                     <div
                       className="w-px flex-1 mt-2 mb-2"
-                      style={{ backgroundColor: "rgba(6,182,212,0.2)", minHeight: "32px" }}
+                      style={{ backgroundColor: "rgba(200,16,46,0.2)", minHeight: "32px" }}
                     />
                   )}
                 </div>
@@ -171,7 +171,7 @@ export function ManufacturingProcess() {
                 <div className={`pb-8 ${isLast ? "" : ""}`}>
                   <div
                     style={{
-                      color: "#06B6D4",
+                      color: "#C8102E",
                       fontFamily: "Inter, sans-serif",
                       fontSize: "11px",
                       fontWeight: 700,

@@ -13,7 +13,7 @@ export function HeroSection() {
   return (
     <section
       id="home"
-      style={{ backgroundColor: "#0F172A" }}
+      style={{ backgroundColor: "#1F1F1F" }}
       className="relative min-h-screen flex items-center overflow-hidden pt-16"
     >
       {/* Background image with overlay */}
@@ -26,7 +26,7 @@ export function HeroSection() {
       <div
         className="absolute inset-0"
         style={{
-          background: "linear-gradient(to right, rgba(15,23,42,0.97) 0%, rgba(15,23,42,0.85) 50%, rgba(15,23,42,0.6) 100%)",
+          background: "linear-gradient(to right, rgba(24,24,24,0.97) 0%, rgba(24,24,24,0.85) 50%, rgba(24,24,24,0.6) 100%)",
         }}
       />
 
@@ -44,14 +44,14 @@ export function HeroSection() {
           {/* Badge */}
           <div
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-8"
-            style={{ backgroundColor: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)" }}
+            style={{ backgroundColor: "rgba(200,16,46,0.12)", border: "1px solid rgba(200,16,46,0.3)" }}
           >
             <span
               className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#06B6D4" }}
+              style={{ backgroundColor: "#C8102E" }}
             />
             <span
-              style={{ color: "#06B6D4", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em" }}
+              style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em" }}
             >
               ISO-CERTIFIED MANUFACTURING
             </span>
@@ -71,7 +71,7 @@ export function HeroSection() {
           >
             Precision Industrial
             <br />
-            <span style={{ color: "#06B6D4" }}>Manufacturing</span>
+            <span style={{ color: "#C8102E" }}>Manufacturing</span>
             <br />
             Solutions
           </h1>
@@ -97,7 +97,7 @@ export function HeroSection() {
               onClick={handleTrackClick}
               className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
               style={{
-                backgroundColor: "#06B6D4",
+                backgroundColor: "#C8102E",
                 color: "#FFFFFF",
                 fontFamily: "Inter, sans-serif",
                 fontSize: "15px",
@@ -134,7 +134,7 @@ export function HeroSection() {
               <div key={stat.label}>
                 <div
                   style={{
-                    color: "#06B6D4",
+                    color: "#C8102E",
                     fontFamily: "Inter, sans-serif",
                     fontSize: "1.75rem",
                     fontWeight: 800,

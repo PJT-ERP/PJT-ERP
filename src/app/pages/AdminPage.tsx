@@ -5,9 +5,9 @@ import { User, Customer, UserRole } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
-  navy: "#0F172A",
-  cyan: "#06B6D4",
-  slate: "#1E293B",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
@@ -25,7 +25,7 @@ function getRoleColors(role: string) {
     case 'Engineering': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
-    default: return { bg: '#DBEAFE', text: '#2563EB', border: '#BFDBFE' }; // Sales
+    default: return { bg: '#DBEAFE', text: '#C8102E', border: '#BFDBFE' }; // Sales
   }
 }
 
