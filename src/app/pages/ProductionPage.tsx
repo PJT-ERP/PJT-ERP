@@ -3,6 +3,9 @@ import { PlayCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLi
 import { useApp } from "../components/context/AppContext";
 import { PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
+import { purchasingApi } from "../services/purchasingApi";
+import { salesApi } from "../services/salesApi";
+import { isGuid, toBackendUserId } from "../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -37,10 +40,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function isGuid(value?: string | null): value is string {
-  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
-}
-
 function getDrawingUrl(so: SalesOrder) {
   return so.customerDrawingUrl || so.designLink || "";
 }
@@ -69,21 +68,48 @@ function DrawingLinks({ so }: { so: SalesOrder }) {
 }
 
 function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, users } = useApp();
+  const { users, currentUser, refreshBackendData } = useApp();
   const [operatorId, setOperatorId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const operators = users.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!operatorId) return;
+    if (!operatorId || isSubmitting) return;
     const operator = users.find(u => u.id === operatorId);
-    updateSalesOrder(so.id, {
-      status: 'Ready for Production',
-      assignedTo: operatorId,
-      assignedName: operator?.name,
-    });
-    onClose();
+    const operatorBackendId = toBackendUserId(operator);
+    const reviewer = users.find(user => user.role === "Engineering Supervisor") || currentUser || operator;
+    const reviewerBackendId = toBackendUserId(reviewer);
+    const salesOrderId = getBackendSalesOrderId(so);
+
+    if (!operator || !operatorBackendId || !reviewer || !reviewerBackendId || !isGuid(salesOrderId)) {
+      alert("Tidak bisa assign operator karena data backend SO/operator belum lengkap.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await salesApi.assignSalesOrderEngineers(salesOrderId, {
+        productionWorker: { userId: operatorBackendId, name: operator.name },
+        qcReviewer: { userId: reviewerBackendId, name: reviewer.name },
+      });
+
+      try {
+        await salesApi.confirmSalesOrder(salesOrderId, toBackendUserId(currentUser) || reviewerBackendId);
+      } catch (confirmError) {
+        console.warn("Operator assigned, but SO confirmation is not ready yet.", confirmError);
+        alert("Operator tersimpan. SO belum bisa dikonfirmasi produksi sampai semua syarat backend terpenuhi.");
+      }
+
+      await refreshBackendData();
+      onClose();
+    } catch (error) {
+      console.warn("Failed to assign operator in backend.", error);
+      alert("Gagal assign operator ke backend. Cek koneksi API atau data SO.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -107,8 +133,8 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
           </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={!operatorId} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", opacity: operatorId ? 1 : 0.5 }}>
-              Konfirmasi
+            <button type="submit" disabled={!operatorId || isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: operatorId && !isSubmitting ? "pointer" : "not-allowed", opacity: operatorId && !isSubmitting ? 1 : 0.5 }}>
+              {isSubmitting ? "Menyimpan..." : "Konfirmasi"}
             </button>
           </div>
         </form>
@@ -118,8 +144,9 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
 }
 
 function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, addPurchasingRequest, currentUser } = useApp();
+  const { currentUser, refreshBackendData } = useApp();
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [items, setItems] = useState([
     {
       itemName: so.material || so.description || "",
@@ -165,52 +192,43 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
     e.preventDefault();
     if (!canSubmit) return;
 
-    const requesterId = isGuid(currentUser?.id)
-      ? currentUser.id
-      : isGuid(so.assignedTo)
-        ? so.assignedTo
-        : "";
+    if (isSubmitting) return;
+
+    const requesterId = toBackendUserId(currentUser) || (isGuid(so.assignedTo) ? so.assignedTo : "");
 
     const salesOrderId = getBackendSalesOrderId(so);
-    if (isGuid(salesOrderId) && requesterId) {
-      try {
-        await productionApi.submitMaterialRequest(salesOrderId, {
-          requestedByUserId: requesterId,
-          requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
-          notes: notes || null,
-          items: parsedItems.map(item => ({
-            materialRequirementId: null,
-            salesOrderItemId: null,
-            itemName: item.itemName,
-            size: item.specification || null,
-            qty: item.quantity,
-            urgency: item.urgency,
-            suggestedSupplier: null,
-            notes: notes || null,
-            purchaseCategory: item.purchaseCategory,
-          })),
-        });
-      } catch (error) {
-        console.warn("Failed to submit production material request to backend.", error);
-        alert("Gagal mengajukan MR ke backend. Cek koneksi API atau data operator.");
-        return;
-      }
+    if (!isGuid(salesOrderId) || !requesterId) {
+      alert("Tidak bisa mengajukan MR karena data backend SO/operator belum lengkap.");
+      return;
     }
 
-    updateSalesOrder(so.id, { materialRequestStatus: 'requested', materialShortageDetected: true });
-    addPurchasingRequest({
-      soId: so.id,
-      itemName: parsedItems.length === 1 ? parsedItems[0].itemName : `${parsedItems.length} item material`,
-      specification: parsedItems.length === 1 ? parsedItems[0].specification : parsedItems.map(item => item.itemName).join(", "),
-      quantity: parsedItems[0].quantity,
-      unit: parsedItems[0].unit,
-      items: parsedItems,
-      urgency: parsedItems.some(item => item.urgency === "Critical") ? "Critical" : parsedItems.some(item => item.urgency === "Urgent") ? "Urgent" : "Normal",
-      notes: notes || `MR dari ${so.id}`,
-      status: 'Pending',
-    });
-    alert("MR diajukan ke Supervisor Produksi.");
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await productionApi.submitMaterialRequest(salesOrderId, {
+        requestedByUserId: requesterId,
+        requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
+        notes: notes || null,
+        items: parsedItems.map(item => ({
+          materialRequirementId: null,
+          salesOrderItemId: null,
+          itemName: item.itemName,
+          size: item.specification || null,
+          qty: item.quantity,
+          urgency: item.urgency,
+          suggestedSupplier: null,
+          notes: notes || null,
+          purchaseCategory: item.purchaseCategory,
+        })),
+      });
+      await refreshBackendData();
+      alert("MR diajukan ke Supervisor Produksi.");
+      onClose();
+    } catch (error) {
+      console.warn("Failed to submit production material request to backend.", error);
+      alert("Gagal mengajukan MR ke backend. Cek koneksi API atau data operator.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -302,8 +320,8 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
           />
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={!canSubmit} style={{ flex: 1, padding: "10px", background: "#EAB308", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canSubmit ? "pointer" : "not-allowed", opacity: canSubmit ? 1 : 0.5 }}>
-              Ajukan MR
+            <button type="submit" disabled={!canSubmit || isSubmitting} style={{ flex: 1, padding: "10px", background: "#EAB308", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
+              {isSubmitting ? "Mengajukan..." : "Ajukan MR"}
             </button>
           </div>
         </form>
@@ -313,37 +331,36 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
 }
 
 function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, currentUser } = useApp();
+  const { currentUser, refreshBackendData } = useApp();
   const today = new Date().toISOString().slice(0, 16);
   const [startDate, setStartDate] = useState(today);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const workerUserId = isGuid(currentUser?.id)
-      ? currentUser.id
-      : isGuid(so.assignedTo)
-        ? so.assignedTo
-        : "";
+    if (isSubmitting) return;
+    const workerUserId = toBackendUserId(currentUser) || (isGuid(so.assignedTo) ? so.assignedTo : "");
 
     const salesOrderId = getBackendSalesOrderId(so);
-    if (isGuid(salesOrderId) && workerUserId) {
-      try {
-        await productionApi.startProduction(salesOrderId, {
-          workerUserId,
-          workerName: currentUser?.name || so.assignedName || "Engineering Worker",
-        });
-      } catch (error) {
-        console.warn("Failed to start production in backend.", error);
-        alert("Gagal mulai produksi di backend. Cek koneksi API atau data operator.");
-        return;
-      }
+    if (!isGuid(salesOrderId) || !workerUserId) {
+      alert("Tidak bisa mulai produksi karena data backend SO/operator belum lengkap.");
+      return;
     }
 
-    updateSalesOrder(so.id, {
-      status: 'In Production',
-      startTime: new Date(startDate).toISOString(),
-    });
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await productionApi.startProduction(salesOrderId, {
+        workerUserId,
+        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+      });
+      await refreshBackendData();
+      onClose();
+    } catch (error) {
+      console.warn("Failed to start production in backend.", error);
+      alert("Gagal mulai produksi di backend. Cek koneksi API atau data operator.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -364,8 +381,8 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
           </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <PlayCircle size={16} /> Konfirmasi Mulai
+            <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.65 : 1 }}>
+              <PlayCircle size={16} /> {isSubmitting ? "Menyimpan..." : "Konfirmasi Mulai"}
             </button>
           </div>
         </form>
@@ -375,34 +392,36 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
 }
 
 function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, currentUser } = useApp();
+  const { currentUser, refreshBackendData } = useApp();
   const today = new Date().toISOString().slice(0, 16);
   const [endDate, setEndDate] = useState(today);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const workerUserId = isGuid(currentUser?.id)
-      ? currentUser.id
-      : isGuid(so.assignedTo)
-        ? so.assignedTo
-        : "";
+    if (isSubmitting) return;
+    const workerUserId = toBackendUserId(currentUser) || (isGuid(so.assignedTo) ? so.assignedTo : "");
 
     const salesOrderId = getBackendSalesOrderId(so);
-    if (isGuid(salesOrderId) && workerUserId) {
-      try {
-        await productionApi.finishProduction(salesOrderId, {
-          workerUserId,
-          workerName: currentUser?.name || so.assignedName || "Engineering Worker",
-        });
-      } catch (error) {
-        console.warn("Failed to finish production in backend.", error);
-        alert("Gagal menyelesaikan produksi di backend. Cek koneksi API atau data operator.");
-        return;
-      }
+    if (!isGuid(salesOrderId) || !workerUserId) {
+      alert("Tidak bisa menyelesaikan produksi karena data backend SO/operator belum lengkap.");
+      return;
     }
 
-    updateSalesOrder(so.id, { status: 'QC', endTime: new Date(endDate).toISOString() });
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await productionApi.finishProduction(salesOrderId, {
+        workerUserId,
+        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+      });
+      await refreshBackendData();
+      onClose();
+    } catch (error) {
+      console.warn("Failed to finish production in backend.", error);
+      alert("Gagal menyelesaikan produksi di backend. Cek koneksi API atau data operator.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -423,8 +442,8 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
           </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <CheckSquare size={16} /> Selesai Produksi
+            <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.65 : 1 }}>
+              <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
             </button>
           </div>
         </form>
@@ -434,8 +453,9 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
 }
 
 export function ProductionPage() {
-  const { salesOrders, customers, currentUser, users, updateSalesOrder, addPurchasingRequest } = useApp();
+  const { salesOrders, currentUser, users, purchasingRequests, refreshBackendData } = useApp();
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const currentBackendUserId = toBackendUserId(currentUser);
 
   const [assignModal, setAssignModal] = useState<SalesOrder | null>(null);
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
@@ -443,29 +463,51 @@ export function ProductionPage() {
   const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
 
   // Lists
-  const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || isSupervisor;
+  const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
   const pendingAssignment = salesOrders.filter(so => so.status === 'Ready for Production' && !so.assignedTo);
   const materialPrep = salesOrders.filter(so => so.status === 'Ready for Production' && !!so.assignedTo && isAssignedToCurrentUser(so));
   const inProduction = salesOrders.filter(so => so.status === 'In Production' && isAssignedToCurrentUser(so));
   const waitingQC = salesOrders.filter(so => so.status === 'QC');
 
-  const approveMaterialRequest = (so: SalesOrder) => {
-    updateSalesOrder(so.id, { materialRequestStatus: 'approved' });
-    // Add to purchasing request automatically
-    addPurchasingRequest({
-      soId: so.id,
-      itemName: `MR ${so.id}`,
-      specification: "Material shortage",
-      quantity: 1,
-      unit: "LOT",
-      items: [
-        { itemName: `MR ${so.id}`, specification: "Material shortage", quantity: 1, unit: "LOT" }
-      ],
-      urgency: 'Urgent',
-      notes: "Approved by Engineering Supervisor",
-      status: 'Pending',
-    });
-    alert("Permintaan disetujui dan diteruskan ke Purchasing.");
+  const getMaterialRequest = (so: SalesOrder) => {
+    const backendId = getBackendSalesOrderId(so);
+    return purchasingRequests.find(request =>
+      request.salesOrderId === backendId ||
+      request.salesOrderId === so.backendId ||
+      request.soId === so.id ||
+      request.soId === so.soNumber,
+    );
+  };
+
+  const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'approved' | 'completed' | 'rejected' => {
+    const request = getMaterialRequest(so);
+    if (!request) return 'none';
+    if (request.status === 'Ditolak') return 'rejected';
+    if (request.status === 'Selesai') return 'completed';
+    if (request.status === 'Diproses') return 'approved';
+    return 'requested';
+  };
+
+  const approveMaterialRequest = async (so: SalesOrder) => {
+    const request = getMaterialRequest(so);
+    const reviewerId = toBackendUserId(currentUser);
+
+    if (!request?.backendId || !reviewerId) {
+      alert("MR belum punya data backend lengkap untuk approval.");
+      return;
+    }
+
+    try {
+      await purchasingApi.supervisorReviewPurchaseRequest(request.backendId, {
+        reviewedByUserId: reviewerId,
+        decision: 'Accept',
+      });
+      await refreshBackendData();
+      alert("Permintaan disetujui dan diteruskan ke proses Finance/Purchasing.");
+    } catch (error) {
+      console.warn("Failed to approve MR in backend.", error);
+      alert("Gagal approve MR di backend. Cek koneksi API atau status MR.");
+    }
   };
 
   return (
@@ -525,14 +567,17 @@ export function ProductionPage() {
           <div style={{ display: "flex", flexDirection: "column" }}>
             {materialPrep.map((so, idx) => {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
+              const mrState = getMaterialRequestState(so);
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < materialPrep.length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
-                      {so.materialRequestStatus === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>Material Requested</span>}
-                      {so.materialRequestStatus === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>Material Purchasing</span>}
+                      {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                      {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
+                      {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
+                      {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
                     </div>
                     <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
@@ -541,19 +586,19 @@ export function ProductionPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    {isSupervisor && so.materialRequestStatus === 'requested' && (
+                    {isSupervisor && mrState === 'requested' && (
                       <button onClick={() => approveMaterialRequest(so)}
                         style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
                         Approve Request
                       </button>
                     )}
-                    {(!so.materialRequestStatus || so.materialRequestStatus === 'none') && !isSupervisor && (
+                    {mrState === 'none' && !isSupervisor && (
                       <button onClick={() => setReqModal(so)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
                       </button>
                     )}
-                    {!isSupervisor && (so.materialRequestStatus === 'none' || !so.materialRequestStatus) && (
+                    {!isSupervisor && (mrState === 'none' || mrState === 'completed') && (
                       <button onClick={() => setStartModal(so)}
                         style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <PlayCircle size={14} /> Mulai Produksi

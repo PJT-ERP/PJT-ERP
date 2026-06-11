@@ -1,13 +1,15 @@
 import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import type { Page } from "./layout";
-import { useERPStore } from "../../store/useERPStore";
+import { purchasingApi } from "../../services/purchasingApi";
+import { usePurchasingData } from "./usePurchasingData";
 
 interface CreatePurchaseOrderPageProps {
   onNavigate: (page: Page) => void;
 }
 
 interface FormItem {
+  requestItemId?: string;
   code: string;
   name: string;
   spec: string;
@@ -57,30 +59,35 @@ function inputClass(extra: string = "") {
 }
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
-  const { allSOs } = useERPStore();
+  const { purchaseRequests, refresh } = usePurchasingData();
   const [supplier, setSupplier] = useState("");
   const [requestRefs, setRequestRefs] = useState("");
   const [soNumber, setSoNumber] = useState("");
+  const [selectedRequestId, setSelectedRequestId] = useState("");
   const [poCategory, setPoCategory] = useState("Consumable");
   const [dueDate, setDueDate] = useState("");
   const [terms, setTerms] = useState("Net 14");
   const [shippingAddress, setShippingAddress] = useState("Gudang Utama - Jl. Industri No. 1, Bekasi");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
+    ["FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    request.items.some(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+  ), [purchaseRequests]);
 
   const availableMaterials = useMemo(() => {
-    if (!soNumber || soNumber === "none") return [];
-    const so = allSOs.find((s) => s.soNumber === soNumber);
-    if (so) return [so.productName];
-    return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
-  }, [soNumber, allSOs]);
+    const selected = eligibleRequests.find(request => request.id === selectedRequestId);
+    return selected?.items
+      .filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+      .map(item => item.itemName) || [];
+  }, [eligibleRequests, selectedRequestId]);
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + (Number(item.totalPrice) || 0), 0),
     [items]
   );
-
-  const addItem = () => setItems(prev => [...prev, emptyItem()]);
 
   const removeItem = (index: number) => {
     setItems(prev => prev.length === 1 ? prev : prev.filter((_, itemIndex) => itemIndex !== index));
@@ -92,16 +99,61 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     )));
   };
 
-  const submitPO = () => {
-    const hasInvalidItem = items.some(item => !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
-
-    if (!supplier || !dueDate || hasInvalidItem) {
-      window.alert("Lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+  const applySelectedRequest = (requestId: string) => {
+    setSelectedRequestId(requestId);
+    const request = eligibleRequests.find(item => item.id === requestId);
+    if (!request) {
+      setRequestRefs("");
+      setSoNumber("");
+      setItems([emptyItem()]);
       return;
     }
 
-    window.alert("Purchase Order berhasil dibuat untuk demo.");
-    onNavigate("purchase-orders");
+    const openItems = request.items.filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
+    setRequestRefs(request.prNumber);
+    setSoNumber(request.salesOrderNumber || "Non-project");
+    setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+    setItems(openItems.map(item => ({
+      requestItemId: item.id,
+      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+      name: item.itemName,
+      spec: item.size || item.notes || "",
+      qty: String(item.qty),
+      unit: "pcs",
+      totalPrice: item.totalPrice ? String(item.totalPrice) : "",
+    })));
+  };
+
+  const submitPO = async () => {
+    const request = eligibleRequests.find(item => item.id === selectedRequestId);
+    const hasInvalidItem = items.some(item => !item.requestItemId || !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
+
+    if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
+      window.alert("Pilih MR yang sudah approved Finance, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+      return;
+    }
+
+    const poNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+
+    try {
+      setIsSubmitting(true);
+      await Promise.all(items.map(item => purchasingApi.processPurchaseRequestItem(request.id, item.requestItemId!, {
+        supplierName: supplier,
+        expectedArrivalDate: dueDate,
+        poNumber,
+        estimatedPrice: Number(item.totalPrice),
+        totalPrice: Number(item.totalPrice),
+        purchaseCategory: poCategory,
+        purchaseNotes: [terms, shippingAddress, notes].filter(Boolean).join(" | ") || null,
+      })));
+      await refresh();
+      onNavigate("purchase-orders");
+    } catch (error) {
+      console.warn("Failed to create backend PO.", error);
+      window.alert("Gagal membuat PO di backend. Cek response API untuk detail.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -130,10 +182,11 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </button>
           <button
             onClick={submitPO}
-            className="flex items-center gap-2 rounded bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 rounded bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CheckCircle2 size={15} />
-            Buat PO
+            {isSubmitting ? "Menyimpan..." : "Buat PO"}
           </button>
         </div>
       </div>
@@ -152,16 +205,19 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             </select>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>No SO</FieldLabel>
-            <select value={soNumber} onChange={(e: ChangeEvent<HTMLSelectElement>) => { setSoNumber(e.target.value); setItems([emptyItem()]); }} className={inputClass()}>
-              <option value="">Pilih SO opsional</option>
-              <option value="none">Tanpa SO / Non-project</option>
-              {allSOs.map(so => <option key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</option>)}
+            <FieldLabel>No Permintaan / MR *</FieldLabel>
+            <select value={selectedRequestId} onChange={(e: ChangeEvent<HTMLSelectElement>) => applySelectedRequest(e.target.value)} className={inputClass()}>
+              <option value="">Pilih MR approved Finance</option>
+              {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>No Permintaan / MR</FieldLabel>
-            <input value={requestRefs} onChange={(e: ChangeEvent<HTMLInputElement>) => setRequestRefs(e.target.value)} placeholder="MR-2405-018, MR-2405-019" className={inputClass()} />
+            <FieldLabel>No SO</FieldLabel>
+            <input value={soNumber} readOnly placeholder="Auto dari MR" className={inputClass("cursor-not-allowed text-slate-500")} />
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Referensi MR</FieldLabel>
+            <input value={requestRefs} readOnly placeholder="Auto dari backend" className={inputClass("cursor-not-allowed text-slate-500")} />
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Kategori PO</FieldLabel>
@@ -190,8 +246,9 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.05em] text-slate-900">Item Material</h2>
           <button
-            onClick={addItem}
-            className="flex items-center gap-1.5 rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+            disabled
+            title="Item PO diambil dari MR backend"
+            className="flex cursor-not-allowed items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-400"
           >
             <Plus size={13} />
             Tambah Item

@@ -181,6 +181,35 @@ export const purchasingApi = {
     return response.data;
   },
 
+  async updatePurchaseRequestItemInfo(purchaseRequestId: string, itemId: string, request: {
+    supplierName?: string | null;
+    purchaseDate?: string | null;
+    expectedArrivalDate?: string | null;
+    receivedDate?: string | null;
+    purchaseStatus?: string | null;
+    purchaseNotes?: string | null;
+    poNumber?: string | null;
+    estimatedPrice?: number | null;
+    totalPrice?: number | null;
+    purchaseCategory?: string | null;
+  }) {
+    const response = await apiClient.put<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/items/${itemId}/purchase-info`,
+      request,
+    );
+    return response.data;
+  },
+
+  async rejectPurchaseRequestItem(purchaseRequestId: string, itemId: string, request: {
+    rejectionReason?: string | null;
+  }) {
+    const response = await apiClient.put<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/items/${itemId}/reject`,
+      request,
+    );
+    return response.data;
+  },
+
   async receivePurchaseRequestItem(purchaseRequestId: string, itemId: string, request: {
     receivedDate: string;
     purchaseNotes?: string | null;

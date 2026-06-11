@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -24,6 +24,9 @@ import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi"
 /* ── Types & Data ──────────────────────────────────────────── */
 
 interface POItem {
+  purchaseRequestId: string;
+  purchaseRequestItemId: string;
+  purchaseStatus: string;
   code: string;
   name: string;
   spec: string;
@@ -91,6 +94,9 @@ function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
         const existing = byPo.get(poNumber);
         const totalPrice = item.totalPrice ?? item.estimatedPrice ?? 0;
         const poItem: POItem = {
+          purchaseRequestId: request.id,
+          purchaseRequestItemId: item.id,
+          purchaseStatus: item.purchaseStatus,
           code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
           spec: item.size || item.notes || "-",
@@ -228,19 +234,19 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const [formNotes, setFormNotes] = useState("");
   const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", totalPrice: "" }]);
 
-  useEffect(() => {
-    const loadPurchaseOrders = async () => {
-      try {
-        const requests = await purchasingApi.listPurchaseRequests();
-        setPurchaseOrders(mapPurchaseRequestsToPos(requests));
-      } catch (error) {
-        console.warn("Purchasing API unavailable; purchase order seed data was not loaded.", error);
-        setPurchaseOrders([]);
-      }
-    };
-
-    void loadPurchaseOrders();
+  const loadPurchaseOrders = useCallback(async () => {
+    try {
+      const requests = await purchasingApi.listPurchaseRequests();
+      setPurchaseOrders(mapPurchaseRequestsToPos(requests));
+    } catch (error) {
+      console.warn("Purchasing API unavailable; purchase order seed data was not loaded.", error);
+      setPurchaseOrders([]);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadPurchaseOrders();
+  }, [loadPurchaseOrders]);
 
   const filtered = purchaseOrders.filter((p) => {
     const q = search.toLowerCase();
@@ -285,6 +291,20 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     ]);
   };
 
+  const receiveItem = async (item: POItem) => {
+    try {
+      await purchasingApi.receivePurchaseRequestItem(item.purchaseRequestId, item.purchaseRequestItemId, {
+        receivedDate: new Date().toISOString().split("T")[0],
+        purchaseNotes: "Barang diterima dari halaman PO.",
+      });
+      await loadPurchaseOrders();
+      setDetail(null);
+    } catch (error) {
+      console.warn("Failed to receive PO item.", error);
+      window.alert("Gagal update penerimaan barang di backend.");
+    }
+  };
+
   const submitPO = () => {
     if (!formSupplier || !formDue || formItems.some(item => !item.name || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0)) {
       window.alert("Lengkapi supplier, jatuh tempo, qty, dan total harga semua item sebelum membuat PO.");
@@ -292,7 +312,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     }
 
     setCreateOpen(false);
-    window.alert("Purchase Order berhasil dibuat untuk demo. Integrasi penyimpanan data belum aktif.");
+    window.alert("PO harus dibuat dari MR backend yang sudah approved Finance melalui halaman Buat PO.");
   };
 
   return (
@@ -314,7 +334,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             <Download size={13} /> Export
           </button>
           <button
-            onClick={() => onCreatePO?.()}
+            onClick={() => {
+              if (onCreatePO) {
+                onCreatePO();
+                return;
+              }
+              window.alert("Buat PO melalui halaman Buat PO agar tersambung ke backend MR.");
+            }}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
@@ -662,7 +688,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       <table className="w-full border-collapse">
                         <thead>
                           <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                            {["Kode", "Material", "Spesifikasi", "Qty", "Diterima", "Harga Satuan", "Subtotal"].map((h) => (
+                            {["Kode", "Material", "Spesifikasi", "Qty", "Diterima", "Harga Satuan", "Subtotal", "Aksi"].map((h) => (
                               <th key={h} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", padding: "10px 16px", textAlign: ["Qty", "Diterima", "Harga Satuan", "Subtotal"].includes(h) ? "right" : "left" }}>{h}</th>
                             ))}
                           </tr>
@@ -679,12 +705,24 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                               </td>
                               <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
                               <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
+                              <td style={{ padding: "11px 16px" }}>
+                                {item.purchaseStatus !== "Received" ? (
+                                  <button
+                                    onClick={() => void receiveItem(item)}
+                                    className="rounded border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                                  >
+                                    Terima
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Diterima</span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr style={{ background: "#0f1e35" }}>
-                            <td colSpan={6} style={{ padding: "11px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: "#cbd5e1" }}>Total Nilai PO</td>
+                            <td colSpan={7} style={{ padding: "11px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: "#cbd5e1" }}>Total Nilai PO</td>
                             <td style={{ padding: "11px 16px", fontSize: 14, fontWeight: 700, textAlign: "right", color: "#fff" }}>{formatRp(calcTotal(detail.items))}</td>
                           </tr>
                         </tfoot>

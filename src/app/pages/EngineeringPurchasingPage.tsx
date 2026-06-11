@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { Plus, ShoppingCart, CheckCircle, X, Search, ChevronDown, Trash2 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingRequest, PurchasingItem, PurchasingUrgency, PurchasingStatus } from "../components/data/mockData";
+import { purchasingApi } from "../services/purchasingApi";
+import { toBackendUserId } from "../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -243,7 +245,7 @@ interface ItemDraft {
 }
 
 function PurchasingFormModal({ onClose }: { onClose: () => void }) {
-  const { addPurchasingRequest, salesOrders } = useApp();
+  const { salesOrders, currentUser, refreshBackendData } = useApp();
   const [soId, setSoId] = useState('');
   const [urgency, setUrgency] = useState<PurchasingUrgency>('Normal');
   const [notes, setNotes] = useState('');
@@ -251,6 +253,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
     { itemName: '', specification: '', quantity: '', unit: 'PCS' },
   ]);
   const [done, setDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateItem = (idx: number, field: keyof ItemDraft, value: string) => {
     setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
@@ -266,9 +269,9 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
 
   const canSubmit = items.every(it => it.itemName.trim() && it.quantity && parseInt(it.quantity) > 0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || isSubmitting) return;
 
     const parsedItems: PurchasingItem[] = items.map(it => ({
       itemName: it.itemName.trim(),
@@ -276,19 +279,43 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
       quantity: parseInt(it.quantity),
       unit: it.unit,
     }));
+    const selectedSo = salesOrders.find(order => order.id === soId);
+    const requesterId = toBackendUserId(currentUser);
 
-    addPurchasingRequest({
-      soId: soId || undefined,
-      itemName: parsedItems.length === 1 ? parsedItems[0].itemName : `${parsedItems.length} item material`,
-      specification: parsedItems.length === 1 ? parsedItems[0].specification : parsedItems.map(it => it.itemName).join(', '),
-      quantity: parsedItems[0].quantity,
-      unit: parsedItems[0].unit,
-      items: parsedItems,
-      urgency,
-      notes,
-      status: 'Pending',
-    });
-    setDone(true);
+    if (!requesterId) {
+      alert("User lokal belum punya mapping backend untuk membuat pengajuan.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await purchasingApi.createPurchaseRequest({
+        requestDate: new Date().toISOString().split("T")[0],
+        requestedByUserId: requesterId,
+        requesterName: currentUser?.name || "Engineering",
+        salesOrderId: selectedSo?.backendId || null,
+        salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
+        projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
+        items: parsedItems.map(item => ({
+          salesOrderId: selectedSo?.backendId || null,
+          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
+          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
+          itemName: item.itemName,
+          size: item.specification || null,
+          qty: item.quantity,
+          notes: notes || null,
+          urgency,
+          purchaseCategory: selectedSo ? "Project" : "Consumable",
+        })),
+      });
+      await refreshBackendData();
+      setDone(true);
+    } catch (error) {
+      console.warn("Failed to create backend purchase request.", error);
+      alert("Gagal membuat pengajuan di backend. Cek response API untuk detail.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (done) return (
@@ -426,9 +453,9 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
 
           <div style={{ display: "flex", gap: 12, padding: "16px 24px", borderTop: `1px solid ${S.border}`, flexShrink: 0 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={!canSubmit}
-              style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", opacity: canSubmit ? 1 : 0.5 }}>
-              Ajukan Permintaan
+            <button type="submit" disabled={!canSubmit || isSubmitting}
+              style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
+              {isSubmitting ? "Mengajukan..." : "Ajukan Permintaan"}
             </button>
           </div>
         </form>

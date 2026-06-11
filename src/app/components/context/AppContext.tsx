@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, ReactNode, Dispatch, SetStateAction } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode, Dispatch, SetStateAction } from "react";
 import {
   User, SalesOrder, Customer, UserRole,
   PurchasingRequest, PurchasingStatus, Quotation,
@@ -7,6 +7,7 @@ import {
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
 import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../services/salesApi";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { BACKEND_USER_IDS_BY_LOCAL_ID, isGuid, toBackendUserId } from "../../services/backendIds";
 
 interface AppContextType {
   currentUser: User | null;
@@ -18,6 +19,7 @@ interface AppContextType {
   productCatalog: ProductDto[];
   users: User[];
   purchasingRequests: PurchasingRequest[];
+  refreshBackendData: () => Promise<void>;
   addQuotation: (q: Omit<Quotation, 'id' | 'createdAt' | 'createdBy'>) => Quotation;
   updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addSalesOrder: (so: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>) => SalesOrder;
@@ -34,15 +36,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 const AUTH_USER_KEY = "erp_current_username";
-const BACKEND_USER_IDS_BY_LOCAL_ID: Record<string, string> = {
-  u1: "90000000-0000-4000-8000-000000000001",
-  u2: "90000000-0000-4000-8000-000000000002",
-  u3: "90000000-0000-4000-8000-000000000003",
-  u4: "90000000-0000-4000-8000-000000000004",
-  u5: "90000000-0000-4000-8000-000000000005",
-  u6: "90000000-0000-4000-8000-000000000006",
-  u7: "90000000-0000-4000-8000-000000000007",
-};
 
 function restoreStoredUser(): User | null {
   try {
@@ -102,53 +95,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, users]);
 
-  useEffect(() => {
-    const loadBackendData = async () => {
-      const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult] = await Promise.allSettled([
-        salesApi.listCustomers(),
-        salesApi.listProducts(),
-        quotationApi.list(),
-        salesApi.listSalesOrders(),
-        purchasingApi.listPurchaseRequests(),
-      ]);
+  const refreshBackendData = useCallback(async () => {
+    const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult] = await Promise.allSettled([
+      salesApi.listCustomers(),
+      salesApi.listProducts(),
+      quotationApi.list(),
+      salesApi.listSalesOrders(),
+      purchasingApi.listPurchaseRequests(),
+    ]);
 
-      if (customersResult.status === "fulfilled") {
-        const backendCustomers = customersResult.value;
-        setBackendCustomerIdsByCode(
-          Object.fromEntries(backendCustomers.map(customer => [customer.code, customer.id])),
-        );
-        setCustomers(backendCustomers.map(mapCustomerDto));
-      } else {
-        console.warn("Customer seed data was not loaded.", customersResult.reason);
-      }
+    if (customersResult.status === "fulfilled") {
+      const backendCustomers = customersResult.value;
+      setBackendCustomerIdsByCode(
+        Object.fromEntries(backendCustomers.map(customer => [customer.code, customer.id])),
+      );
+      setCustomers(backendCustomers.map(mapCustomerDto));
+    } else {
+      console.warn("Customer seed data was not loaded.", customersResult.reason);
+    }
 
-      if (productsResult.status === "fulfilled") {
-        setProductCatalog(productsResult.value.filter(product => product.isActive !== false));
-      } else {
-        console.warn("Product seed data was not loaded.", productsResult.reason);
-      }
+    if (productsResult.status === "fulfilled") {
+      setProductCatalog(productsResult.value.filter(product => product.isActive !== false));
+    } else {
+      console.warn("Product seed data was not loaded.", productsResult.reason);
+    }
 
-      if (quotationsResult.status === "fulfilled") {
-        setQuotations(quotationsResult.value.map(mapQuotationDto));
-      } else {
-        console.warn("Quotation seed data was not loaded.", quotationsResult.reason);
-      }
+    if (quotationsResult.status === "fulfilled") {
+      setQuotations(quotationsResult.value.map(mapQuotationDto));
+    } else {
+      console.warn("Quotation seed data was not loaded.", quotationsResult.reason);
+    }
 
-      if (salesOrdersResult.status === "fulfilled") {
-        setSalesOrders(salesOrdersResult.value.map(mapSalesOrderDto));
-      } else {
-        console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
-      }
+    if (salesOrdersResult.status === "fulfilled") {
+      setSalesOrders(salesOrdersResult.value.map(mapSalesOrderDto));
+    } else {
+      console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
+    }
 
-      if (purchaseRequestsResult.status === "fulfilled") {
-        setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
-      } else {
-        console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
-      }
-    };
-
-    void loadBackendData();
+    if (purchaseRequestsResult.status === "fulfilled") {
+      setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
+    } else {
+      console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshBackendData();
+  }, [refreshBackendData]);
 
   const addQuotation = (data: Omit<Quotation, 'id' | 'createdAt' | 'createdBy'>): Quotation => {
     const next = qutCounter + 1;
@@ -178,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSoCounter(next);
     const so: SalesOrder = {
       ...data,
-      id: `SO-2026${String(next).padStart(3, '0')}`,
+      id: `SO-2026-${String(next).padStart(3, '0')}`,
       createdAt: new Date().toISOString().split('T')[0],
       status: 'Menunggu Invoice DP',
       createdBy: currentUser?.id ?? 'u1',
@@ -217,7 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPrCounter(n => n + 1);
     const req: PurchasingRequest = {
       ...data,
-      id: `PR-${String(next).padStart(3, '0')}`,
+      id: `MR-${String(next).padStart(3, '0')}`,
       requestedAt: new Date().toISOString().split('T')[0],
       requestedBy: currentUser?.id ?? 'u2',
     };
@@ -236,6 +229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       currentUser, login, logout,
       quotations, salesOrders, customers, productCatalog, users, purchasingRequests,
+      refreshBackendData,
       addQuotation, updateQuotation,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
@@ -351,6 +345,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
 
   return {
     id: request.prNumber,
+    backendId: request.id,
     soId: request.salesOrderNumber || undefined,
     salesOrderId: request.salesOrderId || undefined,
     itemName: request.items.length === 1 ? firstItem?.itemName || "-" : `${request.items.length} item material`,
@@ -567,7 +562,7 @@ async function syncUpdateQuotation(
       const updated = await quotationApi.submitPricing(backendId, {
         amount: updates.estimatedAmount,
         notes: updates.notes || null,
-        financeUserId: isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID(),
+        financeUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
         financeUserName: currentUser?.name || "Finance",
       });
       setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
@@ -613,22 +608,6 @@ async function syncUpdateQuotation(
   } catch (error) {
     console.warn("Failed to sync quotation update to backend.", error);
   }
-}
-
-function isGuid(value?: string | null): value is string {
-  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function toBackendUserId(user?: User | null): string | null {
-  if (!user) {
-    return null;
-  }
-
-  if (isGuid(user.id)) {
-    return user.id;
-  }
-
-  return BACKEND_USER_IDS_BY_LOCAL_ID[user.id] || null;
 }
 
 function findLocalUserByBackendAssignment(

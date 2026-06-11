@@ -35,7 +35,7 @@ export function FinanceCosting() {
   const [costingNotes, setCostingNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const waitingPricingList = quotations.filter(q => q.status === "waiting_pricing");
+  const waitingPricingList = quotations.filter(q => q.status === "waiting_pricing" || q.status === "client_price_approval");
 
   const handleSelect = (q: Quotation) => {
     setSelectedQUT(q);

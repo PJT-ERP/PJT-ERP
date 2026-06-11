@@ -176,6 +176,7 @@ export interface PurchasingItem {
 
 export interface PurchasingRequest {
   id: string;
+  backendId?: string;
   soId?: string;
   salesOrderId?: string;
   itemName: string;

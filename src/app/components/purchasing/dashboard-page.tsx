@@ -55,16 +55,16 @@ const deliveryPerf = [
 
 const recentActivity = [
   { id: "PO-2405-031", type: "PO Created", detail: "CV Bintang Logam — Besi Hollow, Plat Besi", time: "14:22", status: "open" },
-  { id: "MR-2405-018", type: "MR Submitted", detail: "Dept. Produksi — 5 item, Prioritas High", time: "13:10", status: "pending" },
+  { id: "MR-2026-018", type: "MR Submitted", detail: "Dept. Produksi — 5 item, Prioritas High", time: "13:10", status: "pending" },
   { id: "PO-2405-030", type: "Delivery Received", detail: "PT Indo Steel — WF 150x75, CNP 150x65", time: "11:45", status: "done" },
   { id: "PO-2405-029", type: "Partial Delivery", detail: "UD Maju Jaya — Cat Epoxy 6/10 kaleng", time: "10:30", status: "partial" },
-  { id: "MR-2405-017", type: "MR Approved", detail: "Dept. Maintenance — 3 spare parts item", time: "09:05", status: "done" },
+  { id: "MR-2026-017", type: "MR Approved", detail: "Dept. Maintenance — 3 spare parts item", time: "09:05", status: "done" },
 ];
 
 const pendingApprovals = [
-  { id: "MR-2405-018", dept: "Produksi", items: 5, priority: "High", age: "2j lalu" },
-  { id: "MR-2405-016", dept: "QC", items: 2, priority: "Medium", age: "1h lalu" },
-  { id: "MR-2405-015", dept: "Engineering", items: 8, priority: "High", age: "1h lalu" },
+  { id: "MR-2026-018", dept: "Produksi", items: 5, priority: "High", age: "2j lalu" },
+  { id: "MR-2026-016", dept: "QC", items: 2, priority: "Medium", age: "1h lalu" },
+  { id: "MR-2026-015", dept: "Engineering", items: 8, priority: "High", age: "1h lalu" },
 ];
 
 const incomingDeliveries = [
@@ -185,19 +185,19 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         age: new Date(request.requestDate).toLocaleDateString("id-ID"),
       }));
 
-    return backendRows.length > 0 ? backendRows : pendingApprovals;
+    return backendRows;
   }, [purchaseRequests]);
 
   const dashboardRecentActivity = useMemo(() => {
     const backendRows = purchaseRequests.slice(0, 5).map(request => ({
       id: request.prNumber,
-      type: request.status === "Submitted" ? "PR Submitted" : `PR ${request.status}`,
+      type: request.status === "Submitted" ? "MR Submitted" : `MR ${request.status}`,
       detail: `${request.projectName || request.salesOrderNumber || "Non-SO"} - ${request.items.length} item`,
       time: new Date(request.requestDate).toLocaleDateString("id-ID"),
       status: request.status === "Submitted" ? "pending" : request.status === "Completed" ? "done" : "open",
     }));
 
-    return backendRows.length > 0 ? backendRows : recentActivity;
+    return backendRows;
   }, [purchaseRequests]);
 
   const dashboardIncomingDeliveries = useMemo(() => {
@@ -212,22 +212,22 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         status: request.status === "Processing" ? "In Transit" : "Confirmed",
       }));
 
-    return backendRows.length > 0 ? backendRows : incomingDeliveries;
+    return backendRows;
   }, [purchaseRequests]);
 
   const pendingRequestCount = isUsingBackend
     ? purchaseRequests.filter(request => request.status === "Submitted").length
-    : pendingApprovals.length;
+    : 0;
   const activePurchaseOrderCount = isUsingBackend
     ? purchaseRequests.filter(request => request.status === "Approved" || request.status === "Processing").length
-    : 27;
-  const supplierDeliveryCount = isUsingBackend ? dashboardIncomingDeliveries.length : incomingDeliveries.length;
+    : 0;
+  const supplierDeliveryCount = isUsingBackend ? dashboardIncomingDeliveries.length : 0;
   const materialAvailabilityPct = isUsingBackend && materialRequirements.length > 0
     ? Math.round((materialRequirements.filter(item => item.stockOnHand >= item.requiredQty).length / materialRequirements.length) * 100)
-    : 94;
+    : 0;
   const lowStockCount = isUsingBackend
     ? materialRequirements.filter(item => item.stockOnHand < item.requiredQty).length
-    : 6;
+    : 0;
 
   return (
     <div className="p-5 space-y-5">
@@ -517,7 +517,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
       >
         <AlertTriangle size={15} style={{ color: "#c2410c", flexShrink: 0 }} />
         <p style={{ fontSize: 12, color: "#7c2d12" }}>
-          <strong>6 material</strong> berada di bawah stok minimum — segera buat Purchase Order untuk menghindari hambatan produksi.
+          <strong>{lowStockCount} material</strong> berada di bawah stok minimum — segera buat Purchase Order untuk menghindari hambatan produksi.
         </p>
         <button
           className="ml-auto rounded px-3 py-1 text-white shrink-0 transition-opacity hover:opacity-90"

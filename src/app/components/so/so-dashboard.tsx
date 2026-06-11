@@ -13,12 +13,11 @@ import {
   ArrowUpRight,
   Circle,
   Receipt,
-  Send,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
-import { useERPStore } from "../../store/useERPStore";
+import { useFinanceData } from "../finance/useFinanceData";
 
 interface SODashboardProps {
   onNavigate: (page: Page, data?: unknown) => void;
@@ -56,10 +55,9 @@ function StatusBadge({ status }: { status: SOStatus }) {
 
 export function SODashboard({ onNavigate }: SODashboardProps) {
   const { salesOrders, customers } = useApp();
-  const { liveInvoices, markInvoiceSentToCustomer, markInvoiceCustomerPaid } = useERPStore();
-  const readyInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_ready");
-  const sentInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_sent");
-  const paidInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "customer_paid");
+  const { invoices } = useFinanceData();
+  const readyInvoices = invoices.filter(invoice => invoice.status !== "PAID");
+  const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
   const total = salesOrders.length;
   const waitingFinance = salesOrders.filter((o) => o.status === "Menunggu Invoice DP" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
   const inProduction = salesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
@@ -248,7 +246,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                   <div style={{ minWidth: 0 }}>
                     <p style={{ margin: 0, color: "#1D4ED8", fontSize: "12.5px", fontWeight: 700 }}>{invoice.invoiceNumber}</p>
                     <p style={{ margin: "2px 0 0", color: S.slate, fontSize: "12.5px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {invoice.company}
+                      {invoice.customerName}
                     </p>
                     <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "11px" }}>{invoice.soNumber}</p>
                   </div>
@@ -257,7 +255,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                   </span>
                 </div>
                 <button
-                  onClick={() => markInvoiceSentToCustomer(invoice.id)}
+                  onClick={() => window.location.href = "#/erp/finance/invoices"}
                   style={{
                     marginTop: 10,
                     display: "flex",
@@ -275,8 +273,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                     cursor: "pointer",
                   }}
                 >
-                  <Send size={12} />
-                  Kirim ke Customer
+                  <Receipt size={12} />
+                  Lihat Invoice
                 </button>
               </div>
             ))}
@@ -284,44 +282,12 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
         </div>
       )}
 
-      {(sentInvoices.length > 0 || paidInvoices.length > 0) && (
+      {paidInvoices.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-          {sentInvoices.length > 0 && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div>
-                  <p style={{ margin: 0, color: S.slate, fontSize: "13px", fontWeight: 700 }}>Invoice sudah dikirim</p>
-                  <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "12px" }}>{sentInvoices.length} menunggu pembayaran customer</p>
-                </div>
-                <span style={{ background: "#FFFBEB", color: "#92400E", border: "1px solid #FCD34D", borderRadius: 99, padding: "3px 8px", fontSize: "11px", fontWeight: 700 }}>
-                  Waiting Payment
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {sentInvoices.slice(0, 3).map(invoice => (
-                  <div key={invoice.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, borderTop: "1px solid #F1F5F9", paddingTop: 8 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, color: "#1D4ED8", fontSize: "12px", fontWeight: 700 }}>{invoice.invoiceNumber}</p>
-                      <p style={{ margin: "1px 0 0", color: S.secondary, fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{invoice.company}</p>
-                    </div>
-                    <button
-                      onClick={() => markInvoiceCustomerPaid(invoice.id)}
-                      style={{ border: "none", background: "#16A34A", color: "#fff", borderRadius: 4, padding: "5px 8px", fontSize: "11px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
-                      Tandai Dibayar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {paidInvoices.length > 0 && (
-            <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: 6, padding: 14 }}>
-              <p style={{ margin: 0, color: "#065F46", fontSize: "13px", fontWeight: 700 }}>Customer paid</p>
-              <p style={{ margin: "2px 0 0", color: "#047857", fontSize: "12px" }}>{paidInvoices.length} invoice sudah dibayar dan siap lanjut ke tahap berikutnya.</p>
-            </div>
-          )}
+          <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: 6, padding: 14 }}>
+            <p style={{ margin: 0, color: "#065F46", fontSize: "13px", fontWeight: 700 }}>Customer paid</p>
+            <p style={{ margin: "2px 0 0", color: "#047857", fontSize: "12px" }}>{paidInvoices.length} invoice sudah dibayar dan siap lanjut ke tahap berikutnya.</p>
+          </div>
         </div>
       )}
 

@@ -82,7 +82,7 @@ export function FinancePurchasingApproval() {
       setNotes('');
     }).catch(error => {
       console.warn('Failed to approve purchasing request in backend.', error);
-      window.alert('Gagal approve Finance. Cek koneksi API atau status PR.');
+      window.alert('Gagal approve Finance. Cek koneksi API atau status MR.');
     });
   };
 
@@ -100,7 +100,7 @@ export function FinancePurchasingApproval() {
       setNotes('');
     }).catch(error => {
       console.warn('Failed to reject purchasing request in backend.', error);
-      window.alert('Gagal reject Finance. Cek koneksi API atau status PR.');
+      window.alert('Gagal reject Finance. Cek koneksi API atau status MR.');
     });
   };
 
@@ -109,12 +109,12 @@ export function FinancePurchasingApproval() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PR)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk PR yang sudah disetujui Engineering Supervisor sebelum Purchasing PO.</p>
+          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (MR)</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk MR yang sudah disetujui Engineering Supervisor sebelum Purchasing PO.</p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
-          {pendingCount} PR Menunggu Finance Approval
+          {pendingCount} MR Menunggu Finance Approval
         </div>
       </div>
 
@@ -126,7 +126,7 @@ export function FinancePurchasingApproval() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Cari No. PR atau Departemen..."
+              placeholder="Cari No. MR atau Departemen..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all shadow-sm"
             />
           </div>
@@ -137,7 +137,7 @@ export function FinancePurchasingApproval() {
             <thead className="bg-white border-b border-slate-100">
               <tr>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tanggal</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. MR</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Items</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Dana</th>
@@ -180,7 +180,7 @@ export function FinancePurchasingApproval() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada PR menunggu Finance approval saat ini.</td>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada MR menunggu Finance approval saat ini.</td>
                 </tr>
               )}
             </tbody>

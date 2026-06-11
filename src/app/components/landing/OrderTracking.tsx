@@ -302,17 +302,17 @@ export function OrderTracking() {
             className="mb-6"
           >
             Try: <button
-              onClick={() => { setSoInput("SO-2026001"); }}
+              onClick={() => { setSoInput("SO-2026-001"); }}
               style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2026001</button>,{" "}
+            >SO-2026-001</button>,{" "}
             <button
-              onClick={() => { setSoInput("SO-2026038"); }}
+              onClick={() => { setSoInput("SO-2026-038"); }}
               style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2026038</button>,{" "}
+            >SO-2026-038</button>,{" "}
             <button
-              onClick={() => { setSoInput("SO-2026025"); }}
+              onClick={() => { setSoInput("SO-2026-025"); }}
               style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2026025</button>
+            >SO-2026-025</button>
           </p>
 
           {/* Not found state */}

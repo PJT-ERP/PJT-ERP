@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   AlertTriangle,
@@ -25,6 +25,8 @@ import {
   Cell,
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { MaterialRequirementDto } from "../../services/purchasingApi";
+import { usePurchasingData } from "./usePurchasingData";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -52,21 +54,6 @@ interface InventoryItem {
   unitPrice: number;
   incoming?: IncomingShipment;
 }
-
-const INVENTORY: InventoryItem[] = [
-  { id: "1",  code: "MAT-001", name: "Besi Hollow 4x4x2mm", category: "Besi & Baja",    unit: "batang", currentStock: 45,  minStock: 20,  maxStock: 100, reorderPoint: 30,  location: "Gudang A — Rak 1.A", lastUpdated: "24 Mei 2026", supplier: "PT Indo Steel",    unitPrice: 185000 },
-  { id: "2",  code: "MAT-002", name: "Plat Besi 3mm",        category: "Besi & Baja",    unit: "lembar", currentStock: 8,   minStock: 15,  maxStock: 50,  reorderPoint: 20,  location: "Gudang A — Rak 2.B", lastUpdated: "23 Mei 2026", supplier: "CV Bintang Logam", unitPrice: 420000, incoming: { po: "PO-2405-031", supplier: "CV Bintang Logam", eta: "27 Mei", qty: 10, unit: "lembar" } },
-  { id: "3",  code: "MAT-003", name: "Bearing SKF 6205",     category: "Spare Parts",    unit: "pcs",    currentStock: 3,   minStock: 10,  maxStock: 40,  reorderPoint: 15,  location: "Gudang B — Rak 4.C", lastUpdated: "22 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 85000,  incoming: { po: "PO-2405-030", supplier: "PT Sumber Teknik", eta: "26 Mei", qty: 12, unit: "pcs" } },
-  { id: "4",  code: "MAT-004", name: "V-Belt A48",            category: "Spare Parts",    unit: "pcs",    currentStock: 2,   minStock: 5,   maxStock: 20,  reorderPoint: 8,   location: "Gudang B — Rak 5.A", lastUpdated: "21 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 75000,  incoming: { po: "PO-2405-030", supplier: "PT Sumber Teknik", eta: "26 Mei", qty: 6, unit: "pcs" } },
-  { id: "5",  code: "MAT-005", name: "Elektroda Las E6013",   category: "Consumable Las", unit: "box",    currentStock: 12,  minStock: 8,   maxStock: 30,  reorderPoint: 12,  location: "Gudang C — Rak 1.A", lastUpdated: "24 Mei 2026", supplier: "CV Tekno Prima",  unitPrice: 215000, incoming: { po: "PO-2405-027", supplier: "CV Tekno Prima", eta: "24 Mei", qty: 4, unit: "box" } },
-  { id: "6",  code: "MAT-006", name: "Cat Epoxy Primer Grey", category: "Cat & Kimia",    unit: "kaleng", currentStock: 4,   minStock: 8,   maxStock: 25,  reorderPoint: 10,  location: "Gudang C — Rak 3.B", lastUpdated: "20 Mei 2026", supplier: "UD Maju Jaya",    unitPrice: 185000, incoming: { po: "PO-2405-029", supplier: "UD Maju Jaya", eta: "Hari ini", qty: 4, unit: "kaleng" } },
-  { id: "7",  code: "MAT-007", name: "Besi WF 150x75",        category: "Besi & Baja",    unit: "batang", currentStock: 18,  minStock: 10,  maxStock: 40,  reorderPoint: 15,  location: "Gudang A — Rak 3.A", lastUpdated: "24 Mei 2026", supplier: "PT Indo Steel",    unitPrice: 1850000 },
-  { id: "8",  code: "MAT-008", name: "Mata Gerinda Potong 4\"", category: "Consumable Las", unit: "pcs",  currentStock: 35,  minStock: 20,  maxStock: 80,  reorderPoint: 30,  location: "Gudang C — Rak 2.A", lastUpdated: "23 Mei 2026", supplier: "CV Tekno Prima",  unitPrice: 8500 },
-  { id: "9",  code: "MAT-009", name: "Besi Siku 40x40x3mm",   category: "Besi & Baja",    unit: "batang", currentStock: 0,   minStock: 15,  maxStock: 60,  reorderPoint: 20,  location: "Gudang A — Rak 4.B", lastUpdated: "19 Mei 2026", supplier: "CV Bintang Logam", unitPrice: 145000, incoming: { po: "PO-2405-031", supplier: "CV Bintang Logam", eta: "27 Mei", qty: 15, unit: "batang" } },
-  { id: "10", code: "MAT-010", name: "Thinner Epoxy 4L",       category: "Cat & Kimia",    unit: "kaleng", currentStock: 6,   minStock: 6,   maxStock: 20,  reorderPoint: 8,   location: "Gudang C — Rak 4.B", lastUpdated: "20 Mei 2026", supplier: "UD Maju Jaya",    unitPrice: 65000,  incoming: { po: "PO-2405-029", supplier: "UD Maju Jaya", eta: "Hari ini", qty: 4, unit: "kaleng" } },
-  { id: "11", code: "MAT-011", name: "Baut M12 x 50",          category: "Fastener",       unit: "pcs",    currentStock: 280, minStock: 100, maxStock: 500, reorderPoint: 150, location: "Gudang B — Rak 1.A", lastUpdated: "24 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 3500 },
-  { id: "12", code: "MAT-012", name: "Mur M12",                 category: "Fastener",       unit: "pcs",    currentStock: 195, minStock: 100, maxStock: 400, reorderPoint: 150, location: "Gudang B — Rak 2.A", lastUpdated: "24 Mei 2026", supplier: "PT Sumber Teknik", unitPrice: 2500 },
-];
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -109,24 +96,61 @@ function TD({ children, className = "", right = false }: { children: React.React
   );
 }
 
-/* ── Category chart data ───────────────────────────────────── */
-
-const categories = Array.from(new Set(INVENTORY.map((i) => i.category)));
-const chartData = categories.map((cat) => ({
-  name: cat.split(" ")[0],
-  value: Math.round(INVENTORY.filter((i) => i.category === cat).reduce((s, i) => s + i.currentStock * i.unitPrice, 0) / 1_000_000),
-}));
-
 const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
+
+function mapRequirementToInventory(item: MaterialRequirementDto): InventoryItem {
+  const linkedPurchase = item.purchaseItems.find(purchase => purchase.purchaseStatus !== "Rejected") || item.purchaseItems[0];
+  const totalPrice = linkedPurchase?.totalPrice ?? linkedPurchase?.estimatedPrice ?? 0;
+  const unitPrice = linkedPurchase?.unitPrice ?? (item.requiredQty > 0 ? totalPrice / item.requiredQty : 0);
+  const maxStock = Math.max(item.requiredQty * 3, item.stockOnHand, 1);
+  const incoming = linkedPurchase && linkedPurchase.purchaseStatus !== "Received" && linkedPurchase.poNumber
+    ? {
+        po: linkedPurchase.poNumber,
+        supplier: linkedPurchase.supplierName || "Supplier belum ditentukan",
+        eta: linkedPurchase.expectedArrivalDate || "Belum dijadwalkan",
+        qty: item.requiredQty,
+        unit: "pcs",
+      }
+    : undefined;
+
+  return {
+    id: item.id,
+    code: item.productPartNumber,
+    name: item.materialSpec || item.productDescription,
+    category: linkedPurchase?.purchaseCategory || "Project",
+    unit: "pcs",
+    currentStock: item.stockOnHand,
+    minStock: item.requiredQty,
+    maxStock,
+    reorderPoint: item.requiredQty,
+    location: item.salesOrderNumber || "Non-project",
+    lastUpdated: item.stockUpdatedAtUtc || item.updatedAtUtc,
+    supplier: linkedPurchase?.supplierName || "Belum ditentukan",
+    unitPrice,
+    incoming,
+  };
+}
 
 /* ── Page ──────────────────────────────────────────────────── */
 
 export function InventoryPage() {
+  const { materialRequirements, refresh } = usePurchasingData();
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const filtered = INVENTORY.filter((item) => {
+  const inventory = useMemo(
+    () => materialRequirements.map(mapRequirementToInventory),
+    [materialRequirements],
+  );
+
+  const categories = useMemo(() => Array.from(new Set(inventory.map((item) => item.category))), [inventory]);
+  const chartData = useMemo(() => categories.map((cat) => ({
+    name: cat.split(" ")[0],
+    value: Math.round(inventory.filter((item) => item.category === cat).reduce((s, item) => s + item.currentStock * item.unitPrice, 0) / 1_000_000),
+  })), [categories, inventory]);
+
+  const filtered = inventory.filter((item) => {
     const q = search.toLowerCase();
     const status = getStatus(item);
     const matchQ = !q || item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
@@ -135,10 +159,10 @@ export function InventoryPage() {
     return matchQ && matchC && matchS;
   });
 
-  const criticalItems = INVENTORY.filter((i) => getStatus(i) === "critical");
-  const lowItems      = INVENTORY.filter((i) => getStatus(i) === "low");
-  const incomingItems = INVENTORY.filter((i) => !!i.incoming);
-  const totalValue    = INVENTORY.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
+  const criticalItems = inventory.filter((i) => getStatus(i) === "critical");
+  const lowItems      = inventory.filter((i) => getStatus(i) === "low");
+  const incomingItems = inventory.filter((i) => !!i.incoming);
+  const totalValue    = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
 
   return (
     <div className="p-5 space-y-5">
@@ -147,14 +171,19 @@ export function InventoryPage() {
         <div>
           <h1 style={{ color: "#1F1F1F" }}>Inventory Status</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            Ketersediaan material dan status stok gudang — per 24 Mei 2026
+            Ketersediaan material dan status stok gudang dari backend
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
+          <button onClick={() => void refresh()} className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
             <RefreshCcw size={13} /> Refresh
           </button>
-          <button className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" style={{ fontSize: 12, background: "#1e3a5f" }}>
+          <button
+            disabled
+            title="Buat PO melalui menu Buat PO setelah MR disetujui Finance"
+            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white opacity-60 cursor-not-allowed"
+            style={{ fontSize: 12, background: "#1e3a5f" }}
+          >
             <Plus size={13} /> Buat PO Reorder
           </button>
         </div>
@@ -163,7 +192,7 @@ export function InventoryPage() {
       {/* Summary KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Item", val: INVENTORY.length, sub: `${categories.length} kategori`, icon: <Package size={16} style={{ color: "#C8102E" }} />, bg: "#eff6ff" },
+          { label: "Total Item", val: inventory.length, sub: `${categories.length} kategori`, icon: <Package size={16} style={{ color: "#C8102E" }} />, bg: "#eff6ff" },
           { label: "Stok Kritis", val: criticalItems.length, sub: "Segera reorder", icon: <AlertTriangle size={16} style={{ color: "#dc2626" }} />, bg: "#fee2e2", urgent: true },
           { label: "Perlu Reorder", val: lowItems.length, sub: "Di bawah reorder point", icon: <TrendingDown size={16} style={{ color: "#f59e0b" }} />, bg: "#fef9c3" },
           { label: "Nilai Stok Total", val: formatRp(totalValue), sub: "Semua material", icon: <TrendingUp size={16} style={{ color: "#16a34a" }} />, bg: "#dcfce7", isText: true },
@@ -316,7 +345,7 @@ export function InventoryPage() {
           {(["all", "critical", "low", "normal"] as const).map((s) => {
             const cfg = s === "all" ? null : statusCfg[s];
             const active = filterStatus === s;
-            const count = s === "all" ? INVENTORY.length : INVENTORY.filter((i) => getStatus(i) === s).length;
+            const count = s === "all" ? inventory.length : inventory.filter((i) => getStatus(i) === s).length;
             return (
               <button
                 key={s}
@@ -456,7 +485,7 @@ export function InventoryPage() {
 
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
           <p style={{ fontSize: 11, color: "#94a3b8" }}>
-            Menampilkan {filtered.length} dari {INVENTORY.length} item
+            Menampilkan {filtered.length} dari {inventory.length} item
           </p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
             Nilai total stok: {formatRp(filtered.reduce((s, i) => s + i.currentStock * i.unitPrice, 0))}

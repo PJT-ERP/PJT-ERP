@@ -12,8 +12,9 @@ import {
   RefreshCw,
   Plus,
 } from "lucide-react";
-import { useERPStore } from "../../store/useERPStore";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { useApp } from "../context/AppContext";
+import { toBackendUserId } from "../../services/backendIds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
 
@@ -169,9 +170,10 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 /* ── Page ──────────────────────────────────────────────────── */
 
 export function MaterialRequestsPage() {
-  const { allSOs } = useERPStore();
+  const { salesOrders, currentUser, refreshBackendData } = useApp();
   const [requests, setRequests] = useState<MR[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -202,10 +204,10 @@ export function MaterialRequestsPage() {
 
   const availableMaterials = useMemo(() => {
     if (!formSoNumber) return [];
-    const so = allSOs.find((s) => s.soNumber === formSoNumber);
-    if (so) return [so.productName];
-    return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
-  }, [formSoNumber, allSOs]);
+    const so = salesOrders.find((s) => (s.soNumber || s.id) === formSoNumber);
+    if (so) return [so.material || so.description];
+    return [];
+  }, [formSoNumber, salesOrders]);
 
   const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
   const removeFormItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
@@ -228,6 +230,64 @@ export function MaterialRequestsPage() {
     Approved: requests.filter((m) => m.status === "Approved").length,
     Processing: requests.filter((m) => m.status === "Processing").length,
     Rejected: requests.filter((m) => m.status === "Rejected").length,
+  };
+
+  const resetCreateForm = () => {
+    setFormSoNumber("");
+    setFormItems([{ code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
+    setFormPriority("Medium");
+    setFormUrgency("");
+    setFormNotes("");
+  };
+
+  const submitManualRequest = async () => {
+    if (isSubmitting) return;
+    const validItems = formItems.filter(item => item.name && Number(item.qty) > 0);
+    if (validItems.length === 0) {
+      alert("Isi minimal satu item material.");
+      return;
+    }
+
+    const requesterId = toBackendUserId(currentUser);
+    if (!requesterId) {
+      alert("User lokal belum punya mapping backend untuk membuat MR.");
+      return;
+    }
+
+    const selectedSo = salesOrders.find((so) => (so.soNumber || so.id) === formSoNumber);
+    const urgency = formPriority === "High" ? "Urgent" : "Normal";
+
+    try {
+      setIsSubmitting(true);
+      await purchasingApi.createPurchaseRequest({
+        requestDate: new Date().toISOString().split("T")[0],
+        requestedByUserId: requesterId,
+        requesterName: currentUser?.name || "Purchasing",
+        salesOrderId: selectedSo?.backendId || null,
+        salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
+        projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "Manual Material Request",
+        items: validItems.map(item => ({
+          salesOrderId: selectedSo?.backendId || null,
+          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
+          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "Manual Material Request",
+          itemName: item.name || item.code || "Material",
+          size: item.spec || null,
+          qty: Number(item.qty) || 1,
+          notes: [formUrgency, formNotes].filter(Boolean).join(" - ") || null,
+          urgency,
+          purchaseCategory: selectedSo ? "Project" : "Consumable",
+        })),
+      });
+      await loadRequests();
+      await refreshBackendData();
+      resetCreateForm();
+      setCreateOpen(false);
+    } catch (error) {
+      console.warn("Failed to create manual material request.", error);
+      alert("Gagal membuat MR di backend. Cek response API untuk detail.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -584,7 +644,7 @@ export function MaterialRequestsPage() {
                   <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Pilih SO (Opsional)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— Tanpa SO —</SelectItem>
-                    {allSOs.map(so => <SelectItem key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</SelectItem>)}
+                    {salesOrders.map(so => <SelectItem key={so.id} value={so.soNumber || so.id}>{so.soNumber || so.id} - {so.description}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -683,12 +743,10 @@ export function MaterialRequestsPage() {
                 Batal
               </button>
               <button
-                onClick={() => {
-                  alert("Material Request berhasil dibuat!");
-                  setCreateOpen(false);
-                }}
+                onClick={submitManualRequest}
+                disabled={isSubmitting}
                 className="rounded px-4 py-2 text-white hover:opacity-90" style={{ fontSize: 13, background: "#1e3a5f" }}>
-                Submit MR
+                {isSubmitting ? "Submitting..." : "Submit MR"}
               </button>
             </div>
           </div>

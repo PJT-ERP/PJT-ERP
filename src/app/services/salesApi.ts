@@ -90,6 +90,17 @@ export interface CreateSalesOrderRequest {
   designStatus?: string | null;
 }
 
+export interface AssignSalesOrderEngineersRequest {
+  productionWorker?: {
+    userId: string;
+    name: string;
+  } | null;
+  qcReviewer?: {
+    userId: string;
+    name: string;
+  } | null;
+}
+
 export const salesApi = {
   async listCustomers() {
     const response = await apiClient.get<CustomerDto[]>('/api/v1/master-data/customers');
@@ -118,6 +129,11 @@ export const salesApi = {
 
   async createSalesOrder(request: CreateSalesOrderRequest) {
     const response = await apiClient.post<SalesOrderDto>('/api/v1/production/sales-orders', request);
+    return response.data;
+  },
+
+  async assignSalesOrderEngineers(salesOrderId: string, request: AssignSalesOrderEngineersRequest) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/engineers`, request);
     return response.data;
   },
 

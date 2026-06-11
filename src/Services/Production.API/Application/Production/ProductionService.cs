@@ -945,7 +945,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     private async Task<string> GenerateSalesOrderNumberAsync(CancellationToken cancellationToken)
     {
-        var prefix = $"SO-{DateTime.UtcNow:yyyy}";
+        var prefix = $"SO-{DateTime.UtcNow:yyyy}-";
         var existingNumbers = await db.SalesOrders
             .AsNoTracking()
             .Where(order => order.SoNumber.StartsWith(prefix))

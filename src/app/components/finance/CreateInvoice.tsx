@@ -5,7 +5,6 @@ import {
   CheckCircle2, Building2, FileText, Hash, Calendar, Printer
 } from 'lucide-react';
 import { formatIDR } from './mockData';
-import { useERPStore } from '../../store/useERPStore';
 import { financeApi } from '../../services/financeApi';
 import { useFinanceData } from './useFinanceData';
 
@@ -31,7 +30,6 @@ const newItem = (): LineItem => ({
 
 export function CreateInvoice() {
   const navigate = useNavigate();
-  const { pendingSOs, createInvoiceFromSO } = useERPStore();
   const { invoiceCandidates, refresh } = useFinanceData();
   
   const [selectedSO, setSelectedSO] = useState('');
@@ -49,7 +47,6 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  const liveSo = pendingSOs.find(s => s.id === selectedSO);
   const backendCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
   
   // Unified data for display
@@ -59,16 +56,10 @@ export function CreateInvoice() {
     email: backendCandidate.customerEmail || '',
     npwp: '-',
     address: '',
-  } : liveSo ? {
-    name: liveSo.company,
-    contact: liveSo.customerName,
-    email: liveSo.email,
-    npwp: '-',
-    address: liveSo.address,
   } : null;
   
-  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : liveSo ? liveSo.soNumber : '';
-  const displayCustomerName = backendCandidate ? backendCandidate.customerName : liveSo ? liveSo.company : '';
+  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : '';
+  const displayCustomerName = backendCandidate ? backendCandidate.customerName : '';
 
   // Auto-fill items when SO is selected
   useEffect(() => {
@@ -80,14 +71,6 @@ export function CreateInvoice() {
         unit: 'Pcs',
         unitPrice: 0,
       })));
-    } else if (liveSo) {
-      setItems([{
-        id: String(idCounter++),
-        description: liveSo.productName,
-        quantity: liveSo.quantity,
-        unit: liveSo.unit,
-        unitPrice: liveSo.estimatedAmount || 0,
-      }]);
     } else {
       setItems([newItem()]);
     }
@@ -146,14 +129,6 @@ export function CreateInvoice() {
         bankAccountNumber: '1234567890',
       });
       await refresh();
-    } else if (liveSo) {
-      createInvoiceFromSO(liveSo.id, {
-        invoiceNumber,
-        amount: invoiceTotal,
-        dueDate,
-        issueDate,
-        notes,
-      });
     }
     setSubmitted(true);
   };
@@ -181,7 +156,7 @@ export function CreateInvoice() {
           </div>
           <h2 className="text-lg text-slate-900 mb-2">Invoice Berhasil Dibuat!</h2>
           <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{invoiceNumber}</span></p>
-          {(liveSo || backendCandidate) && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
+          {backendCandidate && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
           <div className="flex gap-3">
             <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Lihat Daftar Invoice
@@ -247,13 +222,6 @@ export function CreateInvoice() {
                     <optgroup label="Backend Invoice Candidates">
                       {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
                         <option key={candidate.salesOrderId} value={candidate.salesOrderId}>API · {candidate.salesOrderNumber} · {candidate.customerName}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {pendingSOs.length > 0 && (
-                    <optgroup label="Live Sales Orders">
-                      {pendingSOs.map(so => (
-                        <option key={so.id} value={so.id}>🔴 {so.soNumber} · {so.company}</option>
                       ))}
                     </optgroup>
                   )}

@@ -65,7 +65,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         var firstRequirement = materialRequirements.Values.FirstOrDefault();
         var purchaseRequest = new PurchaseRequest
         {
-            PrNumber = GenerateNumber(),
+            PrNumber = await GenerateNumberAsync(cancellationToken),
             RequestDate = request.RequestDate,
             RequestedByUserId = request.RequestedByUserId,
             RequesterName = request.RequesterName.Trim(),
@@ -922,8 +922,34 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         purchaseRequest.RejectionReason = null;
     }
 
-    private static string GenerateNumber()
+    private async Task<string> GenerateNumberAsync(CancellationToken cancellationToken)
     {
-        return $"PR-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27].ToUpperInvariant();
+        var prefix = $"MR-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.PurchaseRequests
+            .AsNoTracking()
+            .Where(request => request.PrNumber.StartsWith(prefix))
+            .Select(request => request.PrNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length)
+            {
+                continue;
+            }
+
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max + 1;
     }
 }

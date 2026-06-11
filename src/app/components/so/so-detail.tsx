@@ -9,7 +9,6 @@ import {
   Receipt, Download, Eye, Upload, X, Box,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { useERPStore } from "../../store/useERPStore";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
@@ -101,24 +100,22 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder } = useApp();
-  const { allSOs, updateSOInFinance } = useERPStore();
   
   const order = salesOrders.find(o => o.id === orderId);
   const customer = customers.find(c => c.code === order?.customerId);
-  const financeSo = allSOs.find(s => s.soNumber === orderId);
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [editForm, setEditForm] = useState({
     customerName: customer?.name || "",
-    company: financeSo?.company || customer?.name || "",
-    phone: financeSo?.phone || customer?.phone || "",
-    contact: financeSo?.email || customer?.contact || "",
-    address: financeSo?.address || customer?.address || "",
+    company: customer?.name || "",
+    phone: customer?.phone || "",
+    contact: customer?.contact || "",
+    address: customer?.address || "",
     description: order?.description || "",
     quantity: String(order?.quantity || ""),
     unit: order?.unit || "",
     deadline: order?.deadline || "",
-    notes: financeSo?.notes || order?.notes || "",
+    notes: order?.notes || "",
   });
 
   const handleSave = () => {
@@ -130,19 +127,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       deadline: editForm.deadline,
       notes: editForm.notes,
     });
-    if (financeSo) {
-      updateSOInFinance(financeSo.id, {
-        customerName: editForm.customerName,
-        company: editForm.company,
-        phone: editForm.phone,
-        email: editForm.contact,
-        address: editForm.address,
-        productName: editForm.description,
-        quantity: Number(editForm.quantity),
-        unit: editForm.unit,
-        notes: editForm.notes,
-      });
-    }
     setIsEditMode(false);
   };
 
@@ -261,11 +245,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <InfoRow icon={<User size={11} />}     label="Nama"       value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, customerName: v}))} />
-              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (financeSo?.company || customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
-              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (financeSo?.phone || customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
-              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (financeSo?.email || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
+              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
+              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
+              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (financeSo?.address || customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
+                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
               </div>
             </div>
           </InfoCard>

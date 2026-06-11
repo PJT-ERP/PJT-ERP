@@ -9,11 +9,12 @@ import {
 import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import type { Page } from "../layout/erp-layout";
-import { useERPStore } from "../../store/useERPStore";
+import { quotationApi } from "../../services/quotationApi";
+import { salesApi } from "../../services/salesApi";
 
 interface SOCreateProps {
   onNavigate: (page: Page, data?: unknown) => void;
-  initialData?: { customerId?: string; orderType?: "new" | "repeat" };
+  initialData?: { customerId?: string; orderType?: "new" | "repeat"; mode?: string; soId?: string };
 }
 
 type OrderType = "new" | "repeat" | "from_qut" | null;
@@ -71,6 +72,12 @@ const emptyProduct = (): ProductRow => ({
   unit: "pcs",
   notes: "",
 });
+
+function addDaysIso(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next.toISOString().split("T")[0];
+}
 
 // ─── Customer form ────────────────────────────────────────────────────────────
 interface CustomerForm {
@@ -401,9 +408,7 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, productCatalog, addSalesOrder, addCustomer, salesOrders, updateSalesOrder, quotations } = useApp();
-  const { submitSOToFinance, updateSOInFinance, allSOs } = useERPStore();
-  const allSos = allSOs;
+  const { customers, productCatalog, salesOrders, quotations, refreshBackendData } = useApp();
   const catalogProductOptions = productCatalog.map(product => ({
     id: product.id,
     label: `${product.partNumber} - ${product.description}`,
@@ -415,7 +420,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const isEdit = initialData?.mode === "edit";
   const editSoId = initialData?.soId;
   const existingAppSo = isEdit ? salesOrders.find(s => s.id === editSoId) : null;
-  const existingFinanceSo = isEdit ? allSOs.find(s => s.soNumber === editSoId) : null;
 
   const prefillCustomer = initialData?.customerId
     ? customers.find(c => c.code === initialData.customerId)
@@ -426,26 +430,18 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerCode: prefillCustomer?.code ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
     customerName: prefillCustomer?.name ?? "",
-    company: existingFinanceSo?.company ?? prefillCustomer?.name ?? "",
-    phone: existingFinanceSo?.phone ?? prefillCustomer?.phone ?? "",
-    email: existingFinanceSo?.email ?? prefillCustomer?.contact ?? "",
-    address: existingFinanceSo?.address ?? prefillCustomer?.address ?? "",
+    company: prefillCustomer?.name ?? "",
+    phone: prefillCustomer?.phone ?? "",
+    email: prefillCustomer?.contact ?? "",
+    address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
-    generalNotes: existingFinanceSo?.notes ?? "",
-    customerImageUrl: existingFinanceSo?.customerImageUrl ?? "",
-    estimatedAmount: existingFinanceSo?.estimatedAmount ?? 0,
+    generalNotes: "",
+    customerImageUrl: existingAppSo?.customerDrawingUrl ?? "",
+    estimatedAmount: 0,
   });
 
   const [products, setProducts] = useState<ProductRow[]>([
-    existingFinanceSo ? {
-      ...emptyProduct(),
-      type: "custom",
-      productName: existingFinanceSo.productName,
-      customName: existingFinanceSo.productName,
-      quantity: String(existingFinanceSo.quantity),
-      unit: existingFinanceSo.unit,
-      materials: existingFinanceSo.materials || emptyProduct().materials,
-    } : existingAppSo ? {
+    existingAppSo ? {
       ...emptyProduct(),
       type: "custom",
       productName: existingAppSo.description,
@@ -457,6 +453,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   ]);
   const [submitted, setSubmitted] = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -498,11 +495,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const handleRepeatSoSelect = (soId: string) => {
     setRepeatForm({ ...repeatForm, previousSoId: soId });
-    const selectedSo = allSos.find(so => so.id === soId);
+    const selectedSo = salesOrders.find(so => so.id === soId || so.soNumber === soId);
     if (selectedSo) {
       setRepeatProducts([{
         ...emptyProduct(),
-        productName: selectedSo.description, // changed to description, as it stores the product name
+        productName: selectedSo.description,
+        customName: selectedSo.description,
         quantity: String(selectedSo.quantity),
         unit: selectedSo.unit,
       }]);
@@ -529,181 +527,158 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
-  const handleNewOrderSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Using the first product for the local store representation.
-    const primaryProduct = products[0];
-
-    // Check if customer exists, if not create
-    const existingCustomer = customers.find(c => c.code === customerForm.customerCode);
-    if (!existingCustomer) {
-      addCustomer({
-        id: crypto.randomUUID(),
-        code: customerForm.customerCode,
-        name: customerForm.customerName,
-        address: customerForm.address,
-        contact: customerForm.email,
-        phone: customerForm.phone,
-        status: 'Active'
-      });
+  const ensureCustomerId = async (input: {
+    code: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  }) => {
+    const code = input.code.trim().toUpperCase();
+    const backendCustomers = await salesApi.listCustomers();
+    const existing = backendCustomers.find(customer => customer.code.toUpperCase() === code);
+    if (existing) {
+      return existing.id;
     }
 
+    const created = await salesApi.createCustomer({
+      code,
+      name: input.name.trim() || code,
+      address: input.address || null,
+      contactPerson: input.name.trim() || null,
+      email: input.email || null,
+    });
+    return created.id;
+  };
+
+  const ensureProductId = async (row: ProductRow) => {
+    const selected = catalogProductOptions.find(product => product.label === row.productName);
+    if (selected) {
+      return selected.id;
+    }
+
+    const name = (row.type === "custom" ? row.customName : row.productName).trim();
+    const fallbackName = name || "Custom Product";
+    const compact = fallbackName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 18) || "CUSTOM";
+    const created = await salesApi.createProduct({
+      partNumber: `PJT-${compact}-${Date.now().toString().slice(-5)}`,
+      description: fallbackName,
+      unit: row.unit || "pcs",
+      materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
+    });
+    return created.id;
+  };
+
+  const createSalesOrderFromRows = async (
+    customerId: string,
+    targetDate: string,
+    customerDrawingUrl: string,
+    rows: ProductRow[],
+  ) => {
+    const items = await Promise.all(rows.map(async row => ({
+      productId: await ensureProductId(row),
+      qty: Number(row.quantity) || 1,
+      notes: row.notes || row.materials.map(material => `${material.name}: ${material.specification}`).filter(Boolean).join("; ") || null,
+    })));
+
+    return salesApi.createSalesOrder({
+      customerId,
+      soDate: today,
+      targetDate,
+      customerDrawingUrl: customerDrawingUrl || null,
+      designReference: null,
+      designStatus: "PendingDesign",
+      items,
+    });
+  };
+
+  const handleNewOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (isEdit && editSoId) {
-      updateSalesOrder(editSoId, {
-        customerId: customerForm.customerCode,
-        description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-        quantity: Number(primaryProduct.quantity) || 1,
-        unit: primaryProduct.unit,
-        designId: primaryProduct.designId,
-        customerImageUrl: customerForm.customerImageUrl,
-        materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-        deadline: customerForm.deadline,
-      });
-
-      if (existingFinanceSo) {
-        updateSOInFinance(existingFinanceSo.id, {
-          customerName: customerForm.customerName,
-          customerCode: customerForm.customerCode,
-          company: customerForm.company,
-          email: customerForm.email,
-          phone: customerForm.phone,
-          address: customerForm.address,
-          customerImageUrl: customerForm.customerImageUrl,
-          productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-          designId: primaryProduct.designId,
-          quantity: Number(primaryProduct.quantity) || 1,
-          unit: primaryProduct.unit,
-          materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-          notes: customerForm.generalNotes,
-        });
-      }
-
-      setGeneratedSONumber(editSoId);
-      setSubmitted(true);
+      window.alert("Edit Sales Order langsung belum tersedia di backend. Buat SO baru dari QUT atau repeat order untuk E2E.");
       return;
     }
 
-    const newSO = addSalesOrder({
-      customerId: customerForm.customerCode,
-      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      designId: primaryProduct.designId,
-      customerImageUrl: customerForm.customerImageUrl,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      deadline: customerForm.deadline,
-    });
-
-    const soNumber = newSO.id;
-    setGeneratedSONumber(soNumber);
-
-    submitSOToFinance({
-      id: crypto.randomUUID(),
-      soNumber,
-      customerName: customerForm.customerName,
-      customerCode: customerForm.customerCode,
-      company: customerForm.company,
-      email: customerForm.email,
-      phone: customerForm.phone,
-      address: customerForm.address,
-      customerImageUrl: customerForm.customerImageUrl,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      designId: primaryProduct.designId,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      estimatedAmount: customerForm.estimatedAmount || 0,
-      notes: customerForm.generalNotes,
-    });
-
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const customerId = await ensureCustomerId({
+        code: customerForm.customerCode,
+        name: customerForm.company || customerForm.customerName,
+        email: customerForm.email,
+        phone: customerForm.phone,
+        address: customerForm.address,
+      });
+      const created = await createSalesOrderFromRows(customerId, customerForm.deadline, customerForm.customerImageUrl, products);
+      await refreshBackendData();
+      setGeneratedSONumber(created.soNumber);
+      setSubmitted(true);
+    } catch (error) {
+      console.warn("Failed to create sales order in backend.", error);
+      window.alert("Gagal membuat Sales Order di backend. Cek data customer, produk, dan URL gambar.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRepeatOrderSubmit = (e: React.FormEvent) => {
+  const handleRepeatOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer) return;
 
-    // Using the first product for the local store representation.
-    const primaryProduct = repeatProducts[0];
-
-    const newSO = addSalesOrder({
-      customerId: selectedCustomer.code,
-      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      deadline: repeatForm.deadline,
-    });
-
-    const soNumber = newSO.id;
-    setGeneratedSONumber(soNumber);
-
-    submitSOToFinance({
-      id: crypto.randomUUID(),
-      soNumber,
-      customerName: selectedCustomer.name,
-      customerCode: selectedCustomer.code,
-      company: selectedCustomer.name,
-      email: selectedCustomer.contact,
-      phone: selectedCustomer.phone,
-      address: selectedCustomer.address,
-      customerImageUrl: repeatForm.customerImageUrl,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      designId: primaryProduct.designId,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      estimatedAmount: repeatForm.estimatedAmount || 0,
-      notes: repeatForm.generalNotes,
-    });
-
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const customerId = await ensureCustomerId({
+        code: selectedCustomer.code,
+        name: selectedCustomer.name,
+        email: selectedCustomer.contact,
+        phone: selectedCustomer.phone,
+        address: selectedCustomer.address,
+      });
+      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, repeatForm.customerImageUrl, repeatProducts);
+      await refreshBackendData();
+      setGeneratedSONumber(created.soNumber);
+      setSubmitted(true);
+    } catch (error) {
+      console.warn("Failed to create repeat sales order in backend.", error);
+      window.alert("Gagal membuat Repeat Order di backend.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleQutSubmit = (e: React.FormEvent) => {
+  const handleQutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCustomer) return;
+    const quotation = quotations.find(q => q.id === qutForm.qutId);
+    if (!quotation?.backendId) return;
 
-    const primaryProduct = qutProducts[0];
-    const newSO = addSalesOrder({
-      customerId: selectedCustomer.code,
-      description: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      designId: primaryProduct.designId,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      deadline: qutForm.deadline,
-    });
-
-    const soNumber = newSO.id;
-    setGeneratedSONumber(soNumber);
-
-    submitSOToFinance({
-      id: crypto.randomUUID(),
-      soNumber,
-      customerName: selectedCustomer.name,
-      customerCode: selectedCustomer.code,
-      company: selectedCustomer.name,
-      email: selectedCustomer.contact,
-      phone: selectedCustomer.phone,
-      address: selectedCustomer.address,
-      customerImageUrl: qutForm.customerImageUrl,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      designId: primaryProduct.designId,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      estimatedAmount: quotations.find(q => q.id === qutForm.qutId)?.estimatedAmount || 0,
-      notes: qutForm.generalNotes,
-    });
-
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const created = await quotationApi.convertToSalesOrder(quotation.backendId, {
+        dpPercentage: 50,
+        dueDate: addDaysIso(new Date(), 7),
+      });
+      await refreshBackendData();
+      setGeneratedSONumber(created.soNumber);
+      setSubmitted(true);
+    } catch (error) {
+      console.warn("Failed to convert quotation to sales order in backend.", error);
+      window.alert("Gagal convert QUT ke SO di backend. Pastikan QUT sudah Won dan punya harga.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ─── Success screen ──────────────────────────────────────────────────────────
   if (submitted) {
-    const totalItems = orderType === "from_qut" ? qutProducts.length : repeatProducts.length;
+    const totalItems = orderType === "from_qut"
+      ? qutProducts.length
+      : orderType === "repeat"
+        ? repeatProducts.length
+        : products.length;
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
@@ -714,12 +689,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Sales Order:</p>
           <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedSONumber}</p>
           <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
-            {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Dikirim ke Finance untuk review"}
+            {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Tersimpan di backend"}
           </p>
           <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
-              {" "}Departemen Finance akan mereview dan memverifikasi SO ini dalam 1×24 jam kerja.
+              {" "}Dokumen SO tersimpan di backend dan siap mengikuti workflow produksi/finance berikutnya.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -881,12 +856,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
-            <button type="submit"
-              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
+            <button type="submit" disabled={isSubmitting}
+              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: isSubmitting ? "#94A3B8" : S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
-              <CheckCircle2 size={14} /> Submit Sales Order
+              <CheckCircle2 size={14} /> {isSubmitting ? "Menyimpan..." : "Submit Sales Order"}
             </button>
           </div>
         </form>
@@ -912,8 +887,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Sales Order Sebelumnya" required />
                 <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
                   <option value="">— Pilih SO untuk di-repeat —</option>
-                  {allSos.filter(so => so.customerName === selectedCustomer.name || so.company === selectedCustomer.name).map(so => (
-                    <option key={so.id} value={so.id}>{so.soNumber} - {so.productName}</option>
+                  {salesOrders.filter(so => so.customerId === selectedCustomer.code).map(so => (
+                    <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description}</option>
                   ))}
                 </Select>
               </div>
@@ -978,12 +953,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
-            <button type="submit"
-              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
+            <button type="submit" disabled={isSubmitting}
+              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: isSubmitting ? "#94A3B8" : S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
-              <RefreshCw size={14} /> Submit Repeat Order
+              <RefreshCw size={14} /> {isSubmitting ? "Menyimpan..." : "Submit Repeat Order"}
             </button>
           </div>
         </form>
@@ -1011,7 +986,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 4, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
                 {[
                   { icon: <User size={11} />, label: "Pelanggan", value: selectedCustomer.name },
-                  { icon: <Building2 size={11} />, label: "Perusahaan", value: selectedCustomer.company || selectedCustomer.name },
+                  { icon: <Building2 size={11} />, label: "Perusahaan", value: selectedCustomer.name },
                   { icon: <Phone size={11} />, label: "Telepon", value: selectedCustomer.phone },
                   { icon: <Mail size={11} />, label: "Email", value: selectedCustomer.contact },
                 ].map(f => (
@@ -1068,12 +1043,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
-            <button type="submit" disabled={!qutForm.qutId}
-              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: !qutForm.qutId ? "#94A3B8" : S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: !qutForm.qutId ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = !qutForm.qutId ? "1" : "0.88")}
+            <button type="submit" disabled={!qutForm.qutId || isSubmitting}
+              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: !qutForm.qutId || isSubmitting ? "#94A3B8" : S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: !qutForm.qutId || isSubmitting ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = !qutForm.qutId || isSubmitting ? "1" : "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
-              <CheckCircle2 size={14} /> Submit SO dari QUT
+              <CheckCircle2 size={14} /> {isSubmitting ? "Menyimpan..." : "Submit SO dari QUT"}
             </button>
           </div>
         </form>
