@@ -1,6 +1,7 @@
 export type UserRole = 'Sales' | 'Engineering' | 'Engineering Supervisor' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
+  | 'Menunggu Invoice DP'
   | 'Pending Design'
   | 'Waiting Approval'
   | 'Revision Required'
@@ -97,6 +98,7 @@ export const REVISION_STATUSES: SOStatus[] = ['Pending Design', 'Revision Requir
 
 export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string } {
   const map: Record<SOStatus, { bg: string; text: string; border: string }> = {
+    'Menunggu Invoice DP': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
     'Pending Design': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' },
     'Waiting Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
     'Revision Required': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },

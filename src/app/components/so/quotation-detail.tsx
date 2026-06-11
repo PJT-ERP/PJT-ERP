@@ -95,10 +95,14 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
   );
 }
 
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(url);
+}
+
 
 
 export function QuotationDetail({ orderId, onNavigate, initialEditMode }: QuotationDetailProps) {
-  const { quotations, customers, updateQuotation, addSalesOrder, currentUser } = useApp();
+  const { quotations, customers, updateQuotation, currentUser } = useApp();
   const { allSOs, updateSOInFinance } = useERPStore();
   
   const order = quotations.find(o => o.id === orderId);
@@ -154,20 +158,7 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
       updateQuotation(order.id, { status: 'pending_design' });
     } else if (action === 'deal') {
       updateQuotation(order.id, { status: 'won' });
-      // Auto generate SO
-      addSalesOrder({
-        customerId: order.customerId,
-        partNumber: order.productName, // Simplify
-        description: order.description,
-        quantity: order.quantity,
-        unit: order.unit,
-        deadline: order.deadline,
-        materials: order.materials,
-        designId: order.designId,
-        customerImageUrl: order.customerImageUrl,
-      });
-      // Give success feedback
-      alert("Quotation WON! Sales Order dan Invoice DP 50% berhasil dibuat secara otomatis.");
+      alert("Quotation WON. Sales Order dibuat dari backend dan Invoice DP 50% akan muncul di Finance.");
       onNavigate('quotation-list');
     } else if (action === 'revise_price') {
       updateQuotation(order.id, { status: 'waiting_pricing' });
@@ -192,6 +183,7 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
   }
 
   const cfg = getQuotationStatusColor(order.status as QuotationStatus);
+  const engineeringDesignUrl = order.designLink || order.designId;
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -438,6 +430,22 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
           </div>
 
           {/* ── Customer Image Reference ── */}
+          {engineeringDesignUrl && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Desain Engineering</p>
+              </div>
+              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {isImageUrl(engineeringDesignUrl) && (
+                  <img src={engineeringDesignUrl} alt="Desain Engineering" style={{ width: "100%", borderRadius: 4, border: `1px solid ${S.border}`, objectFit: "cover", maxHeight: 200 }} />
+                )}
+                <a href={engineeringDesignUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+                  <ExternalLink size={13} /> Buka Desain Engineering
+                </a>
+              </div>
+            </div>
+          )}
+
           {order.customerImageUrl && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>

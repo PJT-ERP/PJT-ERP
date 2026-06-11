@@ -169,7 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setQuotations(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
     const current = quotations.find(q => q.id === id);
     if (current) {
-      void syncUpdateQuotation(current, updates, currentUser);
+      void syncUpdateQuotation(current, updates, currentUser, setQuotations, setSalesOrders);
     }
   };
 
@@ -180,7 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...data,
       id: `SO-2026${String(next).padStart(3, '0')}`,
       createdAt: new Date().toISOString().split('T')[0],
-      status: 'waiting_dp',
+      status: 'Menunggu Invoice DP',
       createdBy: currentUser?.id ?? 'u1',
     };
     setSalesOrders(prev => [so, ...prev]);
@@ -389,6 +389,10 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     return "Completed";
   }
 
+  if (order.status === "Draft") {
+    return "Menunggu Invoice DP";
+  }
+
   if (order.status === "Cancelled" || order.designStatus === "Rejected") {
     return "Rejected";
   }
@@ -504,6 +508,8 @@ async function syncUpdateQuotation(
   quotation: Quotation,
   updates: Partial<Quotation>,
   currentUser: User | null,
+  setQuotations: Dispatch<SetStateAction<Quotation[]>>,
+  setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
 ) {
   const backendId = quotation.backendId || quotation.id;
 
@@ -522,10 +528,11 @@ async function syncUpdateQuotation(
         return;
       }
 
-      await quotationApi.assignEngineer(backendId, {
+      const updated = await quotationApi.assignEngineer(backendId, {
         engineerId,
         engineerName,
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
@@ -534,7 +541,7 @@ async function syncUpdateQuotation(
       const materials = updates.materials || quotation.materials || [];
       const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : "");
 
-      await quotationApi.submitDesign(backendId, {
+      const updated = await quotationApi.submitDesign(backendId, {
         designLink,
         bomItems: materials.map(material => ({
           itemCode: material.id || null,
@@ -546,49 +553,62 @@ async function syncUpdateQuotation(
         engineerId,
         engineerName: currentUser?.name || "Engineer",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "client_design_approval") {
-      await quotationApi.approveSupervisorDesign(backendId);
+      const updated = await quotationApi.approveSupervisorDesign(backendId);
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.estimatedAmount !== undefined && updates.status === "client_price_approval") {
-      await quotationApi.submitPricing(backendId, {
+      const updated = await quotationApi.submitPricing(backendId, {
         amount: updates.estimatedAmount,
         notes: updates.notes || null,
         financeUserId: isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID(),
         financeUserName: currentUser?.name || "Finance",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "waiting_pricing") {
-      await quotationApi.approveClientDesign(backendId);
+      const updated = await quotationApi.approveClientDesign(backendId);
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "pending_design") {
-      await quotationApi.requestDesignRevision(backendId, {
+      const updated = await quotationApi.requestDesignRevision(backendId, {
         notes: updates.notes || "Client requested design revision.",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "won") {
-      await quotationApi.markWon(backendId);
-      await quotationApi.convertToSalesOrder(backendId, {
+      const wonQuotation = await quotationApi.markWon(backendId);
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(wonQuotation) : item));
+
+      const createdSalesOrder = await quotationApi.convertToSalesOrder(backendId, {
         dpPercentage: 50,
         dueDate: addDaysIso(new Date(), 7),
       });
+      const mappedSalesOrder = mapSalesOrderDto(createdSalesOrder);
+      setSalesOrders(prev => [
+        mappedSalesOrder,
+        ...prev.filter(item => item.backendId !== mappedSalesOrder.backendId && item.id !== mappedSalesOrder.id),
+      ]);
       return;
     }
 
     if (updates.status === "lost") {
-      await quotationApi.markLost(backendId, {
+      const updated = await quotationApi.markLost(backendId, {
         reason: updates.lostReason || "Quotation lost.",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
     }
   } catch (error) {
     console.warn("Failed to sync quotation update to backend.", error);

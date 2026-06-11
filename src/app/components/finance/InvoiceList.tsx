@@ -236,7 +236,7 @@ export function InvoiceList() {
 
   const invoiceData = useMemo(
     () => [...liveInvoices.map(mapLiveInvoice), ...invoices],
-    [liveInvoices]
+    [liveInvoices, invoices]
   );
 
   const filtered = useMemo(() => {
