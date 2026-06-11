@@ -21,10 +21,15 @@ builder.Services.AddDbContext<FinanceContext>(options =>
 });
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<FinanceContext>());
 builder.Services.AddScoped<IFinanceService, FinanceService>();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<PaymentReadinessBackfillService>();
+}
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<FinanceContext>(builder.Configuration, options =>
 {
     options.QueueName = "pjt_finance_events";
+    options.FanOutQueues = ["pjt_production_events"];
 })
     .WithReceiver()
     .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>()

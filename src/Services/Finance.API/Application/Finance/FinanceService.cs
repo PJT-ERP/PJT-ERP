@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Finance.Api.Domain.Entities;
 using PJT_ERP.Finance.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.Finance.Api.Application.Finance;
 
-public sealed class FinanceService(FinanceContext db) : IFinanceService
+public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPublisher = null) : IFinanceService
 {
     public async Task<IReadOnlyCollection<InvoiceCandidateDto>> ListInvoiceCandidatesAsync(Guid? customerId, CancellationToken cancellationToken)
     {
@@ -194,6 +196,24 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
             ? InvoiceStatuses.Paid
             : InvoiceStatuses.PartiallyPaid;
         invoice.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (eventPublisher is not null)
+        {
+            await eventPublisher.PublishAsync(
+                new InvoicePaymentRecordedEvent(
+                    invoice.Id,
+                    invoice.InvoiceNumber,
+                    invoice.SalesOrderId,
+                    invoice.SalesOrderNumber,
+                    invoice.CustomerId,
+                    RoundMoney(request.Amount),
+                    invoice.PaidAmount,
+                    invoice.TotalAmount,
+                    invoice.PaymentPercent,
+                    request.PaymentDate,
+                    invoice.PaidAmount >= invoice.TotalAmount),
+                cancellationToken);
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 

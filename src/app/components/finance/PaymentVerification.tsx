@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
   AlertTriangle, X, Banknote, PlusCircle
@@ -42,14 +42,16 @@ function RecordPaymentModal({ invoice, onClose, onRecorded }: {
   const [notes, setNotes] = useState(nextSchedule ? `${nextSchedule.label} ${invoice.invoiceNumber}` : `Pembayaran ${invoice.invoiceNumber}`);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const submitLockRef = useRef(false);
   const numericAmount = Number(amount);
   const canSubmit = paymentDate && numericAmount > 0 && numericAmount <= remainingAmount && !isSaving;
 
   const submitPayment = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || submitLockRef.current) return;
 
     try {
+      submitLockRef.current = true;
       setIsSaving(true);
       setError('');
       await financeApi.recordPayment(invoice.id, {
@@ -63,6 +65,7 @@ function RecordPaymentModal({ invoice, onClose, onRecorded }: {
       console.warn('Failed to record payment.', err);
       setError('Gagal mencatat pembayaran ke backend.');
     } finally {
+      submitLockRef.current = false;
       setIsSaving(false);
     }
   };

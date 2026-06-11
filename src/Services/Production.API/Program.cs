@@ -33,6 +33,7 @@ builder.Services.AddPgmqEventBus<ProductionContext>(builder.Configuration, optio
 })
     .WithReceiver()
     .AddSubscription<MasterDataUpdatedEvent, MasterDataUpdatedEventHandler>()
+    .AddSubscription<InvoicePaymentRecordedEvent, InvoicePaymentRecordedEventHandler>()
     .AddSubscription<QcCheckCompletedEvent, QcCheckCompletedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();

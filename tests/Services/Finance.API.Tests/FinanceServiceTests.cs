@@ -6,6 +6,7 @@ using PJT_ERP.Finance.Api.Application.IntegrationEvents;
 using PJT_ERP.Finance.Api.Controllers;
 using PJT_ERP.Finance.Api.Domain.Entities;
 using PJT_ERP.Finance.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace Finance.API.Tests;
 
@@ -107,7 +108,8 @@ public sealed class FinanceServiceTests
     {
         await using var db = CreateDbContext();
         var invoice = await CreateInvoiceAsync(db);
-        var service = new FinanceService(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new FinanceService(db, eventPublisher);
 
         var updated = await service.RecordPaymentAsync(
             invoice.Id,
@@ -119,6 +121,14 @@ public sealed class FinanceServiceTests
         Assert.Equal(50m, updated.PaymentPercent);
         Assert.Equal("PartiallyPaid", updated.Status);
         Assert.Contains(updated.PaymentSchedules, schedule => schedule.Label == "DP 50%" && schedule.IsPaid);
+
+        var recordedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<InvoicePaymentRecordedEvent>());
+        Assert.Equal(invoice.Id, recordedEvent.InvoiceId);
+        Assert.Equal(invoice.SalesOrderId, recordedEvent.SalesOrderId);
+        Assert.Equal(166_500m, recordedEvent.PaymentAmount);
+        Assert.Equal(166_500m, recordedEvent.PaidAmount);
+        Assert.Equal(50m, recordedEvent.PaymentPercent);
+        Assert.False(recordedEvent.IsFullyPaid);
     }
 
     [Fact]
@@ -253,5 +263,16 @@ public sealed class FinanceServiceTests
             .Options;
 
         return new FinanceContext(options);
+    }
+
+    private sealed class RecordingEventPublisher : IEventPublisher
+    {
+        public List<IntegrationEvent> PublishedEvents { get; } = [];
+
+        public Task PublishAsync(IntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
+        {
+            PublishedEvents.Add(integrationEvent);
+            return Task.CompletedTask;
+        }
     }
 }
