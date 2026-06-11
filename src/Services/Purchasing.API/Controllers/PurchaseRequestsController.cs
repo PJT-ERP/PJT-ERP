@@ -43,7 +43,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost("{id:guid}/review")]
-    [Authorize(Roles = "Admin,Finance")]
+    [Authorize(Roles = "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
     public async Task<ActionResult<PurchaseRequestDto>> Review(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
         try

@@ -3,6 +3,7 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Production.Api.Application.Analytics;
 using PJT_ERP.Production.Api.Application.IntegrationEvents;
 using PJT_ERP.Production.Api.Application.Production;
+using PJT_ERP.Production.Api.Application.Quotations;
 using PJT_ERP.Production.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Auth;
 using PJT_ERP.Shared.Infrastructure.Abstractions;
@@ -22,6 +23,7 @@ builder.Services.AddDbContext<ProductionContext>(options =>
 });
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ProductionContext>());
 builder.Services.AddScoped<IProductionService, ProductionService>();
+builder.Services.AddScoped<IQuotationService, QuotationService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<ProductionContext>(builder.Configuration, options =>

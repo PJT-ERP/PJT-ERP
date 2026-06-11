@@ -27,7 +27,8 @@ builder.Services.AddPgmqEventBus<FinanceContext>(builder.Configuration, options 
     options.QueueName = "pjt_finance_events";
 })
     .WithReceiver()
-    .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>();
+    .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>()
+    .AddSubscription<SalesOrderDpInvoiceRequestedEvent, SalesOrderDpInvoiceRequestedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();

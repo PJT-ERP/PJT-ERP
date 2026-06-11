@@ -4,6 +4,7 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Finance.Api.Application.Finance;
 using PJT_ERP.Finance.Api.Application.IntegrationEvents;
 using PJT_ERP.Finance.Api.Controllers;
+using PJT_ERP.Finance.Api.Domain.Entities;
 using PJT_ERP.Finance.Api.Infrastructure.Persistence;
 
 namespace Finance.API.Tests;
@@ -43,6 +44,29 @@ public sealed class FinanceServiceTests
         Assert.Equal("SO-001", candidate.SalesOrderNumber);
         Assert.Equal("PT Customer", candidate.CustomerName);
         Assert.Equal("billing@example.com", candidate.CustomerEmail);
+        Assert.Equal(2, candidate.Items.Count);
+    }
+
+    [Fact]
+    public async Task SalesOrderDpInvoiceRequestedEventHandler_creates_dp_invoice_and_marks_candidate_invoiced()
+    {
+        await using var db = CreateDbContext();
+        var handler = new SalesOrderDpInvoiceRequestedEventHandler(db);
+
+        await handler.Handle(CreateDpInvoiceRequestedEvent(), CancellationToken.None);
+
+        var invoice = await db.Invoices
+            .Include(item => item.Items)
+            .Include(item => item.PaymentSchedules)
+            .SingleAsync();
+        Assert.Equal("SO-001", invoice.SalesOrderNumber);
+        Assert.Equal(500_000m, invoice.TotalAmount);
+        Assert.Equal(2, invoice.Items.Count);
+        Assert.Contains(invoice.PaymentSchedules, schedule => schedule.Label == "DP 50%" && schedule.Amount == 250_000m);
+        Assert.Contains(invoice.PaymentSchedules, schedule => schedule.Label == "Pelunasan 50%" && schedule.Amount == 250_000m);
+
+        var candidate = await db.InvoiceCandidates.Include(item => item.Items).SingleAsync();
+        Assert.Equal(InvoiceCandidateStatuses.Invoiced, candidate.Status);
         Assert.Equal(2, candidate.Items.Count);
     }
 
@@ -194,6 +218,38 @@ public sealed class FinanceServiceTests
                     "Bushing",
                     2)
             ]);
+    }
+
+    private static SalesOrderDpInvoiceRequestedEvent CreateDpInvoiceRequestedEvent()
+    {
+        return new SalesOrderDpInvoiceRequestedEvent(
+            SalesOrderId,
+            "SO-001",
+            CustomerId,
+            "CUST-001",
+            "PT Customer",
+            "billing@example.com",
+            new DateOnly(2026, 6, 30),
+            500_000m,
+            50m,
+            new DateOnly(2026, 6, 12),
+            [
+                new SalesOrderDpInvoiceItem(
+                    FirstSalesOrderItemId,
+                    Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                    "PART-001",
+                    "Shaft",
+                    2),
+                new SalesOrderDpInvoiceItem(
+                    SecondSalesOrderItemId,
+                    Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                    "PART-002",
+                    "Bushing",
+                    2)
+            ])
+        {
+            OccurredAtUtc = new DateTime(2026, 6, 8, 10, 0, 0, DateTimeKind.Utc)
+        };
     }
 
     private static FinanceContext CreateDbContext()

@@ -122,7 +122,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
         if (purchaseRequest.Status != PurchaseRequestStatuses.Submitted)
         {
-            throw new InvalidOperationException("Only submitted purchase requests can be reviewed by Finance.");
+            throw new InvalidOperationException("Only submitted purchase requests can be reviewed.");
         }
 
         var decision = NormalizeReviewDecision(request.Decision);
@@ -783,7 +783,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return;
         }
 
-        throw new InvalidOperationException($"Purchase request must be accepted by Finance before it can {action}.");
+        throw new InvalidOperationException($"Purchase request must be approved before it can {action}.");
     }
 
     private static void RefreshPurchaseRequestStatus(PurchaseRequest purchaseRequest)

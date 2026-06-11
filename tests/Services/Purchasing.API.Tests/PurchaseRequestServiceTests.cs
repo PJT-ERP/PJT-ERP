@@ -14,7 +14,7 @@ public sealed class PurchaseRequestServiceTests
 {
     [Theory]
     [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering")]
-    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
+    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
     [InlineData(nameof(PurchaseRequestsController.ProcessItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.RejectItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.ReceiveItem), "Admin,Purchasing")]
