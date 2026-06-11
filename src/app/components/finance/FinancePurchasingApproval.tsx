@@ -7,6 +7,7 @@ type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' |
 
 interface PendingPO {
   id: string;
+  backendId?: string;
   poNumber: string;
   department: string;
   requestor: string;

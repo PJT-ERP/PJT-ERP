@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { financeApi, InvoiceCandidateDto, InvoiceDto } from '../../services/financeApi';
-import { type Invoice, type InvoiceStatus } from './mockData';
+import {
+  type Invoice,
+  type InvoiceStatus,
+  type Payment,
+  type Transaction,
+} from './mockData';
 
 function mapStatus(status: string, paidAmount: number, totalAmount: number): InvoiceStatus {
   const normalized = status.toLowerCase();
@@ -68,8 +73,71 @@ function buildStatusData(invoices: Invoice[]) {
     .filter(item => item.value > 0);
 }
 
+function mapPayments(invoices: InvoiceDto[]): Payment[] {
+  return invoices.flatMap(invoice => invoice.payments.map(payment => ({
+    id: payment.id,
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    customerName: invoice.customerName,
+    amount: payment.amount,
+    paymentDate: payment.paymentDate,
+    paymentMethod: 'Transfer',
+    bankRef: payment.id.slice(0, 8).toUpperCase(),
+    bankName: invoice.bankName || 'Bank Transfer',
+    status: 'VERIFIED',
+    proofAvailable: true,
+    notes: payment.notes || undefined,
+    verifiedBy: 'Backend',
+    verifiedAt: payment.paymentDate,
+  })));
+}
+
+function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
+  const rows: Array<Omit<Transaction, 'balance'>> = [];
+
+  invoices.forEach(invoice => {
+    rows.push({
+      id: invoice.id,
+      type: 'INVOICE',
+      referenceNumber: invoice.invoiceNumber,
+      description: `Invoice ${invoice.salesOrderNumber}`,
+      debit: invoice.totalAmount,
+      credit: 0,
+      date: invoice.invoiceDate,
+      status: invoice.remainingAmount > 0 ? 'OUTSTANDING' : 'COMPLETED',
+      customerName: invoice.customerName,
+      category: 'Invoice',
+    });
+
+    invoice.payments.forEach(payment => {
+      rows.push({
+        id: payment.id,
+        type: 'PAYMENT',
+        referenceNumber: `${invoice.invoiceNumber}/PAY`,
+        description: `Pembayaran ${invoice.invoiceNumber}`,
+        debit: 0,
+        credit: payment.amount,
+        date: payment.paymentDate,
+        status: 'COMPLETED',
+        customerName: invoice.customerName,
+        category: 'Payment',
+      });
+    });
+  });
+
+  let balance = 0;
+  return rows
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map(row => {
+      balance += row.debit - row.credit;
+      return { ...row, balance };
+    });
+}
+
 export function useFinanceData() {
   const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
+  const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
+  const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
   const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
   const [isUsingBackend, setIsUsingBackend] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,11 +150,15 @@ export function useFinanceData() {
         financeApi.listInvoiceCandidates(),
       ]);
       setBackendInvoices(invoices.map(mapInvoice));
+      setBackendPayments(mapPayments(invoices));
+      setBackendTransactions(buildTransactionsFromInvoices(invoices));
       setInvoiceCandidates(candidates);
       setIsUsingBackend(true);
     } catch (error) {
       console.warn('Finance API unavailable; finance seed data was not loaded.', error);
       setBackendInvoices([]);
+      setBackendPayments([]);
+      setBackendTransactions([]);
       setInvoiceCandidates([]);
       setIsUsingBackend(false);
     } finally {
@@ -99,14 +171,18 @@ export function useFinanceData() {
   }, [refresh]);
 
   const invoices = backendInvoices;
+  const payments = backendPayments;
+  const transactions = backendTransactions;
 
   return useMemo(() => ({
     invoices,
+    payments,
+    transactions,
     invoiceCandidates,
     isLoading,
     isUsingBackend,
     refresh,
     monthlyRevenueData: buildMonthlyData(invoices),
     invoiceStatusData: buildStatusData(invoices),
-  }), [invoices, invoiceCandidates, isLoading, isUsingBackend, refresh]);
+  }), [invoices, payments, transactions, invoiceCandidates, isLoading, isUsingBackend, refresh]);
 }

@@ -4,8 +4,8 @@ import {
   ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
   AlertTriangle, X, Banknote
 } from 'lucide-react';
-import { financeApi, InvoiceDto } from '../../services/financeApi';
 import { formatIDR, formatDate, type Payment, type PaymentStatus } from './mockData';
+import { useFinanceData } from './useFinanceData';
 
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: React.ComponentType<any> }> = {
   PENDING: { label: 'Menunggu Verifikasi', color: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-200', icon: Clock },
@@ -192,23 +192,14 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 }
 
 export function PaymentVerification() {
+  const { payments: financePayments } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
   useEffect(() => {
-    const loadPayments = async () => {
-      try {
-        const invoices = await financeApi.listInvoices();
-        setPaymentData(invoices.flatMap(mapInvoicePayments));
-      } catch (error) {
-        console.warn('Finance API unavailable; payment seed data was not loaded.', error);
-        setPaymentData([]);
-      }
-    };
-
-    void loadPayments();
-  }, []);
+    setPaymentData(financePayments);
+  }, [financePayments]);
 
   const handleVerify = (id: string) => {
     setPaymentData(prev => prev.map(p =>
@@ -368,23 +359,4 @@ export function PaymentVerification() {
       )}
     </div>
   );
-}
-
-function mapInvoicePayments(invoice: InvoiceDto): Payment[] {
-  return invoice.payments.map(payment => ({
-    id: payment.id,
-    invoiceId: invoice.id,
-    invoiceNumber: invoice.invoiceNumber,
-    customerName: invoice.customerName,
-    amount: payment.amount,
-    paymentDate: payment.paymentDate,
-    paymentMethod: 'Transfer Bank',
-    bankRef: `PAY-${payment.id.slice(0, 8).toUpperCase()}`,
-    bankName: invoice.bankName || 'Bank BCA',
-    status: 'VERIFIED' as PaymentStatus,
-    proofAvailable: true,
-    notes: payment.notes || undefined,
-    verifiedBy: 'Finance',
-    verifiedAt: payment.paymentDate,
-  }));
 }

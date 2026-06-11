@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -9,7 +9,7 @@ import {
   X,
   AlertTriangle,
   Eye,
-  Download,
+  RefreshCw,
   Plus,
 } from "lucide-react";
 import { useERPStore } from "../../store/useERPStore";
@@ -171,6 +171,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 export function MaterialRequestsPage() {
   const { allSOs } = useERPStore();
   const [requests, setRequests] = useState<MR[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -182,19 +183,22 @@ export function MaterialRequestsPage() {
   const [formUrgency, setFormUrgency] = useState("");
   const [formNotes, setFormNotes] = useState("");
 
-  useEffect(() => {
-    const loadRequests = async () => {
-      try {
-        const data = await purchasingApi.listPurchaseRequests();
-        setRequests(data.map(mapPurchaseRequestToMr));
-      } catch (error) {
-        console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
-        setRequests([]);
-      }
-    };
-
-    void loadRequests();
+  const loadRequests = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await purchasingApi.listPurchaseRequests();
+      setRequests(data.map(mapPurchaseRequestToMr));
+    } catch (error) {
+      console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
+      setRequests([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadRequests();
+  }, [loadRequests]);
 
   const availableMaterials = useMemo(() => {
     if (!formSoNumber) return [];
@@ -238,10 +242,11 @@ export function MaterialRequestsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => void loadRequests()}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 border transition-colors hover:bg-slate-50"
             style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
           >
-            <Download size={13} /> Export
+            <RefreshCw size={13} /> {isLoading ? "Loading..." : "Refresh"}
           </button>
           <button
             onClick={() => setCreateOpen(true)}
