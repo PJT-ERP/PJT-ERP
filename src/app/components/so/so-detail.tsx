@@ -11,6 +11,8 @@ import {
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
+import { useFinanceData } from "../finance/useFinanceData";
+import { mergeSalesOrderInvoice } from "./invoice-sync";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";
 const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
@@ -100,8 +102,10 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder } = useApp();
+  const { invoices } = useFinanceData();
   
-  const order = salesOrders.find(o => o.id === orderId);
+  const baseOrder = salesOrders.find(o => o.id === orderId);
+  const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);

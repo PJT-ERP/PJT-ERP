@@ -39,6 +39,7 @@ export interface Invoice {
   customerName: string;
   amount: number;
   paidAmount: number;
+  paymentDate?: string;
   dueDate: string;
   issueDate: string;
   status: InvoiceStatus;

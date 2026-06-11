@@ -6,9 +6,10 @@ import {
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
+import { useFinanceData } from "../finance/useFinanceData";
+import { getSalesOrderInvoiceStatus, mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
 
-type InvoiceStatus = "paid" | "waiting" | "not_created";
-const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
+const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
   paid: { label: "Paid", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
@@ -66,7 +67,7 @@ function StatusBadge({ status }: { status: SOStatus }) {
 }
 
 // ─── InvoiceBadge ─────────────────────────────────────────────────────────────
-function InvoiceBadge({ status }: { status: InvoiceStatus }) {
+function InvoiceBadge({ status }: { status: SalesInvoiceStatus }) {
   const cfg = invoiceStatusConfig[status];
   return (
     <span style={{
@@ -155,6 +156,7 @@ function ActionBtn({
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOList({ onNavigate }: SOListProps) {
   const { salesOrders, customers } = useApp();
+  const { invoices } = useFinanceData();
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -200,7 +202,7 @@ export function SOList({ onNavigate }: SOListProps) {
         String(order.quantity),
         order.unit,
         order.deadline,
-        invoiceStatusConfig[(order.invoice?.status ?? "not_created") as InvoiceStatus].label,
+        invoiceStatusConfig[getSalesOrderInvoiceStatus(order, invoices)].label,
         order.status,
       ]})
     ]);
@@ -251,8 +253,8 @@ export function SOList({ onNavigate }: SOListProps) {
           />
           <HoverBtn
             icon={<Plus size={12} />}
-            label="Buat SO"
-            onClick={() => onNavigate("so-create")}
+            label="Buat QU"
+            onClick={() => onNavigate("quotation-create")}
             style={{ 
               background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
               border: "none", 
@@ -408,7 +410,7 @@ export function SOList({ onNavigate }: SOListProps) {
             ) : paginated.map((order, idx) => (
               <TableRow
                 key={order.id}
-                order={order}
+                order={mergeSalesOrderInvoice(order, invoices)}
                 customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
                 isLast={idx === paginated.length - 1}
                 onView={() => onNavigate("so-detail", order.id)}
@@ -482,7 +484,7 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
         <span style={{ color: "#334155", fontSize: "12px" }}>{order.deadline}</span>
       </td>
       <td style={{ padding: "9px 14px" }}>
-        <InvoiceBadge status={(order.invoice?.status ?? "not_created") as InvoiceStatus} />
+        <InvoiceBadge status={(order.invoice?.status ?? "not_created") as SalesInvoiceStatus} />
       </td>
       <td style={{ padding: "9px 14px" }}>
         <StatusBadge status={order.status as SOStatus} />

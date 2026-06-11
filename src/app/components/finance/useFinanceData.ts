@@ -24,6 +24,7 @@ function mapInvoice(invoice: InvoiceDto): Invoice {
     customerName: invoice.customerName,
     amount: invoice.totalAmount,
     paidAmount: invoice.paidAmount,
+    paymentDate: invoice.payments[0]?.paymentDate,
     dueDate: invoice.dueDate,
     issueDate: invoice.invoiceDate,
     status: mapStatus(invoice.status, invoice.paidAmount, invoice.totalAmount),
