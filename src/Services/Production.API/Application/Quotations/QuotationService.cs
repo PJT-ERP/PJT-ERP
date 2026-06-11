@@ -56,7 +56,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             CustomerEmail = customer.Email,
             Deadline = request.Deadline,
             Notes = NormalizeOptional(request.Notes),
-            Status = request.Items.Any(item => string.IsNullOrWhiteSpace(item.DesignLink) && (item.BomItems is null || item.BomItems.Count == 0))
+            Status = request.Items.Any(RequiresEngineeringDesign)
                 ? QuotationStatuses.PendingDesign
                 : QuotationStatuses.WaitingPricing,
             CreatedAtUtc = now,
@@ -475,6 +475,13 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                 throw new InvalidOperationException("Quotation item quantity must be greater than zero.");
             }
         }
+    }
+
+    private static bool RequiresEngineeringDesign(CreateQuotationItemRequest item)
+    {
+        return string.IsNullOrWhiteSpace(item.DesignLink)
+            || item.BomItems is null
+            || item.BomItems.Count == 0;
     }
 
     private static QuotationDto ToDto(Quotation quotation)

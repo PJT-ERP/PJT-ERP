@@ -460,6 +460,10 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
 
   const addProduct = (setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => setter(prev => [...prev, emptyProduct()]);
   const removeProduct = (id: string, setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => setter(prev => prev.filter(p => p.id !== id));
+  const hasApprovedDesign = (product: ProductRow) =>
+    !!product.designId
+    && product.designId !== "none"
+    && product.materials.length > 0;
 
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedQuotationID("");
@@ -533,7 +537,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
       deadline: customerForm.deadline,
       estimatedAmount: customerForm.estimatedAmount || 0,
       notes: customerForm.generalNotes,
-      status: (!primaryProduct.designId || primaryProduct.designId === 'none') ? 'pending_design' : 'waiting_pricing',
+      status: hasApprovedDesign(primaryProduct) ? 'waiting_pricing' : 'pending_design',
     });
 
     setGeneratedQuotationID(newQUT.id);
@@ -554,11 +558,12 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
       description: primaryProduct.notes,
       quantity: Number(primaryProduct.quantity) || 1,
       unit: primaryProduct.unit,
+      customerImageUrl: repeatForm.customerImageUrl,
       materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
       deadline: repeatForm.deadline,
       estimatedAmount: repeatForm.estimatedAmount || 0,
       notes: repeatForm.generalNotes,
-      status: 'waiting_pricing',
+      status: hasApprovedDesign(primaryProduct) ? 'waiting_pricing' : 'pending_design',
     });
 
     setGeneratedQuotationID(newQUT.id);
@@ -712,8 +717,8 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
               </div>
               <div>
-                <Label text="URL Design" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} required />
+                <Label text="URL Gambar Referensi Customer" />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
@@ -807,8 +812,8 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
               </div>
               <div>
-                <Label text="URL Gambar Referensi Customer" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} required />
+                <Label text="URL Gambar Referensi Customer" />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />

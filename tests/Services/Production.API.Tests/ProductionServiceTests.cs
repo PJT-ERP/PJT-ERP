@@ -353,6 +353,44 @@ public sealed class ProductionServiceTests
     }
 
     [Fact]
+    public async Task CreateQuotationAsync_keeps_material_snapshot_without_design_in_engineering_queue()
+    {
+        await using var db = CreateDbContext();
+        var customer = new CustomerReplica
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Code = "CUST-001",
+            Name = "PT Customer",
+            Email = "customer@example.com"
+        };
+        await db.CustomerReplicas.AddAsync(customer);
+        await db.SaveChangesAsync();
+
+        var service = new QuotationService(db, new RecordingEventPublisher());
+
+        var quotation = await service.CreateAsync(
+            new CreateQuotationRequest(
+                customer.Id,
+                new DateOnly(2026, 7, 1),
+                null,
+                [
+                    new CreateQuotationItemRequest(
+                        null,
+                        "Baut 0.05 mm",
+                        "Baut presisi",
+                        10,
+                        "pcs",
+                        "https://drive.example/customer-reference.jpg",
+                        null,
+                        [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")])
+                ]),
+            CancellationToken.None);
+
+        Assert.Equal(QuotationStatuses.PendingDesign, quotation.Status);
+        Assert.Single(quotation.BomItems);
+    }
+
+    [Fact]
     public async Task ConvertQuotationToSalesOrderAsync_publishes_dp_invoice_request()
     {
         await using var db = CreateDbContext();
@@ -393,6 +431,8 @@ public sealed class ProductionServiceTests
                         [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")])
                 ]),
             CancellationToken.None);
+
+        Assert.Equal(QuotationStatuses.WaitingPricing, quotation.Status);
 
         quotation = await service.SubmitPricingAsync(
             quotation.Id,
