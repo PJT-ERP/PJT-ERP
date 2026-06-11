@@ -403,6 +403,8 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         quotation.ConvertedSalesOrderNumber = order.SoNumber;
         quotation.UpdatedAtUtc = now;
 
+        await db.SaveChangesAsync(cancellationToken);
+
         await eventPublisher.PublishAsync(
             new SalesOrderDpInvoiceRequestedEvent(
                 order.Id,

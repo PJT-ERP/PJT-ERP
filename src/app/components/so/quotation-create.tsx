@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Plus, RefreshCw, ChevronLeft, CheckCircle2,
   User, Building2, Phone, Mail, MapPin,
@@ -94,6 +94,13 @@ interface RepeatForm {
   generalNotes: string;
   customerImageUrl: string;
   estimatedAmount?: number;
+}
+
+interface PreparedCustomer {
+  id: string;
+  code: string;
+  name: string;
+  email?: string | null;
 }
 
 // ─── Primitive UI helpers ─────────────────────────────────────────────────────
@@ -451,6 +458,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
   const [submitted, setSubmitted] = useState(false);
   const [generatedQuotationID, setGeneratedQuotationID] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
 
   const selectedCustomer = customers.find(c => c.code === repeatForm.customerId);
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
@@ -483,12 +491,17 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
     }
   };
 
-  const ensureCustomerId = async (form: CustomerForm) => {
+  const ensureCustomer = async (form: CustomerForm): Promise<PreparedCustomer> => {
     const code = form.customerCode || `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
     const backendCustomers = await salesApi.listCustomers();
     const existing = backendCustomers.find(customer => customer.code === code);
     if (existing) {
-      return existing.id;
+      return {
+        id: existing.id,
+        code: existing.code,
+        name: existing.name,
+        email: existing.email || null,
+      };
     }
 
     const created = await salesApi.createCustomer({
@@ -499,7 +512,12 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
       email: form.email || null,
     });
 
-    return created.id;
+    return {
+      id: created.id,
+      code: created.code,
+      name: created.name,
+      email: created.email || form.email || null,
+    };
   };
 
   const findProductId = (row: ProductRow) => {
@@ -531,12 +549,17 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
     };
   };
 
-  const createBackendQuotation = async (customerId: string, deadline: string, notes: string, rows: ProductRow[], customerImageUrl?: string) => {
+  const createBackendQuotation = async (customer: PreparedCustomer, deadline: string, notes: string, rows: ProductRow[], customerImageUrl?: string) => {
     const created = await quotationApi.create({
-      customerId,
+      customerId: customer.id,
       deadline,
       notes: notes || null,
       items: rows.map(row => toQuotationItem(row, customerImageUrl)),
+      customer: {
+        code: customer.code,
+        name: customer.name,
+        email: customer.email || null,
+      },
     });
 
     await refreshBackendData();
@@ -552,15 +575,17 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
       return;
     }
 
-    if (isSubmitting) return;
+    if (isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
     try {
       setIsSubmitting(true);
-      const customerId = await ensureCustomerId(customerForm);
-      await createBackendQuotation(customerId, customerForm.deadline, customerForm.generalNotes, products, customerForm.customerImageUrl);
+      const customer = await ensureCustomer(customerForm);
+      await createBackendQuotation(customer, customerForm.deadline, customerForm.generalNotes, products, customerForm.customerImageUrl);
     } catch (error) {
       console.error(error);
       alert("Gagal membuat QUT di backend. Cek response API untuk detail.");
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -569,19 +594,31 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
     e.preventDefault();
     if (!selectedCustomer) return;
 
-    if (isSubmitting) return;
+    if (isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
     try {
       setIsSubmitting(true);
       const backendCustomers = await salesApi.listCustomers();
-      const customerId = backendCustomers.find(customer => customer.code === selectedCustomer.code)?.id;
-      if (!customerId) {
+      const customer = backendCustomers.find(customer => customer.code === selectedCustomer.code);
+      if (!customer) {
         throw new Error("Selected customer was not found in backend.");
       }
-      await createBackendQuotation(customerId, repeatForm.deadline, repeatForm.generalNotes, repeatProducts, repeatForm.customerImageUrl);
+      await createBackendQuotation(
+        {
+          id: customer.id,
+          code: customer.code,
+          name: customer.name,
+          email: customer.email || null,
+        },
+        repeatForm.deadline,
+        repeatForm.generalNotes,
+        repeatProducts,
+        repeatForm.customerImageUrl);
     } catch (error) {
       console.error(error);
       alert("Gagal membuat repeat QUT di backend. Cek response API untuk detail.");
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
