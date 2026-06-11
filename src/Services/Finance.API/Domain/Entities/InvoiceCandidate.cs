@@ -26,6 +26,7 @@ public sealed class InvoiceCandidateItem
     public string ProductPartNumber { get; set; } = "";
     public string ProductDescription { get; set; } = "";
     public int Qty { get; set; }
+    public decimal UnitPrice { get; set; }
 }
 
 public static class InvoiceCandidateStatuses

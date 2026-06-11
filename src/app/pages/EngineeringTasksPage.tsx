@@ -29,7 +29,8 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   const { updateQuotation, customers, currentUser } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
   const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
-  const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
+  const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
+  const [rejectReason, setRejectReason] = useState('');
   const customer = customers.find(c => c.code === qut.customerId);
   
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
@@ -53,6 +54,16 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
     });
     setStep('done');
   };
+
+  const handleReject = () => {
+    if (!rejectReason.trim()) return;
+    updateQuotation(qut.id, {
+      status: 'pending_design',
+      notes: rejectReason,
+    });
+    setStep('rejected');
+  };
+
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -88,6 +99,45 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 {isSpv ? 'Status Penawaran dikembalikan ke Sales untuk Validasi Klien.' : 'Status Penawaran menjadi "Design Review"'}
               </p>
               <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Tutup</button>
+            </div>
+          ) : step === 'rejected' ? (
+            <div style={{ textAlign: "center", padding: "24px 0" }}>
+              <div style={{ width: 64, height: 64, background: "#FEF2F2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <Trash2 size={32} style={{ color: "#EF4444" }} />
+              </div>
+              <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
+                Desain Dikembalikan ke Engineer
+              </h3>
+              <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
+                Status Penawaran kembali menjadi "Pending Design". Engineer harus merevisi dan mengirim ulang desainnya.
+              </p>
+              <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Tutup</button>
+            </div>
+          ) : step === 'reject' ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 16 }}>
+                <p style={{ color: "#991B1B", margin: 0, fontSize: "13.5px", fontWeight: 500 }}>
+                  Apakah Anda yakin ingin menolak desain ini?
+                </p>
+                <p style={{ color: "#B91C1C", margin: "4px 0 0", fontSize: "12.5px" }}>
+                  Desain akan dikembalikan ke Engineer untuk direvisi.
+                </p>
+              </div>
+              
+              <div>
+                <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>
+                  Catatan Revisi <span style={{ color: "#EF4444" }}>*</span>
+                </label>
+                <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder="Sebutkan apa yang perlu diperbaiki oleh Engineer..."
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", resize: "none", boxSizing: "border-box" }} />
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Kembali</button>
+                <button onClick={handleReject} disabled={!rejectReason.trim()} style={{ flex: 1, padding: "10px", background: "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: rejectReason.trim() ? 1 : 0.5 }}>
+                  <Trash2 size={15} /> Tolak Desain
+                </button>
+              </div>
             </div>
           ) : step === 'confirm' ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -161,6 +211,11 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
 
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+                {isSpv && isPendingSpv && (
+                  <button onClick={() => setStep('reject')} style={{ flex: 1, padding: "10px", background: "#FEF2F2", border: "1px solid #FCA5A5", color: "#DC2626", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    Tolak / Revisi
+                  </button>
+                )}
                 <button onClick={() => setStep('confirm')} disabled={!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)}
                   style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: (designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) ? 1 : 0.5 }}>
                   <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}

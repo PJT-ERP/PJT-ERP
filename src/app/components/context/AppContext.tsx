@@ -199,6 +199,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addCustomer = (customer: Customer) => {
     pendingCustomersByCode.current[customer.code] = customer;
     setCustomers(prev => [...prev, customer]);
+    
+    // Simpan ke backend agar tidak hilang saat refresh
+    salesApi.createCustomer({
+      code: customer.code,
+      name: customer.name,
+      address: customer.address,
+      contactPerson: customer.contact,
+      email: customer.contact,
+    }).then(created => {
+      setBackendCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
+    }).catch(err => {
+      console.warn("Gagal menyimpan pelanggan ke backend", err);
+    });
   };
 
   const updateCustomer = (code: string, updates: Partial<Customer>) => {

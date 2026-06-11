@@ -471,7 +471,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
   const removeProduct = (id: string, setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => setter(prev => prev.filter(p => p.id !== id));
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedQuotationID("");
-    setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
+    setCustomerForm({ customerCode: `CUST-${Math.floor(1000 + Math.random() * 9000)}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };

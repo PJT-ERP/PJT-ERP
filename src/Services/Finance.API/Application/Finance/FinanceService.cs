@@ -576,7 +576,8 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
                     item.ProductId,
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.UnitPrice))
                 .ToArray());
     }
 

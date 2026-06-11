@@ -38,6 +38,9 @@ public static class FinanceSchemaInitializer
                 ON payment_verification_requests (status);
 
             ALTER TABLE payment_verification_requests ADD COLUMN IF NOT EXISTS proof_file_url text;
+
+            ALTER TABLE invoice_candidate_items
+                ADD COLUMN IF NOT EXISTS unit_price numeric(18,2) NOT NULL DEFAULT 0;
             """,
             cancellationToken);
 
