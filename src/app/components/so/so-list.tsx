@@ -254,8 +254,8 @@ export function SOList({ onNavigate }: SOListProps) {
           />
           <HoverBtn
             icon={<Plus size={12} />}
-            label="Buat QU"
-            onClick={() => onNavigate("quotation-create")}
+            label="Buat SO"
+            onClick={() => onNavigate("so-create")}
             style={{ 
               background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
               border: "none", 
