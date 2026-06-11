@@ -1,0 +1,76 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  backend-build:
+    name: Build backend solution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore backend
+        run: dotnet restore PtPjtErp.slnx
+
+      - name: Build backend
+        run: dotnet build PtPjtErp.slnx --configuration Release --no-restore
+
+  backend-tests:
+    name: Test ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: backend-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Production API
+            project: tests/Services/Production.API.Tests/Production.API.Tests.csproj
+            artifact: production
+          - name: Purchasing API
+            project: tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj
+            artifact: purchasing
+          - name: QC API
+            project: tests/Services/QC.API.Tests/QC.API.Tests.csproj
+            artifact: qc
+          - name: Finance API
+            project: tests/Services/Finance.API.Tests/Finance.API.Tests.csproj
+            artifact: finance
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore tests
+        run: dotnet restore ${{ matrix.project }}
+
+      - name: Run tests
+        run: dotnet test ${{ matrix.project }} --configuration Release --no-restore --logger trx --results-directory TestResults/${{ matrix.artifact }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-${{ matrix.artifact }}-test-results
+          path: TestResults/${{ matrix.artifact }}

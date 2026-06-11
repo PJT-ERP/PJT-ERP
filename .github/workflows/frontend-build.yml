@@ -1,4 +1,4 @@
-name: Frontend Build
+name: Frontend CI
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   frontend-build:
-    name: Run frontend build
+    name: Build frontend
     runs-on: ubuntu-latest
 
     steps:
