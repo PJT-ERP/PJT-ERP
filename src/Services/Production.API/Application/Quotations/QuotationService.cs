@@ -104,18 +104,23 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
-        customer = new CustomerReplica
-        {
-            Id = request.CustomerId,
-            Code = Required(request.Customer.Code, "Customer code"),
-            Name = Required(request.Customer.Name, "Customer name"),
-            Email = NormalizeOptional(request.Customer.Email),
-            IsActive = true,
-            UpdatedAtUtc = now
-        };
+        var code = Required(request.Customer.Code, "Customer code");
+        var name = Required(request.Customer.Name, "Customer name");
+        var email = NormalizeOptional(request.Customer.Email);
 
-        await db.CustomerReplicas.AddAsync(customer, cancellationToken);
-        return customer;
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO customer_replicas ("Id", code, name, email, is_active, updated_at_utc)
+            VALUES ({request.CustomerId}, {code}, {name}, {email}, true, {now})
+            ON CONFLICT ("Id") DO UPDATE
+            SET code = EXCLUDED.code,
+                name = EXCLUDED.name,
+                email = EXCLUDED.email,
+                is_active = true,
+                updated_at_utc = EXCLUDED.updated_at_utc;
+            """, cancellationToken);
+
+        return await db.CustomerReplicas.AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.Id == request.CustomerId, cancellationToken);
     }
 
     public async Task<QuotationDto?> AssignEngineerAsync(Guid quotationId, AssignQuotationEngineerRequest request, CancellationToken cancellationToken)
