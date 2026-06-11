@@ -10,9 +10,10 @@ import {
   AlertCircle, Wallet, RefreshCw, Users
 } from 'lucide-react';
 import {
-  invoices, payments, monthlyRevenueData, invoiceStatusData,
+  payments, monthlyRevenueData as mockMonthlyRevenueData, invoiceStatusData as mockInvoiceStatusData,
   formatIDR, formatDate
 } from './mockData';
+import { useFinanceData } from './useFinanceData';
 
 const KPI_CARDS = [
   {
@@ -109,13 +110,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function FinanceDashboard() {
   const navigate = useNavigate();
+  const {
+    invoices,
+    isLoading,
+    isUsingBackend,
+    refresh,
+    monthlyRevenueData,
+    invoiceStatusData,
+  } = useFinanceData();
   const [activeTab, setActiveTab] = useState<'GLOBAL' | 'CUSTOMER'>('GLOBAL');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
 
   const recentInvoices = [...invoices].slice(0, 5);
   const pendingPayments = payments.filter(p => p.status === 'PENDING');
+  const chartRevenueData = monthlyRevenueData.length > 0 ? monthlyRevenueData : mockMonthlyRevenueData;
+  const chartStatusData = invoiceStatusData.length > 0 ? invoiceStatusData : mockInvoiceStatusData;
 
-  const uniqueCustomers = useMemo(() => Array.from(new Set(invoices.map(t => t.customerName))), []);
+  const uniqueCustomers = useMemo(() => Array.from(new Set(invoices.map(t => t.customerName))), [invoices]);
 
   const customerAnalytics = useMemo(() => {
     const acc: Record<string, { total: number, paid: number, remaining: number }> = {};
@@ -133,26 +144,25 @@ export function FinanceDashboard() {
       fullName: name,
       ...data
     })).sort((a, b) => b.total - a.total);
-  }, [activeTab, selectedCustomer]);
+  }, [activeTab, selectedCustomer, invoices]);
 
   // Adjust KPIs dynamically based on tab and selected customer
   const displayKPIs = useMemo(() => {
-    if (activeTab === 'GLOBAL' || selectedCustomer === 'ALL') return KPI_CARDS;
-    
-    // Calculate customer-specific KPIs
-    const custInvoices = invoices.filter(i => i.customerName === selectedCustomer);
+    const custInvoices = activeTab === 'CUSTOMER' && selectedCustomer !== 'ALL'
+      ? invoices.filter(i => i.customerName === selectedCustomer)
+      : invoices;
     const totalInv = custInvoices.length;
     const pendingInv = custInvoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((s, i) => s + (i.amount - i.paidAmount), 0);
     const paidInv = custInvoices.filter(i => i.status === 'PAID').length;
     const totalRev = custInvoices.reduce((s, i) => s + i.paidAmount, 0);
 
     return [
-      { ...KPI_CARDS[0], value: String(totalInv), sub: 'Total Invoice Pelanggan' },
-      { ...KPI_CARDS[1], value: formatIDR(pendingInv), sub: 'Outstanding Piutang Pelanggan' },
+      { ...KPI_CARDS[0], value: String(totalInv), sub: activeTab === 'GLOBAL' ? 'Total invoice aktif' : 'Total Invoice Pelanggan' },
+      { ...KPI_CARDS[1], value: formatIDR(pendingInv), sub: activeTab === 'GLOBAL' ? 'Outstanding piutang' : 'Outstanding Piutang Pelanggan' },
       { ...KPI_CARDS[2], value: String(paidInv), sub: 'Invoice Lunas' },
-      { ...KPI_CARDS[3], value: formatIDR(totalRev), sub: 'Total Telah Dibayar', title: 'Pendapatan Pelanggan' },
+      { ...KPI_CARDS[3], value: formatIDR(totalRev), sub: 'Total Telah Dibayar', title: activeTab === 'GLOBAL' ? 'Pendapatan Tercatat' : 'Pendapatan Pelanggan' },
     ];
-  }, [activeTab, selectedCustomer]);
+  }, [activeTab, selectedCustomer, invoices]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6 min-h-full">
@@ -160,10 +170,16 @@ export function FinanceDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl text-slate-900">Dashboard Keuangan</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Ringkasan keuangan PT Pratama Jaya Tekindo · November 2026</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Ringkasan keuangan PT Pratama Jaya Tekindo · {isUsingBackend ? 'data backend' : 'data mock'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-md px-3 py-1.5 transition-colors shadow-md">
+          <button
+            onClick={refresh}
+            disabled={isLoading}
+            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-md px-3 py-1.5 transition-colors shadow-md disabled:opacity-60"
+          >
             <RefreshCw size={14} />
             <span>Refresh</span>
           </button>
@@ -254,7 +270,7 @@ export function FinanceDashboard() {
               </div>
             </div>
             <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={monthlyRevenueData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+              <AreaChart data={chartRevenueData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#C8102E" stopOpacity={0.15} />
@@ -283,8 +299,8 @@ export function FinanceDashboard() {
             </div>
             <ResponsiveContainer width="100%" height={140}>
               <PieChart>
-                <Pie data={invoiceStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value">
-                  {invoiceStatusData.map((entry, i) => (
+                <Pie data={chartStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value">
+                  {chartStatusData.map((entry, i) => (
                     <Cell key={`pie-cell-${entry.name}`} fill={PIE_COLORS[i]} />
                   ))}
                 </Pie>
@@ -292,7 +308,7 @@ export function FinanceDashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="mt-2 space-y-2">
-              {invoiceStatusData.map((d, i) => (
+              {chartStatusData.map((d, i) => (
                 <div key={d.name} className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: PIE_COLORS[i] }} />

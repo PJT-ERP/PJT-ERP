@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { salesOrders, customers, formatIDR } from './mockData';
 import { useERPStore } from '../../store/useERPStore';
+import { financeApi } from '../../services/financeApi';
+import { useFinanceData } from './useFinanceData';
 
 interface LineItem {
   id: string;
@@ -30,6 +32,7 @@ const newItem = (): LineItem => ({
 export function CreateInvoice() {
   const navigate = useNavigate();
   const { pendingSOs, createInvoiceFromSO } = useERPStore();
+  const { invoiceCandidates, isUsingBackend, refresh } = useFinanceData();
   
   const [selectedSO, setSelectedSO] = useState('');
   const [paymentTerm, setPaymentTerm] = useState('30 Hari');
@@ -49,12 +52,19 @@ export function CreateInvoice() {
   // Find SO from either mock data or live store
   const mockSo = salesOrders.find(s => s.id === selectedSO);
   const liveSo = pendingSOs.find(s => s.id === selectedSO);
+  const backendCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
   
   // For mock SOs, we use mock customers
   const mockCustomer = mockSo ? customers.find(c => c.id === mockSo.customerId) : null;
   
   // Unified data for display
-  const displayCustomer = liveSo ? {
+  const displayCustomer = backendCandidate ? {
+    name: backendCandidate.customerName,
+    contact: backendCandidate.customerEmail || backendCandidate.customerCode,
+    email: backendCandidate.customerEmail || '',
+    npwp: '-',
+    address: '',
+  } : liveSo ? {
     name: liveSo.company,
     contact: liveSo.customerName,
     email: liveSo.email,
@@ -62,12 +72,20 @@ export function CreateInvoice() {
     address: liveSo.address,
   } : mockCustomer;
   
-  const displaySoNumber = liveSo ? liveSo.soNumber : (mockSo ? mockSo.soNumber : '');
-  const displayCustomerName = liveSo ? liveSo.company : (mockSo ? mockSo.customerName : '');
+  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : liveSo ? liveSo.soNumber : (mockSo ? mockSo.soNumber : '');
+  const displayCustomerName = backendCandidate ? backendCandidate.customerName : liveSo ? liveSo.company : (mockSo ? mockSo.customerName : '');
 
   // Auto-fill items when SO is selected
   useEffect(() => {
-    if (liveSo) {
+    if (backendCandidate) {
+      setItems(backendCandidate.items.map(item => ({
+        id: item.salesOrderItemId,
+        description: item.productDescription,
+        quantity: item.qty,
+        unit: 'Pcs',
+        unitPrice: 0,
+      })));
+    } else if (liveSo) {
       setItems([{
         id: String(idCounter++),
         description: liveSo.productName,
@@ -105,8 +123,43 @@ export function CreateInvoice() {
 
   const invoiceNumber = `INV-2026-${String(Math.floor(Math.random() * 900) + 271).padStart(4, '0')}`;
 
-  const handleSubmit = () => {
-    if (liveSo) {
+  const handleSubmit = async () => {
+    if (backendCandidate) {
+      await financeApi.createInvoice({
+        salesOrderId: backendCandidate.salesOrderId,
+        invoiceDate: issueDate,
+        dueDate: isDP && dpDeadline ? dpDeadline : dueDate,
+        taxPercent: ppnEnabled ? 11 : 0,
+        items: items.map(item => ({
+          salesOrderItemId: item.id,
+          unitPrice: item.unitPrice,
+        })),
+        paymentSchedules: isDP
+          ? [
+              {
+                label: `DP ${pct}%`,
+                percentage: pct,
+                dueDate: dpDeadline || dueDate,
+              },
+              {
+                label: `Pelunasan ${100 - pct}%`,
+                percentage: 100 - pct,
+                dueDate,
+              },
+            ].filter(schedule => schedule.percentage > 0)
+          : [
+              {
+                label: 'Full Payment',
+                percentage: 100,
+                dueDate,
+              },
+            ],
+        bankName: 'BCA',
+        bankAccountName: 'PT Pratama Jaya',
+        bankAccountNumber: '1234567890',
+      });
+      await refresh();
+    } else if (liveSo) {
       createInvoiceFromSO(liveSo.id, {
         invoiceNumber,
         amount: invoiceTotal,
@@ -192,7 +245,9 @@ export function CreateInvoice() {
             <div className="mb-10 bg-red-50/50 border border-red-100 rounded-lg p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm">
               <div>
                 <h3 className="text-sm font-bold text-red-900 mb-1">Pilih Basis Sales Order</h3>
-                <p className="text-xs text-red-700 font-medium">Data pelanggan dan detail pesanan akan diisi secara otomatis ke dalam dokumen invoice.</p>
+                <p className="text-xs text-red-700 font-medium">
+                  Data pelanggan dan detail pesanan akan diisi otomatis {isUsingBackend ? 'dari backend Finance' : 'dari data testing'}.
+                </p>
               </div>
               <div className="relative w-full sm:w-72 flex-shrink-0">
                 <select
@@ -201,6 +256,13 @@ export function CreateInvoice() {
                   className="w-full appearance-none border border-red-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-red-500 transition-all shadow-sm pr-10"
                 >
                   <option value="">— Pilih Sales Order —</option>
+                  {invoiceCandidates.some(candidate => candidate.status !== 'Invoiced') && (
+                    <optgroup label="Backend Invoice Candidates">
+                      {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
+                        <option key={candidate.salesOrderId} value={candidate.salesOrderId}>API · {candidate.salesOrderNumber} · {candidate.customerName}</option>
+                      ))}
+                    </optgroup>
+                  )}
                   {pendingSOs.length > 0 && (
                     <optgroup label="Live Sales Orders">
                       {pendingSOs.map(so => (
