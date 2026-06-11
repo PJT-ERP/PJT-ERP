@@ -14,7 +14,9 @@ public sealed class PurchaseRequestServiceTests
 {
     [Theory]
     [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering")]
-    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
+    [InlineData(nameof(PurchaseRequestsController.SupervisorReview), "Admin,Engineering Supervisor")]
+    [InlineData(nameof(PurchaseRequestsController.FinanceReview), "Admin,Finance")]
+    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.ProcessItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.RejectItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.ReceiveItem), "Admin,Purchasing")]
@@ -140,7 +142,7 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task ReviewAsync_accepts_request_from_finance_and_updates_requirement()
+    public async Task ReviewAsync_requires_supervisor_then_finance_before_purchasing()
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
@@ -148,18 +150,44 @@ public sealed class PurchaseRequestServiceTests
         var service = CreateService(db, eventPublisher);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
 
-        var reviewed = await service.ReviewAsync(
+        var supervisorReviewed = await service.ReviewAsync(
             purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null),
+            new ReviewPurchaseRequest(
+                Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                "Accept",
+                null,
+                "Supervisor"),
             CancellationToken.None);
 
-        Assert.NotNull(reviewed);
-        Assert.Equal(PurchaseRequestStatuses.Approved, reviewed.Status);
-        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), reviewed.ReviewedByUserId);
-        Assert.NotNull(reviewed.ReviewedAtUtc);
-        Assert.Equal(PurchaseItemStatuses.Approved, Assert.Single(reviewed.Items).PurchaseStatus);
+        Assert.NotNull(supervisorReviewed);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, supervisorReviewed.Status);
+        Assert.Equal(Guid.Parse("77777777-7777-7777-7777-777777777777"), supervisorReviewed.SupervisorReviewedByUserId);
+        Assert.NotNull(supervisorReviewed.SupervisorReviewedAtUtc);
+        Assert.Equal(PurchaseItemStatuses.Requested, Assert.Single(supervisorReviewed.Items).PurchaseStatus);
+        Assert.Equal(MaterialRequirementStatuses.PurchaseRequested, (await db.MaterialRequirements.SingleAsync()).Status);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            Assert.Single(supervisorReviewed.Items).Id,
+            new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null),
+            CancellationToken.None));
+
+        var financeReviewed = await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Accept",
+                null,
+                "Finance"),
+            CancellationToken.None);
+
+        Assert.NotNull(financeReviewed);
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
+        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), financeReviewed.FinanceReviewedByUserId);
+        Assert.NotNull(financeReviewed.FinanceReviewedAtUtc);
+        Assert.Equal(PurchaseItemStatuses.Approved, Assert.Single(financeReviewed.Items).PurchaseStatus);
         Assert.Equal(MaterialRequirementStatuses.PurchaseApproved, (await db.MaterialRequirements.SingleAsync()).Status);
-        Assert.Single(eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>());
+        Assert.Equal(2, eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>().Count());
     }
 
     [Fact]
@@ -358,9 +386,22 @@ public sealed class PurchaseRequestServiceTests
         PurchaseRequestService service,
         PurchaseRequestDto purchaseRequest)
     {
-        var reviewed = await service.ReviewAsync(
+        var supervisorReviewed = await service.ReviewAsync(
             purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null),
+            new ReviewPurchaseRequest(
+                Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                "Accept",
+                null,
+                "Supervisor"),
+            CancellationToken.None);
+
+        var reviewed = await service.ReviewAsync(
+            supervisorReviewed!.Id,
+            new ReviewPurchaseRequest(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Accept",
+                null,
+                "Finance"),
             CancellationToken.None);
 
         return reviewed!;

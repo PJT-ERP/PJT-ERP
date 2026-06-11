@@ -42,9 +42,28 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
         }
     }
 
+    [HttpPost("{id:guid}/supervisor-review")]
+    [Authorize(Roles = "Admin,Engineering Supervisor")]
+    public Task<ActionResult<PurchaseRequestDto>> SupervisorReview(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
+    {
+        return ReviewWithStage(id, request with { ReviewStage = "Supervisor" }, cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/finance-review")]
+    [Authorize(Roles = "Admin,Finance")]
+    public Task<ActionResult<PurchaseRequestDto>> FinanceReview(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
+    {
+        return ReviewWithStage(id, request with { ReviewStage = "Finance" }, cancellationToken);
+    }
+
     [HttpPost("{id:guid}/review")]
-    [Authorize(Roles = "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
-    public async Task<ActionResult<PurchaseRequestDto>> Review(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
+    [Authorize(Roles = "Admin,Finance")]
+    public Task<ActionResult<PurchaseRequestDto>> Review(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
+    {
+        return ReviewWithStage(id, request with { ReviewStage = "Finance" }, cancellationToken);
+    }
+
+    private async Task<ActionResult<PurchaseRequestDto>> ReviewWithStage(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
         try
         {

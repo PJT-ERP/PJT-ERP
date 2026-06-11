@@ -6,7 +6,7 @@ type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' |
 
 interface PendingPO {
   id: string;
-  poNumber: string;
+  prNumber: string;
   department: string;
   requestor: string;
   items: string;
@@ -17,8 +17,8 @@ interface PendingPO {
 
 const mockPendingPOs: PendingPO[] = [
   {
-    id: 'PO-2026-001',
-    poNumber: 'PO/ENG/2026/001',
+    id: 'PR-2026-001',
+    prNumber: 'PR/ENG/2026/001',
     department: 'Engineering',
     requestor: 'Budi Santoso',
     items: 'Plat Besi 3mm, Baut M8, Las Argon',
@@ -27,8 +27,8 @@ const mockPendingPOs: PendingPO[] = [
     status: 'PENDING'
   },
   {
-    id: 'PO-2026-002',
-    poNumber: 'PO/PROD/2026/089',
+    id: 'PR-2026-002',
+    prNumber: 'PR/PROD/2026/089',
     department: 'Production',
     requestor: 'Joko Anwar',
     items: 'Mata Bor Set, Oli Mesin',
@@ -37,8 +37,8 @@ const mockPendingPOs: PendingPO[] = [
     status: 'PENDING'
   },
   {
-    id: 'PO-2026-003',
-    poNumber: 'PO/ENG/2026/002',
+    id: 'PR-2026-003',
+    prNumber: 'PR/ENG/2026/002',
     department: 'Engineering',
     requestor: 'Andi Wijaya',
     items: 'Lisensi AutoCAD 1 Tahun',
@@ -58,7 +58,7 @@ export function FinancePurchasingApproval() {
   const [notes, setNotes] = useState('');
 
   const filtered = pos.filter(po => 
-    po.poNumber.toLowerCase().includes(search.toLowerCase()) || 
+    po.prNumber.toLowerCase().includes(search.toLowerCase()) || 
     po.department.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -87,12 +87,12 @@ export function FinancePurchasingApproval() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PO)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Otorisasi pencairan dana dan kategorisasi aset dari pengajuan departemen lain.</p>
+          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PR)</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk PR yang sudah disetujui Engineering Supervisor sebelum Purchasing membuat PO.</p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
-          {pendingCount} PO Menunggu Approval
+          {pendingCount} PR Menunggu Finance Approval
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export function FinancePurchasingApproval() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Cari No. PO atau Departemen..."
+              placeholder="Cari No. PR atau Departemen..."
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all shadow-sm"
             />
           </div>
@@ -115,7 +115,7 @@ export function FinancePurchasingApproval() {
             <thead className="bg-white border-b border-slate-100">
               <tr>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tanggal</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Items</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Dana</th>
@@ -127,7 +127,7 @@ export function FinancePurchasingApproval() {
               {filtered.map(po => (
                 <tr key={po.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-5 py-4 text-slate-600">{formatDate(po.date)}</td>
-                  <td className="px-5 py-4 font-medium text-slate-800">{po.poNumber}</td>
+                  <td className="px-5 py-4 font-medium text-slate-800">{po.prNumber}</td>
                   <td className="px-5 py-4 text-slate-600">
                     <span className="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200">
                       {po.department}
@@ -158,7 +158,7 @@ export function FinancePurchasingApproval() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada pengajuan PO saat ini.</td>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada PR menunggu Finance approval saat ini.</td>
                 </tr>
               )}
             </tbody>
@@ -175,9 +175,9 @@ export function FinancePurchasingApproval() {
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <PackageOpen size={18} className="text-red-600" />
-                  Review & Checkout PO
+                  Review Finance PR
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">{selectedPo.poNumber}</p>
+                <p className="text-xs text-slate-500 mt-1">{selectedPo.prNumber}</p>
               </div>
               <button onClick={() => setSelectedPo(null)} className="text-slate-400 hover:text-slate-600 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
                 <X size={16} />
@@ -200,7 +200,7 @@ export function FinancePurchasingApproval() {
                   <p className="text-sm font-medium text-slate-700">{selectedPo.items}</p>
                 </div>
                 <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-red-100 shadow-sm mt-2">
-                  <span className="text-sm font-bold text-slate-700">Total Pengajuan Dana</span>
+                    <span className="text-sm font-bold text-slate-700">Total Pengajuan Dana</span>
                   <span className="text-lg font-black text-red-700 flex items-center gap-1">
                     {formatIDR(selectedPo.totalAmount)}
                   </span>
@@ -250,7 +250,7 @@ export function FinancePurchasingApproval() {
                 disabled={!category}
                 className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
-                <DollarSign size={16} /> Approve & Checkout
+                <DollarSign size={16} /> Approve Finance
               </button>
             </div>
           </div>

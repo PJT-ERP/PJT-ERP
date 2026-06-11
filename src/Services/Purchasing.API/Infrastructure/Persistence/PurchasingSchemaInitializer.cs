@@ -24,6 +24,12 @@ public static class PurchasingSchemaInitializer
                 reviewed_by_user_id uuid NULL,
                 reviewed_at_utc timestamp with time zone NULL,
                 rejection_reason text NULL,
+                supervisor_reviewed_by_user_id uuid NULL,
+                supervisor_reviewed_at_utc timestamp with time zone NULL,
+                supervisor_rejection_reason text NULL,
+                finance_reviewed_by_user_id uuid NULL,
+                finance_reviewed_at_utc timestamp with time zone NULL,
+                finance_rejection_reason text NULL,
                 created_at_utc timestamp with time zone NOT NULL,
                 updated_at_utc timestamp with time zone NOT NULL
             );
@@ -145,6 +151,12 @@ public static class PurchasingSchemaInitializer
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS sales_order_id uuid;
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS sales_order_number character varying(100);
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS project_name character varying(255);
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS supervisor_reviewed_by_user_id uuid;
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS supervisor_reviewed_at_utc timestamp with time zone;
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS supervisor_rejection_reason text;
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS finance_reviewed_by_user_id uuid;
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS finance_reviewed_at_utc timestamp with time zone;
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS finance_rejection_reason text;
             ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS updated_at_utc timestamp with time zone NOT NULL DEFAULT now();
 
             ALTER TABLE material_requirements ADD COLUMN IF NOT EXISTS sales_order_item_id uuid;

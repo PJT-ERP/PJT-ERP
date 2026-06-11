@@ -238,7 +238,7 @@
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "List purchase requests submitted by Engineering, accepted by Finance, and handled by Purchasing. UI can filter by status or Sales Order."
+      "description": "List purchase requests submitted by Engineering, approved by Engineering Supervisor, approved by Finance, and handled by Purchasing. UI can filter by status or Sales Order."
     },
     {
       "service": "Purchasing.API",
@@ -246,7 +246,7 @@
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests/{id}",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "Open purchase request detail with item, urgency, requester, SO reference, Finance review data, supplier, PO number, estimated price, ETA, received date, and notes."
+      "description": "Open purchase request detail with item, urgency, requester, SO reference, Supervisor review data, Finance review data, supplier, PO number, total price, calculated unit price, ETA, received date, and notes."
     },
     {
       "service": "Purchasing.API",
@@ -281,9 +281,35 @@
       "service": "Purchasing.API",
       "feature": "Purchase Requests",
       "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/supervisor-review",
+      "roles": ["Admin", "Engineering Supervisor"],
+      "description": "Engineering Supervisor accepts or rejects a submitted purchase request before it can move to Finance approval.",
+      "requestBody": {
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000021",
+        "decision": "Accept",
+        "rejectionReason": null
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/finance-review",
+      "roles": ["Admin", "Finance"],
+      "description": "Finance accepts or rejects a Supervisor-approved purchase request before Purchasing can process items.",
+      "requestBody": {
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000020",
+        "decision": "Accept",
+        "rejectionReason": null
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
       "path": "/api/v1/purchasing/purchase-requests/{id}/review",
       "roles": ["Admin", "Finance"],
-      "description": "Finance accepts or rejects a submitted purchase request before Purchasing can process items.",
+      "description": "Backward-compatible alias for Finance review.",
       "requestBody": {
         "reviewedByUserId": "00000000-0000-0000-0000-000000000020",
         "decision": "Accept",
@@ -296,7 +322,7 @@
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process",
       "roles": ["Admin", "Purchasing"],
-      "description": "Purchasing processes a Finance-accepted item by filling supplier, PO number, total price, ETA, category, and purchasing notes. Unit price is calculated by the API from totalPrice / qty.",
+      "description": "Purchasing processes a Finance-approved item by filling supplier, PO number, total price, ETA, category, and purchasing notes. Unit price is calculated by the API from totalPrice / qty.",
       "requestBody": {
         "supplierName": "PT. Krakatau Steel",
         "expectedArrivalDate": "2026-05-25",

@@ -4,41 +4,109 @@ export interface MaterialRequirementDto {
   id: string;
   salesOrderId: string;
   salesOrderNumber: string;
-  productionOrderId: string;
   salesOrderItemId?: string | null;
-  spkNumber: string;
-  barcodeUid: string;
   productId: string;
   productPartNumber: string;
   productDescription: string;
   materialSpec?: string | null;
   requiredQty: number;
   stockOnHand: number;
+  stockBalanceAfterRequirement: number;
+  requiresPurchase: boolean;
+  stockNotes?: string | null;
+  stockUpdatedAtUtc?: string | null;
   projectName: string;
   status: string;
+  updatedAtUtc: string;
+  purchaseItems: LinkedPurchaseItemDto[];
+}
+
+export interface LinkedPurchaseItemDto {
+  purchaseRequestId: string;
+  prNumber: string;
+  purchaseRequestItemId: string;
+  purchaseRequestStatus: string;
+  purchaseStatus: string;
+  purchaseCategory: string;
+  supplierName?: string | null;
+  poNumber?: string | null;
+  estimatedPrice?: number | null;
+  totalPrice?: number | null;
+  unitPrice?: number | null;
+  purchaseDate?: string | null;
+  expectedArrivalDate?: string | null;
+  receivedDate?: string | null;
+  purchaseNotes?: string | null;
+  rejectionReason?: string | null;
 }
 
 export interface PurchaseRequestDto {
   id: string;
   prNumber: string;
   requestDate: string;
+  requestedByUserId: string;
   requesterName: string;
   salesOrderId?: string | null;
   salesOrderNumber?: string | null;
   projectName?: string | null;
   status: string;
+  reviewedByUserId?: string | null;
+  reviewedAtUtc?: string | null;
+  rejectionReason?: string | null;
+  supervisorReviewedByUserId?: string | null;
+  supervisorReviewedAtUtc?: string | null;
+  supervisorRejectionReason?: string | null;
+  financeReviewedByUserId?: string | null;
+  financeReviewedAtUtc?: string | null;
+  financeRejectionReason?: string | null;
+  updatedAtUtc: string;
   items: Array<{
     id: string;
+    materialRequirementId?: string | null;
+    salesOrderId?: string | null;
+    salesOrderNumber?: string | null;
+    projectName?: string | null;
     itemName: string;
     size?: string | null;
     qty: number;
     urgency: string;
     purchaseCategory: string;
+    suggestedSupplier?: string | null;
     supplierName?: string | null;
     poNumber?: string | null;
-    unitPrice?: number | null;
+    estimatedPrice?: number | null;
     totalPrice?: number | null;
+    unitPrice?: number | null;
+    purchaseDate?: string | null;
+    expectedArrivalDate?: string | null;
+    receivedDate?: string | null;
     purchaseStatus: string;
+    purchaseNotes?: string | null;
+    rejectionReason?: string | null;
+    notes?: string | null;
+  }>;
+}
+
+export interface CreatePurchaseRequestPayload {
+  requestDate: string;
+  requestedByUserId: string;
+  requesterName: string;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  projectName?: string | null;
+  items: Array<{
+    materialRequirementId?: string | null;
+    salesOrderId?: string | null;
+    salesOrderNumber?: string | null;
+    projectName?: string | null;
+    itemName: string;
+    size?: string | null;
+    qty: number;
+    suggestedSupplier?: string | null;
+    notes?: string | null;
+    urgency?: 'Normal' | 'Urgent' | 'Critical' | string | null;
+    purchaseCategory?: 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | string | null;
+    totalPrice?: number | null;
   }>;
 }
 
@@ -55,10 +123,16 @@ export const purchasingApi = {
     return response.data;
   },
 
+  async createPurchaseRequest(request: CreatePurchaseRequestPayload) {
+    const response = await apiClient.post<PurchaseRequestDto>('/api/v1/purchasing/purchase-requests', request);
+    return response.data;
+  },
+
   async reviewPurchaseRequest(purchaseRequestId: string, request: {
     reviewedByUserId: string;
     decision: 'Accept' | 'Reject';
     rejectionReason?: string | null;
+    reviewStage?: 'Supervisor' | 'Finance';
   }) {
     const response = await apiClient.post<PurchaseRequestDto>(
       `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/review`,
@@ -67,10 +141,35 @@ export const purchasingApi = {
     return response.data;
   },
 
+  async supervisorReviewPurchaseRequest(purchaseRequestId: string, request: {
+    reviewedByUserId: string;
+    decision: 'Accept' | 'Reject';
+    rejectionReason?: string | null;
+  }) {
+    const response = await apiClient.post<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/supervisor-review`,
+      request,
+    );
+    return response.data;
+  },
+
+  async financeReviewPurchaseRequest(purchaseRequestId: string, request: {
+    reviewedByUserId: string;
+    decision: 'Accept' | 'Reject';
+    rejectionReason?: string | null;
+  }) {
+    const response = await apiClient.post<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/finance-review`,
+      request,
+    );
+    return response.data;
+  },
+
   async processPurchaseRequestItem(purchaseRequestId: string, itemId: string, request: {
     supplierName: string;
-    expectedArrivalDate?: string | null;
+    expectedArrivalDate: string;
     poNumber?: string | null;
+    estimatedPrice?: number | null;
     totalPrice?: number | null;
     purchaseCategory: string;
     purchaseNotes?: string | null;

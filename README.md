@@ -43,13 +43,36 @@ PtPjtErp.sln
 
 `Production.API` menangani Sales Order sebagai pusat tracking produksi: item SO, assignment engineer worker/reviewer, barcode/QR lookup berbasis SO, start/finish produksi oleh worker yang ditugaskan, tracking waktu otomatis, progress per Sales Order, dan dashboard owner. Record production order di database hanya dipakai sebagai state internal workflow, bukan identitas yang ditampilkan ke user.
 
-`QC.API` menangani QC Inspection sederhana oleh Engineering Reviewer: upload foto/form QC, notes, dan keputusan approve/reject. Tidak ada lagi form checklist visual/dimension di aplikasi.
+`QC.API` menangani QC Inspection sederhana oleh Engineering Reviewer: upload foto/form QC, notes, dan keputusan `Go`/`NoGo`. Tidak ada lagi form checklist visual/dimension di aplikasi.
 
 `Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering, acceptance/reject oleh Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
 
 `Finance.API` menangani kandidat invoice dari Sales Order yang sudah selesai QC, pembuatan invoice dari item SO, termin DP/pelunasan berbasis persentase, pencatatan pembayaran, filter jatuh tempo/pelanggan, surat penagihan, dan dashboard finance global atau per customer.
 
 `Web.Gateway` adalah API Gateway berbasis YARP. Semua request frontend masuk lewat gateway, lalu diteruskan ke service yang sesuai.
+
+## Alur End-to-End ERP Terbaru
+
+Alur utama sistem dimulai dari Quotation, bukan langsung Sales Order. Sales membuat Quotation untuk customer baru atau existing, mengisi detail produk, quantity, deadline desain, dan link gambar/customer drawing jika sudah ada. Jika desain belum ada, Sales mengirim request desain ke Engineering dan Quotation terkunci dengan status `PendingDesign`.
+
+Engineering Supervisor menerima request desain, melihat beban kerja tim, lalu assign pekerjaan ke Engineer. Engineer membuat gambar teknik dan BOM awal, kemudian mengirim hasilnya kembali ke Engineering Supervisor untuk approval desain. Setelah Supervisor approve, Sales memperlihatkan desain ke customer. Jika customer minta revisi, alur kembali ke Engineer. Jika customer deal desain, Quotation masuk ke Finance untuk costing.
+
+Finance menghitung harga dari BOM/list parts yang dibuat Engineer, memasukkan harga jual ke Quotation, dan membantu proses revisi harga jika ada negosiasi. Revisi harga tetap berada di dokumen Quotation yang sama sebagai revision history. Setelah customer deal harga, Sales melakukan `Convert to SO`, lalu Finance menerbitkan invoice DP. DP bisa 25%, 50%, atau persentase lain, dan setiap invoice punya tanggal jatuh tempo serta progress pembayaran.
+
+Produksi hanya berjalan setelah DP diverifikasi lunas sesuai termin yang ditetapkan Finance. Sales Order masuk ke Supervisor Produksi/Engineering untuk assignment Engineer/Operator lapangan. Operator dapat melihat link gambar dari SO, termasuk customer drawing dan engineering drawing. Production Tracker juga membaca gambar dari SO supaya tidak ada file produksi yang terpisah dari order.
+
+Jika saat persiapan produksi ada material, tools, consumable, asset, project item, atau kebutuhan maintenance yang kurang, Engineer membuat Purchase Request multi-item. PR tersebut masuk ke Supervisor untuk approval operasional, lalu Finance tetap melakukan approval biaya sebelum Purchasing boleh membuat PO. Consumable tidak wajib terikat ke satu SO karena bisa dipakai lintas banyak SO; satu PO juga boleh merujuk banyak PR dan banyak SO.
+
+Setelah material lengkap, produksi berjalan sampai selesai, lalu QC memberikan keputusan `Go` atau `NoGo`. Setelah `Go`, barang masuk packing dan pengiriman. Owner berada di luar jalur operasional harian, tetapi dapat memantau dashboard, mengganti role untuk membuka halaman lain, dan melihat performa per module.
+
+Catatan data penting:
+
+- Sales Order menyimpan customer email, customer code, link gambar customer, dan link gambar engineering.
+- Purchase Request dan Purchase Order memakai daftar item, bukan satu field material tunggal.
+- Purchasing mengisi total harga; harga satuan dihitung otomatis dari total harga dibagi quantity.
+- Kategori PO adalah `Asset`, `Consumable`, `Tools`, `Project`, atau `Maintenance`.
+- Finance menyediakan filter jatuh tempo, filter customer, sort tanggal/jatuh tempo lama-terbaru, surat penagihan terpisah dari invoice, dan dashboard analitik per customer.
+- Invoice printout perlu menampilkan rekening tujuan transfer di area kiri bawah.
 
 ## Port
 
@@ -215,7 +238,7 @@ Role sistem:
 
 - Admin
 
-Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Engineering dibagi menjadi worker dan reviewer. Worker yang ditugaskan di Sales Order meng-upload link gambar engineering serta melakukan start/finish produksi melalui endpoint Sales Order, sedangkan reviewer yang ditugaskan hanya melakukan QC dengan upload gambar/form QC, notes, dan approve/reject. Barcode/QR hanya shortcut lookup tracking, bukan mekanisme scan untuk mengubah status.
+Catatan: Admin dipakai untuk manajemen sistem dan User CRUD. Engineering dibagi menjadi worker dan reviewer. Worker yang ditugaskan di Sales Order meng-upload link gambar engineering serta melakukan start/finish produksi melalui endpoint Sales Order, sedangkan reviewer yang ditugaskan hanya melakukan QC dengan upload gambar/form QC, notes, dan keputusan `Go`/`NoGo`. Barcode/QR hanya shortcut lookup tracking, bukan mekanisme scan untuk mengubah status.
 
 ## Pembagian Akses Production Tracking
 
@@ -355,7 +378,7 @@ Output utama:
 
 ## Skenario Engineering Reviewer untuk QC
 
-Engineering Reviewer melakukan QC sederhana setelah produksi selesai: upload foto/form QC, isi notes, lalu approve/reject. Aplikasi tidak menyimpan tabel hasil inspeksi visual/dimension.
+Engineering Reviewer melakukan QC sederhana setelah produksi selesai: upload foto/form QC, isi notes, lalu memberi keputusan `Go` atau `NoGo`. Aplikasi tidak menyimpan tabel hasil inspeksi visual/dimension.
 
 Alur kerja:
 
@@ -363,9 +386,9 @@ Alur kerja:
 2. Reviewer membuka menu QC.
 3. Saat SO dikonfirmasi, QC API menyiapkan inspection internal melalui event workflow.
 4. Saat produksi selesai, inspection berubah menjadi siap QC melalui `ProductionFinishedEvent`.
-5. Reviewer upload foto/form QC, mengisi notes, dan memilih `Approve` atau `Reject`.
+5. Reviewer upload foto/form QC, mengisi notes, dan memilih `Go` atau `NoGo`.
 6. QC API mengirim `QcCheckCompletedEvent` ke Production API.
-7. Jika reviewer approve, production status SO berubah menjadi `Closed` dan Sales Order berubah menjadi `Completed`.
+7. Jika reviewer memberi keputusan `Go`, production status SO berubah menjadi `Closed` dan Sales Order berubah menjadi `Completed`.
 
 Output utama:
 
@@ -373,11 +396,11 @@ Output utama:
 - Sales Order number
 - QC image/form URL
 - Notes
-- Reviewer decision: Approved / Rejected.
+- Reviewer decision: Go / NoGo.
 
 ## Skenario Pengajuan, Finance, dan Purchasing
 
-Pengajuan pembelian dibuat dari menu Engineering, karena Engineering yang mengetahui kebutuhan material produksi. Setelah request masuk, Finance harus accept/reject Purchase Request terlebih dahulu. Jika Finance accept, role Purchasing menangani proses pembelian sampai informasi supplier, nomor PO, estimasi harga, estimasi tiba, dan penerimaan material tercatat.
+Pengajuan pembelian dibuat dari menu Engineering, karena Engineering yang mengetahui kebutuhan material produksi. Setelah request dibuat, Engineering Supervisor harus approve/reject terlebih dahulu. Setelah Supervisor approve, request terlihat di Finance untuk approval biaya. Purchasing baru boleh memproses pembelian setelah Finance approve.
 
 Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran/spesifikasi, jumlah, satuan, urgensi, kategori pembelian, referensi SO opsional, pemohon, supplier, nomor PO, total harga, estimasi tiba, catatan, dan status penerimaan.
 
@@ -387,15 +410,16 @@ Alur kerja:
 2. Production API mengirim event workflow Sales Order.
 3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
 4. Engineering membuka tab `Pengajuan Purchasing`.
-5. Engineering membuat Purchase Request baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional.
+5. Engineering membuat Purchase Request baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional. Item seperti consumable, tools, asset, atau maintenance boleh tidak terikat ke SO.
 6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), kategori (`Asset`, `Consumable`, `Tools`, `Project`, atau `Maintenance`), referensi SO opsional, supplier suggestion, dan catatan kebutuhan.
 7. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
-8. Finance membuka daftar Purchase Request yang masih `Submitted`.
-9. Finance memilih `Accept` atau `Reject`; jika reject, Finance mengisi alasan penolakan. Jika accepted, status request menjadi `Approved`, item menjadi `Approved`, dan material requirement berubah menjadi `PurchaseApproved`.
-10. Purchasing membuka menu `Manajemen Pembelian` untuk melihat request yang sudah accepted, diproses, selesai, atau ditolak.
-11. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, total harga, kategori pembelian, estimasi tanggal tiba, dan catatan purchasing. Harga satuan dihitung otomatis dari `totalPrice / qty`. Status item menjadi `Ordered`.
-12. Purchasing dapat menolak item request jika tidak valid pada tahap pembelian. Status item menjadi `Rejected`.
-13. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
+8. Engineering Supervisor membuka daftar PR yang masih `Submitted`, lalu memilih `Accept` atau `Reject`. Jika accepted, status request menjadi `SupervisorApproved`.
+9. Finance membuka daftar Purchase Request yang sudah `SupervisorApproved`.
+10. Finance memilih `Accept` atau `Reject`; jika reject, Finance mengisi alasan penolakan. Jika accepted, status request menjadi `FinanceApproved`, item menjadi `Approved`, dan material requirement berubah menjadi `PurchaseApproved`.
+11. Purchasing membuka menu `Manajemen Pembelian` untuk melihat request yang sudah Finance approved, diproses, selesai, atau ditolak.
+12. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, total harga, kategori pembelian, estimasi tanggal tiba, dan catatan purchasing. Harga satuan dihitung otomatis dari `totalPrice / qty`. Status item menjadi `Ordered`.
+13. Purchasing dapat menolak item request jika tidak valid pada tahap pembelian. Status item menjadi `Rejected`.
+14. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
 
 Endpoint utama:
 
@@ -406,7 +430,9 @@ Endpoint utama:
 - `GET /api/v1/purchasing/purchase-requests`
 - `GET /api/v1/purchasing/purchase-requests/{id}`
 - `POST /api/v1/purchasing/purchase-requests`
-- `POST /api/v1/purchasing/purchase-requests/{id}/review`
+- `POST /api/v1/purchasing/purchase-requests/{id}/supervisor-review`
+- `POST /api/v1/purchasing/purchase-requests/{id}/finance-review`
+- `POST /api/v1/purchasing/purchase-requests/{id}/review` sebagai alias Finance review
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process`
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/reject`
 - `PUT /api/v1/purchasing/purchase-requests/{id}/items/{itemId}/receive`
@@ -416,7 +442,7 @@ Output utama:
 
 - Material Requirement dari Sales Order.
 - Purchase Request dan Purchase Request Item.
-- Finance acceptance: reviewer, waktu review, status approved/rejected, dan alasan penolakan jika ada.
+- Supervisor approval dan Finance approval: reviewer, waktu review, status approved/rejected, dan alasan penolakan jika ada.
 - Informasi supplier, nomor PO, kategori pembelian, total harga, harga satuan hasil hitung, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
 - Tracking bahan baku per Sales Order.
 
@@ -515,7 +541,7 @@ Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Enginee
 
 Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
-Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item dari Engineering, acceptance/reject oleh Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
+Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item dari Engineering, approval Engineering Supervisor, approval Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
 
 Test Finance fokus ke kandidat invoice dari event Sales Order completed, pembuatan invoice dari item SO, termin DP/pelunasan, pencatatan pembayaran, surat penagihan overdue, dashboard per customer, dan pembatasan role endpoint.
 

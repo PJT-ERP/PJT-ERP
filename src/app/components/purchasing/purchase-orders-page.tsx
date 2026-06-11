@@ -28,7 +28,7 @@ interface POItem {
   spec: string;
   qty: number;
   unit: string;
-  unitPrice: number;
+  totalPrice: number;
   received: number;
 }
 
@@ -43,7 +43,9 @@ interface PO {
   deliveryStatus: "Open" | "Confirmed" | "In Transit" | "Partial" | "Received" | "Closed" | "Cancelled";
   paymentStatus: "Unpaid" | "Partial" | "Paid";
   paymentTerms: string;
-  mrRef: string;
+  requestRefs: string[];
+  soRefs: string[];
+  category: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
   items: POItem[];
   notes: string;
   shippingAddress: string;
@@ -62,13 +64,15 @@ const PO_DATA: PO[] = [
     deliveryStatus: "In Transit",
     paymentStatus: "Unpaid",
     paymentTerms: "Net 7",
-    mrRef: "MR-2405-018",
+    requestRefs: ["PR-2405-018"],
+    soRefs: ["SO-2026-014"],
+    category: "Project",
     shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
     notes: "Koordinasi pengiriman dengan Pak Wahyu (08xx-xxxx-xxxx). Minta SJ dan CoC.",
     items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 20, unit: "batang", unitPrice: 185000, received: 0 },
-      { code: "MAT-002", name: "Plat Besi 3mm", spec: "3mm, 120x240cm", qty: 10, unit: "lembar", unitPrice: 420000, received: 0 },
-      { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "40x40x3mm, 6m", qty: 15, unit: "batang", unitPrice: 145000, received: 0 },
+      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 20, unit: "batang", totalPrice: 3700000, received: 0 },
+      { code: "MAT-002", name: "Plat Besi 3mm", spec: "3mm, 120x240cm", qty: 10, unit: "lembar", totalPrice: 4200000, received: 0 },
+      { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "40x40x3mm, 6m", qty: 15, unit: "batang", totalPrice: 2175000, received: 0 },
     ],
     financeApproval: "Approved",
   },
@@ -83,12 +87,14 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Open",
     paymentStatus: "Unpaid",
     paymentTerms: "Net 14",
-    mrRef: "MR-2405-017",
+    requestRefs: ["PR-2405-017"],
+    soRefs: [],
+    category: "Maintenance",
     shippingAddress: "Gudang Spare Parts — Jl. Industri No. 1, Bekasi",
     notes: "Sertakan certificate of conformance untuk bearing.",
     items: [
-      { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 12, unit: "pcs", unitPrice: 85000, received: 0 },
-      { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 6, unit: "pcs", unitPrice: 75000, received: 0 },
+      { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 12, unit: "pcs", totalPrice: 1020000, received: 0 },
+      { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 6, unit: "pcs", totalPrice: 450000, received: 0 },
     ],
   },
   {
@@ -102,13 +108,15 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Partial",
     paymentStatus: "Partial",
     paymentTerms: "Net 14",
-    mrRef: "MR-2405-016",
+    requestRefs: ["PR-2405-016", "PR-2405-012"],
+    soRefs: [],
+    category: "Consumable",
     shippingAddress: "Gudang Bahan Kimia — Jl. Industri No. 1, Bekasi",
     notes: "Sisa kiriman (4 kaleng cat + 4 kaleng thinner) dalam proses.",
     items: [
-      { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "Grey, 4L", qty: 10, unit: "kaleng", unitPrice: 185000, received: 6 },
-      { code: "MAT-010", name: "Thinner Epoxy", spec: "4L", qty: 10, unit: "kaleng", unitPrice: 65000, received: 6 },
-      { code: "MAT-008", name: "Kuas 4\"", spec: "Synthetic Bristle", qty: 20, unit: "pcs", unitPrice: 15000, received: 20 },
+      { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "Grey, 4L", qty: 10, unit: "kaleng", totalPrice: 1850000, received: 6 },
+      { code: "MAT-010", name: "Thinner Epoxy", spec: "4L", qty: 10, unit: "kaleng", totalPrice: 650000, received: 6 },
+      { code: "MAT-008", name: "Kuas 4\"", spec: "Synthetic Bristle", qty: 20, unit: "pcs", totalPrice: 300000, received: 20 },
     ],
   },
   {
@@ -122,12 +130,14 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Closed",
     paymentStatus: "Paid",
     paymentTerms: "Net 30",
-    mrRef: "MR-2405-015",
+    requestRefs: ["PR-2405-015"],
+    soRefs: ["SO-2026-011"],
+    category: "Project",
     shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
     notes: "Selesai. Semua item diterima dalam kondisi baik.",
     items: [
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 10, unit: "batang", unitPrice: 1850000, received: 10 },
-      { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 10, unit: "batang", unitPrice: 780000, received: 10 },
+      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 10, unit: "batang", totalPrice: 18500000, received: 10 },
+      { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 10, unit: "batang", totalPrice: 7800000, received: 10 },
     ],
   },
   {
@@ -141,12 +151,14 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Confirmed",
     paymentStatus: "Unpaid",
     paymentTerms: "Cash",
-    mrRef: "MR-2405-013",
+    requestRefs: ["PR-2405-013"],
+    soRefs: [],
+    category: "Tools",
     shippingAddress: "Gudang K3 — Jl. Industri No. 1, Bekasi",
     notes: "",
     items: [
-      { code: "MAT-005", name: "Elektroda Las E6013", spec: "3.2mm, 5kg/box", qty: 4, unit: "box", unitPrice: 215000, received: 0 },
-      { code: "MAT-008", name: "Mata Gerinda Potong 4\"", spec: "4\" x 1.2mm", qty: 20, unit: "pcs", unitPrice: 8500, received: 0 },
+      { code: "MAT-005", name: "Elektroda Las E6013", spec: "3.2mm, 5kg/box", qty: 4, unit: "box", totalPrice: 860000, received: 0 },
+      { code: "MAT-008", name: "Mata Gerinda Potong 4\"", spec: "4\" x 1.2mm", qty: 20, unit: "pcs", totalPrice: 170000, received: 0 },
     ],
   },
   {
@@ -160,11 +172,13 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Closed",
     paymentStatus: "Paid",
     paymentTerms: "Net 30",
-    mrRef: "MR-2405-010",
+    requestRefs: ["PR-2405-010"],
+    soRefs: ["SO-2026-009"],
+    category: "Project",
     shippingAddress: "Gudang Utama",
     notes: "",
     items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 50, unit: "batang", unitPrice: 182000, received: 50 },
+      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 50, unit: "batang", totalPrice: 9100000, received: 50 },
     ],
   },
 ];
@@ -192,8 +206,9 @@ const paymentCfg: Record<string, { bg: string; color: string }> = {
 /* ── Helpers ───────────────────────────────────────────────── */
 
 const formatRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
-const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * i.unitPrice, 0);
+const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / item.qty : 0;
+const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
+const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
@@ -233,7 +248,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 
 /* ── Create PO Form items ─────────────────────────────────── */
 
-interface FormItem { name: string; qty: string; unit: string; price: string; }
+interface FormItem { name: string; qty: string; unit: string; totalPrice: string; }
 
 /* ── Page ──────────────────────────────────────────────────── */
 
@@ -250,14 +265,20 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
 
   // Create form state
   const [formSupplier, setFormSupplier] = useState("");
+  const [formCategory, setFormCategory] = useState<PO["category"]>("Consumable");
   const [formDue, setFormDue] = useState("");
   const [formTerms, setFormTerms] = useState("Net 14");
   const [formNotes, setFormNotes] = useState("");
-  const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", price: "" }]);
+  const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", totalPrice: "" }]);
 
   const filtered = PO_DATA.filter((p) => {
     const q = search.toLowerCase();
-    const matchQ = !q || p.id.toLowerCase().includes(q) || p.supplier.toLowerCase().includes(q) || p.mrRef.toLowerCase().includes(q);
+    const matchQ = !q
+      || p.id.toLowerCase().includes(q)
+      || p.supplier.toLowerCase().includes(q)
+      || p.requestRefs.some(ref => ref.toLowerCase().includes(q))
+      || p.soRefs.some(ref => ref.toLowerCase().includes(q))
+      || p.category.toLowerCase().includes(q);
     const matchS = filterStatus === "all" || p.deliveryStatus === filterStatus;
     return matchQ && matchS;
   });
@@ -268,9 +289,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     setExpanded(next);
   };
 
-  const formTotal = formItems.reduce((s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.price) || 0), 0);
+  const formTotal = formItems.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
 
-  const addItem = () => setFormItems([...formItems, { name: "", qty: "", unit: "pcs", price: "" }]);
+  const addItem = () => setFormItems([...formItems, { name: "", qty: "", unit: "pcs", totalPrice: "" }]);
   const removeItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
   const updateItem = (i: number, key: keyof FormItem, val: string) => {
     const next = [...formItems];
@@ -283,7 +304,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       ["PO", "MR", "Supplier", "Delivery Status", "Payment Status", "Due Date", "Total"],
       ...filtered.map(po => [
         po.id,
-        po.mrRef,
+        po.requestRefs.join(" / "),
         po.supplier,
         po.deliveryStatus,
         po.paymentStatus,
@@ -294,8 +315,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   };
 
   const submitPO = () => {
-    if (!formSupplier || !formDue || formItems.some(item => !item.name || !item.qty || !item.price)) {
-      window.alert("Lengkapi supplier, jatuh tempo, dan semua item material sebelum membuat PO.");
+    if (!formSupplier || !formDue || formItems.some(item => !item.name || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0)) {
+      window.alert("Lengkapi supplier, jatuh tempo, qty, dan total harga semua item sebelum membuat PO.");
       return;
     }
 
@@ -310,7 +331,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
         <div>
           <h1 style={{ color: "#1F1F1F" }}>Purchase Orders</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            Daftar dan pengelolaan semua Purchase Order — PT Pratama Jaya Tekindo
+            PO dari Purchase Request yang sudah disetujui Finance — PT Pratama Jaya Tekindo
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -368,7 +389,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari No. PO, supplier, No. MR..."
+            placeholder="Cari No. PO, supplier, No. PR, SO, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
@@ -433,10 +454,10 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       <TD>
                         <div className="flex items-center gap-2">
                           <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: dc.dot }} />
-                          <div>
-                            <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
-                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.mrRef}</p>
-                          </div>
+                        <div>
+                          <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
+                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.requestRefs.join(", ")}</p>
+                        </div>
                         </div>
                       </TD>
                       <TD>
@@ -465,7 +486,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         </Pill>
                       </TD>
                       <TD className="hidden xl:table-cell">
-                        {po.financeApproval ? <Pill bg={fc.bg} color={fc.color}>{po.financeApproval}</Pill> : <span style={{fontSize: 11, color: "#94a3b8"}}>—</span>}
+                        {po.financeApproval ? <Pill bg={fc.bg} color={fc.color}>{po.financeApproval}</Pill> : <Pill bg="#f1f5f9" color="#475569">Approved</Pill>}
                       </TD>
                       <TD className="hidden xl:table-cell">
                         <Pill bg={paymentCfg[po.paymentStatus].bg} color={paymentCfg[po.paymentStatus].color}>
@@ -491,7 +512,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                     {/* Expanded row */}
                     {isExp && (
                       <tr key={`${po.id}-exp`} style={{ borderBottom: "1px solid #f1f5f9", background: "#fafbfd" }}>
-                        <td colSpan={10} style={{ padding: "0 20px 16px 52px" }}>
+                        <td colSpan={11} style={{ padding: "0 20px 16px 52px" }}>
                           <div className="pt-3 space-y-2">
                             <p style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                               Detail Item Material
@@ -515,8 +536,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                                         {item.received} {item.unit}
                                       </td>
-                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(item.unitPrice)}</td>
-                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.qty * item.unitPrice)}</td>
+                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
+                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -542,7 +563,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={11} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     Tidak ada PO ditemukan
                   </td>
                 </tr>
@@ -578,7 +599,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h2 style={{ color: "#fff" }}>{detail.id}</h2>
-                      <Pill bg="rgba(255,255,255,0.12)" color="#e2e8f0">{detail.mrRef}</Pill>
+                      <Pill bg="rgba(255,255,255,0.12)" color="#e2e8f0">{detail.requestRefs.join(", ")}</Pill>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Pill bg={dc.bg} color={dc.color}>{detail.deliveryStatus}</Pill>
@@ -631,7 +652,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         { label: "Tanggal Order", val: detail.orderDate },
                         { label: "Jatuh Tempo", val: detail.dueDate },
                         { label: "Terms Pembayaran", val: detail.paymentTerms },
-                        { label: "Referensi MR", val: detail.mrRef },
+                        { label: "No Permintaan / PR", val: detail.requestRefs.join(", ") },
+                        { label: "Referensi SO", val: detail.soRefs.length > 0 ? detail.soRefs.join(", ") : "Non-project / tidak terkait SO" },
+                        { label: "Kategori PO", val: detail.category },
                         { label: "Alamat Pengiriman", val: detail.shippingAddress },
                       ].map(({ label, val }) => (
                         <div key={label}>
@@ -683,8 +706,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                               <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                                 {item.received} {item.unit}
                               </td>
-                              <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(item.unitPrice)}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.qty * item.unitPrice)}</td>
+                              <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
+                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -771,6 +794,17 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                 </Select>
               </div>
               <div className="space-y-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Kategori PO</label>
+                <Select value={formCategory} onValueChange={(value) => setFormCategory(value as PO["category"])}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Asset", "Consumable", "Tools", "Project", "Maintenance"].map((category) => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Terms</label>
                 <Select value={formTerms} onValueChange={setFormTerms}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
@@ -844,10 +878,15 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Harga/Satuan</label>
+                      <div className="flex items-center justify-between gap-2">
+                        <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Harga</label>
+                        {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
+                          <span style={{ fontSize: 10, color: "#94a3b8" }}>@ {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
+                        )}
+                      </div>
                       <input
-                        value={item.price}
-                        onChange={(e) => updateItem(idx, "price", e.target.value)}
+                        value={item.totalPrice}
+                        onChange={(e) => updateItem(idx, "totalPrice", e.target.value)}
                         type="number"
                         placeholder="0"
                         className="w-full rounded border px-2 py-2 outline-none focus:ring-1 focus:ring-blue-300 text-right"

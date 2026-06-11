@@ -33,7 +33,9 @@ interface MR {
   department: string;
   date: string;
   priority: "High" | "Medium" | "Low";
-  status: "Pending" | "Approved" | "Rejected" | "In Process" | "Completed";
+  status: "Submitted" | "Approved" | "Rejected" | "Processing" | "Completed";
+  soRef?: string;
+  category: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
   urgency: string;
   items: MRItem[];
   notes: string;
@@ -45,14 +47,17 @@ interface MR {
 
 const MR_DATA: MR[] = [
   {
-    id: "MR-2405-018",
+    id: "PR-2405-018",
     requestor: "Budi Santoso",
     department: "Produksi",
     date: "24 Mei 2026",
     priority: "High",
-    status: "Pending",
+    status: "Submitted",
+    soRef: "SO-2026-014",
+    category: "Project",
     urgency: "Lini produksi A terhenti, stok habis",
     notes: "Kebutuhan mendesak — mesin berhenti tanpa material ini",
+    financeApproval: "Pending",
     items: [
       { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "6m/batang", qty: 20, unit: "batang", currentStock: 5 },
       { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 5, unit: "batang", currentStock: 2 },
@@ -62,17 +67,19 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "MR-2405-017",
+    id: "PR-2405-017",
     requestor: "Dewi Rahayu",
     department: "Maintenance",
     date: "22 Mei 2026",
     priority: "Medium",
     status: "Approved",
+    category: "Maintenance",
     urgency: "Preventif maintenance terjadwal",
     notes: "Spare parts rutin bulanan — PM schedule mesin press",
     approvedBy: "Ir. Agung Pramono",
     approvedAt: "23 Mei 2026, 09:15",
     supplierAssigned: "PT Sumber Teknik",
+    financeApproval: "Approved",
     items: [
       { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 6, unit: "pcs", currentStock: 3 },
       { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 4, unit: "pcs", currentStock: 2 },
@@ -80,32 +87,37 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "MR-2405-016",
+    id: "PR-2405-016",
     requestor: "Ahmad Fauzi",
     department: "QC",
     date: "21 Mei 2026",
     priority: "Low",
-    status: "In Process",
+    status: "Processing",
+    category: "Consumable",
     urgency: "Stok laboratorium habis",
     notes: "Bahan uji kualitas akhir bulan",
     supplierAssigned: "CV Tekno Prima",
+    financeApproval: "Approved",
     items: [
       { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "4L/kaleng", qty: 4, unit: "kaleng", currentStock: 1 },
       { code: "MAT-010", name: "Thinner Epoxy 4L", spec: "Standard", qty: 4, unit: "kaleng", currentStock: 2 },
     ],
   },
   {
-    id: "MR-2405-015",
+    id: "PR-2405-015",
     requestor: "Siti Nurhaliza",
     department: "Engineering",
     date: "20 Mei 2026",
     priority: "High",
     status: "Approved",
+    soRef: "SO-2026-011",
+    category: "Project",
     urgency: "Deadline proyek gedung C: 30 Juni",
     notes: "Proyek ekspansi gedung C — material struktur utama",
     approvedBy: "Ir. Agung Pramono",
     approvedAt: "20 Mei 2026, 16:30",
     supplierAssigned: "PT Indo Steel",
+    financeApproval: "Approved",
     items: [
       { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 30, unit: "batang", currentStock: 18 },
       { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 20, unit: "batang", currentStock: 0 },
@@ -113,25 +125,29 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "MR-2405-014",
+    id: "PR-2405-014",
     requestor: "Eko Prasetyo",
     department: "Produksi",
     date: "19 Mei 2026",
     priority: "Low",
     status: "Rejected",
+    soRef: "SO-2026-010",
+    category: "Project",
     urgency: "",
     notes: "Tidak memenuhi spesifikasi standar yang berlaku",
+    financeApproval: "Rejected",
     items: [
       { code: "MAT-099", name: "Elektroda non-standar", spec: "3mm", qty: 10, unit: "box", currentStock: 0 },
     ],
   },
   {
-    id: "MR-2405-013",
+    id: "PR-2405-013",
     requestor: "Rina Wati",
     department: "K3",
     date: "18 Mei 2026",
     priority: "Medium",
-    status: "In Process",
+    status: "Processing",
+    category: "Tools",
     urgency: "Audit K3 tanggal 3 Juni",
     notes: "Perlengkapan safety tahunan — sesuai regulasi Kemenaker",
     supplierAssigned: "CV Tekno Prima",
@@ -141,17 +157,17 @@ const MR_DATA: MR[] = [
       { code: "SAF-003", name: "Kacamata Safety", spec: "Clear Lens", qty: 30, unit: "pcs", currentStock: 8 },
       { code: "SAF-004", name: "Ear Plug 3M", spec: "NRR 29dB", qty: 100, unit: "pasang", currentStock: 20 },
     ],
-    financeApproval: "Pending",
+    financeApproval: "Approved",
   },
 ];
 
 /* ── Pill configs ──────────────────────────────────────────── */
 
 const statusCfg: Record<string, { bg: string; color: string; icon: React.ReactNode; dot: string }> = {
-  Pending:    { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b",  icon: <Clock size={11} /> },
+  Submitted:  { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b",  icon: <Clock size={11} /> },
   Approved:   { bg: "#dcfce7", color: "#166534", dot: "#16a34a",  icon: <CheckCircle2 size={11} /> },
   Rejected:   { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626",  icon: <XCircle size={11} /> },
-  "In Process": { bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", icon: <FileText size={11} /> },
+  Processing: { bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", icon: <FileText size={11} /> },
   Completed:  { bg: "#f0fdf4", color: "#166534", dot: "#16a34a",  icon: <CheckCircle2 size={11} /> },
 };
 
@@ -239,9 +255,9 @@ export function MaterialRequestsPage() {
   });
 
   const counts = {
-    Pending: MR_DATA.filter((m) => m.status === "Pending").length,
+    Submitted: MR_DATA.filter((m) => m.status === "Submitted").length,
     Approved: MR_DATA.filter((m) => m.status === "Approved").length,
-    "In Process": MR_DATA.filter((m) => m.status === "In Process").length,
+    Processing: MR_DATA.filter((m) => m.status === "Processing").length,
     Rejected: MR_DATA.filter((m) => m.status === "Rejected").length,
   };
 
@@ -250,9 +266,9 @@ export function MaterialRequestsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ color: "#1F1F1F" }}>Material Requests</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Purchase Requests</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            Manajemen permintaan material ke departemen Purchasing
+            Daftar PR multi-item dari Engineering setelah supervisor approval dan gate Finance
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -267,7 +283,7 @@ export function MaterialRequestsPage() {
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
-            <Plus size={13} /> Buat PR
+            <Plus size={13} /> Buat PR Manual
           </button>
         </div>
       </div>
@@ -307,7 +323,7 @@ export function MaterialRequestsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari No. MR, requestor, departemen..."
+            placeholder="Cari No. PR, requestor, departemen..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
@@ -343,11 +359,11 @@ export function MaterialRequestsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <TH>No. MR</TH>
-                <TH className="hidden sm:table-cell">Requestor / Dept.</TH>
+                <TH>No. PR</TH>
+                <TH className="hidden sm:table-cell">Requestor / SO</TH>
                 <TH className="hidden md:table-cell">Tanggal</TH>
                 <TH className="hidden lg:table-cell">Item</TH>
-                <TH>Prioritas</TH>
+                <TH>Kategori</TH>
                 <TH>Status</TH>
                 <TH>Appr. Finance</TH>
                 <TH className="hidden xl:table-cell">Supplier Assigned</TH>
@@ -376,7 +392,7 @@ export function MaterialRequestsPage() {
                     </TD>
                     <TD className="hidden sm:table-cell">
                       <p style={{ fontWeight: 500, color: "#1F1F1F" }}>{mr.requestor}</p>
-                      <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.department}</p>
+                      <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.soRef ?? "Non-project"} · {mr.department}</p>
                     </TD>
                     <TD className="hidden md:table-cell">
                       <span style={{ color: "#475569" }}>{mr.date}</span>
@@ -385,7 +401,7 @@ export function MaterialRequestsPage() {
                       <span style={{ color: "#475569" }}>{mr.items.length} item</span>
                     </TD>
                     <TD>
-                      <Pill cfg={pc} label={mr.priority} />
+                      <Pill cfg={pc} label={mr.category} />
                     </TD>
                     <TD>
                       <Pill cfg={sc} label={mr.status} />
@@ -414,7 +430,7 @@ export function MaterialRequestsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={9} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     Tidak ada permintaan ditemukan
                   </td>
                 </tr>
@@ -484,9 +500,11 @@ export function MaterialRequestsPage() {
                     {[
                       { label: "Departemen", val: detail.department },
                       { label: "Prioritas", val: detail.priority },
+                      { label: "Kategori", val: detail.category },
+                      { label: "Referensi SO", val: detail.soRef ?? "Non-project / tidak terkait SO" },
                       { label: "Supplier Assigned", val: detail.supplierAssigned ?? "Belum ditugaskan" },
-                      { label: "Disetujui Oleh", val: detail.approvedBy ?? "—" },
-                      { label: "Tanggal Persetujuan", val: detail.approvedAt ?? "—" },
+                      { label: "Disetujui Supervisor", val: detail.approvedBy ?? "—" },
+                      { label: "Tanggal Approval", val: detail.approvedAt ?? "—" },
                       { label: "Approval Finance", val: detail.financeApproval ?? "—" },
                     ].map(({ label, val }) => (
                       <div key={label}>
@@ -499,7 +517,7 @@ export function MaterialRequestsPage() {
                   {/* Items table */}
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-                      Item Material ({detail.items.length} item)
+                      Daftar Item ({detail.items.length} item)
                     </p>
                     <div className="rounded overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
                       <table className="w-full border-collapse">
@@ -545,21 +563,21 @@ export function MaterialRequestsPage() {
                   )}
 
                   {/* Actions */}
-                  {detail.status === "Pending" && (
+                  {detail.status === "Approved" && (
                     <div className="flex gap-2 pt-1" style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
                       <button
                         className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-white transition-opacity hover:opacity-90"
                         style={{ fontSize: 13, background: "#16a34a" }}
                         onClick={() => setDetail(null)}
                       >
-                        <CheckCircle2 size={14} /> Setujui Permintaan
+                        <CheckCircle2 size={14} /> Proses ke PO
                       </button>
                       <button
                         className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 transition-colors hover:bg-red-50"
                         style={{ fontSize: 13, color: "#dc2626", border: "1px solid #fca5a5" }}
                         onClick={() => setDetail(null)}
                       >
-                        <XCircle size={14} /> Tolak
+                        <XCircle size={14} /> Tolak Item
                       </button>
                     </div>
                   )}
@@ -580,7 +598,7 @@ export function MaterialRequestsPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 style={{ color: "#fff" }}>Buat Purchase Request (PR)</h2>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Permintaan material multi-item</p>
+                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>PR multi-item; non-project boleh tanpa SO</p>
               </div>
               <button onClick={() => setCreateOpen(false)} className="rounded p-1.5 hover:bg-white/10 transition-colors" style={{ color: "#94a3b8" }}>
                 <X size={15} />
@@ -624,13 +642,13 @@ export function MaterialRequestsPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Daftar Material *</label>
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Daftar Item *</label>
                 <button
                   onClick={addFormItem}
                   className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-slate-50 transition-colors"
                   style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                 >
-                  <Plus size={12} /> Tambah Material
+                  <Plus size={12} /> Tambah Item
                 </button>
               </div>
 
