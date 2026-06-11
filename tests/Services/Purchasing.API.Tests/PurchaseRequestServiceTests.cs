@@ -14,7 +14,7 @@ public sealed class PurchaseRequestServiceTests
 {
     [Theory]
     [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering")]
-    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
+    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
     [InlineData(nameof(PurchaseRequestsController.ProcessItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.RejectItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.ReceiveItem), "Admin,Purchasing")]
@@ -39,7 +39,7 @@ public sealed class PurchaseRequestServiceTests
                 .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
                 .Cast<AuthorizeAttribute>());
 
-        Assert.Equal("Admin,Finance,Engineering,Purchasing,Owner,Sales Order", authorize.Roles);
+        Assert.Equal("Admin,Finance,Engineering,Purchasing,Owner,Sales,Sales Order", authorize.Roles);
     }
 
     [Fact]

@@ -8,13 +8,23 @@ public sealed record CreateSalesOrderRequest(
     DateOnly? TargetDate,
     IReadOnlyCollection<CreateSalesOrderItemRequest> Items,
     EngineerAssignment? ProductionWorker = null,
-    EngineerAssignment? QcReviewer = null);
+    EngineerAssignment? QcReviewer = null,
+    string? CustomerDrawingUrl = null,
+    string? DesignReference = null,
+    string? DesignStatus = null);
 
 public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, string? Notes);
 
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? ProductionWorker,
     EngineerAssignment? QcReviewer);
+
+public sealed record UpdateSalesOrderDesignStatusRequest(
+    string DesignStatus,
+    Guid? ReviewedByUserId,
+    string? ReviewerName,
+    string? DesignReference = null,
+    string? CustomerDrawingUrl = null);
 
 public sealed record ConfirmSalesOrderRequest(Guid ApprovedByUserId);
 
@@ -24,6 +34,13 @@ public sealed record SalesOrderDto(
     Guid CustomerId,
     string CustomerCode,
     string CustomerName,
+    string? CustomerEmail,
+    string? CustomerDrawingUrl,
+    string? DesignReference,
+    string DesignStatus,
+    Guid? DesignApprovedByUserId,
+    string? DesignApprovedByName,
+    DateTime? DesignApprovedAtUtc,
     DateOnly SoDate,
     DateOnly? TargetDate,
     Guid? ProductionWorkerUserId,
@@ -48,6 +65,13 @@ public sealed record SalesOrderProductionProgressDto(
     string SoNumber,
     string CustomerCode,
     string CustomerName,
+    string? CustomerEmail,
+    string? CustomerDrawingUrl,
+    string? DesignReference,
+    string DesignStatus,
+    Guid? DesignApprovedByUserId,
+    string? DesignApprovedByName,
+    DateTime? DesignApprovedAtUtc,
     Guid? ProductionWorkerUserId,
     string? ProductionWorkerName,
     Guid? QcReviewerUserId,

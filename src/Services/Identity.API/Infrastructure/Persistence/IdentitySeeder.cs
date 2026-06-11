@@ -21,10 +21,10 @@ public static class IdentitySeeder
             },
             new UserAccount
             {
-                Email = "sales-order@pjt.local",
-                Name = "Sales Order",
-                Department = "Sales Order",
-                Role = "Sales Order"
+                Email = "sales@pjt.local",
+                Name = "Sales",
+                Department = "Sales",
+                Role = "Sales,Sales Order"
             },
             new UserAccount
             {
@@ -42,10 +42,10 @@ public static class IdentitySeeder
             },
             new UserAccount
             {
-                Email = "engineering-reviewer@pjt.local",
-                Name = "Engineering Reviewer",
+                Email = "engineering-supervisor@pjt.local",
+                Name = "Engineering Supervisor",
                 Department = "Engineering",
-                Role = "Engineering Reviewer"
+                Role = "Engineering Supervisor,Engineering Reviewer"
             },
             new UserAccount
             {

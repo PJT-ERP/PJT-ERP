@@ -16,7 +16,7 @@ public sealed class CustomersController(ICatalogService catalogService) : Contro
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Sales Order")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
     public async Task<ActionResult<CustomerDto>> Create(CreateCustomerRequest request, CancellationToken cancellationToken)
     {
         var customer = await catalogService.CreateCustomerAsync(request, cancellationToken);

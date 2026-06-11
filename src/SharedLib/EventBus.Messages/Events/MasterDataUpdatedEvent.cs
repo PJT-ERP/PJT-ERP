@@ -7,4 +7,5 @@ public record MasterDataUpdatedEvent(
     string Code,
     string Name,
     string? Unit = null,
-    string? MaterialSpec = null) : IntegrationEvent;
+    string? MaterialSpec = null,
+    string? Email = null) : IntegrationEvent;

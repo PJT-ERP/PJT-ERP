@@ -10,7 +10,7 @@ namespace PJT_ERP.Purchasing.Api.Controllers;
 public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseRequestService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Finance,Engineering,Purchasing,Owner,Sales Order")]
+    [Authorize(Roles = "Admin,Finance,Engineering,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<IReadOnlyCollection<PurchaseRequestDto>>> List(
         [FromQuery] Guid? salesOrderId,
         [FromQuery] string? status,
@@ -20,7 +20,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Admin,Finance,Engineering,Purchasing,Owner,Sales Order")]
+    [Authorize(Roles = "Admin,Finance,Engineering,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<PurchaseRequestDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var result = await purchaseRequestService.GetAsync(id, cancellationToken);
@@ -43,7 +43,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost("{id:guid}/review")]
-    [Authorize(Roles = "Admin,Finance")]
+    [Authorize(Roles = "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
     public async Task<ActionResult<PurchaseRequestDto>> Review(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
         try

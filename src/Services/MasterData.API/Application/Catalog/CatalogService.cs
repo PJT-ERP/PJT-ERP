@@ -13,7 +13,14 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         return await db.Customers
             .AsNoTracking()
             .OrderBy(customer => customer.Code)
-            .Select(customer => new CustomerDto(customer.Id, customer.Code, customer.Name, customer.Address, customer.ContactPerson, customer.IsActive))
+            .Select(customer => new CustomerDto(
+                customer.Id,
+                customer.Code,
+                customer.Name,
+                customer.Address,
+                customer.ContactPerson,
+                customer.Email,
+                customer.IsActive))
             .ToListAsync(cancellationToken);
     }
 
@@ -24,14 +31,30 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             Code = request.Code.Trim().ToUpperInvariant(),
             Name = request.Name.Trim(),
             Address = request.Address,
-            ContactPerson = request.ContactPerson
+            ContactPerson = request.ContactPerson,
+            Email = NormalizeEmail(request.Email)
         };
 
         await db.Customers.AddAsync(customer, cancellationToken);
-        await eventPublisher.PublishAsync(new MasterDataUpdatedEvent(customer.Id, "Customer", "Created", customer.Code, customer.Name), cancellationToken);
+        await eventPublisher.PublishAsync(
+            new MasterDataUpdatedEvent(
+                customer.Id,
+                "Customer",
+                "Created",
+                customer.Code,
+                customer.Name,
+                Email: customer.Email),
+            cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CustomerDto(customer.Id, customer.Code, customer.Name, customer.Address, customer.ContactPerson, customer.IsActive);
+        return new CustomerDto(
+            customer.Id,
+            customer.Code,
+            customer.Name,
+            customer.Address,
+            customer.ContactPerson,
+            customer.Email,
+            customer.IsActive);
     }
 
     public async Task<IReadOnlyCollection<ProductDto>> ListProductsAsync(CancellationToken cancellationToken)
@@ -60,5 +83,10 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         await db.SaveChangesAsync(cancellationToken);
 
         return new ProductDto(product.Id, product.PartNumber, product.Description, product.Unit, product.MaterialSpec, product.IsActive);
+    }
+
+    private static string? NormalizeEmail(string? email)
+    {
+        return string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
     }
 }

@@ -5,7 +5,7 @@ using PJT_ERP.Production.Api.Application.Production;
 namespace PJT_ERP.Production.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+[Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
 [Route("api/v1/production/tracking")]
 public sealed class ShopFloorController(IProductionService productionService) : ControllerBase
 {

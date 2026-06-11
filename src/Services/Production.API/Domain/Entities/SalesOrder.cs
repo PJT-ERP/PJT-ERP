@@ -7,6 +7,13 @@ public sealed class SalesOrder
     public Guid CustomerId { get; set; }
     public string CustomerCode { get; set; } = "";
     public string CustomerName { get; set; } = "";
+    public string? CustomerEmail { get; set; }
+    public string? CustomerDrawingUrl { get; set; }
+    public string? DesignReference { get; set; }
+    public string DesignStatus { get; set; } = SalesOrderDesignStatuses.PendingDesign;
+    public Guid? DesignApprovedByUserId { get; set; }
+    public string? DesignApprovedByName { get; set; }
+    public DateTime? DesignApprovedAtUtc { get; set; }
     public DateOnly SoDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public DateOnly? TargetDate { get; set; }
     public Guid? ProductionWorkerUserId { get; set; }
@@ -29,4 +36,13 @@ public static class SalesOrderStatuses
     public const string InProduction = "InProduction";
     public const string Completed = "Completed";
     public const string Cancelled = "Cancelled";
+}
+
+public static class SalesOrderDesignStatuses
+{
+    public const string PendingDesign = "PendingDesign";
+    public const string WaitingApproval = "WaitingApproval";
+    public const string Approved = "Approved";
+    public const string RevisionRequired = "RevisionRequired";
+    public const string Rejected = "Rejected";
 }
