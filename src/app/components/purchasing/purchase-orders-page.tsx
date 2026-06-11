@@ -64,7 +64,7 @@ const PO_DATA: PO[] = [
     deliveryStatus: "In Transit",
     paymentStatus: "Unpaid",
     paymentTerms: "Net 7",
-    requestRefs: ["PR-2405-018"],
+    requestRefs: ["MR-2405-018"],
     soRefs: ["SO-2026-014"],
     category: "Project",
     shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
@@ -87,7 +87,7 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Open",
     paymentStatus: "Unpaid",
     paymentTerms: "Net 14",
-    requestRefs: ["PR-2405-017"],
+    requestRefs: ["MR-2405-017"],
     soRefs: [],
     category: "Maintenance",
     shippingAddress: "Gudang Spare Parts — Jl. Industri No. 1, Bekasi",
@@ -108,7 +108,7 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Partial",
     paymentStatus: "Partial",
     paymentTerms: "Net 14",
-    requestRefs: ["PR-2405-016", "PR-2405-012"],
+    requestRefs: ["MR-2405-016", "MR-2405-012"],
     soRefs: [],
     category: "Consumable",
     shippingAddress: "Gudang Bahan Kimia — Jl. Industri No. 1, Bekasi",
@@ -130,7 +130,7 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Closed",
     paymentStatus: "Paid",
     paymentTerms: "Net 30",
-    requestRefs: ["PR-2405-015"],
+    requestRefs: ["MR-2405-015"],
     soRefs: ["SO-2026-011"],
     category: "Project",
     shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
@@ -151,7 +151,7 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Confirmed",
     paymentStatus: "Unpaid",
     paymentTerms: "Cash",
-    requestRefs: ["PR-2405-013"],
+    requestRefs: ["MR-2405-013"],
     soRefs: [],
     category: "Tools",
     shippingAddress: "Gudang K3 — Jl. Industri No. 1, Bekasi",
@@ -172,7 +172,7 @@ const PO_DATA: PO[] = [
     deliveryStatus: "Closed",
     paymentStatus: "Paid",
     paymentTerms: "Net 30",
-    requestRefs: ["PR-2405-010"],
+    requestRefs: ["MR-2405-010"],
     soRefs: ["SO-2026-009"],
     category: "Project",
     shippingAddress: "Gudang Utama",
@@ -331,7 +331,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
         <div>
           <h1 style={{ color: "#1F1F1F" }}>Purchase Orders</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            PO dari Purchase Request yang sudah disetujui Finance — PT Pratama Jaya Tekindo
+            PO dari Material Request yang sudah disetujui — PT Pratama Jaya Tekindo
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -389,7 +389,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari No. PO, supplier, No. PR, SO, kategori..."
+            placeholder="Cari No. PO, supplier, No. MR, SO, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
@@ -652,7 +652,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         { label: "Tanggal Order", val: detail.orderDate },
                         { label: "Jatuh Tempo", val: detail.dueDate },
                         { label: "Terms Pembayaran", val: detail.paymentTerms },
-                        { label: "No Permintaan / PR", val: detail.requestRefs.join(", ") },
+                        { label: "No Permintaan / MR", val: detail.requestRefs.join(", ") },
                         { label: "Referensi SO", val: detail.soRefs.length > 0 ? detail.soRefs.join(", ") : "Non-project / tidak terkait SO" },
                         { label: "Kategori PO", val: detail.category },
                         { label: "Alamat Pengiriman", val: detail.shippingAddress },

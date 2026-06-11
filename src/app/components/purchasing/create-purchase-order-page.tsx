@@ -117,7 +117,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </button>
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Buat Purchase Order</h1>
-            <p className="mt-1 text-sm text-slate-500">Buat PO dari PR yang sudah disetujui Finance, dengan referensi SO opsional.</p>
+            <p className="mt-1 text-sm text-slate-500">Buat PO dari MR yang sudah disetujui, dengan referensi SO opsional.</p>
           </div>
         </div>
 
@@ -161,8 +161,8 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             </select>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>No Permintaan / PR</FieldLabel>
-            <input value={requestRefs} onChange={(e: ChangeEvent<HTMLInputElement>) => setRequestRefs(e.target.value)} placeholder="PR-2405-018, PR-2405-019" className={inputClass()} />
+            <FieldLabel>No Permintaan / MR</FieldLabel>
+            <input value={requestRefs} onChange={(e: ChangeEvent<HTMLInputElement>) => setRequestRefs(e.target.value)} placeholder="MR-2405-018, MR-2405-019" className={inputClass()} />
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Kategori PO</FieldLabel>

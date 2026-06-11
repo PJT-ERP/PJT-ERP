@@ -47,7 +47,7 @@ interface MR {
 
 const MR_DATA: MR[] = [
   {
-    id: "PR-2405-018",
+    id: "MR-2405-018",
     requestor: "Budi Santoso",
     department: "Produksi",
     date: "24 Mei 2026",
@@ -67,7 +67,7 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "PR-2405-017",
+    id: "MR-2405-017",
     requestor: "Dewi Rahayu",
     department: "Maintenance",
     date: "22 Mei 2026",
@@ -87,7 +87,7 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "PR-2405-016",
+    id: "MR-2405-016",
     requestor: "Ahmad Fauzi",
     department: "QC",
     date: "21 Mei 2026",
@@ -104,7 +104,7 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "PR-2405-015",
+    id: "MR-2405-015",
     requestor: "Siti Nurhaliza",
     department: "Engineering",
     date: "20 Mei 2026",
@@ -125,7 +125,7 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "PR-2405-014",
+    id: "MR-2405-014",
     requestor: "Eko Prasetyo",
     department: "Produksi",
     date: "19 Mei 2026",
@@ -141,7 +141,7 @@ const MR_DATA: MR[] = [
     ],
   },
   {
-    id: "PR-2405-013",
+    id: "MR-2405-013",
     requestor: "Rina Wati",
     department: "K3",
     date: "18 Mei 2026",
@@ -266,9 +266,9 @@ export function MaterialRequestsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ color: "#1F1F1F" }}>Purchase Requests</h1>
+          <h1 style={{ color: "#1F1F1F" }}>Material Requests</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            Daftar PR multi-item dari Engineering setelah supervisor approval dan gate Finance
+            Daftar MR multi-item dari Engineering untuk kebutuhan material, tools, consumable, asset, project, atau maintenance
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -283,7 +283,7 @@ export function MaterialRequestsPage() {
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
-            <Plus size={13} /> Buat PR Manual
+            <Plus size={13} /> Buat MR Manual
           </button>
         </div>
       </div>
@@ -323,7 +323,7 @@ export function MaterialRequestsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari No. PR, requestor, departemen..."
+            placeholder="Cari No. MR, requestor, departemen..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
@@ -359,7 +359,7 @@ export function MaterialRequestsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <TH>No. PR</TH>
+                <TH>No. MR</TH>
                 <TH className="hidden sm:table-cell">Requestor / SO</TH>
                 <TH className="hidden md:table-cell">Tanggal</TH>
                 <TH className="hidden lg:table-cell">Item</TH>
@@ -588,7 +588,7 @@ export function MaterialRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Create PR Dialog ─────────────────────────────────────── */}
+      {/* ── Create MR Dialog ─────────────────────────────────────── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent
           className="w-[calc(100vw-24px)] sm:w-[min(900px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto"
@@ -597,8 +597,8 @@ export function MaterialRequestsPage() {
           <div className="px-6 py-4" style={{ background: "#0f1e35", borderRadius: "8px 8px 0 0" }}>
             <div className="flex justify-between items-center">
               <div>
-                <h2 style={{ color: "#fff" }}>Buat Purchase Request (PR)</h2>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>PR multi-item; non-project boleh tanpa SO</p>
+                <h2 style={{ color: "#fff" }}>Buat Material Request (MR)</h2>
+                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>MR multi-item; non-project boleh tanpa SO</p>
               </div>
               <button onClick={() => setCreateOpen(false)} className="rounded p-1.5 hover:bg-white/10 transition-colors" style={{ color: "#94a3b8" }}>
                 <X size={15} />
@@ -715,11 +715,11 @@ export function MaterialRequestsPage() {
               </button>
               <button
                 onClick={() => {
-                  alert("Purchase Request berhasil dibuat!");
+                  alert("Material Request berhasil dibuat!");
                   setCreateOpen(false);
                 }}
                 className="rounded px-4 py-2 text-white hover:opacity-90" style={{ fontSize: 13, background: "#1e3a5f" }}>
-                Submit PR
+                Submit MR
               </button>
             </div>
           </div>

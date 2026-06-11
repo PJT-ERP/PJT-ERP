@@ -51,16 +51,16 @@ const deliveryPerf = [
 
 const recentActivity = [
   { id: "PO-2405-031", type: "PO Created", detail: "CV Bintang Logam — Besi Hollow, Plat Besi", time: "14:22", status: "open" },
-  { id: "PR-2405-018", type: "PR Submitted", detail: "Dept. Produksi — 5 item, menunggu Finance", time: "13:10", status: "pending" },
+  { id: "MR-2405-018", type: "MR Submitted", detail: "Dept. Produksi — 5 item, Prioritas High", time: "13:10", status: "pending" },
   { id: "PO-2405-030", type: "Delivery Received", detail: "PT Indo Steel — WF 150x75, CNP 150x65", time: "11:45", status: "done" },
   { id: "PO-2405-029", type: "Partial Delivery", detail: "UD Maju Jaya — Cat Epoxy 6/10 kaleng", time: "10:30", status: "partial" },
-  { id: "PR-2405-017", type: "PR Finance Approved", detail: "Dept. Maintenance — 3 spare parts item", time: "09:05", status: "done" },
+  { id: "MR-2405-017", type: "MR Approved", detail: "Dept. Maintenance — 3 spare parts item", time: "09:05", status: "done" },
 ];
 
 const pendingApprovals = [
-  { id: "PR-2405-018", dept: "Produksi", items: 5, priority: "High", age: "2j lalu" },
-  { id: "PR-2405-016", dept: "QC", items: 2, priority: "Medium", age: "1h lalu" },
-  { id: "PR-2405-015", dept: "Engineering", items: 8, priority: "High", age: "1h lalu" },
+  { id: "MR-2405-018", dept: "Produksi", items: 5, priority: "High", age: "2j lalu" },
+  { id: "MR-2405-016", dept: "QC", items: 2, priority: "Medium", age: "1h lalu" },
+  { id: "MR-2405-015", dept: "Engineering", items: 8, priority: "High", age: "1h lalu" },
 ];
 
 const incomingDeliveries = [
@@ -199,7 +199,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         <KPICard
           label="Pending Requests"
           value="3"
-          sub="Menunggu Finance approval"
+          sub="Menunggu persetujuan"
           trend="+1 hari ini"
           trendUp={false}
           icon={<ClipboardList size={16} />}
