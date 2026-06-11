@@ -28,7 +28,7 @@ export interface QuotationItemDto {
   unit: string;
   customerImageUrl?: string | null;
   designLink?: string | null;
-  bomItems: QuotationBomItemDto[];
+  bomItems?: QuotationBomItemDto[];
 }
 
 export interface QuotationRevisionDto {
@@ -52,9 +52,12 @@ export interface QuotationDto {
   designLink?: string | null;
   estimatedAmount?: number | null;
   lostReason?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  convertedSalesOrderId?: string | null;
+  convertedSalesOrderNumber?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
   items: QuotationItemDto[];
+  bomItems: QuotationBomItemDto[];
   revisions: QuotationRevisionDto[];
 }
 
