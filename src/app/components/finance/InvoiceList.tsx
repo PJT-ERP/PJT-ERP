@@ -5,9 +5,10 @@ import {
   ChevronLeft, ChevronRight, X, AlertCircle, CheckCircle2,
   Clock, AlertTriangle
 } from 'lucide-react';
-import { invoices, formatIDR, formatDate, type Invoice, type InvoiceStatus } from './mockData';
+import { formatIDR, formatDate, type Invoice, type InvoiceStatus } from './mockData';
 import { useERPStore } from '../../store/useERPStore';
 import type { ERPInvoice } from '../../store/erpStore';
+import { useFinanceData } from './useFinanceData';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   PAID: 'Lunas', PENDING: 'Menunggu', OVERDUE: 'Jatuh Tempo', PARTIAL: 'Sebagian',
@@ -227,6 +228,7 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
 export function InvoiceList() {
   const navigate = useNavigate();
   const { liveInvoices } = useERPStore();
+  const { invoices, isLoading, isUsingBackend, refresh } = useFinanceData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
@@ -279,15 +281,26 @@ export function InvoiceList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl text-slate-900">Daftar Invoice</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Kelola semua invoice proyek manufaktur</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Kelola semua invoice proyek manufaktur {isUsingBackend ? '· data backend' : '· data mock'}
+          </p>
         </div>
-        <button
-          onClick={() => navigate('/erp/finance/create-invoice')}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm"
-        >
-          <FilePlus size={15} />
-          Buat Invoice Baru
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refresh}
+            disabled={isLoading}
+            className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm disabled:opacity-60"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={() => navigate('/erp/finance/create-invoice')}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm"
+          >
+            <FilePlus size={15} />
+            Buat Invoice Baru
+          </button>
+        </div>
       </div>
 
       {/* Stats Strip */}
