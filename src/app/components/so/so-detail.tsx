@@ -12,11 +12,11 @@ import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 import { useFinanceData } from "../finance/useFinanceData";
-import { mergeSalesOrderInvoice } from "./invoice-sync";
+import { mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
 
-type InvoiceStatus = "paid" | "waiting" | "not_created";
-const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
+const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
   paid: { label: "Paid", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
+  verified: { label: "Verified", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
 };
@@ -497,7 +497,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
 // ─── InvoiceSection ───────────────────────────────────────────────────────────
 function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
-  const status: InvoiceStatus = invoice?.status ?? "not_created";
+  const status = (invoice?.status ?? "not_created") as SalesInvoiceStatus;
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
   
@@ -549,7 +549,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
                 </div>
                 <div>
                   <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jatuh Tempo</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: status === "overdue" ? "#EF4444" : S.slate }}>{invoice!.dueDate}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.dueDate}</p>
                 </div>
                 <div>
                   <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jumlah Tagihan</p>
@@ -569,7 +569,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
                 <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" />
                 <InvoiceBtn icon={<Download size={12} />} label="Download PDF" />
-                {status === "waiting" && !paymentReported && (
+                {status === "waiting" && !invoice?.paymentDate && !paymentReported && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn 
                       icon={<Upload size={12} />} 

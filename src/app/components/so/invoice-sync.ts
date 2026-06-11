@@ -1,7 +1,19 @@
 import type { SalesOrder } from "../data/mockData";
 import type { Invoice } from "../finance/mockData";
 
-export type SalesInvoiceStatus = "paid" | "waiting" | "not_created";
+export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created";
+
+function mapFinanceInvoiceStatus(invoice: Invoice): SalesInvoiceStatus {
+  if (invoice.status === "PAID") {
+    return "paid";
+  }
+
+  if (invoice.status === "PARTIAL" || invoice.paidAmount > 0 || invoice.paymentDate) {
+    return "verified";
+  }
+
+  return "waiting";
+}
 
 export function resolveSalesOrderInvoice(order: SalesOrder, invoices: Invoice[]): SalesOrder["invoice"] | undefined {
   const orderNumber = order.soNumber || order.id;
@@ -16,7 +28,7 @@ export function resolveSalesOrderInvoice(order: SalesOrder, invoices: Invoice[])
     invoiceDate: financeInvoice.issueDate,
     dueDate: financeInvoice.dueDate,
     amount: financeInvoice.amount,
-    status: financeInvoice.status === "PAID" ? "paid" : "waiting",
+    status: mapFinanceInvoiceStatus(financeInvoice),
     paymentDate: financeInvoice.paymentDate || "",
   };
 }
