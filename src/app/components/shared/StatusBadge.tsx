@@ -1,4 +1,7 @@
-import { SOStatus, getStatusColor } from "../data/mockData";
+import {
+  type SOStatus,
+  getStatusColor
+} from "../data/mockData";
 
 interface StatusBadgeProps {
   status: SOStatus;

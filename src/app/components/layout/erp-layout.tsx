@@ -1,13 +1,39 @@
 import React, { useState } from "react";
 import {
-  LayoutDashboard, Users, Plus, List, ChevronRight, Menu, X, Bell, Search, LogOut, Building2,
-  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2, AlertTriangle
+  LayoutDashboard,
+  Users,
+  Plus,
+  List,
+  ChevronRight,
+  Menu,
+  X,
+  Bell,
+  Search,
+  LogOut,
+  Building2,
+  ShoppingCart,
+  CheckSquare,
+  Box,
+  Activity,
+  Wrench,
+  FileText,
+  ClipboardList,
+  Package,
+  DollarSign,
+  CheckCircle,
+  Shield,
+  BarChart2,
+  AlertTriangle
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { useERPStore } from "../../store/useERPStore";
 import { useApp } from "../context/AppContext";
-import { Outlet, useLocation, useNavigate, Navigate } from "react-router";
-import { UserRole } from "../data/mockData";
+import { Outlet,
+  useLocation,
+  useNavigate,
+  Navigate } from "react-router";
+import { type UserRole
+} from "../data/mockData";
 
 interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; isHeader?: boolean; }
 

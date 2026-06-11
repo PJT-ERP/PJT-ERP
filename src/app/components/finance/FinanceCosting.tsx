@@ -1,7 +1,18 @@
 import React, { useState } from "react";
-import { DollarSign, CheckCircle, Calculator, ChevronDown, List, X, ExternalLink, Save, History } from "lucide-react";
+import {
+  DollarSign,
+  CheckCircle,
+  Calculator,
+  ChevronDown,
+  List,
+  X,
+  ExternalLink,
+  Save,
+  History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { Quotation, getQuotationStatusColor } from "../data/mockData";
+import { type Quotation,
+  getQuotationStatusColor
+} from "../data/mockData";
 
 const S = {
   font: "Inter, sans-serif",

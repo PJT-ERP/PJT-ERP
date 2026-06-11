@@ -1,13 +1,27 @@
 import React, { useState, useMemo } from "react";
 import {
-  Search, Plus, Download, Eye, Edit, X,
-  Phone, Mail, Building2, MapPin,
-  ShoppingCart, Calendar, Users,
-  ChevronLeft, ChevronRight,
-  Hash, RefreshCw, CheckCircle2,
-} from "lucide-react";
+  Search,
+  Plus,
+  Download,
+  Eye,
+  Edit,
+  X,
+  Phone,
+  Mail,
+  Building2,
+  MapPin,
+  ShoppingCart,
+  Calendar,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  Hash,
+  RefreshCw,
+  CheckCircle2,
+  } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import type { Customer } from "../data/mockData";
+import type { Customer
+ } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
 interface CustomerListProps {

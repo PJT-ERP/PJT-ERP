@@ -1,10 +1,23 @@
-import { useState } from 'react';
+import {
+  useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
-  AlertTriangle, X, Banknote
+  ShieldCheck,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Upload,
+  Eye,
+  AlertTriangle,
+  X,
+  Banknote
 } from 'lucide-react';
-import { payments, formatIDR, formatDate, type Payment, type PaymentStatus } from './mockData';
+import { payments,
+  formatIDR,
+  formatDate,
+  type Payment,
+  type PaymentStatus
+} from './mockData';
 
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: React.ComponentType<any> }> = {
   PENDING: { label: 'Menunggu Verifikasi', color: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-200', icon: Clock },

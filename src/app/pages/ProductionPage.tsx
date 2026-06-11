@@ -1,7 +1,18 @@
 import React, { useState } from "react";
-import { PlayCircle, CheckSquare, CalendarClock, Clock, AlertTriangle, Play, Users, Package, FileWarning } from "lucide-react";
+import {
+  PlayCircle,
+  CheckSquare,
+  CalendarClock,
+  Clock,
+  AlertTriangle,
+  Play,
+  Users,
+  Package,
+  FileWarning } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, getStatusColor } from "../components/data/mockData";
+import { type SalesOrder,
+  getStatusColor
+} from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",

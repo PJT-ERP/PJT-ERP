@@ -1,10 +1,25 @@
-import { useState, useEffect } from 'react';
+import {
+  useState,
+  useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Plus, Trash2, ChevronDown, Save, Eye, ArrowLeft,
-  CheckCircle2, Building2, FileText, Hash, Calendar, Printer
+  Plus,
+  Trash2,
+  ChevronDown,
+  Save,
+  Eye,
+  ArrowLeft,
+  CheckCircle2,
+  Building2,
+  FileText,
+  Hash,
+  Calendar,
+  Printer
 } from 'lucide-react';
-import { salesOrders, customers, formatIDR } from './mockData';
+import { salesOrders,
+  customers,
+  formatIDR
+} from './mockData';
 import { useERPStore } from '../../store/useERPStore';
 
 interface LineItem {

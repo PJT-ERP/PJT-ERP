@@ -1,8 +1,21 @@
-import { createContext, useContext, useState, ReactNode } from "react";
 import {
-  User, SalesOrder, Customer, UserRole,
-  PurchasingRequest, PurchasingStatus, Quotation,
-  USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING, INITIAL_QUOTATIONS
+  createContext,
+  useContext,
+  useState,
+  ReactNode } from "react";
+import {
+  type User,
+  type SalesOrder,
+  type Customer,
+  type UserRole,
+  type PurchasingRequest,
+  type PurchasingStatus,
+  type Quotation,
+  USERS,
+  CUSTOMERS,
+  INITIAL_SALES_ORDERS,
+  INITIAL_PURCHASING,
+  INITIAL_QUOTATIONS
 } from "../data/mockData";
 
 interface AppContextType {

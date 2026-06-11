@@ -1,5 +1,13 @@
-import { X, Printer, ExternalLink, Check } from "lucide-react";
-import { SalesOrder, Customer, SOStatus, STATUS_STEPS } from "../data/mockData";
+import {
+  X,
+  Printer,
+  ExternalLink,
+  Check } from "lucide-react";
+import { type SalesOrder,
+  type Customer,
+  type SOStatus,
+  STATUS_STEPS
+} from "../data/mockData";
 import { StatusBadge } from "./StatusBadge";
 import { BarcodeDisplay } from "./BarcodeDisplay";
 

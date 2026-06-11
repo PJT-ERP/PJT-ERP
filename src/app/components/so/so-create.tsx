@@ -8,11 +8,11 @@ import {
 } from "lucide-react";
 import { productOptions, ENGINEERING_DESIGNS, STANDARD_PRODUCTS_BOM } from "../data/mockData";
 import { useApp } from "../context/AppContext";
-import type { Page } from "../layout/erp-layout";
+
 import { useERPStore } from "../../store/useERPStore";
 
 interface SOCreateProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
   initialData?: { customerId?: string; orderType?: "new" | "repeat" };
 }
 

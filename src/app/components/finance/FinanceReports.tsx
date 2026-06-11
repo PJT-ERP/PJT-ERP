@@ -1,15 +1,32 @@
-import { useState } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  useState } from 'react';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
 } from 'recharts';
 import {
-  Download, TrendingUp, FileText,
-  BarChart3, PieChart as PieIcon
+  Download,
+  TrendingUp,
+  FileText,
+  BarChart3,
+  PieChart as PieIcon
 } from 'lucide-react';
 import {
-  monthlyRevenueData, topCustomersData, invoiceStatusData,
-  invoices, formatIDR
+  monthlyRevenueData,
+  topCustomersData,
+  invoiceStatusData,
+  invoices,
+  formatIDR
 } from './mockData';
 
 const PIE_COLORS = ['#16a34a', '#d97706', '#dc2626', '#C8102E'];

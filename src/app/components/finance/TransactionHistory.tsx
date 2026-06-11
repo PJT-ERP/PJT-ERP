@@ -1,10 +1,25 @@
-import { useState, useMemo } from 'react';
 import {
-  Search, FileText, CreditCard, MinusCircle,
-  PlusCircle, Download, LayoutList, Clock3,
-  ArrowUpRight, ArrowDownLeft, RefreshCw
+  useState,
+  useMemo } from 'react';
+import {
+  Search,
+  FileText,
+  CreditCard,
+  MinusCircle,
+  PlusCircle,
+  Download,
+  LayoutList,
+  Clock3,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RefreshCw
 } from 'lucide-react';
-import { transactions, formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
+import { transactions,
+  formatIDR,
+  formatDate,
+  type Transaction,
+  type TransactionType
+} from './mockData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
   INVOICE: { label: 'Invoice', icon: FileText, color: 'text-red-600', bg: 'bg-red-100' },

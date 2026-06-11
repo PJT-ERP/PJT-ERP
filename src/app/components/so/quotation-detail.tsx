@@ -1,16 +1,39 @@
 import React, { useState } from "react";
 import {
   ChevronLeft,
-  User, Building2, Phone, Mail, MapPin,
-  Package, Hash, Calendar, FileText,
-  CheckCircle2, Circle, Clock,
-  Activity, Printer, Edit, Copy,
-  AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye, Upload, X, Box,
-} from "lucide-react";
+  type User,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  Package,
+  Hash,
+  Calendar,
+  FileText,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Activity,
+  Printer,
+  Edit,
+  Copy,
+  AlertTriangle,
+  ArrowRight,
+  RefreshCw,
+  Receipt,
+  Download,
+  Eye,
+  Upload,
+  X,
+  Box,
+  } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useERPStore } from "../../store/useERPStore";
-import { getStatusColor, getQuotationStatusColor, QuotationStatus, Quotation } from "../data/mockData";
+import { getStatusColor,
+  getQuotationStatusColor,
+  type QuotationStatus,
+  type Quotation
+} from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";

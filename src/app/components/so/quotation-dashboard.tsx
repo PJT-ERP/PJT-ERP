@@ -15,9 +15,11 @@ import {
   Send,
   XCircle,
   Trophy,
-} from "lucide-react";
+  } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { getStatusColor, QuotationStatus } from "../data/mockData";
+import { getStatusColor,
+  type QuotationStatus
+} from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
 interface QuotationDashboardProps {

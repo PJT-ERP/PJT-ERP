@@ -1,7 +1,15 @@
 import React, { useState, useRef } from "react";
-import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon } from "lucide-react";
+import {
+  Upload,
+  X,
+  CheckCircle,
+  Shield,
+  Trash2,
+  Image as ImageIcon } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, getStatusColor } from "../components/data/mockData";
+import { type SalesOrder,
+  getStatusColor
+} from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",

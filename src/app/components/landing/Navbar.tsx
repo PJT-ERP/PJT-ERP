@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Menu, X, Cog } from "lucide-react";
 
 const navLinks = [
-  { label: "Home", href: "#home" },
-  { label: "About", href: "#about" },
-  { label: "Services", href: "#services" },
-  { label: "Track Order", href: "#tracking" },
-  { label: "Contact", href: "#contact" },
+  { label: "Beranda", href: "#home" },
+  { label: "Tentang Kami", href: "#about" },
+  { label: "Layanan", href: "#services" },
+  { label: "Lacak Pesanan", href: "#tracking" },
+  { label: "Kontak", href: "#contact" },
 ];
 
 export function Navbar() {
@@ -29,10 +29,10 @@ export function Navbar() {
           {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div
-              style={{ backgroundColor: "#C8102E" }}
-              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white p-1"
+              style={{ border: "1px solid #E5E7EB" }}
             >
-              <Cog className="w-5 h-5 text-white" />
+              <img src="/pjt-logo-new.png" alt="PJT Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <span style={{ color: "#1F1F1F", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700, letterSpacing: "-0.01em" }}>
@@ -61,7 +61,6 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Login Button + Hamburger */}
           <div className="flex items-center gap-3">
             <a
               href="#/login"
@@ -74,7 +73,7 @@ export function Navbar() {
               }}
               className="hidden md:inline-flex items-center px-4 py-2 rounded-lg transition-opacity hover:opacity-90"
             >
-              Login
+              Masuk Portal
             </a>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -115,7 +114,7 @@ export function Navbar() {
             }}
             className="mt-2 px-4 py-3 rounded-lg text-center"
           >
-            Login
+            Masuk Portal
           </a>
         </div>
       )}

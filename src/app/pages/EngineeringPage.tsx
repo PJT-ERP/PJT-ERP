@@ -1,11 +1,28 @@
 import React, { useState } from "react";
-import { 
-  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield, 
-  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp, 
-  ArrowUpRight, Users, CheckSquare, List
+import {
+  Pencil,
+  Send,
+  Clock,
+  CheckCircle,
+  ExternalLink,
+  Factory,
+  Shield,
+  Package,
+  LayoutDashboard,
+  AlertTriangle,
+  ArrowRight,
+  TrendingUp,
+  ArrowUpRight,
+  Users,
+  CheckSquare,
+  List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, QuotationStatus, getQuotationStatusColor, USERS } from "../components/data/mockData";
+import { type Quotation,
+  type QuotationStatus,
+  getQuotationStatusColor,
+  USERS
+} from "../components/data/mockData";
 import { useNavigate } from "react-router";
 
 const S = {

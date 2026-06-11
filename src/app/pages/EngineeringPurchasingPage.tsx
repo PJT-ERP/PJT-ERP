@@ -1,7 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, ShoppingCart, CheckCircle, X, Search, ChevronDown, Trash2 } from "lucide-react";
+import {
+  Plus,
+  ShoppingCart,
+  CheckCircle,
+  X,
+  Search,
+  ChevronDown,
+  Trash2 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { PurchasingRequest, PurchasingItem, PurchasingUrgency, PurchasingStatus } from "../components/data/mockData";
+import { type PurchasingRequest,
+  type PurchasingItem,
+  type PurchasingUrgency,
+  type PurchasingStatus
+} from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",

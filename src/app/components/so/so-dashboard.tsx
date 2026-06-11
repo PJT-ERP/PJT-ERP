@@ -14,9 +14,11 @@ import {
   Circle,
   Receipt,
   Send,
-} from "lucide-react";
+  } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { getStatusColor, SOStatus } from "../data/mockData";
+import { getStatusColor,
+  type SOStatus
+} from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 import { useERPStore } from "../../store/useERPStore";
 

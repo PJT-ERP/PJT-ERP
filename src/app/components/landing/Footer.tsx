@@ -2,30 +2,30 @@ import { Cog, Mail, Phone, MapPin, Linkedin, Twitter, Youtube } from "lucide-rea
 
 const navGroups = [
   {
-    title: "Company",
+    title: "Perusahaan",
     links: [
-      { label: "About Us", href: "#about" },
-      { label: "Our Services", href: "#services" },
-      { label: "Manufacturing Process", href: "#process" },
-      { label: "Why Choose Us", href: "#why" },
+      { label: "Tentang Kami", href: "#about" },
+      { label: "Layanan Kami", href: "#services" },
+      { label: "Proses Manufaktur", href: "#process" },
+      { label: "Mengapa Memilih Kami", href: "#why" },
     ],
   },
   {
-    title: "Services",
+    title: "Layanan",
     links: [
-      { label: "CNC Machining", href: "#services" },
-      { label: "Bubut Manufacturing", href: "#services" },
-      { label: "Custom Parts", href: "#services" },
-      { label: "Industrial Fabrication", href: "#services" },
+      { label: "Komponen Presisi", href: "#services" },
+      { label: "Mould & Dies", href: "#services" },
+      { label: "Jig & Fixture", href: "#services" },
+      { label: "Otomasi & Fabrikasi", href: "#services" },
     ],
   },
   {
-    title: "Customer",
+    title: "Pelanggan",
     links: [
-      { label: "Track My Order", href: "#tracking" },
-      { label: "Request Quotation", href: "#contact" },
-      { label: "Customer Login", href: "#login" },
-      { label: "Contact Us", href: "#contact" },
+      { label: "Lacak Pesanan", href: "#tracking" },
+      { label: "Minta Penawaran", href: "#contact" },
+      { label: "Pelanggan Login", href: "#login" },
+      { label: "Hubungi Kami", href: "#contact" },
     ],
   },
 ];
@@ -50,10 +50,9 @@ export function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2.5 mb-5">
               <div
-                style={{ backgroundColor: "#C8102E" }}
-                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white p-1"
               >
-                <Cog className="w-5 h-5 text-white" />
+                <img src="/pjt-logo-new.png" alt="PJT Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span style={{ color: "#FFFFFF", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700 }}>
@@ -68,16 +67,15 @@ export function Footer() {
               style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "14px", lineHeight: 1.75, maxWidth: "280px" }}
               className="mb-6"
             >
-              Precision industrial manufacturing company specializing in CNC machining, custom parts fabrication,
-              and engineering services for demanding industrial applications.
+              Perusahaan manufaktur mekanikal dan rekayasa presisi terkemuka yang menyediakan komponen, cetakan, dan sistem otomasi industri.
             </p>
 
             {/* Contact brief */}
             <div className="space-y-2.5">
               {[
-                { icon: MapPin, text: "Kawasan Industri Cibitung, Bekasi 17520" },
-                { icon: Phone, text: "+62 21 8890 1234" },
-                { icon: Mail, text: "sales@pratamajayatekindo.co.id" },
+                { icon: MapPin, text: "Sunrise Bizpark Blok D3, Tangerang" },
+                { icon: Phone, text: "0821-2485-1442" },
+                { icon: Mail, text: "admin@pjt-automationtrading.com" },
               ].map((item) => {
                 const Icon = item.icon;
                 return (

@@ -1,10 +1,23 @@
 import React, { useState, useMemo } from "react";
 import {
-  Search, Plus, Download, Eye, Edit, Copy, Printer,
-  ChevronLeft, ChevronRight, X, SlidersHorizontal,
-} from "lucide-react";
+  Search,
+  Plus,
+  Download,
+  Eye,
+  Edit,
+  Copy,
+  Printer,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  SlidersHorizontal,
+  } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { getStatusColor, getQuotationStatusColor, QuotationStatus, Quotation } from "../data/mockData";
+import { getStatusColor,
+  getQuotationStatusColor,
+  type QuotationStatus,
+  type Quotation
+} from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";

@@ -1,17 +1,44 @@
-import { useState, useMemo } from 'react';
+import {
+  useState,
+  useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
 } from 'recharts';
 import {
-  FileText, Clock, CheckCircle2, TrendingUp, TrendingDown,
-  ArrowUpRight, FilePlus, ShieldCheck, BarChart3, ChevronRight,
-  AlertCircle, Wallet, RefreshCw, Users
+  FileText,
+  Clock,
+  CheckCircle2,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  FilePlus,
+  ShieldCheck,
+  BarChart3,
+  ChevronRight,
+  AlertCircle,
+  Wallet,
+  RefreshCw,
+  Users
 } from 'lucide-react';
 import {
-  invoices, payments, monthlyRevenueData, invoiceStatusData,
-  formatIDR, formatDate
+  invoices,
+  payments,
+  monthlyRevenueData,
+  invoiceStatusData,
+  formatIDR,
+  formatDate
 } from './mockData';
 
 const KPI_CARDS = [

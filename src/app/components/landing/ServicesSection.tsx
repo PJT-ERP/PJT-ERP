@@ -3,39 +3,39 @@ import { Drill, Wrench, Settings, Layers, Ruler, Package } from "lucide-react";
 const services = [
   {
     icon: Drill,
-    title: "CNC Machining",
+    title: "Divisi Manufaktur",
     description:
-      "High-precision 3-axis and 5-axis CNC machining for complex geometries with tight tolerances down to ±0.01mm.",
-  },
-  {
-    icon: Settings,
-    title: "Bubut Manufacturing",
-    description:
-      "Professional lathe turning services for cylindrical components, shafts, bushings, and precision rotary parts.",
-  },
-  {
-    icon: Package,
-    title: "Custom Parts Production",
-    description:
-      "End-to-end custom part manufacturing from engineering drawings and CAD files to finished production-ready components.",
+      "Melayani pembuatan komponen presisi, custom sparepart, modifikasi komponen, serta general machining yang disesuaikan khusus dengan kebutuhan spesifikasi teknis industri Anda.",
   },
   {
     icon: Layers,
-    title: "Industrial Fabrication",
+    title: "Divisi Die Maker",
     description:
-      "Structural steel fabrication, welding, and assembly services for industrial equipment and machinery components.",
-  },
-  {
-    icon: Ruler,
-    title: "Precision Engineering",
-    description:
-      "Engineering consultation, DFM review, and precision measurement services to ensure dimensional accuracy and quality.",
+      "Menyediakan solusi pembuatan dan fabrikasi cetakan logam berkualitas tinggi seperti stamping dies, punch holder, hingga guide pin untuk mendukung akurasi produksi massal.",
   },
   {
     icon: Wrench,
-    title: "Production Services",
+    title: "Divisi Jig",
     description:
-      "Volume production runs, batch manufacturing, and repeat-order management with consistent quality and delivery.",
+      "Merancang dan memproduksi berbagai jenis jig (machining, inspection, welding) guna mempermudah serta mempercepat proses perakitan komponen dengan tingkat keamanan maksimal.",
+  },
+  {
+    icon: Ruler,
+    title: "Divisi Checking Fixture",
+    description:
+      "Menyediakan layanan desain, pembuatan, hingga modifikasi alat uji (checking fixture) presisi tinggi untuk memastikan setiap produk manufaktur lolos standar toleransi dimensi.",
+  },
+  {
+    icon: Settings,
+    title: "Divisi Quality Control",
+    description:
+      "Menjamin kualitas dan akurasi geometris produk lewat pengujian dimensi 3D menggunakan teknologi canggih Absolute Arm by Hexagon serta alat ukur digital standar Mitutoyo.",
+  },
+  {
+    icon: Package,
+    title: "Divisi General Trading",
+    description:
+      "Menyediakan rantai pasok komponen elektrikal (PLC/Servo), sensor, sistem konveyor, alat kerja (air tools), serta suku cadang hidrolik dan pneumatik dari berbagai merek global ternama.",
   },
 ];
 
@@ -49,7 +49,7 @@ export function ServicesSection() {
           <span
             style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
-            OUR SERVICES
+            LAYANAN KAMI
           </span>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-12">
@@ -63,9 +63,9 @@ export function ServicesSection() {
               letterSpacing: "-0.02em",
             }}
           >
-            Manufacturing Services
+            Layanan Manufaktur
             <br />
-            <span style={{ color: "#C8102E" }}>Built for Performance</span>
+            <span style={{ color: "#C8102E" }}>Andal & Berkualitas</span>
           </h2>
           <p
             style={{
@@ -76,8 +76,7 @@ export function ServicesSection() {
               maxWidth: "400px",
             }}
           >
-            From single prototype parts to high-volume production runs, we deliver precision
-            manufacturing across a full range of industrial processes.
+            Mulai dari satu prototipe hingga produksi massal, kami siap memberikan solusi manufaktur terlengkap untuk mendukung berbagai kebutuhan operasional Anda.
           </p>
         </div>
 

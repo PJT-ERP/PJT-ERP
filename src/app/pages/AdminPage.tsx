@@ -1,7 +1,18 @@
 import React, { useState } from "react";
-import { Plus, Edit2, Trash2, Users, Building2, CheckCircle, XCircle, Search } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Users,
+  Building2,
+  CheckCircle,
+  XCircle,
+  Search } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { User, Customer, UserRole } from "../components/data/mockData";
+import { type User,
+  type Customer,
+  type UserRole
+} from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
