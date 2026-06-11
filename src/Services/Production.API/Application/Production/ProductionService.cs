@@ -47,6 +47,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             CustomerId = customer.Id,
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
+            CustomerEmail = customer.Email,
+            CustomerDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL"),
+            DesignReference = NormalizeOptional(request.DesignReference),
+            DesignStatus = NormalizeDesignStatus(request.DesignStatus),
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
             ProductionWorkerUserId = productionWorker?.UserId,
@@ -98,6 +102,62 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return ToDto(salesOrder);
     }
 
+    public async Task<SalesOrderDto?> UpdateSalesOrderDesignStatusAsync(
+        Guid salesOrderId,
+        UpdateSalesOrderDesignStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null)
+        {
+            return null;
+        }
+
+        if (salesOrder.Status == SalesOrderStatuses.Cancelled)
+        {
+            throw new InvalidOperationException("Cancelled sales orders cannot receive design updates.");
+        }
+
+        var designStatus = NormalizeDesignStatus(request.DesignStatus);
+        if (designStatus == SalesOrderDesignStatuses.Approved)
+        {
+            if (!request.ReviewedByUserId.HasValue || request.ReviewedByUserId.Value == Guid.Empty)
+            {
+                throw new InvalidOperationException("Reviewer user id is required when approving a design.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.ReviewerName))
+            {
+                throw new InvalidOperationException("Reviewer name is required when approving a design.");
+            }
+
+            salesOrder.DesignApprovedByUserId = request.ReviewedByUserId;
+            salesOrder.DesignApprovedByName = request.ReviewerName.Trim();
+            salesOrder.DesignApprovedAtUtc = DateTime.UtcNow;
+        }
+        else
+        {
+            salesOrder.DesignApprovedByUserId = null;
+            salesOrder.DesignApprovedByName = null;
+            salesOrder.DesignApprovedAtUtc = null;
+        }
+
+        salesOrder.DesignStatus = designStatus;
+        salesOrder.DesignReference = request.DesignReference is null
+            ? salesOrder.DesignReference
+            : NormalizeOptional(request.DesignReference);
+        salesOrder.CustomerDrawingUrl = request.CustomerDrawingUrl is null
+            ? salesOrder.CustomerDrawingUrl
+            : NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL");
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
     public async Task<SalesOrderProductionProgressDto> ConfirmSalesOrderAsync(Guid salesOrderId, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
     {
         var salesOrder = await IncludeProduction(db.SalesOrders)
@@ -110,6 +170,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         EnsureEngineersAssigned(salesOrder);
+        EnsureDesignApproved(salesOrder);
         ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.Notes)).ToArray());
 
         var now = DateTime.UtcNow;
@@ -346,6 +407,13 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.CustomerId,
             order.CustomerCode,
             order.CustomerName,
+            order.CustomerEmail,
+            order.CustomerDrawingUrl,
+            order.DesignReference,
+            order.DesignStatus,
+            order.DesignApprovedByUserId,
+            order.DesignApprovedByName,
+            order.DesignApprovedAtUtc,
             order.SoDate,
             order.TargetDate,
             order.ProductionWorkerUserId,
@@ -381,6 +449,13 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.SoNumber,
             order.CustomerCode,
             order.CustomerName,
+            order.CustomerEmail,
+            order.CustomerDrawingUrl,
+            order.DesignReference,
+            order.DesignStatus,
+            order.DesignApprovedByUserId,
+            order.DesignApprovedByName,
+            order.DesignApprovedAtUtc,
             order.ProductionWorkerUserId,
             order.ProductionWorkerName,
             order.QcReviewerUserId,
@@ -555,6 +630,14 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
     }
 
+    private static void EnsureDesignApproved(SalesOrder salesOrder)
+    {
+        if (salesOrder.DesignStatus != SalesOrderDesignStatuses.Approved)
+        {
+            throw new InvalidOperationException("Sales order design must be approved before the sales order is confirmed.");
+        }
+    }
+
     private static void ValidateWorkerRequest(ProductionStatusUpdateRequest request)
     {
         if (request.WorkerUserId == Guid.Empty)
@@ -666,6 +749,41 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string? NormalizeOptionalUrl(string? value, string label)
+    {
+        var normalized = NormalizeOptional(value);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri)
+            || uri.Scheme is not ("http" or "https"))
+        {
+            throw new InvalidOperationException($"{label} must be a valid HTTP or HTTPS link.");
+        }
+
+        return uri.ToString();
+    }
+
+    private static string NormalizeDesignStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return SalesOrderDesignStatuses.PendingDesign;
+        }
+
+        return status.Trim() switch
+        {
+            var value when value.Equals(SalesOrderDesignStatuses.PendingDesign, StringComparison.OrdinalIgnoreCase) => SalesOrderDesignStatuses.PendingDesign,
+            var value when value.Equals(SalesOrderDesignStatuses.WaitingApproval, StringComparison.OrdinalIgnoreCase) => SalesOrderDesignStatuses.WaitingApproval,
+            var value when value.Equals(SalesOrderDesignStatuses.Approved, StringComparison.OrdinalIgnoreCase) => SalesOrderDesignStatuses.Approved,
+            var value when value.Equals(SalesOrderDesignStatuses.RevisionRequired, StringComparison.OrdinalIgnoreCase) => SalesOrderDesignStatuses.RevisionRequired,
+            var value when value.Equals(SalesOrderDesignStatuses.Rejected, StringComparison.OrdinalIgnoreCase) => SalesOrderDesignStatuses.Rejected,
+            _ => throw new InvalidOperationException("Design status must be PendingDesign, WaitingApproval, Approved, RevisionRequired, or Rejected.")
+        };
     }
 
     private static string GenerateNumber(string prefix)

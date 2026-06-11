@@ -23,10 +23,12 @@ public sealed class DevMasterTokenAuthenticationHandler(
     [
         "Admin",
         "Owner",
+        "Sales",
         "Sales Order",
         "Finance",
         "Engineering",
         "Engineering Worker",
+        "Engineering Supervisor",
         "Engineering Reviewer",
         "Purchasing"
     ];

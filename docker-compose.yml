@@ -11,6 +11,7 @@ x-api-environment: &api-environment
   ConnectionStrings__ProductionConnection: "Host=db;Port=5432;Database=pjt_production;Username=postgres;Password=postgres"
   ConnectionStrings__QcConnection: "Host=db;Port=5432;Database=pjt_qc;Username=postgres;Password=postgres"
   ConnectionStrings__PurchasingConnection: "Host=db;Port=5432;Database=pjt_purchasing;Username=postgres;Password=postgres"
+  ConnectionStrings__FinanceConnection: "Host=db;Port=5432;Database=pjt_finance;Username=postgres;Password=postgres"
   ConnectionStrings__NpgmqConnection: "Host=db;Port=5432;Database=pjt_eventbus;Username=postgres;Password=postgres"
   ConnectionStrings__CacheConnection: "Host=db;Port=5432;Database=pjt_cache;Username=postgres;Password=postgres"
 
@@ -87,6 +88,17 @@ services:
       db:
         condition: service_healthy
 
+  finance-api:
+    build:
+      context: .
+      dockerfile: src/Services/Finance.API/Dockerfile
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:5006:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
   web-gateway:
     build:
       context: .
@@ -98,6 +110,7 @@ services:
       ReverseProxy__Clusters__production__Destinations__productionApi__Address: "http://production-api:8080/"
       ReverseProxy__Clusters__qc__Destinations__qcApi__Address: "http://qc-api:8080/"
       ReverseProxy__Clusters__purchasing__Destinations__purchasingApi__Address: "http://purchasing-api:8080/"
+      ReverseProxy__Clusters__finance__Destinations__financeApi__Address: "http://finance-api:8080/"
     ports:
       - "127.0.0.1:5000:8080"
     depends_on:
@@ -110,6 +123,8 @@ services:
       qc-api:
         condition: service_started
       purchasing-api:
+        condition: service_started
+      finance-api:
         condition: service_started
 
 volumes:

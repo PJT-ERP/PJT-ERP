@@ -7,6 +7,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddPjtLogging();
 builder.ConfigurePjtJwtAuthentication();
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
+    options.AddPolicy("FinancePolicy", policy => policy.RequireRole("Admin", "Finance", "Owner"));
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -49,6 +55,7 @@ if (app.Environment.IsDevelopment())
         options.AddDocument("production", "Production API", "/openapi/production/v1.json");
         options.AddDocument("qc", "QC API", "/openapi/qc/v1.json");
         options.AddDocument("purchasing", "Purchasing API", "/openapi/purchasing/v1.json");
+        options.AddDocument("finance", "Finance API", "/openapi/finance/v1.json");
     }).AllowAnonymous();
 }
 

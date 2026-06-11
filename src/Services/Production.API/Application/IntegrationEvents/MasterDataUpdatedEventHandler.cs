@@ -21,6 +21,7 @@ public sealed class MasterDataUpdatedEventHandler(ProductionContext db) : IInteg
 
             customer.Code = integrationEvent.Code;
             customer.Name = integrationEvent.Name;
+            customer.Email = integrationEvent.Email;
             customer.IsActive = !integrationEvent.Action.Equals("Deleted", StringComparison.OrdinalIgnoreCase);
             customer.UpdatedAtUtc = integrationEvent.OccurredAtUtc;
         }

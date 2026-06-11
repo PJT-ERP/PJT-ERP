@@ -27,7 +27,7 @@ PtPjtErp.sln
 
 ## Komponen SharedLib
 
-`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, dan `PurchaseRequestReviewedEvent`.
+`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, `SalesOrderReadyForInvoiceEvent`, dan `PurchaseRequestReviewedEvent`.
 
 `Shared.Auth` berisi konfigurasi JWT, validasi token, dan helper penerbit token untuk login.
 
@@ -47,6 +47,8 @@ PtPjtErp.sln
 
 `Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering, acceptance/reject oleh Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
 
+`Finance.API` menangani kandidat invoice dari Sales Order yang sudah selesai QC, pembuatan invoice dari item SO, termin DP/pelunasan berbasis persentase, pencatatan pembayaran, filter jatuh tempo/pelanggan, surat penagihan, dan dashboard finance global atau per customer.
+
 `Web.Gateway` adalah API Gateway berbasis YARP. Semua request frontend masuk lewat gateway, lalu diteruskan ke service yang sesuai.
 
 ## Port
@@ -59,6 +61,7 @@ Saat dijalankan dengan Docker Compose:
 - Production API: `http://localhost:5003`
 - QC API: `http://localhost:5004`
 - Purchasing API: `http://localhost:5005`
+- Finance API: `http://localhost:5006`
 - PostgreSQL + PGMQ: `localhost:5435`
 
 ## API Catalog
@@ -86,6 +89,7 @@ Gateway Scalar memuat dokumen OpenAPI dari masing-masing service. Pilih service 
 - Production: `/openapi/production/v1.json`
 - QC: `/openapi/qc/v1.json`
 - Purchasing: `/openapi/purchasing/v1.json`
+- Finance: `/openapi/finance/v1.json`
 
 Untuk testing cepat, semua service menerima dev master token hanya di environment `Development`:
 
@@ -110,6 +114,7 @@ Project ini memakai pendekatan microservices dari awal. Artinya setiap service p
 - `pjt_production`
 - `pjt_qc`
 - `pjt_purchasing`
+- `pjt_finance`
 - `pjt_eventbus`
 - `pjt_cache`
 
@@ -155,6 +160,10 @@ Production.API
 QC.API
   └── QcCheckCompletedEvent
       └── Production.API menyimpan hasil review Engineering Reviewer pada production order
+
+Production.API
+  └── SalesOrderReadyForInvoiceEvent
+      └── Finance.API membuat kandidat invoice dari Sales Order yang sudah selesai QC
 
 Purchasing.API
   └── PurchaseRequestReviewedEvent
@@ -231,11 +240,11 @@ Production Tracking adalah workflow lintas service, bukan module yang berdiri se
 
 Contoh user demo:
 
-- `owner@pjt.local`
-- `sales-order@pjt.local`
-- `engineering@pjt.local`
-- `purchasing@pjt.local`
-- `finance@pjt.local`
+- `owner@test.com`
+- `admin@test.com`
+- `finance@test.com`
+- `sales@test.com`
+- `engineering@test.com`
 
 ## Skenario Admin
 
@@ -268,15 +277,19 @@ Alur kerja:
 2. User membuka menu Sales Order.
 3. User memilih customer dari Master Data.
 4. User memilih product/part yang dipesan.
-5. User mengisi quantity, target date, dan notes.
+5. User mengisi quantity, target date, notes, referensi desain, dan link gambar/customer drawing jika ada.
 6. User menyimpan Sales Order.
-7. Saat Sales Order dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
-8. Sistem membuat barcode unik berbasis Sales Order.
+7. Engineering Reviewer/Supervisor mengubah status desain menjadi `Approved`, `RevisionRequired`, atau `Rejected`.
+8. Saat Sales Order dengan desain `Approved` dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
+9. Sistem membuat barcode unik berbasis Sales Order.
 
 Output utama:
 
 - Sales Order
 - Sales Order Item
+- Customer email dan kode customer.
+- Link gambar/customer drawing dari Sales Order.
+- Status dan referensi desain.
 - Barcode UID berbasis SO
 
 ## Skenario Production Tracking (Barcode/QR)
@@ -303,6 +316,7 @@ Endpoint utama:
 - `GET /api/v1/production/tracking/{soNumberOrBarcode}`
 - `POST /api/v1/production/tracking/lookup`
 - `GET /api/v1/production/sales-orders/{id}/progress`
+- `PUT /api/v1/production/sales-orders/{id}/design-status`
 - `PUT /api/v1/production/sales-orders/{id}/production/start`
 - `PUT /api/v1/production/sales-orders/{id}/production/finish`
 - `PUT /api/v1/production/sales-orders/{id}/engineering-drawing`
@@ -314,11 +328,12 @@ Output utama:
 - Status `Waiting`, `InProgress`, `Finished`, atau `Closed`.
 - `started_at_utc`, `finished_at_utc`, dan `durationSeconds`.
 - Progress Sales Order.
+- Link gambar/customer drawing dari SO untuk Production Tracker internal.
 - Public customer tracking yang read-only.
 
 ## Skenario Engineering
 
-Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Reviewer hanya melakukan QC.
+Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Reviewer/Supervisor menangani approval desain dan QC.
 
 Alur kerja:
 
@@ -336,6 +351,7 @@ Output utama:
 - Drawing reference.
 - Uploader.
 - Waktu upload.
+- Approval desain: `PendingDesign`, `WaitingApproval`, `Approved`, `RevisionRequired`, atau `Rejected`.
 
 ## Skenario Engineering Reviewer untuk QC
 
@@ -363,7 +379,7 @@ Output utama:
 
 Pengajuan pembelian dibuat dari menu Engineering, karena Engineering yang mengetahui kebutuhan material produksi. Setelah request masuk, Finance harus accept/reject Purchase Request terlebih dahulu. Jika Finance accept, role Purchasing menangani proses pembelian sampai informasi supplier, nomor PO, estimasi harga, estimasi tiba, dan penerimaan material tercatat.
 
-Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran/spesifikasi, jumlah, satuan, urgensi, referensi SO, pemohon, supplier, nomor PO, estimasi harga, estimasi tiba, catatan, dan status penerimaan.
+Modul ini mengikuti form lama "Form Pembelian Barang dan Material": nama barang, ukuran/spesifikasi, jumlah, satuan, urgensi, kategori pembelian, referensi SO opsional, pemohon, supplier, nomor PO, total harga, estimasi tiba, catatan, dan status penerimaan.
 
 Alur kerja:
 
@@ -372,12 +388,12 @@ Alur kerja:
 3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
 4. Engineering membuka tab `Pengajuan Purchasing`.
 5. Engineering membuat Purchase Request baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional.
-6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), referensi SO, supplier suggestion, dan catatan kebutuhan.
+6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), kategori (`Asset`, `Consumable`, `Tools`, `Project`, atau `Maintenance`), referensi SO opsional, supplier suggestion, dan catatan kebutuhan.
 7. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
 8. Finance membuka daftar Purchase Request yang masih `Submitted`.
 9. Finance memilih `Accept` atau `Reject`; jika reject, Finance mengisi alasan penolakan. Jika accepted, status request menjadi `Approved`, item menjadi `Approved`, dan material requirement berubah menjadi `PurchaseApproved`.
 10. Purchasing membuka menu `Manajemen Pembelian` untuk melihat request yang sudah accepted, diproses, selesai, atau ditolak.
-11. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, estimasi harga, estimasi tanggal tiba, dan catatan purchasing. Status item menjadi `Ordered`.
+11. Purchasing memproses item accepted dengan mengisi supplier final, nomor PO, total harga, kategori pembelian, estimasi tanggal tiba, dan catatan purchasing. Harga satuan dihitung otomatis dari `totalPrice / qty`. Status item menjadi `Ordered`.
 12. Purchasing dapat menolak item request jika tidak valid pada tahap pembelian. Status item menjadi `Rejected`.
 13. Saat barang datang, Purchasing mengisi tanggal penerimaan aktual. Status item menjadi `Received` dan tracking bahan baku Sales Order ikut naik.
 
@@ -401,8 +417,40 @@ Output utama:
 - Material Requirement dari Sales Order.
 - Purchase Request dan Purchase Request Item.
 - Finance acceptance: reviewer, waktu review, status approved/rejected, dan alasan penolakan jika ada.
-- Informasi supplier, nomor PO, estimasi harga, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
+- Informasi supplier, nomor PO, kategori pembelian, total harga, harga satuan hasil hitung, estimasi datang, tanggal diterima, status pembelian, dan alasan penolakan item jika ada.
 - Tracking bahan baku per Sales Order.
+
+## Skenario Finance
+
+Finance membuat invoice dari Sales Order yang sudah selesai QC. Item invoice tidak diinput manual dari nol; sistem mengambil daftar item dari Sales Order yang sudah masuk sebagai kandidat invoice.
+
+Alur kerja:
+
+1. Engineering Reviewer approve QC.
+2. Production API menutup production order, mengubah Sales Order menjadi `Completed`, lalu mengirim `SalesOrderReadyForInvoiceEvent`.
+3. Finance API membuat invoice candidate berisi customer, email, nomor SO, target date, dan list item SO.
+4. User Finance membuat invoice dengan mengisi harga satuan per item, pajak, tanggal invoice, jatuh tempo, rekening transfer, dan termin pembayaran seperti DP 25%, DP 50%, atau pelunasan.
+5. User Finance mencatat pembayaran. Sistem menghitung `paidAmount`, `remainingAmount`, `paymentPercent`, dan status invoice.
+6. Riwayat transaksi bisa difilter berdasarkan customer, status, rentang jatuh tempo, serta sort tanggal/jatuh tempo paling lama atau terbaru.
+7. Jika pembayaran lewat jatuh tempo dan belum lunas, Finance dapat membuat Surat Penagihan terpisah dari invoice.
+8. Dashboard Finance bisa dibaca global atau difilter untuk satu customer spesifik.
+
+Endpoint utama:
+
+- `GET /api/v1/finance/invoice-candidates`
+- `GET /api/v1/finance/invoices`
+- `GET /api/v1/finance/invoices/{invoiceId}`
+- `POST /api/v1/finance/invoices`
+- `POST /api/v1/finance/invoices/{invoiceId}/payments`
+- `POST /api/v1/finance/invoices/{invoiceId}/collection-letters`
+- `GET /api/v1/finance/dashboard`
+
+Output utama:
+
+- Invoice Candidate dari Sales Order completed.
+- Invoice dengan list item SO, total, pajak, rekening transfer, termin pembayaran, dan payment progress.
+- Riwayat pembayaran dan surat penagihan.
+- Dashboard finance global atau per customer.
 
 ## Skenario Owner Dashboard
 
@@ -460,6 +508,7 @@ Setiap Pull Request akan menjalankan:
 dotnet test tests/Services/QC.API.Tests/QC.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Production.API.Tests/Production.API.Tests.csproj --configuration Release --no-restore
 dotnet test tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj --configuration Release --no-restore
+dotnet test tests/Services/Finance.API.Tests/Finance.API.Tests.csproj --configuration Release --no-restore
 ```
 
 Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Engineering Reviewer, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke reviewer/admin.
@@ -467,6 +516,8 @@ Test ini fokus ke logic QC: upload image/form QC, notes, approval/reject Enginee
 Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
 Test Purchasing fokus ke material requirement dari event Sales Order, submit Purchase Request multi-item dari Engineering, acceptance/reject oleh Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
+
+Test Finance fokus ke kandidat invoice dari event Sales Order completed, pembuatan invoice dari item SO, termin DP/pelunasan, pencatatan pembayaran, surat penagihan overdue, dashboard per customer, dan pembatasan role endpoint.
 
 ## Catatan Implementasi
 

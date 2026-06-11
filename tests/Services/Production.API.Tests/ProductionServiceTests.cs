@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Production.Api.Application.Production;
+using PJT_ERP.Production.Api.Application.Quotations;
 using PJT_ERP.Production.Api.Controllers;
 using PJT_ERP.Production.Api.Domain.Entities;
 using PJT_ERP.Production.Api.Infrastructure.Persistence;
@@ -30,8 +31,8 @@ public sealed class ProductionServiceTests
     }
 
     [Theory]
-    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
-    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker")]
@@ -92,7 +93,10 @@ public sealed class ProductionServiceTests
                     new CreateSalesOrderItemRequest(products[1].Id, 4, null)
                 ],
                 new EngineerAssignment(WorkerUserId, "Worker Engineer"),
-                new EngineerAssignment(ReviewerUserId, "Reviewer Engineer")),
+                new EngineerAssignment(ReviewerUserId, "Reviewer Engineer"),
+                "https://drive.example/customer-drawing.jpg",
+                "DESIGN-001",
+                SalesOrderDesignStatuses.Approved),
             CancellationToken.None);
 
         var tracking = await service.ConfirmSalesOrderAsync(
@@ -105,6 +109,9 @@ public sealed class ProductionServiceTests
         Assert.Equal(ProductionOrderStatuses.Waiting, tracking.ProductionStatus);
         Assert.Equal(WorkerUserId, tracking.ProductionWorkerUserId);
         Assert.Equal(ReviewerUserId, tracking.QcReviewerUserId);
+        Assert.Equal("https://drive.example/customer-drawing.jpg", tracking.CustomerDrawingUrl);
+        Assert.Equal("DESIGN-001", tracking.DesignReference);
+        Assert.Equal(SalesOrderDesignStatuses.Approved, tracking.DesignStatus);
         Assert.Equal(14, tracking.TotalQuantity);
         Assert.Equal(2, tracking.Items.Count);
         Assert.StartsWith("PJT|SO|", tracking.TrackingBarcodeUid, StringComparison.Ordinal);
@@ -293,6 +300,69 @@ public sealed class ProductionServiceTests
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("ProductionOrderId"));
     }
 
+    [Fact]
+    public async Task ConvertQuotationToSalesOrderAsync_publishes_dp_invoice_request()
+    {
+        await using var db = CreateDbContext();
+        var customer = new CustomerReplica
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Code = "CUST-001",
+            Name = "PT Customer",
+            Email = "customer@example.com"
+        };
+        var product = new ProductReplica
+        {
+            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            PartNumber = "PART-001",
+            Description = "Precision Bolt",
+            MaterialSpec = "S45C"
+        };
+        await db.CustomerReplicas.AddAsync(customer);
+        await db.ProductReplicas.AddAsync(product);
+        await db.SaveChangesAsync();
+
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new QuotationService(db, eventPublisher);
+        var quotation = await service.CreateAsync(
+            new CreateQuotationRequest(
+                customer.Id,
+                new DateOnly(2026, 7, 1),
+                null,
+                [
+                    new CreateQuotationItemRequest(
+                        product.Id,
+                        "Precision Bolt",
+                        "Baut 0.05 mm",
+                        10,
+                        "pcs",
+                        "https://drive.example/customer-image.jpg",
+                        "https://drive.example/design.pdf",
+                        [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")])
+                ]),
+            CancellationToken.None);
+
+        quotation = await service.SubmitPricingAsync(
+            quotation.Id,
+            new SubmitQuotationPricingRequest(500_000m, "Initial pricing", Guid.Parse("33333333-3333-3333-3333-333333333333"), "Finance"),
+            CancellationToken.None);
+        quotation = await service.MarkWonAsync(quotation!.Id, CancellationToken.None);
+
+        var salesOrder = await service.ConvertToSalesOrderAsync(
+            quotation!.Id,
+            new ConvertQuotationToSalesOrderRequest(50m, new DateOnly(2026, 6, 15)),
+            CancellationToken.None);
+
+        Assert.NotNull(salesOrder);
+        Assert.Equal(SalesOrderStatuses.Draft, salesOrder.Status);
+        Assert.Equal(SalesOrderDesignStatuses.Approved, salesOrder.DesignStatus);
+        var dpEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<SalesOrderDpInvoiceRequestedEvent>());
+        Assert.Equal(salesOrder.Id, dpEvent.SalesOrderId);
+        Assert.Equal(500_000m, dpEvent.QuotationAmount);
+        Assert.Equal(50m, dpEvent.DpPercentage);
+        Assert.Equal(new DateOnly(2026, 6, 15), dpEvent.DpDueDate);
+    }
+
     private static ProductionContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<ProductionContext>()
@@ -325,6 +395,13 @@ public sealed class ProductionServiceTests
             ProductionWorkerName = "Worker Engineer",
             QcReviewerUserId = ReviewerUserId,
             QcReviewerName = "Reviewer Engineer",
+            CustomerEmail = "customer@example.com",
+            CustomerDrawingUrl = "https://drive.example/customer-drawing.jpg",
+            DesignReference = "DESIGN-001",
+            DesignStatus = SalesOrderDesignStatuses.Approved,
+            DesignApprovedByUserId = ReviewerUserId,
+            DesignApprovedByName = "Reviewer Engineer",
+            DesignApprovedAtUtc = DateTime.UtcNow,
             Status = SalesOrderStatuses.InProduction
         };
 

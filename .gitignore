@@ -13,6 +13,9 @@ coverage/
 *.coverage
 *.coveragexml
 
+node_modules/
+dist/
+
 .env
 .env.*
 !.env.example
