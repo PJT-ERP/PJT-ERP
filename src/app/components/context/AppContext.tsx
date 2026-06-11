@@ -221,7 +221,9 @@ function mapQuotationDto(quotation: QuotationDto): Quotation {
   const primaryItem = quotation.items[0];
 
   return {
-    id: quotation.id,
+    id: quotation.quotationNumber || quotation.id,
+    backendId: quotation.id,
+    quotationNumber: quotation.quotationNumber,
     customerId: quotation.customerCode,
     productName: primaryItem?.productName || "-",
     description: primaryItem?.description || "",
@@ -255,7 +257,8 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
   const primaryItem = order.items[0];
 
   return {
-    id: order.id,
+    id: order.soNumber || order.id,
+    backendId: order.id,
     soNumber: order.soNumber,
     customerId: order.customerCode,
     customerEmail: order.customerEmail || "",
@@ -440,13 +443,15 @@ async function syncUpdateQuotation(
   updates: Partial<Quotation>,
   currentUser: User | null,
 ) {
-  if (!isGuid(quotation.id)) {
+  const backendId = quotation.backendId || quotation.id;
+
+  if (!isGuid(backendId)) {
     return;
   }
 
   try {
     if (updates.estimatedAmount !== undefined && updates.status === "client_price_approval") {
-      await quotationApi.submitPricing(quotation.id, {
+      await quotationApi.submitPricing(backendId, {
         amount: updates.estimatedAmount,
         notes: updates.notes || null,
         financeUserId: isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID(),
@@ -456,20 +461,20 @@ async function syncUpdateQuotation(
     }
 
     if (updates.status === "waiting_pricing") {
-      await quotationApi.approveClientDesign(quotation.id);
+      await quotationApi.approveClientDesign(backendId);
       return;
     }
 
     if (updates.status === "pending_design") {
-      await quotationApi.requestDesignRevision(quotation.id, {
+      await quotationApi.requestDesignRevision(backendId, {
         notes: updates.notes || "Client requested design revision.",
       });
       return;
     }
 
     if (updates.status === "won") {
-      await quotationApi.markWon(quotation.id);
-      await quotationApi.convertToSalesOrder(quotation.id, {
+      await quotationApi.markWon(backendId);
+      await quotationApi.convertToSalesOrder(backendId, {
         dpPercentage: 50,
         dueDate: addDaysIso(new Date(), 7),
       });
@@ -477,7 +482,7 @@ async function syncUpdateQuotation(
     }
 
     if (updates.status === "lost") {
-      await quotationApi.markLost(quotation.id, {
+      await quotationApi.markLost(backendId, {
         reason: updates.lostReason || "Quotation lost.",
       });
     }

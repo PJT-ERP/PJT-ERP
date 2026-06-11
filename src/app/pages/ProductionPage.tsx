@@ -45,6 +45,10 @@ function getDrawingUrl(so: SalesOrder) {
   return so.customerDrawingUrl || so.designLink || "";
 }
 
+function getBackendSalesOrderId(so: SalesOrder) {
+  return so.backendId || so.id;
+}
+
 function DrawingLinks({ so }: { so: SalesOrder }) {
   const drawingUrl = getDrawingUrl(so);
   if (!drawingUrl) {
@@ -167,9 +171,10 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
         ? so.assignedTo
         : "";
 
-    if (isGuid(so.id) && requesterId) {
+    const salesOrderId = getBackendSalesOrderId(so);
+    if (isGuid(salesOrderId) && requesterId) {
       try {
-        await productionApi.submitMaterialRequest(so.id, {
+        await productionApi.submitMaterialRequest(salesOrderId, {
           requestedByUserId: requesterId,
           requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
           notes: notes || null,
@@ -320,9 +325,10 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
         ? so.assignedTo
         : "";
 
-    if (isGuid(so.id) && workerUserId) {
+    const salesOrderId = getBackendSalesOrderId(so);
+    if (isGuid(salesOrderId) && workerUserId) {
       try {
-        await productionApi.startProduction(so.id, {
+        await productionApi.startProduction(salesOrderId, {
           workerUserId,
           workerName: currentUser?.name || so.assignedName || "Engineering Worker",
         });
@@ -381,9 +387,10 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
         ? so.assignedTo
         : "";
 
-    if (isGuid(so.id) && workerUserId) {
+    const salesOrderId = getBackendSalesOrderId(so);
+    if (isGuid(salesOrderId) && workerUserId) {
       try {
-        await productionApi.finishProduction(so.id, {
+        await productionApi.finishProduction(salesOrderId, {
           workerUserId,
           workerName: currentUser?.name || so.assignedName || "Engineering Worker",
         });

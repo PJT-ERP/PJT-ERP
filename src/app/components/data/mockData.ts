@@ -30,6 +30,7 @@ export interface Customer {
 
 export interface SalesOrder {
   id: string;
+  backendId?: string;
   soNumber?: string;
   customerId: string;
   customerEmail?: string;
@@ -113,6 +114,8 @@ export type QuotationStatus = 'draft' | 'pending_design' | 'design_review' | 'cl
 
 export interface Quotation {
   id: string;
+  backendId?: string;
+  quotationNumber?: string;
   customerId: string;
   productName: string;
   description: string;
