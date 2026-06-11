@@ -221,6 +221,9 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
         })),
       });
       await refreshBackendData();
+      window.setTimeout(() => {
+        void refreshBackendData();
+      }, 1500);
       alert("MR diajukan ke Supervisor Produksi.");
       onClose();
     } catch (error) {

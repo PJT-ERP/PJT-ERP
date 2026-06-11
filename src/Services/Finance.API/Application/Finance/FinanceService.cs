@@ -174,8 +174,22 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
             return null;
         }
 
+        var paymentAmount = RoundMoney(request.Amount);
+        var paymentNotes = NormalizeOptional(request.Notes);
+        var duplicatePaymentExists = await db.PaymentRecords.AnyAsync(payment =>
+            payment.InvoiceId == invoice.Id
+            && payment.PaymentDate == request.PaymentDate
+            && payment.Amount == paymentAmount
+            && payment.Notes == paymentNotes,
+            cancellationToken);
+
+        if (duplicatePaymentExists)
+        {
+            return await GetInvoiceAsync(invoice.Id, cancellationToken);
+        }
+
         var remaining = RoundMoney(invoice.TotalAmount - invoice.PaidAmount);
-        if (request.Amount > remaining)
+        if (paymentAmount > remaining)
         {
             throw new InvalidOperationException("Payment amount cannot exceed the remaining invoice balance.");
         }
@@ -184,11 +198,11 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
         {
             InvoiceId = invoice.Id,
             PaymentDate = request.PaymentDate,
-            Amount = RoundMoney(request.Amount),
-            Notes = NormalizeOptional(request.Notes)
+            Amount = paymentAmount,
+            Notes = paymentNotes
         }, cancellationToken);
 
-        invoice.PaidAmount = RoundMoney(invoice.PaidAmount + request.Amount);
+        invoice.PaidAmount = RoundMoney(invoice.PaidAmount + paymentAmount);
         invoice.PaymentPercent = invoice.TotalAmount == 0
             ? 100
             : decimal.Round(invoice.PaidAmount / invoice.TotalAmount * 100, 2);
@@ -206,7 +220,7 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
                     invoice.SalesOrderId,
                     invoice.SalesOrderNumber,
                     invoice.CustomerId,
-                    RoundMoney(request.Amount),
+                    paymentAmount,
                     invoice.PaidAmount,
                     invoice.TotalAmount,
                     invoice.PaymentPercent,

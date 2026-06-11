@@ -132,6 +132,25 @@ public sealed class FinanceServiceTests
     }
 
     [Fact]
+    public async Task RecordPaymentAsync_ignores_duplicate_payment_submission()
+    {
+        await using var db = CreateDbContext();
+        var invoice = await CreateInvoiceAsync(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new FinanceService(db, eventPublisher);
+        var request = new RecordPaymentRequest(new DateOnly(2026, 6, 10), 166_500, "DP received");
+
+        await service.RecordPaymentAsync(invoice.Id, request, CancellationToken.None);
+        var duplicate = await service.RecordPaymentAsync(invoice.Id, request, CancellationToken.None);
+
+        Assert.NotNull(duplicate);
+        Assert.Equal(166_500m, duplicate.PaidAmount);
+        Assert.Equal(50m, duplicate.PaymentPercent);
+        Assert.Single(await db.PaymentRecords.ToListAsync());
+        Assert.Single(eventPublisher.PublishedEvents.OfType<InvoicePaymentRecordedEvent>());
+    }
+
+    [Fact]
     public async Task CreateCollectionLetterAsync_requires_overdue_unpaid_invoice()
     {
         await using var db = CreateDbContext();

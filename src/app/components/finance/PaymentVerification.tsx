@@ -21,6 +21,8 @@ const todayInputValue = () => {
 
 const getRemainingAmount = (invoice: Invoice) => Math.max(invoice.amount - invoice.paidAmount, 0);
 
+const hasRecordedPayment = (invoice: Invoice) => invoice.paidAmount > 0;
+
 const getNextSchedule = (invoice: Invoice) =>
   invoice.paymentSchedules?.find(schedule => !schedule.isPaid);
 
@@ -343,6 +345,7 @@ export function PaymentVerification() {
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [hiddenInvoiceIds, setHiddenInvoiceIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     setPaymentData(financePayments);
@@ -361,7 +364,11 @@ export function PaymentVerification() {
   };
 
   const filtered = filterStatus === 'ALL' ? paymentData : paymentData.filter(p => p.status === filterStatus);
-  const unpaidInvoices = invoices.filter(invoice => getRemainingAmount(invoice) > 0);
+  const unpaidInvoices = invoices.filter(invoice =>
+    getRemainingAmount(invoice) > 0 &&
+    !hasRecordedPayment(invoice) &&
+    !hiddenInvoiceIds.has(invoice.id)
+  );
   const pendingCount = paymentData.filter(p => p.status === 'PENDING').length;
   const verifiedCount = paymentData.filter(p => p.status === 'VERIFIED').length;
   const rejectedCount = paymentData.filter(p => p.status === 'REJECTED').length;
@@ -580,7 +587,10 @@ export function PaymentVerification() {
         <RecordPaymentModal
           invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
-          onRecorded={refresh}
+          onRecorded={async () => {
+            setHiddenInvoiceIds(prev => new Set(prev).add(selectedInvoice.id));
+            await refresh();
+          }}
         />
       )}
     </div>
