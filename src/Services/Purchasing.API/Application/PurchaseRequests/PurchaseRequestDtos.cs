@@ -23,7 +23,11 @@ public sealed record CreatePurchaseRequestItem(
     string? PurchaseCategory = null,
     decimal? TotalPrice = null);
 
-public sealed record ReviewPurchaseRequest(Guid ReviewedByUserId, string Decision, string? RejectionReason);
+public sealed record ReviewPurchaseRequest(
+    Guid ReviewedByUserId,
+    string Decision,
+    string? RejectionReason,
+    string? ReviewStage = null);
 
 public sealed record UpdatePurchaseItemInfoRequest(
     string? SupplierName,
@@ -65,6 +69,12 @@ public sealed record PurchaseRequestDto(
     Guid? ReviewedByUserId,
     DateTime? ReviewedAtUtc,
     string? RejectionReason,
+    Guid? SupervisorReviewedByUserId,
+    DateTime? SupervisorReviewedAtUtc,
+    string? SupervisorRejectionReason,
+    Guid? FinanceReviewedByUserId,
+    DateTime? FinanceReviewedAtUtc,
+    string? FinanceRejectionReason,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<PurchaseRequestItemDto> Items);
 

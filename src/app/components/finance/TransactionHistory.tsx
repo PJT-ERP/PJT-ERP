@@ -4,7 +4,7 @@ import {
   PlusCircle, Download, LayoutList, Clock3,
   ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
-import { transactions, formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
+import { formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
 import { useFinanceData } from './useFinanceData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
@@ -26,14 +26,14 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function TransactionHistory() {
-  const { transactions: financeTransactions, isUsingBackend } = useFinanceData();
+  const { transactions: financeTransactions } = useFinanceData();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'ALL'>('ALL');
   const [customerFilter, setCustomerFilter] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
 
-  const transactionData = financeTransactions.length > 0 ? financeTransactions : transactions;
+  const transactionData = financeTransactions;
 
   const uniqueCustomers = useMemo(() => Array.from(new Set(transactionData.map(t => t.customerName))), [transactionData]);
 
@@ -67,10 +67,7 @@ export function TransactionHistory() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl text-slate-900">Riwayat Transaksi</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Log lengkap semua aktivitas keuangan
-            {isUsingBackend ? ' - tersambung backend' : ' - mode data demo'}
-          </p>
+          <p className="text-sm text-slate-500 mt-0.5">Log lengkap semua aktivitas keuangan</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors shadow-md">

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -12,11 +12,11 @@ import {
   RefreshCw,
   Plus,
 } from "lucide-react";
-import { useERPStore } from "../../store/useERPStore";
-import { MaterialRequirementDto, PurchaseRequestDto } from "../../services/purchasingApi";
+import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { useApp } from "../context/AppContext";
+import { toBackendUserId } from "../../services/backendIds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
-import { usePurchasingData } from "./usePurchasingData";
 
 /* ── Data ──────────────────────────────────────────────────── */
 
@@ -35,7 +35,9 @@ interface MR {
   department: string;
   date: string;
   priority: "High" | "Medium" | "Low";
-  status: "Pending" | "Approved" | "Rejected" | "In Process" | "Completed";
+  status: "Submitted" | "Approved" | "Rejected" | "Processing" | "Completed";
+  soRef?: string;
+  category: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
   urgency: string;
   items: MRItem[];
   notes: string;
@@ -45,115 +47,13 @@ interface MR {
   financeApproval?: "Pending" | "Approved" | "Rejected";
 }
 
-const MR_DATA: MR[] = [
-  {
-    id: "MR-2405-018",
-    requestor: "Budi Santoso",
-    department: "Produksi",
-    date: "24 Mei 2026",
-    priority: "High",
-    status: "Pending",
-    urgency: "Lini produksi A terhenti, stok habis",
-    notes: "Kebutuhan mendesak — mesin berhenti tanpa material ini",
-    items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "6m/batang", qty: 20, unit: "batang", currentStock: 5 },
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 5, unit: "batang", currentStock: 2 },
-      { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "6m/batang", qty: 15, unit: "batang", currentStock: 0 },
-      { code: "MAT-011", name: "Baut M12 x 50", spec: "Grade 8.8", qty: 200, unit: "pcs", currentStock: 50 },
-      { code: "MAT-012", name: "Mur M12", spec: "Grade 8.8", qty: 200, unit: "pcs", currentStock: 80 },
-    ],
-  },
-  {
-    id: "MR-2405-017",
-    requestor: "Dewi Rahayu",
-    department: "Maintenance",
-    date: "22 Mei 2026",
-    priority: "Medium",
-    status: "Approved",
-    urgency: "Preventif maintenance terjadwal",
-    notes: "Spare parts rutin bulanan — PM schedule mesin press",
-    approvedBy: "Ir. Agung Pramono",
-    approvedAt: "23 Mei 2026, 09:15",
-    supplierAssigned: "PT Sumber Teknik",
-    items: [
-      { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 6, unit: "pcs", currentStock: 3 },
-      { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 4, unit: "pcs", currentStock: 2 },
-      { code: "MAT-008", name: "Mata Gerinda 4\"", spec: "x 1.2mm", qty: 20, unit: "pcs", currentStock: 10 },
-    ],
-  },
-  {
-    id: "MR-2405-016",
-    requestor: "Ahmad Fauzi",
-    department: "QC",
-    date: "21 Mei 2026",
-    priority: "Low",
-    status: "In Process",
-    urgency: "Stok laboratorium habis",
-    notes: "Bahan uji kualitas akhir bulan",
-    supplierAssigned: "CV Tekno Prima",
-    items: [
-      { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "4L/kaleng", qty: 4, unit: "kaleng", currentStock: 1 },
-      { code: "MAT-010", name: "Thinner Epoxy 4L", spec: "Standard", qty: 4, unit: "kaleng", currentStock: 2 },
-    ],
-  },
-  {
-    id: "MR-2405-015",
-    requestor: "Siti Nurhaliza",
-    department: "Engineering",
-    date: "20 Mei 2026",
-    priority: "High",
-    status: "Approved",
-    urgency: "Deadline proyek gedung C: 30 Juni",
-    notes: "Proyek ekspansi gedung C — material struktur utama",
-    approvedBy: "Ir. Agung Pramono",
-    approvedAt: "20 Mei 2026, 16:30",
-    supplierAssigned: "PT Indo Steel",
-    items: [
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 30, unit: "batang", currentStock: 18 },
-      { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 20, unit: "batang", currentStock: 0 },
-      { code: "MAT-002", name: "Plat Besi 3mm", spec: "120x240cm", qty: 15, unit: "lembar", currentStock: 8 },
-    ],
-  },
-  {
-    id: "MR-2405-014",
-    requestor: "Eko Prasetyo",
-    department: "Produksi",
-    date: "19 Mei 2026",
-    priority: "Low",
-    status: "Rejected",
-    urgency: "",
-    notes: "Tidak memenuhi spesifikasi standar yang berlaku",
-    items: [
-      { code: "MAT-099", name: "Elektroda non-standar", spec: "3mm", qty: 10, unit: "box", currentStock: 0 },
-    ],
-  },
-  {
-    id: "MR-2405-013",
-    requestor: "Rina Wati",
-    department: "K3",
-    date: "18 Mei 2026",
-    priority: "Medium",
-    status: "In Process",
-    urgency: "Audit K3 tanggal 3 Juni",
-    notes: "Perlengkapan safety tahunan — sesuai regulasi Kemenaker",
-    supplierAssigned: "CV Tekno Prima",
-    items: [
-      { code: "SAF-001", name: "Helm Safety MSA", spec: "Type E, ANSI Z89.1", qty: 20, unit: "pcs", currentStock: 0 },
-      { code: "SAF-002", name: "Sepatu Safety Cheetah", spec: "Size 38-44", qty: 20, unit: "pasang", currentStock: 5 },
-      { code: "SAF-003", name: "Kacamata Safety", spec: "Clear Lens", qty: 30, unit: "pcs", currentStock: 8 },
-      { code: "SAF-004", name: "Ear Plug 3M", spec: "NRR 29dB", qty: 100, unit: "pasang", currentStock: 20 },
-    ],
-    financeApproval: "Pending",
-  },
-];
-
 /* ── Pill configs ──────────────────────────────────────────── */
 
 const statusCfg: Record<string, { bg: string; color: string; icon: React.ReactNode; dot: string }> = {
-  Pending:    { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b",  icon: <Clock size={11} /> },
+  Submitted:  { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b",  icon: <Clock size={11} /> },
   Approved:   { bg: "#dcfce7", color: "#166534", dot: "#16a34a",  icon: <CheckCircle2 size={11} /> },
   Rejected:   { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626",  icon: <XCircle size={11} /> },
-  "In Process": { bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", icon: <FileText size={11} /> },
+  Processing: { bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", icon: <FileText size={11} /> },
   Completed:  { bg: "#f0fdf4", color: "#166534", dot: "#16a34a",  icon: <CheckCircle2 size={11} /> },
 };
 
@@ -163,89 +63,69 @@ const priorityCfg: Record<string, { bg: string; color: string }> = {
   Low:    { bg: "#f0f9ff", color: "#0369a1" },
 };
 
-function mapRequirementStatus(status: string): MR["status"] {
-  const normalized = status.toLowerCase();
-  if (normalized === "received") return "Completed";
-  if (normalized === "ordered") return "In Process";
-  if (normalized === "purchaseapproved") return "Approved";
-  if (normalized === "purchaserejected") return "Rejected";
-  return "Pending";
-}
+function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
+  const firstItem = request.items[0];
+  const status = mapRequestStatus(request);
+  const priority: MR["priority"] = request.items.some(item => item.urgency === "Critical")
+    ? "High"
+    : request.items.some(item => item.urgency === "Urgent")
+      ? "High"
+      : "Medium";
 
-function mapPurchaseRequestStatus(status: string): MR["status"] {
-  const normalized = status.toLowerCase();
-  if (normalized === "completed") return "Completed";
-  if (normalized === "processing") return "In Process";
-  if (normalized === "approved") return "Approved";
-  if (normalized === "rejected") return "Rejected";
-  return "Pending";
-}
-
-function mapPriority(urgency?: string | null): MR["priority"] {
-  const normalized = urgency?.toLowerCase();
-  if (normalized === "critical" || normalized === "urgent") return "High";
-  if (normalized === "low") return "Low";
-  return "Medium";
-}
-
-function formatApiDate(date?: string | null) {
-  if (!date) return "-";
-  return new Date(date).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function mapMaterialRequirement(requirement: MaterialRequirementDto): MR {
   return {
-    id: requirement.spkNumber || `MR-${requirement.id.slice(0, 8).toUpperCase()}`,
-    requestor: "Engineering",
-    department: requirement.projectName || requirement.salesOrderNumber,
-    date: "-",
-    priority: requirement.stockOnHand <= 0 ? "High" : "Medium",
-    status: mapRequirementStatus(requirement.status),
-    urgency: `SO ${requirement.salesOrderNumber} - ${requirement.spkNumber}`,
-    notes: requirement.materialSpec || requirement.productDescription,
-    items: [
-      {
-        code: requirement.productPartNumber,
-        name: requirement.productDescription,
-        spec: requirement.materialSpec || requirement.barcodeUid || "-",
-        qty: requirement.requiredQty,
-        unit: "pcs",
-        currentStock: requirement.stockOnHand,
-      },
-    ],
-    financeApproval: requirement.status === "PurchaseApproved" ? "Approved" : undefined,
-  };
-}
-
-function mapPurchaseRequest(request: PurchaseRequestDto): MR {
-  return {
-    id: request.prNumber || `PR-${request.id.slice(0, 8).toUpperCase()}`,
-    requestor: request.requesterName || "Engineering",
-    department: request.projectName || request.salesOrderNumber || "Engineering",
-    date: formatApiDate(request.requestDate),
-    priority: mapPriority(request.items[0]?.urgency),
-    status: mapPurchaseRequestStatus(request.status),
-    urgency: request.salesOrderNumber ? `SO ${request.salesOrderNumber}` : "Permintaan non-SO",
-    notes: request.items.map(item => item.purchaseCategory).filter(Boolean).join(", "),
-    supplierAssigned: request.items.find(item => item.supplierName)?.supplierName || undefined,
-    financeApproval: request.status === "Approved" || request.status === "Processing" || request.status === "Completed"
-      ? "Approved"
-      : request.status === "Rejected"
-        ? "Rejected"
-        : "Pending",
+    id: request.prNumber,
+    requestor: request.requesterName,
+    department: request.projectName?.split(" - ")[0] || "Engineering",
+    date: formatDisplayDate(request.requestDate),
+    priority,
+    status,
+    soRef: request.salesOrderNumber || undefined,
+    category: (firstItem?.purchaseCategory || "Project") as MR["category"],
+    urgency: request.items.map(item => item.notes).filter(Boolean).join("; "),
+    notes: request.items.map(item => item.notes).filter(Boolean).join("; ") || request.projectName || "",
+    approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
+    approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
+    supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
+    financeApproval: request.financeReviewedAtUtc
+      ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
+      : "Pending",
     items: request.items.map(item => ({
-      code: item.id.slice(0, 8).toUpperCase(),
+      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
       name: item.itemName,
-      spec: item.size || item.purchaseCategory || "-",
+      spec: item.size || item.notes || "-",
       qty: item.qty,
       unit: "pcs",
       currentStock: 0,
     })),
   };
+}
+
+function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
+  if (request.status === "Completed" || request.items.every(item => item.purchaseStatus === "Received")) {
+    return "Completed";
+  }
+
+  if (request.status === "Processing" || request.items.some(item => item.purchaseStatus === "Ordered")) {
+    return "Processing";
+  }
+
+  if (request.status === "SupervisorRejected" || request.status === "FinanceRejected" || request.status === "Rejected") {
+    return "Rejected";
+  }
+
+  if (request.status === "SupervisorApproved" || request.status === "FinanceApproved" || request.items.some(item => item.purchaseStatus === "Approved")) {
+    return "Approved";
+  }
+
+  return "Submitted";
+}
+
+function formatDisplayDate(value: string) {
+  return new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatDisplayDateTime(value: string) {
+  return new Date(value).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 /* ── Components ────────────────────────────────────────────── */
@@ -290,8 +170,10 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 /* ── Page ──────────────────────────────────────────────────── */
 
 export function MaterialRequestsPage() {
-  const { allSOs } = useERPStore();
-  const { materialRequirements, purchaseRequests, isUsingBackend, isLoading, refresh } = usePurchasingData();
+  const { salesOrders, currentUser, refreshBackendData } = useApp();
+  const [requests, setRequests] = useState<MR[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -303,21 +185,29 @@ export function MaterialRequestsPage() {
   const [formUrgency, setFormUrgency] = useState("");
   const [formNotes, setFormNotes] = useState("");
 
+  const loadRequests = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await purchasingApi.listPurchaseRequests();
+      setRequests(data.map(mapPurchaseRequestToMr));
+    } catch (error) {
+      console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
+      setRequests([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRequests();
+  }, [loadRequests]);
+
   const availableMaterials = useMemo(() => {
     if (!formSoNumber) return [];
-    const so = allSOs.find((s) => s.soNumber === formSoNumber);
-    if (so) return [so.productName];
-    return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
-  }, [formSoNumber, allSOs]);
-
-  const requestData = useMemo(() => {
-    const backendRows = [
-      ...materialRequirements.map(mapMaterialRequirement),
-      ...purchaseRequests.map(mapPurchaseRequest),
-    ];
-
-    return backendRows.length > 0 ? backendRows : MR_DATA;
-  }, [materialRequirements, purchaseRequests]);
+    const so = salesOrders.find((s) => (s.soNumber || s.id) === formSoNumber);
+    if (so) return [so.material || so.description];
+    return [];
+  }, [formSoNumber, salesOrders]);
 
   const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
   const removeFormItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
@@ -327,7 +217,7 @@ export function MaterialRequestsPage() {
     setFormItems(next);
   };
 
-  const filtered = requestData.filter((m) => {
+  const filtered = requests.filter((m) => {
     const q = search.toLowerCase();
     const matchQ = !q || m.id.toLowerCase().includes(q) || m.requestor.toLowerCase().includes(q) || m.department.toLowerCase().includes(q);
     const matchS = filterStatus === "all" || m.status === filterStatus;
@@ -336,10 +226,68 @@ export function MaterialRequestsPage() {
   });
 
   const counts = {
-    Pending: requestData.filter((m) => m.status === "Pending").length,
-    Approved: requestData.filter((m) => m.status === "Approved").length,
-    "In Process": requestData.filter((m) => m.status === "In Process").length,
-    Rejected: requestData.filter((m) => m.status === "Rejected").length,
+    Submitted: requests.filter((m) => m.status === "Submitted").length,
+    Approved: requests.filter((m) => m.status === "Approved").length,
+    Processing: requests.filter((m) => m.status === "Processing").length,
+    Rejected: requests.filter((m) => m.status === "Rejected").length,
+  };
+
+  const resetCreateForm = () => {
+    setFormSoNumber("");
+    setFormItems([{ code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
+    setFormPriority("Medium");
+    setFormUrgency("");
+    setFormNotes("");
+  };
+
+  const submitManualRequest = async () => {
+    if (isSubmitting) return;
+    const validItems = formItems.filter(item => item.name && Number(item.qty) > 0);
+    if (validItems.length === 0) {
+      alert("Isi minimal satu item material.");
+      return;
+    }
+
+    const requesterId = toBackendUserId(currentUser);
+    if (!requesterId) {
+      alert("User lokal belum punya mapping backend untuk membuat MR.");
+      return;
+    }
+
+    const selectedSo = salesOrders.find((so) => (so.soNumber || so.id) === formSoNumber);
+    const urgency = formPriority === "High" ? "Urgent" : "Normal";
+
+    try {
+      setIsSubmitting(true);
+      await purchasingApi.createPurchaseRequest({
+        requestDate: new Date().toISOString().split("T")[0],
+        requestedByUserId: requesterId,
+        requesterName: currentUser?.name || "Purchasing",
+        salesOrderId: selectedSo?.backendId || null,
+        salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
+        projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "Manual Material Request",
+        items: validItems.map(item => ({
+          salesOrderId: selectedSo?.backendId || null,
+          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
+          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "Manual Material Request",
+          itemName: item.name || item.code || "Material",
+          size: item.spec || null,
+          qty: Number(item.qty) || 1,
+          notes: [formUrgency, formNotes].filter(Boolean).join(" - ") || null,
+          urgency,
+          purchaseCategory: selectedSo ? "Project" : "Consumable",
+        })),
+      });
+      await loadRequests();
+      await refreshBackendData();
+      resetCreateForm();
+      setCreateOpen(false);
+    } catch (error) {
+      console.warn("Failed to create manual material request.", error);
+      alert("Gagal membuat MR di backend. Cek response API untuk detail.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -349,13 +297,12 @@ export function MaterialRequestsPage() {
         <div>
           <h1 style={{ color: "#1F1F1F" }}>Material Requests</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            Manajemen permintaan material ke departemen Purchasing
-            {isUsingBackend ? " - tersambung backend" : " - mode data demo"}
+            Daftar MR multi-item dari Engineering untuk kebutuhan material, tools, consumable, asset, project, atau maintenance
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => void refresh()}
+            onClick={() => void loadRequests()}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 border transition-colors hover:bg-slate-50"
             style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
           >
@@ -366,7 +313,7 @@ export function MaterialRequestsPage() {
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
-            <Plus size={13} /> Buat PR
+            <Plus size={13} /> Buat MR Manual
           </button>
         </div>
       </div>
@@ -443,10 +390,10 @@ export function MaterialRequestsPage() {
             <thead>
               <tr>
                 <TH>No. MR</TH>
-                <TH className="hidden sm:table-cell">Requestor / Dept.</TH>
+                <TH className="hidden sm:table-cell">Requestor / SO</TH>
                 <TH className="hidden md:table-cell">Tanggal</TH>
                 <TH className="hidden lg:table-cell">Item</TH>
-                <TH>Prioritas</TH>
+                <TH>Kategori</TH>
                 <TH>Status</TH>
                 <TH>Appr. Finance</TH>
                 <TH className="hidden xl:table-cell">Supplier Assigned</TH>
@@ -475,7 +422,7 @@ export function MaterialRequestsPage() {
                     </TD>
                     <TD className="hidden sm:table-cell">
                       <p style={{ fontWeight: 500, color: "#1F1F1F" }}>{mr.requestor}</p>
-                      <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.department}</p>
+                      <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.soRef ?? "Non-project"} · {mr.department}</p>
                     </TD>
                     <TD className="hidden md:table-cell">
                       <span style={{ color: "#475569" }}>{mr.date}</span>
@@ -484,7 +431,7 @@ export function MaterialRequestsPage() {
                       <span style={{ color: "#475569" }}>{mr.items.length} item</span>
                     </TD>
                     <TD>
-                      <Pill cfg={pc} label={mr.priority} />
+                      <Pill cfg={pc} label={mr.category} />
                     </TD>
                     <TD>
                       <Pill cfg={sc} label={mr.status} />
@@ -513,7 +460,7 @@ export function MaterialRequestsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={9} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     Tidak ada permintaan ditemukan
                   </td>
                 </tr>
@@ -528,7 +475,7 @@ export function MaterialRequestsPage() {
           style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}
         >
           <p style={{ fontSize: 11, color: "#94a3b8" }}>
-            Menampilkan {filtered.length} dari {requestData.length} permintaan
+            Menampilkan {filtered.length} dari {requests.length} permintaan
           </p>
         </div>
       </div>
@@ -583,9 +530,11 @@ export function MaterialRequestsPage() {
                     {[
                       { label: "Departemen", val: detail.department },
                       { label: "Prioritas", val: detail.priority },
+                      { label: "Kategori", val: detail.category },
+                      { label: "Referensi SO", val: detail.soRef ?? "Non-project / tidak terkait SO" },
                       { label: "Supplier Assigned", val: detail.supplierAssigned ?? "Belum ditugaskan" },
-                      { label: "Disetujui Oleh", val: detail.approvedBy ?? "—" },
-                      { label: "Tanggal Persetujuan", val: detail.approvedAt ?? "—" },
+                      { label: "Disetujui Supervisor", val: detail.approvedBy ?? "—" },
+                      { label: "Tanggal Approval", val: detail.approvedAt ?? "—" },
                       { label: "Approval Finance", val: detail.financeApproval ?? "—" },
                     ].map(({ label, val }) => (
                       <div key={label}>
@@ -598,7 +547,7 @@ export function MaterialRequestsPage() {
                   {/* Items table */}
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-                      Item Material ({detail.items.length} item)
+                      Daftar Item ({detail.items.length} item)
                     </p>
                     <div className="rounded overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
                       <table className="w-full border-collapse">
@@ -644,21 +593,21 @@ export function MaterialRequestsPage() {
                   )}
 
                   {/* Actions */}
-                  {detail.status === "Pending" && (
+                  {detail.status === "Approved" && (
                     <div className="flex gap-2 pt-1" style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
                       <button
                         className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-white transition-opacity hover:opacity-90"
                         style={{ fontSize: 13, background: "#16a34a" }}
                         onClick={() => setDetail(null)}
                       >
-                        <CheckCircle2 size={14} /> Setujui Permintaan
+                        <CheckCircle2 size={14} /> Proses ke PO
                       </button>
                       <button
                         className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 transition-colors hover:bg-red-50"
                         style={{ fontSize: 13, color: "#dc2626", border: "1px solid #fca5a5" }}
                         onClick={() => setDetail(null)}
                       >
-                        <XCircle size={14} /> Tolak
+                        <XCircle size={14} /> Tolak Item
                       </button>
                     </div>
                   )}
@@ -669,7 +618,7 @@ export function MaterialRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Create PR Dialog ─────────────────────────────────────── */}
+      {/* ── Create MR Dialog ─────────────────────────────────────── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent
           className="w-[calc(100vw-24px)] sm:w-[min(900px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto"
@@ -678,8 +627,8 @@ export function MaterialRequestsPage() {
           <div className="px-6 py-4" style={{ background: "#0f1e35", borderRadius: "8px 8px 0 0" }}>
             <div className="flex justify-between items-center">
               <div>
-                <h2 style={{ color: "#fff" }}>Buat Purchase Request (PR)</h2>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Permintaan material multi-item</p>
+                <h2 style={{ color: "#fff" }}>Buat Material Request (MR)</h2>
+                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>MR multi-item; non-project boleh tanpa SO</p>
               </div>
               <button onClick={() => setCreateOpen(false)} className="rounded p-1.5 hover:bg-white/10 transition-colors" style={{ color: "#94a3b8" }}>
                 <X size={15} />
@@ -695,8 +644,7 @@ export function MaterialRequestsPage() {
                   <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Pilih SO (Opsional)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— Tanpa SO —</SelectItem>
-                    {allSOs.map(so => <SelectItem key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</SelectItem>)}
-                    <SelectItem value="SO-MOCK-01">SO-MOCK-01 (Dummy)</SelectItem>
+                    {salesOrders.map(so => <SelectItem key={so.id} value={so.soNumber || so.id}>{so.soNumber || so.id} - {so.description}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -723,13 +671,13 @@ export function MaterialRequestsPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Daftar Material *</label>
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Daftar Item *</label>
                 <button
                   onClick={addFormItem}
                   className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-slate-50 transition-colors"
                   style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
                 >
-                  <Plus size={12} /> Tambah Material
+                  <Plus size={12} /> Tambah Item
                 </button>
               </div>
 
@@ -795,12 +743,10 @@ export function MaterialRequestsPage() {
                 Batal
               </button>
               <button
-                onClick={() => {
-                  alert("Purchase Request berhasil dibuat!");
-                  setCreateOpen(false);
-                }}
+                onClick={submitManualRequest}
+                disabled={isSubmitting}
                 className="rounded px-4 py-2 text-white hover:opacity-90" style={{ fontSize: 13, background: "#1e3a5f" }}>
-                Submit PR
+                {isSubmitting ? "Submitting..." : "Submit MR"}
               </button>
             </div>
           </div>

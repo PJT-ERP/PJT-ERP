@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Factory, Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 
 export function Login() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const { login } = useApp();
   const [role, setRole] = useState("so");
   const [username, setUsername] = useState("sales01");
   const [password, setPassword] = useState("sales123");
   const [helperMessage, setHelperMessage] = useState("");
+  const fromLocation = (state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
 
   // Auto-fill for demo purposes
   useEffect(() => {
@@ -29,6 +31,11 @@ export function Login() {
     const success = login(username, password);
     
     if (success) {
+      if (fromLocation?.pathname && fromLocation.pathname !== "/login") {
+        navigate(`${fromLocation.pathname}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`, { replace: true });
+        return;
+      }
+
       switch (role) {
         case "finance": navigate("/erp/finance"); break;
         case "purchasing": navigate("/erp/purchasing"); break;

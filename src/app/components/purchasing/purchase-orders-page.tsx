@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -19,18 +19,20 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { PurchaseRequestDto } from "../../services/purchasingApi";
-import { usePurchasingData } from "./usePurchasingData";
+import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
 interface POItem {
+  purchaseRequestId: string;
+  purchaseRequestItemId: string;
+  purchaseStatus: string;
   code: string;
   name: string;
   spec: string;
   qty: number;
   unit: string;
-  unitPrice: number;
+  totalPrice: number;
   received: number;
 }
 
@@ -45,131 +47,14 @@ interface PO {
   deliveryStatus: "Open" | "Confirmed" | "In Transit" | "Partial" | "Received" | "Closed" | "Cancelled";
   paymentStatus: "Unpaid" | "Partial" | "Paid";
   paymentTerms: string;
-  mrRef: string;
+  requestRefs: string[];
+  soRefs: string[];
+  category: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
   items: POItem[];
   notes: string;
   shippingAddress: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
 }
-
-const PO_DATA: PO[] = [
-  {
-    id: "PO-2405-031",
-    supplier: "CV Bintang Logam",
-    supplierCode: "SUP-012",
-    contact: "Bambang Suprapto",
-    contactPhone: "+62 813-5678-9012",
-    orderDate: "20 Mei 2026",
-    dueDate: "27 Mei 2026",
-    deliveryStatus: "In Transit",
-    paymentStatus: "Unpaid",
-    paymentTerms: "Net 7",
-    mrRef: "MR-2405-018",
-    shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
-    notes: "Koordinasi pengiriman dengan Pak Wahyu (08xx-xxxx-xxxx). Minta SJ dan CoC.",
-    items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 20, unit: "batang", unitPrice: 185000, received: 0 },
-      { code: "MAT-002", name: "Plat Besi 3mm", spec: "3mm, 120x240cm", qty: 10, unit: "lembar", unitPrice: 420000, received: 0 },
-      { code: "MAT-009", name: "Besi Siku 40x40x3mm", spec: "40x40x3mm, 6m", qty: 15, unit: "batang", unitPrice: 145000, received: 0 },
-    ],
-    financeApproval: "Approved",
-  },
-  {
-    id: "PO-2405-030",
-    supplier: "PT Sumber Teknik",
-    supplierCode: "SUP-007",
-    contact: "Agus Setiawan",
-    contactPhone: "+62 811-2233-4455",
-    orderDate: "19 Mei 2026",
-    dueDate: "26 Mei 2026",
-    deliveryStatus: "Open",
-    paymentStatus: "Unpaid",
-    paymentTerms: "Net 14",
-    mrRef: "MR-2405-017",
-    shippingAddress: "Gudang Spare Parts — Jl. Industri No. 1, Bekasi",
-    notes: "Sertakan certificate of conformance untuk bearing.",
-    items: [
-      { code: "MAT-003", name: "Bearing SKF 6205", spec: "6205-2RS", qty: 12, unit: "pcs", unitPrice: 85000, received: 0 },
-      { code: "MAT-004", name: "V-Belt A48", spec: "A-Section, 48\"", qty: 6, unit: "pcs", unitPrice: 75000, received: 0 },
-    ],
-  },
-  {
-    id: "PO-2405-029",
-    supplier: "UD Maju Jaya",
-    supplierCode: "SUP-021",
-    contact: "Joko Widodo",
-    contactPhone: "+62 819-8765-4321",
-    orderDate: "18 Mei 2026",
-    dueDate: "24 Mei 2026",
-    deliveryStatus: "Partial",
-    paymentStatus: "Partial",
-    paymentTerms: "Net 14",
-    mrRef: "MR-2405-016",
-    shippingAddress: "Gudang Bahan Kimia — Jl. Industri No. 1, Bekasi",
-    notes: "Sisa kiriman (4 kaleng cat + 4 kaleng thinner) dalam proses.",
-    items: [
-      { code: "MAT-006", name: "Cat Epoxy Primer Grey", spec: "Grey, 4L", qty: 10, unit: "kaleng", unitPrice: 185000, received: 6 },
-      { code: "MAT-010", name: "Thinner Epoxy", spec: "4L", qty: 10, unit: "kaleng", unitPrice: 65000, received: 6 },
-      { code: "MAT-008", name: "Kuas 4\"", spec: "Synthetic Bristle", qty: 20, unit: "pcs", unitPrice: 15000, received: 20 },
-    ],
-  },
-  {
-    id: "PO-2405-028",
-    supplier: "PT Indo Steel",
-    supplierCode: "SUP-003",
-    contact: "Hendra Wijaya",
-    contactPhone: "+62 812-3456-7890",
-    orderDate: "15 Mei 2026",
-    dueDate: "22 Mei 2026",
-    deliveryStatus: "Closed",
-    paymentStatus: "Paid",
-    paymentTerms: "Net 30",
-    mrRef: "MR-2405-015",
-    shippingAddress: "Gudang Utama — Jl. Industri No. 1, Bekasi",
-    notes: "Selesai. Semua item diterima dalam kondisi baik.",
-    items: [
-      { code: "MAT-007", name: "Besi WF 150x75", spec: "WF 150.75.5.7", qty: 10, unit: "batang", unitPrice: 1850000, received: 10 },
-      { code: "MAT-009", name: "Besi CNP 150x65", spec: "CNP 150.65.3.2", qty: 10, unit: "batang", unitPrice: 780000, received: 10 },
-    ],
-  },
-  {
-    id: "PO-2405-027",
-    supplier: "CV Tekno Prima",
-    supplierCode: "SUP-015",
-    contact: "Doni Prakoso",
-    contactPhone: "+62 878-1234-5678",
-    orderDate: "17 Mei 2026",
-    dueDate: "24 Mei 2026",
-    deliveryStatus: "Confirmed",
-    paymentStatus: "Unpaid",
-    paymentTerms: "Cash",
-    mrRef: "MR-2405-013",
-    shippingAddress: "Gudang K3 — Jl. Industri No. 1, Bekasi",
-    notes: "",
-    items: [
-      { code: "MAT-005", name: "Elektroda Las E6013", spec: "3.2mm, 5kg/box", qty: 4, unit: "box", unitPrice: 215000, received: 0 },
-      { code: "MAT-008", name: "Mata Gerinda Potong 4\"", spec: "4\" x 1.2mm", qty: 20, unit: "pcs", unitPrice: 8500, received: 0 },
-    ],
-  },
-  {
-    id: "PO-2405-026",
-    supplier: "PT Indo Steel",
-    supplierCode: "SUP-003",
-    contact: "Hendra Wijaya",
-    contactPhone: "+62 812-3456-7890",
-    orderDate: "10 Mei 2026",
-    dueDate: "18 Mei 2026",
-    deliveryStatus: "Closed",
-    paymentStatus: "Paid",
-    paymentTerms: "Net 30",
-    mrRef: "MR-2405-010",
-    shippingAddress: "Gudang Utama",
-    notes: "",
-    items: [
-      { code: "MAT-001", name: "Besi Hollow 4x4x2mm", spec: "4x4x2mm, 6m", qty: 50, unit: "batang", unitPrice: 182000, received: 50 },
-    ],
-  },
-];
 
 const SUPPLIERS = ["CV Bintang Logam", "PT Sumber Teknik", "UD Maju Jaya", "PT Indo Steel", "CV Tekno Prima", "PT Karya Mandiri"];
 
@@ -194,54 +79,97 @@ const paymentCfg: Record<string, { bg: string; color: string }> = {
 /* ── Helpers ───────────────────────────────────────────────── */
 
 const formatRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
-const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * i.unitPrice, 0);
+const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / item.qty : 0;
+const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
+const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-function mapPurchaseStatusToDeliveryStatus(status: string): PO["deliveryStatus"] {
-  const normalized = status.toLowerCase();
-  if (normalized === "completed") return "Closed";
-  if (normalized === "processing") return "In Transit";
-  if (normalized === "approved") return "Confirmed";
-  if (normalized === "rejected") return "Cancelled";
+function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
+  const byPo = new Map<string, PO>();
+
+  requests.forEach(request => {
+    request.items
+      .filter(item => item.poNumber)
+      .forEach(item => {
+        const poNumber = item.poNumber!;
+        const existing = byPo.get(poNumber);
+        const totalPrice = item.totalPrice ?? item.estimatedPrice ?? 0;
+        const poItem: POItem = {
+          purchaseRequestId: request.id,
+          purchaseRequestItemId: item.id,
+          purchaseStatus: item.purchaseStatus,
+          code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          name: item.itemName,
+          spec: item.size || item.notes || "-",
+          qty: item.qty,
+          unit: "pcs",
+          totalPrice,
+          received: item.purchaseStatus === "Received" ? item.qty : 0,
+        };
+
+        if (existing) {
+          existing.items.push(poItem);
+          if (request.prNumber && !existing.requestRefs.includes(request.prNumber)) {
+            existing.requestRefs.push(request.prNumber);
+          }
+          if (item.salesOrderNumber && !existing.soRefs.includes(item.salesOrderNumber)) {
+            existing.soRefs.push(item.salesOrderNumber);
+          }
+          existing.deliveryStatus = mergeDeliveryStatus(existing.deliveryStatus, mapDeliveryStatus(item.purchaseStatus));
+          existing.paymentStatus = calcReceived(existing.items) > 0 && calcReceived(existing.items) < calcTotal(existing.items) ? "Partial" : existing.paymentStatus;
+          return;
+        }
+
+        byPo.set(poNumber, {
+          id: poNumber,
+          supplier: item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan",
+          supplierCode: "SUP-BACKEND",
+          contact: "-",
+          contactPhone: "-",
+          orderDate: formatPoDate(item.purchaseDate || request.requestDate),
+          dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
+          deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
+          paymentStatus: item.purchaseStatus === "Received" ? "Paid" : "Unpaid",
+          paymentTerms: "Net 14",
+          requestRefs: [request.prNumber],
+          soRefs: item.salesOrderNumber ? [item.salesOrderNumber] : [],
+          category: (item.purchaseCategory || "Project") as PO["category"],
+          shippingAddress: "Gudang Utama - PT Pratama Jaya Tekindo",
+          notes: item.purchaseNotes || item.notes || "",
+          financeApproval: request.financeReviewedAtUtc
+            ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
+            : "Pending",
+          items: [poItem],
+        });
+      });
+  });
+
+  return [...byPo.values()].sort((a, b) => b.id.localeCompare(a.id));
+}
+
+function mapDeliveryStatus(status: string): PO["deliveryStatus"] {
+  if (status === "Received") return "Closed";
+  if (status === "Ordered") return "In Transit";
+  if (status === "Approved") return "Confirmed";
+  if (status === "Rejected") return "Cancelled";
   return "Open";
 }
 
-function mapPurchaseStatusToPaymentStatus(status: string): PO["paymentStatus"] {
-  const normalized = status.toLowerCase();
-  if (normalized === "completed") return "Paid";
-  if (normalized === "processing") return "Partial";
-  return "Unpaid";
+function mergeDeliveryStatus(current: PO["deliveryStatus"], next: PO["deliveryStatus"]): PO["deliveryStatus"] {
+  const rank: Record<PO["deliveryStatus"], number> = {
+    Cancelled: 0,
+    Open: 1,
+    Confirmed: 2,
+    "In Transit": 3,
+    Partial: 4,
+    Received: 5,
+    Closed: 6,
+  };
+
+  return rank[next] > rank[current] ? next : current;
 }
 
-function mapPurchaseRequestToPO(request: PurchaseRequestDto): PO {
-  const firstSupplier = request.items.find(item => item.supplierName)?.supplierName || "Supplier belum dipilih";
-  const firstPoNumber = request.items.find(item => item.poNumber)?.poNumber || request.prNumber;
-
-  return {
-    id: firstPoNumber || request.id,
-    supplier: firstSupplier,
-    supplierCode: "-",
-    contact: "-",
-    contactPhone: "-",
-    orderDate: new Date(request.requestDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
-    dueDate: "-",
-    deliveryStatus: mapPurchaseStatusToDeliveryStatus(request.status),
-    paymentStatus: mapPurchaseStatusToPaymentStatus(request.status),
-    paymentTerms: "Net 14",
-    mrRef: request.prNumber,
-    shippingAddress: "Gudang Utama - Jl. Industri No. 1, Bekasi",
-    notes: request.salesOrderNumber ? `SO: ${request.salesOrderNumber}` : request.projectName || "",
-    financeApproval: request.status === "Rejected" ? "Rejected" : request.status === "Submitted" ? "Pending" : "Approved",
-    items: request.items.map(item => ({
-      code: item.id.slice(0, 8).toUpperCase(),
-      name: item.itemName,
-      spec: item.size || item.purchaseCategory || "-",
-      qty: item.qty,
-      unit: "pcs",
-      unitPrice: item.totalPrice ? item.totalPrice / Math.max(item.qty, 1) : item.unitPrice || 0,
-      received: item.purchaseStatus === "Received" ? item.qty : 0,
-    })),
-  };
+function formatPoDate(value: string) {
+  return new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function downloadCsv(filename: string, rows: string[][]) {
@@ -282,7 +210,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 
 /* ── Create PO Form items ─────────────────────────────────── */
 
-interface FormItem { name: string; qty: string; unit: string; price: string; }
+interface FormItem { name: string; qty: string; unit: string; totalPrice: string; }
 
 /* ── Page ──────────────────────────────────────────────────── */
 
@@ -291,7 +219,7 @@ interface PurchaseOrdersPageProps {
 }
 
 export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
-  const { purchaseRequests, isUsingBackend } = usePurchasingData();
+  const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [detail, setDetail] = useState<PO | null>(null);
@@ -300,19 +228,34 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
 
   // Create form state
   const [formSupplier, setFormSupplier] = useState("");
+  const [formCategory, setFormCategory] = useState<PO["category"]>("Consumable");
   const [formDue, setFormDue] = useState("");
   const [formTerms, setFormTerms] = useState("Net 14");
   const [formNotes, setFormNotes] = useState("");
-  const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", price: "" }]);
+  const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", totalPrice: "" }]);
 
-  const poData = useMemo(() => {
-    const backendPOs = purchaseRequests.map(mapPurchaseRequestToPO);
-    return backendPOs.length > 0 ? backendPOs : PO_DATA;
-  }, [purchaseRequests]);
+  const loadPurchaseOrders = useCallback(async () => {
+    try {
+      const requests = await purchasingApi.listPurchaseRequests();
+      setPurchaseOrders(mapPurchaseRequestsToPos(requests));
+    } catch (error) {
+      console.warn("Purchasing API unavailable; purchase order seed data was not loaded.", error);
+      setPurchaseOrders([]);
+    }
+  }, []);
 
-  const filtered = poData.filter((p) => {
+  useEffect(() => {
+    void loadPurchaseOrders();
+  }, [loadPurchaseOrders]);
+
+  const filtered = purchaseOrders.filter((p) => {
     const q = search.toLowerCase();
-    const matchQ = !q || p.id.toLowerCase().includes(q) || p.supplier.toLowerCase().includes(q) || p.mrRef.toLowerCase().includes(q);
+    const matchQ = !q
+      || p.id.toLowerCase().includes(q)
+      || p.supplier.toLowerCase().includes(q)
+      || p.requestRefs.some(ref => ref.toLowerCase().includes(q))
+      || p.soRefs.some(ref => ref.toLowerCase().includes(q))
+      || p.category.toLowerCase().includes(q);
     const matchS = filterStatus === "all" || p.deliveryStatus === filterStatus;
     return matchQ && matchS;
   });
@@ -323,9 +266,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     setExpanded(next);
   };
 
-  const formTotal = formItems.reduce((s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.price) || 0), 0);
+  const formTotal = formItems.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
 
-  const addItem = () => setFormItems([...formItems, { name: "", qty: "", unit: "pcs", price: "" }]);
+  const addItem = () => setFormItems([...formItems, { name: "", qty: "", unit: "pcs", totalPrice: "" }]);
   const removeItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
   const updateItem = (i: number, key: keyof FormItem, val: string) => {
     const next = [...formItems];
@@ -338,7 +281,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       ["PO", "MR", "Supplier", "Delivery Status", "Payment Status", "Due Date", "Total"],
       ...filtered.map(po => [
         po.id,
-        po.mrRef,
+        po.requestRefs.join(" / "),
         po.supplier,
         po.deliveryStatus,
         po.paymentStatus,
@@ -348,14 +291,28 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     ]);
   };
 
+  const receiveItem = async (item: POItem) => {
+    try {
+      await purchasingApi.receivePurchaseRequestItem(item.purchaseRequestId, item.purchaseRequestItemId, {
+        receivedDate: new Date().toISOString().split("T")[0],
+        purchaseNotes: "Barang diterima dari halaman PO.",
+      });
+      await loadPurchaseOrders();
+      setDetail(null);
+    } catch (error) {
+      console.warn("Failed to receive PO item.", error);
+      window.alert("Gagal update penerimaan barang di backend.");
+    }
+  };
+
   const submitPO = () => {
-    if (!formSupplier || !formDue || formItems.some(item => !item.name || !item.qty || !item.price)) {
-      window.alert("Lengkapi supplier, jatuh tempo, dan semua item material sebelum membuat PO.");
+    if (!formSupplier || !formDue || formItems.some(item => !item.name || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0)) {
+      window.alert("Lengkapi supplier, jatuh tempo, qty, dan total harga semua item sebelum membuat PO.");
       return;
     }
 
     setCreateOpen(false);
-    window.alert("Purchase Order berhasil dibuat untuk demo. Integrasi penyimpanan data belum aktif.");
+    window.alert("PO harus dibuat dari MR backend yang sudah approved Finance melalui halaman Buat PO.");
   };
 
   return (
@@ -364,11 +321,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 style={{ color: "#1F1F1F" }}>Purchase Orders</h1>
-          <p style={{ fontSize: 11, color: isUsingBackend ? "#16a34a" : "#94a3b8", marginTop: 2 }}>
-            {isUsingBackend ? "Data backend aktif" : "Mode data demo"}
-          </p>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            Daftar dan pengelolaan semua Purchase Order — PT Pratama Jaya Tekindo
+            PO dari Material Request yang sudah disetujui — PT Pratama Jaya Tekindo
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -380,7 +334,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             <Download size={13} /> Export
           </button>
           <button
-            onClick={() => onCreatePO?.()}
+            onClick={() => {
+              if (onCreatePO) {
+                onCreatePO();
+                return;
+              }
+              window.alert("Buat PO melalui halaman Buat PO agar tersambung ke backend MR.");
+            }}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
@@ -392,7 +352,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* Status summary */}
       <div className="flex flex-wrap gap-2">
         {(Object.keys(deliveryCfg) as string[]).map((s) => {
-          const n = poData.filter((p) => p.deliveryStatus === s).length;
+          const n = purchaseOrders.filter((p) => p.deliveryStatus === s).length;
           if (!n) return null;
           const cfg = deliveryCfg[s];
           const active = filterStatus === s;
@@ -426,7 +386,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari No. PO, supplier, No. MR..."
+            placeholder="Cari No. PO, supplier, No. MR, SO, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
@@ -491,10 +451,10 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       <TD>
                         <div className="flex items-center gap-2">
                           <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: dc.dot }} />
-                          <div>
-                            <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
-                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.mrRef}</p>
-                          </div>
+                        <div>
+                          <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
+                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.requestRefs.join(", ")}</p>
+                        </div>
                         </div>
                       </TD>
                       <TD>
@@ -523,7 +483,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         </Pill>
                       </TD>
                       <TD className="hidden xl:table-cell">
-                        {po.financeApproval ? <Pill bg={fc.bg} color={fc.color}>{po.financeApproval}</Pill> : <span style={{fontSize: 11, color: "#94a3b8"}}>—</span>}
+                        {po.financeApproval ? <Pill bg={fc.bg} color={fc.color}>{po.financeApproval}</Pill> : <Pill bg="#f1f5f9" color="#475569">Approved</Pill>}
                       </TD>
                       <TD className="hidden xl:table-cell">
                         <Pill bg={paymentCfg[po.paymentStatus].bg} color={paymentCfg[po.paymentStatus].color}>
@@ -549,7 +509,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                     {/* Expanded row */}
                     {isExp && (
                       <tr key={`${po.id}-exp`} style={{ borderBottom: "1px solid #f1f5f9", background: "#fafbfd" }}>
-                        <td colSpan={10} style={{ padding: "0 20px 16px 52px" }}>
+                        <td colSpan={11} style={{ padding: "0 20px 16px 52px" }}>
                           <div className="pt-3 space-y-2">
                             <p style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                               Detail Item Material
@@ -573,8 +533,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                                         {item.received} {item.unit}
                                       </td>
-                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(item.unitPrice)}</td>
-                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.qty * item.unitPrice)}</td>
+                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
+                                      <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -600,7 +560,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={11} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     Tidak ada PO ditemukan
                   </td>
                 </tr>
@@ -610,7 +570,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
         </div>
 
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {poData.length} purchase order</p>
+          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {purchaseOrders.length} purchase order</p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
             Total: {formatRp(filtered.reduce((s, p) => s + calcTotal(p.items), 0))}
           </p>
@@ -636,7 +596,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h2 style={{ color: "#fff" }}>{detail.id}</h2>
-                      <Pill bg="rgba(255,255,255,0.12)" color="#e2e8f0">{detail.mrRef}</Pill>
+                      <Pill bg="rgba(255,255,255,0.12)" color="#e2e8f0">{detail.requestRefs.join(", ")}</Pill>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Pill bg={dc.bg} color={dc.color}>{detail.deliveryStatus}</Pill>
@@ -689,7 +649,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         { label: "Tanggal Order", val: detail.orderDate },
                         { label: "Jatuh Tempo", val: detail.dueDate },
                         { label: "Terms Pembayaran", val: detail.paymentTerms },
-                        { label: "Referensi MR", val: detail.mrRef },
+                        { label: "No Permintaan / MR", val: detail.requestRefs.join(", ") },
+                        { label: "Referensi SO", val: detail.soRefs.length > 0 ? detail.soRefs.join(", ") : "Non-project / tidak terkait SO" },
+                        { label: "Kategori PO", val: detail.category },
                         { label: "Alamat Pengiriman", val: detail.shippingAddress },
                       ].map(({ label, val }) => (
                         <div key={label}>
@@ -726,7 +688,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       <table className="w-full border-collapse">
                         <thead>
                           <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                            {["Kode", "Material", "Spesifikasi", "Qty", "Diterima", "Harga Satuan", "Subtotal"].map((h) => (
+                            {["Kode", "Material", "Spesifikasi", "Qty", "Diterima", "Harga Satuan", "Subtotal", "Aksi"].map((h) => (
                               <th key={h} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", padding: "10px 16px", textAlign: ["Qty", "Diterima", "Harga Satuan", "Subtotal"].includes(h) ? "right" : "left" }}>{h}</th>
                             ))}
                           </tr>
@@ -741,14 +703,26 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                               <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                                 {item.received} {item.unit}
                               </td>
-                              <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(item.unitPrice)}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.qty * item.unitPrice)}</td>
+                              <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
+                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
+                              <td style={{ padding: "11px 16px" }}>
+                                {item.purchaseStatus !== "Received" ? (
+                                  <button
+                                    onClick={() => void receiveItem(item)}
+                                    className="rounded border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                                  >
+                                    Terima
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Diterima</span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr style={{ background: "#0f1e35" }}>
-                            <td colSpan={6} style={{ padding: "11px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: "#cbd5e1" }}>Total Nilai PO</td>
+                            <td colSpan={7} style={{ padding: "11px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: "#cbd5e1" }}>Total Nilai PO</td>
                             <td style={{ padding: "11px 16px", fontSize: 14, fontWeight: 700, textAlign: "right", color: "#fff" }}>{formatRp(calcTotal(detail.items))}</td>
                           </tr>
                         </tfoot>
@@ -829,6 +803,17 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                 </Select>
               </div>
               <div className="space-y-1.5">
+                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Kategori PO</label>
+                <Select value={formCategory} onValueChange={(value) => setFormCategory(value as PO["category"])}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Asset", "Consumable", "Tools", "Project", "Maintenance"].map((category) => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Terms</label>
                 <Select value={formTerms} onValueChange={setFormTerms}>
                   <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
@@ -902,10 +887,15 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Harga/Satuan</label>
+                      <div className="flex items-center justify-between gap-2">
+                        <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Harga</label>
+                        {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
+                          <span style={{ fontSize: 10, color: "#94a3b8" }}>@ {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
+                        )}
+                      </div>
                       <input
-                        value={item.price}
-                        onChange={(e) => updateItem(idx, "price", e.target.value)}
+                        value={item.totalPrice}
+                        onChange={(e) => updateItem(idx, "totalPrice", e.target.value)}
                         type="number"
                         placeholder="0"
                         className="w-full rounded border px-2 py-2 outline-none focus:ring-1 focus:ring-blue-300 text-right"

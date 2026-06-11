@@ -4,7 +4,13 @@ public sealed record CreateQuotationRequest(
     Guid CustomerId,
     DateOnly Deadline,
     string? Notes,
-    IReadOnlyCollection<CreateQuotationItemRequest> Items);
+    IReadOnlyCollection<CreateQuotationItemRequest> Items,
+    CreateQuotationCustomerSnapshotRequest? Customer = null);
+
+public sealed record CreateQuotationCustomerSnapshotRequest(
+    string Code,
+    string Name,
+    string? Email);
 
 public sealed record CreateQuotationItemRequest(
     Guid? ProductId,

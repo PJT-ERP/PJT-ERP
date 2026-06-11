@@ -34,6 +34,7 @@ public sealed class ProductionServiceTests
     [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker")]
     public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
@@ -222,6 +223,55 @@ public sealed class ProductionServiceTests
     }
 
     [Fact]
+    public async Task SubmitMaterialRequestAsync_publishes_material_request_for_assigned_worker()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new ProductionService(db, eventPublisher);
+
+        var result = await service.SubmitMaterialRequestAsync(
+            salesOrder.Id,
+            new SubmitProductionMaterialRequest(
+                WorkerUserId,
+                "Worker Engineer",
+                [
+                    new SubmitProductionMaterialRequestItem(
+                        null,
+                        salesOrder.Items[0].Id,
+                        "S45C Round Bar",
+                        "Diameter 10mm",
+                        2,
+                        "Urgent",
+                        "PT Steel",
+                        "Stock shortage",
+                        "Project"),
+                    new SubmitProductionMaterialRequestItem(
+                        null,
+                        null,
+                        "Coolant",
+                        "Water soluble",
+                        1,
+                        "Normal",
+                        null,
+                        "Consumable for multiple SO",
+                        "Consumable")
+                ],
+                "Material shortage before production start."),
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(salesOrder.Id, result.SalesOrderId);
+        var materialRequestEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<MaterialRequestSubmittedEvent>());
+        Assert.Equal(salesOrder.Id, materialRequestEvent.SalesOrderId);
+        Assert.Equal(salesOrder.SoNumber, materialRequestEvent.SalesOrderNumber);
+        Assert.Equal(productionOrder.Id, materialRequestEvent.ProductionOrderId);
+        Assert.Equal(WorkerUserId, materialRequestEvent.RequestedByUserId);
+        Assert.Equal(2, materialRequestEvent.Items.Count);
+        Assert.Contains(materialRequestEvent.Items, item => item.ItemName == "Coolant" && item.PurchaseCategory == "Consumable");
+    }
+
+    [Fact]
     public async Task UploadEngineeringDrawingAsync_rejects_unassigned_worker()
     {
         await using var db = CreateDbContext();
@@ -295,9 +345,118 @@ public sealed class ProductionServiceTests
         Assert.Equal(100m, tracking.ProgressPercent);
         Assert.Equal(2, tracking.Items.Count);
         Assert.Equal(ProductionOrderStatuses.Finished, tracking.ProductionStatus);
+        Assert.Equal("https://drive.example/customer-drawing.jpg", tracking.CustomerDrawingUrl);
+        Assert.Equal("DESIGN-001", tracking.DesignReference);
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("BarcodeUid"));
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("PoNumber"));
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("ProductionOrderId"));
+    }
+
+    [Fact]
+    public async Task CreateQuotationAsync_keeps_material_snapshot_without_design_in_engineering_queue()
+    {
+        await using var db = CreateDbContext();
+        var customer = new CustomerReplica
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Code = "CUST-001",
+            Name = "PT Customer",
+            Email = "customer@example.com"
+        };
+        await db.CustomerReplicas.AddAsync(customer);
+        await db.SaveChangesAsync();
+
+        var service = new QuotationService(db, new RecordingEventPublisher());
+
+        var quotation = await service.CreateAsync(
+            new CreateQuotationRequest(
+                customer.Id,
+                new DateOnly(2026, 7, 1),
+                null,
+                [
+                    new CreateQuotationItemRequest(
+                        null,
+                        "Baut 0.05 mm",
+                        "Baut presisi",
+                        10,
+                        "pcs",
+                        "https://drive.example/customer-reference.jpg",
+                        null,
+                        [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")])
+                ]),
+            CancellationToken.None);
+
+        Assert.Equal(QuotationStatuses.PendingDesign, quotation.Status);
+        Assert.Single(quotation.BomItems);
+    }
+
+    [Fact]
+    public async Task SubmitDesignAsync_requires_supervisor_assignment()
+    {
+        await using var db = CreateDbContext();
+        var customer = await SeedQuotationCustomerAsync(db);
+        var service = new QuotationService(db, new RecordingEventPublisher());
+        var quotation = await CreatePendingDesignQuotationAsync(service, customer.Id);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SubmitDesignAsync(
+                quotation.Id,
+                new SubmitQuotationDesignRequest(
+                    "https://drive.example/design.pdf",
+                    [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")],
+                    WorkerUserId,
+                    "Worker Engineer"),
+                CancellationToken.None));
+
+        Assert.Contains("assigned by Engineering Supervisor", exception.Message);
+    }
+
+    [Fact]
+    public async Task SubmitDesignAsync_accepts_only_assigned_engineer_then_waits_for_supervisor_approval()
+    {
+        await using var db = CreateDbContext();
+        var customer = await SeedQuotationCustomerAsync(db);
+        var service = new QuotationService(db, new RecordingEventPublisher());
+        var quotation = await CreatePendingDesignQuotationAsync(service, customer.Id);
+
+        await service.AssignEngineerAsync(
+            quotation.Id,
+            new AssignQuotationEngineerRequest(WorkerUserId, "Worker Engineer"),
+            CancellationToken.None);
+
+        var wrongEngineerException = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.SubmitDesignAsync(
+                quotation.Id,
+                new SubmitQuotationDesignRequest(
+                    "https://drive.example/design.pdf",
+                    [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")],
+                    ReviewerUserId,
+                    "Reviewer Engineer"),
+                CancellationToken.None));
+
+        Assert.Contains("assigned engineer", wrongEngineerException.Message);
+
+        var submitted = await service.SubmitDesignAsync(
+            quotation.Id,
+            new SubmitQuotationDesignRequest(
+                "https://drive.example/design.pdf",
+                [new QuotationBomItemRequest("MAT-001", "S45C Rod", "Diameter 10mm", 2, "bar")],
+                WorkerUserId,
+                "Worker Engineer"),
+            CancellationToken.None);
+
+        Assert.NotNull(submitted);
+        Assert.Equal(QuotationStatuses.DesignReview, submitted.Status);
+
+        var clientApprovalException = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.ApproveClientDesignAsync(quotation.Id, CancellationToken.None));
+
+        Assert.Contains("not ready for client approval", clientApprovalException.Message);
+
+        var supervisorApproved = await service.ApproveDesignBySupervisorAsync(quotation.Id, CancellationToken.None);
+
+        Assert.NotNull(supervisorApproved);
+        Assert.Equal(QuotationStatuses.ClientDesignApproval, supervisorApproved.Status);
     }
 
     [Fact]
@@ -342,6 +501,8 @@ public sealed class ProductionServiceTests
                 ]),
             CancellationToken.None);
 
+        Assert.Equal(QuotationStatuses.WaitingPricing, quotation.Status);
+
         quotation = await service.SubmitPricingAsync(
             quotation.Id,
             new SubmitQuotationPricingRequest(500_000m, "Initial pricing", Guid.Parse("33333333-3333-3333-3333-333333333333"), "Finance"),
@@ -370,6 +531,41 @@ public sealed class ProductionServiceTests
             .Options;
 
         return new ProductionContext(options);
+    }
+
+    private static async Task<CustomerReplica> SeedQuotationCustomerAsync(ProductionContext db)
+    {
+        var customer = new CustomerReplica
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Code = "CUST-001",
+            Name = "PT Customer",
+            Email = "customer@example.com"
+        };
+        await db.CustomerReplicas.AddAsync(customer);
+        await db.SaveChangesAsync();
+        return customer;
+    }
+
+    private static Task<QuotationDto> CreatePendingDesignQuotationAsync(QuotationService service, Guid customerId)
+    {
+        return service.CreateAsync(
+            new CreateQuotationRequest(
+                customerId,
+                new DateOnly(2026, 7, 1),
+                null,
+                [
+                    new CreateQuotationItemRequest(
+                        null,
+                        "Baut 0.05 mm",
+                        "Baut presisi",
+                        10,
+                        "pcs",
+                        "https://drive.example/customer-reference.jpg",
+                        null,
+                        null)
+                ]),
+            CancellationToken.None);
     }
 
     private static async Task<(SalesOrder SalesOrder, ProductionOrder ProductionOrder)> SeedSalesOrderWithProductionOrderAsync(ProductionContext db)

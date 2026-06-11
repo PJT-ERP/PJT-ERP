@@ -6,8 +6,6 @@ import {
   Clock, AlertTriangle
 } from 'lucide-react';
 import { formatIDR, formatDate, type Invoice, type InvoiceStatus } from './mockData';
-import { useERPStore } from '../../store/useERPStore';
-import type { ERPInvoice } from '../../store/erpStore';
 import { useFinanceData } from './useFinanceData';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -35,35 +33,6 @@ function downloadCsv(filename: string, rows: string[][]) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function mapLiveInvoice(invoice: ERPInvoice): Invoice {
-  const isPaid = invoice.paymentStatus === 'verified' || invoice.deliveryStatus === 'customer_paid';
-
-  return {
-    id: invoice.id,
-    invoiceNumber: invoice.invoiceNumber,
-    soNumber: invoice.soNumber,
-    customerId: invoice.soId,
-    customerName: invoice.company || invoice.customerName,
-    amount: invoice.amount,
-    paidAmount: isPaid ? invoice.amount : 0,
-    dueDate: invoice.dueDate,
-    issueDate: invoice.issueDate,
-    status: isPaid ? 'PAID' : 'PENDING',
-    notes: invoice.notes,
-    ppn: 0,
-    items: [
-      {
-        id: `${invoice.id}-item`,
-        description: invoice.notes || 'Live invoice from Sales Order',
-        quantity: 1,
-        unit: 'LS',
-        unitPrice: invoice.amount,
-        total: invoice.amount,
-      },
-    ],
-  };
 }
 
 function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
@@ -227,17 +196,13 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
 
 export function InvoiceList() {
   const navigate = useNavigate();
-  const { liveInvoices } = useERPStore();
   const { invoices, isLoading, isUsingBackend, refresh } = useFinanceData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  const invoiceData = useMemo(
-    () => [...liveInvoices.map(mapLiveInvoice), ...invoices],
-    [liveInvoices]
-  );
+  const invoiceData = invoices;
 
   const filtered = useMemo(() => {
     return invoiceData.filter(inv => {
@@ -282,7 +247,7 @@ export function InvoiceList() {
         <div>
           <h1 className="text-xl text-slate-900">Daftar Invoice</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Kelola semua invoice proyek manufaktur {isUsingBackend ? '· data backend' : '· data mock'}
+            Kelola semua invoice proyek manufaktur {isUsingBackend ? '· data backend' : '· backend belum tersedia'}
           </p>
         </div>
         <div className="flex items-center gap-2">

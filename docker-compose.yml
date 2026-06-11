@@ -5,6 +5,7 @@ x-api-environment: &api-environment
   DEV_MASTER_TOKEN: "dev-master-token"
   Jwt__Issuer: "PJT-ERP.Identity"
   Jwt__Audience: "PJT-ERP.Web"
+  OpenApi__PublicServerUrl: "http://localhost:5000"
   ConnectionStrings__IdentityConnection: "Host=db;Port=5432;Database=pjt_identity;Username=postgres;Password=postgres"
   ConnectionStrings__MasterDataConnection: "Host=db;Port=5432;Database=pjt_masterdata;Username=postgres;Password=postgres"
   ConnectionStrings__ProductionConnection: "Host=db;Port=5432;Database=pjt_production;Username=postgres;Password=postgres"
@@ -124,6 +125,19 @@ services:
       purchasing-api:
         condition: service_started
       finance-api:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: "http://localhost:5000"
+        VITE_DEV_MASTER_TOKEN: "dev-master-token"
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      web-gateway:
         condition: service_started
 
 volumes:

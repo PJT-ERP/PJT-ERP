@@ -48,25 +48,19 @@ public sealed class FinanceServiceTests
     }
 
     [Fact]
-    public async Task SalesOrderDpInvoiceRequestedEventHandler_creates_dp_invoice_and_marks_candidate_invoiced()
+    public async Task SalesOrderDpInvoiceRequestedEventHandler_creates_invoice_candidate_for_manual_dp_invoice()
     {
         await using var db = CreateDbContext();
         var handler = new SalesOrderDpInvoiceRequestedEventHandler(db);
 
         await handler.Handle(CreateDpInvoiceRequestedEvent(), CancellationToken.None);
 
-        var invoice = await db.Invoices
-            .Include(item => item.Items)
-            .Include(item => item.PaymentSchedules)
-            .SingleAsync();
-        Assert.Equal("SO-001", invoice.SalesOrderNumber);
-        Assert.Equal(500_000m, invoice.TotalAmount);
-        Assert.Equal(2, invoice.Items.Count);
-        Assert.Contains(invoice.PaymentSchedules, schedule => schedule.Label == "DP 50%" && schedule.Amount == 250_000m);
-        Assert.Contains(invoice.PaymentSchedules, schedule => schedule.Label == "Pelunasan 50%" && schedule.Amount == 250_000m);
+        Assert.Empty(await db.Invoices.ToListAsync());
 
         var candidate = await db.InvoiceCandidates.Include(item => item.Items).SingleAsync();
-        Assert.Equal(InvoiceCandidateStatuses.Invoiced, candidate.Status);
+        Assert.Equal("SO-001", candidate.SalesOrderNumber);
+        Assert.Equal("PT Customer", candidate.CustomerName);
+        Assert.Equal(InvoiceCandidateStatuses.ReadyForInvoice, candidate.Status);
         Assert.Equal(2, candidate.Items.Count);
     }
 

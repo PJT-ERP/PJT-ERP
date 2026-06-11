@@ -11,6 +11,8 @@ public sealed class QcInspection
     public string? ProductCode { get; set; }
     public string? PorNumber { get; set; }
     public string? DrawingRef { get; set; }
+    public string? CustomerDrawingUrl { get; set; }
+    public string? DesignReference { get; set; }
     public int? OrderQty { get; set; }
     public string? MaterialSpec { get; set; }
     public DateTime? ProductionFinishedAtUtc { get; set; }
@@ -31,6 +33,9 @@ public static class QcInspectionStatuses
 {
     public const string WaitingProduction = "WaitingProduction";
     public const string ReadyForInspection = "ReadyForInspection";
-    public const string Approved = "Approved";
-    public const string Rejected = "Rejected";
+    public const string Go = "Go";
+    public const string NoGo = "NoGo";
+
+    public const string Approved = Go;
+    public const string Rejected = NoGo;
 }

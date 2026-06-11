@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -8,9 +8,9 @@ import {
   BarChart3, PieChart as PieIcon
 } from 'lucide-react';
 import {
-  monthlyRevenueData, topCustomersData, invoiceStatusData,
-  invoices, formatIDR
+  formatIDR, type Invoice
 } from './mockData';
+import { useFinanceData } from './useFinanceData';
 
 const PIE_COLORS = ['#16a34a', '#d97706', '#dc2626', '#C8102E'];
 
@@ -37,28 +37,64 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const monthlyTableData = [
-  { month: 'Juni 2024', invoiced: 720000000, collected: 678000000, outstanding: 42000000, invoiceCount: 18 },
-  { month: 'Juli 2024', invoiced: 890000000, collected: 825000000, outstanding: 65000000, invoiceCount: 22 },
-  { month: 'Agustus 2024', invoiced: 780000000, collected: 742000000, outstanding: 38000000, invoiceCount: 20 },
-  { month: 'September 2024', invoiced: 960000000, collected: 910000000, outstanding: 50000000, invoiceCount: 25 },
-  { month: 'Oktober 2024', invoiced: 1120000000, collected: 1045000000, outstanding: 75000000, invoiceCount: 31 },
-  { month: 'November 2024', invoiced: 1392450000, collected: 601850000, outstanding: 790600000, invoiceCount: 8 },
-];
-
 const TABS = [
   { id: 'revenue', label: 'Pendapatan', icon: TrendingUp },
   { id: 'invoice', label: 'Invoice', icon: FileText },
   { id: 'customer', label: 'Pelanggan', icon: BarChart3 },
 ];
 
+function buildMonthlyTableData(invoices: Invoice[]) {
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const byMonth = new Map<string, { month: string; invoiced: number; collected: number; outstanding: number; invoiceCount: number }>();
+
+  invoices.forEach(invoice => {
+    const date = new Date(invoice.issueDate);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const row = byMonth.get(key) ?? {
+      month: `${monthNames[date.getMonth()] ?? invoice.issueDate.slice(5, 7)} ${date.getFullYear()}`,
+      invoiced: 0,
+      collected: 0,
+      outstanding: 0,
+      invoiceCount: 0,
+    };
+
+    row.invoiced += invoice.amount;
+    row.collected += invoice.paidAmount;
+    row.outstanding += Math.max(0, invoice.amount - invoice.paidAmount);
+    row.invoiceCount += 1;
+    byMonth.set(key, row);
+  });
+
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, row]) => row)
+    .slice(-6);
+}
+
+function buildTopCustomersData(invoices: Invoice[]) {
+  const byCustomer = new Map<string, number>();
+  invoices.forEach(invoice => {
+    byCustomer.set(invoice.customerName, (byCustomer.get(invoice.customerName) ?? 0) + invoice.paidAmount);
+  });
+
+  return [...byCustomer.entries()]
+    .map(([name, revenue]) => ({
+      name: name.replace(/^PT\.?\s+/i, '').replace(/^CV\.?\s+/i, '').replace(/^UD\.?\s+/i, ''),
+      revenue,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
 export function FinanceReports() {
   const [activeTab, setActiveTab] = useState('revenue');
   const [dateRange, setDateRange] = useState('6M');
+  const { invoices, monthlyRevenueData, invoiceStatusData } = useFinanceData();
 
+  const monthlyTableData = useMemo(() => buildMonthlyTableData(invoices), [invoices]);
+  const topCustomersData = useMemo(() => buildTopCustomersData(invoices), [invoices]);
   const totalInvoiced = monthlyTableData.reduce((s, m) => s + m.invoiced, 0);
   const totalCollected = monthlyTableData.reduce((s, m) => s + m.collected, 0);
-  const collectionRate = ((totalCollected / totalInvoiced) * 100).toFixed(1);
+  const collectionRate = totalInvoiced > 0 ? ((totalCollected / totalInvoiced) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="p-4 lg:p-6 space-y-5 min-h-full">
@@ -95,7 +131,7 @@ export function FinanceReports() {
           { label: 'Total Ditagihkan', value: formatIDRShort(totalInvoiced), sub: '6 bulan', icon: FileText, color: 'text-red-600', bg: 'bg-red-50' },
           { label: 'Total Terkumpul', value: formatIDRShort(totalCollected), sub: 'sudah diterima', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Collection Rate', value: `${collectionRate}%`, sub: 'performa penagihan', icon: PieIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Rata-rata/Bulan', value: formatIDRShort(totalCollected / 6), sub: '6 bulan terakhir', icon: BarChart3, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Rata-rata/Bulan', value: formatIDRShort(totalCollected / Math.max(1, monthlyTableData.length)), sub: '6 bulan terakhir', icon: BarChart3, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map(k => (
           <div key={k.label} className="bg-white border border-slate-200 rounded-xl px-4 py-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
@@ -264,7 +300,7 @@ export function FinanceReports() {
                       </span>
                       <div className="text-right">
                         <span className="font-semibold text-slate-800">{d.value}</span>
-                        <span className="text-xs text-slate-400 ml-1">({((d.value / invoices.length) * 100).toFixed(0)}%)</span>
+                        <span className="text-xs text-slate-400 ml-1">({invoices.length > 0 ? ((d.value / invoices.length) * 100).toFixed(0) : '0'}%)</span>
                       </div>
                     </div>
                   ))}

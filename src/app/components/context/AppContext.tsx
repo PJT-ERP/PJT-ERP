@@ -1,11 +1,13 @@
-import { createContext, useContext, useEffect, useRef, useState, ReactNode, Dispatch, SetStateAction } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode, Dispatch, SetStateAction } from "react";
 import {
   User, SalesOrder, Customer, UserRole,
   PurchasingRequest, PurchasingStatus, Quotation,
-  USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING, INITIAL_QUOTATIONS
+  USERS
 } from "../data/mockData";
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
-import { salesApi, CustomerDto, SalesOrderDto } from "../../services/salesApi";
+import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../services/salesApi";
+import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { BACKEND_USER_IDS_BY_LOCAL_ID, isGuid, toBackendUserId } from "../../services/backendIds";
 
 interface AppContextType {
   currentUser: User | null;
@@ -14,8 +16,10 @@ interface AppContextType {
   quotations: Quotation[];
   salesOrders: SalesOrder[];
   customers: Customer[];
+  productCatalog: ProductDto[];
   users: User[];
   purchasingRequests: PurchasingRequest[];
+  refreshBackendData: () => Promise<void>;
   addQuotation: (q: Omit<Quotation, 'id' | 'createdAt' | 'createdBy'>) => Quotation;
   updateQuotation: (id: string, updates: Partial<Quotation>) => void;
   addSalesOrder: (so: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>) => SalesOrder;
@@ -31,14 +35,29 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+const AUTH_USER_KEY = "erp_current_username";
+
+function restoreStoredUser(): User | null {
+  try {
+    const username = localStorage.getItem(AUTH_USER_KEY);
+    if (!username) {
+      return null;
+    }
+
+    return USERS.find(user => user.username === username && user.isActive) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [quotations, setQuotations] = useState<Quotation[]>(INITIAL_QUOTATIONS);
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>(INITIAL_SALES_ORDERS);
-  const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => restoreStoredUser());
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [productCatalog, setProductCatalog] = useState<ProductDto[]>([]);
   const [users, setUsers] = useState<User[]>(USERS);
-  const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>(INITIAL_PURCHASING);
+  const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>([]);
   const [backendCustomerIdsByCode, setBackendCustomerIdsByCode] = useState<Record<string, string>>({});
   const pendingCustomersByCode = useRef<Record<string, Customer>>({});
   const [qutCounter, setQutCounter] = useState(5);
@@ -47,34 +66,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = (username: string, password: string): boolean => {
     const user = users.find(u => u.username === username && u.password === password && u.isActive);
-    if (user) { setCurrentUser(user); return true; }
+    if (user) {
+      localStorage.setItem(AUTH_USER_KEY, user.username);
+      setCurrentUser(user);
+      return true;
+    }
     return false;
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    localStorage.removeItem(AUTH_USER_KEY);
+    setCurrentUser(null);
+  };
 
   useEffect(() => {
-    const loadBackendData = async () => {
-      try {
-        const [backendCustomers, backendQuotations, backendSalesOrders] = await Promise.all([
-          salesApi.listCustomers(),
-          quotationApi.list(),
-          salesApi.listSalesOrders(),
-        ]);
+    if (!currentUser) {
+      return;
+    }
 
-        setBackendCustomerIdsByCode(
-          Object.fromEntries(backendCustomers.map(customer => [customer.code, customer.id])),
-        );
-        setCustomers(backendCustomers.map(mapCustomerDto));
-        setQuotations(backendQuotations.map(mapQuotationDto));
-        setSalesOrders(backendSalesOrders.map(mapSalesOrderDto));
-      } catch (error) {
-        console.warn("Backend unavailable, using local mock ERP data.", error);
-      }
-    };
+    const latestUser = users.find(user => user.username === currentUser.username && user.isActive);
+    if (!latestUser) {
+      logout();
+      return;
+    }
 
-    void loadBackendData();
+    if (latestUser !== currentUser) {
+      setCurrentUser(latestUser);
+    }
+  }, [currentUser, users]);
+
+  const refreshBackendData = useCallback(async () => {
+    const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult] = await Promise.allSettled([
+      salesApi.listCustomers(),
+      salesApi.listProducts(),
+      quotationApi.list(),
+      salesApi.listSalesOrders(),
+      purchasingApi.listPurchaseRequests(),
+    ]);
+
+    if (customersResult.status === "fulfilled") {
+      const backendCustomers = customersResult.value;
+      setBackendCustomerIdsByCode(
+        Object.fromEntries(backendCustomers.map(customer => [customer.code, customer.id])),
+      );
+      setCustomers(backendCustomers.map(mapCustomerDto));
+    } else {
+      console.warn("Customer seed data was not loaded.", customersResult.reason);
+    }
+
+    if (productsResult.status === "fulfilled") {
+      setProductCatalog(productsResult.value.filter(product => product.isActive !== false));
+    } else {
+      console.warn("Product seed data was not loaded.", productsResult.reason);
+    }
+
+    if (quotationsResult.status === "fulfilled") {
+      setQuotations(quotationsResult.value.map(mapQuotationDto));
+    } else {
+      console.warn("Quotation seed data was not loaded.", quotationsResult.reason);
+    }
+
+    if (salesOrdersResult.status === "fulfilled") {
+      setSalesOrders(salesOrdersResult.value.map(mapSalesOrderDto));
+    } else {
+      console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
+    }
+
+    if (purchaseRequestsResult.status === "fulfilled") {
+      setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
+    } else {
+      console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshBackendData();
+  }, [refreshBackendData]);
 
   const addQuotation = (data: Omit<Quotation, 'id' | 'createdAt' | 'createdBy'>): Quotation => {
     const next = qutCounter + 1;
@@ -95,7 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setQuotations(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
     const current = quotations.find(q => q.id === id);
     if (current) {
-      void syncUpdateQuotation(current, updates, currentUser);
+      void syncUpdateQuotation(current, updates, currentUser, setQuotations, setSalesOrders);
     }
   };
 
@@ -104,9 +171,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSoCounter(next);
     const so: SalesOrder = {
       ...data,
-      id: `SO-2026${String(next).padStart(3, '0')}`,
+      id: `SO-2026-${String(next).padStart(3, '0')}`,
       createdAt: new Date().toISOString().split('T')[0],
-      status: 'waiting_dp',
+      status: 'Menunggu Invoice DP',
       createdBy: currentUser?.id ?? 'u1',
     };
     setSalesOrders(prev => [so, ...prev]);
@@ -143,7 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPrCounter(n => n + 1);
     const req: PurchasingRequest = {
       ...data,
-      id: `PR-${String(next).padStart(3, '0')}`,
+      id: `MR-${String(next).padStart(3, '0')}`,
       requestedAt: new Date().toISOString().split('T')[0],
       requestedBy: currentUser?.id ?? 'u2',
     };
@@ -161,7 +228,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, login, logout,
-      quotations, salesOrders, customers, users, purchasingRequests,
+      quotations, salesOrders, customers, productCatalog, users, purchasingRequests,
+      refreshBackendData,
       addQuotation, updateQuotation,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
@@ -191,9 +259,15 @@ function mapCustomerDto(customer: CustomerDto): Customer {
 
 function mapQuotationDto(quotation: QuotationDto): Quotation {
   const primaryItem = quotation.items[0];
+  const assignedUser = findLocalUserByBackendAssignment(
+    quotation.assignedEngineerId,
+    quotation.assignedEngineerName,
+  );
 
   return {
-    id: quotation.id,
+    id: quotation.quotationNumber || quotation.id,
+    backendId: quotation.id,
+    quotationNumber: quotation.quotationNumber,
     customerId: quotation.customerCode,
     productName: primaryItem?.productName || "-",
     description: primaryItem?.description || "",
@@ -202,10 +276,15 @@ function mapQuotationDto(quotation: QuotationDto): Quotation {
     deadline: quotation.deadline,
     status: quotation.status,
     designId: quotation.designLink || primaryItem?.designLink || "",
+    designLink: quotation.designLink || primaryItem?.designLink || "",
     estimatedAmount: quotation.estimatedAmount || 0,
     customerImageUrl: primaryItem?.customerImageUrl || "",
     createdBy: "backend",
     createdAt: quotation.createdAtUtc?.split("T")[0] || new Date().toISOString().split("T")[0],
+    assignedTo: assignedUser?.id || quotation.assignedEngineerId || undefined,
+    assignedName: quotation.assignedEngineerName || assignedUser?.name,
+    assignedEngineerId: quotation.assignedEngineerId || undefined,
+    assignedEngineerName: quotation.assignedEngineerName || undefined,
     revisions: quotation.revisions.map(revision => ({
       revNumber: revision.revisionNumber,
       amount: revision.amount,
@@ -225,59 +304,134 @@ function mapQuotationDto(quotation: QuotationDto): Quotation {
 
 function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
   const primaryItem = order.items[0];
-  const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
-  const createdAt = order.soDate?.split("T")[0] || new Date().toISOString().split("T")[0];
 
   return {
-    id: order.id,
+    id: order.soNumber || order.id,
+    backendId: order.id,
+    soNumber: order.soNumber,
     customerId: order.customerCode,
-    partNumber: primaryItem?.productPartNumber || order.soNumber,
+    customerEmail: order.customerEmail || "",
+    customerDrawingUrl: order.customerDrawingUrl || "",
+    partNumber: primaryItem?.productPartNumber || "-",
     description: primaryItem?.productDescription || order.soNumber,
-    quantity: totalQty || primaryItem?.qty || 0,
+    quantity: order.items.reduce((sum, item) => sum + item.qty, 0),
     unit: "PCS",
-    deadline: order.targetDate?.split("T")[0] || createdAt,
-    status: mapSalesOrderStatus(order.status, order.designStatus),
+    material: primaryItem?.notes || undefined,
+    deadline: order.targetDate || order.soDate,
+    status: mapSalesOrderStatus(order),
     createdBy: "backend",
-    createdAt,
-    designLink: order.designReference || undefined,
-    submittedAt: createdAt,
-    approvedAt: order.designStatus?.toLowerCase() === "approved" ? createdAt : undefined,
-    designApprovedAt: order.designStatus?.toLowerCase() === "approved" ? createdAt : undefined,
-    notes: order.customerDrawingUrl ? `Gambar customer: ${order.customerDrawingUrl}` : undefined,
-    timeline: buildSalesOrderTimeline(order.status, createdAt),
+    createdAt: order.soDate,
+    designLink: order.drawingFileUrl || order.designReference || order.customerDrawingUrl || undefined,
+    startTime: order.startedAtUtc || undefined,
+    endTime: order.finishedAtUtc || undefined,
+    qcStatus: mapQcDecision(order.qcDecision),
+    qcAt: order.finishedAtUtc || undefined,
+    completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")[0] : undefined,
+    designApprovedAt: order.designApprovedAtUtc?.split("T")[0],
+    assignedTo: order.productionWorkerUserId || undefined,
+    assignedName: order.productionWorkerName || undefined,
+    notes: order.items.map(item => item.notes).filter(Boolean).join("; ") || undefined,
+    backendDesignStatus: order.designStatus,
   };
 }
 
-function mapSalesOrderStatus(status: string, designStatus?: string): SalesOrder["status"] {
-  const normalized = status.toLowerCase();
-  const design = designStatus?.toLowerCase();
+function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
+  const firstItem = request.items[0];
+  const urgency: PurchasingRequest["urgency"] = request.items.some(item => item.urgency === "Critical")
+    ? "Critical"
+    : request.items.some(item => item.urgency === "Urgent")
+      ? "Urgent"
+      : "Normal";
 
-  if (design === "revisionrequired" || design === "revision_required") return "Revision Required";
-  if (design === "rejected") return "Rejected";
-  if (design === "waitingapproval" || design === "waiting_approval") return "Waiting Approval";
-  if (design === "pending" || design === "pendingdesign" || design === "pending_design") return "Pending Design";
-  if (normalized === "completed") return "Completed";
-  if (normalized === "inproduction") return "In Production";
-  if (normalized === "confirmed") return "Ready for Production";
-  if (normalized === "cancelled") return "Rejected";
-  if (normalized === "draft") return "Waiting Approval";
-
-  return "Ready for Production";
+  return {
+    id: request.prNumber,
+    backendId: request.id,
+    soId: request.salesOrderNumber || undefined,
+    salesOrderId: request.salesOrderId || undefined,
+    itemName: request.items.length === 1 ? firstItem?.itemName || "-" : `${request.items.length} item material`,
+    specification: request.items.map(item => item.itemName).join(", "),
+    quantity: firstItem?.qty || request.items.length,
+    unit: "PCS",
+    items: request.items.map(item => ({
+      itemName: item.itemName,
+      specification: item.size || item.notes || "",
+      quantity: item.qty,
+      unit: "PCS",
+    })),
+    urgency,
+    notes: request.projectName || "",
+    requestedBy: request.requestedByUserId,
+    requestedAt: request.requestDate,
+    status: mapPurchasingStatus(request.status),
+    supplier: request.items.map(item => item.supplierName).find(Boolean) || undefined,
+    poNumber: request.items.map(item => item.poNumber).find(Boolean) || undefined,
+    estimatedPrice: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0) || undefined,
+    expectedDelivery: request.items.map(item => item.expectedArrivalDate).find(Boolean) || undefined,
+    receivedAt: request.items.map(item => item.receivedDate).find(Boolean) || undefined,
+    rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+  };
 }
 
-function buildSalesOrderTimeline(status: string, createdAt: string): SalesOrder["timeline"] {
-  const currentStatus = mapSalesOrderStatus(status);
-  const steps: SalesOrder["status"][] = ["Pending Design", "Waiting Approval", "Ready for Production", "In Production", "QC", "Completed"];
-  const currentIndex = Math.max(0, steps.indexOf(currentStatus));
+function mapPurchasingStatus(status: string): PurchasingStatus {
+  if (status === "Completed") return "Selesai";
+  if (status === "Processing" || status === "FinanceApproved") return "Diproses";
+  if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
+  return "Pending";
+}
 
-  return steps.map((step, index) => ({
-    id: step,
-    step,
-    label: step,
-    date: index <= currentIndex ? createdAt : "",
-    completed: index < currentIndex,
-    current: index === currentIndex,
-  }));
+function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
+  if (order.status === "Completed") {
+    return "Completed";
+  }
+
+  if (order.status === "Draft") {
+    return "Menunggu Invoice DP";
+  }
+
+  if (order.status === "Cancelled" || order.designStatus === "Rejected") {
+    return "Rejected";
+  }
+
+  if (order.productionStatus === "Finished") {
+    return "QC";
+  }
+
+  if (order.productionStatus === "InProgress") {
+    return "In Production";
+  }
+
+  if (order.status === "InProduction" || order.status === "Confirmed") {
+    return "Ready for Production";
+  }
+
+  switch (order.designStatus) {
+    case "WaitingApproval":
+      return "Waiting Approval";
+    case "RevisionRequired":
+      return "Revision Required";
+    case "Approved":
+      return "Ready for Production";
+    case "Rejected":
+      return "Rejected";
+    default:
+      return "Pending Design";
+  }
+}
+
+function mapQcDecision(decision?: string | null): SalesOrder["qcStatus"] | undefined {
+  if (!decision) {
+    return undefined;
+  }
+
+  if (decision.toLowerCase() === "go") {
+    return "Go";
+  }
+
+  if (decision.toLowerCase() === "nogo" || decision.toLowerCase() === "no go") {
+    return "NoGo";
+  }
+
+  return undefined;
 }
 
 async function syncCreateQuotation(
@@ -290,9 +444,10 @@ async function syncCreateQuotation(
 ) {
   try {
     let customerId = customerIdsByCode[quotation.customerId];
+    let customer = customers.find(item => item.code === quotation.customerId)
+      || pendingCustomersByCode[quotation.customerId];
+
     if (!customerId) {
-      const customer = customers.find(item => item.code === quotation.customerId)
-        || pendingCustomersByCode[quotation.customerId];
       if (!customer) {
         return;
       }
@@ -305,6 +460,7 @@ async function syncCreateQuotation(
         email: customer.contact,
       });
       customerId = created.id;
+      customer = mapCustomerDto(created);
       setCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
     }
 
@@ -312,6 +468,11 @@ async function syncCreateQuotation(
       customerId,
       deadline: quotation.deadline,
       notes: quotation.notes || null,
+      customer: customer ? {
+        code: customer.code,
+        name: customer.name,
+        email: customer.contact || null,
+      } : null,
       items: [
         {
           productId: null,
@@ -320,7 +481,7 @@ async function syncCreateQuotation(
           quantity: quotation.quantity,
           unit: quotation.unit,
           customerImageUrl: quotation.customerImageUrl || null,
-          designLink: quotation.designId || null,
+          designLink: quotation.designId || quotation.designLink || null,
           bomItems: (quotation.materials || []).map(material => ({
             itemCode: material.id || null,
             name: material.name,
@@ -342,55 +503,129 @@ async function syncUpdateQuotation(
   quotation: Quotation,
   updates: Partial<Quotation>,
   currentUser: User | null,
+  setQuotations: Dispatch<SetStateAction<Quotation[]>>,
+  setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
 ) {
-  if (!isGuid(quotation.id)) {
+  const backendId = quotation.backendId || quotation.id;
+
+  if (!isGuid(backendId)) {
     return;
   }
 
   try {
+    if (updates.assignedTo !== undefined) {
+      const assignedUser = USERS.find(user => user.id === updates.assignedTo);
+      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
+      const engineerName = updates.assignedName || assignedUser?.name || quotation.assignedName || "Engineer";
+
+      if (!engineerId) {
+        console.warn("Failed to sync engineer assignment: missing backend engineer id.");
+        return;
+      }
+
+      const updated = await quotationApi.assignEngineer(backendId, {
+        engineerId,
+        engineerName,
+      });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      return;
+    }
+
+    if (updates.status === "design_review") {
+      const designLink = updates.designLink || updates.designId || quotation.designLink || quotation.designId || "";
+      const materials = updates.materials || quotation.materials || [];
+      const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : "");
+
+      const updated = await quotationApi.submitDesign(backendId, {
+        designLink,
+        bomItems: materials.map(material => ({
+          itemCode: material.id || null,
+          name: material.name,
+          specification: material.spec || material.specification || null,
+          quantity: Number(material.quantity) || 1,
+          unit: material.unit || "pcs",
+        })),
+        engineerId,
+        engineerName: currentUser?.name || "Engineer",
+      });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      return;
+    }
+
+    if (updates.status === "client_design_approval") {
+      const updated = await quotationApi.approveSupervisorDesign(backendId);
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      return;
+    }
+
     if (updates.estimatedAmount !== undefined && updates.status === "client_price_approval") {
-      await quotationApi.submitPricing(quotation.id, {
+      const updated = await quotationApi.submitPricing(backendId, {
         amount: updates.estimatedAmount,
         notes: updates.notes || null,
-        financeUserId: isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID(),
+        financeUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
         financeUserName: currentUser?.name || "Finance",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "waiting_pricing") {
-      await quotationApi.approveClientDesign(quotation.id);
+      const updated = await quotationApi.approveClientDesign(backendId);
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "pending_design") {
-      await quotationApi.requestDesignRevision(quotation.id, {
+      const updated = await quotationApi.requestDesignRevision(backendId, {
         notes: updates.notes || "Client requested design revision.",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
       return;
     }
 
     if (updates.status === "won") {
-      await quotationApi.markWon(quotation.id);
-      await quotationApi.convertToSalesOrder(quotation.id, {
+      const wonQuotation = await quotationApi.markWon(backendId);
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(wonQuotation) : item));
+
+      const createdSalesOrder = await quotationApi.convertToSalesOrder(backendId, {
         dpPercentage: 50,
         dueDate: addDaysIso(new Date(), 7),
       });
+      const mappedSalesOrder = mapSalesOrderDto(createdSalesOrder);
+      setSalesOrders(prev => [
+        mappedSalesOrder,
+        ...prev.filter(item => item.backendId !== mappedSalesOrder.backendId && item.id !== mappedSalesOrder.id),
+      ]);
       return;
     }
 
     if (updates.status === "lost") {
-      await quotationApi.markLost(quotation.id, {
+      const updated = await quotationApi.markLost(backendId, {
         reason: updates.lostReason || "Quotation lost.",
       });
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
     }
   } catch (error) {
     console.warn("Failed to sync quotation update to backend.", error);
   }
 }
 
-function isGuid(value?: string | null): value is string {
-  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+function findLocalUserByBackendAssignment(
+  backendUserId?: string | null,
+  backendUserName?: string | null,
+): User | undefined {
+  if (backendUserId) {
+    const userById = USERS.find(user => BACKEND_USER_IDS_BY_LOCAL_ID[user.id] === backendUserId || user.id === backendUserId);
+    if (userById) {
+      return userById;
+    }
+  }
+
+  if (backendUserName) {
+    return USERS.find(user => user.name === backendUserName);
+  }
+
+  return undefined;
 }
 
 function addDaysIso(date: Date, days: number) {

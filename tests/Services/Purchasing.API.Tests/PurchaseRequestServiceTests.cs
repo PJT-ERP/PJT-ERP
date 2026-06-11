@@ -14,7 +14,9 @@ public sealed class PurchaseRequestServiceTests
 {
     [Theory]
     [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering")]
-    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance,Engineering Supervisor,Engineering Reviewer")]
+    [InlineData(nameof(PurchaseRequestsController.SupervisorReview), "Admin,Engineering Supervisor")]
+    [InlineData(nameof(PurchaseRequestsController.FinanceReview), "Admin,Finance")]
+    [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.ProcessItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.RejectItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.ReceiveItem), "Admin,Purchasing")]
@@ -83,6 +85,59 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
+    public async Task MaterialRequestSubmittedEventHandler_creates_submitted_multi_item_request()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var handler = new MaterialRequestSubmittedEventHandler(service);
+        var salesOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var workerUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        await handler.Handle(
+            new MaterialRequestSubmittedEvent(
+                salesOrderId,
+                "SO-001",
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "PJT|SO|001",
+                workerUserId,
+                "Engineering Worker",
+                new DateOnly(2026, 6, 11),
+                "SO-001",
+                "Material shortage before production start.",
+                [
+                    new MaterialRequestSubmittedItem(
+                        null,
+                        Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                        "S45C Round Bar",
+                        "Diameter 10mm",
+                        2,
+                        "Urgent",
+                        "PT Steel",
+                        "Main material",
+                        "Project"),
+                    new MaterialRequestSubmittedItem(
+                        null,
+                        null,
+                        "Coolant",
+                        "Water soluble",
+                        1,
+                        "Normal",
+                        null,
+                        "Shared shop-floor consumable",
+                        "Consumable")
+                ]),
+            CancellationToken.None);
+
+        var request = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
+        Assert.Equal(PurchaseRequestStatuses.Submitted, request.Status);
+        Assert.Equal(salesOrderId, request.SalesOrderId);
+        Assert.Equal("SO-001", request.SalesOrderNumber);
+        Assert.Equal(workerUserId, request.RequestedByUserId);
+        Assert.Equal(2, request.Items.Count);
+        Assert.Contains(request.Items, item => item.ItemName == "Coolant" && item.PurchaseCategory == PurchaseItemCategories.Consumable);
+    }
+
+    [Fact]
     public async Task SpkCreatedEventHandler_uses_null_sales_order_item_id_for_legacy_single_item_events()
     {
         await using var db = CreateDbContext();
@@ -140,7 +195,7 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task ReviewAsync_accepts_request_from_finance_and_updates_requirement()
+    public async Task ReviewAsync_requires_supervisor_then_finance_before_purchasing()
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
@@ -148,18 +203,44 @@ public sealed class PurchaseRequestServiceTests
         var service = CreateService(db, eventPublisher);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
 
-        var reviewed = await service.ReviewAsync(
+        var supervisorReviewed = await service.ReviewAsync(
             purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null),
+            new ReviewPurchaseRequest(
+                Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                "Accept",
+                null,
+                "Supervisor"),
             CancellationToken.None);
 
-        Assert.NotNull(reviewed);
-        Assert.Equal(PurchaseRequestStatuses.Approved, reviewed.Status);
-        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), reviewed.ReviewedByUserId);
-        Assert.NotNull(reviewed.ReviewedAtUtc);
-        Assert.Equal(PurchaseItemStatuses.Approved, Assert.Single(reviewed.Items).PurchaseStatus);
+        Assert.NotNull(supervisorReviewed);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, supervisorReviewed.Status);
+        Assert.Equal(Guid.Parse("77777777-7777-7777-7777-777777777777"), supervisorReviewed.SupervisorReviewedByUserId);
+        Assert.NotNull(supervisorReviewed.SupervisorReviewedAtUtc);
+        Assert.Equal(PurchaseItemStatuses.Requested, Assert.Single(supervisorReviewed.Items).PurchaseStatus);
+        Assert.Equal(MaterialRequirementStatuses.PurchaseRequested, (await db.MaterialRequirements.SingleAsync()).Status);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            Assert.Single(supervisorReviewed.Items).Id,
+            new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null),
+            CancellationToken.None));
+
+        var financeReviewed = await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Accept",
+                null,
+                "Finance"),
+            CancellationToken.None);
+
+        Assert.NotNull(financeReviewed);
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
+        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), financeReviewed.FinanceReviewedByUserId);
+        Assert.NotNull(financeReviewed.FinanceReviewedAtUtc);
+        Assert.Equal(PurchaseItemStatuses.Approved, Assert.Single(financeReviewed.Items).PurchaseStatus);
         Assert.Equal(MaterialRequirementStatuses.PurchaseApproved, (await db.MaterialRequirements.SingleAsync()).Status);
-        Assert.Single(eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>());
+        Assert.Equal(2, eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>().Count());
     }
 
     [Fact]
@@ -358,9 +439,22 @@ public sealed class PurchaseRequestServiceTests
         PurchaseRequestService service,
         PurchaseRequestDto purchaseRequest)
     {
-        var reviewed = await service.ReviewAsync(
+        var supervisorReviewed = await service.ReviewAsync(
             purchaseRequest.Id,
-            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null),
+            new ReviewPurchaseRequest(
+                Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                "Accept",
+                null,
+                "Supervisor"),
+            CancellationToken.None);
+
+        var reviewed = await service.ReviewAsync(
+            supervisorReviewed!.Id,
+            new ReviewPurchaseRequest(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Accept",
+                null,
+                "Finance"),
             CancellationToken.None);
 
         return reviewed!;

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PJT_ERP.Shared.Infrastructure.Persistence;
 
 namespace PJT_ERP.Production.Api.Infrastructure.Persistence;
 
@@ -169,5 +170,7 @@ public static class ProductionSchemaInitializer
             END $$;
             """,
             cancellationToken);
+
+        await db.Database.ExecuteSeedSqlAsync(cancellationToken: cancellationToken);
     }
 }

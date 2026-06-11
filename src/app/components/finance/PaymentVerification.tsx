@@ -4,7 +4,7 @@ import {
   ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
   AlertTriangle, X, Banknote
 } from 'lucide-react';
-import { payments, formatIDR, formatDate, type Payment, type PaymentStatus } from './mockData';
+import { formatIDR, formatDate, type Payment, type PaymentStatus } from './mockData';
 import { useFinanceData } from './useFinanceData';
 
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: React.ComponentType<any> }> = {
@@ -192,8 +192,8 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 }
 
 export function PaymentVerification() {
-  const { payments: financePayments, isUsingBackend } = useFinanceData();
-  const [paymentData, setPaymentData] = useState(payments);
+  const { payments: financePayments } = useFinanceData();
+  const [paymentData, setPaymentData] = useState<Payment[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
@@ -225,10 +225,7 @@ export function PaymentVerification() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl text-slate-900">Verifikasi Pembayaran</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Periksa dan verifikasi bukti pembayaran dari pelanggan
-            {isUsingBackend ? ' - tersambung backend' : ' - mode data demo'}
-          </p>
+          <p className="text-sm text-slate-500 mt-0.5">Periksa dan verifikasi bukti pembayaran dari pelanggan</p>
         </div>
         {pendingCount > 0 && (
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">

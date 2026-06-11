@@ -8,4 +8,6 @@ public record ProductionFinishedEvent(
     Guid? SalesOrderId = null,
     string? SalesOrderNumber = null,
     Guid? QcReviewerUserId = null,
-    string? QcReviewerName = null) : IntegrationEvent;
+    string? QcReviewerName = null,
+    string? CustomerDrawingUrl = null,
+    string? DesignReference = null) : IntegrationEvent;

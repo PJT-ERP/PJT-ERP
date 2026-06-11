@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   Plus, RefreshCw, ChevronLeft, CheckCircle2,
   User, Building2, Phone, Mail, MapPin,
@@ -6,14 +6,15 @@ import {
   ChevronRight, Trash2, GripVertical,
   Layers, Link as LinkIcon
 } from "lucide-react";
-import { productOptions, ENGINEERING_DESIGNS, STANDARD_PRODUCTS_BOM } from "../data/mockData";
+import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import type { Page } from "../layout/erp-layout";
-import { useERPStore } from "../../store/useERPStore";
+import { quotationApi, QuotationItemDto } from "../../services/quotationApi";
+import { salesApi } from "../../services/salesApi";
 
 interface QuotationCreateProps {
   onNavigate: (page: Page, data?: unknown) => void;
-  initialData?: { customerId?: string; orderType?: "new" | "repeat" };
+  initialData?: { customerId?: string; orderType?: "new" | "repeat"; mode?: string; soId?: string };
 }
 
 type OrderType = "new" | "repeat" | null;
@@ -52,6 +53,14 @@ interface ProductRow {
   notes: string;
 }
 
+interface ProductOption {
+  id: string;
+  label: string;
+  partNumber: string;
+  unit: string;
+  materialSpec?: string | null;
+}
+
 const emptyProduct = (): ProductRow => ({
   id: crypto.randomUUID(),
   type: "existing",
@@ -85,6 +94,13 @@ interface RepeatForm {
   generalNotes: string;
   customerImageUrl: string;
   estimatedAmount?: number;
+}
+
+interface PreparedCustomer {
+  id: string;
+  code: string;
+  name: string;
+  email?: string | null;
 }
 
 // ─── Primitive UI helpers ─────────────────────────────────────────────────────
@@ -197,11 +213,12 @@ interface ProductRowProps {
   row: ProductRow;
   index: number;
   total: number;
+  productOptions: ProductOption[];
   onChange: (updated: ProductRow) => void;
   onRemove: () => void;
 }
 
-function ProductLineItem({ row, index, total, onChange, onRemove }: ProductRowProps) {
+function ProductLineItem({ row, index, total, productOptions, onChange, onRemove }: ProductRowProps) {
   const isCustom = row.type === "custom";
 
   return (
@@ -260,16 +277,25 @@ function ProductLineItem({ row, index, total, onChange, onRemove }: ProductRowPr
           ) : (
             <Select value={row.productName} onChange={e => {
               const pName = e.target.value;
-              const stdBom = STANDARD_PRODUCTS_BOM[pName];
+              const selected = productOptions.find(product => product.label === pName);
               onChange({
                 ...row,
                 productName: pName,
                 designId: "",
-                materials: stdBom ? stdBom.map(m => ({ id: m.id, name: m.name, specification: m.spec, quantity: String(m.quantity), unit: m.unit })) : []
+                unit: selected?.unit.toLowerCase() || row.unit,
+                materials: selected?.materialSpec ? [{
+                  id: selected.id,
+                  name: selected.partNumber,
+                  specification: selected.materialSpec,
+                  quantity: "1",
+                  unit: selected.unit.toLowerCase(),
+                }] : [],
               });
             }} required>
               <option value="">— Pilih produk —</option>
-              {productOptions.map(p => <option key={p} value={p}>{p}</option>)}
+              {productOptions.map(product => (
+                <option key={product.id} value={product.label}>{product.label}</option>
+              ))}
             </Select>
           )}
         </div>
@@ -383,13 +409,19 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProps) {
-  const { customers, addQuotation, addCustomer, quotations, updateQuotation } = useApp();
-  const allSos = quotations; // rename later if needed
+  const { customers, productCatalog, quotations, refreshBackendData } = useApp();
+  const allSos = quotations;
+  const catalogProductOptions = productCatalog.map(product => ({
+    id: product.id,
+    label: `${product.partNumber} - ${product.description}`,
+    partNumber: product.partNumber,
+    unit: product.unit || "pcs",
+    materialSpec: product.materialSpec,
+  }));
 
   const isEdit = initialData?.mode === "edit";
   const editSoId = initialData?.soId;
   const existingAppSo = isEdit ? quotations.find(s => s.id === editSoId) : null;
-  const existingFinanceSo = null;
 
   const prefillCustomer = initialData?.customerId
     ? customers.find(c => c.code === initialData.customerId)
@@ -400,9 +432,9 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerCode: prefillCustomer?.code ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
     customerName: prefillCustomer?.name ?? "",
-    company: existingFinanceSo?.company ?? prefillCustomer?.name ?? "",
-    phone: existingFinanceSo?.phone ?? prefillCustomer?.phone ?? "",
-    email: existingFinanceSo?.email ?? prefillCustomer?.contact ?? "",
+    company: prefillCustomer?.name ?? "",
+    phone: prefillCustomer?.phone ?? "",
+    email: prefillCustomer?.contact ?? "",
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",
@@ -425,6 +457,8 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [generatedQuotationID, setGeneratedQuotationID] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitLockRef = useRef(false);
 
   const selectedCustomer = customers.find(c => c.code === repeatForm.customerId);
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
@@ -435,7 +469,6 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
 
   const addProduct = (setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => setter(prev => [...prev, emptyProduct()]);
   const removeProduct = (id: string, setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => setter(prev => prev.filter(p => p.id !== id));
-
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedQuotationID("");
     setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
@@ -458,87 +491,136 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
     }
   };
 
-  const handleNewOrderSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Using the first product for the store representation (simplification for the mock store)
-    const primaryProduct = products[0];
-
-    // Check if customer exists, if not create
-    const existingCustomer = customers.find(c => c.code === customerForm.customerCode);
-    if (!existingCustomer) {
-      addCustomer({
-        id: crypto.randomUUID(),
-        code: customerForm.customerCode,
-        name: customerForm.customerName,
-        address: customerForm.address,
-        contact: customerForm.email,
-        phone: customerForm.phone,
-        status: 'Active'
-      });
+  const ensureCustomer = async (form: CustomerForm): Promise<PreparedCustomer> => {
+    const code = form.customerCode || `CUST-${Math.floor(1000 + Math.random() * 9000)}`;
+    const backendCustomers = await salesApi.listCustomers();
+    const existing = backendCustomers.find(customer => customer.code === code);
+    if (existing) {
+      return {
+        id: existing.id,
+        code: existing.code,
+        name: existing.name,
+        email: existing.email || null,
+      };
     }
 
-    if (isEdit && editSoId) {
-      updateQuotation(editSoId, {
-        customerId: customerForm.customerCode,
-        productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-        quantity: Number(primaryProduct.quantity) || 1,
-        unit: primaryProduct.unit,
-        designId: primaryProduct.designId,
-        customerImageUrl: customerForm.customerImageUrl,
-        materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-        deadline: customerForm.deadline,
-        description: primaryProduct.notes,
-      });
-
-      setGeneratedQuotationID(editSoId);
-      setSubmitted(true);
-      return;
-    }
-
-    const newQUT = addQuotation({
-      customerId: customerForm.customerCode,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      description: primaryProduct.notes,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      designId: primaryProduct.designId === 'none' ? '' : primaryProduct.designId,
-      customerImageUrl: customerForm.customerImageUrl,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      deadline: customerForm.deadline,
-      estimatedAmount: customerForm.estimatedAmount || 0,
-      notes: customerForm.generalNotes,
-      status: (!primaryProduct.designId || primaryProduct.designId === 'none') ? 'pending_design' : 'waiting_pricing',
+    const created = await salesApi.createCustomer({
+      code,
+      name: form.company || form.customerName,
+      address: form.address || null,
+      contactPerson: form.customerName || form.company,
+      email: form.email || null,
     });
 
-    setGeneratedQuotationID(newQUT.id);
+    return {
+      id: created.id,
+      code: created.code,
+      name: created.name,
+      email: created.email || form.email || null,
+    };
+  };
 
+  const findProductId = (row: ProductRow) => {
+    if (row.type !== "existing" || !row.productName) {
+      return null;
+    }
+
+    return catalogProductOptions.find(product => product.label === row.productName)?.id || null;
+  };
+
+  const toQuotationItem = (row: ProductRow, customerImageUrl?: string): QuotationItemDto => {
+    const productName = row.type === "custom" ? row.customName : row.productName;
+
+    return {
+      productId: findProductId(row),
+      productName: productName || "Custom Product",
+      description: row.notes || productName || null,
+      quantity: Number(row.quantity) || 1,
+      unit: row.unit || "pcs",
+      customerImageUrl: customerImageUrl || null,
+      designLink: row.designId && row.designId !== "none" ? row.designId : null,
+      bomItems: row.materials.map(material => ({
+        itemCode: material.id || null,
+        name: material.name || material.specification || "Material",
+        specification: material.specification || null,
+        quantity: Number(material.quantity) || 1,
+        unit: material.unit || "pcs",
+      })),
+    };
+  };
+
+  const createBackendQuotation = async (customer: PreparedCustomer, deadline: string, notes: string, rows: ProductRow[], customerImageUrl?: string) => {
+    const created = await quotationApi.create({
+      customerId: customer.id,
+      deadline,
+      notes: notes || null,
+      items: rows.map(row => toQuotationItem(row, customerImageUrl)),
+      customer: {
+        code: customer.code,
+        name: customer.name,
+        email: customer.email || null,
+      },
+    });
+
+    await refreshBackendData();
+    setGeneratedQuotationID(created.quotationNumber || created.id);
     setSubmitted(true);
   };
 
-  const handleRepeatOrderSubmit = (e: React.FormEvent) => {
+  const handleNewOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (isEdit && editSoId) {
+      alert("Edit QUT belum tersedia dari backend. Buat QUT baru untuk workflow E2E.");
+      return;
+    }
+
+    if (isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
+    try {
+      setIsSubmitting(true);
+      const customer = await ensureCustomer(customerForm);
+      await createBackendQuotation(customer, customerForm.deadline, customerForm.generalNotes, products, customerForm.customerImageUrl);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal membuat QUT di backend. Cek response API untuk detail.");
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRepeatOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer) return;
 
-    // Using the first product for the store representation (simplification for the mock store)
-    const primaryProduct = repeatProducts[0];
-
-    const newQUT = addQuotation({
-      customerId: selectedCustomer.code,
-      productName: primaryProduct.type === "custom" ? primaryProduct.customName : primaryProduct.productName,
-      description: primaryProduct.notes,
-      quantity: Number(primaryProduct.quantity) || 1,
-      unit: primaryProduct.unit,
-      materials: primaryProduct.materials.map(m => ({ id: m.id, name: m.name, quantity: Number(m.quantity) || 1, unit: m.unit, spec: m.specification })),
-      deadline: repeatForm.deadline,
-      estimatedAmount: repeatForm.estimatedAmount || 0,
-      notes: repeatForm.generalNotes,
-      status: 'waiting_pricing',
-    });
-
-    setGeneratedQuotationID(newQUT.id);
-
-    setSubmitted(true);
+    if (isSubmitting || submitLockRef.current) return;
+    submitLockRef.current = true;
+    try {
+      setIsSubmitting(true);
+      const backendCustomers = await salesApi.listCustomers();
+      const customer = backendCustomers.find(customer => customer.code === selectedCustomer.code);
+      if (!customer) {
+        throw new Error("Selected customer was not found in backend.");
+      }
+      await createBackendQuotation(
+        {
+          id: customer.id,
+          code: customer.code,
+          name: customer.name,
+          email: customer.email || null,
+        },
+        repeatForm.deadline,
+        repeatForm.generalNotes,
+        repeatProducts,
+        repeatForm.customerImageUrl);
+    } catch (error) {
+      console.error(error);
+      alert("Gagal membuat repeat QUT di backend. Cek response API untuk detail.");
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   // ─── Success screen ──────────────────────────────────────────────────────────
@@ -687,8 +769,8 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
               </div>
               <div>
-                <Label text="URL Design" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} required />
+                <Label text="URL Gambar Referensi Customer" />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
@@ -707,6 +789,7 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <ProductLineItem
                   key={row.id}
                   row={row} index={idx} total={products.length}
+                  productOptions={catalogProductOptions}
                   onChange={updated => updateProduct(row.id, updated, products, setProducts)}
                   onRemove={() => removeProduct(row.id, setProducts)}
                 />
@@ -720,12 +803,12 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
-            <button type="submit"
-              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
+            <button type="submit" disabled={isSubmitting}
+              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s", opacity: isSubmitting ? 0.65 : 1 }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
-              <CheckCircle2 size={14} /> Submit Penawaran
+              <CheckCircle2 size={14} /> {isSubmitting ? "Menyimpan..." : "Submit Penawaran"}
             </button>
           </div>
         </form>
@@ -751,8 +834,8 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <Label text="Penawaran Sebelumnya" required />
                 <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
                   <option value="">— Pilih QUT untuk di-repeat —</option>
-                  {allSos.filter(so => so.customerName === selectedCustomer.name || so.company === selectedCustomer.name).map(so => (
-                    <option key={so.id} value={so.id}>{so.quotationId} - {so.productName}</option>
+                  {allSos.filter(so => so.customerId === selectedCustomer.code).map(so => (
+                    <option key={so.id} value={so.id}>{so.id} - {so.productName}</option>
                   ))}
                 </Select>
               </div>
@@ -781,8 +864,8 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
                 <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
               </div>
               <div>
-                <Label text="URL Gambar Referensi Customer" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} required />
+                <Label text="URL Gambar Referensi Customer" />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
@@ -817,12 +900,12 @@ export function QuotationCreate({ onNavigate, initialData }: QuotationCreateProp
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
             >Batal</button>
-            <button type="submit"
-              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
+            <button type="submit" disabled={isSubmitting || repeatProducts.length === 0}
+              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: isSubmitting || repeatProducts.length === 0 ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s", opacity: isSubmitting || repeatProducts.length === 0 ? 0.65 : 1 }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
-              <RefreshCw size={14} /> Submit Repeat Order
+              <RefreshCw size={14} /> {isSubmitting ? "Menyimpan..." : "Submit Repeat Order"}
             </button>
           </div>
         </form>

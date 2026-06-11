@@ -42,21 +42,21 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
     {
         ValidateCreateRequest(request);
 
-        var customer = await db.CustomerReplicas.AsNoTracking()
-            .FirstOrDefaultAsync(customer => customer.Id == request.CustomerId, cancellationToken)
+        var now = DateTime.UtcNow;
+        var customer = await GetOrCreateCustomerReplicaAsync(request, now, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in production replica.");
 
-        var now = DateTime.UtcNow;
+        var quotationNumber = await GenerateQuotationNumberAsync(cancellationToken);
         var quotation = new Quotation
         {
-            QuotationNumber = GenerateNumber("QU"),
+            QuotationNumber = quotationNumber,
             CustomerId = customer.Id,
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
             CustomerEmail = customer.Email,
             Deadline = request.Deadline,
             Notes = NormalizeOptional(request.Notes),
-            Status = request.Items.Any(item => string.IsNullOrWhiteSpace(item.DesignLink) && (item.BomItems is null || item.BomItems.Count == 0))
+            Status = request.Items.Any(RequiresEngineeringDesign)
                 ? QuotationStatuses.PendingDesign
                 : QuotationStatuses.WaitingPricing,
             CreatedAtUtc = now,
@@ -85,6 +85,43 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
 
         return await GetAsync(quotation.Id, cancellationToken)
             ?? throw new InvalidOperationException("Quotation was not found after creation.");
+    }
+
+    private async Task<CustomerReplica?> GetOrCreateCustomerReplicaAsync(
+        CreateQuotationRequest request,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var customer = await db.CustomerReplicas.AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.Id == request.CustomerId, cancellationToken);
+
+        if (customer is not null)
+        {
+            return customer;
+        }
+
+        if (request.Customer is null)
+        {
+            return null;
+        }
+
+        var code = Required(request.Customer.Code, "Customer code");
+        var name = Required(request.Customer.Name, "Customer name");
+        var email = NormalizeOptional(request.Customer.Email);
+
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO customer_replicas ("Id", code, name, email, is_active, updated_at_utc)
+            VALUES ({request.CustomerId}, {code}, {name}, {email}, true, {now})
+            ON CONFLICT ("Id") DO UPDATE
+            SET code = EXCLUDED.code,
+                name = EXCLUDED.name,
+                email = EXCLUDED.email,
+                is_active = true,
+                updated_at_utc = EXCLUDED.updated_at_utc;
+            """, cancellationToken);
+
+        return await db.CustomerReplicas.AsNoTracking()
+            .FirstOrDefaultAsync(customer => customer.Id == request.CustomerId, cancellationToken);
     }
 
     public async Task<QuotationDto?> AssignEngineerAsync(Guid quotationId, AssignQuotationEngineerRequest request, CancellationToken cancellationToken)
@@ -123,6 +160,21 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             throw new InvalidOperationException("Quotation is not waiting for design work.");
         }
 
+        if (!quotation.AssignedEngineerId.HasValue)
+        {
+            throw new InvalidOperationException("Quotation must be assigned by Engineering Supervisor before design work can be submitted.");
+        }
+
+        if (request.EngineerId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Engineer id is required.");
+        }
+
+        if (quotation.AssignedEngineerId.Value != request.EngineerId)
+        {
+            throw new InvalidOperationException("Only the assigned engineer can submit this quotation design.");
+        }
+
         if (request.BomItems.Count == 0)
         {
             throw new InvalidOperationException("BOM must contain at least one material item.");
@@ -131,7 +183,6 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         var designLink = Required(request.DesignLink, "Design link");
         var now = DateTime.UtcNow;
         quotation.DesignLink = designLink;
-        quotation.AssignedEngineerId = request.EngineerId == Guid.Empty ? quotation.AssignedEngineerId : request.EngineerId;
         quotation.AssignedEngineerName = string.IsNullOrWhiteSpace(request.EngineerName) ? quotation.AssignedEngineerName : request.EngineerName.Trim();
         quotation.Status = QuotationStatuses.DesignReview;
         quotation.UpdatedAtUtc = now;
@@ -142,9 +193,48 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             item.UpdatedAtUtc = now;
         }
 
-        quotation.BomItems.Clear();
-        quotation.BomItems.AddRange(request.BomItems.Select(item => ToBomEntity(item, null)));
+        var replacementBomItems = request.BomItems
+            .Select(item =>
+            {
+                var entity = ToBomEntity(item, null);
+                entity.QuotationId = quotation.Id;
+                return entity;
+            })
+            .ToArray();
 
+        db.QuotationBomItems.RemoveRange(quotation.BomItems);
+        await db.QuotationBomItems.AddRangeAsync(replacementBomItems, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetAsync(quotation.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Quotation was not found after design submission.");
+    }
+
+    public async Task<QuotationDto?> ApproveDesignBySupervisorAsync(Guid quotationId, CancellationToken cancellationToken)
+    {
+        var quotation = await GetTrackedQuotationAsync(quotationId, cancellationToken);
+        if (quotation is null)
+        {
+            return null;
+        }
+
+        if (quotation.Status != QuotationStatuses.DesignReview)
+        {
+            throw new InvalidOperationException("Only quotations in design review can be approved by Engineering Supervisor.");
+        }
+
+        if (string.IsNullOrWhiteSpace(quotation.DesignLink))
+        {
+            throw new InvalidOperationException("Design link is required before supervisor approval.");
+        }
+
+        if (quotation.BomItems.Count == 0)
+        {
+            throw new InvalidOperationException("BOM is required before supervisor approval.");
+        }
+
+        quotation.Status = QuotationStatuses.ClientDesignApproval;
+        quotation.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(quotation);
     }
@@ -157,7 +247,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
-        if (quotation.Status is not (QuotationStatuses.DesignReview or QuotationStatuses.ClientDesignApproval))
+        if (quotation.Status != QuotationStatuses.ClientDesignApproval)
         {
             throw new InvalidOperationException("Quotation design is not ready for client approval.");
         }
@@ -288,9 +378,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         }
 
         var now = DateTime.UtcNow;
+        var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
         var order = new SalesOrder
         {
-            SoNumber = GenerateNumber("SO"),
+            SoNumber = soNumber,
             CustomerId = quotation.CustomerId,
             CustomerCode = quotation.CustomerCode,
             CustomerName = quotation.CustomerName,
@@ -311,6 +402,8 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         quotation.ConvertedSalesOrderId = order.Id;
         quotation.ConvertedSalesOrderNumber = order.SoNumber;
         quotation.UpdatedAtUtc = now;
+
+        await db.SaveChangesAsync(cancellationToken);
 
         await eventPublisher.PublishAsync(
             new SalesOrderDpInvoiceRequestedEvent(
@@ -429,6 +522,13 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         }
     }
 
+    private static bool RequiresEngineeringDesign(CreateQuotationItemRequest item)
+    {
+        return string.IsNullOrWhiteSpace(item.DesignLink)
+            || item.BomItems is null
+            || item.BomItems.Count == 0;
+    }
+
     private static QuotationDto ToDto(Quotation quotation)
     {
         return new QuotationDto(
@@ -504,6 +604,11 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             salesOrder.QcReviewerUserId,
             salesOrder.QcReviewerName,
             salesOrder.Status,
+            ProductionOrderStatuses.Waiting,
+            null,
+            null,
+            null,
+            null,
             salesOrder.CreatedAtUtc,
             salesOrder.UpdatedAtUtc,
             salesOrder.Items
@@ -533,8 +638,46 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static string GenerateNumber(string prefix)
+    private async Task<string> GenerateQuotationNumberAsync(CancellationToken cancellationToken)
     {
-        return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
+        var prefix = $"QU-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.Quotations
+            .AsNoTracking()
+            .Where(quotation => quotation.QuotationNumber.StartsWith(prefix))
+            .Select(quotation => quotation.QuotationNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private async Task<string> GenerateSalesOrderNumberAsync(CancellationToken cancellationToken)
+    {
+        var prefix = $"SO-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.SalesOrders
+            .AsNoTracking()
+            .Where(order => order.SoNumber.StartsWith(prefix))
+            .Select(order => order.SoNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length)
+            {
+                continue;
+            }
+
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max + 1;
     }
 }

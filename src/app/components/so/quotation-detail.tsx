@@ -7,11 +7,12 @@ import {
   Activity, Printer, Edit, Copy,
   AlertTriangle, ArrowRight, RefreshCw,
   Receipt, Download, Eye, Upload, X, Box,
+  ExternalLink,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { useERPStore } from "../../store/useERPStore";
 import { getStatusColor, getQuotationStatusColor, QuotationStatus, Quotation } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
+import { quotationApi } from "../../services/quotationApi";
 
 type InvoiceStatus = "paid" | "waiting" | "not_created";
 const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
@@ -95,28 +96,35 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
   );
 }
 
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(url);
+}
 
+function addDaysIso(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next.toISOString().split("T")[0];
+}
 
 export function QuotationDetail({ orderId, onNavigate, initialEditMode }: QuotationDetailProps) {
-  const { quotations, customers, updateQuotation, addSalesOrder, currentUser } = useApp();
-  const { allSOs, updateSOInFinance } = useERPStore();
+  const { quotations, customers, updateQuotation, currentUser, refreshBackendData } = useApp();
   
   const order = quotations.find(o => o.id === orderId);
   const customer = customers.find(c => c.code === order?.customerId);
-  const financeSo = allSOs.find(s => s.quotationId === orderId);
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const [editForm, setEditForm] = useState({
     customerName: customer?.name || "",
-    company: financeSo?.company || customer?.name || "",
-    phone: financeSo?.phone || customer?.phone || "",
-    contact: financeSo?.email || customer?.contact || "",
-    address: financeSo?.address || customer?.address || "",
+    company: customer?.name || "",
+    phone: customer?.phone || "",
+    contact: customer?.contact || "",
+    address: customer?.address || "",
     description: order?.description || "",
     quantity: String(order?.quantity || ""),
     unit: order?.unit || "",
     deadline: order?.deadline || "",
-    notes: financeSo?.notes || order?.notes || "",
+    notes: order?.notes || "",
   });
 
   const handleSave = () => {
@@ -128,51 +136,45 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
       deadline: editForm.deadline,
       notes: editForm.notes,
     });
-    if (financeSo) {
-      updateSOInFinance(financeSo.id, {
-        customerName: editForm.customerName,
-        company: editForm.company,
-        phone: editForm.phone,
-        email: editForm.contact,
-        address: editForm.address,
-        productName: editForm.description,
-        quantity: Number(editForm.quantity),
-        unit: editForm.unit,
-        notes: editForm.notes,
-      });
-    }
     setIsEditMode(false);
   };
 
   const isSales = currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
-  const handleAction = (action: string) => {
-    if (!order) return;
-    if (action === 'approve_design') {
-      updateQuotation(order.id, { status: 'waiting_pricing' });
-    } else if (action === 'reject_design') {
-      updateQuotation(order.id, { status: 'pending_design' });
-    } else if (action === 'deal') {
-      updateQuotation(order.id, { status: 'won' });
-      // Auto generate SO
-      addSalesOrder({
-        customerId: order.customerId,
-        partNumber: order.productName, // Simplify
-        description: order.description,
-        quantity: order.quantity,
-        unit: order.unit,
-        deadline: order.deadline,
-        materials: order.materials,
-        designId: order.designId,
-        customerImageUrl: order.customerImageUrl,
-      });
-      // Give success feedback
-      alert("Quotation WON! Sales Order dan Invoice DP 50% berhasil dibuat secara otomatis.");
-      onNavigate('quotation-list');
-    } else if (action === 'revise_price') {
-      updateQuotation(order.id, { status: 'waiting_pricing' });
-    } else if (action === 'lost') {
-      updateQuotation(order.id, { status: 'lost', lostReason: 'Klien menolak penawaran harga akhir.' });
+  const handleAction = async (action: string) => {
+    if (!order || isSubmittingAction) return;
+
+    const backendId = order.backendId;
+    if (!backendId) {
+      alert("QUT ini belum punya backend ID. Refresh data backend dulu sebelum menjalankan aksi workflow.");
+      return;
+    }
+
+    try {
+      setIsSubmittingAction(true);
+      if (action === 'approve_design') {
+        await quotationApi.approveClientDesign(backendId);
+      } else if (action === 'reject_design') {
+        await quotationApi.requestDesignRevision(backendId, { notes: 'Klien meminta revisi desain.' });
+      } else if (action === 'deal') {
+        await quotationApi.markWon(backendId);
+        await quotationApi.convertToSalesOrder(backendId, {
+          dpPercentage: 50,
+          dueDate: addDaysIso(new Date(), 7),
+        });
+        alert("Quotation WON. Sales Order dibuat dari backend dan tagihan DP akan muncul di Finance.");
+        onNavigate('quotation-list');
+      } else if (action === 'revise_price') {
+        window.location.href = "#/erp/finance/costing";
+      } else if (action === 'lost') {
+        await quotationApi.markLost(backendId, { reason: 'Klien menolak penawaran harga akhir.' });
+      }
+      await refreshBackendData();
+    } catch (error) {
+      console.error(error);
+      alert("Aksi workflow gagal disimpan ke backend. Cek console atau response API untuk detail.");
+    } finally {
+      setIsSubmittingAction(false);
     }
   };
 
@@ -192,6 +194,7 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
   }
 
   const cfg = getQuotationStatusColor(order.status as QuotationStatus);
+  const engineeringDesignUrl = order.designLink || order.designId;
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -296,11 +299,11 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <InfoRow icon={<User size={11} />}     label="Nama"       value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, customerName: v}))} />
-              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (financeSo?.company || customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
-              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (financeSo?.phone || customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
-              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (financeSo?.email || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
+              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
+              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
+              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (financeSo?.address || customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
+                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
               </div>
             </div>
           </InfoCard>
@@ -438,6 +441,22 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
           </div>
 
           {/* ── Customer Image Reference ── */}
+          {engineeringDesignUrl && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Desain Engineering</p>
+              </div>
+              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {isImageUrl(engineeringDesignUrl) && (
+                  <img src={engineeringDesignUrl} alt="Desain Engineering" style={{ width: "100%", borderRadius: 4, border: `1px solid ${S.border}`, objectFit: "cover", maxHeight: 200 }} />
+                )}
+                <a href={engineeringDesignUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+                  <ExternalLink size={13} /> Buka Desain Engineering
+                </a>
+              </div>
+            </div>
+          )}
+
           {order.customerImageUrl && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>

@@ -9,7 +9,6 @@ import {
   Receipt, Download, Eye, Upload, X, Box,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { useERPStore } from "../../store/useERPStore";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
 
@@ -36,6 +35,10 @@ const S = {
   bg:        "#F8FAFC",
   white:     "#FFFFFF",
 };
+
+function isGo(value?: string | null) {
+  return value === 'Go' || value === 'Pass';
+}
 
 const WORKFLOW_STEPS = [
   { key: "customer_request", label: "Customer Request", dept: "SO Team"         },
@@ -97,24 +100,22 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder } = useApp();
-  const { allSOs, updateSOInFinance } = useERPStore();
   
   const order = salesOrders.find(o => o.id === orderId);
   const customer = customers.find(c => c.code === order?.customerId);
-  const financeSo = allSOs.find(s => s.soNumber === orderId);
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [editForm, setEditForm] = useState({
     customerName: customer?.name || "",
-    company: financeSo?.company || customer?.name || "",
-    phone: financeSo?.phone || customer?.phone || "",
-    contact: financeSo?.email || customer?.contact || "",
-    address: financeSo?.address || customer?.address || "",
+    company: customer?.name || "",
+    phone: customer?.phone || "",
+    contact: customer?.contact || "",
+    address: customer?.address || "",
     description: order?.description || "",
     quantity: String(order?.quantity || ""),
     unit: order?.unit || "",
     deadline: order?.deadline || "",
-    notes: financeSo?.notes || order?.notes || "",
+    notes: order?.notes || "",
   });
 
   const handleSave = () => {
@@ -126,19 +127,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       deadline: editForm.deadline,
       notes: editForm.notes,
     });
-    if (financeSo) {
-      updateSOInFinance(financeSo.id, {
-        customerName: editForm.customerName,
-        company: editForm.company,
-        phone: editForm.phone,
-        email: editForm.contact,
-        address: editForm.address,
-        productName: editForm.description,
-        quantity: Number(editForm.quantity),
-        unit: editForm.unit,
-        notes: editForm.notes,
-      });
-    }
     setIsEditMode(false);
   };
 
@@ -257,11 +245,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <InfoRow icon={<User size={11} />}     label="Nama"       value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, customerName: v}))} />
-              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (financeSo?.company || customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
-              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (financeSo?.phone || customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
-              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (financeSo?.email || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
+              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
+              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
+              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (financeSo?.address || customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
+                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
               </div>
             </div>
           </InfoCard>
@@ -431,8 +419,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Laporan QC</p>
-                <span style={{ padding: "3px 8px", borderRadius: 4, background: order.qcStatus === 'Pass' ? "#ECFDF5" : "#FEF2F2", color: order.qcStatus === 'Pass' ? "#059669" : "#DC2626", border: `1px solid ${order.qcStatus === 'Pass' ? "#10B981" : "#EF4444"}`, fontSize: "10px", fontWeight: 600 }}>
-                  {order.qcStatus === 'Pass' ? 'LULUS (PASS)' : 'GAGAL (FAIL)'}
+                <span style={{ padding: "3px 8px", borderRadius: 4, background: isGo(order.qcStatus) ? "#ECFDF5" : "#FEF2F2", color: isGo(order.qcStatus) ? "#059669" : "#DC2626", border: `1px solid ${isGo(order.qcStatus) ? "#10B981" : "#EF4444"}`, fontSize: "10px", fontWeight: 600 }}>
+                  {isGo(order.qcStatus) ? 'Go' : 'NoGo'}
                 </span>
               </div>
               <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>

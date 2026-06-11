@@ -61,7 +61,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpPost("{id:guid}/design-submission")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Worker,Engineering Supervisor")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Worker")]
     public async Task<ActionResult<QuotationDto>> SubmitDesign(
         Guid id,
         SubmitQuotationDesignRequest request,
@@ -70,6 +70,21 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
         try
         {
             var quotation = await quotationService.SubmitDesignAsync(id, request, cancellationToken);
+            return quotation is null ? NotFound() : Ok(quotation);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/supervisor-design-approval")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    public async Task<ActionResult<QuotationDto>> ApproveDesignBySupervisor(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var quotation = await quotationService.ApproveDesignBySupervisorAsync(id, cancellationToken);
             return quotation is null ? NotFound() : Ok(quotation);
         }
         catch (InvalidOperationException ex)

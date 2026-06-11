@@ -48,6 +48,11 @@ public sealed record SalesOrderDto(
     Guid? QcReviewerUserId,
     string? QcReviewerName,
     string Status,
+    string ProductionStatus,
+    DateTime? StartedAtUtc,
+    DateTime? FinishedAtUtc,
+    string? QcDecision,
+    string? DrawingFileUrl,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderItemDto> Items);
@@ -108,11 +113,14 @@ public sealed record SalesOrderProductionProgressItemDto(
 public sealed record PublicProductionTrackingDto(
     string SoNumber,
     string CustomerName,
+    string? CustomerDrawingUrl,
+    string? DesignReference,
     string SalesOrderStatus,
     string ProductionStatus,
     int TotalItems,
     int TotalQuantity,
     decimal ProgressPercent,
+    string? DrawingFileUrl,
     DateTime? StartedAtUtc,
     DateTime? FinishedAtUtc,
     long? DurationSeconds,
@@ -139,6 +147,28 @@ public sealed record ExecutiveDashboardDto(
     int InProgressOrders,
     int FinishedOrders,
     int ClosedOrders,
-    int ApprovedQc,
-    int RejectedQc,
-    decimal RejectionRate);
+    int GoQc,
+    int NoGoQc,
+    decimal NoGoRate)
+{
+    public int ApprovedQc => GoQc;
+    public int RejectedQc => NoGoQc;
+    public decimal RejectionRate => NoGoRate;
+}
+
+public sealed record SubmitProductionMaterialRequest(
+    Guid RequestedByUserId,
+    string RequesterName,
+    IReadOnlyCollection<SubmitProductionMaterialRequestItem> Items,
+    string? Notes = null);
+
+public sealed record SubmitProductionMaterialRequestItem(
+    Guid? MaterialRequirementId,
+    Guid? SalesOrderItemId,
+    string ItemName,
+    string? Size,
+    int Qty,
+    string? Urgency = null,
+    string? SuggestedSupplier = null,
+    string? Notes = null,
+    string? PurchaseCategory = null);

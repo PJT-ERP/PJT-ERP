@@ -26,6 +26,7 @@
         "Sales Order",
         "Finance",
         "Engineering",
+        "Engineering Supervisor",
         "Engineering Worker",
         "Engineering Reviewer",
         "Purchasing"
@@ -36,6 +37,7 @@
     "Sales Order",
     "Finance",
     "Engineering",
+    "Engineering Supervisor",
     "Engineering Worker",
     "Engineering Reviewer",
     "Purchasing",
@@ -49,6 +51,7 @@
         "salesOrderCreationConfirmationAndEngineerAssignment": ["Admin", "Sales Order"],
         "salesOrderProductionStartFinish": ["Admin", "Engineering Worker"],
         "salesOrderDrawingUpload": ["Admin", "Engineering Worker"],
+        "salesOrderMaterialRequest": ["Admin", "Engineering Worker"],
         "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing"]
       },
       "readAccess": {
@@ -57,7 +60,7 @@
       }
     },
     "qc": {
-      "summary": "QC is image/form upload, notes, and approve/reject by Engineering Reviewer. There are no visual/dimension checklist endpoints.",
+      "summary": "QC is image/form upload, notes, and Go/NoGo decision by Engineering Reviewer. There are no visual/dimension checklist endpoints.",
       "writeAccess": {
         "qcResultUpload": ["Admin", "Engineering Reviewer"]
       },
@@ -186,12 +189,47 @@
     },
     {
       "service": "Production.API",
+      "feature": "Material Requests",
+      "method": "POST",
+      "path": "/api/v1/production/sales-orders/{id}/material-requests",
+      "roles": ["Admin", "Engineering Worker"],
+      "description": "Assigned Engineering Worker submits a multi-item MR from the Production/SO context. Production publishes MaterialRequestSubmittedEvent and Purchasing creates the submitted MR for Supervisor approval.",
+      "requestBody": {
+        "requestedByUserId": "00000000-0000-0000-0000-000000000010",
+        "requesterName": "Engineering Worker",
+        "notes": "Material shortage before production start.",
+        "items": [
+          {
+            "materialRequirementId": null,
+            "salesOrderItemId": "00000000-0000-0000-0000-000000000012",
+            "itemName": "S45C Round Bar",
+            "size": "Diameter 10mm",
+            "qty": 2,
+            "urgency": "Urgent",
+            "suggestedSupplier": "PT. Steel",
+            "notes": "Stock shortage",
+            "purchaseCategory": "Project"
+          },
+          {
+            "materialRequirementId": null,
+            "salesOrderItemId": null,
+            "itemName": "Coolant",
+            "size": "Water soluble",
+            "qty": 1,
+            "urgency": "Normal",
+            "purchaseCategory": "Consumable"
+          }
+        ]
+      }
+    },
+    {
+      "service": "Production.API",
       "feature": "Public Tracking",
       "method": "GET",
       "path": "/api/v1/production/tracking?code={soNumberOrBarcode}",
       "roles": [],
       "auth": "anonymous",
-      "description": "Public/customer read-only tracking by SO number or barcode. Internal identifiers, barcode UID, drawing links, uploader IDs, and QC decisions are hidden."
+      "description": "Public/customer read-only tracking by SO number or barcode. SO customer drawing/design reference can be shown for tracking context; internal identifiers, barcode UID, uploader IDs, and QC decisions are hidden."
     },
     {
       "service": "QC.API",
@@ -207,13 +245,16 @@
       "method": "PUT",
       "path": "/api/v1/qc/inspections/{id}/result",
       "roles": ["Admin", "Engineering Reviewer"],
-      "description": "Upload QC image/form URL, notes, and approve/reject decision.",
+      "description": "Upload QC image/form URL, notes, and Go/NoGo decision.",
       "requestBody": {
         "reviewerUserId": "00000000-0000-0000-0000-000000000002",
         "reviewerName": "Engineering Reviewer",
         "qcImageUrl": "https://drive.example/qc-form.jpg",
         "notes": "Visual condition acceptable.",
-        "decision": "Approve"
+        "decision": "Go"
+      },
+      "allowedValues": {
+        "decision": ["Go", "NoGo"]
       }
     },
     {
@@ -238,7 +279,7 @@
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "List purchase requests submitted by Engineering, accepted by Finance, and handled by Purchasing. UI can filter by status or Sales Order."
+      "description": "List purchase requests submitted by Engineering, approved by Engineering Supervisor, approved by Finance, and handled by Purchasing. UI can filter by status or Sales Order."
     },
     {
       "service": "Purchasing.API",
@@ -246,7 +287,7 @@
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests/{id}",
       "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
-      "description": "Open purchase request detail with item, urgency, requester, SO reference, Finance review data, supplier, PO number, estimated price, ETA, received date, and notes."
+      "description": "Open purchase request detail with item, urgency, requester, SO reference, Supervisor review data, Finance review data, supplier, PO number, total price, calculated unit price, ETA, received date, and notes."
     },
     {
       "service": "Purchasing.API",
@@ -281,9 +322,35 @@
       "service": "Purchasing.API",
       "feature": "Purchase Requests",
       "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/supervisor-review",
+      "roles": ["Admin", "Engineering Supervisor"],
+      "description": "Engineering Supervisor accepts or rejects a submitted purchase request before it can move to Finance approval.",
+      "requestBody": {
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000021",
+        "decision": "Accept",
+        "rejectionReason": null
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
+      "path": "/api/v1/purchasing/purchase-requests/{id}/finance-review",
+      "roles": ["Admin", "Finance"],
+      "description": "Finance accepts or rejects a Supervisor-approved purchase request before Purchasing can process items.",
+      "requestBody": {
+        "reviewedByUserId": "00000000-0000-0000-0000-000000000020",
+        "decision": "Accept",
+        "rejectionReason": null
+      }
+    },
+    {
+      "service": "Purchasing.API",
+      "feature": "Purchase Requests",
+      "method": "POST",
       "path": "/api/v1/purchasing/purchase-requests/{id}/review",
       "roles": ["Admin", "Finance"],
-      "description": "Finance accepts or rejects a submitted purchase request before Purchasing can process items.",
+      "description": "Backward-compatible alias for Finance review.",
       "requestBody": {
         "reviewedByUserId": "00000000-0000-0000-0000-000000000020",
         "decision": "Accept",
@@ -296,7 +363,7 @@
       "method": "PUT",
       "path": "/api/v1/purchasing/purchase-requests/{id}/items/{itemId}/process",
       "roles": ["Admin", "Purchasing"],
-      "description": "Purchasing processes a Finance-accepted item by filling supplier, PO number, total price, ETA, category, and purchasing notes. Unit price is calculated by the API from totalPrice / qty.",
+      "description": "Purchasing processes a Finance-approved item by filling supplier, PO number, total price, ETA, category, and purchasing notes. Unit price is calculated by the API from totalPrice / qty.",
       "requestBody": {
         "supplierName": "PT. Krakatau Steel",
         "expectedArrivalDate": "2026-05-25",
@@ -351,7 +418,7 @@
       "method": "GET",
       "path": "/api/v1/finance/invoice-candidates?customerId={customerId}",
       "roles": ["Admin", "Finance", "Owner"],
-      "description": "List completed Sales Orders that are ready to be invoiced. Rows are created automatically after QC approves the production order."
+      "description": "List completed Sales Orders that are ready to be invoiced. Rows are created automatically after QC returns Go for the production order."
     },
     {
       "service": "Finance.API",

@@ -65,7 +65,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         var firstRequirement = materialRequirements.Values.FirstOrDefault();
         var purchaseRequest = new PurchaseRequest
         {
-            PrNumber = GenerateNumber(),
+            PrNumber = await GenerateNumberAsync(cancellationToken),
             RequestDate = request.RequestDate,
             RequestedByUserId = request.RequestedByUserId,
             RequesterName = request.RequesterName.Trim(),
@@ -120,41 +120,27 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
-        if (purchaseRequest.Status != PurchaseRequestStatuses.Submitted)
-        {
-            throw new InvalidOperationException("Only submitted purchase requests can be reviewed.");
-        }
-
+        var reviewStage = NormalizeReviewStage(request.ReviewStage);
         var decision = NormalizeReviewDecision(request.Decision);
-        if (decision == PurchaseRequestStatuses.Rejected && string.IsNullOrWhiteSpace(request.RejectionReason))
+        if (decision == PurchaseRequestStatuses.Rejected
+            && string.IsNullOrWhiteSpace(request.RejectionReason))
         {
             throw new InvalidOperationException("Rejection reason is required when rejecting a purchase request.");
         }
 
         var now = DateTime.UtcNow;
-        purchaseRequest.Status = decision;
+        if (reviewStage == PurchaseRequestReviewStages.Supervisor)
+        {
+            ApplySupervisorReview(purchaseRequest, request, decision, now);
+        }
+        else
+        {
+            ApplyFinanceReview(purchaseRequest, request, decision, now);
+        }
+
         purchaseRequest.ReviewedByUserId = request.ReviewedByUserId;
         purchaseRequest.ReviewedAtUtc = now;
-        purchaseRequest.RejectionReason = decision == PurchaseRequestStatuses.Rejected
-            ? NormalizeOptional(request.RejectionReason)
-            : null;
         purchaseRequest.UpdatedAtUtc = now;
-
-        foreach (var item in purchaseRequest.Items)
-        {
-            item.PurchaseStatus = decision == PurchaseRequestStatuses.Approved
-                ? PurchaseItemStatuses.Approved
-                : PurchaseItemStatuses.Rejected;
-            item.RejectionReason = purchaseRequest.RejectionReason;
-            item.UpdatedAtUtc = now;
-
-            UpdateMaterialRequirementStatus(
-                item,
-                decision == PurchaseRequestStatuses.Approved
-                    ? MaterialRequirementStatuses.PurchaseApproved
-                    : MaterialRequirementStatuses.PurchaseRejected,
-                now);
-        }
 
         await eventPublisher.PublishAsync(
             new PurchaseRequestReviewedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, purchaseRequest.Status, now),
@@ -177,7 +163,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
-        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected)
+        if (IsRejectedRequest(purchaseRequest.Status))
         {
             throw new InvalidOperationException("Rejected purchase requests cannot receive purchase information.");
         }
@@ -268,7 +254,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
-        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected)
+        if (IsRejectedRequest(purchaseRequest.Status))
         {
             throw new InvalidOperationException("Rejected purchase requests cannot be processed.");
         }
@@ -323,7 +309,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
-        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected
+        if (IsRejectedRequest(purchaseRequest.Status)
             && purchaseRequest.Items.All(item => item.PurchaseStatus == PurchaseItemStatuses.Rejected))
         {
             throw new InvalidOperationException("Rejected purchase requests cannot be changed.");
@@ -364,7 +350,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
-        if (purchaseRequest.Status == PurchaseRequestStatuses.Rejected)
+        if (IsRejectedRequest(purchaseRequest.Status))
         {
             throw new InvalidOperationException("Rejected purchase requests cannot receive material.");
         }
@@ -541,6 +527,12 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             request.ReviewedByUserId,
             request.ReviewedAtUtc,
             request.RejectionReason,
+            request.SupervisorReviewedByUserId,
+            request.SupervisorReviewedAtUtc,
+            request.SupervisorRejectionReason,
+            request.FinanceReviewedByUserId,
+            request.FinanceReviewedAtUtc,
+            request.FinanceRejectionReason,
             request.UpdatedAtUtc,
             request.Items
                 .OrderBy(item => item.ItemName)
@@ -634,6 +626,98 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         return requirement?.ProductDescription ?? "";
     }
 
+    private static void ApplySupervisorReview(
+        PurchaseRequest purchaseRequest,
+        ReviewPurchaseRequest request,
+        string decision,
+        DateTime now)
+    {
+        if (purchaseRequest.Status != PurchaseRequestStatuses.Submitted)
+        {
+            throw new InvalidOperationException("Only submitted purchase requests can receive supervisor approval.");
+        }
+
+        purchaseRequest.SupervisorReviewedByUserId = request.ReviewedByUserId;
+        purchaseRequest.SupervisorReviewedAtUtc = now;
+        purchaseRequest.SupervisorRejectionReason = decision == PurchaseRequestStatuses.Rejected
+            ? NormalizeOptional(request.RejectionReason)
+            : null;
+        purchaseRequest.FinanceReviewedByUserId = null;
+        purchaseRequest.FinanceReviewedAtUtc = null;
+        purchaseRequest.FinanceRejectionReason = null;
+        purchaseRequest.RejectionReason = purchaseRequest.SupervisorRejectionReason;
+        purchaseRequest.Status = decision == PurchaseRequestStatuses.Approved
+            ? PurchaseRequestStatuses.SupervisorApproved
+            : PurchaseRequestStatuses.SupervisorRejected;
+
+        if (decision == PurchaseRequestStatuses.Approved)
+        {
+            return;
+        }
+
+        foreach (var item in purchaseRequest.Items)
+        {
+            item.PurchaseStatus = PurchaseItemStatuses.Rejected;
+            item.RejectionReason = purchaseRequest.SupervisorRejectionReason;
+            item.UpdatedAtUtc = now;
+            UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseRejected, now);
+        }
+    }
+
+    private static void ApplyFinanceReview(
+        PurchaseRequest purchaseRequest,
+        ReviewPurchaseRequest request,
+        string decision,
+        DateTime now)
+    {
+        if (purchaseRequest.Status != PurchaseRequestStatuses.SupervisorApproved)
+        {
+            throw new InvalidOperationException("Purchase request must be approved by Engineering Supervisor before Finance review.");
+        }
+
+        purchaseRequest.FinanceReviewedByUserId = request.ReviewedByUserId;
+        purchaseRequest.FinanceReviewedAtUtc = now;
+        purchaseRequest.FinanceRejectionReason = decision == PurchaseRequestStatuses.Rejected
+            ? NormalizeOptional(request.RejectionReason)
+            : null;
+        purchaseRequest.RejectionReason = purchaseRequest.FinanceRejectionReason;
+        purchaseRequest.Status = decision == PurchaseRequestStatuses.Approved
+            ? PurchaseRequestStatuses.FinanceApproved
+            : PurchaseRequestStatuses.FinanceRejected;
+
+        foreach (var item in purchaseRequest.Items)
+        {
+            item.PurchaseStatus = decision == PurchaseRequestStatuses.Approved
+                ? PurchaseItemStatuses.Approved
+                : PurchaseItemStatuses.Rejected;
+            item.RejectionReason = purchaseRequest.FinanceRejectionReason;
+            item.UpdatedAtUtc = now;
+
+            UpdateMaterialRequirementStatus(
+                item,
+                decision == PurchaseRequestStatuses.Approved
+                    ? MaterialRequirementStatuses.PurchaseApproved
+                    : MaterialRequirementStatuses.PurchaseRejected,
+                now);
+        }
+    }
+
+    private static string NormalizeReviewStage(string? reviewStage)
+    {
+        if (string.IsNullOrWhiteSpace(reviewStage))
+        {
+            return PurchaseRequestReviewStages.Finance;
+        }
+
+        return reviewStage.Trim() switch
+        {
+            var value when value.Equals(PurchaseRequestReviewStages.Supervisor, StringComparison.OrdinalIgnoreCase) => PurchaseRequestReviewStages.Supervisor,
+            var value when value.Equals("EngineeringSupervisor", StringComparison.OrdinalIgnoreCase) => PurchaseRequestReviewStages.Supervisor,
+            var value when value.Equals(PurchaseRequestReviewStages.Finance, StringComparison.OrdinalIgnoreCase) => PurchaseRequestReviewStages.Finance,
+            _ => throw new InvalidOperationException("Review stage must be Supervisor or Finance.")
+        };
+    }
+
     private static string NormalizeReviewDecision(string decision)
     {
         if (decision.Equals("Accept", StringComparison.OrdinalIgnoreCase)
@@ -650,7 +734,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return PurchaseRequestStatuses.Rejected;
         }
 
-        throw new InvalidOperationException("Finance decision must be Accept or Reject.");
+        throw new InvalidOperationException("Review decision must be Accept or Reject.");
     }
 
     private static string NormalizeUrgency(string? urgency)
@@ -776,14 +860,22 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
     private static void EnsurePurchaseRequestAcceptedForPurchasing(PurchaseRequest purchaseRequest, string action)
     {
-        if (purchaseRequest.Status is PurchaseRequestStatuses.Approved
+        if (purchaseRequest.Status is PurchaseRequestStatuses.FinanceApproved
+            or PurchaseRequestStatuses.Approved
             or PurchaseRequestStatuses.Processing
             or PurchaseRequestStatuses.Completed)
         {
             return;
         }
 
-        throw new InvalidOperationException($"Purchase request must be approved before it can {action}.");
+        throw new InvalidOperationException($"Purchase request must be approved by Finance before it can {action}.");
+    }
+
+    private static bool IsRejectedRequest(string status)
+    {
+        return status is PurchaseRequestStatuses.SupervisorRejected
+            or PurchaseRequestStatuses.FinanceRejected
+            or PurchaseRequestStatuses.Rejected;
     }
 
     private static void RefreshPurchaseRequestStatus(PurchaseRequest purchaseRequest)
@@ -819,17 +911,45 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
         if (purchaseRequest.Items.Any(item => item.PurchaseStatus == PurchaseItemStatuses.Approved))
         {
-            purchaseRequest.Status = PurchaseRequestStatuses.Approved;
+            purchaseRequest.Status = PurchaseRequestStatuses.FinanceApproved;
             purchaseRequest.RejectionReason = null;
             return;
         }
 
-        purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+        purchaseRequest.Status = purchaseRequest.SupervisorReviewedAtUtc.HasValue
+            ? PurchaseRequestStatuses.SupervisorApproved
+            : PurchaseRequestStatuses.Submitted;
         purchaseRequest.RejectionReason = null;
     }
 
-    private static string GenerateNumber()
+    private async Task<string> GenerateNumberAsync(CancellationToken cancellationToken)
     {
-        return $"PR-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27].ToUpperInvariant();
+        var prefix = $"MR-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.PurchaseRequests
+            .AsNoTracking()
+            .Where(request => request.PrNumber.StartsWith(prefix))
+            .Select(request => request.PrNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length)
+            {
+                continue;
+            }
+
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max + 1;
     }
 }

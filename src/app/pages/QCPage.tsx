@@ -15,6 +15,14 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
+function isGo(value?: string | null) {
+  return value === 'Go' || value === 'Pass';
+}
+
+function isNoGo(value?: string | null) {
+  return value === 'NoGo' || value === 'Fail';
+}
+
 function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { customers } = useApp();
   const customer = customers.find(c => c.code === so.customerId);
@@ -34,13 +42,13 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{
               padding: "4px 12px", borderRadius: 99, fontSize: "13px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6,
-              background: so.status === 'QC' ? "#FEF3C7" : (so.qcStatus === 'Pass' ? "#DCFCE7" : "#FEE2E2"),
-              color: so.status === 'QC' ? "#D97706" : (so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626"),
+              background: so.status === 'QC' ? "#FEF3C7" : (isGo(so.qcStatus) ? "#DCFCE7" : "#FEE2E2"),
+              color: so.status === 'QC' ? "#D97706" : (isGo(so.qcStatus) ? "#16A34A" : "#DC2626"),
             }}>
               {so.status === 'QC' ? (
                 <>Menunggu QC</>
               ) : (
-                <>{so.qcStatus === 'Pass' ? <CheckCircle size={14} /> : <XCircle size={14} />} {so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}</>
+                <>{isGo(so.qcStatus) ? <CheckCircle size={14} /> : <XCircle size={14} />} {isGo(so.qcStatus) ? 'Go' : 'NoGo'}</>
               )}
             </span>
             {so.qcAt && <span style={{ color: S.secondary, fontSize: "12.5px" }}>{new Date(so.qcAt).toLocaleString('id-ID')}</span>}
@@ -92,15 +100,15 @@ export function QCPage() {
   const { salesOrders, customers, currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
-  const [filterResult, setFilterResult] = useState<'all' | 'Pass' | 'Fail' | 'Menunggu'>('all');
+  const [filterResult, setFilterResult] = useState<'all' | 'Go' | 'NoGo' | 'Menunggu'>('all');
   const [qcSearch, setQcSearch] = useState('');
 
   const completed = salesOrders.filter(so => so.status === 'Completed');
   const pendingQC = salesOrders.filter(so => so.status === 'QC');
   const allQC = [...pendingQC, ...completed];
 
-  const passCount = completed.filter(s => s.qcStatus === 'Pass').length;
-  const failCount = completed.filter(s => s.qcStatus === 'Fail').length;
+  const passCount = completed.filter(s => isGo(s.qcStatus)).length;
+  const failCount = completed.filter(s => isNoGo(s.qcStatus)).length;
   const passRate = completed.length > 0 ? Math.round((passCount / completed.length) * 100) : 0;
   const lateCount = completed.filter(s => s.lateReason).length;
 
@@ -113,7 +121,8 @@ export function QCPage() {
     const matchFilter =
       filterResult === 'all' ||
       (filterResult === 'Menunggu' && so.status === 'QC') ||
-      (filterResult !== 'Menunggu' && so.qcStatus === filterResult);
+      (filterResult === 'Go' && isGo(so.qcStatus)) ||
+      (filterResult === 'NoGo' && isNoGo(so.qcStatus));
     return matchSearch && matchFilter;
   });
 
@@ -148,7 +157,7 @@ export function QCPage() {
         </div>
       </div>
 
-      {/* Pass Rate Bar */}
+      {/* Go Rate Bar */}
       {completed.length > 0 && (
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, fontSize: "13.5px", fontWeight: 500 }}>
@@ -175,8 +184,8 @@ export function QCPage() {
               style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {(['all', 'Menunggu', 'Pass', 'Fail'] as const).map(f => {
-              const label = f === 'all' ? 'Semua' : f === 'Pass' ? 'Go' : f === 'Fail' ? 'NoGo' : f;
+            {(['all', 'Menunggu', 'Go', 'NoGo'] as const).map(f => {
+              const label = f === 'all' ? 'Semua' : f;
               return (
               <button key={f} onClick={() => setFilterResult(f)}
                 style={{
@@ -241,9 +250,9 @@ export function QCPage() {
                     {so.status === 'QC' ? (
                       <span style={{ fontSize: "11.5px", background: "#FEF3C7", color: "#D97706", padding: "2px 8px", borderRadius: 99, fontWeight: 500 }}>Menunggu</span>
                     ) : so.qcStatus ? (
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, color: so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626" }}>
-                        {so.qcStatus === 'Pass' ? <CheckCircle size={13} /> : <XCircle size={13} />}
-                        {so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}
+                      <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, color: isGo(so.qcStatus) ? "#16A34A" : "#DC2626" }}>
+                        {isGo(so.qcStatus) ? <CheckCircle size={13} /> : <XCircle size={13} />}
+                        {isGo(so.qcStatus) ? 'Go' : 'NoGo'}
                       </span>
                     ) : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>}
                   </div>

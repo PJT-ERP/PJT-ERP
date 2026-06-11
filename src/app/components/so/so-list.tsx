@@ -43,15 +43,15 @@ function downloadCsv(filename: string, rows: string[][]) {
 }
 
 const STATUS_OPTIONS = [
-  { value: "all",               label: "Semua Status"       },
-  { value: "draft",             label: "Draft"              },
-  { value: "waiting_finance",   label: "Waiting Finance"    },
-  { value: "waiting_payment",   label: "Waiting Payment"    },
-  { value: "paid",              label: "Paid"               },
-  { value: "engineering_review",label: "Engineering Review" },
-  { value: "in_production",     label: "In Production"      },
-  { value: "completed",         label: "Completed"          },
-  { value: "cancelled",         label: "Cancelled"          },
+  { value: "all",                 label: "Semua Status"         },
+  { value: "Menunggu Invoice DP", label: "Menunggu Invoice DP"   },
+  { value: "Pending Design",      label: "Pending Design"        },
+  { value: "Waiting Approval",    label: "Waiting Approval"      },
+  { value: "Ready for Production",label: "Ready for Production"  },
+  { value: "In Production",       label: "In Production"         },
+  { value: "QC",                  label: "QC"                    },
+  { value: "Completed",           label: "Completed"             },
+  { value: "Rejected",            label: "Rejected"              },
 ];
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ export function SOList({ onNavigate }: SOListProps) {
       (statusFilter === "all" || o.status === statusFilter) &&
       (customerFilter === "all" || o.customerId === customerFilter) &&
       (!dateFilter || o.createdAt.startsWith(dateFilter));
-  }), [search, statusFilter, customerFilter, dateFilter]);
+  }), [salesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

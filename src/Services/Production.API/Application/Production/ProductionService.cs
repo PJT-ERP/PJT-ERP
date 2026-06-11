@@ -13,6 +13,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         var orders = await db.SalesOrders
             .AsNoTracking()
             .Include(order => order.Items)
+            .Include(order => order.ProductionOrders)
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
@@ -41,9 +42,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             throw new InvalidOperationException("One or more products have not been replicated from MasterData yet.");
         }
 
+        var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
         var order = new SalesOrder
         {
-            SoNumber = GenerateNumber("SO"),
+            SoNumber = soNumber,
             CustomerId = customer.Id,
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
@@ -228,7 +230,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 salesOrder.ProductionWorkerName,
                 salesOrder.QcReviewerUserId,
                 salesOrder.QcReviewerName,
-                BuildSpkItems(salesOrder)),
+                BuildSpkItems(salesOrder),
+                salesOrder.CustomerDrawingUrl,
+                salesOrder.DesignReference),
             cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
@@ -295,6 +299,61 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
     }
 
+    public async Task<SalesOrderProductionProgressDto?> SubmitMaterialRequestAsync(
+        Guid salesOrderId,
+        SubmitProductionMaterialRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null)
+        {
+            return null;
+        }
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before material requests can be submitted.");
+
+        ValidateMaterialRequest(request);
+        EnsureAssignedWorker(productionOrder, request.RequestedByUserId);
+
+        if (productionOrder.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
+        {
+            throw new InvalidOperationException("Finished or closed sales order production cannot receive material requests.");
+        }
+
+        var now = DateTime.UtcNow;
+        await eventPublisher.PublishAsync(
+            new MaterialRequestSubmittedEvent(
+                salesOrder.Id,
+                salesOrder.SoNumber,
+                productionOrder.Id,
+                productionOrder.BarcodeUid,
+                request.RequestedByUserId,
+                request.RequesterName.Trim(),
+                DateOnly.FromDateTime(now),
+                salesOrder.SoNumber,
+                NormalizeOptional(request.Notes),
+                request.Items.Select(item => new MaterialRequestSubmittedItem(
+                    item.MaterialRequirementId,
+                    NormalizeSalesOrderItemId(item.SalesOrderItemId),
+                    item.ItemName.Trim(),
+                    NormalizeOptional(item.Size),
+                    item.Qty,
+                    NormalizeMaterialRequestUrgency(item.Urgency),
+                    NormalizeOptional(item.SuggestedSupplier),
+                    NormalizeOptional(item.Notes),
+                    NormalizeMaterialRequestCategory(item.PurchaseCategory)))
+                    .ToArray()),
+            cancellationToken);
+
+        productionOrder.UpdatedAtUtc = now;
+        salesOrder.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
     public async Task<SalesOrderProductionProgressDto?> StartProductionAsync(
         Guid salesOrderId,
         ProductionStatusUpdateRequest request,
@@ -352,7 +411,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     salesOrder.Id,
                     salesOrder.SoNumber,
                     salesOrder.QcReviewerUserId,
-                    salesOrder.QcReviewerName),
+                    salesOrder.QcReviewerName,
+                    salesOrder.CustomerDrawingUrl,
+                    salesOrder.DesignReference),
                 cancellationToken);
         }
 
@@ -363,19 +424,19 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
     {
         var orders = await db.ProductionOrders.AsNoTracking().ToListAsync(cancellationToken);
-        var approved = orders.Count(order => order.QcDecision == "Approved");
-        var rejected = orders.Count(order => order.QcDecision == "Rejected");
-        var reviewedOrders = approved + rejected;
-        var rejectionRate = reviewedOrders == 0 ? 0 : decimal.Round((decimal)rejected / reviewedOrders * 100, 2);
+        var goQc = orders.Count(order => IsQcGo(order.QcDecision));
+        var noGoQc = orders.Count(order => IsQcNoGo(order.QcDecision));
+        var reviewedOrders = goQc + noGoQc;
+        var noGoRate = reviewedOrders == 0 ? 0 : decimal.Round((decimal)noGoQc / reviewedOrders * 100, 2);
 
         return new ExecutiveDashboardDto(
             orders.Count(order => order.Status == ProductionOrderStatuses.Waiting),
             orders.Count(order => order.Status == ProductionOrderStatuses.InProgress),
             orders.Count(order => order.Status == ProductionOrderStatuses.Finished),
             orders.Count(order => order.Status == ProductionOrderStatuses.Closed),
-            approved,
-            rejected,
-            rejectionRate);
+            goQc,
+            noGoQc,
+            noGoRate);
     }
 
     private async Task<SalesOrder?> FindSalesOrderByTrackingCodeAsync(
@@ -401,6 +462,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     private static SalesOrderDto ToDto(SalesOrder order)
     {
+        var productionOrder = GetPrimaryProductionOrder(order);
+
         return new SalesOrderDto(
             order.Id,
             order.SoNumber,
@@ -421,6 +484,11 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.QcReviewerUserId,
             order.QcReviewerName,
             order.Status,
+            productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
+            productionOrder?.StartedAtUtc,
+            productionOrder?.FinishedAtUtc,
+            productionOrder?.QcDecision,
+            productionOrder?.DrawingFileUrl,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray());
@@ -501,11 +569,14 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return new PublicProductionTrackingDto(
             order.SoNumber,
             order.CustomerName,
+            order.CustomerDrawingUrl,
+            order.DesignReference,
             order.Status,
             productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
             CalculateProgressPercent(productionOrder),
+            productionOrder?.DrawingFileUrl,
             productionOrder?.StartedAtUtc,
             productionOrder?.FinishedAtUtc,
             productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
@@ -550,6 +621,25 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         return Math.Max(0, (long)Math.Round((end.Value - order.StartedAtUtc.Value).TotalSeconds));
+    }
+
+    private static bool IsQcGo(string? decision)
+    {
+        return decision is not null
+            && (decision.Equals("Go", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Approved", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Approve", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Pass", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsQcNoGo(string? decision)
+    {
+        return decision is not null
+            && (decision.Equals("NoGo", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("No Go", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Reject", StringComparison.OrdinalIgnoreCase)
+                || decision.Equals("Fail", StringComparison.OrdinalIgnoreCase));
     }
 
     private static IQueryable<SalesOrder> IncludeProduction(IQueryable<SalesOrder> query)
@@ -664,6 +754,34 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
     }
 
+    private static void ValidateMaterialRequest(SubmitProductionMaterialRequest request)
+    {
+        if (request.RequestedByUserId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Requester user id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RequesterName))
+        {
+            throw new InvalidOperationException("Requester name is required.");
+        }
+
+        if (request.Items.Count == 0)
+        {
+            throw new InvalidOperationException("Material request must contain at least one item.");
+        }
+
+        if (request.Items.Any(item => string.IsNullOrWhiteSpace(item.ItemName)))
+        {
+            throw new InvalidOperationException("Material request item name is required.");
+        }
+
+        if (request.Items.Any(item => item.Qty <= 0))
+        {
+            throw new InvalidOperationException("Material request item quantity must be greater than zero.");
+        }
+    }
+
     private static void EnsureAssignedWorker(ProductionOrder productionOrder, Guid workerUserId)
     {
         var assignedWorkerId = productionOrder.SalesOrder?.ProductionWorkerUserId;
@@ -768,6 +886,45 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return uri.ToString();
     }
 
+    private static Guid? NormalizeSalesOrderItemId(Guid? salesOrderItemId)
+    {
+        return salesOrderItemId == Guid.Empty ? null : salesOrderItemId;
+    }
+
+    private static string NormalizeMaterialRequestUrgency(string? urgency)
+    {
+        if (string.IsNullOrWhiteSpace(urgency))
+        {
+            return "Normal";
+        }
+
+        return urgency.Trim() switch
+        {
+            var value when value.Equals("Normal", StringComparison.OrdinalIgnoreCase) => "Normal",
+            var value when value.Equals("Urgent", StringComparison.OrdinalIgnoreCase) => "Urgent",
+            var value when value.Equals("Critical", StringComparison.OrdinalIgnoreCase) => "Critical",
+            _ => throw new InvalidOperationException("Material request urgency must be Normal, Urgent, or Critical.")
+        };
+    }
+
+    private static string? NormalizeMaterialRequestCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return "Project";
+        }
+
+        return category.Trim() switch
+        {
+            var value when value.Equals("Asset", StringComparison.OrdinalIgnoreCase) => "Asset",
+            var value when value.Equals("Consumable", StringComparison.OrdinalIgnoreCase) => "Consumable",
+            var value when value.Equals("Tools", StringComparison.OrdinalIgnoreCase) => "Tools",
+            var value when value.Equals("Project", StringComparison.OrdinalIgnoreCase) => "Project",
+            var value when value.Equals("Maintenance", StringComparison.OrdinalIgnoreCase) => "Maintenance",
+            _ => throw new InvalidOperationException("Material request purchase category must be Asset, Consumable, Tools, Project, or Maintenance.")
+        };
+    }
+
     private static string NormalizeDesignStatus(string? status)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -786,8 +943,34 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         };
     }
 
-    private static string GenerateNumber(string prefix)
+    private async Task<string> GenerateSalesOrderNumberAsync(CancellationToken cancellationToken)
     {
-        return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
+        var prefix = $"SO-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.SalesOrders
+            .AsNoTracking()
+            .Where(order => order.SoNumber.StartsWith(prefix))
+            .Select(order => order.SoNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length)
+            {
+                continue;
+            }
+
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max + 1;
     }
 }

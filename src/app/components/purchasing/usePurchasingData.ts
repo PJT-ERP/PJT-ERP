@@ -22,7 +22,7 @@ export function usePurchasingData() {
       setPurchaseRequests(requests);
       setIsUsingBackend(true);
     } catch (error) {
-      console.warn("Purchasing API unavailable, using local purchasing mock data.", error);
+      console.warn("Purchasing API unavailable; purchasing data was not loaded.", error);
       setMaterialRequirements([]);
       setPurchaseRequests([]);
       setIsUsingBackend(false);

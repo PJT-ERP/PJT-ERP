@@ -66,6 +66,11 @@ export interface CreateQuotationRequest {
   deadline: string;
   notes?: string | null;
   items: QuotationItemDto[];
+  customer?: {
+    code: string;
+    name: string;
+    email?: string | null;
+  } | null;
 }
 
 export interface SubmitDesignRequest {
@@ -100,6 +105,11 @@ export const quotationApi = {
 
   async submitDesign(quotationId: string, request: SubmitDesignRequest) {
     const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${quotationId}/design-submission`, request);
+    return response.data;
+  },
+
+  async approveSupervisorDesign(quotationId: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${quotationId}/supervisor-design-approval`);
     return response.data;
   },
 

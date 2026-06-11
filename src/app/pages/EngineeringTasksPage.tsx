@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { Pencil, Send, Clock, CheckCircle, ExternalLink, List, AlertTriangle, Search, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
+import { Quotation, getQuotationStatusColor, USERS } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -27,21 +27,27 @@ function StatusBadge({ status }: { status: string }) {
 
 function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, customers, currentUser } = useApp();
-  const [designLink, setDesignLink] = useState(qut.designLink ?? '');
+  const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
   const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
   const customer = customers.find(c => c.code === qut.customerId);
   
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'design_review';
+  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
   const updateMaterial = (id: string, field: string, value: any) => setMaterials(materials.map(m => m.id === id ? { ...m, [field]: value } : m));
 
   const handleForward = () => {
+    if (!canProcess) {
+      return;
+    }
+
     updateQuotation(qut.id, {
       designLink,
+      designId: designLink,
       materials,
       status: isSpv ? 'client_design_approval' : 'design_review',
     });
@@ -59,7 +65,18 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
         </div>
         <div style={{ padding: "20px 24px" }}>
-          {step === 'done' ? (
+          {!canProcess ? (
+            <div style={{ textAlign: "center", padding: "24px 0" }}>
+              <div style={{ width: 64, height: 64, background: "#FEF3C7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <UserPlus size={30} style={{ color: "#D97706" }} />
+              </div>
+              <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>Belum Bisa Dikerjakan</h3>
+              <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
+                QUT ini harus ditugaskan oleh Engineering Supervisor sebelum Engineer bisa mengirim desain.
+              </p>
+              <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Tutup</button>
+            </div>
+          ) : step === 'done' ? (
             <div style={{ textAlign: "center", padding: "24px 0" }}>
               <div style={{ width: 64, height: 64, background: "#DCFCE7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
@@ -157,13 +174,69 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   );
 }
 
+function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
+  const { updateQuotation } = useApp();
+  const engineers = USERS.filter(user => user.role === 'Engineering' && user.username !== 'eng_spv');
+
+  const handleAssign = (userId: string) => {
+    const engineer = engineers.find(user => user.id === userId);
+    updateQuotation(qut.id, {
+      assignedTo: userId,
+      assignedName: engineer?.name,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 380, padding: 24, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+        <h2 style={{ color: S.slate, margin: "0 0 4px", fontSize: "18px" }}>Tugaskan Desain</h2>
+        <p style={{ color: S.secondary, margin: "0 0 16px", fontSize: "12.5px" }}>{qut.id} - {qut.productName}</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {engineers.map(engineer => (
+            <button
+              key={engineer.id}
+              onClick={() => handleAssign(engineer.id)}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: 12,
+                borderRadius: 8,
+                border: `1px solid ${S.border}`,
+                background: S.white,
+                cursor: "pointer",
+              }}
+            >
+              <p style={{ margin: 0, color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>{engineer.name}</p>
+              <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "12px" }}>{engineer.email}</p>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{ width: "100%", marginTop: 14, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+      </div>
+    </div>
+  );
+}
+
 export function EngineeringTasksPage() {
-  const { quotations, customers } = useApp();
+  const { quotations, customers, currentUser } = useApp();
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
+  const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
   const STATUS_ORDER = ['pending_design', 'design_review'];
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
   const queue = quotations
-    .filter(q => STATUS_ORDER.includes(q.status))
+    .filter(q => {
+      if (!STATUS_ORDER.includes(q.status)) {
+        return false;
+      }
+
+      if (isSpv) {
+        return true;
+      }
+
+      return q.status === 'pending_design' && q.assignedTo === currentUser?.id;
+    })
     .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
 
   return (
@@ -185,8 +258,8 @@ export function EngineeringTasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["No. QUT", "Pelanggan", "Produk", "Deadline", "Status"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 120px 100px 130px 110px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+          {["No. QUT", "Pelanggan", "Produk", "Ditugaskan", "Deadline", "Status", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
@@ -197,13 +270,23 @@ export function EngineeringTasksPage() {
             <p style={{ color: S.slate, margin: 0, fontSize: "13.5px" }}>Semua pesanan sudah selesai didesain.</p>
           </div>
         ) : (
-          queue.map((qut, idx) => (
+          queue.map((qut, idx) => {
+            const assignedName = qut.assignedName || USERS.find(user => user.id === qut.assignedTo)?.name || "-";
+            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
+            const canReview = isSpv && qut.status === 'design_review';
+            const canAssign = isSpv && qut.status === 'pending_design';
+
+            return (
             <div
               key={qut.id}
-              onClick={() => setSelectedQUT(qut)}
+              onClick={() => {
+                if (canWork || canReview) {
+                  setSelectedQUT(qut);
+                }
+              }}
               style={{
-                display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                padding: "10px 18px", cursor: "pointer",
+                display: "grid", gridTemplateColumns: "130px 1fr 1fr 120px 100px 130px 110px",
+                padding: "10px 18px", cursor: canWork || canReview ? "pointer" : "default",
                 borderBottom: idx < queue.length - 1 ? `1px solid ${S.border}` : "none",
                 transition: "background 0.1s",
               }}
@@ -215,16 +298,54 @@ export function EngineeringTasksPage() {
                 <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
               </div>
               <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
+              <span style={{ color: S.secondary, fontSize: "12.5px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{assignedName}</span>
               <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", fontWeight: 500 }}>{qut.deadline}</span>
               <div style={{ alignSelf: "center" }}>
                 <StatusBadge status={qut.status} />
               </div>
+              <div style={{ alignSelf: "center" }}>
+                {canAssign ? (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setAssignModalQUT(qut);
+                    }}
+                    style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    {qut.assignedTo ? "Ganti" : "Tugaskan"}
+                  </button>
+                ) : canWork ? (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedQUT(qut);
+                    }}
+                    style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Kerjakan
+                  </button>
+                ) : canReview ? (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedQUT(qut);
+                    }}
+                    style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Review
+                  </button>
+                ) : (
+                  <span style={{ color: S.secondary, fontSize: "12px" }}>-</span>
+                )}
+              </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
 }

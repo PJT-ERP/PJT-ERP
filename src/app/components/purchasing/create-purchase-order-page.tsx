@@ -1,19 +1,25 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import type { Page } from "./layout";
-import { useERPStore } from "../../store/useERPStore";
+import { purchasingApi } from "../../services/purchasingApi";
+import { usePurchasingData } from "./usePurchasingData";
 
 interface CreatePurchaseOrderPageProps {
   onNavigate: (page: Page) => void;
 }
 
 interface FormItem {
+  requestItemId?: string;
   code: string;
   name: string;
   spec: string;
   qty: string;
   unit: string;
   totalPrice: string;
+}
+
+interface FieldLabelProps {
+  children: ReactNode;
 }
 
 const SUPPLIERS = [
@@ -40,7 +46,7 @@ const emptyItem = (): FormItem => ({
 
 const formatRp = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ children }: FieldLabelProps) {
   return (
     <label className="block text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500">
       {children}
@@ -48,35 +54,40 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function inputClass(extra = "") {
+function inputClass(extra: string = "") {
   return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-blue-100 ${extra}`;
 }
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
-  const { allSOs } = useERPStore();
+  const { purchaseRequests, refresh } = usePurchasingData();
   const [supplier, setSupplier] = useState("");
-  const [mrRef, setMrRef] = useState("");
+  const [requestRefs, setRequestRefs] = useState("");
   const [soNumber, setSoNumber] = useState("");
+  const [selectedRequestId, setSelectedRequestId] = useState("");
   const [poCategory, setPoCategory] = useState("Consumable");
   const [dueDate, setDueDate] = useState("");
   const [terms, setTerms] = useState("Net 14");
   const [shippingAddress, setShippingAddress] = useState("Gudang Utama - Jl. Industri No. 1, Bekasi");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
+    ["FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    request.items.some(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+  ), [purchaseRequests]);
 
   const availableMaterials = useMemo(() => {
-    if (!soNumber) return [];
-    const so = allSOs.find((s) => s.soNumber === soNumber);
-    if (so) return [so.productName];
-    return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
-  }, [soNumber, allSOs]);
+    const selected = eligibleRequests.find(request => request.id === selectedRequestId);
+    return selected?.items
+      .filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+      .map(item => item.itemName) || [];
+  }, [eligibleRequests, selectedRequestId]);
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + (Number(item.totalPrice) || 0), 0),
     [items]
   );
-
-  const addItem = () => setItems(prev => [...prev, emptyItem()]);
 
   const removeItem = (index: number) => {
     setItems(prev => prev.length === 1 ? prev : prev.filter((_, itemIndex) => itemIndex !== index));
@@ -88,16 +99,61 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     )));
   };
 
-  const submitPO = () => {
-    const hasInvalidItem = items.some(item => !item.name || !item.code || !item.qty || !item.totalPrice);
-
-    if (!supplier || !dueDate || !soNumber || hasInvalidItem) {
-      window.alert("Lengkapi supplier, No SO, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+  const applySelectedRequest = (requestId: string) => {
+    setSelectedRequestId(requestId);
+    const request = eligibleRequests.find(item => item.id === requestId);
+    if (!request) {
+      setRequestRefs("");
+      setSoNumber("");
+      setItems([emptyItem()]);
       return;
     }
 
-    window.alert("Purchase Order berhasil dibuat untuk demo.");
-    onNavigate("purchase-orders");
+    const openItems = request.items.filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
+    setRequestRefs(request.prNumber);
+    setSoNumber(request.salesOrderNumber || "Non-project");
+    setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+    setItems(openItems.map(item => ({
+      requestItemId: item.id,
+      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+      name: item.itemName,
+      spec: item.size || item.notes || "",
+      qty: String(item.qty),
+      unit: "pcs",
+      totalPrice: item.totalPrice ? String(item.totalPrice) : "",
+    })));
+  };
+
+  const submitPO = async () => {
+    const request = eligibleRequests.find(item => item.id === selectedRequestId);
+    const hasInvalidItem = items.some(item => !item.requestItemId || !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
+
+    if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
+      window.alert("Pilih MR yang sudah approved Finance, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+      return;
+    }
+
+    const poNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+
+    try {
+      setIsSubmitting(true);
+      await Promise.all(items.map(item => purchasingApi.processPurchaseRequestItem(request.id, item.requestItemId!, {
+        supplierName: supplier,
+        expectedArrivalDate: dueDate,
+        poNumber,
+        estimatedPrice: Number(item.totalPrice),
+        totalPrice: Number(item.totalPrice),
+        purchaseCategory: poCategory,
+        purchaseNotes: [terms, shippingAddress, notes].filter(Boolean).join(" | ") || null,
+      })));
+      await refresh();
+      onNavigate("purchase-orders");
+    } catch (error) {
+      console.warn("Failed to create backend PO.", error);
+      window.alert("Gagal membuat PO di backend. Cek response API untuk detail.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -113,7 +169,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </button>
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Buat Purchase Order</h1>
-            <p className="mt-1 text-sm text-slate-500">Input PO baru dengan ruang form penuh tanpa modal.</p>
+            <p className="mt-1 text-sm text-slate-500">Buat PO dari MR yang sudah disetujui, dengan referensi SO opsional.</p>
           </div>
         </div>
 
@@ -126,10 +182,11 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </button>
           <button
             onClick={submitPO}
-            className="flex items-center gap-2 rounded bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 rounded bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CheckCircle2 size={15} />
-            Buat PO
+            {isSubmitting ? "Menyimpan..." : "Buat PO"}
           </button>
         </div>
       </div>
@@ -142,42 +199,45 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
           <div className="space-y-1.5 md:col-span-2">
             <FieldLabel>Supplier *</FieldLabel>
-            <select value={supplier} onChange={e => setSupplier(e.target.value)} className={inputClass()}>
+            <select value={supplier} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSupplier(e.target.value)} className={inputClass()}>
               <option value="">Pilih supplier</option>
               {SUPPLIERS.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>No SO *</FieldLabel>
-            <select value={soNumber} onChange={e => { setSoNumber(e.target.value); setItems([emptyItem()]); }} className={inputClass()}>
-              <option value="">Pilih SO</option>
-              {allSOs.map(so => <option key={so.id} value={so.soNumber}>{so.soNumber} - {so.customerCode || so.customerName}</option>)}
-              <option value="SO-MOCK-01">SO-MOCK-01 (Dummy)</option>
+            <FieldLabel>No Permintaan / MR *</FieldLabel>
+            <select value={selectedRequestId} onChange={(e: ChangeEvent<HTMLSelectElement>) => applySelectedRequest(e.target.value)} className={inputClass()}>
+              <option value="">Pilih MR approved Finance</option>
+              {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
+            <FieldLabel>No SO</FieldLabel>
+            <input value={soNumber} readOnly placeholder="Auto dari MR" className={inputClass("cursor-not-allowed text-slate-500")} />
+          </div>
+          <div className="space-y-1.5">
             <FieldLabel>Referensi MR</FieldLabel>
-            <input value={mrRef} onChange={e => setMrRef(e.target.value)} placeholder="MR-2405-018" className={inputClass()} />
+            <input value={requestRefs} readOnly placeholder="Auto dari backend" className={inputClass("cursor-not-allowed text-slate-500")} />
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Kategori PO</FieldLabel>
-            <select value={poCategory} onChange={e => setPoCategory(e.target.value)} className={inputClass()}>
+            <select value={poCategory} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPoCategory(e.target.value)} className={inputClass()}>
               {PO_CATEGORIES.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Jatuh Tempo *</FieldLabel>
-            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className={inputClass()} />
+            <input type="date" value={dueDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setDueDate(e.target.value)} className={inputClass()} />
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Terms</FieldLabel>
-            <select value={terms} onChange={e => setTerms(e.target.value)} className={inputClass()}>
+            <select value={terms} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTerms(e.target.value)} className={inputClass()}>
               {TERMS.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5 md:col-span-1">
             <FieldLabel>Alamat Pengiriman</FieldLabel>
-            <input value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className={inputClass()} />
+            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => setShippingAddress(e.target.value)} className={inputClass()} />
           </div>
         </div>
       </section>
@@ -186,8 +246,9 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.05em] text-slate-900">Item Material</h2>
           <button
-            onClick={addItem}
-            className="flex items-center gap-1.5 rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+            disabled
+            title="Item PO diambil dari MR backend"
+            className="flex cursor-not-allowed items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-400"
           >
             <Plus size={13} />
             Tambah Item
@@ -199,26 +260,30 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <div key={index} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-12">
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Kode Item *</FieldLabel>
-                <input value={item.code} onChange={e => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass()} />
+                <input value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass()} />
               </div>
               <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Nama Material *</FieldLabel>
-                <select value={item.name} onChange={e => updateItem(index, "name", e.target.value)} className={inputClass()}>
-                  <option value="">Pilih Material</option>
-                  {availableMaterials.map(mat => <option key={mat} value={mat}>{mat}</option>)}
-                </select>
+                {availableMaterials.length > 0 ? (
+                  <select value={item.name} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateItem(index, "name", e.target.value)} className={inputClass()}>
+                    <option value="">Pilih Material</option>
+                    {availableMaterials.map(mat => <option key={mat} value={mat}>{mat}</option>)}
+                  </select>
+                ) : (
+                  <input value={item.name} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} placeholder="Nama material / consumable / tools" className={inputClass()} />
+                )}
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
-                <input value={item.spec} onChange={e => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass()} />
+                <input value={item.spec} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass()} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Qty *</FieldLabel>
-                <input value={item.qty} onChange={e => updateItem(index, "qty", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
+                <input value={item.qty} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
-                <select value={item.unit} onChange={e => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 text-xs")}>
+                <select value={item.unit} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 text-xs")}>
                   {UNITS.map(unit => <option key={unit} value={unit}>{unit}</option>)}
                 </select>
               </div>
@@ -226,10 +291,10 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 <div className="flex items-center justify-between">
                   <FieldLabel>Total Harga *</FieldLabel>
                   {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
-                    <span className="text-[10px] text-slate-400">@ {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
+                    <span className="text-[10px] text-slate-400">Harga satuan otomatis: {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
                   )}
                 </div>
-                <input value={item.totalPrice} onChange={e => updateItem(index, "totalPrice", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
+                <input value={item.totalPrice} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "totalPrice", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
               </div>
               <div className="flex items-end md:col-span-1">
                 <button
@@ -256,7 +321,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <FieldLabel>Catatan Pengiriman</FieldLabel>
           <textarea
             value={notes}
-            onChange={e => setNotes(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
             rows={4}
             placeholder="Instruksi khusus, kontak pengiriman, dokumen yang harus disertakan, dll."
             className={inputClass("resize-none")}

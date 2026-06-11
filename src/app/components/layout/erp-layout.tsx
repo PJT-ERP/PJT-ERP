@@ -4,8 +4,8 @@ import {
   ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2, AlertTriangle
 } from "lucide-react";
 import { cn } from "../ui/utils";
-import { useERPStore } from "../../store/useERPStore";
 import { useApp } from "../context/AppContext";
+import { useFinanceData } from "../finance/useFinanceData";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router";
 import { UserRole } from "../data/mockData";
 
@@ -71,8 +71,8 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
 export function ERPLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
-  const { liveInvoices } = useERPStore();
-  const readyInvoices = liveInvoices.filter(invoice => invoice.deliveryStatus === "invoice_ready");
+  const { invoices } = useFinanceData();
+  const readyInvoices = invoices.filter(invoice => invoice.status !== "PAID");
   
   const { currentUser, logout, purchasingRequests, salesOrders, quotations } = useApp();
   const location = useLocation();
@@ -202,7 +202,7 @@ export function ERPLayout() {
       }
     } else if (role === 'Purchasing') {
       purchasingRequests.filter(pr => pr.status === 'Approved').forEach(pr => {
-        notifs.push({ id: pr.id, type: 'success', title: 'PR Disetujui', desc: `PR ${pr.id} disetujui. Segera rilis PO.` });
+        notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.` });
       });
     } else if (role === 'Finance') {
       quotations.filter(q => q.status === 'waiting_pricing').forEach(q => {
@@ -213,7 +213,7 @@ export function ERPLayout() {
       });
     } else if (role === 'Admin') {
       purchasingRequests.filter(pr => pr.status === 'Pending').forEach(pr => {
-        notifs.push({ id: pr.id, type: 'alert', title: 'PR Butuh Approval', desc: `PR ${pr.id} butuh persetujuan segera.` });
+        notifs.push({ id: pr.id, type: 'alert', title: 'MR Butuh Approval', desc: `MR ${pr.id} butuh persetujuan segera.` });
       });
     }
     return notifs;

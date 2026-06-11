@@ -33,8 +33,9 @@ export function FinanceCosting() {
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
   const [estimatedAmount, setEstimatedAmount] = useState("");
   const [costingNotes, setCostingNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const waitingPricingList = quotations.filter(q => q.status === "waiting_pricing");
+  const waitingPricingList = quotations.filter(q => q.status === "waiting_pricing" || q.status === "client_price_approval");
 
   const handleSelect = (q: Quotation) => {
     setSelectedQUT(q);
@@ -43,8 +44,9 @@ export function FinanceCosting() {
   };
 
   const handleSubmitCosting = () => {
-    if (!selectedQUT || !estimatedAmount) return;
+    if (!selectedQUT || !estimatedAmount || isSubmitting) return;
 
+    setIsSubmitting(true);
     const amount = Number(estimatedAmount);
     
     // Add revision history
@@ -65,6 +67,7 @@ export function FinanceCosting() {
     });
 
     setSelectedQUT(null);
+    setIsSubmitting(false);
   };
 
   return (
@@ -144,8 +147,8 @@ export function FinanceCosting() {
                 <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
                   <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
-                  {selectedQUT.designLink ? (
-                    <a href={selectedQUT.designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                  {selectedQUT.designLink || selectedQUT.designId ? (
+                    <a href={selectedQUT.designLink || selectedQUT.designId} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                       Lihat Dokumen <ExternalLink size={12} />
                     </a>
                   ) : (
@@ -217,12 +220,12 @@ export function FinanceCosting() {
                 Batal
               </button>
               <button 
-                disabled={!estimatedAmount}
+                disabled={!estimatedAmount || isSubmitting}
                 onClick={handleSubmitCosting} 
-                style={{ padding: "10px 20px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, opacity: estimatedAmount ? 1 : 0.5 }}
+                style={{ padding: "10px 20px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, opacity: estimatedAmount && !isSubmitting ? 1 : 0.5 }}
               >
                 <Save size={15} /> 
-                {(selectedQUT.revisions && selectedQUT.revisions.length > 0) ? 'Kirim Revisi Harga' : 'Tetapkan Harga'}
+                {isSubmitting ? 'Menyimpan...' : (selectedQUT.revisions && selectedQUT.revisions.length > 0) ? 'Kirim Revisi Harga' : 'Tetapkan Harga'}
               </button>
             </div>
           </div>
