@@ -129,7 +129,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           </p>
         </div>
         <button
-          onClick={() => onNavigate("so-create")}
+          onClick={() => onNavigate("quotation-create")}
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "8px 16px", borderRadius: 6, border: "none",
@@ -148,7 +148,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             e.currentTarget.style.boxShadow = "0 4px 12px rgba(200, 16, 46, 0.25)";
           }}
         >
-          <Plus size={14} /> Buat SO
+          <Plus size={14} /> Buat QU
         </button>
       </div>
 
@@ -222,7 +222,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               </div>
             </div>
             <button
-              onClick={() => window.location.href = "#/erp/finance/invoices"}
+              onClick={() => onNavigate("so-list")}
               style={{
                 border: "1px solid #93C5FD",
                 background: "#fff",
@@ -255,7 +255,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                   </span>
                 </div>
                 <button
-                  onClick={() => window.location.href = "#/erp/finance/invoices"}
+                  onClick={() => onNavigate("so-detail", invoice.soNumber)}
                   style={{
                     marginTop: 10,
                     display: "flex",
@@ -410,7 +410,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { label: "Buat SO Baru", icon: <Plus size={13} />, page: "so-create" as Page, primary: true },
+                { label: "Buat QU Baru", icon: <Plus size={13} />, page: "quotation-create" as Page, primary: true },
                 { label: "Lihat Semua Order", icon: <List size={13} />, page: "so-list" as Page, primary: false },
                 { label: "Data Pelanggan", icon: <Users size={13} />, page: "customer-list" as Page, primary: false },
               ].map((action) => (
