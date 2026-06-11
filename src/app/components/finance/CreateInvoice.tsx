@@ -18,6 +18,7 @@ interface LineItem {
 
 const UNITS = ['Pcs', 'Unit', 'Ton', 'Kg', 'M', 'M2', 'M3', 'Set', 'Lot', 'LS'];
 const PAYMENT_TERMS = ['7 Hari', '14 Hari', '30 Hari', '45 Hari', '60 Hari', 'COD'];
+const PAYMENT_TYPES = ['Full Payment', 'Down Payment (DP)'];
 
 let idCounter = 1;
 const newItem = (): LineItem => ({
@@ -69,8 +70,11 @@ export function CreateInvoice() {
         description: item.productDescription,
         quantity: item.qty,
         unit: 'Pcs',
-        unitPrice: 0,
+        unitPrice: item.unitPrice,
       })));
+      if (backendCandidate.targetDate && !dueDate) {
+        setDueDate(backendCandidate.targetDate);
+      }
     } else {
       setItems([newItem()]);
     }
@@ -92,6 +96,11 @@ export function CreateInvoice() {
   const invoiceTotal = isDP ? Math.round((grandTotal * pct) / 100) : grandTotal;
 
   const invoiceNumber = `INV-2026-${String(Math.floor(Math.random() * 900) + 271).padStart(4, '0')}`;
+  const hasLockedBackendPrices = !!backendCandidate && items.every(item => item.unitPrice > 0);
+  const canSubmit = !!selectedSO
+    && !!dueDate
+    && (!isDP || !!dpDeadline)
+    && items.every(item => item.description && item.unitPrice > 0);
 
   const handleSubmit = async () => {
     if (backendCandidate) {
@@ -189,7 +198,7 @@ export function CreateInvoice() {
             <button onClick={handlePreview} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
               <Eye size={16} /> Preview
             </button>
-            <button onClick={handleSubmit} disabled={!selectedSO || items.some(i => !i.description || i.unitPrice === 0)} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
+            <button onClick={handleSubmit} disabled={!canSubmit} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
               <Save size={16} /> Simpan Invoice
             </button>
           </div>
@@ -208,7 +217,7 @@ export function CreateInvoice() {
               <div>
                 <h3 className="text-sm font-bold text-red-900 mb-1">Pilih Basis Sales Order</h3>
                 <p className="text-xs text-red-700 font-medium">
-                  Data pelanggan dan detail pesanan akan diisi otomatis dari backend Finance.
+                  Data pelanggan, item SO, dan harga hasil nego akan diisi otomatis dari backend Finance.
                 </p>
               </div>
               <div className="relative w-full sm:w-72 flex-shrink-0">
@@ -281,6 +290,11 @@ export function CreateInvoice() {
 
             {/* Items Table */}
             <div className="mb-12">
+              {backendCandidate && !hasLockedBackendPrices && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+                  Harga hasil nego belum tersedia di candidate ini. Buat invoice dari SO hasil Convert QUT terbaru agar harga otomatis terkunci dari pricing Finance.
+                </div>
+              )}
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -298,10 +312,11 @@ export function CreateInvoice() {
                         <td className="py-3 px-2 align-top">
                           <textarea
                             value={item.description}
-                            onChange={e => updateItem(item.id, 'description', e.target.value)}
+                            onChange={e => !backendCandidate && updateItem(item.id, 'description', e.target.value)}
+                            readOnly={!!backendCandidate}
                             placeholder="Deskripsi barang..."
                             rows={1}
-                            className="w-full bg-transparent resize-none border-none focus:ring-0 p-0 text-slate-800 placeholder:text-slate-300 focus:outline-none"
+                            className={`w-full bg-transparent resize-none border-none focus:ring-0 p-0 text-slate-800 placeholder:text-slate-300 focus:outline-none ${backendCandidate ? 'cursor-not-allowed' : ''}`}
                             style={{ minHeight: '24px' }}
                           />
                         </td>
@@ -311,33 +326,29 @@ export function CreateInvoice() {
                               type="number"
                               min="0"
                               value={item.quantity}
-                              onChange={e => updateItem(item.id, 'quantity', Number(e.target.value))}
-                              className="w-16 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-red-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
+                              onChange={e => !backendCandidate && updateItem(item.id, 'quantity', Number(e.target.value))}
+                              readOnly={!!backendCandidate}
+                              className={`w-16 bg-transparent border-b border-transparent text-right p-0 focus:outline-none text-slate-800 transition-colors ${backendCandidate ? 'cursor-not-allowed' : 'hover:border-slate-300 focus:border-red-500'}`}
                             />
                             <select
                               value={item.unit}
-                              onChange={e => updateItem(item.id, 'unit', e.target.value)}
-                              className="bg-transparent border-none text-slate-500 focus:outline-none cursor-pointer appearance-none p-0 w-8"
+                              onChange={e => !backendCandidate && updateItem(item.id, 'unit', e.target.value)}
+                              disabled={!!backendCandidate}
+                              className={`bg-transparent border-none text-slate-500 focus:outline-none appearance-none p-0 w-8 ${backendCandidate ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               {UNITS.map(u => <option key={u}>{u}</option>)}
                             </select>
                           </div>
                         </td>
                         <td className="py-3 px-2 align-top text-right">
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.unitPrice || ''}
-                            onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
-                            placeholder="0"
-                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-red-500 text-right p-0 focus:outline-none text-slate-800 transition-colors"
-                          />
+                          <span className="font-semibold text-slate-800">{formatIDR(item.unitPrice)}</span>
+                          <p className="mt-0.5 text-[10px] font-medium text-slate-400">Locked dari SO/QUT</p>
                         </td>
                         <td className="py-3 px-2 align-top text-right font-bold text-slate-800">
                           {formatIDR(item.quantity * item.unitPrice)}
                         </td>
                         <td className="py-3 align-top text-right">
-                          {items.length > 1 && (
+                          {!backendCandidate && items.length > 1 && (
                             <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100">
                               <Trash2 size={16} />
                             </button>
@@ -348,9 +359,11 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-              <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
-                <Plus size={16} /> Tambah Baris
-              </button>
+              {!backendCandidate && (
+                <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
+                  <Plus size={16} /> Tambah Baris
+                </button>
+              )}
             </div>
 
             {/* Totals & Options */}
@@ -367,7 +380,7 @@ export function CreateInvoice() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-slate-700">Jenis Tagihan</span>
                       <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)} className="bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-red-500 text-slate-800 transition-colors cursor-pointer">
-                        {['Full Payment', 'Down Payment (DP)', 'Pelunasan'].map(t => <option key={t}>{t}</option>)}
+                        {PAYMENT_TYPES.map(t => <option key={t}>{t}</option>)}
                       </select>
                     </div>
 

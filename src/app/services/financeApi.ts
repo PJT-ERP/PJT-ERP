@@ -6,6 +6,7 @@ export interface InvoiceCandidateItemDto {
   productPartNumber: string;
   productDescription: string;
   qty: number;
+  unitPrice: number;
 }
 
 export interface InvoiceCandidateDto {

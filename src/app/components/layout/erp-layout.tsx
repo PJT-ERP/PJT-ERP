@@ -175,7 +175,7 @@ export function ERPLayout() {
 
   const notifications = React.useMemo(() => {
     if (!currentUser) return [];
-    const notifs: { id: string, type: 'alert'|'warning'|'success'|'info', title: string, desc: string }[] = [];
+    const notifs: { id: string, type: 'alert'|'warning'|'success'|'info', title: string, desc: string, targetPath?: string }[] = [];
     const role = currentUser.role;
 
     if (role === 'Owner') {
@@ -183,37 +183,37 @@ export function ERPLayout() {
       // Jika ada insight kritis lain, bisa ditambahkan di sini.
     } else if (role === 'Sales') {
       quotations.filter(q => q.status === 'client_design_approval').forEach(q => {
-        notifs.push({ id: q.id, type: 'info', title: 'Desain Siap Dikirim', desc: `Quotation ${q.id} menunggu approval desain dari pelanggan.` });
+        notifs.push({ id: q.id, type: 'info', title: 'Desain Siap Dikirim', desc: `Quotation ${q.id} menunggu approval desain dari pelanggan.`, targetPath: `/erp/so/detail/${q.id}` });
       });
       quotations.filter(q => q.status === 'client_price_approval').forEach(q => {
-        notifs.push({ id: q.id, type: 'info', title: 'Harga Siap Dinegosiasikan', desc: `Quotation ${q.id} sudah dihitung Finance dan siap ditawarkan ke pelanggan.` });
+        notifs.push({ id: q.id, type: 'info', title: 'Harga Siap Dinegosiasikan', desc: `Quotation ${q.id} sudah dihitung Finance dan siap ditawarkan ke pelanggan.`, targetPath: `/erp/so/detail/${q.id}` });
       });
       salesOrders.filter(so => so.status === 'Rejected').forEach(so => {
-        notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.` });
+        notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
       });
     } else if (role === 'Engineering' || role === 'Engineering Supervisor') {
       quotations.filter(q => q.status === 'pending_design').forEach(q => {
-        notifs.push({ id: q.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `Quotation ${q.id} menunggu desain dan BOM.` });
+        notifs.push({ id: q.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `Quotation ${q.id} menunggu desain dan BOM.`, targetPath: '/erp/engineer-tasks' });
       });
       if (role === 'Engineering Supervisor') {
         quotations.filter(q => q.status === 'design_review').forEach(q => {
-          notifs.push({ id: q.id, type: 'warning', title: 'Desain Butuh Review', desc: `Quotation ${q.id} menunggu approval Engineering Supervisor.` });
+          notifs.push({ id: q.id, type: 'warning', title: 'Desain Butuh Review', desc: `Quotation ${q.id} menunggu approval Engineering Supervisor.`, targetPath: '/erp/engineer-tasks' });
         });
       }
     } else if (role === 'Purchasing') {
       purchasingRequests.filter(pr => pr.status === 'Approved').forEach(pr => {
-        notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.` });
+        notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: '/erp/purchasing/create' });
       });
     } else if (role === 'Finance') {
       quotations.filter(q => q.status === 'waiting_pricing').forEach(q => {
-        notifs.push({ id: q.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS untuk Quotation ${q.id}.` });
+        notifs.push({ id: q.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS untuk Quotation ${q.id}.`, targetPath: '/erp/finance/costing' });
       });
       readyInvoices.forEach(inv => {
-        notifs.push({ id: inv.id, type: 'info', title: 'Tagihan Siap Rilis', desc: `Invoice ${inv.invoiceNumber} menunggu verifikasi pengiriman.` });
+        notifs.push({ id: inv.id, type: 'info', title: 'Tagihan Siap Rilis', desc: `Invoice ${inv.invoiceNumber} menunggu verifikasi pengiriman.`, targetPath: '/erp/finance/invoices' });
       });
     } else if (role === 'Admin') {
       purchasingRequests.filter(pr => pr.status === 'Pending').forEach(pr => {
-        notifs.push({ id: pr.id, type: 'alert', title: 'MR Butuh Approval', desc: `MR ${pr.id} butuh persetujuan segera.` });
+        notifs.push({ id: pr.id, type: 'alert', title: 'MR Butuh Approval', desc: `MR ${pr.id} butuh persetujuan segera.`, targetPath: '/erp/purchasing/requests' });
       });
     }
     return notifs;
@@ -259,7 +259,16 @@ export function ERPLayout() {
               }[n.type];
 
               return (
-                <div key={i} style={{ padding: "12px", borderRadius: 6, border: `1px solid ${colors.border}`, background: colors.bg, cursor: "pointer" }}>
+                <div
+                  key={i}
+                  onClick={() => {
+                    if (n.targetPath) {
+                      navigate(n.targetPath);
+                      setIsNotifOpen(false);
+                    }
+                  }}
+                  style={{ padding: "12px", borderRadius: 6, border: `1px solid ${colors.border}`, background: colors.bg, cursor: n.targetPath ? "pointer" : "default" }}
+                >
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     {colors.icon}
                     <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: colors.text }}>{n.title}</h4>

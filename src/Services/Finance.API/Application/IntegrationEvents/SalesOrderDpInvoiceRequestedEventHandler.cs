@@ -55,6 +55,12 @@ public sealed class SalesOrderDpInvoiceRequestedEventHandler(FinanceContext db) 
         candidate.UpdatedAtUtc = DateTime.UtcNow;
 
         candidate.Items.Clear();
+        var totalQty = integrationEvent.Items.Sum(item => item.Qty);
+        var allocatedUnitPrice = decimal.Round(
+            integrationEvent.QuotationAmount / totalQty,
+            2,
+            MidpointRounding.AwayFromZero);
+
         foreach (var item in integrationEvent.Items)
         {
             candidate.Items.Add(new InvoiceCandidateItem
@@ -64,7 +70,8 @@ public sealed class SalesOrderDpInvoiceRequestedEventHandler(FinanceContext db) 
                 ProductId = item.ProductId,
                 ProductPartNumber = item.ProductPartNumber,
                 ProductDescription = item.ProductDescription,
-                Qty = item.Qty
+                Qty = item.Qty,
+                UnitPrice = allocatedUnitPrice
             });
         }
 

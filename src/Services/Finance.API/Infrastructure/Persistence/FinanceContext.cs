@@ -53,6 +53,7 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
             builder.Property(item => item.ProductPartNumber).HasMaxLength(100).HasColumnName("product_part_number");
             builder.Property(item => item.ProductDescription).HasColumnName("product_description");
             builder.Property(item => item.Qty).HasColumnName("qty");
+            builder.Property(item => item.UnitPrice).HasColumnType("numeric(18,2)").HasColumnName("unit_price");
         });
 
         modelBuilder.Entity<Invoice>(builder =>

@@ -9,6 +9,10 @@ public static class FinanceSchemaInitializer
     {
         await db.Database.EnsureCreatedAsync(cancellationToken);
 
+        await db.Database.ExecuteSqlRawAsync(
+            "ALTER TABLE invoice_candidate_items ADD COLUMN IF NOT EXISTS unit_price numeric(18,2) NOT NULL DEFAULT 0;",
+            cancellationToken);
+
         await db.Database.ExecuteSeedSqlAsync(cancellationToken: cancellationToken);
     }
 }
