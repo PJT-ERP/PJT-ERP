@@ -9,12 +9,14 @@ import {
   X,
   AlertTriangle,
   Eye,
-  Download,
+  RefreshCw,
   Plus,
 } from "lucide-react";
 import { useERPStore } from "../../store/useERPStore";
+import { MaterialRequirementDto, PurchaseRequestDto } from "../../services/purchasingApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
+import { usePurchasingData } from "./usePurchasingData";
 
 /* ── Data ──────────────────────────────────────────────────── */
 
@@ -161,6 +163,91 @@ const priorityCfg: Record<string, { bg: string; color: string }> = {
   Low:    { bg: "#f0f9ff", color: "#0369a1" },
 };
 
+function mapRequirementStatus(status: string): MR["status"] {
+  const normalized = status.toLowerCase();
+  if (normalized === "received") return "Completed";
+  if (normalized === "ordered") return "In Process";
+  if (normalized === "purchaseapproved") return "Approved";
+  if (normalized === "purchaserejected") return "Rejected";
+  return "Pending";
+}
+
+function mapPurchaseRequestStatus(status: string): MR["status"] {
+  const normalized = status.toLowerCase();
+  if (normalized === "completed") return "Completed";
+  if (normalized === "processing") return "In Process";
+  if (normalized === "approved") return "Approved";
+  if (normalized === "rejected") return "Rejected";
+  return "Pending";
+}
+
+function mapPriority(urgency?: string | null): MR["priority"] {
+  const normalized = urgency?.toLowerCase();
+  if (normalized === "critical" || normalized === "urgent") return "High";
+  if (normalized === "low") return "Low";
+  return "Medium";
+}
+
+function formatApiDate(date?: string | null) {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function mapMaterialRequirement(requirement: MaterialRequirementDto): MR {
+  return {
+    id: requirement.spkNumber || `MR-${requirement.id.slice(0, 8).toUpperCase()}`,
+    requestor: "Engineering",
+    department: requirement.projectName || requirement.salesOrderNumber,
+    date: "-",
+    priority: requirement.stockOnHand <= 0 ? "High" : "Medium",
+    status: mapRequirementStatus(requirement.status),
+    urgency: `SO ${requirement.salesOrderNumber} - ${requirement.spkNumber}`,
+    notes: requirement.materialSpec || requirement.productDescription,
+    items: [
+      {
+        code: requirement.productPartNumber,
+        name: requirement.productDescription,
+        spec: requirement.materialSpec || requirement.barcodeUid || "-",
+        qty: requirement.requiredQty,
+        unit: "pcs",
+        currentStock: requirement.stockOnHand,
+      },
+    ],
+    financeApproval: requirement.status === "PurchaseApproved" ? "Approved" : undefined,
+  };
+}
+
+function mapPurchaseRequest(request: PurchaseRequestDto): MR {
+  return {
+    id: request.prNumber || `PR-${request.id.slice(0, 8).toUpperCase()}`,
+    requestor: request.requesterName || "Engineering",
+    department: request.projectName || request.salesOrderNumber || "Engineering",
+    date: formatApiDate(request.requestDate),
+    priority: mapPriority(request.items[0]?.urgency),
+    status: mapPurchaseRequestStatus(request.status),
+    urgency: request.salesOrderNumber ? `SO ${request.salesOrderNumber}` : "Permintaan non-SO",
+    notes: request.items.map(item => item.purchaseCategory).filter(Boolean).join(", "),
+    supplierAssigned: request.items.find(item => item.supplierName)?.supplierName || undefined,
+    financeApproval: request.status === "Approved" || request.status === "Processing" || request.status === "Completed"
+      ? "Approved"
+      : request.status === "Rejected"
+        ? "Rejected"
+        : "Pending",
+    items: request.items.map(item => ({
+      code: item.id.slice(0, 8).toUpperCase(),
+      name: item.itemName,
+      spec: item.size || item.purchaseCategory || "-",
+      qty: item.qty,
+      unit: "pcs",
+      currentStock: 0,
+    })),
+  };
+}
+
 /* ── Components ────────────────────────────────────────────── */
 
 function Pill({ cfg, label }: { cfg: { bg: string; color: string; icon?: React.ReactNode }; label: string }) {
@@ -204,6 +291,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 
 export function MaterialRequestsPage() {
   const { allSOs } = useERPStore();
+  const { materialRequirements, purchaseRequests, isUsingBackend, isLoading, refresh } = usePurchasingData();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
@@ -222,6 +310,15 @@ export function MaterialRequestsPage() {
     return ["Besi Hollow 4x4x2mm", "Besi WF 150x75", "Plat Besi 3mm", "Bearing SKF 6205", "V-Belt A48", "Cat Epoxy Primer Grey"];
   }, [formSoNumber, allSOs]);
 
+  const requestData = useMemo(() => {
+    const backendRows = [
+      ...materialRequirements.map(mapMaterialRequirement),
+      ...purchaseRequests.map(mapPurchaseRequest),
+    ];
+
+    return backendRows.length > 0 ? backendRows : MR_DATA;
+  }, [materialRequirements, purchaseRequests]);
+
   const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
   const removeFormItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
   const updateFormItem = (i: number, key: keyof MRItem, val: any) => {
@@ -230,7 +327,7 @@ export function MaterialRequestsPage() {
     setFormItems(next);
   };
 
-  const filtered = MR_DATA.filter((m) => {
+  const filtered = requestData.filter((m) => {
     const q = search.toLowerCase();
     const matchQ = !q || m.id.toLowerCase().includes(q) || m.requestor.toLowerCase().includes(q) || m.department.toLowerCase().includes(q);
     const matchS = filterStatus === "all" || m.status === filterStatus;
@@ -239,10 +336,10 @@ export function MaterialRequestsPage() {
   });
 
   const counts = {
-    Pending: MR_DATA.filter((m) => m.status === "Pending").length,
-    Approved: MR_DATA.filter((m) => m.status === "Approved").length,
-    "In Process": MR_DATA.filter((m) => m.status === "In Process").length,
-    Rejected: MR_DATA.filter((m) => m.status === "Rejected").length,
+    Pending: requestData.filter((m) => m.status === "Pending").length,
+    Approved: requestData.filter((m) => m.status === "Approved").length,
+    "In Process": requestData.filter((m) => m.status === "In Process").length,
+    Rejected: requestData.filter((m) => m.status === "Rejected").length,
   };
 
   return (
@@ -253,14 +350,16 @@ export function MaterialRequestsPage() {
           <h1 style={{ color: "#1F1F1F" }}>Material Requests</h1>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             Manajemen permintaan material ke departemen Purchasing
+            {isUsingBackend ? " - tersambung backend" : " - mode data demo"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => void refresh()}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 border transition-colors hover:bg-slate-50"
             style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
           >
-            <Download size={13} /> Export
+            <RefreshCw size={13} /> {isLoading ? "Loading..." : "Refresh"}
           </button>
           <button
             onClick={() => setCreateOpen(true)}
@@ -429,7 +528,7 @@ export function MaterialRequestsPage() {
           style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}
         >
           <p style={{ fontSize: 11, color: "#94a3b8" }}>
-            Menampilkan {filtered.length} dari {MR_DATA.length} permintaan
+            Menampilkan {filtered.length} dari {requestData.length} permintaan
           </p>
         </div>
       </div>

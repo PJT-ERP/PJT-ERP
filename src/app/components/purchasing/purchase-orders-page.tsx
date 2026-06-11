@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -19,6 +19,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { PurchaseRequestDto } from "../../services/purchasingApi";
+import { usePurchasingData } from "./usePurchasingData";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -195,6 +197,53 @@ const formatRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
 const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
 const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * i.unitPrice, 0);
 
+function mapPurchaseStatusToDeliveryStatus(status: string): PO["deliveryStatus"] {
+  const normalized = status.toLowerCase();
+  if (normalized === "completed") return "Closed";
+  if (normalized === "processing") return "In Transit";
+  if (normalized === "approved") return "Confirmed";
+  if (normalized === "rejected") return "Cancelled";
+  return "Open";
+}
+
+function mapPurchaseStatusToPaymentStatus(status: string): PO["paymentStatus"] {
+  const normalized = status.toLowerCase();
+  if (normalized === "completed") return "Paid";
+  if (normalized === "processing") return "Partial";
+  return "Unpaid";
+}
+
+function mapPurchaseRequestToPO(request: PurchaseRequestDto): PO {
+  const firstSupplier = request.items.find(item => item.supplierName)?.supplierName || "Supplier belum dipilih";
+  const firstPoNumber = request.items.find(item => item.poNumber)?.poNumber || request.prNumber;
+
+  return {
+    id: firstPoNumber || request.id,
+    supplier: firstSupplier,
+    supplierCode: "-",
+    contact: "-",
+    contactPhone: "-",
+    orderDate: new Date(request.requestDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
+    dueDate: "-",
+    deliveryStatus: mapPurchaseStatusToDeliveryStatus(request.status),
+    paymentStatus: mapPurchaseStatusToPaymentStatus(request.status),
+    paymentTerms: "Net 14",
+    mrRef: request.prNumber,
+    shippingAddress: "Gudang Utama - Jl. Industri No. 1, Bekasi",
+    notes: request.salesOrderNumber ? `SO: ${request.salesOrderNumber}` : request.projectName || "",
+    financeApproval: request.status === "Rejected" ? "Rejected" : request.status === "Submitted" ? "Pending" : "Approved",
+    items: request.items.map(item => ({
+      code: item.id.slice(0, 8).toUpperCase(),
+      name: item.itemName,
+      spec: item.size || item.purchaseCategory || "-",
+      qty: item.qty,
+      unit: "pcs",
+      unitPrice: item.totalPrice ? item.totalPrice / Math.max(item.qty, 1) : item.unitPrice || 0,
+      received: item.purchaseStatus === "Received" ? item.qty : 0,
+    })),
+  };
+}
+
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
     .map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(','))
@@ -242,6 +291,7 @@ interface PurchaseOrdersPageProps {
 }
 
 export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
+  const { purchaseRequests, isUsingBackend } = usePurchasingData();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [detail, setDetail] = useState<PO | null>(null);
@@ -255,7 +305,12 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const [formNotes, setFormNotes] = useState("");
   const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", price: "" }]);
 
-  const filtered = PO_DATA.filter((p) => {
+  const poData = useMemo(() => {
+    const backendPOs = purchaseRequests.map(mapPurchaseRequestToPO);
+    return backendPOs.length > 0 ? backendPOs : PO_DATA;
+  }, [purchaseRequests]);
+
+  const filtered = poData.filter((p) => {
     const q = search.toLowerCase();
     const matchQ = !q || p.id.toLowerCase().includes(q) || p.supplier.toLowerCase().includes(q) || p.mrRef.toLowerCase().includes(q);
     const matchS = filterStatus === "all" || p.deliveryStatus === filterStatus;
@@ -309,6 +364,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 style={{ color: "#1F1F1F" }}>Purchase Orders</h1>
+          <p style={{ fontSize: 11, color: isUsingBackend ? "#16a34a" : "#94a3b8", marginTop: 2 }}>
+            {isUsingBackend ? "Data backend aktif" : "Mode data demo"}
+          </p>
           <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
             Daftar dan pengelolaan semua Purchase Order — PT Pratama Jaya Tekindo
           </p>
@@ -334,7 +392,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* Status summary */}
       <div className="flex flex-wrap gap-2">
         {(Object.keys(deliveryCfg) as string[]).map((s) => {
-          const n = PO_DATA.filter((p) => p.deliveryStatus === s).length;
+          const n = poData.filter((p) => p.deliveryStatus === s).length;
           if (!n) return null;
           const cfg = deliveryCfg[s];
           const active = filterStatus === s;
@@ -552,7 +610,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
         </div>
 
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {PO_DATA.length} purchase order</p>
+          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {poData.length} purchase order</p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
             Total: {formatRp(filtered.reduce((s, p) => s + calcTotal(p.items), 0))}
           </p>

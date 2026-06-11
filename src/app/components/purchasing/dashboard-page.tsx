@@ -1,4 +1,7 @@
 import {
+  useMemo,
+} from "react";
+import {
   ShoppingCart,
   ClipboardList,
   Truck,
@@ -27,6 +30,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { usePurchasingData } from "./usePurchasingData";
 
 /* ── Data ──────────────────────────────────────────────────── */
 
@@ -167,6 +171,64 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ onCreatePO }: DashboardPageProps) {
+  const { materialRequirements, purchaseRequests, isUsingBackend, isLoading, refresh } = usePurchasingData();
+
+  const dashboardPendingApprovals = useMemo(() => {
+    const backendRows = purchaseRequests
+      .filter(request => request.status === "Submitted")
+      .slice(0, 3)
+      .map(request => ({
+        id: request.prNumber,
+        dept: request.projectName || request.salesOrderNumber || "Engineering",
+        items: request.items.length,
+        priority: request.items.some(item => item.urgency === "Critical" || item.urgency === "Urgent") ? "High" : "Medium",
+        age: new Date(request.requestDate).toLocaleDateString("id-ID"),
+      }));
+
+    return backendRows.length > 0 ? backendRows : pendingApprovals;
+  }, [purchaseRequests]);
+
+  const dashboardRecentActivity = useMemo(() => {
+    const backendRows = purchaseRequests.slice(0, 5).map(request => ({
+      id: request.prNumber,
+      type: request.status === "Submitted" ? "PR Submitted" : `PR ${request.status}`,
+      detail: `${request.projectName || request.salesOrderNumber || "Non-SO"} - ${request.items.length} item`,
+      time: new Date(request.requestDate).toLocaleDateString("id-ID"),
+      status: request.status === "Submitted" ? "pending" : request.status === "Completed" ? "done" : "open",
+    }));
+
+    return backendRows.length > 0 ? backendRows : recentActivity;
+  }, [purchaseRequests]);
+
+  const dashboardIncomingDeliveries = useMemo(() => {
+    const backendRows = purchaseRequests
+      .filter(request => request.status === "Processing" || request.status === "Approved")
+      .slice(0, 3)
+      .map(request => ({
+        po: request.items.find(item => item.poNumber)?.poNumber || request.prNumber,
+        supplier: request.items.find(item => item.supplierName)?.supplierName || "Supplier belum dipilih",
+        eta: request.items.find(item => item.purchaseStatus === "Ordered") ? "Dalam proses" : "Menunggu PO",
+        items: request.items.length,
+        status: request.status === "Processing" ? "In Transit" : "Confirmed",
+      }));
+
+    return backendRows.length > 0 ? backendRows : incomingDeliveries;
+  }, [purchaseRequests]);
+
+  const pendingRequestCount = isUsingBackend
+    ? purchaseRequests.filter(request => request.status === "Submitted").length
+    : pendingApprovals.length;
+  const activePurchaseOrderCount = isUsingBackend
+    ? purchaseRequests.filter(request => request.status === "Approved" || request.status === "Processing").length
+    : 27;
+  const supplierDeliveryCount = isUsingBackend ? dashboardIncomingDeliveries.length : incomingDeliveries.length;
+  const materialAvailabilityPct = isUsingBackend && materialRequirements.length > 0
+    ? Math.round((materialRequirements.filter(item => item.stockOnHand >= item.requiredQty).length / materialRequirements.length) * 100)
+    : 94;
+  const lowStockCount = isUsingBackend
+    ? materialRequirements.filter(item => item.stockOnHand < item.requiredQty).length
+    : 6;
+
   return (
     <div className="p-5 space-y-5">
       {/* Page header */}
@@ -179,10 +241,11 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => void refresh()}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 border transition-colors hover:bg-slate-50"
             style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0" }}
           >
-            <RefreshCcw size={13} /> Refresh
+            <RefreshCcw size={13} /> {isLoading ? "Loading..." : "Refresh"}
           </button>
           <button
             onClick={onCreatePO}
@@ -198,7 +261,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KPICard
           label="Pending Requests"
-          value="3"
+          value={String(pendingRequestCount)}
           sub="Menunggu persetujuan"
           trend="+1 hari ini"
           trendUp={false}
@@ -208,7 +271,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         />
         <KPICard
           label="Active Purchase Orders"
-          value="27"
+          value={String(activePurchaseOrderCount)}
           sub="14 open · 8 in transit"
           trend="+3 minggu ini"
           trendUp={true}
@@ -218,7 +281,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         />
         <KPICard
           label="Supplier Deliveries"
-          value="3"
+          value={String(supplierDeliveryCount)}
           sub="Pengiriman minggu ini"
           trend="1 jatuh tempo hari ini"
           trendUp={false}
@@ -228,8 +291,8 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
         />
         <KPICard
           label="Material Availability"
-          value="94%"
-          sub="6 item di bawah minimum"
+          value={`${materialAvailabilityPct}%`}
+          sub={`${lowStockCount} item di bawah minimum`}
           trend="-2% dari minggu lalu"
           trendUp={false}
           icon={<Package size={16} />}
@@ -357,7 +420,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
             }
           >
             <div className="divide-y" style={{ divideColor: "#f8fafc" }}>
-              {recentActivity.map((a, i) => (
+              {dashboardRecentActivity.map((a, i) => (
                 <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
                   <div
                     className="rounded-full mt-0.5 shrink-0"
@@ -387,12 +450,12 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                 className="flex items-center justify-center rounded-full text-white"
                 style={{ background: "#dc2626", fontSize: 10, fontWeight: 700, width: 18, height: 18 }}
               >
-                {pendingApprovals.length}
+                {dashboardPendingApprovals.length}
               </span>
             }
           >
             <div className="divide-y" style={{ divideColor: "#f8fafc" }}>
-              {pendingApprovals.map((mr) => (
+              {dashboardPendingApprovals.map((mr) => (
                 <div key={mr.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/60 transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -423,7 +486,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
           {/* Incoming deliveries */}
           <Section title="Pengiriman Masuk">
             <div className="divide-y" style={{ divideColor: "#f8fafc" }}>
-              {incomingDeliveries.map((d) => (
+              {dashboardIncomingDeliveries.map((d) => (
                 <div key={d.po} className="px-4 py-2.5 hover:bg-slate-50/60 transition-colors">
                   <div className="flex items-center justify-between gap-2">
                     <span style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{d.po}</span>
