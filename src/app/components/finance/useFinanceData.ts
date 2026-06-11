@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { financeApi, InvoiceCandidateDto, InvoiceDto } from '../../services/financeApi';
+import { financeApi, InvoiceCandidateDto, InvoiceDto, PaymentVerificationRequestDto } from '../../services/financeApi';
 import {
   type Invoice,
   type InvoiceStatus,
@@ -75,11 +75,56 @@ function buildStatusData(invoices: Invoice[]) {
     .filter(item => item.value > 0);
 }
 
-function mapPayments(invoices: InvoiceDto[]): Payment[] {
-  return invoices.flatMap(invoice => invoice.payments.map(payment => ({
+function paymentKey(invoiceId: string, paymentDate: string, amount: number) {
+  return `${invoiceId}:${paymentDate}:${amount}`;
+}
+
+function mapPaymentVerificationStatus(status: string): Payment['status'] {
+  const normalized = status.toLowerCase();
+  if (normalized === 'verified') return 'VERIFIED';
+  if (normalized === 'rejected') return 'REJECTED';
+  return 'PENDING';
+}
+
+function mapPaymentVerifications(requests: PaymentVerificationRequestDto[]): Payment[] {
+  return requests.map(request => ({
+    id: request.id,
+    invoiceId: request.invoiceId,
+    invoiceNumber: request.invoiceNumber,
+    soNumber: request.salesOrderNumber,
+    customerName: request.customerName,
+    amount: request.amount,
+    paymentDate: request.paymentDate,
+    paymentMethod: 'Transfer',
+    bankRef: request.bankReference || request.id.slice(0, 8).toUpperCase(),
+    bankName: request.bankName || 'Bank Transfer',
+    status: mapPaymentVerificationStatus(request.status),
+    proofAvailable: !!request.proofFileName,
+    proofFileName: request.proofFileName || undefined,
+    proofFileUrl: request.proofFileUrl || undefined,
+    submittedBy: request.submittedBy,
+    submittedAt: request.submittedAtUtc,
+    notes: request.notes || undefined,
+    verifiedBy: request.verifiedBy || undefined,
+    verifiedAt: request.verifiedAtUtc ? request.verifiedAtUtc.slice(0, 10) : undefined,
+    rejectionReason: request.rejectionReason || undefined,
+  }));
+}
+
+function mapPayments(invoices: InvoiceDto[], verificationRequests: PaymentVerificationRequestDto[]): Payment[] {
+  const verifiedProofKeys = new Set(
+    verificationRequests
+      .filter(request => request.status.toLowerCase() === 'verified')
+      .map(request => paymentKey(request.invoiceId, request.paymentDate, request.amount))
+  );
+
+  const recordedPayments: Payment[] = invoices.flatMap(invoice => invoice.payments
+    .filter(payment => !verifiedProofKeys.has(paymentKey(invoice.id, payment.paymentDate, payment.amount)))
+    .map(payment => ({
     id: payment.id,
     invoiceId: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
+    soNumber: invoice.salesOrderNumber,
     customerName: invoice.customerName,
     amount: payment.amount,
     paymentDate: payment.paymentDate,
@@ -92,6 +137,8 @@ function mapPayments(invoices: InvoiceDto[]): Payment[] {
     verifiedBy: 'Backend',
     verifiedAt: payment.paymentDate,
   })));
+
+  return [...mapPaymentVerifications(verificationRequests), ...recordedPayments];
 }
 
 function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
@@ -147,12 +194,13 @@ export function useFinanceData() {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [invoices, candidates] = await Promise.all([
+      const [invoices, candidates, paymentVerifications] = await Promise.all([
         financeApi.listInvoices(),
         financeApi.listInvoiceCandidates(),
+        financeApi.listPaymentVerifications(),
       ]);
       setBackendInvoices(invoices.map(mapInvoice));
-      setBackendPayments(mapPayments(invoices));
+      setBackendPayments(mapPayments(invoices, paymentVerifications));
       setBackendTransactions(buildTransactionsFromInvoices(invoices));
       setInvoiceCandidates(candidates);
       setIsUsingBackend(true);

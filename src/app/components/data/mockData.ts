@@ -64,7 +64,7 @@ export interface SalesOrder {
   notes?: string;
   timeline?: { id: string; step: string; label: string; date: string; completed: boolean; current?: boolean; assignedTo?: string }[];
   activities?: { id: string; user: string; role: string; action: string; timestamp: string }[];
-  invoice?: { invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string };
+  invoice?: { invoiceId?: string; invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string };
   quotationDate?: string;
   designApprovedAt?: string;
   assignedTo?: string;

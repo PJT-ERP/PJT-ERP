@@ -24,6 +24,7 @@ export function resolveSalesOrderInvoice(order: SalesOrder, invoices: Invoice[])
   }
 
   return {
+    invoiceId: financeInvoice.id,
     invoiceNumber: financeInvoice.invoiceNumber,
     invoiceDate: financeInvoice.issueDate,
     dueDate: financeInvoice.dueDate,

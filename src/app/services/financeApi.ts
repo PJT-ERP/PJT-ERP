@@ -94,6 +94,40 @@ export interface InvoiceDto {
   }>;
 }
 
+export interface SubmitPaymentProofRequest {
+  paymentDate: string;
+  amount: number;
+  bankName?: string | null;
+  bankReference?: string | null;
+  proofFileName?: string | null;
+  proofFileUrl?: string | null;
+  notes?: string | null;
+}
+
+export interface PaymentVerificationRequestDto {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  salesOrderId: string;
+  salesOrderNumber: string;
+  customerId: string;
+  customerName: string;
+  paymentDate: string;
+  amount: number;
+  bankName: string;
+  bankReference?: string | null;
+  proofFileName?: string | null;
+  proofFileUrl?: string | null;
+  notes?: string | null;
+  status: string;
+  submittedBy: string;
+  submittedAtUtc: string;
+  verifiedBy?: string | null;
+  verifiedAtUtc?: string | null;
+  rejectionReason?: string | null;
+  rejectedAtUtc?: string | null;
+}
+
 export interface FinanceDashboardDto {
   customerId?: string | null;
   customerName?: string | null;
@@ -132,6 +166,28 @@ export const financeApi = {
 
   async recordPayment(invoiceId: string, request: { paymentDate: string; amount: number; notes?: string | null }) {
     const response = await apiClient.post<InvoiceDto>(`/api/v1/finance/invoices/${invoiceId}/payments`, request);
+    return response.data;
+  },
+
+  async listPaymentVerifications(status?: string) {
+    const response = await apiClient.get<PaymentVerificationRequestDto[]>('/api/v1/finance/payment-verifications', {
+      params: { status },
+    });
+    return response.data;
+  },
+
+  async submitPaymentProof(invoiceId: string, request: SubmitPaymentProofRequest) {
+    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, request);
+    return response.data;
+  },
+
+  async verifyPaymentProof(requestId: string) {
+    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/${requestId}/verify`);
+    return response.data;
+  },
+
+  async rejectPaymentProof(requestId: string, request: { reason: string }) {
+    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/${requestId}/reject`, request);
     return response.data;
   },
 

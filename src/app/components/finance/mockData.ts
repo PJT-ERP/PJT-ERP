@@ -60,6 +60,7 @@ export interface Payment {
   id: string;
   invoiceId: string;
   invoiceNumber: string;
+  soNumber?: string;
   customerName: string;
   amount: number;
   paymentDate: string;
@@ -68,6 +69,10 @@ export interface Payment {
   bankName: string;
   status: PaymentStatus;
   proofAvailable: boolean;
+  proofFileName?: string;
+  proofFileUrl?: string;
+  submittedBy?: string;
+  submittedAt?: string;
   notes?: string;
   verifiedBy?: string;
   verifiedAt?: string;

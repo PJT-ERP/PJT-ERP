@@ -164,16 +164,29 @@ function RecordPaymentModal({ invoice, onClose, onRecorded }: {
 function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
   payment: Payment;
   onClose: () => void;
-  onVerify: (id: string) => void;
-  onReject: (id: string, reason: string) => void;
+  onVerify: (id: string) => void | Promise<void>;
+  onReject: (id: string, reason: string) => void | Promise<void>;
 }) {
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
   const handleReject = () => {
     if (!rejectReason.trim()) return;
-    onReject(payment.id, rejectReason);
+    void onReject(payment.id, rejectReason);
     onClose();
+  };
+
+  const openProof = () => {
+    if (!payment.proofFileUrl) return;
+    window.open(payment.proofFileUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadProof = () => {
+    if (!payment.proofFileUrl) return;
+    const link = document.createElement('a');
+    link.href = payment.proofFileUrl;
+    link.download = payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`;
+    link.click();
   };
 
   return (
@@ -187,11 +200,9 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             <p className="text-xs text-slate-400 mt-0.5">{payment.invoiceNumber}</p>
           </div>
           <div className="flex items-center gap-3">
-            {payment.status !== 'PENDING' && (
-              <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${STATUS_CONFIG[payment.status].color}`}>
-                {STATUS_CONFIG[payment.status].label}
-              </span>
-            )}
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${STATUS_CONFIG[payment.status].color}`}>
+              {STATUS_CONFIG[payment.status].label}
+            </span>
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={20} /></button>
           </div>
         </div>
@@ -240,13 +251,21 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
                       <div className="h-0.5 bg-slate-200 rounded" />
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 font-medium mt-1">bukti_transfer_{payment.bankRef}.pdf</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">{payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`}</p>
                 </div>
                 <div className="flex gap-2 p-3 bg-white">
-                  <button className="flex-1 flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg py-2 text-xs font-medium transition-colors">
+                  <button
+                    onClick={openProof}
+                    disabled={!payment.proofFileUrl}
+                    className="flex-1 flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-2 text-xs font-medium transition-colors"
+                  >
                     <Eye size={13} /> Lihat Bukti
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg py-2 text-xs font-medium transition-colors">
+                  <button
+                    onClick={downloadProof}
+                    disabled={!payment.proofFileUrl}
+                    className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-2 text-xs font-medium transition-colors"
+                  >
                     <Upload size={13} /> Download
                   </button>
                 </div>
@@ -263,6 +282,13 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             <div className="bg-red-50 border border-red-100 rounded-lg p-3">
               <p className="text-xs font-semibold text-red-700 mb-1">Catatan dari Pelanggan</p>
               <p className="text-xs text-red-600">{payment.notes}</p>
+            </div>
+          )}
+
+          {payment.status === 'PENDING' && payment.submittedBy && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs font-semibold text-amber-800">Dikirim oleh {payment.submittedBy}</p>
+              {payment.submittedAt && <p className="text-xs text-amber-700 mt-0.5">{new Date(payment.submittedAt).toLocaleString('id-ID')}</p>}
             </div>
           )}
 
@@ -289,7 +315,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
           {payment.status === 'PENDING' && !rejectMode && (
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => { onVerify(payment.id); onClose(); }}
+                onClick={() => { void onVerify(payment.id); onClose(); }}
                 className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors shadow-sm"
               >
                 <CheckCircle2 size={15} />
@@ -479,22 +505,30 @@ export function PaymentVerification() {
     setPaymentData(financePayments);
   }, [financePayments]);
 
-  const handleVerify = (id: string) => {
-    setPaymentData(prev => prev.map(p =>
-      p.id === id ? { ...p, status: 'VERIFIED' as PaymentStatus, verifiedBy: 'Ahmad Fauzi', verifiedAt: new Date().toLocaleString('id-ID') } : p
-    ));
+  const handleVerify = async (id: string) => {
+    try {
+      await financeApi.verifyPaymentProof(id);
+      await refresh();
+    } catch (err) {
+      console.warn('Failed to verify payment proof.', err);
+    }
   };
 
-  const handleReject = (id: string, reason: string) => {
-    setPaymentData(prev => prev.map(p =>
-      p.id === id ? { ...p, status: 'REJECTED' as PaymentStatus, rejectionReason: reason } : p
-    ));
+  const handleReject = async (id: string, reason: string) => {
+    try {
+      await financeApi.rejectPaymentProof(id, { reason });
+      await refresh();
+    } catch (err) {
+      console.warn('Failed to reject payment proof.', err);
+    }
   };
 
   const filtered = filterStatus === 'ALL' ? paymentData : paymentData.filter(p => p.status === filterStatus);
+  const pendingProofInvoiceIds = new Set(paymentData.filter(payment => payment.status === 'PENDING').map(payment => payment.invoiceId));
   const unpaidInvoices = invoices.filter(invoice =>
     getRemainingAmount(invoice) > 0 &&
     !hasRecordedPayment(invoice) &&
+    !pendingProofInvoiceIds.has(invoice.id) &&
     !hiddenInvoiceIds.has(invoice.id)
   );
   const pendingCount = paymentData.filter(p => p.status === 'PENDING').length;

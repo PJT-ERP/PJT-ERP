@@ -27,6 +27,7 @@ public sealed class Invoice
     public List<InvoiceItem> Items { get; set; } = [];
     public List<PaymentSchedule> PaymentSchedules { get; set; } = [];
     public List<PaymentRecord> Payments { get; set; } = [];
+    public List<PaymentVerificationRequest> PaymentVerificationRequests { get; set; } = [];
     public List<CollectionLetter> CollectionLetters { get; set; } = [];
 }
 
@@ -67,6 +68,27 @@ public sealed class PaymentRecord
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public sealed class PaymentVerificationRequest
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid InvoiceId { get; set; }
+    public Invoice? Invoice { get; set; }
+    public DateOnly PaymentDate { get; set; }
+    public decimal Amount { get; set; }
+    public string BankName { get; set; } = "";
+    public string? BankReference { get; set; }
+    public string? ProofFileName { get; set; }
+    public string? ProofFileUrl { get; set; }
+    public string? Notes { get; set; }
+    public string Status { get; set; } = PaymentVerificationStatuses.Pending;
+    public string SubmittedBy { get; set; } = "Sales";
+    public DateTime SubmittedAtUtc { get; set; } = DateTime.UtcNow;
+    public string? VerifiedBy { get; set; }
+    public DateTime? VerifiedAtUtc { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime? RejectedAtUtc { get; set; }
+}
+
 public sealed class CollectionLetter
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -85,4 +107,11 @@ public static class InvoiceStatuses
     public const string PartiallyPaid = "PartiallyPaid";
     public const string Paid = "Paid";
     public const string Overdue = "Overdue";
+}
+
+public static class PaymentVerificationStatuses
+{
+    public const string Pending = "Pending";
+    public const string Verified = "Verified";
+    public const string Rejected = "Rejected";
 }
