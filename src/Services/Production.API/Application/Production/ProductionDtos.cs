@@ -108,11 +108,14 @@ public sealed record SalesOrderProductionProgressItemDto(
 public sealed record PublicProductionTrackingDto(
     string SoNumber,
     string CustomerName,
+    string? CustomerDrawingUrl,
+    string? DesignReference,
     string SalesOrderStatus,
     string ProductionStatus,
     int TotalItems,
     int TotalQuantity,
     decimal ProgressPercent,
+    string? DrawingFileUrl,
     DateTime? StartedAtUtc,
     DateTime? FinishedAtUtc,
     long? DurationSeconds,
@@ -142,3 +145,20 @@ public sealed record ExecutiveDashboardDto(
     int ApprovedQc,
     int RejectedQc,
     decimal RejectionRate);
+
+public sealed record SubmitProductionMaterialRequest(
+    Guid RequestedByUserId,
+    string RequesterName,
+    IReadOnlyCollection<SubmitProductionMaterialRequestItem> Items,
+    string? Notes = null);
+
+public sealed record SubmitProductionMaterialRequestItem(
+    Guid? MaterialRequirementId,
+    Guid? SalesOrderItemId,
+    string ItemName,
+    string? Size,
+    int Qty,
+    string? Urgency = null,
+    string? SuggestedSupplier = null,
+    string? Notes = null,
+    string? PurchaseCategory = null);

@@ -3,5 +3,7 @@
 .git/
 .vs/
 .idea/
+node_modules/
+dist/
 *.user
 *.suo

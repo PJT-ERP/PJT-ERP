@@ -34,6 +34,7 @@ public sealed class ProductionServiceTests
     [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
     [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker")]
     public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
@@ -222,6 +223,55 @@ public sealed class ProductionServiceTests
     }
 
     [Fact]
+    public async Task SubmitMaterialRequestAsync_publishes_material_request_for_assigned_worker()
+    {
+        await using var db = CreateDbContext();
+        var (salesOrder, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new ProductionService(db, eventPublisher);
+
+        var result = await service.SubmitMaterialRequestAsync(
+            salesOrder.Id,
+            new SubmitProductionMaterialRequest(
+                WorkerUserId,
+                "Worker Engineer",
+                [
+                    new SubmitProductionMaterialRequestItem(
+                        null,
+                        salesOrder.Items[0].Id,
+                        "S45C Round Bar",
+                        "Diameter 10mm",
+                        2,
+                        "Urgent",
+                        "PT Steel",
+                        "Stock shortage",
+                        "Project"),
+                    new SubmitProductionMaterialRequestItem(
+                        null,
+                        null,
+                        "Coolant",
+                        "Water soluble",
+                        1,
+                        "Normal",
+                        null,
+                        "Consumable for multiple SO",
+                        "Consumable")
+                ],
+                "Material shortage before production start."),
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(salesOrder.Id, result.SalesOrderId);
+        var materialRequestEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<MaterialRequestSubmittedEvent>());
+        Assert.Equal(salesOrder.Id, materialRequestEvent.SalesOrderId);
+        Assert.Equal(salesOrder.SoNumber, materialRequestEvent.SalesOrderNumber);
+        Assert.Equal(productionOrder.Id, materialRequestEvent.ProductionOrderId);
+        Assert.Equal(WorkerUserId, materialRequestEvent.RequestedByUserId);
+        Assert.Equal(2, materialRequestEvent.Items.Count);
+        Assert.Contains(materialRequestEvent.Items, item => item.ItemName == "Coolant" && item.PurchaseCategory == "Consumable");
+    }
+
+    [Fact]
     public async Task UploadEngineeringDrawingAsync_rejects_unassigned_worker()
     {
         await using var db = CreateDbContext();
@@ -295,6 +345,8 @@ public sealed class ProductionServiceTests
         Assert.Equal(100m, tracking.ProgressPercent);
         Assert.Equal(2, tracking.Items.Count);
         Assert.Equal(ProductionOrderStatuses.Finished, tracking.ProductionStatus);
+        Assert.Equal("https://drive.example/customer-drawing.jpg", tracking.CustomerDrawingUrl);
+        Assert.Equal("DESIGN-001", tracking.DesignReference);
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("BarcodeUid"));
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("PoNumber"));
         Assert.Null(typeof(PublicProductionTrackingDto).GetProperty("ProductionOrderId"));

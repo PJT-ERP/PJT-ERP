@@ -45,8 +45,13 @@ export interface SalesOrderDto {
   customerDrawingUrl?: string | null;
   designReference?: string | null;
   designStatus: string;
+  designApprovedAtUtc?: string | null;
   soDate: string;
   targetDate?: string | null;
+  productionWorkerUserId?: string | null;
+  productionWorkerName?: string | null;
+  qcReviewerUserId?: string | null;
+  qcReviewerName?: string | null;
   status: string;
   items: Array<{
     id: string;

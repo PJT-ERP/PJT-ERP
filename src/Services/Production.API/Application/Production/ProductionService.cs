@@ -295,6 +295,61 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
     }
 
+    public async Task<SalesOrderProductionProgressDto?> SubmitMaterialRequestAsync(
+        Guid salesOrderId,
+        SubmitProductionMaterialRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null)
+        {
+            return null;
+        }
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before material requests can be submitted.");
+
+        ValidateMaterialRequest(request);
+        EnsureAssignedWorker(productionOrder, request.RequestedByUserId);
+
+        if (productionOrder.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
+        {
+            throw new InvalidOperationException("Finished or closed sales order production cannot receive material requests.");
+        }
+
+        var now = DateTime.UtcNow;
+        await eventPublisher.PublishAsync(
+            new MaterialRequestSubmittedEvent(
+                salesOrder.Id,
+                salesOrder.SoNumber,
+                productionOrder.Id,
+                productionOrder.BarcodeUid,
+                request.RequestedByUserId,
+                request.RequesterName.Trim(),
+                DateOnly.FromDateTime(now),
+                salesOrder.SoNumber,
+                NormalizeOptional(request.Notes),
+                request.Items.Select(item => new MaterialRequestSubmittedItem(
+                    item.MaterialRequirementId,
+                    NormalizeSalesOrderItemId(item.SalesOrderItemId),
+                    item.ItemName.Trim(),
+                    NormalizeOptional(item.Size),
+                    item.Qty,
+                    NormalizeMaterialRequestUrgency(item.Urgency),
+                    NormalizeOptional(item.SuggestedSupplier),
+                    NormalizeOptional(item.Notes),
+                    NormalizeMaterialRequestCategory(item.PurchaseCategory)))
+                    .ToArray()),
+            cancellationToken);
+
+        productionOrder.UpdatedAtUtc = now;
+        salesOrder.UpdatedAtUtc = now;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
     public async Task<SalesOrderProductionProgressDto?> StartProductionAsync(
         Guid salesOrderId,
         ProductionStatusUpdateRequest request,
@@ -501,11 +556,14 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return new PublicProductionTrackingDto(
             order.SoNumber,
             order.CustomerName,
+            order.CustomerDrawingUrl,
+            order.DesignReference,
             order.Status,
             productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
             CalculateProgressPercent(productionOrder),
+            productionOrder?.DrawingFileUrl,
             productionOrder?.StartedAtUtc,
             productionOrder?.FinishedAtUtc,
             productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
@@ -664,6 +722,34 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
     }
 
+    private static void ValidateMaterialRequest(SubmitProductionMaterialRequest request)
+    {
+        if (request.RequestedByUserId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Requester user id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RequesterName))
+        {
+            throw new InvalidOperationException("Requester name is required.");
+        }
+
+        if (request.Items.Count == 0)
+        {
+            throw new InvalidOperationException("Material request must contain at least one item.");
+        }
+
+        if (request.Items.Any(item => string.IsNullOrWhiteSpace(item.ItemName)))
+        {
+            throw new InvalidOperationException("Material request item name is required.");
+        }
+
+        if (request.Items.Any(item => item.Qty <= 0))
+        {
+            throw new InvalidOperationException("Material request item quantity must be greater than zero.");
+        }
+    }
+
     private static void EnsureAssignedWorker(ProductionOrder productionOrder, Guid workerUserId)
     {
         var assignedWorkerId = productionOrder.SalesOrder?.ProductionWorkerUserId;
@@ -766,6 +852,45 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         return uri.ToString();
+    }
+
+    private static Guid? NormalizeSalesOrderItemId(Guid? salesOrderItemId)
+    {
+        return salesOrderItemId == Guid.Empty ? null : salesOrderItemId;
+    }
+
+    private static string NormalizeMaterialRequestUrgency(string? urgency)
+    {
+        if (string.IsNullOrWhiteSpace(urgency))
+        {
+            return "Normal";
+        }
+
+        return urgency.Trim() switch
+        {
+            var value when value.Equals("Normal", StringComparison.OrdinalIgnoreCase) => "Normal",
+            var value when value.Equals("Urgent", StringComparison.OrdinalIgnoreCase) => "Urgent",
+            var value when value.Equals("Critical", StringComparison.OrdinalIgnoreCase) => "Critical",
+            _ => throw new InvalidOperationException("Material request urgency must be Normal, Urgent, or Critical.")
+        };
+    }
+
+    private static string? NormalizeMaterialRequestCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return "Project";
+        }
+
+        return category.Trim() switch
+        {
+            var value when value.Equals("Asset", StringComparison.OrdinalIgnoreCase) => "Asset",
+            var value when value.Equals("Consumable", StringComparison.OrdinalIgnoreCase) => "Consumable",
+            var value when value.Equals("Tools", StringComparison.OrdinalIgnoreCase) => "Tools",
+            var value when value.Equals("Project", StringComparison.OrdinalIgnoreCase) => "Project",
+            var value when value.Equals("Maintenance", StringComparison.OrdinalIgnoreCase) => "Maintenance",
+            _ => throw new InvalidOperationException("Material request purchase category must be Asset, Consumable, Tools, Project, or Maintenance.")
+        };
     }
 
     private static string NormalizeDesignStatus(string? status)

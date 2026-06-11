@@ -27,7 +27,7 @@ PtPjtErp.sln
 
 ## Komponen SharedLib
 
-`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, `SalesOrderReadyForInvoiceEvent`, dan `PurchaseRequestReviewedEvent`.
+`EventBus.Messages` berisi kontrak event antar service, seperti `MasterDataUpdatedEvent`, `SalesOrderConfirmedEvent`, `SpkCreatedEvent`, `MaterialRequestSubmittedEvent`, `ProductionFinishedEvent`, `QcCheckCompletedEvent`, `SalesOrderReadyForInvoiceEvent`, dan `PurchaseRequestReviewedEvent`.
 
 `Shared.Auth` berisi konfigurasi JWT, validasi token, dan helper penerbit token untuk login.
 
@@ -45,7 +45,7 @@ PtPjtErp.sln
 
 `QC.API` menangani QC Inspection sederhana oleh Engineering Reviewer: upload foto/form QC, notes, dan keputusan `Go`/`NoGo`. Tidak ada lagi form checklist visual/dimension di aplikasi.
 
-`Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering, acceptance/reject oleh Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
+`Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering/Production, approval Engineering Supervisor, approval Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
 
 `Finance.API` menangani kandidat invoice dari Sales Order yang sudah selesai QC, pembuatan invoice dari item SO, termin DP/pelunasan berbasis persentase, pencatatan pembayaran, filter jatuh tempo/pelanggan, surat penagihan, dan dashboard finance global atau per customer.
 
@@ -79,6 +79,7 @@ Catatan data penting:
 Saat dijalankan dengan Docker Compose:
 
 - Gateway: `http://localhost:5000`
+- Frontend: `http://localhost:5173`
 - Identity API: `http://localhost:5001`
 - MasterData API: `http://localhost:5002`
 - Production API: `http://localhost:5003`
@@ -179,6 +180,10 @@ Production.API
 Production.API
   └── SalesOrderConfirmedEvent
       └── Purchasing.API menyimpan snapshot Sales Order untuk tracking bahan baku
+
+Production.API
+  └── MaterialRequestSubmittedEvent
+      └── Purchasing.API membuat Material Request multi-item dari kebutuhan shop-floor
 
 QC.API
   └── QcCheckCompletedEvent
@@ -409,8 +414,8 @@ Alur kerja:
 1. Sales Order dikonfirmasi dan Production API menyiapkan state produksi internal.
 2. Production API mengirim event workflow Sales Order.
 3. Purchasing API menyimpan snapshot Sales Order dan membuat `MaterialRequirement` per item SO sebagai daftar item yang perlu dipantau.
-4. Engineering membuka tab `Pengajuan Purchasing`.
-5. Engineering membuat Material Request (MR) baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional. Item seperti consumable, tools, asset, atau maintenance boleh tidak terikat ke SO.
+4. Engineering membuka tab `Pengajuan Purchasing`, atau operator membuka halaman Produksi dan membuat MR langsung dari SO saat persiapan material.
+5. Engineering/Production membuat Material Request (MR) baru dari satu atau beberapa material requirement, atau mengajukan item manual dengan referensi SO opsional. Item seperti consumable, tools, asset, atau maintenance boleh tidak terikat ke SO.
 6. Engineering mengisi nama barang/material, spesifikasi/ukuran, jumlah, satuan, urgensi (`Normal`, `Urgent`, atau `Critical`), kategori (`Asset`, `Consumable`, `Tools`, `Project`, atau `Maintenance`), referensi SO opsional, supplier suggestion, dan catatan kebutuhan.
 7. Status item pembelian masuk sebagai `Requested`, lalu material requirement berubah menjadi `PurchaseRequested`.
 8. Engineering Supervisor membuka daftar MR yang masih `Submitted`, lalu memilih `Accept` atau `Reject`. Jika accepted, status request menjadi `SupervisorApproved`.
@@ -426,6 +431,7 @@ Endpoint utama:
 - `GET /api/v1/purchasing/material-requirements`
 - `GET /api/v1/purchasing/material-requirements?salesOrderId={salesOrderId}`
 - `GET /api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking`
+- `POST /api/v1/production/sales-orders/{id}/material-requests`
 - `PUT /api/v1/purchasing/material-requirements/{id}/stock`
 - `GET /api/v1/purchasing/purchase-requests`
 - `GET /api/v1/purchasing/purchase-requests/{id}`

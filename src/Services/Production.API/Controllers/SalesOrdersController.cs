@@ -107,6 +107,24 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
     }
 
+    [HttpPost("{id:guid}/material-requests")]
+    [Authorize(Roles = "Admin,Engineering Worker")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> SubmitMaterialRequest(
+        Guid id,
+        SubmitProductionMaterialRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await productionService.SubmitMaterialRequestAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPut("{id:guid}/production/start")]
     [Authorize(Roles = "Admin,Engineering Worker")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> StartProduction(

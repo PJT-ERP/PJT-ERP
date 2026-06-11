@@ -130,6 +130,21 @@ services:
         condition: service_started
     logging: *default-logging
 
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:?Set VITE_API_BASE_URL in .env}"
+        VITE_DEV_MASTER_TOKEN: "${VITE_DEV_MASTER_TOKEN:-}"
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      web-gateway:
+        condition: service_started
+    logging: *default-logging
+
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
     restart: unless-stopped
@@ -141,6 +156,8 @@ services:
       - ./data:/data
       - ./letsencrypt:/etc/letsencrypt
     depends_on:
+      frontend:
+        condition: service_started
       web-gateway:
         condition: service_started
     logging: *default-logging

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Search, Package, User, Hash, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Search, Package, User, Hash, Calendar, CheckCircle2, Clock, AlertCircle, ExternalLink } from "lucide-react";
+import { productionApi, PublicProductionTrackingDto } from "../../services/productionApi";
 
 type StatusKey =
   | "waiting_finance"
@@ -36,7 +37,7 @@ const STEP_ORDER: StatusKey[] = [
   "completed",
 ];
 
-const MOCK_ORDERS: Record<string, {
+type TrackingResult = {
   soNumber: string;
   customer: string;
   product: string;
@@ -44,7 +45,11 @@ const MOCK_ORDERS: Record<string, {
   status: StatusKey;
   estimatedCompletion: string;
   notes: string;
-}> = {
+  drawingUrl?: string | null;
+  designReference?: string | null;
+};
+
+const MOCK_ORDERS: Record<string, TrackingResult> = {
   "SO-2024-001": {
     soNumber: "SO-2024-001",
     customer: "PT Energi Nusantara",
@@ -203,17 +208,27 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
 
 export function OrderTracking() {
   const [soInput, setSoInput] = useState("");
-  const [result, setResult] = useState<typeof MOCK_ORDERS[string] | null>(null);
+  const [result, setResult] = useState<TrackingResult | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleTrack = () => {
+  const handleTrack = async () => {
     const trimmed = soInput.trim().toUpperCase();
     if (!trimmed) return;
     setLoading(true);
     setNotFound(false);
     setResult(null);
-    setTimeout(() => {
+
+    try {
+      const tracking = await productionApi.getPublicTracking(trimmed);
+      setResult(mapBackendTracking(tracking));
+      setLoading(false);
+      return;
+    } catch (error) {
+      console.warn("Backend tracking unavailable or order not found, falling back to mock data.", error);
+    }
+
+    window.setTimeout(() => {
       const found = MOCK_ORDERS[trimmed];
       if (found) {
         setResult(found);
@@ -412,9 +427,30 @@ export function OrderTracking() {
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
+                  );
+                })}
                 </div>
+
+                {(result.drawingUrl || result.designReference) && (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {result.drawingUrl && (
+                      <a
+                        href={result.drawingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold no-underline"
+                        style={{ borderColor: "#FCA5A5", color: "#C8102E", fontFamily: "Inter, sans-serif" }}
+                      >
+                        <ExternalLink className="w-4 h-4" /> View Drawing
+                      </a>
+                    )}
+                    {result.designReference && (
+                      <span style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "13px", alignSelf: "center" }}>
+                        Design Ref: <strong style={{ color: "#111827" }}>{result.designReference}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div
@@ -439,4 +475,57 @@ export function OrderTracking() {
       </div>
     </section>
   );
+}
+
+function mapBackendTracking(tracking: PublicProductionTrackingDto): TrackingResult {
+  const primaryItem = tracking.items[0];
+  const product = tracking.items.length > 1
+    ? `${tracking.items.length} item - ${tracking.items.slice(0, 2).map(item => item.productDescription).join(", ")}`
+    : primaryItem?.productDescription || "Production item";
+
+  return {
+    soNumber: tracking.soNumber,
+    customer: tracking.customerName,
+    product,
+    quantity: `${tracking.totalQuantity} pcs`,
+    status: mapBackendStatus(tracking),
+    estimatedCompletion: tracking.finishedAtUtc
+      ? new Date(tracking.finishedAtUtc).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+      : "In schedule",
+    notes: buildBackendNotes(tracking),
+    drawingUrl: tracking.drawingFileUrl || tracking.customerDrawingUrl,
+    designReference: tracking.designReference,
+  };
+}
+
+function mapBackendStatus(tracking: PublicProductionTrackingDto): StatusKey {
+  if (tracking.salesOrderStatus === "Completed" || tracking.productionStatus === "Closed") {
+    return "completed";
+  }
+
+  if (tracking.productionStatus === "Finished") {
+    return "qc_checking";
+  }
+
+  if (tracking.productionStatus === "InProgress") {
+    return "in_production";
+  }
+
+  if (tracking.salesOrderStatus === "Draft") {
+    return "waiting_payment";
+  }
+
+  return "engineering_review";
+}
+
+function buildBackendNotes(tracking: PublicProductionTrackingDto) {
+  if (tracking.finishedAtUtc) {
+    return "Production complete, awaiting final QC and shipping updates.";
+  }
+
+  if (tracking.startedAtUtc) {
+    return `Production started ${new Date(tracking.startedAtUtc).toLocaleDateString("en-GB")}.`;
+  }
+
+  return "SO is being prepared by Engineering and Production.";
 }

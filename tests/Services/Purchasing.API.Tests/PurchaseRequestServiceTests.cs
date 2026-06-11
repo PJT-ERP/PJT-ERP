@@ -85,6 +85,59 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
+    public async Task MaterialRequestSubmittedEventHandler_creates_submitted_multi_item_request()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var handler = new MaterialRequestSubmittedEventHandler(service);
+        var salesOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var workerUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        await handler.Handle(
+            new MaterialRequestSubmittedEvent(
+                salesOrderId,
+                "SO-001",
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "PJT|SO|001",
+                workerUserId,
+                "Engineering Worker",
+                new DateOnly(2026, 6, 11),
+                "SO-001",
+                "Material shortage before production start.",
+                [
+                    new MaterialRequestSubmittedItem(
+                        null,
+                        Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                        "S45C Round Bar",
+                        "Diameter 10mm",
+                        2,
+                        "Urgent",
+                        "PT Steel",
+                        "Main material",
+                        "Project"),
+                    new MaterialRequestSubmittedItem(
+                        null,
+                        null,
+                        "Coolant",
+                        "Water soluble",
+                        1,
+                        "Normal",
+                        null,
+                        "Shared shop-floor consumable",
+                        "Consumable")
+                ]),
+            CancellationToken.None);
+
+        var request = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
+        Assert.Equal(PurchaseRequestStatuses.Submitted, request.Status);
+        Assert.Equal(salesOrderId, request.SalesOrderId);
+        Assert.Equal("SO-001", request.SalesOrderNumber);
+        Assert.Equal(workerUserId, request.RequestedByUserId);
+        Assert.Equal(2, request.Items.Count);
+        Assert.Contains(request.Items, item => item.ItemName == "Coolant" && item.PurchaseCategory == PurchaseItemCategories.Consumable);
+    }
+
+    [Fact]
     public async Task SpkCreatedEventHandler_uses_null_sales_order_item_id_for_legacy_single_item_events()
     {
         await using var db = CreateDbContext();

@@ -30,7 +30,10 @@ export interface Customer {
 
 export interface SalesOrder {
   id: string;
+  soNumber?: string;
   customerId: string;
+  customerEmail?: string;
+  customerDrawingUrl?: string;
   partNumber: string;
   description: string;
   quantity: number;
@@ -42,6 +45,7 @@ export interface SalesOrder {
   createdBy: string;
   createdAt: string;
   designLink?: string;
+  backendDesignStatus?: string;
   submittedAt?: string;
   approvedAt?: string;
   approvedBy?: string;
@@ -63,6 +67,10 @@ export interface SalesOrder {
   invoice?: { invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string };
   quotationDate?: string;
   designApprovedAt?: string;
+  assignedTo?: string;
+  assignedName?: string;
+  materialRequestStatus?: 'none' | 'requested' | 'approved';
+  materialShortageDetected?: boolean;
 }
 
 export const STANDARD_PRODUCTS_BOM: Record<string, {id: string; name: string; spec: string; quantity: number; unit: string}[]> = {};
@@ -413,13 +421,22 @@ export function calcProductionDuration(startTime?: string, endTime?: string): nu
 export type PurchasingUrgency = 'Normal' | 'Urgent' | 'Critical';
 export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak';
 
-export interface PurchasingRequest {
-  id: string;
-  soId?: string;
+export interface PurchasingItem {
   itemName: string;
   specification: string;
   quantity: number;
   unit: string;
+}
+
+export interface PurchasingRequest {
+  id: string;
+  soId?: string;
+  salesOrderId?: string;
+  itemName: string;
+  specification: string;
+  quantity: number;
+  unit: string;
+  items?: PurchasingItem[];
   urgency: PurchasingUrgency;
   notes: string;
   requestedBy: string;
@@ -472,6 +489,7 @@ export function getDefaultRouteForRole(role: UserRole): string {
   const map: Record<UserRole, string> = {
     Sales: '/app/sales',
     Engineering: '/app/engineering',
+    'Engineering Supervisor': '/app/engineering',
     Owner: '/app/dashboard',
     Admin: '/app/admin',
     Finance: '/app/finance',

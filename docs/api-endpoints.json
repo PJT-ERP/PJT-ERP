@@ -26,6 +26,7 @@
         "Sales Order",
         "Finance",
         "Engineering",
+        "Engineering Supervisor",
         "Engineering Worker",
         "Engineering Reviewer",
         "Purchasing"
@@ -36,6 +37,7 @@
     "Sales Order",
     "Finance",
     "Engineering",
+    "Engineering Supervisor",
     "Engineering Worker",
     "Engineering Reviewer",
     "Purchasing",
@@ -49,6 +51,7 @@
         "salesOrderCreationConfirmationAndEngineerAssignment": ["Admin", "Sales Order"],
         "salesOrderProductionStartFinish": ["Admin", "Engineering Worker"],
         "salesOrderDrawingUpload": ["Admin", "Engineering Worker"],
+        "salesOrderMaterialRequest": ["Admin", "Engineering Worker"],
         "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing"]
       },
       "readAccess": {
@@ -186,12 +189,47 @@
     },
     {
       "service": "Production.API",
+      "feature": "Material Requests",
+      "method": "POST",
+      "path": "/api/v1/production/sales-orders/{id}/material-requests",
+      "roles": ["Admin", "Engineering Worker"],
+      "description": "Assigned Engineering Worker submits a multi-item MR from the Production/SO context. Production publishes MaterialRequestSubmittedEvent and Purchasing creates the submitted MR for Supervisor approval.",
+      "requestBody": {
+        "requestedByUserId": "00000000-0000-0000-0000-000000000010",
+        "requesterName": "Engineering Worker",
+        "notes": "Material shortage before production start.",
+        "items": [
+          {
+            "materialRequirementId": null,
+            "salesOrderItemId": "00000000-0000-0000-0000-000000000012",
+            "itemName": "S45C Round Bar",
+            "size": "Diameter 10mm",
+            "qty": 2,
+            "urgency": "Urgent",
+            "suggestedSupplier": "PT. Steel",
+            "notes": "Stock shortage",
+            "purchaseCategory": "Project"
+          },
+          {
+            "materialRequirementId": null,
+            "salesOrderItemId": null,
+            "itemName": "Coolant",
+            "size": "Water soluble",
+            "qty": 1,
+            "urgency": "Normal",
+            "purchaseCategory": "Consumable"
+          }
+        ]
+      }
+    },
+    {
+      "service": "Production.API",
       "feature": "Public Tracking",
       "method": "GET",
       "path": "/api/v1/production/tracking?code={soNumberOrBarcode}",
       "roles": [],
       "auth": "anonymous",
-      "description": "Public/customer read-only tracking by SO number or barcode. Internal identifiers, barcode UID, drawing links, uploader IDs, and QC decisions are hidden."
+      "description": "Public/customer read-only tracking by SO number or barcode. SO customer drawing/design reference can be shown for tracking context; internal identifiers, barcode UID, uploader IDs, and QC decisions are hidden."
     },
     {
       "service": "QC.API",

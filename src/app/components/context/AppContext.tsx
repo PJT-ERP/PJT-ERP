@@ -5,7 +5,7 @@ import {
   USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING, INITIAL_QUOTATIONS
 } from "../data/mockData";
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
-import { salesApi, CustomerDto } from "../../services/salesApi";
+import { salesApi, CustomerDto, SalesOrderDto } from "../../services/salesApi";
 
 interface AppContextType {
   currentUser: User | null;
@@ -56,9 +56,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadBackendData = async () => {
       try {
-        const [backendCustomers, backendQuotations] = await Promise.all([
+        const [backendCustomers, backendQuotations, backendSalesOrders] = await Promise.all([
           salesApi.listCustomers(),
           quotationApi.list(),
+          salesApi.listSalesOrders(),
         ]);
 
         setBackendCustomerIdsByCode(
@@ -66,6 +67,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
         setCustomers(backendCustomers.map(mapCustomerDto));
         setQuotations(backendQuotations.map(mapQuotationDto));
+        if (backendSalesOrders.length > 0) {
+          setSalesOrders(backendSalesOrders.map(mapSalesOrderDto));
+        }
       } catch (error) {
         console.warn("Backend unavailable, using local mock ERP data.", error);
       }
@@ -219,6 +223,60 @@ function mapQuotationDto(quotation: QuotationDto): Quotation {
     })),
     lostReason: quotation.lostReason || undefined,
   };
+}
+
+function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
+  const primaryItem = order.items[0];
+
+  return {
+    id: order.id,
+    soNumber: order.soNumber,
+    customerId: order.customerCode,
+    customerEmail: order.customerEmail || "",
+    customerDrawingUrl: order.customerDrawingUrl || "",
+    partNumber: primaryItem?.productPartNumber || "-",
+    description: primaryItem?.productDescription || order.soNumber,
+    quantity: order.items.reduce((sum, item) => sum + item.qty, 0),
+    unit: "PCS",
+    material: primaryItem?.notes || undefined,
+    deadline: order.targetDate || order.soDate,
+    status: mapSalesOrderStatus(order),
+    createdBy: "backend",
+    createdAt: order.soDate,
+    designLink: order.designReference || order.customerDrawingUrl || undefined,
+    designApprovedAt: order.designApprovedAtUtc?.split("T")[0],
+    assignedTo: order.productionWorkerUserId || undefined,
+    assignedName: order.productionWorkerName || undefined,
+    notes: order.items.map(item => item.notes).filter(Boolean).join("; ") || undefined,
+    backendDesignStatus: order.designStatus,
+  };
+}
+
+function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
+  if (order.status === "Completed") {
+    return "Completed";
+  }
+
+  if (order.status === "Cancelled" || order.designStatus === "Rejected") {
+    return "Rejected";
+  }
+
+  if (order.status === "InProduction" || order.status === "Confirmed") {
+    return "Ready for Production";
+  }
+
+  switch (order.designStatus) {
+    case "WaitingApproval":
+      return "Waiting Approval";
+    case "RevisionRequired":
+      return "Revision Required";
+    case "Approved":
+      return "Ready for Production";
+    case "Rejected":
+      return "Rejected";
+    default:
+      return "Pending Design";
+  }
 }
 
 async function syncCreateQuotation(
