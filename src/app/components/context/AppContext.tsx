@@ -33,9 +33,23 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+const AUTH_USER_KEY = "erp_current_username";
+
+function restoreStoredUser(): User | null {
+  try {
+    const username = localStorage.getItem(AUTH_USER_KEY);
+    if (!username) {
+      return null;
+    }
+
+    return USERS.find(user => user.username === username && user.isActive) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => restoreStoredUser());
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -50,11 +64,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = (username: string, password: string): boolean => {
     const user = users.find(u => u.username === username && u.password === password && u.isActive);
-    if (user) { setCurrentUser(user); return true; }
+    if (user) {
+      localStorage.setItem(AUTH_USER_KEY, user.username);
+      setCurrentUser(user);
+      return true;
+    }
     return false;
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    localStorage.removeItem(AUTH_USER_KEY);
+    setCurrentUser(null);
+  };
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    const latestUser = users.find(user => user.username === currentUser.username && user.isActive);
+    if (!latestUser) {
+      logout();
+      return;
+    }
+
+    if (latestUser !== currentUser) {
+      setCurrentUser(latestUser);
+    }
+  }, [currentUser, users]);
 
   useEffect(() => {
     const loadBackendData = async () => {
