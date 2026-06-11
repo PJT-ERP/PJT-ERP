@@ -5,6 +5,7 @@ x-api-environment: &api-environment
   DEV_MASTER_TOKEN: "dev-master-token"
   Jwt__Issuer: "PJT-ERP.Identity"
   Jwt__Audience: "PJT-ERP.Web"
+  OpenApi__PublicServerUrl: "http://localhost:5000"
   ConnectionStrings__IdentityConnection: "Host=db;Port=5432;Database=pjt_identity;Username=postgres;Password=postgres"
   ConnectionStrings__MasterDataConnection: "Host=db;Port=5432;Database=pjt_masterdata;Username=postgres;Password=postgres"
   ConnectionStrings__ProductionConnection: "Host=db;Port=5432;Database=pjt_production;Username=postgres;Password=postgres"

@@ -17,6 +17,7 @@ public static class OpenApiDocumentationExtensions
         services.AddOpenApi(options =>
         {
             options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            options.AddDocumentTransformer<PublicServerDocumentTransformer>();
         });
 
         return services;
@@ -44,6 +45,32 @@ public static class OpenApiDocumentationExtensions
         }).AllowAnonymous();
 
         return endpoints;
+    }
+}
+
+internal sealed class PublicServerDocumentTransformer(IConfiguration configuration) : IOpenApiDocumentTransformer
+{
+    public Task TransformAsync(
+        OpenApiDocument document,
+        OpenApiDocumentTransformerContext context,
+        CancellationToken cancellationToken)
+    {
+        var publicServerUrl = configuration["OpenApi:PublicServerUrl"]?.Trim().TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(publicServerUrl))
+        {
+            return Task.CompletedTask;
+        }
+
+        document.Servers =
+        [
+            new OpenApiServer
+            {
+                Url = publicServerUrl,
+                Description = "PJT ERP Gateway"
+            }
+        ];
+
+        return Task.CompletedTask;
     }
 }
 

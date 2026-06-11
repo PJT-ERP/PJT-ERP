@@ -19,6 +19,8 @@ coverage/
 
 *.log
 logs/
+data/
+letsencrypt/
 
 Dockerfile.*
 docker-compose.*.override.yml

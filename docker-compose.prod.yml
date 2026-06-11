@@ -1,0 +1,149 @@
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: "${ENVIRONMENT:-Production}"
+  ASPNETCORE_URLS: "http://+:8080"
+  ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+  JWT_KEY: "${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}"
+  Jwt__Issuer: "${JWT_ISSUER:-PJT-ERP.Identity}"
+  Jwt__Audience: "${JWT_AUDIENCE:-PJT-ERP.Web}"
+  ConnectionStrings__IdentityConnection: "Host=db;Port=5432;Database=pjt_identity;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+  ConnectionStrings__MasterDataConnection: "Host=db;Port=5432;Database=pjt_masterdata;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+  ConnectionStrings__ProductionConnection: "Host=db;Port=5432;Database=pjt_production;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+  ConnectionStrings__QcConnection: "Host=db;Port=5432;Database=pjt_qc;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+  ConnectionStrings__PurchasingConnection: "Host=db;Port=5432;Database=pjt_purchasing;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+  ConnectionStrings__NpgmqConnection: "Host=db;Port=5432;Database=pjt_eventbus;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+  ConnectionStrings__CacheConnection: "Host=db;Port=5432;Database=pjt_cache;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "${LOG_MAX_SIZE:-10m}"
+    max-file: "${LOG_MAX_FILE:-3}"
+
+services:
+  db:
+    image: ghcr.io/pgmq/pg17-pgmq:v1.8.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${DB_USER:-postgres}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+    volumes:
+      - pjt_prod_db:/var/lib/postgresql/data
+      - ./.database/bootstrap.sql:/docker-entrypoint-initdb.d/00-bootstrap.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *default-logging
+
+  identity-api:
+    build:
+      context: .
+      dockerfile: src/Services/Identity.API/Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  masterdata-api:
+    build:
+      context: .
+      dockerfile: src/Services/MasterData.API/Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  production-api:
+    build:
+      context: .
+      dockerfile: src/Services/Production.API/Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  qc-api:
+    build:
+      context: .
+      dockerfile: src/Services/QC.API/Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  purchasing-api:
+    build:
+      context: .
+      dockerfile: src/Services/Purchasing.API/Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+
+  web-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateways/Web.Gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      Cors__AllowedOrigins__0: "${CORS_ALLOWED_ORIGIN:-https://innovation-pratama.co.id}"
+      Cors__AllowedOrigins__1: "${CORS_ALLOWED_ORIGIN_WWW:-https://www.innovation-pratama.co.id}"
+      ReverseProxy__Clusters__identity__Destinations__identityApi__Address: "http://identity-api:8080/"
+      ReverseProxy__Clusters__masterdata__Destinations__masterdataApi__Address: "http://masterdata-api:8080/"
+      ReverseProxy__Clusters__production__Destinations__productionApi__Address: "http://production-api:8080/"
+      ReverseProxy__Clusters__qc__Destinations__qcApi__Address: "http://qc-api:8080/"
+      ReverseProxy__Clusters__purchasing__Destinations__purchasingApi__Address: "http://purchasing-api:8080/"
+    expose:
+      - "8080"
+    depends_on:
+      identity-api:
+        condition: service_started
+      masterdata-api:
+        condition: service_started
+      production-api:
+        condition: service_started
+      qc-api:
+        condition: service_started
+      purchasing-api:
+        condition: service_started
+    logging: *default-logging
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "127.0.0.1:81:81"
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    depends_on:
+      web-gateway:
+        condition: service_started
+    logging: *default-logging
+
+volumes:
+  pjt_prod_db:
