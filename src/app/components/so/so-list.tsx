@@ -177,7 +177,7 @@ export function SOList({ onNavigate }: SOListProps) {
       (statusFilter === "all" || o.status === statusFilter) &&
       (customerFilter === "all" || o.customerId === customerFilter) &&
       (!dateFilter || o.createdAt.startsWith(dateFilter));
-  }), [search, statusFilter, customerFilter, dateFilter]);
+  }), [salesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
