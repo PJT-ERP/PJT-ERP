@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, CheckSquare, X, DollarSign, PackageOpen, CheckCircle2, AlertCircle } from 'lucide-react';
 import { formatIDR, formatDate } from './mockData';
+import { PurchaseRequestDto, purchasingApi } from '../../services/purchasingApi';
+import { usePurchasingData } from '../purchasing/usePurchasingData';
 
 type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | '';
 
 interface PendingPO {
   id: string;
+  backendId?: string;
   poNumber: string;
   department: string;
   requestor: string;
@@ -13,6 +16,29 @@ interface PendingPO {
   totalAmount: number;
   date: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
+
+function mapPurchaseRequestToPendingPo(request: PurchaseRequestDto): PendingPO {
+  const totalAmount = request.items.reduce((sum, item) => sum + (item.totalPrice ?? ((item.unitPrice ?? 0) * item.qty)), 0);
+
+  return {
+    id: request.prNumber || request.id,
+    backendId: request.id,
+    poNumber: request.prNumber || request.id,
+    department: request.projectName || request.salesOrderNumber || 'Engineering',
+    requestor: request.requesterName || 'Engineering',
+    items: request.items.map(item => `${item.itemName} (${item.qty} pcs)`).join(', '),
+    totalAmount,
+    date: request.requestDate,
+    status: mapPurchaseRequestApprovalStatus(request.status),
+  };
+}
+
+function mapPurchaseRequestApprovalStatus(status: string): PendingPO['status'] {
+  const normalized = status.toLowerCase();
+  if (normalized === 'approved' || normalized === 'processing' || normalized === 'completed') return 'APPROVED';
+  if (normalized === 'rejected') return 'REJECTED';
+  return 'PENDING';
 }
 
 const mockPendingPOs: PendingPO[] = [
@@ -49,6 +75,7 @@ const mockPendingPOs: PendingPO[] = [
 ];
 
 export function FinancePurchasingApproval() {
+  const { purchaseRequests, isUsingBackend, isLoading, refresh } = usePurchasingData();
   const [pos, setPos] = useState<PendingPO[]>(mockPendingPOs);
   const [search, setSearch] = useState('');
   const [selectedPo, setSelectedPo] = useState<PendingPO | null>(null);
@@ -57,26 +84,51 @@ export function FinancePurchasingApproval() {
   const [category, setCategory] = useState<POCategory>('');
   const [notes, setNotes] = useState('');
 
-  const filtered = pos.filter(po => 
+  const backendPos = useMemo(
+    () => purchaseRequests.map(mapPurchaseRequestToPendingPo),
+    [purchaseRequests],
+  );
+  const sourcePos = backendPos.length > 0 ? backendPos : pos;
+
+  const filtered = sourcePos.filter(po => 
     po.poNumber.toLowerCase().includes(search.toLowerCase()) || 
     po.department.toLowerCase().includes(search.toLowerCase())
   );
 
-  const pendingCount = pos.filter(p => p.status === 'PENDING').length;
+  const pendingCount = sourcePos.filter(p => p.status === 'PENDING').length;
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!selectedPo) return;
-    
-    // In a real app, this would call an API
-    setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'APPROVED' } : p));
+
+    if (selectedPo.backendId) {
+      await purchasingApi.reviewPurchaseRequest(selectedPo.backendId, {
+        reviewedByUserId: crypto.randomUUID(),
+        decision: 'Accept',
+      });
+      await refresh();
+    } else {
+      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'APPROVED' } : p));
+    }
+
     setSelectedPo(null);
     setCategory('');
     setNotes('');
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedPo) return;
-    setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'REJECTED' } : p));
+
+    if (selectedPo.backendId) {
+      await purchasingApi.reviewPurchaseRequest(selectedPo.backendId, {
+        reviewedByUserId: crypto.randomUUID(),
+        decision: 'Reject',
+        rejectionReason: notes || 'Ditolak oleh Finance.',
+      });
+      await refresh();
+    } else {
+      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'REJECTED' } : p));
+    }
+
     setSelectedPo(null);
     setCategory('');
     setNotes('');
@@ -88,11 +140,14 @@ export function FinancePurchasingApproval() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (PO)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Otorisasi pencairan dana dan kategorisasi aset dari pengajuan departemen lain.</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Otorisasi pencairan dana dan kategorisasi aset dari pengajuan departemen lain.
+            {isUsingBackend ? ' Data backend aktif.' : ' Mode data demo.'}
+          </p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
-          {pendingCount} PO Menunggu Approval
+          {isLoading ? 'Loading' : pendingCount} PO Menunggu Approval
         </div>
       </div>
 

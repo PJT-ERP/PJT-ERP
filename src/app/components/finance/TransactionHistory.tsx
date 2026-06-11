@@ -5,6 +5,7 @@ import {
   ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
 import { transactions, formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
+import { useFinanceData } from './useFinanceData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
   INVOICE: { label: 'Invoice', icon: FileText, color: 'text-red-600', bg: 'bg-red-100' },
@@ -25,16 +26,19 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function TransactionHistory() {
+  const { transactions: financeTransactions, isUsingBackend } = useFinanceData();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'ALL'>('ALL');
   const [customerFilter, setCustomerFilter] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
 
-  const uniqueCustomers = useMemo(() => Array.from(new Set(transactions.map(t => t.customerName))), []);
+  const transactionData = financeTransactions.length > 0 ? financeTransactions : transactions;
+
+  const uniqueCustomers = useMemo(() => Array.from(new Set(transactionData.map(t => t.customerName))), [transactionData]);
 
   const filtered = useMemo(() => {
-    const result = transactions.filter(t => {
+    const result = transactionData.filter(t => {
       const matchSearch = !search ||
         t.referenceNumber.toLowerCase().includes(search.toLowerCase()) ||
         t.description.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,11 +55,11 @@ export function TransactionHistory() {
     });
 
     return result;
-  }, [search, typeFilter, customerFilter, sortOrder]);
+  }, [search, typeFilter, customerFilter, sortOrder, transactionData]);
 
-  const totalCredit = transactions.reduce((s, t) => s + t.credit, 0);
-  const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
-  const currentBalance = transactions[transactions.length - 1]?.balance ?? 0;
+  const totalCredit = transactionData.reduce((s, t) => s + t.credit, 0);
+  const totalDebit = transactionData.reduce((s, t) => s + t.debit, 0);
+  const currentBalance = transactionData[transactionData.length - 1]?.balance ?? 0;
 
   return (
     <div className="p-4 lg:p-6 space-y-5 min-h-full">
@@ -63,7 +67,10 @@ export function TransactionHistory() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl text-slate-900">Riwayat Transaksi</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Log lengkap semua aktivitas keuangan</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Log lengkap semua aktivitas keuangan
+            {isUsingBackend ? ' - tersambung backend' : ' - mode data demo'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-1.5 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors shadow-md">
@@ -81,7 +88,7 @@ export function TransactionHistory() {
             <ArrowDownLeft size={16} className="text-green-200" />
           </div>
           <p className="text-xl font-bold">{formatIDR(totalCredit)}</p>
-          <p className="text-xs text-green-200 mt-1">{transactions.filter(t => t.credit > 0).length} transaksi kredit</p>
+          <p className="text-xs text-green-200 mt-1">{transactionData.filter(t => t.credit > 0).length} transaksi kredit</p>
         </div>
         <div className="bg-slate-700 rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -89,7 +96,7 @@ export function TransactionHistory() {
             <ArrowUpRight size={16} className="text-slate-300" />
           </div>
           <p className="text-xl font-bold">{formatIDR(totalDebit)}</p>
-          <p className="text-xs text-slate-400 mt-1">{transactions.filter(t => t.debit > 0).length} transaksi debit</p>
+          <p className="text-xs text-slate-400 mt-1">{transactionData.filter(t => t.debit > 0).length} transaksi debit</p>
         </div>
         <div className="bg-[#0D1B2A] rounded-xl p-5 text-white shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -288,7 +295,7 @@ export function TransactionHistory() {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
-          <p className="text-xs text-slate-400">{filtered.length} dari {transactions.length} transaksi</p>
+          <p className="text-xs text-slate-400">{filtered.length} dari {transactionData.length} transaksi</p>
           <p className="text-xs text-slate-500">Update terakhir: hari ini, 14:30 WIB</p>
         </div>
       </div>

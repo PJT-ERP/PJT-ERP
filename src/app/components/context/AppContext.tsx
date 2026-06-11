@@ -5,7 +5,7 @@ import {
   USERS, CUSTOMERS, INITIAL_SALES_ORDERS, INITIAL_PURCHASING, INITIAL_QUOTATIONS
 } from "../data/mockData";
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
-import { salesApi, CustomerDto } from "../../services/salesApi";
+import { salesApi, CustomerDto, SalesOrderDto } from "../../services/salesApi";
 
 interface AppContextType {
   currentUser: User | null;
@@ -56,9 +56,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadBackendData = async () => {
       try {
-        const [backendCustomers, backendQuotations] = await Promise.all([
+        const [backendCustomers, backendQuotations, backendSalesOrders] = await Promise.all([
           salesApi.listCustomers(),
           quotationApi.list(),
+          salesApi.listSalesOrders(),
         ]);
 
         setBackendCustomerIdsByCode(
@@ -66,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
         setCustomers(backendCustomers.map(mapCustomerDto));
         setQuotations(backendQuotations.map(mapQuotationDto));
+        setSalesOrders(backendSalesOrders.map(mapSalesOrderDto));
       } catch (error) {
         console.warn("Backend unavailable, using local mock ERP data.", error);
       }
@@ -219,6 +221,63 @@ function mapQuotationDto(quotation: QuotationDto): Quotation {
     })),
     lostReason: quotation.lostReason || undefined,
   };
+}
+
+function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
+  const primaryItem = order.items[0];
+  const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
+  const createdAt = order.soDate?.split("T")[0] || new Date().toISOString().split("T")[0];
+
+  return {
+    id: order.id,
+    customerId: order.customerCode,
+    partNumber: primaryItem?.productPartNumber || order.soNumber,
+    description: primaryItem?.productDescription || order.soNumber,
+    quantity: totalQty || primaryItem?.qty || 0,
+    unit: "PCS",
+    deadline: order.targetDate?.split("T")[0] || createdAt,
+    status: mapSalesOrderStatus(order.status, order.designStatus),
+    createdBy: "backend",
+    createdAt,
+    designLink: order.designReference || undefined,
+    submittedAt: createdAt,
+    approvedAt: order.designStatus?.toLowerCase() === "approved" ? createdAt : undefined,
+    designApprovedAt: order.designStatus?.toLowerCase() === "approved" ? createdAt : undefined,
+    notes: order.customerDrawingUrl ? `Gambar customer: ${order.customerDrawingUrl}` : undefined,
+    timeline: buildSalesOrderTimeline(order.status, createdAt),
+  };
+}
+
+function mapSalesOrderStatus(status: string, designStatus?: string): SalesOrder["status"] {
+  const normalized = status.toLowerCase();
+  const design = designStatus?.toLowerCase();
+
+  if (design === "revisionrequired" || design === "revision_required") return "Revision Required";
+  if (design === "rejected") return "Rejected";
+  if (design === "waitingapproval" || design === "waiting_approval") return "Waiting Approval";
+  if (design === "pending" || design === "pendingdesign" || design === "pending_design") return "Pending Design";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "inproduction") return "In Production";
+  if (normalized === "confirmed") return "Ready for Production";
+  if (normalized === "cancelled") return "Rejected";
+  if (normalized === "draft") return "Waiting Approval";
+
+  return "Ready for Production";
+}
+
+function buildSalesOrderTimeline(status: string, createdAt: string): SalesOrder["timeline"] {
+  const currentStatus = mapSalesOrderStatus(status);
+  const steps: SalesOrder["status"][] = ["Pending Design", "Waiting Approval", "Ready for Production", "In Production", "QC", "Completed"];
+  const currentIndex = Math.max(0, steps.indexOf(currentStatus));
+
+  return steps.map((step, index) => ({
+    id: step,
+    step,
+    label: step,
+    date: index <= currentIndex ? createdAt : "",
+    completed: index < currentIndex,
+    current: index === currentIndex,
+  }));
 }
 
 async function syncCreateQuotation(
