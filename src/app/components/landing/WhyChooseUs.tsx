@@ -2,46 +2,51 @@ import { Target, Users, ShieldCheck, Clock, Wrench, Truck } from "lucide-react";
 
 const advantages = [
   {
-    icon: Target,
-    title: "Precision Manufacturing",
-    description:
-      "Tight-tolerance machining to ±0.01mm using modern CNC equipment and calibrated measurement tools.",
-  },
-  {
-    icon: Users,
-    title: "Experienced Team",
-    description:
-      "Engineering staff with 10–20 years of hands-on experience in industrial manufacturing and production planning.",
-  },
-  {
     icon: ShieldCheck,
-    title: "Quality Control",
-    description:
-      "Every part passes multi-stage QC inspection with dimensional verification and material certification.",
+    title: "Kualitas Terbaik (Q)",
+    description: "Setiap komponen melewati QC ketat menggunakan Hexagon Absolute Arm untuk menjamin presisi.",
   },
   {
-    icon: Clock,
-    title: "Production Reliability",
-    description:
-      "Consistent capacity planning and scheduling ensures orders are fulfilled without delays or rework.",
-  },
-  {
-    icon: Wrench,
-    title: "Industrial Expertise",
-    description:
-      "Deep domain knowledge in energy, heavy equipment, and construction sector manufacturing requirements.",
+    icon: Target,
+    title: "Biaya Rasional (C)",
+    description: "Proses manufaktur yang efisien dan pengadaan material yang cerdas menawarkan harga yang sangat kompetitif.",
   },
   {
     icon: Truck,
-    title: "Timely Delivery",
-    description:
-      "98% on-time delivery rate backed by real-time order tracking and proactive production updates.",
+    title: "Pengiriman Tepat Waktu (D)",
+    description: "Komitmen pada penjadwalan produksi yang ketat untuk pemenuhan pesanan yang andal dan tepat waktu.",
   },
+  {
+    icon: Users,
+    title: "Tim Profesional",
+    description: "Dioperasikan oleh tenaga kerja berpengalaman dengan keahlian teknis mendalam di bidang rekayasa industri.",
+  },
+  {
+    icon: Wrench,
+    title: "Solusi Layanan Lengkap",
+    description: "Mulai dari komponen custom dan checking fixture hingga perakitan konveyor dan general trading.",
+  },
+  {
+    icon: Clock,
+    title: "Speed & Agility",
+    description: "Responsive quoting and rapid prototyping capabilities that keep your production line moving.",
+  },
+];
+
+const clients = [
+  "PT. SANKEN ARGADWIJA",
+  "PT. KALBE FARMA",
+  "PT. TOYODA GOSEI",
+  "PT. ALFAMIDI",
+  "PT. GUNTNER",
+  "PT. INDOFOOD",
+  "PT. SHOWA",
+  "PT. MULTISTRADA",
 ];
 
 export function WhyChooseUs() {
   return (
-    <section style={{ backgroundColor: "#FFFFFF" }} className="py-20 lg:py-28">
+    <section id="why" style={{ backgroundColor: "#FFFFFF" }} className="py-20 lg:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-14">
@@ -65,7 +70,7 @@ export function WhyChooseUs() {
             }}
             className="mb-4"
           >
-            The Pratama Jaya Standard
+            Komitmen Kualitas Kami
           </h2>
           <p
             style={{
@@ -77,13 +82,12 @@ export function WhyChooseUs() {
               margin: "0 auto",
             }}
           >
-            We combine technical expertise, modern equipment, and operational discipline to deliver
-            manufacturing results clients can depend on.
+            Kami memegang teguh standar mutu yang tinggi (Quality, Cost, Delivery) untuk memastikan setiap komponen diproduksi sesuai kebutuhan presisi Anda.
           </p>
         </div>
 
         {/* Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-20">
           {advantages.map((item) => {
             const Icon = item.icon;
             return (
@@ -128,6 +132,38 @@ export function WhyChooseUs() {
               </div>
             );
           })}
+        </div>
+
+        {/* Trusted By Section */}
+        <div className="pt-16 border-t border-slate-200 text-center">
+          <h3
+            style={{
+              color: "#64748B",
+              fontFamily: "Inter, sans-serif",
+              fontSize: "14px",
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+            }}
+            className="mb-8 uppercase"
+          >
+            DIPERCAYA OLEH PERUSAHAAN TERKEMUKA
+          </h3>
+          <div className="flex flex-wrap justify-center gap-x-12 gap-y-6">
+            {clients.map((client) => (
+              <div
+                key={client}
+                style={{
+                  color: "#94A3B8",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: "18px",
+                  fontWeight: 800,
+                }}
+                className="grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-default"
+              >
+                {client}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

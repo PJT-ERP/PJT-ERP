@@ -4,26 +4,26 @@ const steps = [
   {
     icon: MessageSquare,
     step: "01",
-    title: "Customer Request",
-    description: "Client submits requirements, drawings, or specifications for review.",
+    title: "Permintaan Pelanggan",
+    description: "Klien mengirimkan kebutuhan, gambar, atau spesifikasi teknis untuk ditinjau.",
   },
   {
     icon: FileText,
     step: "02",
-    title: "Sales Order",
-    description: "Sales order is generated with pricing, timeline, and specifications confirmed.",
+    title: "Pesanan Penjualan (SO)",
+    description: "Pesanan Penjualan dibuat dengan harga, estimasi waktu, dan spesifikasi yang telah dikonfirmasi.",
   },
   {
     icon: ClipboardCheck,
     step: "03",
-    title: "Engineering Review",
-    description: "Technical team reviews drawings, performs DFM analysis, and plans production.",
+    title: "Tinjauan Engineering",
+    description: "Tim teknis meninjau gambar, melakukan analisis, dan merencanakan jadwal produksi.",
   },
   {
     icon: Hammer,
     step: "04",
-    title: "Production",
-    description: "CNC machining, fabrication, and assembly using precision equipment.",
+    title: "Produksi",
+    description: "Proses CNC machining, fabrikasi, dan perakitan menggunakan peralatan presisi.",
   },
   {
     icon: ShieldCheck,
@@ -34,7 +34,7 @@ const steps = [
   {
     icon: Truck,
     step: "06",
-    title: "Delivery",
+    title: "Pengiriman",
     description: "Packaged and delivered with documentation and certificate of conformance.",
   },
 ];

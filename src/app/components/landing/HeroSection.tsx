@@ -16,13 +16,16 @@ export function HeroSection() {
       style={{ backgroundColor: "#1F1F1F" }}
       className="relative min-h-screen flex items-center overflow-hidden pt-16"
     >
-      {/* Background image with overlay */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1647427060118-4911c9821b82?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxpbmR1c3RyaWFsJTIwbWFudWZhY3R1cmluZyUyMGZhY3RvcnklMjBtYWNoaW5lcnl8ZW58MXx8fHwxNzc5NjM0NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080')`,
-        }}
-      />
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: "center 30%" }}
+      >
+        <source src="/hero-bg.mp4" type="video/mp4" />
+      </video>
       <div
         className="absolute inset-0"
         style={{
@@ -53,7 +56,7 @@ export function HeroSection() {
             <span
               style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em" }}
             >
-              ISO-CERTIFIED MANUFACTURING
+              SOLUSI MANUFAKTUR TERINTEGRASI
             </span>
           </div>
 
@@ -69,11 +72,11 @@ export function HeroSection() {
             }}
             className="mb-6"
           >
-            Precision Industrial
+            Mitra Strategis Komponen Presisi
             <br />
-            <span style={{ color: "#C8102E" }}>Manufacturing</span>
+            <span style={{ color: "#C8102E" }}>dan Otomasi Industri</span>
             <br />
-            Solutions
+            Berstandar Tinggi
           </h1>
 
           {/* Tagline */}
@@ -87,8 +90,7 @@ export function HeroSection() {
             }}
             className="mb-10 max-w-xl"
           >
-            PT Pratama Jaya Tekindo delivers high-precision CNC machining, custom parts fabrication,
-            and industrial manufacturing services for demanding engineering applications.
+            PT Pratama Jaya Tekindo menyediakan layanan manufaktur komponen presisi, pembuatan mould & dies, jig & fixture, hingga sistem otomasi lini produksi untuk mendorong efisiensi industri Anda.
           </p>
 
           {/* CTA Buttons */}
@@ -105,7 +107,7 @@ export function HeroSection() {
               }}
             >
               <Search className="w-4 h-4" />
-              Track My Order
+              Lacak Pesanan
             </button>
             <button
               onClick={handleContactClick}
@@ -119,7 +121,7 @@ export function HeroSection() {
                 border: "1px solid rgba(255,255,255,0.25)",
               }}
             >
-              Contact Us
+              Hubungi Kami
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -127,9 +129,9 @@ export function HeroSection() {
           {/* Stats row */}
           <div className="mt-16 flex flex-wrap gap-8">
             {[
-              { value: "15+", label: "Years Experience" },
-              { value: "500+", label: "Projects Delivered" },
-              { value: "98%", label: "Client Satisfaction" },
+              { value: "10 Tahun", label: "Pengalaman Industri" },
+              { value: "6+", label: "Sektor Industri Utama Terlayani" },
+              { value: "2", label: "Lokasi Workshop & Kantor" },
             ].map((stat) => (
               <div key={stat.label}>
                 <div
