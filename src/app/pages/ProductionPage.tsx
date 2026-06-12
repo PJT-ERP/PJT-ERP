@@ -72,7 +72,7 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   const [operatorId, setOperatorId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const operators = users.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
+  const operators = users.filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +99,6 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
         await salesApi.confirmSalesOrder(salesOrderId, toBackendUserId(currentUser) || reviewerBackendId);
       } catch (confirmError) {
         console.warn("Operator assigned, but SO confirmation is not ready yet.", confirmError);
-        alert("Operator tersimpan. SO belum bisa dikonfirmasi produksi sampai semua syarat backend terpenuhi.");
       }
 
       await refreshBackendData();
