@@ -1,21 +1,7 @@
 import React, { useState } from "react";
-import {
-  Pencil,
-  Send,
-  Clock,
-  CheckCircle,
-  ExternalLink,
-  List,
-  AlertTriangle,
-  Search,
-  ChevronDown,
-  Plus,
-  Trash2 } from "lucide-react";
+import { Pencil, Send, Clock, CheckCircle, ExternalLink, List, AlertTriangle, Search, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { type Quotation,
-  type QuotationStatus,
-  getQuotationStatusColor
-} from "../components/data/mockData";
+import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -29,24 +15,14 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = getQuotationStatusColor(status);
-  return (
-    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
-      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {cfg.label}
-    </span>
-  );
-}
-
-function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
+function QuotationDesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, customers, currentUser } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? '');
   const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
   const customer = customers.find(c => c.code === qut.customerId);
   
-  const isSpv = currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv';
+  const isSpv = currentUser?.isSupervisor || currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
   const isPendingSpv = qut.status === 'design_review';
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
@@ -65,7 +41,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyItems: "space-between", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
           <div>
             <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>{qut.id}</h2>
             <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{qut.productName} - {qut.description}</p>
@@ -96,6 +72,9 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
               <div style={{ background: S.bg, borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 8, fontSize: "13.5px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: S.secondary }}>Customer</span><span style={{ color: S.slate, fontWeight: 500 }}>{customer?.name}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: S.secondary }}>Qty</span><span style={{ color: S.slate, fontWeight: 500 }}>{qut.quantity} {qut.unit}</span></div>
+                {qut.soId && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: S.secondary }}>Referensi SO</span><span style={{ color: S.slate, fontWeight: 500 }}>{qut.soId}</span></div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: S.secondary }}>Link Desain</span>
                   <a href={designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "12px", display: "flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none" }}>Lihat <ExternalLink size={11} /></a>
@@ -114,8 +93,20 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Qty</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.quantity} {qut.unit}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.deadline}</p></div>
-                <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.createdAt}</p></div>
+                {qut.soId ? (
+                  <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Referensi SO</p><p style={{ color: S.cyan, margin: "2px 0 0", fontWeight: 500 }}>{qut.soId}</p></div>
+                ) : (
+                  <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Tanggal Request</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.createdAt}</p></div>
+                )}
               </div>
+
+              {qut.rejectionReason && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 12 }}>
+                  <p style={{ fontSize: "12px", color: "#EF4444", margin: "0 0 2px" }}><strong>Catatan Revisi:</strong></p>
+                  <p style={{ fontSize: "13.5px", color: "#B91C1C", margin: 0 }}>{qut.rejectionReason}</p>
+                </div>
+              )}
+
               <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 12 }}>
                 <p style={{ fontSize: "12px", color: "#1D4ED8", margin: 0 }}>Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
               </div>
@@ -171,14 +162,55 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   );
 }
 
+
+function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
+  const { updateQuotation } = useApp();
+  const engineers = USERS.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
+  
+  const handleAssign = (userId: string) => {
+    updateQuotation(qut.id, { assignedTo: userId });
+    onClose();
+  };
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 350, padding: 24, fontFamily: S.font }}>
+        <h2 style={{ fontSize: "18px", color: S.slate, margin: "0 0 16px", fontWeight: 600 }}>Tugaskan Desain</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {engineers.map(eng => (
+            <button key={eng.id} onClick={() => handleAssign(eng.id)} style={{ width: "100%", textAlign: "left", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, cursor: "pointer", background: S.white }}>
+              <p style={{ margin: 0, fontWeight: 500, color: S.slate, fontSize: "13.5px" }}>{eng.name}</p>
+              <p style={{ margin: 0, fontSize: "12px", color: S.secondary }}>{eng.email}</p>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{ width: "100%", marginTop: 16, padding: "10px", border: `1px solid ${S.border}`, color: S.slate, background: S.white, fontSize: "13.5px", fontWeight: 500, borderRadius: 8, cursor: "pointer" }}>Batal</button>
+      </div>
+    </div>
+  );
+}
+
 export function EngineeringTasksPage() {
   const { quotations, customers } = useApp();
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
+  const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
+  const { currentUser } = useApp();
+  const isSpv = currentUser?.isSupervisor || currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
-  const STATUS_ORDER = ['pending_design', 'design_review'];
+  const getSortScore = (q: Quotation) => {
+    if (q.status === 'pending_design' && !!q.rejectionReason) return 0;
+    if (q.status === 'pending_design') return 1;
+    if (q.status === 'design_review') return 2;
+    return 3;
+  };
+
   const queue = quotations
-    .filter(q => STATUS_ORDER.includes(q.status))
-    .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
+    .filter(q => q.status === 'pending_design' || q.status === 'design_review')
+    .filter(q => isSpv || q.assignedTo === currentUser?.id)
+    .sort((a, b) => getSortScore(a) - getSortScore(b));
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -199,8 +231,8 @@ export function EngineeringTasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["No. QUT", "Pelanggan", "Produk", "Deadline", "Status"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+          {["No. QUT", "Pelanggan", "Produk", "Deadline", "Ditugaskan", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
@@ -211,34 +243,130 @@ export function EngineeringTasksPage() {
             <p style={{ color: S.slate, margin: 0, fontSize: "13.5px" }}>Semua pesanan sudah selesai didesain.</p>
           </div>
         ) : (
-          queue.map((qut, idx) => (
-            <div
-              key={qut.id}
-              onClick={() => setSelectedQUT(qut)}
-              style={{
-                display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                padding: "10px 18px", cursor: "pointer",
-                borderBottom: idx < queue.length - 1 ? `1px solid ${S.border}` : "none",
-                transition: "background 0.1s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
-              <div style={{ minWidth: 0, paddingRight: 10 }}>
-                <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
+          queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
+            const customerName = customers.find(c => c.code === qut.customerId)?.name || "-";
+            const isWaiting = qut.status === 'design_review';
+            const isRevision = qut.status === 'pending_design' && !!qut.rejectionReason;
+            
+            let btnText = "Upload Desain";
+            let btnColor = S.cyan;
+            let btnTextColor = "#fff";
+            
+            if (isRevision) { 
+              btnText = "Revisi Desain"; 
+              btnColor = "#F59E0B"; 
+            } else if (isWaiting) { 
+              btnText = "Menunggu Review"; 
+              btnColor = "#E2E8F0"; 
+              btnTextColor = "#94A3B8"; 
+            }
+
+            return (
+              <div
+                key={qut.id}
+                onClick={() => { if (!isWaiting) setSelectedQUT(qut); }}
+                style={{
+                  display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 100px 130px",
+                  padding: "10px 18px", cursor: isWaiting ? "not-allowed" : "pointer",
+                  borderBottom: idx < Math.min(itemsPerPage, queue.length) - 1 ? `1px solid ${S.border}` : "none",
+                  transition: "background 0.1s",
+                  opacity: isWaiting ? 0.8 : 1,
+                }}
+                onMouseEnter={e => { if(!isWaiting) e.currentTarget.style.background = "#F8FAFC"; }}
+                onMouseLeave={e => { if(!isWaiting) e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace", alignSelf: "center" }}>{qut.id}</span>
+                <div style={{ minWidth: 0, paddingRight: 10, alignSelf: "center" }}>
+                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customerName}</p>
+                </div>
+                <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
+                <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", fontWeight: 500 }}>{qut.deadline}</span>
+                <div style={{ alignSelf: "center" }}>
+                  {qut.assignedTo ? (
+                    <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                      {USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer'}
+                    </span>
+                  ) : isSpv ? (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setAssignModalQUT(qut); }}
+                      style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
+                    >
+                      Tugaskan
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>-</span>
+                  )}
+                </div>
+                <div style={{ alignSelf: "center", display: "flex", justifyContent: "flex-start" }}>
+                  <button 
+                    disabled={isWaiting}
+                    style={{ 
+                      width: 120, padding: "5px 0", textAlign: "center", 
+                      background: btnColor, 
+                      color: btnTextColor, 
+                      border: "none", 
+                      borderRadius: 4, 
+                      fontSize: "11.5px", 
+                      fontWeight: 600, 
+                      cursor: isWaiting ? "not-allowed" : "pointer", 
+                      whiteSpace: "nowrap",
+                      pointerEvents: "none",
+                      boxShadow: isWaiting ? "none" : "0 1px 2px rgba(0,0,0,0.05)"
+                    }}
+                  >
+                    {btnText}
+                  </button>
+                </div>
               </div>
-              <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
-              <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", fontWeight: 500 }}>{qut.deadline}</span>
-              <div style={{ alignSelf: "center" }}>
-                <StatusBadge status={qut.status} />
-              </div>
+            );
+          })
+        )}
+
+        {queue.length > itemsPerPage && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+            <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+              {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, queue.length)} dari {queue.length} hasil
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                disabled={currentPage === 1}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : S.secondary, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              {Array.from({ length: Math.ceil(queue.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 28, height: 28, padding: "0 8px",
+                    borderRadius: 8, border: "none",
+                    background: p === currentPage ? S.cyan : "transparent",
+                    color: p === currentPage ? "#FFFFFF" : "#475569",
+                    fontSize: "13.5px", fontWeight: p === currentPage ? 600 : 500,
+                    cursor: "pointer", transition: "all 0.1s"
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(queue.length / itemsPerPage), p + 1))} 
+                disabled={currentPage >= Math.ceil(queue.length / itemsPerPage)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= Math.ceil(queue.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPage >= Math.ceil(queue.length / itemsPerPage) ? "not-allowed" : "pointer" }}
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
-          ))
+          </div>
         )}
       </div>
 
-      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {selectedQUT && <QuotationDesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
 }
+

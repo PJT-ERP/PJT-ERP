@@ -1,17 +1,7 @@
 import React, { useState } from "react";
-import {
-  CheckCircle,
-  XCircle,
-  ExternalLink,
-  Clock,
-  RotateCcw,
-  Search,
-  FileText } from "lucide-react";
+import { CheckCircle, XCircle, ExternalLink, Clock, RotateCcw, Search, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { type SalesOrder,
-  type SOStatus,
-  getStatusColor
-} from "../components/data/mockData";
+import { SalesOrder, SOStatus, getStatusColor, formatSOStatus } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -30,7 +20,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {status}
+      {formatSOStatus(status)}
     </span>
   );
 }
@@ -177,6 +167,9 @@ export function OwnerApprovalPage() {
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
+  const [currentPageWait, setCurrentPageWait] = useState(1);
+  const [currentPageLog, setCurrentPageLog] = useState(1);
+  const itemsPerPage = 10;
 
   const waitingApproval = salesOrders.filter(so => so.status === 'Waiting Approval');
 
@@ -227,7 +220,7 @@ export function OwnerApprovalPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {waitingApproval.map((so, idx) => {
+            {waitingApproval.slice((currentPageWait - 1) * itemsPerPage, currentPageWait * itemsPerPage).map((so, idx) => {
               const customer = customers.find(c => c.code === so.customerId);
               const daysDiff = Math.ceil((new Date(so.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               return (
@@ -249,13 +242,58 @@ export function OwnerApprovalPage() {
                   </div>
                   {!isAdmin && (
                     <button onClick={() => setSelectedSO(so)}
-                      style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                      style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                       Review Desain
                     </button>
                   )}
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination Controls for Waiting */}
+        {waitingApproval.length > itemsPerPage && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+            <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+              {(currentPageWait - 1) * itemsPerPage + 1}–{Math.min(currentPageWait * itemsPerPage, waitingApproval.length)} dari {waitingApproval.length} hasil
+            </span>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button 
+                onClick={() => setCurrentPageWait(p => Math.max(1, p - 1))} 
+                disabled={currentPageWait === 1}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageWait === 1 ? "#CBD5E1" : S.secondary, cursor: currentPageWait === 1 ? "not-allowed" : "pointer" }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              
+              {Array.from({ length: Math.ceil(waitingApproval.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPageWait(p)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 28, height: 28, padding: "0 8px",
+                    borderRadius: 8, border: "none",
+                    background: p === currentPageWait ? S.cyan : "transparent",
+                    color: p === currentPageWait ? "#FFFFFF" : "#475569",
+                    fontSize: "13.5px", fontWeight: p === currentPageWait ? 600 : 500,
+                    cursor: "pointer", transition: "all 0.1s"
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+
+              <button 
+                onClick={() => setCurrentPageWait(p => Math.min(Math.ceil(waitingApproval.length / itemsPerPage), p + 1))} 
+                disabled={currentPageWait >= Math.ceil(waitingApproval.length / itemsPerPage)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageWait >= Math.ceil(waitingApproval.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPageWait >= Math.ceil(waitingApproval.length / itemsPerPage) ? "not-allowed" : "pointer" }}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -307,7 +345,7 @@ export function OwnerApprovalPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {logSOs.map((so, idx) => {
+            {logSOs.slice((currentPageLog - 1) * itemsPerPage, currentPageLog * itemsPerPage).map((so, idx) => {
               const customer = customers.find(c => c.code === so.customerId);
               return (
                 <div key={so.id} style={{
@@ -324,6 +362,51 @@ export function OwnerApprovalPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination Controls for Log */}
+        {logSOs.length > itemsPerPage && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+            <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+              {(currentPageLog - 1) * itemsPerPage + 1}–{Math.min(currentPageLog * itemsPerPage, logSOs.length)} dari {logSOs.length} hasil
+            </span>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button 
+                onClick={() => setCurrentPageLog(p => Math.max(1, p - 1))} 
+                disabled={currentPageLog === 1}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageLog === 1 ? "#CBD5E1" : S.secondary, cursor: currentPageLog === 1 ? "not-allowed" : "pointer" }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              
+              {Array.from({ length: Math.ceil(logSOs.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPageLog(p)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 28, height: 28, padding: "0 8px",
+                    borderRadius: 8, border: "none",
+                    background: p === currentPageLog ? S.cyan : "transparent",
+                    color: p === currentPageLog ? "#FFFFFF" : "#475569",
+                    fontSize: "13.5px", fontWeight: p === currentPageLog ? 600 : 500,
+                    cursor: "pointer", transition: "all 0.1s"
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+
+              <button 
+                onClick={() => setCurrentPageLog(p => Math.min(Math.ceil(logSOs.length / itemsPerPage), p + 1))} 
+                disabled={currentPageLog >= Math.ceil(logSOs.length / itemsPerPage)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageLog >= Math.ceil(logSOs.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPageLog >= Math.ceil(logSOs.length / itemsPerPage) ? "not-allowed" : "pointer" }}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         )}
       </div>

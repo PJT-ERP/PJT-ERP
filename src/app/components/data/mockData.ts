@@ -8,7 +8,12 @@ export type SOStatus =
   | 'In Production'
   | 'QC'
   | 'Completed'
-  | 'Rejected';
+  | 'Rejected'
+    | 'waiting_dp'
+    | 'pending_assignment'
+    | 'material_preparation'
+    | 'in_production'
+    | 'qc_check';
 
 export interface User {
   id: string;
@@ -18,6 +23,7 @@ export interface User {
   role: UserRole;
   email: string;
   isActive: boolean;
+  isSupervisor?: boolean;
 }
 
 export interface Customer {
@@ -85,12 +91,12 @@ export const productOptions = [
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Budi Santoso', username: 'sales01', password: 'sales123', role: 'Sales', email: 'budi@pjt.co.id', isActive: true },
-  { id: 'u2', name: 'Reza Firmansyah', username: 'eng01', password: 'eng123', role: 'Engineering', email: 'reza@pjt.co.id', isActive: true },
+  { id: 'u2', name: 'Hendra Wijaya', username: 'eng01', password: 'eng123', role: 'Engineering', email: 'hendra@pjt.co.id', isActive: true },
   { id: 'u3', name: 'Wildan Pratama', username: 'owner', password: 'owner123', role: 'Owner', email: 'hendra@pjt.co.id', isActive: true },
   { id: 'u4', name: 'Intan', username: 'admin01', password: 'admin123', role: 'Admin', email: 'siti@pjt.co.id', isActive: true },
   { id: 'u5', name: 'Dewi Kusuma', username: 'finance01', password: 'fin123', role: 'Finance', email: 'dewi@pjt.co.id', isActive: true },
   { id: 'u6', name: 'Ahmad Fauzi', username: 'purchasing01', password: 'purchase123', role: 'Purchasing', email: 'ahmad@pjt.co.id', isActive: true },
-  { id: 'u7', name: 'Dimas Supervisor', username: 'eng_spv', password: 'spv123', role: 'Engineering', email: 'dimas@pjt.co.id', isActive: true },
+  { id: 'u7', name: 'Budi (Supervisor)', username: 'eng_spv', password: 'spv123', role: 'Engineering', email: 'budi.spv@pjt.co.id', isActive: true, isSupervisor: true },
 ];
 
 export const CUSTOMERS: Customer[] = [
@@ -106,16 +112,79 @@ export const CUSTOMERS: Customer[] = [
 
 export const INITIAL_QUOTATIONS: Quotation[] = [
   {
-    id: 'QUT-2026-001',
+    id: 'QUT-2026-001', soId: 'SO-2026064',
     customerId: '0001',
-    productName: 'Baut Custom 0.05mm',
-    description: 'Baut baja presisi tinggi untuk mesin bubut',
-    quantity: 100,
+    productName: 'Sprocket Chain 40T Duplex Grade A',
+    description: 'Material baja karbon grade A, perlakuan panas khusus',
+    quantity: 30,
     unit: 'pcs',
-    deadline: '2026-06-30',
+    deadline: '2026-07-25',
     status: 'pending_design',
     createdBy: 'u1',
-    createdAt: '2026-06-01',
+    createdAt: '2026-05-09',
+  },
+  {
+    id: 'QUT-2026-005', soId: 'SO-2026069',
+    customerId: '0008',
+    productName: 'Camshaft Bearing Seat 70mm CrMo',
+    description: 'Material CrMo presisi tinggi',
+    quantity: 12,
+    unit: 'pcs',
+    deadline: '2026-07-28',
+    status: 'pending_design',
+    createdBy: 'u1',
+    createdAt: '2026-05-10',
+  },
+  {
+    id: 'QUT-2026-006', soId: 'SO-2026072',
+    customerId: '0002',
+    productName: 'Hydraulic Cylinder Rod End SS316L',
+    description: 'Stainless Steel 316L, Tahan korosi',
+    quantity: 6,
+    unit: 'pcs',
+    deadline: '2026-08-01',
+    status: 'pending_design',
+    createdBy: 'u1',
+    createdAt: '2026-05-11',
+  },
+  {
+    id: 'QUT-2026-007', soId: 'SO-2026075',
+    customerId: '0005',
+    productName: 'Connecting Rod Bearing Set 60mm',
+    description: 'Set lengkap dengan bearing custom, toleransi ketat',
+    quantity: 50,
+    unit: 'set',
+    deadline: '2026-08-05',
+    status: 'pending_design',
+    rejectionReason: 'Toleransi dimensi terlalu ketat, perlu dikonfirmasi ulang dengan customer. Revisi drawing section A-A.',
+    createdBy: 'u1',
+    createdAt: '2026-05-12',
+  },
+  {
+    id: 'QUT-2026-008', soId: 'SO-2026051',
+    customerId: '0006',
+    productName: 'Pump Housing Aluminium A356',
+    description: 'Casting aluminium A356',
+    quantity: 8,
+    unit: 'pcs',
+    deadline: '2026-07-15',
+    status: 'design_review',
+    designId: 'DES-008',
+    createdBy: 'u1',
+    createdAt: '2026-05-05',
+  },
+  {
+    id: 'QUT-2026-009', soId: 'SO-2026058',
+    customerId: '0007',
+    productName: 'Brake Drum Custom 250mm OD',
+    description: 'Tahan panas tinggi',
+    quantity: 15,
+    unit: 'pcs',
+    deadline: '2026-07-20',
+    status: 'design_review',
+    designId: 'DES-009',
+    createdBy: 'u1',
+    createdAt: '2026-05-07',
   },
   {
     id: 'QUT-2026-002',
@@ -170,86 +239,79 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
 // ── Riwayat Jan–Mar 2026 ──────────────────────────────────────────────────
   {
     id: 'SO-2025098', customerId: '0001', partNumber: 'PJT-BRG-H01', description: 'Bearing Housing Custom 120mm',
-    quantity: 20, unit: 'PCS', deadline: '2026-01-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-03',
+    quantity: 20, unit: 'PCS', deadline: '2026-01-20', status: 'completed', createdBy: 'u1', createdAt: '2026-01-03',
     designLink: 'https://drive.google.com', submittedAt: '2026-01-05', approvedAt: '2026-01-07', approvedBy: 'u3',
     startTime: '2026-01-08T08:00', endTime: '2026-01-18T16:00', qcStatus: 'Pass', qcAt: '2026-01-19', completedAt: '2026-01-20',
-    quotationDate: '2025-12-15', designApprovedAt: '2025-12-28',
-    qcNotes: 'Dimensi housing presisi. Lulus uji getaran sumbu.', qcPhotos: ['https://images.unsplash.com/photo-1565814636199-ae8133055c1c?auto=format&fit=crop&q=80&w=200'],
-    invoice: { invoiceNumber: 'INV-2026-001', invoiceDate: '2026-01-21', dueDate: '2026-02-21', amount: 45000000, status: 'paid', paymentDate: '2026-02-15' }
   },
   {
     id: 'SO-2025099', customerId: '0002', partNumber: 'PJT-SHF-H01', description: 'Shaft Coupling 60mm SS304',
-    quantity: 8, unit: 'PCS', deadline: '2026-01-25', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-08',
+    quantity: 8, unit: 'PCS', deadline: '2026-01-25', status: 'completed', createdBy: 'u1', createdAt: '2026-01-08',
     designLink: 'https://drive.google.com', submittedAt: '2026-01-10', approvedAt: '2026-01-12', approvedBy: 'u3',
-    startTime: '2026-01-13T08:00', endTime: '2026-01-24T16:00', qcStatus: 'Fail', qcAt: '2026-01-25', completedAt: '2026-01-26',
-    lateReason: 'Mesin bubut sempat mengalami maintenance selama 2 hari',
-    quotationDate: '2025-12-20', designApprovedAt: '2026-01-02',
-    qcNotes: '2 pcs cacat minor pada ulir. Harus dirework.', qcPhotos: ['https://images.unsplash.com/photo-1580983546535-ebbc30138cd3?auto=format&fit=crop&q=80&w=200'],
-    invoice: { invoiceNumber: 'INV-2026-002', invoiceDate: '2026-01-27', dueDate: '2026-02-27', amount: 18500000, status: 'waiting', paymentDate: '' }
+    startTime: '2026-01-13T08:00', endTime: '2026-01-24T16:00', qcStatus: 'Pass', qcAt: '2026-01-25', completedAt: '2026-01-26',
   },
   {
     id: 'SO-2025100', customerId: '0003', partNumber: 'PJT-VAL-H01', description: 'Gate Valve Body DN80 CS',
-    quantity: 6, unit: 'PCS', deadline: '2026-01-28', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-10',
+    quantity: 6, unit: 'PCS', deadline: '2026-01-28', status: 'completed', createdBy: 'u1', createdAt: '2026-01-10',
     designLink: 'https://drive.google.com', submittedAt: '2026-01-12', approvedAt: '2026-01-14', approvedBy: 'u3',
     startTime: '2026-01-15T08:00', endTime: '2026-01-27T16:00', qcStatus: 'Pass', qcAt: '2026-01-28', completedAt: '2026-01-29',
   },
   {
     id: 'SO-2025101', customerId: '0005', partNumber: 'PJT-PLT-H01', description: 'Jig Plate Aluminium 400x400mm',
-    quantity: 2, unit: 'PCS', deadline: '2026-01-30', status: 'Completed', createdBy: 'u1', createdAt: '2026-01-12',
+    quantity: 2, unit: 'PCS', deadline: '2026-01-30', status: 'completed', createdBy: 'u1', createdAt: '2026-01-12',
     designLink: 'https://drive.google.com', submittedAt: '2026-01-14', approvedAt: '2026-01-16', approvedBy: 'u3',
     startTime: '2026-01-17T08:00', endTime: '2026-01-28T16:00', qcStatus: 'Pass', qcAt: '2026-01-29', completedAt: '2026-01-30',
   },
   {
     id: 'SO-2025102', customerId: '0001', partNumber: 'PJT-SPR-H01', description: 'Sprocket 32T Single Grade A',
-    quantity: 15, unit: 'PCS', deadline: '2026-02-15', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-02',
+    quantity: 15, unit: 'PCS', deadline: '2026-02-15', status: 'completed', createdBy: 'u1', createdAt: '2026-02-02',
     designLink: 'https://drive.google.com', submittedAt: '2026-02-04', approvedAt: '2026-02-06', approvedBy: 'u3',
     startTime: '2026-02-07T08:00', endTime: '2026-02-14T16:00', qcStatus: 'Pass', qcAt: '2026-02-15', completedAt: '2026-02-16',
   },
   {
     id: 'SO-2025103', customerId: '0004', partNumber: 'PJT-FLG-H01', description: 'Flange Slip-On DN150 A105',
-    quantity: 12, unit: 'PCS', deadline: '2026-02-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-05',
+    quantity: 12, unit: 'PCS', deadline: '2026-02-20', status: 'completed', createdBy: 'u1', createdAt: '2026-02-05',
     designLink: 'https://drive.google.com', submittedAt: '2026-02-07', approvedAt: '2026-02-09', approvedBy: 'u3',
     startTime: '2026-02-10T08:00', endTime: '2026-02-19T16:00', qcStatus: 'Pass', qcAt: '2026-02-20', completedAt: '2026-02-21',
   },
   {
     id: 'SO-2025104', customerId: '0006', partNumber: 'PJT-HSG-H01', description: 'Pump Casing Bronze 125mm',
-    quantity: 4, unit: 'PCS', deadline: '2026-02-25', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-10',
+    quantity: 4, unit: 'PCS', deadline: '2026-02-25', status: 'completed', createdBy: 'u1', createdAt: '2026-02-10',
     designLink: 'https://drive.google.com', submittedAt: '2026-02-12', approvedAt: '2026-02-14', approvedBy: 'u3',
     startTime: '2026-02-15T08:00', endTime: '2026-02-24T16:00', qcStatus: 'Pass', qcAt: '2026-02-25', completedAt: '2026-02-26',
   },
   {
     id: 'SO-2025105', customerId: '0002', partNumber: 'PJT-SHF-H02', description: 'Output Shaft Gearbox 90mm CrMo',
-    quantity: 5, unit: 'PCS', deadline: '2026-03-10', status: 'Completed', createdBy: 'u1', createdAt: '2026-02-20',
+    quantity: 5, unit: 'PCS', deadline: '2026-03-10', status: 'completed', createdBy: 'u1', createdAt: '2026-02-20',
     designLink: 'https://drive.google.com', submittedAt: '2026-02-22', approvedAt: '2026-02-24', approvedBy: 'u3',
     startTime: '2026-02-25T08:00', endTime: '2026-03-09T16:00', qcStatus: 'Pass', qcAt: '2026-03-10', completedAt: '2026-03-11',
   },
   {
     id: 'SO-2025106', customerId: '0001', partNumber: 'PJT-BRG-H02', description: 'Pillow Block Bearing Seat 75mm',
-    quantity: 18, unit: 'PCS', deadline: '2026-03-15', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-01',
+    quantity: 18, unit: 'PCS', deadline: '2026-03-15', status: 'completed', createdBy: 'u1', createdAt: '2026-03-01',
     designLink: 'https://drive.google.com', submittedAt: '2026-03-03', approvedAt: '2026-03-05', approvedBy: 'u3',
     startTime: '2026-03-06T08:00', endTime: '2026-03-14T16:00', qcStatus: 'Pass', qcAt: '2026-03-15', completedAt: '2026-03-16',
   },
   {
     id: 'SO-2025107', customerId: '0003', partNumber: 'PJT-VAL-H02', description: 'Check Valve Body SS316 DN50',
-    quantity: 8, unit: 'PCS', deadline: '2026-03-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-05',
+    quantity: 8, unit: 'PCS', deadline: '2026-03-20', status: 'completed', createdBy: 'u1', createdAt: '2026-03-05',
     designLink: 'https://drive.google.com', submittedAt: '2026-03-07', approvedAt: '2026-03-09', approvedBy: 'u3',
     startTime: '2026-03-10T08:00', endTime: '2026-03-19T16:00', qcStatus: 'Pass', qcAt: '2026-03-20', completedAt: '2026-03-21',
   },
   {
     id: 'SO-2025108', customerId: '0007', partNumber: 'PJT-BRK-H01', description: 'Brake Disc Rotor 220mm',
-    quantity: 10, unit: 'PCS', deadline: '2026-03-22', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-08',
+    quantity: 10, unit: 'PCS', deadline: '2026-03-22', status: 'completed', createdBy: 'u1', createdAt: '2026-03-08',
     designLink: 'https://drive.google.com', submittedAt: '2026-03-10', approvedAt: '2026-03-12', approvedBy: 'u3',
     startTime: '2026-03-13T08:00', endTime: '2026-03-21T16:00', qcStatus: 'Pass', qcAt: '2026-03-22', completedAt: '2026-03-23',
   },
   {
     id: 'SO-2025109', customerId: '0008', partNumber: 'PJT-CAM-H01', description: 'Cam Follower Bracket 4130 Steel',
-    quantity: 6, unit: 'PCS', deadline: '2026-03-28', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-15',
+    quantity: 6, unit: 'PCS', deadline: '2026-03-28', status: 'completed', createdBy: 'u1', createdAt: '2026-03-15',
     designLink: 'https://drive.google.com', submittedAt: '2026-03-17', approvedAt: '2026-03-19', approvedBy: 'u3',
     startTime: '2026-03-20T08:00', endTime: '2026-03-27T16:00', qcStatus: 'Pass', qcAt: '2026-03-28', completedAt: '2026-03-29',
   },
   {
     id: 'SO-2025110', customerId: '0005', partNumber: 'PJT-PLT-H02', description: 'Fixture Plate SS304 500x300mm',
-    quantity: 3, unit: 'PCS', deadline: '2026-03-30', status: 'Completed', createdBy: 'u1', createdAt: '2026-03-18',
+    quantity: 3, unit: 'PCS', deadline: '2026-03-30', status: 'completed', createdBy: 'u1', createdAt: '2026-03-18',
     designLink: 'https://drive.google.com', submittedAt: '2026-03-20', approvedAt: '2026-03-22', approvedBy: 'u3',
     startTime: '2026-03-23T08:00', endTime: '2026-03-29T16:00', qcStatus: 'Pass', qcAt: '2026-03-30', completedAt: '2026-03-31',
   },
@@ -257,7 +319,7 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
 
   {
     id: 'SO-2026001', customerId: '0001', partNumber: 'PJT-BRG-001', description: 'Bearing Housing Custom 150mm',
-    quantity: 25, unit: 'PCS', deadline: '2026-06-15', status: 'Completed', createdBy: 'u1', createdAt: '2026-04-01',
+    quantity: 25, unit: 'PCS', deadline: '2026-06-15', status: 'completed', createdBy: 'u1', createdAt: '2026-04-01',
     designLink: 'https://drive.google.com/file/d/example1', submittedAt: '2026-04-03', approvedAt: '2026-04-05',
     approvedBy: 'u3', startTime: '2026-04-10T08:00', endTime: '2026-04-25T16:00',
     qcStatus: 'Pass', qcNotes: '', qcAt: '2026-04-26', completedAt: '2026-04-27',
@@ -265,14 +327,14 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
   },
   {
     id: 'SO-2026002', customerId: '0002', partNumber: 'PJT-SHF-002', description: 'Drive Shaft Assembly 80mm',
-    quantity: 10, unit: 'PCS', deadline: '2026-06-20', status: 'Completed', createdBy: 'u1', createdAt: '2026-04-05',
+    quantity: 10, unit: 'PCS', deadline: '2026-06-20', status: 'completed', createdBy: 'u1', createdAt: '2026-04-05',
     designLink: 'https://drive.google.com/file/d/example2', submittedAt: '2026-04-07', approvedAt: '2026-04-09',
     approvedBy: 'u3', startTime: '2026-04-12T09:00', endTime: '2026-04-28T15:00',
     qcStatus: 'Pass', qcNotes: '', qcAt: '2026-04-29', completedAt: '2026-04-30',
   },
   {
     id: 'SO-2026073', customerId: '0003', partNumber: 'PJT-VAL-003', description: 'Ball Valve Body DN100 SS316',
-    quantity: 4, unit: 'PCS', deadline: '2026-05-30', status: 'Completed', createdBy: 'u1', createdAt: '2026-04-15',
+    quantity: 4, unit: 'PCS', deadline: '2026-05-30', status: 'completed', createdBy: 'u1', createdAt: '2026-04-15',
     designLink: 'https://drive.google.com/file/d/example3', submittedAt: '2026-04-17', approvedAt: '2026-04-19',
     approvedBy: 'u3', startTime: '2026-04-22T08:00', endTime: '2026-05-03T16:00',
     qcStatus: 'Fail', qcNotes: 'Surface finish tidak sesuai spec. Perlu rework pada area flange.', qcAt: '2026-05-04', completedAt: '2026-05-07',
@@ -285,7 +347,7 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
   },
   {
     id: 'SO-2026038', customerId: '0004', partNumber: 'PJT-FLG-005', description: 'Flange Coupling DN200 SS304',
-    quantity: 20, unit: 'PCS', deadline: '2026-07-01', status: 'In Production', createdBy: 'u1', createdAt: '2026-04-25',
+    quantity: 20, unit: 'PCS', deadline: '2026-07-01', status: 'in_production', assignedTo: 'u2', createdBy: 'u1', createdAt: '2026-04-25',
     designLink: 'https://drive.google.com/file/d/example5', submittedAt: '2026-04-27', approvedAt: '2026-04-29',
     approvedBy: 'u3', startTime: '2026-05-05T07:30',
   },
@@ -295,11 +357,35 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
     designLink: 'https://drive.google.com/file/d/example6', submittedAt: '2026-05-03', approvedAt: '2026-05-05', approvedBy: 'u3',
   },
   {
+    id: 'SO-2026046', customerId: '0006', partNumber: 'PJT-HSG-014', description: 'Pump Housing Cast Iron 150mm',
+    quantity: 10, unit: 'PCS', deadline: '2026-07-12', status: 'qc_check', assignedTo: 'u2', createdBy: 'u1', createdAt: '2026-05-02',
+    designLink: 'https://drive.google.com', submittedAt: '2026-05-04', approvedAt: '2026-05-06', approvedBy: 'u3', startTime: '2026-05-10T08:00',
+  },
+  {
+    id: 'SO-2026047', customerId: '0007', partNumber: 'PJT-BRK-015', description: 'Brake Disc Custom 300mm',
+    quantity: 20, unit: 'PCS', deadline: '2026-07-15', status: 'qc_check', assignedTo: 'u2', createdBy: 'u1', createdAt: '2026-05-03',
+    designLink: 'https://drive.google.com', submittedAt: '2026-05-05', approvedAt: '2026-05-07', approvedBy: 'u3', startTime: '2026-05-11T09:00',
+  },
+  {
+    id: 'SO-2026048', customerId: '0001', partNumber: 'PJT-SPR-016', description: 'Sprocket 50T Duplex Grade B',
+    quantity: 15, unit: 'PCS', deadline: '2026-07-18', status: 'material_preparation', assignedTo: 'u2', createdBy: 'u1', createdAt: '2026-05-04',
+    designLink: 'https://drive.google.com', submittedAt: '2026-05-06', approvedAt: '2026-05-08', approvedBy: 'u3',
+  },
+  {
+    id: 'SO-2026049', customerId: '0002', partNumber: 'PJT-CYL-017', description: 'Hydraulic Cylinder Cap Aluminium',
+    quantity: 30, unit: 'PCS', deadline: '2026-07-20', status: 'material_preparation', assignedTo: 'u2', createdBy: 'u1', createdAt: '2026-05-05',
+    designLink: 'https://drive.google.com', submittedAt: '2026-05-07', approvedAt: '2026-05-09', approvedBy: 'u3',
+  },
+  {
+    id: 'SO-2026050', customerId: '0003', partNumber: 'PJT-VAL-018', description: 'Globe Valve Body DN150 Cast Steel',
+    quantity: 5, unit: 'PCS', deadline: '2026-07-22', status: 'QC', createdBy: 'u1', createdAt: '2026-05-06',
+    designLink: 'https://drive.google.com', submittedAt: '2026-05-08', approvedAt: '2026-05-10', approvedBy: 'u3', startTime: '2026-05-12T08:00', endTime: '2026-05-18T16:00',
+  },
+  {
     id: 'SO-2026051', customerId: '0006', partNumber: 'PJT-HSG-007', description: 'Pump Housing Aluminium A356',
     quantity: 8, unit: 'PCS', deadline: '2026-07-15', status: 'Waiting Approval', createdBy: 'u1', createdAt: '2026-05-05',
     designLink: 'https://drive.google.com/file/d/example7', submittedAt: '2026-05-07',
   },
-
   {
     id: 'SO-2026058', customerId: '0007', partNumber: 'PJT-BRK-008', description: 'Brake Drum Custom 250mm OD',
     quantity: 15, unit: 'PCS', deadline: '2026-07-20', status: 'Waiting Approval', createdBy: 'u1', createdAt: '2026-05-07',
@@ -319,7 +405,7 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
   },
   {
     id: 'SO-2026074', customerId: '0004', partNumber: 'PJT-NUT-012', description: 'Heavy Hex Nut M52 Grade 10.9',
-    quantity: 200, unit: 'PCS', deadline: '2026-08-10', status: 'Rejected', createdBy: 'u1', createdAt: '2026-05-03',
+    quantity: 200, unit: 'PCS', deadline: '2026-08-10', status: 'rejected', createdBy: 'u1', createdAt: '2026-05-03',
     designLink: 'https://drive.google.com/file/d/example12', submittedAt: '2026-05-05',
     rejectionReason: 'Ditolak permanen — tidak sesuai kemampuan produksi.',
   },
@@ -329,9 +415,33 @@ export const INITIAL_SALES_ORDERS: SalesOrder[] = [
     designLink: 'https://drive.google.com/file/d/example13', submittedAt: '2026-05-14',
     rejectionReason: 'Toleransi dimensi terlalu ketat, perlu dikonfirmasi ulang dengan customer. Revisi drawing section A-A.',
   },
-];
 
-export const STATUS_STEPS: SOStatus[] = [
+    {
+      id: 'SO-2026076', customerId: '0001', partNumber: 'PJT-DMM-001', description: 'Custom Fixture Bracket',
+      quantity: 15, unit: 'PCS', deadline: '2026-08-10', status: 'rejected', createdBy: 'u1', createdAt: '2026-05-15',
+      designLink: 'https://drive.google.com/file/d/example14', submittedAt: '2026-05-16',
+      rejectionReason: 'Desain terlalu rumit dan mahal untuk diproduksi, customer membatalkan.',
+    },
+    {
+      id: 'SO-2026077', customerId: '0002', partNumber: 'PJT-DMM-002', description: 'Stainless Steel Conveyor Shaft',
+      quantity: 5, unit: 'PCS', deadline: '2026-08-12', status: 'Revision Required', createdBy: 'u1', createdAt: '2026-05-16',
+      designLink: 'https://drive.google.com/file/d/example15', submittedAt: '2026-05-17',
+      rejectionReason: 'Toleransi shaft perlu di-adjust ke h7, mohon revisi drawing.',
+    },
+  
+    {
+      id: 'SO-2026078', customerId: '0004', partNumber: 'PJT-UMP-001', description: 'UMMT Project Bracket',
+      quantity: 10, unit: 'PCS', deadline: '2026-08-20', status: 'material_preparation', createdBy: 'u1', createdAt: '2026-06-01',
+      designLink: 'https://drive.google.com/file/d/ummt1', submittedAt: '2026-06-02', assignedTo: 'u2'
+    },
+    {
+      id: 'SO-2026079', customerId: '0004', partNumber: 'PJT-UMP-002', description: 'UMMT Project Housing',
+      quantity: 5, unit: 'SET', deadline: '2026-08-25', status: 'in_production', createdBy: 'u1', createdAt: '2026-06-05',
+      designLink: 'https://drive.google.com/file/d/ummt2', submittedAt: '2026-06-06', assignedTo: 'u2', startTime: '2026-06-10T08:00:00Z'
+    },
+  ];
+
+  export const STATUS_STEPS: SOStatus[] = [
   'Pending Design',
   'Waiting Approval',
   'Ready for Production',
@@ -341,6 +451,17 @@ export const STATUS_STEPS: SOStatus[] = [
 ];
 
 export const REVISION_STATUSES: SOStatus[] = ['Pending Design', 'Revision Required'];
+
+export function formatSOStatus(status: string): string {
+  const map: Record<string, string> = {
+    'qc_check': 'QC',
+    'in_production': 'In Production',
+    'material_preparation': 'Material Prep',
+    'pending_assignment': 'Menunggu Penugasan',
+    'waiting_dp': 'Menunggu DP'
+  };
+  return map[status] || status;
+}
 
 export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string } {
   // STRICT DESIGN SYSTEM COMPLIANCE:
@@ -361,6 +482,11 @@ export function getStatusColor(status: SOStatus): { bg: string; text: string; bo
     'QC':                   { bg: 'bg-sky-100',    text: 'text-sky-700',    border: 'border-sky-300' },
     'Completed':            { bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-300' },
     'Rejected':             { bg: 'bg-slate-100',  text: 'text-slate-700',  border: 'border-slate-300' },
+    'waiting_dp':           { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+    'pending_assignment':   { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
+    'material_preparation': { bg: 'bg-teal-100',   text: 'text-teal-700',   border: 'border-teal-300' },
+    'in_production':        { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-300' },
+    'qc_check':             { bg: 'bg-sky-100',    text: 'text-sky-700',    border: 'border-sky-300' },
   };
   return map[status] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
 }
@@ -377,6 +503,7 @@ export interface Quotation {
   deadline: string;
   status: QuotationStatus;
   designId?: string;
+  soId?: string;
   estimatedAmount?: number;
   customerImageUrl?: string;
   createdBy: string;
@@ -387,6 +514,7 @@ export interface Quotation {
   timeline?: any[];
   invoice?: { status: string };
   lostReason?: string;
+  rejectionReason?: string;
 }
 
 export function getQuotationStatusColor(status: QuotationStatus): { bg: string; text: string; border: string; label: string } {
@@ -411,7 +539,7 @@ export function calcProductionDuration(startTime?: string, endTime?: string): nu
 }
 
 export type PurchasingUrgency = 'Normal' | 'Urgent' | 'Critical';
-export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak';
+export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak' | 'Menunggu SPV';
 
 export interface PurchasingRequest {
   id: string;
@@ -465,6 +593,20 @@ export const INITIAL_PURCHASING: PurchasingRequest[] = [
     quantity: 6, unit: 'BTG', urgency: 'Critical',
     notes: 'Material utama camshaft bearing seat, deadline ketat', requestedBy: 'u2',
     requestedAt: '2026-05-12', status: 'Pending',
+  },
+  {
+    id: 'PR-005', soId: 'SO-2026075', itemName: 'Bearing NSK 6204',
+    specification: 'Deep Groove Ball Bearing 6204 DDU',
+    quantity: 12, unit: 'PCS', urgency: 'Urgent',
+    notes: 'Dibutuhkan segera untuk assembly gearbox', requestedBy: 'u7',
+    requestedAt: '2026-05-15', status: 'Menunggu SPV',
+  },
+  {
+    id: 'PR-006', itemName: 'O-Ring NBR70 Ø50mm',
+    specification: 'NBR Shore 70, ID 50mm, Tebal 3mm',
+    quantity: 50, unit: 'PCS', urgency: 'Normal',
+    notes: 'Restock material consumable', requestedBy: 'u7',
+    requestedAt: '2026-05-16', status: 'Menunggu SPV',
   },
 ];
 

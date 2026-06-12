@@ -72,13 +72,13 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
   ],
   Admin: [
-    { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance" },
-    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so" },
-    { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
-    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
-    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
-    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing" },
-    { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
+    { label: "Finance", icon: <DollarSign size={15} />, path: "/erp/finance" },
+    { label: "Sales Order", icon: <ShoppingCart size={15} />, path: "/erp/so" },
+    { label: "Engineering", icon: <Wrench size={15} />, path: "/erp/engineer" },
+    { label: "Production", icon: <Activity size={15} />, path: "/erp/production" },
+    { label: "Quality Control", icon: <Shield size={15} />, path: "/erp/qc" },
+    { label: "Purchasing", icon: <Package size={15} />, path: "/erp/purchasing" },
+    { label: "System Admin", icon: <Users size={15} />, path: "/erp/admin" },
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },
@@ -107,7 +107,8 @@ export function ERPLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  const navItems = ROLE_NAVIGATION[currentUser.role] || [];
+  const activeRole = currentUser.isSupervisor && currentUser.role === 'Engineering' ? 'Engineering Supervisor' : currentUser.role;
+  const navItems = ROLE_NAVIGATION[activeRole as keyof typeof ROLE_NAVIGATION] || [];
   
   // Create breadcrumb from URL path
   const paths = location.pathname.split("/").filter(Boolean);
@@ -277,7 +278,7 @@ export function ERPLayout() {
                 alert: { bg: "#FEF2F2", border: "#FCA5A5", text: "#DC2626", icon: <AlertTriangle size={14} color="#DC2626" /> },
                 warning: { bg: "#FFFBEB", border: "#FDE68A", text: "#D97706", icon: <Activity size={14} color="#D97706" /> },
                 success: { bg: "#ECFDF5", border: "#6EE7B7", text: "#059669", icon: <CheckCircle size={14} color="#059669" /> },
-                info: { bg: "#EFF6FF", border: "#BFDBFE", text: "#2563EB", icon: <Activity size={14} color="#2563EB" /> },
+                info: { bg: "#FEF2F2", border: "#BFDBFE", text: "#C8102E", icon: <Activity size={14} color="#C8102E" /> },
               }[n.type];
 
               return (

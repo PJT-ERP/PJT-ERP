@@ -505,7 +505,7 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
       </td>
       <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-          <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
+          <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#FEF2F2" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
           <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
           <ActionBtn icon={<Copy size={12} />}    label="Duplikat" hoverBg="#F5F3FF" hoverColor="#7C3AED" onClick={onDuplicate} title="Duplikat order" />
           <ActionBtn icon={<Printer size={12} />} label="Cetak"    hoverBg="#F8FAFC" hoverColor="#475569" onClick={onPrint}     title="Cetak QUT" />

@@ -18,7 +18,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!allowedRoles.includes(currentUser.role)) {
+  const activeRole = currentUser.isSupervisor && currentUser.role === 'Engineering' ? 'Engineering Supervisor' : currentUser.role;
+
+  if (!allowedRoles.includes(activeRole as any) && !allowedRoles.includes(currentUser.role)) {
     // If they don't have access, redirect to their role's default dashboard
     // or just the generic /erp layout root which will show their allowed links
     return <Navigate to="/erp" replace />;

@@ -36,7 +36,7 @@ function getRoleColors(role: string) {
     case 'Engineering': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
-    default: return { bg: '#DBEAFE', text: '#C8102E', border: '#BFDBFE' }; // Sales
+    default: return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' }; // Sales
   }
 }
 

@@ -37,23 +37,13 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = getQuotationStatusColor(status);
-  return (
-    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
-      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {cfg.label}
-    </span>
-  );
-}
-
 function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, customers, currentUser } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? '');
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
   const customer = customers.find(c => c.code === qut.customerId);
   
-  const isSpv = currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv';
+  const isSpv = currentUser?.isSupervisor || currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
   const isPendingSpv = qut.status === 'design_review';
 
   const handleForward = () => {
@@ -72,7 +62,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
             <h2 className="text-gray-900 m-0">{qut.id}</h2>
             <p className="text-xs text-gray-500 m-0 mt-1">{qut.productName} - {qut.description}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold bg-transparent border-none cursor-pointer">&times;</button>
+          <button onClick={onClose} className="text-gray-400 text-xl font-bold bg-transparent border-none cursor-pointer">&times;</button>
         </div>
         <div className="px-6 py-5">
           {step === 'done' ? (
@@ -98,14 +88,17 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
               <div className="bg-gray-50 rounded-lg p-3 flex flex-col gap-2 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">Customer</span><span className="text-gray-900 font-medium">{customer?.name}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Qty</span><span className="text-gray-900 font-medium">{qut.quantity} {qut.unit}</span></div>
+                {qut.soId && (
+                  <div className="flex justify-between"><span className="text-gray-500">Referensi SO</span><span className="text-gray-900 font-medium">{qut.soId}</span></div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Link Desain</span>
-                  <a href={designLink} target="_blank" rel="noreferrer" className="text-red-600 text-xs flex items-center gap-1 font-medium decoration-transparent hover:underline">Lihat <ExternalLink size={11} /></a>
+                  <a href={designLink} target="_blank" rel="noreferrer" className="text-red-600 text-xs flex items-center gap-1 font-medium decoration-transparent">Lihat <ExternalLink size={11} /></a>
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setStep('upload')} className="flex-1 py-2 border border-gray-300 text-gray-700 bg-white text-sm rounded-lg hover:bg-gray-50 cursor-pointer">Kembali</button>
-                <button onClick={handleForward} className="flex-1 py-2 bg-red-600 text-white text-sm border-none rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 cursor-pointer font-medium">
+                <button onClick={() => setStep('upload')} className="flex-1 py-2 border border-gray-300 text-gray-700 bg-white text-sm rounded-lg cursor-pointer">Kembali</button>
+                <button onClick={handleForward} className="flex-1 py-2 bg-red-600 text-white text-sm border-none rounded-lg flex items-center justify-center gap-2 cursor-pointer font-medium">
                   <Send size={15} /> {isSpv ? 'Approve & Forward' : 'Forward ke Supervisor'}
                 </button>
               </div>
@@ -116,9 +109,20 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 <div><p className="text-xs text-gray-500 m-0">Customer</p><p className="text-gray-900 m-0 font-medium">{customer?.name}</p></div>
                 <div><p className="text-xs text-gray-500 m-0">Qty</p><p className="text-gray-900 m-0 font-medium">{qut.quantity} {qut.unit}</p></div>
                 <div><p className="text-xs text-gray-500 m-0">Deadline</p><p className="text-gray-900 m-0 font-medium">{qut.deadline}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Tanggal Request</p><p className="text-gray-900 m-0 font-medium">{qut.createdAt}</p></div>
+                {qut.soId ? (
+                  <div><p className="text-xs text-gray-500 m-0">Referensi SO</p><p className="text-red-600 m-0 font-medium">{qut.soId}</p></div>
+                ) : (
+                  <div><p className="text-xs text-gray-500 m-0">Tanggal Request</p><p className="text-gray-900 m-0 font-medium">{qut.createdAt}</p></div>
+                )}
               </div>
               
+              {qut.rejectionReason && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs text-red-500 font-bold m-0 mb-1">Catatan Revisi:</p>
+                  <p className="text-sm text-red-700 m-0">{qut.rejectionReason}</p>
+                </div>
+              )}
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800 m-0">Silakan unggah dokumen CAD dan daftar material (BOM) ke folder cloud proyek ini, lalu tempelkan linknya di bawah.</p>
               </div>
@@ -130,9 +134,9 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-red-600" />
               </div>
               <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 bg-white text-gray-700 text-sm rounded-lg hover:bg-gray-50 cursor-pointer">Batal</button>
+                <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 bg-white text-gray-700 text-sm rounded-lg cursor-pointer">Batal</button>
                 <button onClick={() => setStep('confirm')} disabled={!designLink.trim()}
-                  className="flex-1 py-2.5 bg-red-600 border-none text-white text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer font-medium">
+                  className="flex-1 py-2.5 bg-red-600 border-none text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer font-medium">
                   <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}
                 </button>
               </div>
@@ -159,13 +163,13 @@ function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => 
         <h2 className="text-lg text-gray-900 m-0 mb-4 font-semibold font-sans">Tugaskan Desain</h2>
         <div className="space-y-2 flex flex-col gap-2">
           {engineers.map(eng => (
-            <button key={eng.id} onClick={() => handleAssign(eng.id)} className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer bg-white">
+            <button key={eng.id} onClick={() => handleAssign(eng.id)} className="w-full text-left p-3 rounded-lg border border-gray-200 transition-colors cursor-pointer bg-white">
               <p className="m-0 font-medium text-gray-900 text-sm">{eng.name}</p>
               <p className="m-0 text-xs text-gray-500">{eng.email}</p>
             </button>
           ))}
         </div>
-        <button onClick={onClose} className="w-full mt-4 py-2 border border-gray-300 text-gray-700 bg-white text-sm font-medium rounded-lg hover:bg-gray-50 cursor-pointer">Batal</button>
+        <button onClick={onClose} className="w-full mt-4 py-2 border border-gray-300 text-gray-700 bg-white text-sm font-medium rounded-lg cursor-pointer">Batal</button>
       </div>
     </div>
   );
@@ -177,40 +181,55 @@ export function EngineeringPage() {
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
   const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
-  const isSpv = currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv';
+  const isSpv = currentUser?.isSupervisor || currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
-  // Pre-Sales Design Queue
   const designQueue = quotations.filter(q => {
     if (q.status !== 'pending_design' && q.status !== 'design_review') return false;
     if (isSpv) return true;
     return q.assignedTo === currentUser?.id;
+  }).sort((a, b) => {
+    const getScore = (q: Quotation) => {
+      if (q.status === 'pending_design' && !!q.rejectionReason) return 0;
+      if (q.status === 'pending_design') return 1;
+      if (q.status === 'design_review') return 2;
+      return 3;
+    };
+    return getScore(a) - getScore(b);
   });
-  const pendingDesignCount = quotations.filter(q => q.status === 'pending_design').length;
-  const designReviewCount = quotations.filter(q => q.status === 'design_review').length;
 
-  // Production Stats
-  const inProductionCount = salesOrders.filter(so => so.status === 'in_production' || so.status === 'material_preparation').length;
-  const qcCount = salesOrders.filter(so => so.status === 'qc_check').length;
+  const revisionCount = quotations.filter(q => q.status === 'pending_design' && !!q.rejectionReason).length;
+  const pendingDesignCount = quotations.filter(q => q.status === 'pending_design' && !q.rejectionReason).length;
+  const designReviewCount = quotations.filter(q => q.status === 'design_review').length;
+  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
+  const qcCount = salesOrders.filter(so => so.status === 'QC').length;
 
   const summaryCards = [
     {
-      label: "Antrian Desain Baru",
+      label: "Total Antrian",
       value: pendingDesignCount,
       icon: <List size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: "Dari Tim Sales",
+      change: "Tugas Desain Aktif",
     },
     {
-      label: "Waiting Spv Approval",
+      label: "Perlu Revisi",
+      value: revisionCount,
+      icon: <AlertTriangle size={18} />,
+      accent: "#EF4444",
+      bg: "rgba(239,68,68,0.08)",
+      change: "Dari Supervisor",
+    },
+    {
+      label: "Menunggu Approval",
       value: designReviewCount,
       icon: <Clock size={18} />,
       accent: "#8B5CF6",
       bg: "rgba(139,92,246,0.08)",
-      change: "Review Supervisor",
+      change: "Sedang di-review",
     },
     {
-      label: "Proses Produksi",
+      label: "In Production",
       value: inProductionCount,
       icon: <Factory size={18} />,
       accent: "#3B82F6",
@@ -221,7 +240,8 @@ export function EngineeringPage() {
 
   const workflowStats = [
     { label: "Pending Design",    count: pendingDesignCount,    color: "#94A3B8" },
-    { label: "Waiting Spv",       count: designReviewCount,     color: "#8B5CF6" },
+    { label: "Revision Required", count: revisionCount,         color: "#EF4444" },
+    { label: "Waiting Approval",  count: designReviewCount,     color: "#8B5CF6" },
     { label: "In Production",     count: inProductionCount,     color: "#3B82F6" },
     { label: "QC",                count: qcCount,               color: "#C8102E" },
   ];
@@ -263,18 +283,16 @@ export function EngineeringPage() {
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           
-          {/* Pre-Sales Design Queue Table */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Pencil size={14} style={{ color: S.cyan }} />
-                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
+                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain</span>
               </div>
             </div>
 
-            {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-              {["No. QUT", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
+            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+              {["No. QUT", "Pelanggan", "Produk", "Deadline", "Ditugaskan", "Aksi"].map((h) => (
                 <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
@@ -282,56 +300,92 @@ export function EngineeringPage() {
             {designQueue.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                 <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
+                <p style={{ margin: 0 }}>Tidak ada antrean desain.</p>
               </div>
             ) : (
-              designQueue.slice(0, 10).map((qut, idx) => (
-                <div
-                  key={qut.id}
-                  onClick={() => setSelectedQUT(qut)}
-                  style={{
-                    display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                    padding: "10px 18px", cursor: "pointer",
-                    borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{qut.id}</span>
-                  <div>
-                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
-                  </div>
-                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
-                  <div style={{ alignSelf: "center" }}>
-                    {qut.assignedTo ? (
-                      <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                        {USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer'}
-                      </span>
-                    ) : isSpv ? (
+              designQueue.slice(0, 5).map((qut, idx) => {
+                const customerName = customers.find(c => c.code === qut.customerId)?.name || "-";
+                const isWaiting = qut.status === 'design_review';
+                const isRevision = qut.status === 'pending_design' && !!qut.rejectionReason;
+                
+                let btnText = "Upload Desain";
+                let btnColor = S.cyan;
+                let btnTextColor = "#fff";
+                
+                if (isRevision) { 
+                  btnText = "Revisi Desain"; 
+                  btnColor = "#F59E0B"; 
+                } else if (isWaiting) { 
+                  btnText = "Menunggu Review"; 
+                  btnColor = "#E2E8F0"; 
+                  btnTextColor = "#94A3B8"; 
+                }
+
+                return (
+                  <div
+                    key={qut.id}
+                    onClick={() => { if (!isWaiting) setSelectedQUT(qut); }}
+                    style={{
+                      display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 100px 130px",
+                      padding: "10px 18px", cursor: isWaiting ? "not-allowed" : "pointer",
+                      borderBottom: idx < Math.min(5, designQueue.length) - 1 ? `1px solid ${S.border}` : "none",
+                      transition: "background 0.1s",
+                      opacity: isWaiting ? 0.8 : 1,
+                    }}
+                    onMouseEnter={e => { if(!isWaiting) e.currentTarget.style.background = "#F8FAFC"; }}
+                    onMouseLeave={e => { if(!isWaiting) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace", alignSelf: "center" }}>{qut.id}</span>
+                    <div style={{ minWidth: 0, paddingRight: 10, alignSelf: "center" }}>
+                      <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customerName}</p>
+                    </div>
+                    <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
+                    <span style={{ color: S.slate, fontSize: "12px", alignSelf: "center", fontWeight: 500 }}>{qut.deadline}</span>
+                    <div style={{ alignSelf: "center" }}>
+                      {qut.assignedTo ? (
+                        <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                          {USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer'}
+                        </span>
+                      ) : isSpv ? (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setAssignModalQUT(qut); }}
+                          style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
+                        >
+                          Tugaskan
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>-</span>
+                      )}
+                    </div>
+                    <div style={{ alignSelf: "center", display: "flex", justifyContent: "flex-start" }}>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); setAssignModalQUT(qut); }}
-                        style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
+                        disabled={isWaiting}
+                        style={{ 
+                          width: 120, padding: "5px 0", textAlign: "center",
+                          background: btnColor, 
+                          color: btnTextColor, 
+                          border: "none", 
+                          borderRadius: 4, 
+                          fontSize: "11.5px", 
+                          fontWeight: 600, 
+                          cursor: isWaiting ? "not-allowed" : "pointer", 
+                          whiteSpace: "nowrap",
+                          pointerEvents: "none",
+                          boxShadow: isWaiting ? "none" : "0 1px 2px rgba(0,0,0,0.05)"
+                        }}
                       >
-                        Tugaskan
+                        {btnText}
                       </button>
-                    ) : (
-                      <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                    )}
+                    </div>
                   </div>
-                  <div style={{ alignSelf: "center" }}>
-                    <StatusBadge status={qut.status} />
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
             
-            {designQueue.length > 10 && (
+            {designQueue.length > 5 && (
               <div 
                 onClick={() => navigate('/erp/engineer-tasks')}
                 style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
-                onMouseLeave={e => e.currentTarget.style.background = S.bg}
               >
                 Lihat Semua Tugas Desain ({designQueue.length})
               </div>
@@ -342,7 +396,6 @@ export function EngineeringPage() {
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           
-          {/* Pipeline stats */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>
               <TrendingUp size={14} style={{ color: S.cyan }} />
@@ -362,7 +415,6 @@ export function EngineeringPage() {
             </div>
           </div>
 
-          {/* Quick actions */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -399,3 +451,4 @@ export function EngineeringPage() {
     </div>
   );
 }
+

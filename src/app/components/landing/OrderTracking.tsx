@@ -14,6 +14,7 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; color: string; bg: strin
   waiting_payment: { label: "Waiting Payment", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
   engineering_review: { label: "Engineering Review", color: "#8B5CF6", bg: "#F5F3FF", border: "#DDD6FE" },
   in_production: { label: "In Produksi", color: "#3B82F6", bg: "#EFF6FF", border: "#BFDBFE" },
+  in_production: { label: "In Production", color: "#3B82F6", bg: "#FEF2F2", border: "#BFDBFE" },
   qc_checking: { label: "QC Checking", color: "#F97316", bg: "#FFF7ED", border: "#FED7AA" },
   completed: { label: "Selesai", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
 };

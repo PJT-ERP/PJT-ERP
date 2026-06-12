@@ -198,7 +198,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
 
       {readyInvoices.length > 0 && (
         <div style={{
-          background: "#EFF6FF",
+          background: "#FEF2F2",
           border: "1px solid #BFDBFE",
           borderRadius: 6,
           overflow: "hidden",

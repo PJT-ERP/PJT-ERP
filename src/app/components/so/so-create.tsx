@@ -787,8 +787,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             <Grid2>
               <div>
                 <Label text="Kode Pelanggan (Auto)" required />
-                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 4, height: "32px", boxSizing: "border-box" }}>
-                  <Hash size={13} style={{ color: "#2563EB" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "#FEF2F2", border: "1px solid #BFDBFE", borderRadius: 4, height: "32px", boxSizing: "border-box" }}>
+                  <Hash size={13} style={{ color: "#C8102E" }} />
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "#1E3A8A", fontFamily: "monospace" }}>{customerForm.customerCode}</span>
                 </div>
               </div>

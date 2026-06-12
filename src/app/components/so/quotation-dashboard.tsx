@@ -50,9 +50,9 @@ function StatusBadge({ status }: { status: QuotationStatus }) {
   let bg = "#F1F5F9", text = "#64748B", border = "#CBD5E1";
   if (status === 'draft') { bg = "#F1F5F9"; text = "#64748B"; border = "#CBD5E1"; }
   else if (status === 'pending_design' || status === 'design_review') { bg = "#F5F3FF"; text = "#7C3AED"; border = "#C4B5FD"; }
-  else if (status === 'client_design_approval') { bg = "#EFF6FF"; text = "#2563EB"; border = "#BFDBFE"; }
+  else if (status === 'client_design_approval') { bg = "#FEF2F2"; text = "#C8102E"; border = "#BFDBFE"; }
   else if (status === 'waiting_pricing') { bg = "#FFFBEB"; text = "#D97706"; border = "#FDE68A"; }
-  else if (status === 'client_price_approval') { bg = "#EFF6FF"; text = "#2563EB"; border = "#BFDBFE"; }
+  else if (status === 'client_price_approval') { bg = "#FEF2F2"; text = "#C8102E"; border = "#BFDBFE"; }
   else if (status === 'won') { bg = "#ECFDF5"; text = "#059669"; border = "#A7F3D0"; }
   else if (status === 'lost') { bg = "#FEF2F2"; text = "#DC2626"; border = "#FECACA"; }
 
@@ -95,7 +95,7 @@ export function QuotationDashboard({ onNavigate }: QuotationDashboardProps) {
     { label: "Design Process",     count: quotations.filter(o => o.status === "pending_design" || o.status === "design_review").length,  color: "#8B5CF6" },
     { label: "Nego Desain",        count: quotations.filter(o => o.status === "client_design_approval").length, color: "#3B82F6" },
     { label: "Waiting Pricing",    count: quotations.filter(o => o.status === "waiting_pricing").length, color: "#F59E0B" },
-    { label: "Nego Harga",         count: quotations.filter(o => o.status === "client_price_approval").length,  color: "#2563EB" },
+    { label: "Nego Harga",         count: quotations.filter(o => o.status === "client_price_approval").length,  color: "#C8102E" },
     { label: "Won",                count: won,                                                           color: "#10B981" },
     { label: "Lost",               count: lost,                                                          color: "#EF4444" },
   ];

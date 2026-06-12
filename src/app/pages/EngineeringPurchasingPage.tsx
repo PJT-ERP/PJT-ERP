@@ -27,17 +27,38 @@ const S = {
 };
 
 const URGENCY_COLORS: Record<PurchasingUrgency, string> = {
-  Normal: 'bg-slate-600 text-white border-transparent shadow-sm border-gray-300',
-  Urgent: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-300',
-  Critical: 'bg-red-600 text-white border-transparent shadow-sm border-red-300',
+  Normal: 'bg-gray-100 text-gray-700 border-gray-300',
+  Urgent: 'bg-amber-100 text-amber-700 border-amber-300',
+  Critical: 'bg-red-100 text-red-700 border-red-300',
 };
 
+function UrgencyBadge({ urgency }: { urgency: PurchasingUrgency }) {
+  const cfg = URGENCY_COLORS[urgency];
+  return (
+    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg}`} style={{ fontFamily: S.font }}>
+      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
+      {urgency}
+    </span>
+  );
+}
+
 const PR_STATUS_COLORS: Record<PurchasingStatus, string> = {
-  Pending:  'bg-slate-600 text-white border-transparent shadow-sm',
-  Diproses: 'bg-red-600 text-white border-transparent shadow-sm',
-  Selesai:  'bg-green-600 text-white border-transparent shadow-sm',
-  Ditolak:  'bg-red-600 text-white border-transparent shadow-sm',
+  'Menunggu SPV': 'bg-violet-100 text-violet-700 border-violet-300',
+  Pending:  'bg-gray-100 text-gray-700 border-gray-300',
+  Diproses: 'bg-blue-100 text-blue-700 border-blue-300',
+  Selesai:  'bg-green-100 text-green-700 border-green-300',
+  Ditolak:  'bg-red-100 text-red-700 border-red-300',
 };
+
+function PRStatusBadge({ status }: { status: PurchasingStatus }) {
+  const cfg = PR_STATUS_COLORS[status];
+  return (
+    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg}`} style={{ fontFamily: S.font }}>
+      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
+      {status}
+    </span>
+  );
+}
 
 const UNITS = ['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'];
 
@@ -123,7 +144,7 @@ function SOCombobox({ value, onChange, options }: {
             <div
               key={o.id}
               onMouseDown={() => handleSelect(o.id)}
-              style={{ padding: "10px 12px", fontSize: "13.5px", cursor: "pointer", background: value === o.id ? "#EFF6FF" : "transparent", color: value === o.id ? "#C8102E" : S.slate }}
+              style={{ padding: "10px 12px", fontSize: "13.5px", cursor: "pointer", background: value === o.id ? "#EFF6FF" : "transparent", color: value === o.id ? "#2563EB" : S.slate }}
             >
               <span style={{ fontFamily: "monospace", fontSize: "12px", fontWeight: 500 }}>{o.id}</span>
               <span style={{ color: S.secondary }}> — </span>
@@ -139,6 +160,9 @@ function SOCombobox({ value, onChange, options }: {
 // ─── Detail Modal ────────────────────────────────────────────────────────────
 
 function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => void }) {
+  const { currentUser, updatePurchasingStatus } = useApp();
+  const isSupervisor = currentUser?.isSupervisor;
+
   const items: PurchasingItem[] = pr.items && pr.items.length > 0
     ? pr.items
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
@@ -238,6 +262,34 @@ function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => 
               <p style={{ fontSize: "13.5px", color: "#B91C1C", margin: 0 }}>{pr.rejectionReason}</p>
             </div>
           )}
+
+          {/* SPV Approval Actions */}
+          {pr.status === 'Menunggu SPV' && isSupervisor && (
+            <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+              <button 
+                onClick={() => {
+                  const reason = prompt("Masukkan alasan penolakan:");
+                  if (reason) {
+                    // We don't have updatePurchasingRequest with reason yet, so we just set status to Ditolak
+                    updatePurchasingStatus(pr.id, 'Ditolak');
+                    onClose();
+                  }
+                }} 
+                style={{ flex: 1, padding: "10px", background: "#FEF2F2", border: "1px solid #FCA5A5", color: "#DC2626", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Tolak
+              </button>
+              <button 
+                onClick={() => {
+                  updatePurchasingStatus(pr.id, 'Pending');
+                  onClose();
+                }} 
+                style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Setujui ke Purchasing
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -254,7 +306,7 @@ interface ItemDraft {
 }
 
 function PurchasingFormModal({ onClose }: { onClose: () => void }) {
-  const { addPurchasingRequest, salesOrders } = useApp();
+  const { addPurchasingRequest, salesOrders, currentUser } = useApp();
   const [soId, setSoId] = useState('');
   const [urgency, setUrgency] = useState<PurchasingUrgency>('Normal');
   const [notes, setNotes] = useState('');
@@ -297,7 +349,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
       items: parsedItems,
       urgency,
       notes,
-      status: 'Pending',
+      status: currentUser?.isSupervisor ? 'Pending' : 'Menunggu SPV',
     });
     setDone(true);
   };
@@ -312,7 +364,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
           {items.length > 1 ? `${items.length} item` : 'Permintaan'} akan diproses oleh tim Purchasing.
         </p>
-        <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
+        <button onClick={onClose} style={{ width: "100%", padding: "10px", background: "#C8102E", color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
           Tutup
         </button>
       </div>
@@ -438,7 +490,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
           <div style={{ display: "flex", gap: 12, padding: "16px 24px", borderTop: `1px solid ${S.border}`, flexShrink: 0 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" disabled={!canSubmit}
-              style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", opacity: canSubmit ? 1 : 0.5 }}>
+              style={{ flex: 1, padding: "10px", background: "#C8102E", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", opacity: canSubmit ? 1 : 0.5 }}>
               Ajukan Permintaan
             </button>
           </div>
@@ -451,11 +503,24 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests } = useApp();
+  const { purchasingRequests, currentUser } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
+  const [currentPageWait, setCurrentPageWait] = useState(1);
+  const [currentPageLog, setCurrentPageLog] = useState(1);
+  const itemsPerPage = 10;
 
   const statusCount = (s: PurchasingStatus) => purchasingRequests.filter(r => r.status === s).length;
+
+  const isSupervisor = currentUser?.isSupervisor;
+
+  const waitingApproval = isSupervisor 
+    ? purchasingRequests.filter(r => r.status === 'Menunggu SPV').sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime())
+    : [];
+    
+  const logRequests = purchasingRequests
+    .filter(r => isSupervisor ? r.status !== 'Menunggu SPV' : true)
+    .sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -470,7 +535,7 @@ export function EngineeringPurchasingPage() {
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "7px 14px", borderRadius: 4, border: "none",
-            background: S.cyan, color: "#fff", cursor: "pointer",
+            background: "#C8102E", color: "#fff", cursor: "pointer",
             fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
           }}>
           <Plus size={14} /> Ajukan Baru
@@ -478,8 +543,9 @@ export function EngineeringPurchasingPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        {(['Pending', 'Diproses', 'Selesai', 'Ditolak'] as PurchasingStatus[]).map(s => {
+        {(['Menunggu SPV', 'Pending', 'Diproses', 'Selesai', 'Ditolak'] as PurchasingStatus[]).map(s => {
           let accent = "#94A3B8"; let bg = "rgba(148,163,184,0.08)";
+          if (s === 'Menunggu SPV') { accent = "#8B5CF6"; bg = "rgba(139,92,246,0.08)"; }
           if (s === 'Diproses') { accent = "#3B82F6"; bg = "rgba(59,130,246,0.08)"; }
           if (s === 'Selesai') { accent = "#22C55E"; bg = "rgba(34,197,94,0.08)"; }
           if (s === 'Ditolak') { accent = "#EF4444"; bg = "rgba(239,68,68,0.08)"; }
@@ -500,7 +566,96 @@ export function EngineeringPurchasingPage() {
         })}
       </div>
 
-      {purchasingRequests.length === 0 ? (
+      {waitingApproval.length > 0 && (
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 8, height: 8, background: "#8B5CF6", borderRadius: "50%" }}></span>
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Menunggu Persetujuan Supervisor ({waitingApproval.length})</span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+          {(() => {
+            const currentItems = waitingApproval.slice((currentPageWait - 1) * itemsPerPage, currentPageWait * itemsPerPage);
+            return currentItems.map((req, idx) => {
+              const isMulti = req.items && req.items.length > 1;
+              const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
+              const displayQty = isMulti ? null : `${req.quantity} ${req.unit}`;
+              return (
+                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < currentItems.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                  <div style={{ width: 40, height: 40, background: "rgba(139,92,246,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#8B5CF6", flexShrink: 0 }}>
+                    <ShoppingCart size={20} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{req.id}</span>
+                      <UrgencyBadge urgency={req.urgency} />
+                    </div>
+                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{displayName}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
+                      <span>{req.requestedBy === 'u7' ? 'Hendra Wijaya' : 'Staff'}</span><span>·</span>
+                      <span>{isMulti ? (req.items!.map(it => it.itemName).slice(0, 2).join(', ') + (req.items!.length > 2 ? ` +${req.items!.length - 2} lagi` : '')) : displayQty}</span>
+                      {req.soId && <><span>·</span><span style={{ fontFamily: "monospace" }}>{req.soId}</span></>}
+                    </div>
+                  </div>
+                  <button onClick={() => setSelected(req)}
+                    style={{ padding: "8px 16px", background: "#8B5CF6", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
+                    Tinjau Pengajuan
+                  </button>
+                </div>
+              );
+            });
+          })()}
+          </div>
+          
+          {waitingApproval.length > itemsPerPage && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+              <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+                {(currentPageWait - 1) * itemsPerPage + 1}–{Math.min(currentPageWait * itemsPerPage, waitingApproval.length)} dari {waitingApproval.length} hasil
+              </span>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button 
+                  onClick={() => setCurrentPageWait(p => Math.max(1, p - 1))} 
+                  disabled={currentPageWait === 1}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageWait === 1 ? "#CBD5E1" : S.secondary, cursor: currentPageWait === 1 ? "not-allowed" : "pointer" }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                
+                {Array.from({ length: Math.ceil(waitingApproval.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPageWait(p)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 28, height: 28, padding: "0 8px",
+                      borderRadius: 8, border: "none",
+                      background: p === currentPageWait ? S.cyan : "transparent",
+                      color: p === currentPageWait ? "#FFFFFF" : "#475569",
+                      fontSize: "13.5px", fontWeight: p === currentPageWait ? 600 : 500,
+                      cursor: "pointer", transition: "all 0.1s"
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                <button 
+                  onClick={() => setCurrentPageWait(p => Math.min(Math.ceil(waitingApproval.length / itemsPerPage), p + 1))} 
+                  disabled={currentPageWait >= Math.ceil(waitingApproval.length / itemsPerPage)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageWait >= Math.ceil(waitingApproval.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPageWait >= Math.ceil(waitingApproval.length / itemsPerPage) ? "not-allowed" : "pointer" }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {logRequests.length === 0 ? (
         <div style={{ padding: "60px 20px", textAlign: "center", background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
           <ShoppingCart size={40} style={{ color: S.border, margin: "0 auto 12px" }} />
           <p style={{ color: S.secondary, margin: 0, fontSize: "13.5px" }}>Belum ada pengajuan purchasing</p>
@@ -510,7 +665,7 @@ export function EngineeringPurchasingPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <ShoppingCart size={14} style={{ color: S.cyan }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pengajuan</span>
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pengajuan (Diproses / Riwayat)</span>
             </div>
           </div>
 
@@ -520,46 +675,93 @@ export function EngineeringPurchasingPage() {
             ))}
           </div>
 
-          {purchasingRequests.map((req, idx) => {
-            const isMulti = req.items && req.items.length > 1;
-            const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
-            const displayQty = isMulti ? null : `${req.quantity} ${req.unit}`;
-            return (
-              <div
-                key={req.id}
-                onClick={() => setSelected(req)}
-                style={{
-                  display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px",
-                  padding: "10px 18px", cursor: "pointer",
-                  borderBottom: idx < purchasingRequests.length - 1 ? `1px solid ${S.border}` : "none",
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{req.id}</span>
-                <div style={{ minWidth: 0, paddingRight: 10 }}>
-                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</p>
-                  {isMulti ? (
-                    <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {req.items!.map(it => it.itemName).slice(0, 2).join(', ')}
-                      {req.items!.length > 2 ? ` +${req.items!.length - 2} lagi` : ''}
-                    </p>
-                  ) : (
-                    <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0" }}>{displayQty}</p>
-                  )}
+          {(() => {
+            const currentItems = logRequests.slice((currentPageLog - 1) * itemsPerPage, currentPageLog * itemsPerPage);
+            return currentItems.map((req, idx) => {
+              const isMulti = req.items && req.items.length > 1;
+              const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
+              const displayQty = isMulti ? null : `${req.quantity} ${req.unit}`;
+              return (
+                <div
+                  key={req.id}
+                  onClick={() => setSelected(req)}
+                  style={{
+                    display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px",
+                    padding: "10px 18px", cursor: "pointer",
+                    borderBottom: idx < currentItems.length - 1 ? `1px solid ${S.border}` : "none",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{req.id}</span>
+                  <div style={{ minWidth: 0, paddingRight: 10 }}>
+                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</p>
+                    {isMulti ? (
+                      <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {req.items!.map(it => it.itemName).slice(0, 2).join(', ')}
+                        {req.items!.length > 2 ? ` +${req.items!.length - 2} lagi` : ''}
+                      </p>
+                    ) : (
+                      <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0" }}>{displayQty}</p>
+                    )}
+                  </div>
+                  <div style={{ alignSelf: "center" }}>
+                    <UrgencyBadge urgency={req.urgency} />
+                  </div>
+                  <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center", fontFamily: "monospace" }}>{req.soId || '—'}</span>
+                  <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{req.requestedAt}</span>
+                  <div style={{ alignSelf: "center" }}>
+                    <PRStatusBadge status={req.status} />
+                  </div>
                 </div>
-                <div style={{ alignSelf: "center" }}>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${URGENCY_COLORS[req.urgency]}`} style={{ fontSize: "10.5px", fontWeight: 500 }}>{req.urgency}</span>
-                </div>
-                <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center", fontFamily: "monospace" }}>{req.soId || '—'}</span>
-                <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{req.requestedAt}</span>
-                <div style={{ alignSelf: "center" }}>
-                  <span className={`text-xs px-2.5 py-1 rounded-full ${PR_STATUS_COLORS[req.status]}`} style={{ fontSize: "11px", fontWeight: 500 }}>{req.status}</span>
-                </div>
+              );
+            });
+          })()}
+          
+          {logRequests.length > itemsPerPage && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+              <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+                {(currentPageLog - 1) * itemsPerPage + 1}–{Math.min(currentPageLog * itemsPerPage, logRequests.length)} dari {logRequests.length} hasil
+              </span>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button 
+                  onClick={() => setCurrentPageLog(p => Math.max(1, p - 1))} 
+                  disabled={currentPageLog === 1}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageLog === 1 ? "#CBD5E1" : S.secondary, cursor: currentPageLog === 1 ? "not-allowed" : "pointer" }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                
+                {Array.from({ length: Math.ceil(logRequests.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPageLog(p)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 28, height: 28, padding: "0 8px",
+                      borderRadius: 8, border: "none",
+                      background: p === currentPageLog ? S.cyan : "transparent",
+                      color: p === currentPageLog ? "#FFFFFF" : "#475569",
+                      fontSize: "13.5px", fontWeight: p === currentPageLog ? 600 : 500,
+                      cursor: "pointer", transition: "all 0.1s"
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                <button 
+                  onClick={() => setCurrentPageLog(p => Math.min(Math.ceil(logRequests.length / itemsPerPage), p + 1))} 
+                  disabled={currentPageLog >= Math.ceil(logRequests.length / itemsPerPage)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageLog >= Math.ceil(logRequests.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPageLog >= Math.ceil(logRequests.length / itemsPerPage) ? "not-allowed" : "pointer" }}
+                >
+                  <ChevronRight size={18} />
+                </button>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 

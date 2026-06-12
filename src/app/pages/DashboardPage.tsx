@@ -25,18 +25,21 @@ import { type SOStatus,
 } from "../components/data/mockData";
 
 const STATUS_ORDER: SOStatus[] = [
-  'Pending Design', 'Waiting Approval',
-  'Ready for Production', 'In Production', 'QC', 'Completed', 'Rejected',
+  'design_pending', 'design_review', 'client_design_approval',
+  'waiting_dp', 'pending_assignment', 'material_preparation',
+  'in_production', 'qc_check', 'completed'
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  'Pending Design': '#94A3B8',
-  'Waiting Approval': '#FCD34D',
-  'Ready for Production': '#A78BFA',
-  'In Production': '#FB923C',
-  'QC': '#22D3EE',
-  'Completed': '#34D399',
-  'Rejected': '#F87171',
+  'design_pending': '#94A3B8',
+  'design_review': '#FCD34D',
+  'client_design_approval': '#A78BFA',
+  'waiting_dp': '#8B5CF6',
+  'pending_assignment': '#6366F1',
+  'material_preparation': '#EC4899',
+  'in_production': '#FB923C',
+  'qc_check': '#22D3EE',
+  'completed': '#34D399',
 };
 
 const WEEKLY_DATA = [
@@ -49,42 +52,42 @@ const WEEKLY_DATA = [
 ];
 
 export function DashboardPage() {
-  const { salesOrders, customers, users } = useApp();
+  const { salesOrders, customers, users, quotations } = useApp();
 
   const statusCounts = STATUS_ORDER.map(status => ({
-    status: status.length > 12 ? status.slice(0, 12) + '…' : status,
-    fullStatus: status,
+    status,
+    fullStatus: formatSOStatus(status),
     count: salesOrders.filter(so => so.status === status).length,
     color: STATUS_COLORS[status],
   })).filter(s => s.count > 0);
 
-  const pieData = statusCounts.map(s => ({
-    name: s.status,
+  const pieData = statusCounts.filter(s => s.count > 0).map(s => ({
+    name: formatSOStatus(s.status),
     value: s.count,
     color: s.color,
   }));
 
-  const completedSOs = salesOrders.filter(so => so.status === 'Completed' && so.startTime && so.endTime);
+  const completedSOs = salesOrders.filter(so => so.status === 'completed' && so.startTime && so.endTime);
   const avgDuration = completedSOs.length > 0
     ? Math.round(completedSOs.reduce((acc, so) => acc + (calcProductionDuration(so.startTime, so.endTime) ?? 0), 0) / completedSOs.length)
     : 0;
 
   const overdueSOs = salesOrders.filter(so =>
-    !['Completed', 'Rejected'].includes(so.status) &&
+    !['completed'].includes(so.status) &&
     so.deadline < new Date().toISOString().split('T')[0]
   );
 
   const kpis = [
-    { label: 'Total SO Aktif', value: salesOrders.filter(s => !['Completed', 'Rejected'].includes(s.status)).length, icon: Package, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
-    { label: 'Menunggu Approval', value: salesOrders.filter(s => s.status === 'Waiting Approval').length, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-    { label: 'Dalam Produksi', value: salesOrders.filter(s => s.status === 'In Production').length, icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
-    { label: 'Selesai (Total)', value: salesOrders.filter(s => s.status === 'Completed').length, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+    { label: 'Total SO Aktif', value: salesOrders.filter(s => !['completed'].includes(s.status)).length, icon: Package, color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200' },
+    { label: 'Menunggu Approval', value: quotations.filter(q => q.status === 'design_review').length, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { label: 'Dalam Produksi', value: salesOrders.filter(s => s.status === 'in_production').length, icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+    { label: 'Selesai (Total)', value: salesOrders.filter(s => s.status === 'completed').length, icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
     { label: 'Avg Durasi Prod.', value: `${avgDuration}h`, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
-    { label: 'SO Terlambat', value: overdueSOs.length, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
+    { label: 'SO Terlambat', value: overdueSOs.length, icon: AlertTriangle, color: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200' },
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="w-full" style={{ padding: "20px 24px" }}>
       <div className="mb-6">
         <h1 className="text-slate-800">Dashboard Strategi</h1>
         <p className="text-sm text-slate-500">Overview performa produksi PT. Pratama Jaya Tekindo</p>
@@ -93,7 +96,7 @@ export function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         {kpis.map(kpi => (
-          <div key={kpi.label} className={`bg-white rounded-xl p-4 border shadow-sm ${kpi.border}`}>
+          <div key={kpi.label} className={`bg-white rounded-md p-4 border shadow-sm ${kpi.border}`}>
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${kpi.bg}`}>
               <kpi.icon size={18} className={kpi.color} />
             </div>
@@ -105,7 +108,7 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Status Distribution Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <h3 className="text-slate-800 mb-1">Distribusi Status SO</h3>
           <p className="text-xs text-slate-400 mb-4">Jumlah order per status</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -134,7 +137,7 @@ export function DashboardPage() {
         </div>
 
         {/* Pie Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <h3 className="text-slate-800 mb-1">Komposisi SO</h3>
           <p className="text-xs text-slate-400 mb-4">Proporsi berdasarkan status</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -169,7 +172,7 @@ export function DashboardPage() {
       </div>
 
       {/* Line Chart - Weekly Performance */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+      <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5 mb-6">
         <h3 className="text-slate-800 mb-1">Performa Mingguan</h3>
         <p className="text-xs text-slate-400 mb-4">Jumlah SO selesai & rata-rata durasi produksi (jam)</p>
         <ResponsiveContainer width="100%" height={220}>
@@ -182,7 +185,7 @@ export function DashboardPage() {
             <Legend key="line-legend" formatter={(v) => <span style={{ fontSize: 11 }}>{v}</span>} />
             <Line key="line-completed" yAxisId="left" type="monotone" dataKey="completed" stroke="#34D399" strokeWidth={2.5} dot={{ r: 4 }} name="SO Selesai" />
             <Line key="line-rejected" yAxisId="left" type="monotone" dataKey="rejected" stroke="#F87171" strokeWidth={2} strokeDasharray="4 2" dot={{ r: 3 }} name="Ditolak" />
-            <Line key="line-avghours" yAxisId="right" type="monotone" dataKey="avgHours" stroke="#C8102E" strokeWidth={2} dot={{ r: 4 }} name="Avg Jam Produksi" />
+            <Line key="line-avghours" yAxisId="right" type="monotone" dataKey="avgHours" stroke="#475569" strokeWidth={2} dot={{ r: 4 }} name="Avg Jam Produksi" />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -190,7 +193,7 @@ export function DashboardPage() {
       {/* Recent SOs + Overdue */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Overdue */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <h3 className="text-slate-800 mb-3 flex items-center gap-2">
             <AlertTriangle size={16} className="text-rose-500" />
             SO Terlambat ({overdueSOs.length})
@@ -205,7 +208,7 @@ export function DashboardPage() {
                   <div key={so.id} className="flex items-center justify-between text-sm bg-red-50 rounded-lg px-3 py-2">
                     <div>
                       <p className="font-mono text-slate-800 text-xs">{so.id}</p>
-                      <p className="text-slate-600 text-xs">{so.status}</p>
+                      <p className="text-slate-600 text-xs">{formatSOStatus(so.status)}</p>
                     </div>
                     <span className="text-red-600 text-xs">+{days} hari</span>
                   </div>
@@ -216,9 +219,9 @@ export function DashboardPage() {
         </div>
 
         {/* Top Customers */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <h3 className="text-slate-800 mb-4 flex items-center gap-2">
-            <Users size={16} className="text-red-500" />
+            <Users size={16} className="text-slate-700" />
             Customer Teraktif
           </h3>
           <div className="space-y-3">
@@ -232,14 +235,14 @@ export function DashboardPage() {
                 return (
                   <div key={c.code} className="flex items-center gap-3">
                     <span className="text-xs text-slate-400 w-4 text-right shrink-0">{idx + 1}</span>
-                    <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center text-xs text-red-600 shrink-0">
+                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-xs text-blue-700 shrink-0">
                       {c.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-slate-800 truncate">{c.name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-[#C8102E] rounded-full" style={{ width: `${(c.count / maxCount) * 100}%` }} />
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(c.count / maxCount) * 100}%` }} />
                         </div>
                         <span className="text-xs text-slate-500 shrink-0">{c.count} SO</span>
                       </div>
