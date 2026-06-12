@@ -18,8 +18,8 @@ public sealed class FinanceServiceTests
     private static readonly Guid SecondSalesOrderItemId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
     [Theory]
-    [InlineData(typeof(InvoiceCandidatesController), "Admin,Finance,Owner")]
-    [InlineData(typeof(InvoicesController), "Admin,Finance,Owner")]
+    [InlineData(typeof(InvoiceCandidatesController), "Admin,Finance,Owner,Sales")]
+    [InlineData(typeof(InvoicesController), "Admin,Finance,Owner,Sales")]
     [InlineData(typeof(DashboardController), "Admin,Finance,Owner")]
     public void Finance_controllers_are_role_protected(Type controllerType, string expectedRoles)
     {

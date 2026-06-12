@@ -32,8 +32,8 @@ public sealed class ProductionServiceTests
     }
 
     [Theory]
-    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
-    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Worker,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
     [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker")]
     [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
