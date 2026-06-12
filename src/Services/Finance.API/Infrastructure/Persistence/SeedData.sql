@@ -13,17 +13,18 @@ SET sales_order_number = EXCLUDED.sales_order_number,
     status = EXCLUDED.status,
     updated_at_utc = EXCLUDED.updated_at_utc;
 
-INSERT INTO invoice_candidate_items (id, sales_order_id, sales_order_item_id, product_id, product_part_number, product_description, qty)
+INSERT INTO invoice_candidate_items (id, sales_order_id, sales_order_item_id, product_id, product_part_number, product_description, qty, unit_price)
 VALUES
-    ('66666666-6666-4666-8666-666666666101', '44444444-4444-4444-8444-444444444003', '45454545-4545-4454-8454-454545454003', '22222222-2222-4222-8222-222222222004', 'PJT-GBX-004', 'Gearbox Housing Cast Iron FC250', 5),
-    ('66666666-6666-4666-8666-666666666102', '44444444-4444-4444-8444-444444444005', '45454545-4545-4454-8454-454545454005', '22222222-2222-4222-8222-222222222006', 'PJT-PLT-006', 'Precision Lathe Fixture Plate A6061', 3)
+    ('66666666-6666-4666-8666-666666666101', '44444444-4444-4444-8444-444444444003', '45454545-4545-4454-8454-454545454003', '22222222-2222-4222-8222-222222222004', 'PJT-GBX-004', 'Gearbox Housing Cast Iron FC250', 5, 0),
+    ('66666666-6666-4666-8666-666666666102', '44444444-4444-4444-8444-444444444005', '45454545-4545-4454-8454-454545454005', '22222222-2222-4222-8222-222222222006', 'PJT-PLT-006', 'Precision Lathe Fixture Plate A6061', 3, 0)
 ON CONFLICT (id) DO UPDATE
 SET sales_order_id = EXCLUDED.sales_order_id,
     sales_order_item_id = EXCLUDED.sales_order_item_id,
     product_id = EXCLUDED.product_id,
     product_part_number = EXCLUDED.product_part_number,
     product_description = EXCLUDED.product_description,
-    qty = EXCLUDED.qty;
+    qty = EXCLUDED.qty,
+    unit_price = EXCLUDED.unit_price;
 
 INSERT INTO invoices (id, invoice_number, sales_order_id, sales_order_number, customer_id, customer_code, customer_name, customer_email, invoice_date, due_date, subtotal, tax_percent, tax_amount, total_amount, paid_amount, payment_percent, status, bank_name, bank_account_name, bank_account_number, created_at_utc, updated_at_utc)
 VALUES
