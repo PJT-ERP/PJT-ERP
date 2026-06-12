@@ -33,6 +33,17 @@ public sealed class SalesOrdersController(IProductionService productionService) 
             var order = await productionService.CreateSalesOrderAsync(request, cancellationToken);
             return CreatedAtAction(nameof(List), new { id = order.Id }, order);
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/engineers")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Owner")]
+    public async Task<ActionResult<SalesOrderDto>> AssignEngineers(Guid id, AssignSalesOrderEngineersRequest request, CancellationToken cancellationToken)
+    {
+        try
         {
             var order = await productionService.AssignSalesOrderEngineersAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);

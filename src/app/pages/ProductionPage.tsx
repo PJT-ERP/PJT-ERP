@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PlayCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { PlayCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
@@ -455,8 +455,54 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
   );
 }
 
+function PaginationControl({ currentPage, totalItems, itemsPerPage, onPageChange }: { currentPage: number, totalItems: number, itemsPerPage: number, onPageChange: (p: number) => void }) {
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  if (totalItems <= itemsPerPage) return null;
+  
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+      <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+        {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} dari {totalItems} hasil
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button 
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))} 
+          disabled={currentPage === 1}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : S.secondary, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+        >
+          <ChevronLeft size={18} />
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              minWidth: 28, height: 28, padding: "0 8px",
+              borderRadius: 8, border: "none",
+              background: p === currentPage ? S.cyan : "transparent",
+              color: p === currentPage ? "#FFFFFF" : "#475569",
+              fontSize: "13.5px", fontWeight: p === currentPage ? 600 : 500,
+              cursor: "pointer", transition: "all 0.1s"
+            }}
+          >
+            {p}
+          </button>
+        ))}
+        <button 
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} 
+          disabled={currentPage >= totalPages}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= totalPages ? "#CBD5E1" : S.secondary, cursor: currentPage >= totalPages ? "not-allowed" : "pointer" }}
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ProductionPage() {
-  const { salesOrders, currentUser, users, purchasingRequests, refreshBackendData } = useApp();
+  const { salesOrders, currentUser, users, purchasingRequests, customers, refreshBackendData } = useApp();
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const currentBackendUserId = toBackendUserId(currentUser);
 
@@ -465,6 +511,13 @@ export function ProductionPage() {
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
   const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
+
+  // Pagination states
+  const itemsPerPage = 5;
+  const [pagePending, setPagePending] = useState(1);
+  const [pageMaterialPrep, setPageMaterialPrep] = useState(1);
+  const [pageInProd, setPageInProd] = useState(1);
+  const [pageWaitQC, setPageWaitQC] = useState(1);
 
   // Lists
   const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
@@ -566,8 +619,8 @@ export function ProductionPage() {
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {pendingAssignment.map((so, idx) => (
-              <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < pendingAssignment.length - 1 ? `1px solid ${S.border}` : "none" }}>
+            {pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).map((so, idx) => (
+              <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
@@ -583,6 +636,7 @@ export function ProductionPage() {
               </div>
             ))}
           </div>
+          <PaginationControl currentPage={pagePending} totalItems={pendingAssignment.length} itemsPerPage={itemsPerPage} onPageChange={setPagePending} />
         </div>
       )}
 
@@ -600,11 +654,11 @@ export function ProductionPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {materialPrep.map((so, idx) => {
+            {materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).map((so, idx) => {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
               const mrState = getMaterialRequestState(so);
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < materialPrep.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
@@ -646,6 +700,7 @@ export function ProductionPage() {
             })}
           </div>
         )}
+        <PaginationControl currentPage={pageMaterialPrep} totalItems={materialPrep.length} itemsPerPage={itemsPerPage} onPageChange={setPageMaterialPrep} />
       </div>
 
       {/* 3. In Production */}
@@ -662,10 +717,10 @@ export function ProductionPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {inProduction.map((so, idx) => {
+            {inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).map((so, idx) => {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < inProduction.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
@@ -689,6 +744,41 @@ export function ProductionPage() {
             })}
           </div>
         )}
+        <PaginationControl currentPage={pageInProd} totalItems={inProduction.length} itemsPerPage={itemsPerPage} onPageChange={setPageInProd} />
+      </div>
+
+      {/* 4. Menunggu QC */}
+      <div>
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: S.slate, fontSize: "14px", fontWeight: 600 }}>Selesai Diproduksi & Menunggu QC ({waitingQC.length})</span>
+            </div>
+          </div>
+          {waitingQC.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center" }}>
+              <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada produk yang selesai diproduksi & menunggu QC</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).map((so, idx) => {
+                const customer = customers.find(c => c.code === so.customerId);
+                return (
+                  <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 18px", borderBottom: idx < waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none", background: "#F8FAFC" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{so.id}</span>
+                        <StatusBadge status={so.status} />
+                      </div>
+                      <p style={{ fontSize: "12.5px", color: S.secondary, margin: 0 }}>{customer?.name} · {so.description}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <PaginationControl currentPage={pageWaitQC} totalItems={waitingQC.length} itemsPerPage={itemsPerPage} onPageChange={setPageWaitQC} />
+        </div>
       </div>
 
       {assignModal && <AssignOperatorModal so={assignModal} onClose={() => setAssignModal(null)} />}

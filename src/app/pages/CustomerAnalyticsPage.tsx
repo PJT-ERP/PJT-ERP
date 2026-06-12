@@ -223,7 +223,7 @@ export function CustomerAnalyticsPage() {
   const upcomingCount = customerStats.filter(c => c.daysUntilNext !== null && c.daysUntilNext >= 0 && c.daysUntilNext <= 30).length;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="w-full" style={{ padding: "20px 24px" }}>
       <div className="mb-6">
         <h1 className="text-slate-800">Analitik Customer</h1>
         <p className="text-sm text-slate-500">Pola pembelian dan prediksi order berikutnya berdasarkan riwayat data</p>
@@ -231,49 +231,67 @@ export function CustomerAnalyticsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 border-l-4 border-l-blue-500 shadow-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <Users size={16} className="text-red-500" />
-            <p className="text-xs text-slate-500">Customer Aktif</p>
+        <div className="bg-white rounded-md border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-sm text-slate-500">Customer Aktif</p>
+            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+              <Users size={17} className="text-red-500" />
+            </div>
           </div>
-          <p className="text-2xl text-slate-800">{activeCustomers}</p>
+          <p className="text-2xl font-semibold text-slate-900 truncate">{activeCustomers}</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-slate-400">Total pelanggan terdaftar</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl p-4 border-l-4 border-l-[#C8102E] shadow-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={16} className="text-[#C8102E]" />
-            <p className="text-xs text-slate-500">Customer Teraktif</p>
+        <div className="bg-white rounded-md border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-sm text-slate-500">Customer Teraktif</p>
+            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+              <TrendingUp size={17} className="text-red-500" />
+            </div>
           </div>
-          <p className="text-sm text-slate-800 truncate">{mostFrequent?.customer.name.split(' ').slice(0, 3).join(' ')}</p>
-          <p className="text-xs text-slate-400">{mostFrequent?.totalOrders} order</p>
+          <p className="text-lg font-semibold text-slate-900 truncate">{mostFrequent?.customer.name.split(' ').slice(0, 3).join(' ')}</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-slate-400">{mostFrequent?.totalOrders} order</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl p-4 border-l-4 border-l-purple-500 shadow-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <CalendarClock size={16} className="text-purple-500" />
-            <p className="text-xs text-slate-500">Rata-rata Reorder</p>
+        <div className="bg-white rounded-md border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-sm text-slate-500">Rata-rata Reorder</p>
+            <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center">
+              <CalendarClock size={17} className="text-slate-700" />
+            </div>
           </div>
-          <p className="text-2xl text-slate-800">{avgReorderDays}<span className="text-sm text-slate-400 ml-1">hari</span></p>
+          <p className="text-2xl font-semibold text-slate-900 truncate">{avgReorderDays} <span className="text-sm font-normal text-slate-500">hari</span></p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-slate-400">Jarak antar pesanan</p>
+          </div>
         </div>
-        <div className={`bg-white rounded-xl p-4 border-l-4 shadow-sm ${overdueCount > 0 ? 'border-l-red-500' : 'border-l-green-500'}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle size={16} className={overdueCount > 0 ? 'text-red-500' : 'text-green-500'} />
-            <p className="text-xs text-slate-500">Perlu Follow-up</p>
+        <div className={`bg-white rounded-md border p-5 shadow-sm hover:shadow-md transition-shadow ${overdueCount > 0 ? 'border-slate-300' : 'border-slate-200'}`}>
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-sm text-slate-500">Perlu Follow-up</p>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${overdueCount > 0 ? 'bg-slate-100' : 'bg-green-50'}`}>
+              <AlertTriangle size={17} className={overdueCount > 0 ? 'text-red-500' : 'text-green-500'} />
+            </div>
           </div>
-          <p className={`text-2xl ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
-          <p className="text-xs text-slate-400">{upcomingCount} dalam 30 hari</p>
+          <p className={`text-2xl font-semibold truncate ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-slate-400">{upcomingCount} dalam 30 hari</p>
+          </div>
         </div>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Monthly Volume Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <h3 className="text-slate-800 mb-1">Volume Order per Bulan</h3>
           <p className="text-xs text-slate-400 mb-2">Total SO masuk per bulan (Jan–Jun 2026)</p>
           <MiniBarChart data={barData} />
         </div>
 
         {/* Trend Line */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <div className="flex items-center justify-between mb-1">
             <h3 className="text-slate-800">Tren Pembelian</h3>
             <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}
@@ -292,13 +310,16 @@ export function CustomerAnalyticsPage() {
       </div>
 
       {/* Heatmap */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6 overflow-x-auto">
-        <h3 className="text-slate-800 mb-1">Pola Pembelian Customer</h3>
-        <p className="text-xs text-slate-400 mb-4">
-          Intensitas order per bulan — sel <span className="inline-block w-3 h-3 rounded bg-gray-100 border border-dashed border-slate-300 align-middle mx-0.5" /> = prediksi
-        </p>
-        <table className="w-full text-xs min-w-[640px]">
-          <thead>
+      <div className="bg-white rounded-md shadow-sm border border-slate-200 mb-6 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 bg-slate-50">
+          <h3 className="text-slate-800">Pola Pembelian Customer</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Intensitas order per bulan — sel <span className="inline-block w-3 h-3 rounded bg-gray-100 border border-dashed border-slate-300 align-middle mx-0.5" /> = prediksi
+          </p>
+        </div>
+        <div className="p-5 overflow-x-auto">
+          <table className="w-full text-xs min-w-[640px]">
+            <thead>
             <tr>
               <th className="text-left text-slate-500 pb-2 pr-4 font-normal w-40">Customer</th>
               {visibleMonths.map(m => (
@@ -361,10 +382,11 @@ export function CustomerAnalyticsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Prediction Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b bg-slate-50">
           <h3 className="text-slate-800">Prediksi & Riwayat per Customer</h3>
           <p className="text-xs text-slate-400 mt-0.5">Prediksi berdasarkan rata-rata interval antar order</p>
@@ -386,7 +408,7 @@ export function CustomerAnalyticsPage() {
                   className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 cursor-pointer"
                   onClick={() => setExpandedCustomer(isExpanded ? null : cs.customer.code)}
                 >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm shrink-0"
+                  <div className="w-9 h-9 rounded-md flex items-center justify-center text-white text-sm shrink-0"
                     style={{ backgroundColor: cs.color }}>
                     {cs.customer.name.charAt(0)}
                   </div>
@@ -417,7 +439,7 @@ export function CustomerAnalyticsPage() {
                         {cs.predictedMonth}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[#C8102E] bg-[#ECFEFF] px-2 py-0.5 rounded-full border border-cyan-200">
+                      <span className="text-[10px] text-[#C8102E] bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                         {cs.predictedMonth}
                       </span>
                     )}
