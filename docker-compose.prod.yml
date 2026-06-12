@@ -170,8 +170,8 @@ services:
       - "443:443"
       - "127.0.0.1:81:81"
     volumes:
-      - ./data:/data
-      - ./letsencrypt:/etc/letsencrypt
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
     depends_on:
       frontend:
         condition: service_started
@@ -181,3 +181,5 @@ services:
 
 volumes:
   pjt_prod_db:
+  npm_data:
+  npm_letsencrypt:
