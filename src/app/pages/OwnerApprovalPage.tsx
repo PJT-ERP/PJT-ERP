@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { CheckCircle, XCircle, ExternalLink, Clock, RotateCcw, Search, FileText } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, SOStatus, getStatusColor } from "../components/data/mockData";
+import { productionApi } from "../services/productionApi";
+import { toBackendUserId } from "../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -33,26 +35,57 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
   const [rejectType, setRejectType] = useState<RejectType>('revision');
   const [reason, setReason] = useState('');
   const [done, setDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const customer = customers.find(c => c.code === so.customerId);
 
-  const handleApprove = () => {
-    updateSalesOrder(so.id, {
-      status: 'Ready for Production',
-      approvedAt: new Date().toISOString(),
-      approvedBy: currentUser?.id,
-    });
-    setAction('approve');
-    setDone(true);
+  const handleApprove = async () => {
+    try {
+      setIsSubmitting(true);
+      if (so.backendId) {
+        await productionApi.updateSalesOrderDesignStatus(so.backendId, {
+          designStatus: 'Approved',
+          reviewedByUserId: toBackendUserId(currentUser) || null,
+          reviewerName: currentUser?.name
+        });
+      }
+      updateSalesOrder(so.id, {
+        status: 'Ready for Production',
+        approvedAt: new Date().toISOString(),
+        approvedBy: currentUser?.id,
+      });
+      setAction('approve');
+      setDone(true);
+    } catch (e) {
+      console.error(e);
+      alert('Gagal menyetujui desain di backend.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!reason.trim()) return;
-    updateSalesOrder(so.id, {
-      status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
-      rejectionReason: reason,
-    });
-    setDone(true);
+    try {
+      setIsSubmitting(true);
+      if (so.backendId) {
+        await productionApi.updateSalesOrderDesignStatus(so.backendId, {
+          designStatus: rejectType === 'revision' ? 'RevisionRequired' : 'Rejected',
+          reviewedByUserId: toBackendUserId(currentUser) || null,
+          reviewerName: currentUser?.name
+        });
+      }
+      updateSalesOrder(so.id, {
+        status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
+        rejectionReason: reason,
+      });
+      setDone(true);
+    } catch (e) {
+      console.error(e);
+      alert('Gagal menolak desain di backend.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (done) return (
@@ -105,10 +138,10 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
           {/* Action Buttons */}
           {!action && (
             <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => setAction('reject')} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", border: "1px solid #FCA5A5", background: "#FEF2F2", color: "#DC2626", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={() => setAction('reject')} disabled={isSubmitting} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", border: "1px solid #FCA5A5", background: "#FEF2F2", color: "#DC2626", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.5 : 1 }}>
                 <XCircle size={16} /> Tolak Desain
               </button>
-              <button onClick={handleApprove} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", border: "none", background: "#16A34A", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={handleApprove} disabled={isSubmitting} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", border: "none", background: "#16A34A", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.5 : 1 }}>
                 <CheckCircle size={16} /> Setujui Desain
               </button>
             </div>
@@ -147,9 +180,9 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setAction(null)} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Kembali</button>
-                <button onClick={handleReject} disabled={!reason.trim()}
-                  style={{ flex: 1, padding: "10px", background: rejectType === 'revision' ? "#E11D48" : "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyItems: "center", gap: 6, opacity: reason.trim() ? 1 : 0.5 }}>
+                <button onClick={() => setAction(null)} disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.5 : 1 }}>Kembali</button>
+                <button onClick={handleReject} disabled={!reason.trim() || isSubmitting}
+                  style={{ flex: 1, padding: "10px", background: rejectType === 'revision' ? "#E11D48" : "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: (!reason.trim() || isSubmitting) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyItems: "center", gap: 6, opacity: (reason.trim() && !isSubmitting) ? 1 : 0.5 }}>
                   {rejectType === 'revision' ? <><RotateCcw size={15} /> Kirim Revisi</> : <><XCircle size={15} /> Tolak Permanen</>}
                 </button>
               </div>
