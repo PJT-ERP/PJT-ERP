@@ -107,9 +107,11 @@ jobs:
           mv "$APP_DIR.release" "$APP_DIR/current"
 
           cd "$APP_DIR/current"
-          export COMPOSE_PARALLEL_LIMIT=1
-          export DOCKER_BUILD_CONCURRENCY=1
-          docker compose -f docker-compose.prod.yml build --parallel=false || docker compose -f docker-compose.prod.yml build
+          SERVICES="identity-api masterdata-api production-api qc-api purchasing-api finance-api web-gateway frontend"
+          for service in $SERVICES; do
+            echo "Building $service sequentially..."
+            docker compose -f docker-compose.prod.yml build $service
+          done
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           docker compose -f docker-compose.prod.yml ps
           docker image prune -f
