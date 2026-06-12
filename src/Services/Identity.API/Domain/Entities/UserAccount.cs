@@ -10,6 +10,7 @@ public sealed class UserAccount
     public DateTime JoinDateUtc { get; set; } = DateTime.UtcNow;
     public DateTime? LastActiveAtUtc { get; set; }
     public string Status { get; set; } = "Active";
+    public string PasswordHash { get; set; } = "";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 

@@ -6,7 +6,7 @@ namespace PJT_ERP.Finance.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/finance/invoices")]
-[Authorize(Roles = "Admin,Finance,Owner")]
+[Authorize(Roles = "Admin,Finance,Owner,Sales")]
 public sealed class InvoicesController(IFinanceService financeService) : ControllerBase
 {
     [HttpGet]

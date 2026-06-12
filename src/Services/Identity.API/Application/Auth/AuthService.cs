@@ -12,7 +12,7 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
             .AsNoTracking()
             .FirstOrDefaultAsync(account => account.Email == request.Email && account.Status == "Active", cancellationToken);
 
-        if (user is null)
+        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             return null;
         }
@@ -45,5 +45,14 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
         return user is null
             ? null
             : new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department);
+    }
+
+    public async Task<IReadOnlyList<CurrentUserResponse>> GetAllUsersAsync(CancellationToken cancellationToken)
+    {
+        return await db.UserAccounts
+            .AsNoTracking()
+            .Where(account => account.Status == "Active")
+            .Select(user => new CurrentUserResponse(user.Id, user.Email, user.Name, user.Role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), user.Department))
+            .ToListAsync(cancellationToken);
     }
 }

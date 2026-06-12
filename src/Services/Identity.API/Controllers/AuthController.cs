@@ -76,4 +76,12 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("users")]
+    [Authorize]
+    public async Task<ActionResult<IReadOnlyList<CurrentUserResponse>>> GetUsers(CancellationToken cancellationToken)
+    {
+        var users = await authService.GetAllUsersAsync(cancellationToken);
+        return Ok(users);
+    }
 }
