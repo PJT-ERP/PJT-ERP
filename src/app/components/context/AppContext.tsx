@@ -114,12 +114,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser, users]);
 
   const refreshBackendData = useCallback(async () => {
+    const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
     const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
       quotationApi.list(),
       salesApi.listSalesOrders(),
-      purchasingApi.listPurchaseRequests(),
+      shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
     ]);
 
     if (customersResult.status === "fulfilled") {
@@ -150,12 +151,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
     }
 
-    if (purchaseRequestsResult.status === "fulfilled") {
+    if (!shouldLoadPurchaseRequests) {
+      setPurchasingRequests([]);
+    } else if (purchaseRequestsResult.status === "fulfilled") {
       setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
     } else {
       console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
     }
-  }, []);
+  }, [currentUser?.role]);
 
   useEffect(() => {
     if (currentUser) {
@@ -288,6 +291,15 @@ function mapCustomerDto(customer: CustomerDto): Customer {
     phone: customer.phone || "",
     address: customer.address || "",
   };
+}
+
+function canLoadPurchaseRequests(role?: UserRole | null) {
+  return role === "Purchasing"
+    || role === "Finance"
+    || role === "Engineering"
+    || role === "Engineering Supervisor"
+    || role === "Admin"
+    || role === "Owner";
 }
 
 function mapQuotationDto(quotation: QuotationDto): Quotation {
