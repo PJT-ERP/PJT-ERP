@@ -40,7 +40,10 @@ services:
   identity-api:
     build:
       context: .
-      dockerfile: src/Services/Identity.API/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/identity-api
+        ENTRY_DLL: Identity.API.dll
     restart: unless-stopped
     environment: *api-environment
     expose:
@@ -53,7 +56,10 @@ services:
   masterdata-api:
     build:
       context: .
-      dockerfile: src/Services/MasterData.API/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/masterdata-api
+        ENTRY_DLL: MasterData.API.dll
     restart: unless-stopped
     environment: *api-environment
     expose:
@@ -66,7 +72,10 @@ services:
   production-api:
     build:
       context: .
-      dockerfile: src/Services/Production.API/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/production-api
+        ENTRY_DLL: Production.API.dll
     restart: unless-stopped
     environment: *api-environment
     expose:
@@ -79,7 +88,10 @@ services:
   qc-api:
     build:
       context: .
-      dockerfile: src/Services/QC.API/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/qc-api
+        ENTRY_DLL: QC.API.dll
     restart: unless-stopped
     environment: *api-environment
     expose:
@@ -92,7 +104,10 @@ services:
   purchasing-api:
     build:
       context: .
-      dockerfile: src/Services/Purchasing.API/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/purchasing-api
+        ENTRY_DLL: Purchasing.API.dll
     restart: unless-stopped
     environment: *api-environment
     expose:
@@ -105,7 +120,10 @@ services:
   finance-api:
     build:
       context: .
-      dockerfile: src/Services/Finance.API/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/finance-api
+        ENTRY_DLL: Finance.API.dll
     restart: unless-stopped
     environment: *api-environment
     expose:
@@ -118,7 +136,10 @@ services:
   web-gateway:
     build:
       context: .
-      dockerfile: src/ApiGateways/Web.Gateway/Dockerfile
+      dockerfile: Dockerfile.runtime
+      args:
+        PUBLISH_DIR: publish/web-gateway
+        ENTRY_DLL: Web.Gateway.dll
     restart: unless-stopped
     environment:
       <<: *api-environment

@@ -22,6 +22,7 @@ jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -43,10 +44,15 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Build backend
+      - name: Publish all backend APIs
         run: |
-          dotnet restore PtPjtErp.slnx
-          dotnet build PtPjtErp.slnx --configuration Release --no-restore
+          dotnet publish src/Services/Identity.API/Identity.API.csproj -c Release -o publish/identity-api
+          dotnet publish src/Services/MasterData.API/MasterData.API.csproj -c Release -o publish/masterdata-api
+          dotnet publish src/Services/Production.API/Production.API.csproj -c Release -o publish/production-api
+          dotnet publish src/Services/QC.API/QC.API.csproj -c Release -o publish/qc-api
+          dotnet publish src/Services/Purchasing.API/Purchasing.API.csproj -c Release -o publish/purchasing-api
+          dotnet publish src/Services/Finance.API/Finance.API.csproj -c Release -o publish/finance-api
+          dotnet publish src/ApiGateways/Web.Gateway/Web.Gateway.csproj -c Release -o publish/web-gateway
 
       - name: Configure SSH
         run: |
@@ -67,12 +73,11 @@ jobs:
             echo "::warning::ssh-keyscan failed for $VPS_HOST:$VPS_PORT. Continuing with StrictHostKeyChecking=accept-new."
           fi
 
-      - name: Package source
+      - name: Package source with pre-built binaries
         run: |
           tar \
             --exclude='.git' \
             --exclude='./node_modules' \
-            --exclude='./dist' \
             --exclude='./data' \
             --exclude='./letsencrypt' \
             --exclude='**/bin' \
@@ -85,7 +90,7 @@ jobs:
 
       - name: Deploy with Docker Compose
         run: |
-          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=10 -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
           set -euo pipefail
 
           mkdir -p "$APP_DIR"
@@ -107,11 +112,7 @@ jobs:
           mv "$APP_DIR.release" "$APP_DIR/current"
 
           cd "$APP_DIR/current"
-          SERVICES="identity-api masterdata-api production-api qc-api purchasing-api finance-api web-gateway frontend"
-          for service in $SERVICES; do
-            echo "Building $service sequentially..."
-            docker compose -f docker-compose.prod.yml build $service
-          done
+          docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           docker compose -f docker-compose.prod.yml ps
           docker image prune -f
