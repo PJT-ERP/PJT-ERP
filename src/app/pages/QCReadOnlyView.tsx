@@ -33,13 +33,13 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "13px", fontWeight: 600, padding: "6px 12px", borderRadius: 99, 
-              background: so.status === 'qc_check' ? "#FEF3C7" : so.qcStatus === 'Pass' ? "#DCFCE7" : "#FEE2E2",
-              color: so.status === 'qc_check' ? "#D97706" : so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626"
+              background: so.status === 'QC' ? "#FEF3C7" : so.qcStatus === 'Go' ? "#DCFCE7" : "#FEE2E2",
+              color: so.status === 'QC' ? "#D97706" : so.qcStatus === 'Go' ? "#16A34A" : "#DC2626"
             }}>
-              {so.status === 'qc_check' ? (
+              {so.status === 'QC' ? (
                 <>Menunggu QC</>
               ) : (
-                <>{so.qcStatus === 'Pass' ? <CheckCircle size={14} /> : <XCircle size={14} />} {so.qcStatus === 'Pass' ? 'Go (Lulus QC)' : 'NoGo (Gagal QC)'}</>
+                <>{so.qcStatus === 'Go' ? <CheckCircle size={14} /> : <XCircle size={14} />} {so.qcStatus === 'Go' ? 'Go (Lulus QC)' : 'NoGo (Gagal QC)'}</>
               )}
             </span>
             {so.qcAt && <span style={{ color: S.secondary, fontSize: "12.5px" }}>{new Date(so.qcAt).toLocaleString('id-ID')}</span>}
@@ -91,20 +91,23 @@ export function QCReadOnlyView() {
   const { salesOrders, customers, currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
-  const [filterResult, setFilterResult] = useState<'all' | 'Pass' | 'Fail' | 'Menunggu'>('all');
+  const [filterResult, setFilterResult] = useState<'all' | 'Go' | 'NoGo' | 'Menunggu'>('all');
   const [qcSearch, setQcSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const isRegularEngineer = currentUser?.role === 'Engineering' && !currentUser?.isSupervisor && currentUser?.username !== 'admin';
-  const baseOrders = salesOrders; // Terbuka untuk semua engineer
+  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
+  const baseOrders = isRegularEngineer 
+    ? salesOrders.filter(so => so.assignedTo === currentUser?.id)
+    : salesOrders;
 
-  const completed = baseOrders.filter(so => so.status === 'completed');
-  const pendingQC = baseOrders.filter(so => so.status === 'qc_check');
+  const completed = baseOrders.filter(so => so.status === 'Completed');
+  const pendingQC = baseOrders.filter(so => so.status === 'QC');
   const allQC = [...pendingQC, ...completed];
 
-  const passCount = completed.filter(s => s.qcStatus === 'Pass').length;
-  const failCount = completed.filter(s => s.qcStatus === 'Fail').length;
+  const passCount = completed.filter(s => s.qcStatus === 'Go').length;
+  const failCount = completed.filter(s => s.qcStatus === 'NoGo').length;
   const passRate = completed.length > 0 ? Math.round((passCount / completed.length) * 100) : 0;
   const lateCount = completed.filter(s => s.lateReason).length;
 
@@ -179,19 +182,22 @@ export function QCReadOnlyView() {
               style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {(['all', 'Menunggu', 'Pass', 'Fail'] as const).map(f => {
-              const label = f === 'all' ? 'Semua' : f === 'Pass' ? 'Go' : f === 'Fail' ? 'NoGo' : f;
-              return (
-              <button key={f} onClick={() => { setFilterResult(f); setCurrentPage(1); }}
+            {[
+              { value: 'all', label: 'Semua' },
+              { value: 'Menunggu', label: `Menunggu (${pendingQC.length})` },
+              { value: 'Go', label: `Go (${passCount})` },
+              { value: 'NoGo', label: `NoGo (${failCount})` },
+            ].map(f => (
+              <button key={f.value} onClick={() => { setFilterResult(f.value as any); setCurrentPage(1); }}
                 style={{
                   padding: "6px 12px", borderRadius: 6, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", transition: "all 0.1s",
-                  background: filterResult === f ? S.navy : S.white,
-                  color: filterResult === f ? S.white : S.secondary,
-                  border: `1px solid ${filterResult === f ? S.navy : S.border}`
+                  background: filterResult === f.value ? S.navy : S.white,
+                  color: filterResult === f.value ? S.white : S.secondary,
+                  border: `1px solid ${filterResult === f.value ? S.navy : S.border}`
                 }}>
-                {label}
+                {f.label}
               </button>
-            )})}
+            ))}
           </div>
           <span style={{ fontSize: "12px", color: S.secondary }}>{filtered.length} item</span>
         </div>
@@ -242,14 +248,15 @@ export function QCReadOnlyView() {
                     </div>
                   )}
                   <div style={{ alignSelf: "center" }}>
-                    {so.status === 'qc_check' ? (
-                      <span style={{ fontSize: "11.5px", background: "#FEF3C7", color: "#D97706", padding: "2px 8px", borderRadius: 99, fontWeight: 500 }}>Menunggu</span>
-                    ) : so.qcStatus ? (
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, color: so.qcStatus === 'Pass' ? "#16A34A" : "#DC2626" }}>
-                        {so.qcStatus === 'Pass' ? <CheckCircle size={13} /> : <XCircle size={13} />}
-                        {so.qcStatus === 'Pass' ? 'Go' : 'NoGo'}
-                      </span>
-                    ) : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>}
+                    {so.status === 'QC'
+                      ? <span style={{ fontSize: "11.5px", background: "#FEF3C7", color: "#D97706", padding: "2px 8px", borderRadius: 99, fontWeight: 500 }}>Menunggu</span>
+                      : so.qcStatus
+                        ? <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, color: so.qcStatus === 'Go' ? "#16A34A" : "#DC2626" }}>
+                            {so.qcStatus === 'Go' ? <CheckCircle size={13} /> : <XCircle size={13} />}
+                            {so.qcStatus === 'Go' ? 'Go' : 'NoGo'}
+                          </span>
+                        : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>
+                    }
                   </div>
                   <span style={{ color: S.secondary, fontSize: "12.5px", alignSelf: "center" }}>{so.qcAt ? new Date(so.qcAt).toLocaleDateString('id-ID') : '—'}</span>
                 </div>
