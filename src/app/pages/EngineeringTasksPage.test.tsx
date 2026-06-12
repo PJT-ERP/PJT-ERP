@@ -1,0 +1,54 @@
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { EngineeringTasksPage } from './EngineeringTasksPage';
+import { useApp } from '../components/context/AppContext';
+
+vi.mock('../components/context/AppContext', () => ({
+  useApp: vi.fn(),
+}));
+
+describe('EngineeringTasksPage', () => {
+  it('renders engineering queue for supervisor with Assignment capability', () => {
+    vi.mocked(useApp).mockReturnValue({
+      quotations: [
+        {
+          id: 'q1',
+          status: 'pending_design',
+          productName: 'Custom Mold A',
+        }
+      ],
+      customers: [],
+      users: [],
+      currentUser: { role: 'Engineering Supervisor' },
+      updateQuotation: vi.fn(),
+    } as any);
+
+    render(<EngineeringTasksPage />);
+    expect(screen.getByText('Daftar Tugas Desain')).toBeInTheDocument();
+    expect(screen.getByText('Custom Mold A')).toBeInTheDocument();
+    // A supervisor sees the 'Tugaskan' button for pending_design
+    expect(screen.getByText('Tugaskan')).toBeInTheDocument();
+  });
+
+  it('renders engineering queue for regular engineer without Assignment capability', () => {
+    vi.mocked(useApp).mockReturnValue({
+      quotations: [
+        {
+          id: 'q1',
+          status: 'pending_design',
+          productName: 'Custom Mold A',
+          assignedTo: 'eng-1'
+        }
+      ],
+      customers: [],
+      users: [],
+      currentUser: { id: 'eng-1', role: 'Engineering' },
+      updateQuotation: vi.fn(),
+    } as any);
+
+    render(<EngineeringTasksPage />);
+    // An engineer sees the 'Kerjakan' button for their assigned tasks
+    expect(screen.getByText('Kerjakan')).toBeInTheDocument();
+    expect(screen.queryByText('Tugaskan')).not.toBeInTheDocument();
+  });
+});
