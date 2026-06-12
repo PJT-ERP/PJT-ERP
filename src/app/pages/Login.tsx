@@ -11,6 +11,7 @@ export function Login() {
   const [username, setUsername] = useState("sales01");
   const [password, setPassword] = useState("sales123");
   const [helperMessage, setHelperMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fromLocation = (state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
 
   // Auto-fill for demo purposes
@@ -26,9 +27,13 @@ export function Login() {
     }
   }, [role]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(username, password);
+    setHelperMessage("");
+    setIsSubmitting(true);
+
+    const success = await login(username, password);
+    setIsSubmitting(false);
     
     if (success) {
       if (fromLocation?.pathname && fromLocation.pathname !== "/login") {
@@ -47,7 +52,7 @@ export function Login() {
         default: navigate("/erp/so");
       }
     } else {
-      setHelperMessage("Invalid username or password.");
+      setHelperMessage("Invalid username/password or backend login failed.");
     }
   };
 
@@ -121,9 +126,10 @@ export function Login() {
 
           <button 
             type="submit"
+            disabled={isSubmitting}
             className="w-full flex items-center justify-center gap-2 bg-[#1F1F1F] hover:bg-[#111827] text-white py-3 rounded-xl font-medium transition-colors"
           >
-            Sign In to System
+            {isSubmitting ? "Signing In..." : "Sign In to System"}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

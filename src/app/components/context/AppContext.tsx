@@ -7,11 +7,12 @@ import {
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
 import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../services/salesApi";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { authApi } from "../../services/authApi";
 import { BACKEND_USER_IDS_BY_LOCAL_ID, isGuid, toBackendUserId } from "../../services/backendIds";
 
 interface AppContextType {
   currentUser: User | null;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   quotations: Quotation[];
   salesOrders: SalesOrder[];
@@ -36,11 +37,18 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 const AUTH_USER_KEY = "erp_current_username";
+const AUTH_TOKEN_KEY = "auth_token";
+const HAS_DEV_TOKEN = Boolean(import.meta.env.VITE_DEV_MASTER_TOKEN?.trim());
 
 function restoreStoredUser(): User | null {
   try {
     const username = localStorage.getItem(AUTH_USER_KEY);
     if (!username) {
+      return null;
+    }
+
+    if (!localStorage.getItem(AUTH_TOKEN_KEY) && !HAS_DEV_TOKEN) {
+      localStorage.removeItem(AUTH_USER_KEY);
       return null;
     }
 
@@ -64,9 +72,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [soCounter, setSoCounter] = useState(75);
   const [prCounter, setPrCounter] = useState(5);
 
-  const login = (username: string, password: string): boolean => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     const user = users.find(u => u.username === username && u.password === password && u.isActive);
     if (user) {
+      try {
+        const auth = await authApi.login(getBackendEmailForUser(user));
+        localStorage.setItem(AUTH_TOKEN_KEY, auth.accessToken);
+      } catch (error) {
+        console.warn("Backend login failed.", error);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        return false;
+      }
+
       localStorage.setItem(AUTH_USER_KEY, user.username);
       setCurrentUser(user);
       return true;
@@ -76,6 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     setCurrentUser(null);
   };
 
@@ -140,8 +158,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshBackendData();
-  }, [refreshBackendData]);
+    if (currentUser) {
+      void refreshBackendData();
+    }
+  }, [currentUser, refreshBackendData]);
 
   const addQuotation = (data: Omit<Quotation, 'id' | 'createdAt' | 'createdBy'>): Quotation => {
     const next = qutCounter + 1;
@@ -646,4 +666,18 @@ function addDaysIso(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next.toISOString().split("T")[0];
+}
+
+function getBackendEmailForUser(user: User): string {
+  const emailByUsername: Record<string, string> = {
+    owner: "owner@pjt.local",
+    sales01: "sales@pjt.local",
+    eng01: "engineering-worker@pjt.local",
+    eng_spv: "engineering-supervisor@pjt.local",
+    purchasing01: "purchasing@pjt.local",
+    finance01: "finance@pjt.local",
+    admin01: "owner@pjt.local",
+  };
+
+  return emailByUsername[user.username] || user.email;
 }
