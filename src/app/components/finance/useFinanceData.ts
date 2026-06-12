@@ -183,7 +183,7 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
     });
 }
 
-export function useFinanceData() {
+export function useFinanceData(enabled = true) {
   const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
   const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
   const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
@@ -217,8 +217,12 @@ export function useFinanceData() {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (enabled) {
+      void refresh();
+    } else {
+      setIsLoading(false);
+    }
+  }, [enabled, refresh]);
 
   const invoices = backendInvoices;
   const payments = backendPayments;

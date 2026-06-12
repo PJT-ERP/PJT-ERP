@@ -10,7 +10,7 @@ builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
-    options.AddPolicy("FinancePolicy", policy => policy.RequireRole("Admin", "Finance", "Owner"));
+    options.AddPolicy("FinancePolicy", policy => policy.RequireRole("Admin", "Finance", "Owner", "Sales", "Sales Order"));
 });
 
 builder.Services.AddCors(options =>

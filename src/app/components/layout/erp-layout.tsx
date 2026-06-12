@@ -72,10 +72,15 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
 export function ERPLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
-  const { invoices } = useFinanceData();
-  const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
-  
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const { currentUser, logout, purchasingRequests, salesOrders, quotations } = useApp();
+  const canReadFinanceData = currentUser?.role === "Finance"
+    || currentUser?.role === "Admin"
+    || currentUser?.role === "Owner"
+    || currentUser?.role === "Sales";
+  const { invoices } = useFinanceData(canReadFinanceData);
+  const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -171,8 +176,6 @@ export function ERPLayout() {
       </div>
     </>
   );
-
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const notifications = React.useMemo(() => {
     if (!currentUser) return [];
