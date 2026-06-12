@@ -1,0 +1,44 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { PurchaseOrdersPage } from './purchase-orders-page';
+import { purchasingApi } from '../../services/purchasingApi';
+
+vi.mock('../../services/purchasingApi', () => ({
+  purchasingApi: {
+    listPurchaseRequests: vi.fn(),
+    receivePurchaseRequestItem: vi.fn(),
+  }
+}));
+
+describe('PurchaseOrdersPage', () => {
+  it('renders purchase orders derived from MR API data', async () => {
+    vi.mocked(purchasingApi.listPurchaseRequests).mockResolvedValue([
+      {
+        id: 'mr-1',
+        prNumber: 'MR-1001',
+        requestDate: '2026-06-10',
+        status: 'Approved',
+        items: [
+          {
+            id: 'item-1',
+            itemName: 'Steel Pipe',
+            qty: 10,
+            purchaseStatus: 'Ordered',
+            poNumber: 'PO-2001',
+            supplierName: 'PT Steel',
+            expectedArrivalDate: '2026-06-15',
+            totalPrice: 5000000
+          }
+        ]
+      }
+    ] as any);
+
+    render(<PurchaseOrdersPage />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Purchase Orders')).toBeInTheDocument();
+      expect(screen.getByText('PO-2001')).toBeInTheDocument();
+      expect(screen.getByText('PT Steel')).toBeInTheDocument();
+    });
+  });
+});

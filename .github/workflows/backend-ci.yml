@@ -52,6 +52,12 @@ jobs:
           - name: Finance API
             project: tests/Services/Finance.API.Tests/Finance.API.Tests.csproj
             artifact: finance
+          - name: Identity API
+            project: tests/Identity.API.Tests/Identity.API.Tests.csproj
+            artifact: identity
+          - name: MasterData API
+            project: tests/MasterData.API.Tests/MasterData.API.Tests.csproj
+            artifact: masterdata
 
     steps:
       - name: Checkout

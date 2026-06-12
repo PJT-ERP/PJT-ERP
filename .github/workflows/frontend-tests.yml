@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend Tests
 
 on:
   pull_request:
@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  frontend-build:
-    name: Build frontend
+  frontend-test:
+    name: Run Frontend Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -23,13 +23,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Build frontend
-        run: |
-          npm install
-          npm run build
+      - name: Install dependencies
+        run: npm install
 
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist
+      - name: Run frontend tests
+        run: npm run test -- --run
