@@ -4,6 +4,7 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+ENV NUGET_XMLDOC_MODE=skip
 COPY . .
 RUN dotnet restore "src/Services/Finance.API/Finance.API.csproj" --disable-parallel
 RUN dotnet publish "src/Services/Finance.API/Finance.API.csproj" -c Release -o /app/publish --no-restore

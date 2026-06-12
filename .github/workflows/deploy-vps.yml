@@ -85,7 +85,7 @@ jobs:
 
       - name: Deploy with Docker Compose
         run: |
-          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=5 -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
           set -euo pipefail
 
           mkdir -p "$APP_DIR"
