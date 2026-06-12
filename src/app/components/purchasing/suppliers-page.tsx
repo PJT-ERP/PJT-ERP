@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { usePurchasingData } from "./usePurchasingData";
 import { SupplierDto } from "../../services/masterDataApi";
+import { AddSupplierModal } from "./add-supplier-modal";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -396,8 +397,9 @@ export function SuppliersPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const { suppliers, isLoading } = usePurchasingData();
+  const { suppliers, isLoading, refresh } = usePurchasingData();
 
   const enhancedSuppliers = useMemo(() => {
     return (suppliers as any[]).map(s => {
@@ -452,7 +454,7 @@ export function SuppliersPage() {
             <Download size={13} /> Export
           </button>
           <button 
-            onClick={() => alert("Fitur Tambah Supplier sedang dalam pengembangan.")}
+            onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
@@ -559,7 +561,7 @@ export function SuppliersPage() {
                     </TD>
                     <TD>
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <a href={`tel:${s.contacts[0].phone}`}>
+                        <a href={`tel:${s.contacts?.[0]?.phone || ''}`}>
                           <button className="rounded p-1.5 hover:bg-slate-100 transition-colors" style={{ color: "#64748b" }}>
                             <Phone size={13} />
                           </button>
@@ -586,6 +588,14 @@ export function SuppliersPage() {
           </p>
         </div>
       </div>
+      
+      <AddSupplierModal 
+        open={isAddModalOpen} 
+        onOpenChange={setIsAddModalOpen} 
+        onSuccess={() => {
+          refresh();
+        }} 
+      />
     </div>
   );
 }
