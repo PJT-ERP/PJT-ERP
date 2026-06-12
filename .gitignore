@@ -25,6 +25,5 @@ logs/
 data/
 letsencrypt/
 
-
 docker-compose.*.override.yml
 !docker-compose.override.yml
