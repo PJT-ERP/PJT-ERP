@@ -143,7 +143,7 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   );
 }
 
-function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; onClose: () => void; onSubmitted: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -220,7 +220,11 @@ function MaterialRequestModal({ so, onClose }: { so: SalesOrder; onClose: () => 
           purchaseCategory: item.purchaseCategory,
         })),
       });
+      onSubmitted();
       await refreshBackendData();
+      window.setTimeout(() => {
+        void refreshBackendData();
+      }, 1500);
       alert("MR diajukan ke Supervisor Produksi.");
       onClose();
     } catch (error) {
@@ -461,6 +465,7 @@ export function ProductionPage() {
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
   const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
+  const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
 
   // Lists
   const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
@@ -479,9 +484,26 @@ export function ProductionPage() {
     );
   };
 
-  const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'approved' | 'completed' | 'rejected' => {
+  const rememberMaterialRequest = (so: SalesOrder) => {
+    const keys = [so.id, so.backendId, so.soNumber, getBackendSalesOrderId(so)].filter(Boolean) as string[];
+    setLocalMaterialRequestSoIds(prev => {
+      const next = new Set(prev);
+      keys.forEach(key => next.add(key));
+      return next;
+    });
+  };
+
+  const hasLocalMaterialRequest = (so: SalesOrder) =>
+    [so.id, so.backendId, so.soNumber, getBackendSalesOrderId(so)]
+      .filter(Boolean)
+      .some(key => localMaterialRequestSoIds.has(key as string));
+
+  const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'finance_pending' | 'approved' | 'completed' | 'rejected' => {
     const request = getMaterialRequest(so);
-    if (!request) return 'none';
+    if (!request) return hasLocalMaterialRequest(so) ? 'requested' : 'none';
+    if (request.backendStatus === 'SupervisorRejected' || request.backendStatus === 'FinanceRejected' || request.backendStatus === 'Rejected') return 'rejected';
+    if (request.backendStatus === 'Completed') return 'completed';
+    if (request.backendStatus === 'SupervisorApproved' || request.backendStatus === 'Processing' || request.backendStatus === 'FinanceApproved') return 'approved';
     if (request.status === 'Ditolak') return 'rejected';
     if (request.status === 'Selesai') return 'completed';
     if (request.status === 'Diproses') return 'approved';
@@ -497,13 +519,27 @@ export function ProductionPage() {
       return;
     }
 
+    if (request.backendStatus && request.backendStatus !== 'Submitted') {
+      await refreshBackendData();
+      if (request.backendStatus === 'SupervisorApproved') {
+        alert("MR sudah disetujui Supervisor dan diteruskan ke Purchasing.");
+        return;
+      }
+      if (request.backendStatus === 'FinanceApproved' || request.backendStatus === 'Processing' || request.backendStatus === 'Completed') {
+        alert("MR sudah diteruskan ke Purchasing.");
+        return;
+      }
+      alert("MR tidak bisa di-approve pada status saat ini.");
+      return;
+    }
+
     try {
       await purchasingApi.supervisorReviewPurchaseRequest(request.backendId, {
         reviewedByUserId: reviewerId,
         decision: 'Accept',
       });
       await refreshBackendData();
-      alert("Permintaan disetujui dan diteruskan ke proses Finance/Purchasing.");
+      alert("Permintaan disetujui dan diteruskan ke Purchasing.");
     } catch (error) {
       console.warn("Failed to approve MR in backend.", error);
       alert("Gagal approve MR di backend. Cek koneksi API atau status MR.");
@@ -575,6 +611,7 @@ export function ProductionPage() {
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
                       {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                      {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
                       {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
                       {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                       {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
@@ -656,7 +693,13 @@ export function ProductionPage() {
       </div>
 
       {assignModal && <AssignOperatorModal so={assignModal} onClose={() => setAssignModal(null)} />}
-      {reqModal && <MaterialRequestModal so={reqModal} onClose={() => setReqModal(null)} />}
+      {reqModal && (
+        <MaterialRequestModal
+          so={reqModal}
+          onClose={() => setReqModal(null)}
+          onSubmitted={() => rememberMaterialRequest(reqModal)}
+        />
+      )}
       {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} />}
       {completeModal && <CompleteProductionModal so={completeModal} onClose={() => setCompleteModal(null)} />}
     </div>

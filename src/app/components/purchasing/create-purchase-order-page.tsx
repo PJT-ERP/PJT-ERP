@@ -73,7 +73,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
-    ["FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    ["SupervisorApproved", "FinanceApproved", "Approved", "Processing"].includes(request.status) &&
     request.items.some(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
   ), [purchaseRequests]);
 
@@ -129,7 +129,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     const hasInvalidItem = items.some(item => !item.requestItemId || !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
 
     if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
-      window.alert("Pilih MR yang sudah approved Finance, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+      window.alert("Pilih MR yang sudah disetujui Supervisor, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
       return;
     }
 
@@ -207,7 +207,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <div className="space-y-1.5">
             <FieldLabel>No Permintaan / MR *</FieldLabel>
             <select value={selectedRequestId} onChange={(e: ChangeEvent<HTMLSelectElement>) => applySelectedRequest(e.target.value)} className={inputClass()}>
-              <option value="">Pilih MR approved Finance</option>
+              <option value="">Pilih MR disetujui Supervisor</option>
               {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
             </select>
           </div>

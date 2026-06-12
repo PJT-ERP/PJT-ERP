@@ -13,6 +13,7 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<PaymentSchedule> PaymentSchedules => Set<PaymentSchedule>();
     public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
+    public DbSet<PaymentVerificationRequest> PaymentVerificationRequests => Set<PaymentVerificationRequest>();
     public DbSet<CollectionLetter> CollectionLetters => Set<CollectionLetter>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -98,6 +99,10 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
                 .WithOne(payment => payment.Invoice)
                 .HasForeignKey(payment => payment.InvoiceId)
                 .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(invoice => invoice.PaymentVerificationRequests)
+                .WithOne(request => request.Invoice)
+                .HasForeignKey(request => request.InvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
             builder.HasMany(invoice => invoice.CollectionLetters)
                 .WithOne(letter => letter.Invoice)
                 .HasForeignKey(letter => letter.InvoiceId)
@@ -142,6 +147,30 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
             builder.Property(payment => payment.Amount).HasColumnType("numeric(18,2)").HasColumnName("amount");
             builder.Property(payment => payment.Notes).HasColumnName("notes");
             builder.Property(payment => payment.CreatedAtUtc).HasColumnName("created_at_utc");
+        });
+
+        modelBuilder.Entity<PaymentVerificationRequest>(builder =>
+        {
+            builder.ToTable("payment_verification_requests");
+            builder.HasKey(request => request.Id);
+            builder.HasIndex(request => request.InvoiceId);
+            builder.HasIndex(request => request.Status);
+            builder.Property(request => request.Id).HasColumnName("id");
+            builder.Property(request => request.InvoiceId).HasColumnName("invoice_id");
+            builder.Property(request => request.PaymentDate).HasColumnName("payment_date");
+            builder.Property(request => request.Amount).HasColumnType("numeric(18,2)").HasColumnName("amount");
+            builder.Property(request => request.BankName).HasMaxLength(120).HasColumnName("bank_name");
+            builder.Property(request => request.BankReference).HasMaxLength(120).HasColumnName("bank_reference");
+            builder.Property(request => request.ProofFileName).HasMaxLength(255).HasColumnName("proof_file_name");
+            builder.Property(request => request.ProofFileUrl).HasColumnName("proof_file_url");
+            builder.Property(request => request.Notes).HasColumnName("notes");
+            builder.Property(request => request.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(request => request.SubmittedBy).HasMaxLength(80).HasColumnName("submitted_by");
+            builder.Property(request => request.SubmittedAtUtc).HasColumnName("submitted_at_utc");
+            builder.Property(request => request.VerifiedBy).HasMaxLength(80).HasColumnName("verified_by");
+            builder.Property(request => request.VerifiedAtUtc).HasColumnName("verified_at_utc");
+            builder.Property(request => request.RejectionReason).HasColumnName("rejection_reason");
+            builder.Property(request => request.RejectedAtUtc).HasColumnName("rejected_at_utc");
         });
 
         modelBuilder.Entity<CollectionLetter>(builder =>

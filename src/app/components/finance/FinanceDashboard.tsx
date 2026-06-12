@@ -7,7 +7,7 @@ import {
 import {
   FileText, Clock, CheckCircle2, TrendingUp, TrendingDown,
   ArrowUpRight, FilePlus, ShieldCheck, BarChart3, ChevronRight,
-  AlertCircle, Wallet, RefreshCw, Users
+  AlertCircle, Wallet, RefreshCw, Users, CheckSquare
 } from 'lucide-react';
 import {
   formatIDR, formatDate
@@ -68,6 +68,7 @@ const KPI_CARDS = [
 const QUICK_ACTIONS = [
   { label: 'Buat Invoice', icon: FilePlus, to: '/erp/finance/create-invoice', color: 'bg-red-600 hover:bg-red-700 text-white' },
   { label: 'Verifikasi Pembayaran', icon: ShieldCheck, to: '/erp/finance/payment-verification', color: 'bg-amber-500 hover:bg-amber-600 text-white', badge: '2' },
+  { label: 'Approval MR', icon: CheckSquare, to: '/erp/finance/approval-po', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
   { label: 'Lihat Laporan', icon: BarChart3, to: '/erp/finance/reports', color: 'bg-slate-700 hover:bg-slate-800 text-white' },
   { label: 'Daftar Invoice', icon: FileText, to: '/erp/finance/invoices', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
 ];

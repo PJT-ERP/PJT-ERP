@@ -467,9 +467,13 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests } = useApp();
+  const { purchasingRequests, refreshBackendData } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
+
+  useEffect(() => {
+    void refreshBackendData();
+  }, [refreshBackendData]);
 
   const statusCount = (s: PurchasingStatus) => purchasingRequests.filter(r => r.status === s).length;
 

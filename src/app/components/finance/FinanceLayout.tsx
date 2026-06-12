@@ -12,7 +12,7 @@ const navItems = [
   { to: '/erp/finance/invoices', label: 'Daftar Invoice', icon: FileText },
   { to: '/erp/finance/payment-verification', label: 'Verifikasi Pembayaran', icon: ShieldCheck, badge: 2 },
   { to: '/erp/finance/transactions', label: 'Riwayat Transaksi', icon: History },
-  { to: '/erp/finance/approval-po', label: 'Approval PO', icon: CheckSquare },
+  { to: '/erp/finance/approval-po', label: 'Approval MR', icon: CheckSquare },
   { to: '/erp/finance/reports', label: 'Laporan Keuangan', icon: BarChart3 },
 ];
 
@@ -23,7 +23,7 @@ const breadcrumbMap: Record<string, string[]> = {
   '/erp/finance/create-invoice': ['Finance', 'Buat Invoice'],
   '/erp/finance/payment-verification': ['Finance', 'Verifikasi Pembayaran'],
   '/erp/finance/transactions': ['Finance', 'Riwayat Transaksi'],
-  '/erp/finance/approval-po': ['Finance', 'Approval PO'],
+  '/erp/finance/approval-po': ['Finance', 'Approval MR'],
   '/erp/finance/reports': ['Finance', 'Laporan Keuangan'],
 };
 

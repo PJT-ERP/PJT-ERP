@@ -359,6 +359,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
   return {
     id: request.prNumber,
     backendId: request.id,
+    backendStatus: request.status,
     soId: request.salesOrderNumber || undefined,
     salesOrderId: request.salesOrderId || undefined,
     itemName: request.items.length === 1 ? firstItem?.itemName || "-" : `${request.items.length} item material`,

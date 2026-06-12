@@ -11,10 +11,13 @@ import {
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import type { Page } from "../layout/erp-layout";
+import { useFinanceData } from "../finance/useFinanceData";
+import { mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
+import { financeApi } from "../../services/financeApi";
 
-type InvoiceStatus = "paid" | "waiting" | "not_created";
-const invoiceStatusConfig: Record<string, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
+const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
   paid: { label: "Paid", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
+  verified: { label: "Verified", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
 };
@@ -39,6 +42,20 @@ const S = {
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';
 }
+
+const todayInputValue = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 10);
+};
+
+const parseCurrencyAmount = (value: string) => {
+  const normalized = value
+    .replace(/[^\d,]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  return Math.round(Number(normalized) || 0);
+};
 
 const WORKFLOW_STEPS = [
   { key: "customer_request", label: "Customer Request", dept: "SO Team"         },
@@ -100,9 +117,13 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder } = useApp();
+  const { invoices, payments } = useFinanceData();
   
-  const order = salesOrders.find(o => o.id === orderId);
+  const baseOrder = salesOrders.find(o => o.id === orderId);
+  const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
+  const pendingPaymentProof = !!order?.invoice?.invoiceId
+    && payments.some(payment => payment.invoiceId === order.invoice?.invoiceId && payment.status === "PENDING");
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [editForm, setEditForm] = useState({
@@ -327,7 +348,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
 
           {/* Invoice Information — read-only for SO staff */}
-          <InvoiceSection invoice={order.invoice} />
+          <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} />
 
           {/* Activity log */}
           {!isEditMode && (
@@ -492,13 +513,14 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 }
 
 // ─── InvoiceSection ───────────────────────────────────────────────────────────
-function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
-  const status: InvoiceStatus = invoice?.status ?? "not_created";
+function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder["invoice"]; pendingPaymentProof: boolean }) {
+  const status = (invoice?.status ?? "not_created") as SalesInvoiceStatus;
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
   
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [paymentReported, setPaymentReported] = useState(false);
+  const hasPendingPaymentProof = pendingPaymentProof || paymentReported;
 
   return (
     <>
@@ -520,7 +542,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
             fontSize: "11px", fontWeight: 500,
           }}>
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
-            {paymentReported ? "Menunggu Verifikasi Finance" : cfg.label}
+            {hasPendingPaymentProof ? "Menunggu Verifikasi Finance" : cfg.label}
           </span>
         </div>
 
@@ -545,7 +567,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
                 </div>
                 <div>
                   <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jatuh Tempo</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: status === "overdue" ? "#EF4444" : S.slate }}>{invoice!.dueDate}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.dueDate}</p>
                 </div>
                 <div>
                   <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jumlah Tagihan</p>
@@ -565,7 +587,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
                 <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" />
                 <InvoiceBtn icon={<Download size={12} />} label="Download PDF" />
-                {status === "waiting" && !paymentReported && (
+                {status === "waiting" && !invoice?.paymentDate && !hasPendingPaymentProof && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn 
                       icon={<Upload size={12} />} 
@@ -583,6 +605,7 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
 
       {showUploadModal && (
         <ReportPaymentModal 
+          invoiceId={invoice?.invoiceId}
           invoiceNumber={invoice?.invoiceNumber || ""}
           amount={invoice?.amount || 0}
           onClose={() => setShowUploadModal(false)}
@@ -596,16 +619,80 @@ function InvoiceSection({ invoice }: { invoice?: SalesOrder["invoice"] }) {
   );
 }
 
-function ReportPaymentModal({ invoiceNumber, amount, onClose, onSubmit }: { invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
+function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
   const [isUploading, setIsUploading] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [amountText, setAmountText] = useState(`Rp ${amount.toLocaleString('id-ID')}`);
+  const [paymentDate, setPaymentDate] = useState(todayInputValue());
+  const [proofFileName, setProofFileName] = useState("");
+  const [proofFileUrl, setProofFileUrl] = useState("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleProofFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setProofFileName("");
+      setProofFileUrl("");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setProofFileName("");
+      setProofFileUrl("");
+      setError("Ukuran bukti transfer maksimal 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProofFileName(file.name);
+      setProofFileUrl(String(reader.result || ""));
+      setError("");
+    };
+    reader.onerror = () => {
+      setProofFileName("");
+      setProofFileUrl("");
+      setError("Gagal membaca file bukti transfer.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsUploading(true);
-    setTimeout(() => {
-      setIsUploading(false);
+    const numericAmount = parseCurrencyAmount(amountText);
+    if (!invoiceId) {
+      setError("Invoice belum tersambung ke backend.");
+      return;
+    }
+    if (numericAmount <= 0) {
+      setError("Nominal transfer harus lebih dari 0.");
+      return;
+    }
+    if (!proofFileName || !proofFileUrl) {
+      setError("Bukti transfer wajib diupload.");
+      return;
+    }
+
+    try {
+      setError("");
+      setIsUploading(true);
+      await financeApi.submitPaymentProof(invoiceId, {
+        paymentDate,
+        amount: numericAmount,
+        bankName,
+        bankReference: null,
+        proofFileName,
+        proofFileUrl,
+        notes: notes.trim() || null,
+      });
       onSubmit();
-    }, 800);
+    } catch (err) {
+      console.warn("Failed to submit payment proof.", err);
+      setError("Gagal mengirim bukti bayar ke Finance.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -626,16 +713,22 @@ function ReportPaymentModal({ invoiceNumber, amount, onClose, onSubmit }: { invo
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Bank Tujuan</label>
-              <select required style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none" }}>
+              <select required value={bankName} onChange={e => setBankName(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none" }}>
                 <option value="">Pilih Bank...</option>
                 <option value="BCA">BCA - PT Pratama Jaya (1234567890)</option>
                 <option value="Mandiri">Mandiri - PT Pratama Jaya (0987654321)</option>
               </select>
             </div>
             
-            <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Nominal Transfer</label>
-              <input required type="text" defaultValue={`Rp ${amount.toLocaleString('id-ID')}`} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+                <input required type="text" value={amountText} onChange={e => setAmountText(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Tanggal Bayar</label>
+                <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+              </div>
             </div>
 
             <div>
@@ -643,16 +736,18 @@ function ReportPaymentModal({ invoiceNumber, amount, onClose, onSubmit }: { invo
               <div style={{ position: "relative", border: "1px dashed #CBD5E1", borderRadius: 8, padding: 24, textAlign: "center", background: "#F8FAFC" }}>
                 <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
                 <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>Max ukuran file 5MB</p>
-                <input required type="file" style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFileName || "Max ukuran file 5MB"}</p>
+                <input required type="file" accept=".pdf,image/*" onChange={handleProofFileChange} style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
               </div>
             </div>
 
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Catatan Tambahan (Opsional)</label>
-              <textarea rows={2} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box", resize: "none" }} placeholder="Misal: Sudah ditransfer atas nama Budi..." />
+              <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box", resize: "none" }} placeholder="Misal: Sudah ditransfer atas nama Budi..." />
             </div>
           </div>
+
+          {error && <p style={{ margin: "12px 0 0", color: "#DC2626", fontSize: "12px" }}>{error}</p>}
 
           <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>

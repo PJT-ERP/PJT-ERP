@@ -39,18 +39,28 @@ export interface Invoice {
   customerName: string;
   amount: number;
   paidAmount: number;
+  paymentDate?: string;
   dueDate: string;
   issueDate: string;
   status: InvoiceStatus;
   notes: string;
   items: InvoiceItem[];
   ppn: number;
+  paymentSchedules?: Array<{
+    id: string;
+    label: string;
+    percentage: number;
+    amount: number;
+    dueDate: string;
+    isPaid: boolean;
+  }>;
 }
 
 export interface Payment {
   id: string;
   invoiceId: string;
   invoiceNumber: string;
+  soNumber?: string;
   customerName: string;
   amount: number;
   paymentDate: string;
@@ -59,6 +69,10 @@ export interface Payment {
   bankName: string;
   status: PaymentStatus;
   proofAvailable: boolean;
+  proofFileName?: string;
+  proofFileUrl?: string;
+  submittedBy?: string;
+  submittedAt?: string;
   notes?: string;
   verifiedBy?: string;
   verifiedAt?: string;

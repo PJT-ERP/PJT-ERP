@@ -195,7 +195,7 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task ReviewAsync_requires_supervisor_then_finance_before_purchasing()
+    public async Task ReviewAsync_routes_supervisor_approved_request_to_purchasing_before_finance()
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
@@ -219,11 +219,25 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(PurchaseItemStatuses.Requested, Assert.Single(supervisorReviewed.Items).PurchaseStatus);
         Assert.Equal(MaterialRequirementStatuses.PurchaseRequested, (await db.MaterialRequirements.SingleAsync()).Status);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Accept",
+                null,
+                "Finance"),
+            CancellationToken.None));
+
+        var processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
             Assert.Single(supervisorReviewed.Items).Id,
             new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null),
-            CancellationToken.None));
+            CancellationToken.None);
+
+        Assert.NotNull(processed);
+        Assert.Equal(PurchaseRequestStatuses.Processing, processed.Status);
+        Assert.Equal(PurchaseItemStatuses.Ordered, Assert.Single(processed.Items).PurchaseStatus);
+        Assert.Equal(MaterialRequirementStatuses.Ordered, (await db.MaterialRequirements.SingleAsync()).Status);
 
         var financeReviewed = await service.ReviewAsync(
             purchaseRequest.Id,
@@ -238,8 +252,8 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
         Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), financeReviewed.FinanceReviewedByUserId);
         Assert.NotNull(financeReviewed.FinanceReviewedAtUtc);
-        Assert.Equal(PurchaseItemStatuses.Approved, Assert.Single(financeReviewed.Items).PurchaseStatus);
-        Assert.Equal(MaterialRequirementStatuses.PurchaseApproved, (await db.MaterialRequirements.SingleAsync()).Status);
+        Assert.Equal(PurchaseItemStatuses.Ordered, Assert.Single(financeReviewed.Items).PurchaseStatus);
+        Assert.Equal(MaterialRequirementStatuses.Ordered, (await db.MaterialRequirements.SingleAsync()).Status);
         Assert.Equal(2, eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>().Count());
     }
 
@@ -252,6 +266,18 @@ public sealed class PurchaseRequestServiceTests
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
         var approved = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(approved.Items).Id;
+
+        var processed = await service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            itemId,
+            new ProcessPurchaseItemRequest(
+                "Supplier A",
+                new DateOnly(2026, 5, 20),
+                "PO-2026-001",
+                2_750_000m,
+                "Material ordered"),
+            CancellationToken.None);
+        await FinanceApprovePurchaseRequestAsync(service, processed!);
 
         var updated = await service.UpdatePurchaseItemInfoAsync(
             purchaseRequest.Id,
@@ -307,8 +333,17 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(new DateOnly(2026, 5, 25), processedItem.ExpectedArrivalDate);
         Assert.Equal(MaterialRequirementStatuses.Ordered, (await db.MaterialRequirements.SingleAsync()).Status);
 
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReceivePurchaseItemAsync(
+            processed!.Id,
+            itemId,
+            new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Should wait for Finance approval"),
+            CancellationToken.None));
+
+        var financeReviewed = await FinanceApprovePurchaseRequestAsync(service, processed!);
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
+
         var received = await service.ReceivePurchaseItemAsync(
-            purchaseRequest.Id,
+            financeReviewed.Id,
             itemId,
             new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Barang diterima lengkap"),
             CancellationToken.None);
@@ -353,9 +388,16 @@ public sealed class PurchaseRequestServiceTests
         var service = CreateService(db);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
         purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+        var processed = await service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 18), "PO-2026-001", 2_750_000m, null),
+            CancellationToken.None);
+        await FinanceApprovePurchaseRequestAsync(service, processed!);
         await service.UpdatePurchaseItemInfoAsync(
             purchaseRequest.Id,
-            Assert.Single(purchaseRequest.Items).Id,
+            itemId,
             new UpdatePurchaseItemInfoRequest("Supplier A", new DateOnly(2026, 5, 17), null, new DateOnly(2026, 5, 18), "Received", null),
             CancellationToken.None);
 
@@ -448,8 +490,15 @@ public sealed class PurchaseRequestServiceTests
                 "Supervisor"),
             CancellationToken.None);
 
+        return supervisorReviewed!;
+    }
+
+    private static async Task<PurchaseRequestDto> FinanceApprovePurchaseRequestAsync(
+        PurchaseRequestService service,
+        PurchaseRequestDto purchaseRequest)
+    {
         var reviewed = await service.ReviewAsync(
-            supervisorReviewed!.Id,
+            purchaseRequest.Id,
             new ReviewPurchaseRequest(
                 Guid.Parse("66666666-6666-6666-6666-666666666666"),
                 "Accept",

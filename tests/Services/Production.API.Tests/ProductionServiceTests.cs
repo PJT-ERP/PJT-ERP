@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.Production.Api.Application.IntegrationEvents;
 using PJT_ERP.Production.Api.Application.Production;
 using PJT_ERP.Production.Api.Application.Quotations;
 using PJT_ERP.Production.Api.Controllers;
@@ -143,6 +144,40 @@ public sealed class ProductionServiceTests
             () => service.ConfirmSalesOrderAsync(salesOrder.Id, new ConfirmSalesOrderRequest(Guid.NewGuid()), CancellationToken.None));
 
         Assert.Contains("production worker engineer", exception.Message);
+    }
+
+    [Fact]
+    public async Task InvoicePaymentRecordedEventHandler_marks_draft_paid_sales_order_ready_for_assignment()
+    {
+        await using var db = CreateDbContext();
+        var salesOrder = CreateSalesOrder();
+        salesOrder.Status = SalesOrderStatuses.Draft;
+        salesOrder.ProductionWorkerUserId = null;
+        salesOrder.ProductionWorkerName = null;
+        salesOrder.QcReviewerUserId = null;
+        salesOrder.QcReviewerName = null;
+        await db.SalesOrders.AddAsync(salesOrder);
+        await db.SaveChangesAsync();
+
+        var handler = new InvoicePaymentRecordedEventHandler(db);
+        await handler.Handle(
+            new InvoicePaymentRecordedEvent(
+                Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                "INV-001",
+                salesOrder.Id,
+                salesOrder.SoNumber,
+                salesOrder.CustomerId,
+                100_000m,
+                100_000m,
+                200_000m,
+                50m,
+                new DateOnly(2026, 6, 11),
+                false),
+            CancellationToken.None);
+
+        var updated = await db.SalesOrders.AsNoTracking().SingleAsync(order => order.Id == salesOrder.Id);
+        Assert.Equal(SalesOrderStatuses.Confirmed, updated.Status);
+        Assert.Null(updated.ProductionWorkerUserId);
     }
 
     [Fact]

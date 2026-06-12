@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import {
   Search,
   Filter,
@@ -31,6 +32,7 @@ interface MRItem {
 
 interface MR {
   id: string;
+  backendStatus: string;
   requestor: string;
   department: string;
   date: string;
@@ -74,6 +76,7 @@ function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
 
   return {
     id: request.prNumber,
+    backendStatus: request.status,
     requestor: request.requesterName,
     department: request.projectName?.split(" - ")[0] || "Engineering",
     date: formatDisplayDate(request.requestDate),
@@ -88,7 +91,7 @@ function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
-      : "Pending",
+      : request.status === "Processing" ? "Pending" : undefined,
     items: request.items.map(item => ({
       code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
       name: item.itemName,
@@ -171,6 +174,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 
 export function MaterialRequestsPage() {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<MR[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -593,21 +597,26 @@ export function MaterialRequestsPage() {
                   )}
 
                   {/* Actions */}
-                  {detail.status === "Approved" && (
+                  {detail.backendStatus === "SupervisorApproved" && (
+                    <div className="flex items-start gap-2 rounded p-3" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                      <AlertTriangle size={15} style={{ color: "#d97706", marginTop: 1, flexShrink: 0 }} />
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>Siap Diproses Purchasing</p>
+                        <p style={{ fontSize: 12, color: "#b45309", marginTop: 2 }}>
+                          MR sudah disetujui Supervisor. Purchasing dapat melengkapi supplier, harga, dan PO.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {(detail.backendStatus === "SupervisorApproved" || detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") && (
                     <div className="flex gap-2 pt-1" style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
                       <button
                         className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-white transition-opacity hover:opacity-90"
                         style={{ fontSize: 13, background: "#16a34a" }}
-                        onClick={() => setDetail(null)}
+                        onClick={() => navigate("/erp/purchasing/create")}
                       >
                         <CheckCircle2 size={14} /> Proses ke PO
-                      </button>
-                      <button
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 transition-colors hover:bg-red-50"
-                        style={{ fontSize: 13, color: "#dc2626", border: "1px solid #fca5a5" }}
-                        onClick={() => setDetail(null)}
-                      >
-                        <XCircle size={14} /> Tolak Item
                       </button>
                     </div>
                   )}

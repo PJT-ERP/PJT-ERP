@@ -59,6 +59,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Costing & Pricing", icon: <DollarSign size={15} />, path: "/erp/finance/costing" },
     { label: "Daftar Tagihan", icon: <FileText size={15} />, path: "/erp/finance/invoices" },
     { label: "Verifikasi Bayar", icon: <FileText size={15} />, path: "/erp/finance/payment-verification" },
+    { label: "Approval MR", icon: <CheckSquare size={15} />, path: "/erp/finance/approval-po" },
   ],
   Purchasing: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/purchasing" },
@@ -72,7 +73,7 @@ export function ERPLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const { invoices } = useFinanceData();
-  const readyInvoices = invoices.filter(invoice => invoice.status !== "PAID");
+  const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   
   const { currentUser, logout, purchasingRequests, salesOrders, quotations } = useApp();
   const location = useLocation();

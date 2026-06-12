@@ -43,6 +43,17 @@ public record RecordPaymentRequest(
     decimal Amount,
     string? Notes);
 
+public record SubmitPaymentProofRequest(
+    DateOnly PaymentDate,
+    decimal Amount,
+    string? BankName,
+    string? BankReference,
+    string? ProofFileName,
+    string? ProofFileUrl,
+    string? Notes);
+
+public record RejectPaymentVerificationRequest(string Reason);
+
 public record CreateCollectionLetterRequest(
     DateOnly IssuedDate,
     DateOnly DueDate,
@@ -97,6 +108,29 @@ public record PaymentRecordDto(
     DateOnly PaymentDate,
     decimal Amount,
     string? Notes);
+
+public record PaymentVerificationRequestDto(
+    Guid Id,
+    Guid InvoiceId,
+    string InvoiceNumber,
+    Guid SalesOrderId,
+    string SalesOrderNumber,
+    Guid CustomerId,
+    string CustomerName,
+    DateOnly PaymentDate,
+    decimal Amount,
+    string BankName,
+    string? BankReference,
+    string? ProofFileName,
+    string? ProofFileUrl,
+    string? Notes,
+    string Status,
+    string SubmittedBy,
+    DateTime SubmittedAtUtc,
+    string? VerifiedBy,
+    DateTime? VerifiedAtUtc,
+    string? RejectionReason,
+    DateTime? RejectedAtUtc);
 
 public record CollectionLetterDto(
     Guid Id,

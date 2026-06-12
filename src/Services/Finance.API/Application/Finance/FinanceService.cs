@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Finance.Api.Domain.Entities;
 using PJT_ERP.Finance.Api.Infrastructure.Persistence;
+using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.Finance.Api.Application.Finance;
 
-public sealed class FinanceService(FinanceContext db) : IFinanceService
+public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPublisher = null) : IFinanceService
 {
     public async Task<IReadOnlyCollection<InvoiceCandidateDto>> ListInvoiceCandidatesAsync(Guid? customerId, CancellationToken cancellationToken)
     {
@@ -159,9 +161,53 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
 
     public async Task<InvoiceDto?> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, CancellationToken cancellationToken)
     {
+        var invoice = await db.Invoices
+            .FirstOrDefaultAsync(invoice => invoice.Id == invoiceId, cancellationToken);
+
+        if (invoice is null)
+        {
+            return null;
+        }
+
+        await ApplyPaymentAsync(invoice, request.PaymentDate, request.Amount, request.Notes, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetInvoiceAsync(invoice.Id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<PaymentVerificationRequestDto>> ListPaymentVerificationsAsync(
+        string? status,
+        CancellationToken cancellationToken)
+    {
+        var query = IncludePaymentVerification(db.PaymentVerificationRequests.AsNoTracking());
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var normalizedStatus = status.Trim();
+            query = query.Where(request => request.Status == normalizedStatus);
+        }
+
+        var requests = await query
+            .OrderByDescending(request => request.SubmittedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return requests.Select(ToDto).ToArray();
+    }
+
+    public async Task<PaymentVerificationRequestDto?> SubmitPaymentProofAsync(
+        Guid invoiceId,
+        SubmitPaymentProofRequest request,
+        CancellationToken cancellationToken)
+    {
         if (request.Amount <= 0)
         {
             throw new InvalidOperationException("Payment amount must be greater than zero.");
+        }
+
+        var proofFileName = NormalizeOptional(request.ProofFileName);
+        if (proofFileName is null)
+        {
+            throw new InvalidOperationException("Payment proof file name is required.");
         }
 
         var invoice = await db.Invoices
@@ -172,32 +218,119 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
             return null;
         }
 
+        var paymentAmount = RoundMoney(request.Amount);
         var remaining = RoundMoney(invoice.TotalAmount - invoice.PaidAmount);
-        if (request.Amount > remaining)
+        if (paymentAmount > remaining)
         {
             throw new InvalidOperationException("Payment amount cannot exceed the remaining invoice balance.");
         }
 
-        await db.PaymentRecords.AddAsync(new PaymentRecord
+        var bankName = NormalizeOptional(request.BankName) ?? invoice.BankName ?? "Bank Transfer";
+        var bankReference = NormalizeOptional(request.BankReference) ?? $"PAY-{Guid.NewGuid():N}"[..12].ToUpperInvariant();
+        var notes = NormalizeOptional(request.Notes);
+
+        var duplicateRequest = await IncludePaymentVerification(db.PaymentVerificationRequests)
+            .FirstOrDefaultAsync(existing =>
+                existing.InvoiceId == invoice.Id
+                && existing.Status == PaymentVerificationStatuses.Pending
+                && existing.PaymentDate == request.PaymentDate
+                && existing.Amount == paymentAmount
+                && existing.ProofFileName == proofFileName,
+                cancellationToken);
+
+        if (duplicateRequest is not null)
+        {
+            return ToDto(duplicateRequest);
+        }
+
+        var proofRequest = new PaymentVerificationRequest
         {
             InvoiceId = invoice.Id,
             PaymentDate = request.PaymentDate,
-            Amount = RoundMoney(request.Amount),
-            Notes = NormalizeOptional(request.Notes)
-        }, cancellationToken);
+            Amount = paymentAmount,
+            BankName = bankName,
+            BankReference = bankReference,
+            ProofFileName = proofFileName,
+            ProofFileUrl = NormalizeOptional(request.ProofFileUrl),
+            Notes = notes,
+            Status = PaymentVerificationStatuses.Pending,
+            SubmittedBy = "Sales",
+            SubmittedAtUtc = DateTime.UtcNow
+        };
 
-        invoice.PaidAmount = RoundMoney(invoice.PaidAmount + request.Amount);
-        invoice.PaymentPercent = invoice.TotalAmount == 0
-            ? 100
-            : decimal.Round(invoice.PaidAmount / invoice.TotalAmount * 100, 2);
-        invoice.Status = invoice.PaidAmount >= invoice.TotalAmount
-            ? InvoiceStatuses.Paid
-            : InvoiceStatuses.PartiallyPaid;
-        invoice.UpdatedAtUtc = DateTime.UtcNow;
-
+        await db.PaymentVerificationRequests.AddAsync(proofRequest, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetInvoiceAsync(invoice.Id, cancellationToken);
+        return await GetPaymentVerificationRequestAsync(proofRequest.Id, cancellationToken);
+    }
+
+    public async Task<PaymentVerificationRequestDto?> VerifyPaymentProofAsync(Guid requestId, CancellationToken cancellationToken)
+    {
+        var proofRequest = await IncludePaymentVerification(db.PaymentVerificationRequests)
+            .FirstOrDefaultAsync(request => request.Id == requestId, cancellationToken);
+
+        if (proofRequest is null)
+        {
+            return null;
+        }
+
+        if (proofRequest.Status == PaymentVerificationStatuses.Verified)
+        {
+            return ToDto(proofRequest);
+        }
+
+        if (proofRequest.Status == PaymentVerificationStatuses.Rejected)
+        {
+            throw new InvalidOperationException("Rejected payment proof cannot be verified.");
+        }
+
+        var invoice = proofRequest.Invoice
+            ?? throw new InvalidOperationException("Invoice was not loaded for payment proof.");
+
+        await ApplyPaymentAsync(
+            invoice,
+            proofRequest.PaymentDate,
+            proofRequest.Amount,
+            BuildPaymentProofNotes(proofRequest),
+            cancellationToken);
+
+        proofRequest.Status = PaymentVerificationStatuses.Verified;
+        proofRequest.VerifiedBy = "Backend";
+        proofRequest.VerifiedAtUtc = DateTime.UtcNow;
+        proofRequest.RejectionReason = null;
+        proofRequest.RejectedAtUtc = null;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetPaymentVerificationRequestAsync(proofRequest.Id, cancellationToken);
+    }
+
+    public async Task<PaymentVerificationRequestDto?> RejectPaymentProofAsync(
+        Guid requestId,
+        RejectPaymentVerificationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var proofRequest = await IncludePaymentVerification(db.PaymentVerificationRequests)
+            .FirstOrDefaultAsync(existing => existing.Id == requestId, cancellationToken);
+
+        if (proofRequest is null)
+        {
+            return null;
+        }
+
+        if (proofRequest.Status == PaymentVerificationStatuses.Verified)
+        {
+            throw new InvalidOperationException("Verified payment proof cannot be rejected.");
+        }
+
+        proofRequest.Status = PaymentVerificationStatuses.Rejected;
+        proofRequest.RejectionReason = NormalizeOptional(request.Reason)
+            ?? throw new InvalidOperationException("Rejection reason is required.");
+        proofRequest.RejectedAtUtc = DateTime.UtcNow;
+        proofRequest.VerifiedBy = null;
+        proofRequest.VerifiedAtUtc = null;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetPaymentVerificationRequestAsync(proofRequest.Id, cancellationToken);
     }
 
     public async Task<InvoiceDto?> CreateCollectionLetterAsync(Guid invoiceId, CreateCollectionLetterRequest request, CancellationToken cancellationToken)
@@ -270,6 +403,90 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
             .Include(invoice => invoice.PaymentSchedules)
             .Include(invoice => invoice.Payments)
             .Include(invoice => invoice.CollectionLetters);
+    }
+
+    private static IQueryable<PaymentVerificationRequest> IncludePaymentVerification(
+        IQueryable<PaymentVerificationRequest> query)
+    {
+        return query.Include(request => request.Invoice);
+    }
+
+    private async Task<PaymentVerificationRequestDto?> GetPaymentVerificationRequestAsync(
+        Guid requestId,
+        CancellationToken cancellationToken)
+    {
+        var proofRequest = await IncludePaymentVerification(db.PaymentVerificationRequests.AsNoTracking())
+            .FirstOrDefaultAsync(request => request.Id == requestId, cancellationToken);
+
+        return proofRequest is null ? null : ToDto(proofRequest);
+    }
+
+    private async Task ApplyPaymentAsync(
+        Invoice invoice,
+        DateOnly paymentDate,
+        decimal amount,
+        string? notes,
+        CancellationToken cancellationToken)
+    {
+        if (amount <= 0)
+        {
+            throw new InvalidOperationException("Payment amount must be greater than zero.");
+        }
+
+        var paymentAmount = RoundMoney(amount);
+        var paymentNotes = NormalizeOptional(notes);
+        var duplicatePaymentExists = await db.PaymentRecords.AnyAsync(payment =>
+            payment.InvoiceId == invoice.Id
+            && payment.PaymentDate == paymentDate
+            && payment.Amount == paymentAmount
+            && payment.Notes == paymentNotes,
+            cancellationToken);
+
+        if (duplicatePaymentExists)
+        {
+            return;
+        }
+
+        var remaining = RoundMoney(invoice.TotalAmount - invoice.PaidAmount);
+        if (paymentAmount > remaining)
+        {
+            throw new InvalidOperationException("Payment amount cannot exceed the remaining invoice balance.");
+        }
+
+        await db.PaymentRecords.AddAsync(new PaymentRecord
+        {
+            InvoiceId = invoice.Id,
+            PaymentDate = paymentDate,
+            Amount = paymentAmount,
+            Notes = paymentNotes
+        }, cancellationToken);
+
+        invoice.PaidAmount = RoundMoney(invoice.PaidAmount + paymentAmount);
+        invoice.PaymentPercent = invoice.TotalAmount == 0
+            ? 100
+            : decimal.Round(invoice.PaidAmount / invoice.TotalAmount * 100, 2);
+        invoice.Status = invoice.PaidAmount >= invoice.TotalAmount
+            ? InvoiceStatuses.Paid
+            : InvoiceStatuses.PartiallyPaid;
+        invoice.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (eventPublisher is not null)
+        {
+            await eventPublisher.PublishAsync(
+                new InvoicePaymentRecordedEvent(
+                    invoice.Id,
+                    invoice.InvoiceNumber,
+                    invoice.SalesOrderId,
+                    invoice.SalesOrderNumber,
+                    invoice.CustomerId,
+                    paymentAmount,
+                    invoice.PaidAmount,
+                    invoice.TotalAmount,
+                    invoice.PaymentPercent,
+                    paymentDate,
+                    invoice.PaidAmount >= invoice.TotalAmount),
+                cancellationToken);
+        }
     }
 
     private static List<Invoice> ApplySort(List<Invoice> invoices, string? sortBy)
@@ -419,6 +636,35 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
                 .ToArray());
     }
 
+    private static PaymentVerificationRequestDto ToDto(PaymentVerificationRequest proofRequest)
+    {
+        var invoice = proofRequest.Invoice
+            ?? throw new InvalidOperationException("Invoice was not loaded for payment verification request.");
+
+        return new PaymentVerificationRequestDto(
+            proofRequest.Id,
+            proofRequest.InvoiceId,
+            invoice.InvoiceNumber,
+            invoice.SalesOrderId,
+            invoice.SalesOrderNumber,
+            invoice.CustomerId,
+            invoice.CustomerName,
+            proofRequest.PaymentDate,
+            proofRequest.Amount,
+            proofRequest.BankName,
+            proofRequest.BankReference,
+            proofRequest.ProofFileName,
+            proofRequest.ProofFileUrl,
+            proofRequest.Notes,
+            proofRequest.Status,
+            proofRequest.SubmittedBy,
+            proofRequest.SubmittedAtUtc,
+            proofRequest.VerifiedBy,
+            proofRequest.VerifiedAtUtc,
+            proofRequest.RejectionReason,
+            proofRequest.RejectedAtUtc);
+    }
+
     private static PaymentScheduleDto[] BuildPaymentScheduleDtos(Invoice invoice)
     {
         var paidAmount = invoice.PaidAmount;
@@ -466,6 +712,20 @@ public sealed class FinanceService(FinanceContext db) : IFinanceService
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string? BuildPaymentProofNotes(PaymentVerificationRequest proofRequest)
+    {
+        var parts = new[]
+        {
+            NormalizeOptional(proofRequest.Notes),
+            NormalizeOptional(proofRequest.BankName) is { } bank ? $"Bank {bank}" : null,
+            NormalizeOptional(proofRequest.BankReference) is { } reference ? $"Ref {reference}" : null,
+            NormalizeOptional(proofRequest.ProofFileName) is { } proof ? $"Bukti {proof}" : null
+        };
+
+        var notes = string.Join(" · ", parts.Where(part => part is not null));
+        return string.IsNullOrWhiteSpace(notes) ? null : notes;
     }
 
     private static string GenerateNumber(string prefix)

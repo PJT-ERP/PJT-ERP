@@ -359,13 +359,13 @@ export function QuotationDetail({ orderId, onNavigate, initialEditMode }: Quotat
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, description: v}))} />
+                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={order.productName || order.description || "-"} isEdit={false} />
               </div>
               <InfoRow icon={<Hash size={11} />}    label="Jumlah"   value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({...prev, quantity: v}))} />
               <InfoRow icon={<Hash size={11} />}    label="Unit"     value={isEditMode ? editForm.unit : order.unit} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, unit: v}))} />
               <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({...prev, deadline: v}))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, notes: v}))} />
+                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.description : (order.description || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, description: v}))} />
               </div>
             </div>
           </InfoCard>
