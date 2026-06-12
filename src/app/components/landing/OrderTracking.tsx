@@ -13,19 +13,18 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; color: string; bg: strin
   waiting_finance: { label: "Waiting Finance", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
   waiting_payment: { label: "Waiting Payment", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
   engineering_review: { label: "Engineering Review", color: "#8B5CF6", bg: "#F5F3FF", border: "#DDD6FE" },
-  in_production: { label: "In Produksi", color: "#3B82F6", bg: "#EFF6FF", border: "#BFDBFE" },
   in_production: { label: "In Production", color: "#3B82F6", bg: "#FEF2F2", border: "#BFDBFE" },
   qc_checking: { label: "QC Checking", color: "#F97316", bg: "#FFF7ED", border: "#FED7AA" },
-  completed: { label: "Selesai", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
+  completed: { label: "Completed", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
 };
 
 const TIMELINE_STEPS: { key: StatusKey; label: string }[] = [
   { key: "waiting_finance", label: "Finance" },
   { key: "waiting_payment", label: "Payment" },
   { key: "engineering_review", label: "Engineering" },
-  { key: "in_production", label: "Produksi" },
+  { key: "in_production", label: "Production" },
   { key: "qc_checking", label: "QC Check" },
-  { key: "completed", label: "Selesai" },
+  { key: "completed", label: "Completed" },
 ];
 
 const STEP_ORDER: StatusKey[] = [
@@ -62,7 +61,7 @@ const MOCK_ORDERS: Record<string, {
     quantity: "50 pcs",
     status: "qc_checking",
     estimatedCompletion: "28 May 2026",
-    notes: "Produksi complete, undergoing dimensional inspection",
+    notes: "Production complete, undergoing dimensional inspection",
   },
   "SO-2024-003": {
     soNumber: "SO-2024-003",
@@ -113,7 +112,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
       {/* Desktop */}
       <div className="hidden sm:flex items-center">
         {TIMELINE_STEPS.map((step, idx) => {
-          const isSelesai = idx < currentIdx;
+          const isCompleted = idx < currentIdx;
           const isCurrent = idx === currentIdx;
           const cfg = STATUS_CONFIG[step.key];
           return (
@@ -122,12 +121,12 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{
-                    backgroundColor: isSelesai || isCurrent ? "#C8102E" : "#E2E8F0",
+                    backgroundColor: isCompleted || isCurrent ? "#C8102E" : "#E2E8F0",
                     border: isCurrent ? "3px solid #1F1F1F" : "none",
                     boxShadow: isCurrent ? "0 0 0 3px #C8102E" : "none",
                   }}
                 >
-                  {isSelesai ? (
+                  {isCompleted ? (
                     <CheckCircle2 className="w-4 h-4 text-white" />
                   ) : isCurrent ? (
                     <Clock className="w-4 h-4 text-white" />
@@ -137,7 +136,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
                 </div>
                 <span
                   style={{
-                    color: isSelesai || isCurrent ? "#111827" : "#94A3B8",
+                    color: isCompleted || isCurrent ? "#111827" : "#94A3B8",
                     fontFamily: "Inter, sans-serif",
                     fontSize: "11px",
                     fontWeight: isCurrent ? 700 : 500,
@@ -163,17 +162,17 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
       {/* Mobile: vertical */}
       <div className="sm:hidden space-y-2">
         {TIMELINE_STEPS.map((step, idx) => {
-          const isSelesai = idx < currentIdx;
+          const isCompleted = idx < currentIdx;
           const isCurrent = idx === currentIdx;
           return (
             <div key={step.key} className="flex items-center gap-3">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{
-                  backgroundColor: isSelesai || isCurrent ? "#C8102E" : "#E2E8F0",
+                  backgroundColor: isCompleted || isCurrent ? "#C8102E" : "#E2E8F0",
                 }}
               >
-                {isSelesai ? (
+                {isCompleted ? (
                   <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                 ) : isCurrent ? (
                   <Clock className="w-3.5 h-3.5 text-white" />
@@ -183,7 +182,7 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
               </div>
               <span
                 style={{
-                  color: isSelesai || isCurrent ? "#111827" : "#94A3B8",
+                  color: isCompleted || isCurrent ? "#111827" : "#94A3B8",
                   fontFamily: "Inter, sans-serif",
                   fontSize: "13px",
                   fontWeight: isCurrent ? 700 : 400,
@@ -393,7 +392,7 @@ export function OrderTracking() {
                     { icon: User, label: "Customer", value: result.customer },
                     { icon: Package, label: "Product", value: result.product },
                     { icon: Hash, label: "Quantity", value: result.quantity },
-                    { icon: Calendar, label: "Estimasi Selesai", value: result.estimatedCompletion },
+                    { icon: Calendar, label: "Est. Completion", value: result.estimatedCompletion },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -430,7 +429,7 @@ export function OrderTracking() {
               {/* Progress timeline */}
               <div>
                 <div style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 700 }} className="mb-3">
-                  Produksi Progress
+                  Production Progress
                 </div>
                 <ProgressTimeline currentStatus={result.status} />
               </div>

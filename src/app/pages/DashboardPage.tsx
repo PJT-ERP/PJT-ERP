@@ -1,28 +1,10 @@
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  } from "recharts";
-import { Package,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  TrendingUp,
-  Users } from "lucide-react";
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
+import { Package, Clock, CheckCircle, AlertTriangle, TrendingUp, Users } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { type SOStatus,
-  calcProductionDuration
-} from "../components/data/mockData";
+import { type SOStatus, calcProductionDuration, formatSOStatus } from "../components/data/mockData";
 
 const STATUS_ORDER: SOStatus[] = [
   'design_pending', 'design_review', 'client_design_approval',

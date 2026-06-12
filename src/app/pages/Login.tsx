@@ -36,7 +36,7 @@ export function Login() {
         case "engineer": navigate("/erp/engineer"); break;
         case "engineering_supervisor": navigate("/erp/engineer"); break;
         case "owner": navigate("/erp/dashboard"); break;
-        case "admin": navigate("/erp/admin"); break;
+        case "admin": navigate("/erp/finance"); break;
         default: navigate("/erp/so");
       }
     } else {

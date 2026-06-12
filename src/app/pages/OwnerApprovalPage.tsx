@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, XCircle, ExternalLink, Clock, RotateCcw, Search, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, SOStatus, getStatusColor, formatSOStatus } from "../components/data/mockData";
+import { type SalesOrder, type SOStatus, getStatusColor, formatSOStatus } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",

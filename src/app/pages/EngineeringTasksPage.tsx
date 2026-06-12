@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { Pencil, Send, Clock, CheckCircle, ExternalLink, List, AlertTriangle, Search, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { Pencil, Send, Clock, CheckCircle, ExternalLink, List, AlertTriangle, Search, ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
+import { type Quotation, type QuotationStatus, getQuotationStatusColor, USERS } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",

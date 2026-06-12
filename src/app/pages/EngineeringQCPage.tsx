@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight, Search, Filter } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, getStatusColor, formatSOStatus } from "../components/data/mockData";
+import { type SalesOrder, getStatusColor, formatSOStatus } from "../components/data/mockData";
 import { QCReadOnlyView } from "./QCReadOnlyView";
 
 const S = {

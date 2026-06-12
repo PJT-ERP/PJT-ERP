@@ -1,24 +1,7 @@
 import React, { useState } from "react";
-<<<<<<< Updated upstream
-import {
-  PlayCircle,
-  CheckSquare,
-  CalendarClock,
-  Clock,
-  AlertTriangle,
-  Play,
-  Users,
-  Package,
-  FileWarning } from "lucide-react";
-import { useApp } from "../components/context/AppContext";
-import { type SalesOrder,
-  getStatusColor
-} from "../components/data/mockData";
-=======
 import { PlayCircle, CheckSquare, CalendarClock, Clock, AlertTriangle, Play, Users, Package, FileWarning, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, getStatusColor, formatSOStatus, PurchasingUrgency } from "../components/data/mockData";
->>>>>>> Stashed changes
+import { type SalesOrder, getStatusColor, formatSOStatus, type PurchasingUrgency } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
