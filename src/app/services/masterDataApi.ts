@@ -33,7 +33,7 @@ export interface SupplierContactDto {
 
 export const masterDataApi = {
     listSuppliers: async (): Promise<SupplierDto[]> => {
-        const response = await apiClient.get<SupplierDto[]>("/master-data/suppliers");
+        const response = await apiClient.get<SupplierDto[]>("/api/v1/master-data/suppliers");
         return response.data;
     }
 };
