@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using PJT_ERP.Identity.Api.Domain.Entities;
 
 namespace PJT_ERP.Identity.Api.Infrastructure.Persistence;
@@ -6,18 +7,25 @@ public static class IdentitySeeder
 {
     public static async Task SeedAsync(IdentityContext db)
     {
-        if (db.UserAccounts.Any())
-        {
-            return;
-        }
+        var existingEmails = await db.UserAccounts
+            .Select(account => account.Email)
+            .ToListAsync();
 
-        db.UserAccounts.AddRange(
+        var seedUsers = new[]
+        {
             new UserAccount
             {
                 Email = "owner@pjt.local",
                 Name = "Owner",
                 Department = "Executive",
                 Role = "Owner,Admin"
+            },
+            new UserAccount
+            {
+                Email = "admin@pjt.local",
+                Name = "Admin",
+                Department = "Executive",
+                Role = "Admin"
             },
             new UserAccount
             {
@@ -60,7 +68,10 @@ public static class IdentitySeeder
                 Name = "Finance",
                 Department = "Finance",
                 Role = "Finance"
-            });
+            }
+        };
+
+        db.UserAccounts.AddRange(seedUsers.Where(user => !existingEmails.Contains(user.Email)));
 
         await db.SaveChangesAsync();
     }
