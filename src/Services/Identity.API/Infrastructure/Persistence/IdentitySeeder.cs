@@ -79,8 +79,27 @@ public static class IdentitySeeder
             }
         };
 
-        db.UserAccounts.AddRange(seedUsers.Where(user => !existingEmails.Contains(user.Email)));
+        var newUsers = seedUsers.Where(user => !existingEmails.Contains(user.Email)).ToList();
+        if (newUsers.Any())
+        {
+            db.UserAccounts.AddRange(newUsers);
+        }
 
-        await db.SaveChangesAsync();
+        var existingUsers = await db.UserAccounts.ToListAsync();
+        bool anyUpdated = false;
+        foreach (var existingUser in existingUsers)
+        {
+            var seedUser = seedUsers.FirstOrDefault(u => u.Email == existingUser.Email);
+            if (seedUser != null && existingUser.Role != seedUser.Role)
+            {
+                existingUser.Role = seedUser.Role;
+                anyUpdated = true;
+            }
+        }
+
+        if (newUsers.Any() || anyUpdated)
+        {
+            await db.SaveChangesAsync();
+        }
     }
 }
