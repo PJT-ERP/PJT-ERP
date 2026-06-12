@@ -1,6 +1,7 @@
 import {
   useMemo,
 } from "react";
+import { useNavigate } from "react-router";
 import {
   ShoppingCart,
   ClipboardList,
@@ -172,6 +173,7 @@ interface DashboardPageProps {
 
 export function DashboardPage({ onCreatePO }: DashboardPageProps) {
   const { materialRequirements, purchaseRequests, isUsingBackend, isLoading, refresh } = usePurchasingData();
+  const navigate = useNavigate();
 
   const dashboardPendingApprovals = useMemo(() => {
     const backendRows = purchaseRequests
@@ -473,6 +475,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
                     <p style={{ fontSize: 11, color: "#64748b" }}>{mr.dept} · {mr.items} item · {mr.age}</p>
                   </div>
                   <button
+                    onClick={() => navigate("/erp/purchasing/requests")}
                     className="rounded px-2 py-1 text-white shrink-0 transition-opacity hover:opacity-90"
                     style={{ fontSize: 11, background: "#1e3a5f" }}
                   >
@@ -520,6 +523,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
           <strong>{lowStockCount} material</strong> berada di bawah stok minimum — segera buat Purchase Order untuk menghindari hambatan produksi.
         </p>
         <button
+          onClick={() => navigate("/erp/purchasing/requests")}
           className="ml-auto rounded px-3 py-1 text-white shrink-0 transition-opacity hover:opacity-90"
           style={{ fontSize: 11, background: "#c2410c" }}
         >

@@ -580,7 +580,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* ── PO Detail Dialog ──────────────────────────────────── */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent
-          className="max-w-3xl max-h-[90vh] overflow-y-auto"
+          className="max-w-3xl max-h-[90vh] overflow-y-auto [&>button]:hidden bg-white"
           style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
         >
           {detail && (() => {
@@ -622,15 +622,15 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   </div>
                 </div>
 
-                <Tabs defaultValue="overview">
-                  <div style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                    <TabsList className="rounded-none h-10 bg-transparent px-4 gap-0 border-0">
+                <Tabs defaultValue="overview" className="w-full">
+                  <div className="border-b border-slate-200 px-6">
+                    <TabsList className="h-11 w-full justify-start rounded-none bg-transparent p-0">
                       {["overview", "items", "delivery"].map((t) => (
                         <TabsTrigger
                           key={t}
                           value={t}
-                          className="rounded-none h-10 px-4 capitalize data-[state=active]:border-b-2 data-[state=active]:border-red-600 data-[state=active]:bg-transparent"
-                          style={{ fontSize: 12 }}
+                          className="relative h-11 rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-medium text-slate-500 hover:text-slate-900 data-[state=active]:border-blue-600 data-[state=active]:text-slate-900 data-[state=active]:shadow-none data-[state=active]:bg-transparent"
+                          style={{ fontSize: 13 }}
                         >
                           {t === "overview" ? "Informasi PO" : t === "items" ? "Detail Item" : "Pengiriman"}
                         </TabsTrigger>
@@ -639,7 +639,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   </div>
 
                   {/* Overview tab */}
-                  <TabsContent value="overview" className="mt-0 p-6 space-y-5">
+                  <TabsContent value="overview" className="p-6 space-y-5 mt-0">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
                       {[
                         { label: "Supplier", val: detail.supplier },
@@ -683,8 +683,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   </TabsContent>
 
                   {/* Items tab */}
-                  <TabsContent value="items" className="mt-0">
-                    <div className="overflow-x-auto">
+                  <TabsContent value="items" className="p-6 mt-0">
+                    <div className="overflow-x-auto rounded border border-slate-200">
                       <table className="w-full border-collapse">
                         <thead>
                           <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
@@ -736,7 +736,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                   </TabsContent>
 
                   {/* Delivery tab */}
-                  <TabsContent value="delivery" className="mt-0 p-6 space-y-4">
+                  <TabsContent value="delivery" className="p-6 space-y-4 mt-0">
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>Progress Pengiriman</p>
@@ -779,7 +779,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* ── Create PO Dialog ──────────────────────────────────── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent
-          className="w-[calc(100vw-24px)] sm:w-[min(1040px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto"
+          className="w-[calc(100vw-24px)] sm:w-[min(1040px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto [&>button]:hidden"
           style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
         >
           {/* Header */}

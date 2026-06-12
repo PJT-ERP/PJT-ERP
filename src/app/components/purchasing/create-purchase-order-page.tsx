@@ -1,5 +1,5 @@
 import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
-import { ArrowLeft, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 import type { Page } from "./layout";
 import { purchasingApi } from "../../services/purchasingApi";
 import { usePurchasingData } from "./usePurchasingData";
@@ -147,7 +147,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         purchaseNotes: [terms, shippingAddress, notes].filter(Boolean).join(" | ") || null,
       })));
       await refresh();
-      onNavigate("purchase-orders");
+      onNavigate("orders");
     } catch (error) {
       console.warn("Failed to create backend PO.", error);
       window.alert("Gagal membuat PO di backend. Cek response API untuk detail.");
@@ -160,13 +160,6 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     <div className="p-5 space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <button
-            onClick={() => onNavigate("purchase-orders")}
-            className="mt-0.5 flex h-8 w-8 items-center justify-center rounded border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
-            title="Kembali"
-          >
-            <ArrowLeft size={16} />
-          </button>
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Buat Purchase Order</h1>
             <p className="mt-1 text-sm text-slate-500">Buat PO dari MR yang sudah disetujui, dengan referensi SO opsional.</p>
@@ -175,7 +168,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => onNavigate("purchase-orders")}
+            onClick={() => onNavigate("orders")}
             className="rounded border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
           >
             Batal

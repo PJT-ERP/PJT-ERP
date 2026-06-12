@@ -9,7 +9,7 @@ import { useFinanceData } from "../finance/useFinanceData";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router";
 import { UserRole } from "../data/mockData";
 
-interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; isHeader?: boolean; }
+interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; activePrefix?: string; isHeader?: boolean; }
 
 const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   Sales: [
@@ -37,22 +37,22 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Dashboard Eksekutif", icon: <LayoutDashboard size={15} />, path: "/erp/dashboard" },
     { label: "Analitik Pelanggan", icon: <BarChart2 size={15} />, path: "/erp/customer-analytics" },
     { label: "PANTAU", isHeader: true },
-    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard" },
+    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard", activePrefix: "/erp/so" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
-    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
-    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
-    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard" },
-    { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard" },
-    { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
+    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production", activePrefix: "/erp/production" },
+    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc", activePrefix: "/erp/qc" },
+    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
+    { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
+    { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
   ],
   Admin: [
-    { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard" },
-    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard" },
+    { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
+    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard", activePrefix: "/erp/so" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
-    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
-    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
-    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard" },
-    { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
+    { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production", activePrefix: "/erp/production" },
+    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc", activePrefix: "/erp/qc" },
+    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
+    { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },
@@ -133,8 +133,9 @@ export function ERPLayout() {
             );
           }
           const active = item.path ? (
-            location.pathname === item.path ||
-            (location.pathname.startsWith(item.path + "/") && !navItems.some(other => other.path && other.path !== item.path && other.path.length > item.path!.length && location.pathname.startsWith(other.path)))
+            item.activePrefix ? location.pathname.startsWith(item.activePrefix) :
+            (location.pathname === item.path ||
+            (location.pathname.startsWith(item.path + "/") && !navItems.some(other => other.path && other.path !== item.path && other.path.length > item.path!.length && location.pathname.startsWith(other.path))))
           ) : false;
           return (
             <NavItem
