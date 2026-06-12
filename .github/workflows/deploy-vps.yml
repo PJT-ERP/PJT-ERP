@@ -1,0 +1,103 @@
+name: Deploy VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-vps
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  VPS_HOST: ${{ secrets.VPS_HOST }}
+  VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+  VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+  VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/pjt-erp' }}
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build backend
+        run: |
+          dotnet restore PtPjtErp.slnx
+          dotnet build PtPjtErp.slnx --configuration Release --no-restore
+
+      - name: Configure SSH
+        run: |
+          test -n "$VPS_HOST"
+          test -n "${{ secrets.VPS_SSH_KEY }}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Package source
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            --exclude='data' \
+            --exclude='letsencrypt' \
+            --exclude='**/bin' \
+            --exclude='**/obj' \
+            -czf /tmp/pjt-erp.tar.gz .
+
+      - name: Upload package
+        run: |
+          scp -P "$VPS_PORT" -i ~/.ssh/deploy_key /tmp/pjt-erp.tar.gz "$VPS_USER@$VPS_HOST:/tmp/pjt-erp.tar.gz"
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -p "$VPS_PORT" -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+          set -euo pipefail
+
+          mkdir -p "$APP_DIR"
+
+          if [ ! -f "$APP_DIR/.env" ]; then
+            echo "Missing $APP_DIR/.env. Create it from .env.example before first deploy."
+            exit 1
+          fi
+
+          rm -rf "$APP_DIR.release"
+          mkdir -p "$APP_DIR.release"
+          tar -xzf /tmp/pjt-erp.tar.gz -C "$APP_DIR.release"
+          cp "$APP_DIR/.env" "$APP_DIR.release/.env"
+
+          rm -rf "$APP_DIR.previous"
+          if [ -d "$APP_DIR/current" ]; then
+            mv "$APP_DIR/current" "$APP_DIR.previous"
+          fi
+          mv "$APP_DIR.release" "$APP_DIR/current"
+
+          cd "$APP_DIR/current"
+          docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
+          docker compose -f docker-compose.prod.yml ps
+          docker image prune -f
+          EOF
