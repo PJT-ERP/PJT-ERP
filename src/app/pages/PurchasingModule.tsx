@@ -4,6 +4,7 @@ import { MaterialRequestsPage } from "../components/purchasing/material-requests
 import { PurchaseOrdersPage } from "../components/purchasing/purchase-orders-page";
 import { CreatePurchaseOrderPage } from "../components/purchasing/create-purchase-order-page";
 import { InventoryPage } from "../components/purchasing/inventory-page";
+import { SuppliersPage } from "../components/purchasing/suppliers-page";
 
 export default function PurchasingModule() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function PurchasingModule() {
       <Route path="requests" element={<MaterialRequestsPage />} />
       <Route path="orders" element={<PurchaseOrdersPage onCreatePO={handleCreatePO} />} />
       <Route path="create" element={<CreatePurchaseOrderPage onNavigate={handleNavigate} />} />
+      <Route path="suppliers" element={<SuppliersPage />} />
     </Routes>
   );
 }
