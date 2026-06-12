@@ -471,7 +471,11 @@ export function SuppliersPage() {
           <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
             <Download size={13} /> Export
           </button>
-          <button className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" style={{ fontSize: 12, background: "#1e3a5f" }}>
+          <button 
+            onClick={() => alert("Fitur Tambah Supplier sedang dalam pengembangan.")}
+            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
+            style={{ fontSize: 12, background: "#1e3a5f" }}
+          >
             <Plus size={13} /> Tambah Supplier
           </button>
         </div>
