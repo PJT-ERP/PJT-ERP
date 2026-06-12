@@ -38,10 +38,26 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 const AUTH_USER_KEY = "erp_current_username";
 const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_PROFILE_KEY = "auth_user";
 const HAS_DEV_TOKEN = Boolean(import.meta.env.VITE_DEV_MASTER_TOKEN?.trim());
+
+type StoredAuthUser = {
+  userId?: string;
+  email?: string;
+  name?: string;
+  roles?: string[];
+  department?: string;
+};
 
 function restoreStoredUser(): User | null {
   try {
+    const storedAuthUser = localStorage.getItem(AUTH_PROFILE_KEY);
+    const hasToken = Boolean(localStorage.getItem(AUTH_TOKEN_KEY) || HAS_DEV_TOKEN);
+
+    if (storedAuthUser && hasToken) {
+      return mapAuthProfileToUser(JSON.parse(storedAuthUser));
+    }
+
     const username = localStorage.getItem(AUTH_USER_KEY);
     if (!username) {
       return null;
@@ -64,7 +80,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [productCatalog, setProductCatalog] = useState<ProductDto[]>([]);
-  const [users, setUsers] = useState<User[]>(USERS);
+  const [users, setUsers] = useState<User[]>(() => {
+    const restored = restoreStoredUser();
+    return restored && !USERS.some(user => user.username === restored.username)
+      ? [...USERS, restored]
+      : USERS;
+  });
   const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>([]);
   const [backendCustomerIdsByCode, setBackendCustomerIdsByCode] = useState<Record<string, string>>({});
   const pendingCustomersByCode = useRef<Record<string, Customer>>({});
@@ -72,28 +93,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [soCounter, setSoCounter] = useState(75);
   const [prCounter, setPrCounter] = useState(5);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
-    const user = users.find(u => u.username === username && u.password === password && u.isActive);
-    if (user) {
-      try {
-        const auth = await authApi.login(getBackendEmailForUser(user));
-        localStorage.setItem(AUTH_TOKEN_KEY, auth.accessToken);
-      } catch (error) {
-        console.warn("Backend login failed.", error);
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        return false;
-      }
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const auth = await authApi.login(email, password);
+      const user = mapAuthProfileToUser(auth);
 
       localStorage.setItem(AUTH_USER_KEY, user.username);
+      setUsers(prev => prev.some(item => item.username === user.username)
+        ? prev.map(item => item.username === user.username ? user : item)
+        : [...prev, user]);
       setCurrentUser(user);
       return true;
+    } catch (error) {
+      console.warn("Backend login failed.", error);
+      localStorage.removeItem(AUTH_USER_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(AUTH_PROFILE_KEY);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
+    void authApi.logout();
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_PROFILE_KEY);
     setCurrentUser(null);
   };
 
@@ -281,6 +305,45 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used inside AppProvider');
   return ctx;
+}
+
+function mapAuthProfileToUser(profile: StoredAuthUser): User {
+  const email = profile.email || "";
+  const role = mapBackendRoleToUserRole(profile.roles?.[0] || profile.department);
+
+  return {
+    id: profile.userId || email || crypto.randomUUID(),
+    name: profile.name || email || "ERP User",
+    username: email,
+    password: "",
+    role,
+    email,
+    isActive: true,
+  };
+}
+
+function mapBackendRoleToUserRole(role?: string | null): UserRole {
+  const normalized = (role || "").replace(/[\s_-]/g, "").toLowerCase();
+
+  switch (normalized) {
+    case "owner":
+      return "Owner";
+    case "admin":
+      return "Admin";
+    case "finance":
+      return "Finance";
+    case "purchasing":
+      return "Purchasing";
+    case "engineering":
+    case "engineer":
+      return "Engineering";
+    case "engineeringsupervisor":
+    case "supervisorengineering":
+      return "Engineering Supervisor";
+    case "sales":
+    default:
+      return "Sales";
+  }
 }
 
 function mapCustomerDto(customer: CustomerDto): Customer {
@@ -680,16 +743,3 @@ function addDaysIso(date: Date, days: number) {
   return next.toISOString().split("T")[0];
 }
 
-function getBackendEmailForUser(user: User): string {
-  const emailByUsername: Record<string, string> = {
-    owner: "owner@pjt.local",
-    sales01: "sales@pjt.local",
-    eng01: "engineering-worker@pjt.local",
-    eng_spv: "engineering-supervisor@pjt.local",
-    purchasing01: "purchasing@pjt.local",
-    finance01: "finance@pjt.local",
-    admin01: "owner@pjt.local",
-  };
-
-  return emailByUsername[user.username] || user.email;
-}

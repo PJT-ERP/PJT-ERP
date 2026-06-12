@@ -1,58 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Factory, Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
+import { authApi } from "../services/authApi";
 
 export function Login() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { login } = useApp();
-  const [role, setRole] = useState("so");
-  const [username, setUsername] = useState("sales01");
-  const [password, setPassword] = useState("sales123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [helperMessage, setHelperMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fromLocation = (state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
-
-  // Auto-fill for demo purposes
-  useEffect(() => {
-    switch (role) {
-      case "finance": setUsername("finance01"); setPassword("fin123"); break;
-      case "purchasing": setUsername("purchasing01"); setPassword("purchase123"); break;
-      case "so": setUsername("sales01"); setPassword("sales123"); break;
-      case "engineer": setUsername("eng01"); setPassword("eng123"); break;
-      case "engineering_supervisor": setUsername("eng_spv"); setPassword("spv123"); break;
-      case "owner": setUsername("owner"); setPassword("owner123"); break;
-      case "admin": setUsername("admin01"); setPassword("admin123"); break;
-    }
-  }, [role]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setHelperMessage("");
     setIsSubmitting(true);
 
-    const success = await login(username, password);
-    setIsSubmitting(false);
-    
-    if (success) {
-      if (fromLocation?.pathname && fromLocation.pathname !== "/login") {
-        navigate(`${fromLocation.pathname}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`, { replace: true });
-        return;
-      }
+    try {
+      const success = await login(email.trim(), password);
 
-      switch (role) {
-        case "finance": navigate("/erp/finance"); break;
-        case "purchasing": navigate("/erp/purchasing"); break;
-        case "so": navigate("/erp/so"); break;
-        case "engineer": navigate("/erp/engineer"); break;
-        case "engineering_supervisor": navigate("/erp/engineer"); break;
-        case "owner": navigate("/erp/dashboard"); break;
-        case "admin": navigate("/erp/admin"); break;
-        default: navigate("/erp/so");
+      if (success) {
+        if (fromLocation?.pathname && fromLocation.pathname !== "/login") {
+          navigate(`${fromLocation.pathname}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`, { replace: true });
+          return;
+        }
+
+        const currentUser = authApi.getCurrentUser();
+        navigate(getDefaultRouteForBackendRole(currentUser?.roles?.[0]), { replace: true });
+      } else {
+        setHelperMessage("Login gagal. Periksa email dan password, lalu coba lagi.");
       }
-    } else {
-      setHelperMessage("Invalid username/password or backend login failed.");
+    } catch {
+      setHelperMessage("Login gagal karena server tidak dapat dihubungi. Coba beberapa saat lagi.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -72,32 +56,15 @@ export function Login() {
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-[#111827] mb-1.5">Login As (Demo Auto-fill)</label>
-            <select 
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all"
-            >
-              <option value="so">Sales Order (SO)</option>
-              <option value="finance">Finance</option>
-              <option value="purchasing">Purchasing</option>
-              <option value="engineer">Engineer</option>
-              <option value="engineering_supervisor">Engineering Supervisor</option>
-              <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-[#111827] mb-1.5">Username</label>
+            <label className="block text-sm font-medium text-[#111827] mb-1.5">Email</label>
             <div className="relative">
               <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input 
-                type="text" 
+                type="email" 
                 required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all"
               />
             </div>
@@ -137,4 +104,26 @@ export function Login() {
       </div>
     </div>
   );
+}
+
+function getDefaultRouteForBackendRole(role?: string): string {
+  const normalized = (role || "").replace(/[\s_-]/g, "").toLowerCase();
+
+  switch (normalized) {
+    case "finance":
+      return "/erp/finance";
+    case "purchasing":
+      return "/erp/purchasing";
+    case "engineering":
+    case "engineer":
+    case "engineeringsupervisor":
+      return "/erp/engineer";
+    case "owner":
+      return "/erp/dashboard";
+    case "admin":
+      return "/erp/admin";
+    case "sales":
+    default:
+      return "/erp/so";
+  }
 }

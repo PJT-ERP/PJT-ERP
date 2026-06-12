@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Cog } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { label: "Beranda", href: "#home" },
@@ -62,19 +62,6 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-3">
-            <a
-              href="#/login"
-              style={{
-                backgroundColor: "#C8102E",
-                color: "#FFFFFF",
-                fontFamily: "Inter, sans-serif",
-                fontSize: "14px",
-                fontWeight: 600,
-              }}
-              className="hidden md:inline-flex items-center px-4 py-2 rounded-lg transition-opacity hover:opacity-90"
-            >
-              Masuk Portal
-            </a>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               style={{ color: "#1F1F1F" }}
@@ -103,19 +90,6 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
-          <a
-            href="#/login"
-            style={{
-              backgroundColor: "#C8102E",
-              color: "#FFFFFF",
-              fontFamily: "Inter, sans-serif",
-              fontSize: "14px",
-              fontWeight: 600,
-            }}
-            className="mt-2 px-4 py-3 rounded-lg text-center"
-          >
-            Masuk Portal
-          </a>
         </div>
       )}
     </nav>
