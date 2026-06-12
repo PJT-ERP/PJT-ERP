@@ -61,7 +61,9 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          if ! ssh-keyscan -T 30 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts; then
+          echo "Checking SSH TCP connectivity..."
+          timeout 30 bash -c "cat < /dev/null > /dev/tcp/$VPS_HOST/$VPS_PORT"
+          if ! ssh-keyscan -4 -T 30 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts; then
             echo "::warning::ssh-keyscan failed for $VPS_HOST:$VPS_PORT. Continuing with StrictHostKeyChecking=accept-new."
           fi
 
@@ -79,11 +81,11 @@ jobs:
 
       - name: Upload package
         run: |
-          scp -P "$VPS_PORT" -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new /tmp/pjt-erp.tar.gz "$VPS_USER@$VPS_HOST:/tmp/pjt-erp.tar.gz"
+          scp -4 -P "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new /tmp/pjt-erp.tar.gz "$VPS_USER@$VPS_HOST:/tmp/pjt-erp.tar.gz"
 
       - name: Deploy with Docker Compose
         run: |
-          ssh -p "$VPS_PORT" -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
           set -euo pipefail
 
           mkdir -p "$APP_DIR"
