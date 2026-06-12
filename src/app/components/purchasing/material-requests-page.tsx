@@ -91,7 +91,7 @@ function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
-      : "Pending",
+      : request.status === "Processing" ? "Pending" : undefined,
     items: request.items.map(item => ({
       code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
       name: item.itemName,
@@ -601,15 +601,15 @@ export function MaterialRequestsPage() {
                     <div className="flex items-start gap-2 rounded p-3" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
                       <AlertTriangle size={15} style={{ color: "#d97706", marginTop: 1, flexShrink: 0 }} />
                       <div>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>Menunggu Approval Finance</p>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>Siap Diproses Purchasing</p>
                         <p style={{ fontSize: 12, color: "#b45309", marginTop: 2 }}>
-                          MR sudah disetujui Supervisor. Purchasing bisa proses PO setelah Finance approve.
+                          MR sudah disetujui Supervisor. Purchasing dapat melengkapi supplier, harga, dan PO.
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {(detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") && (
+                  {(detail.backendStatus === "SupervisorApproved" || detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") && (
                     <div className="flex gap-2 pt-1" style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
                       <button
                         className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-white transition-opacity hover:opacity-90"

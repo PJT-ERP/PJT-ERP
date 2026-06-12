@@ -18,7 +18,14 @@ interface PendingPO {
 }
 
 function mapPurchaseRequestToApproval(request: PurchaseRequestDto): PendingPO | null {
-  if (!['SupervisorApproved', 'FinanceApproved', 'FinanceRejected'].includes(request.status)) {
+  const totalAmount = request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0);
+  const activeItems = request.items.filter(item => item.purchaseStatus !== 'Rejected');
+  const readyForFinanceReview = request.status === 'Processing'
+    && activeItems.length > 0
+    && activeItems.every(item => !!item.supplierName && (item.totalPrice || item.estimatedPrice || 0) > 0);
+  const alreadyReviewed = ['FinanceApproved', 'FinanceRejected'].includes(request.status);
+
+  if (!readyForFinanceReview && !alreadyReviewed) {
     return null;
   }
 
@@ -28,13 +35,13 @@ function mapPurchaseRequestToApproval(request: PurchaseRequestDto): PendingPO | 
     department: request.projectName?.split(' - ')[0] || 'Engineering',
     requestor: request.requesterName,
     items: request.items.map(item => item.itemName).join(', '),
-    totalAmount: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0),
+    totalAmount,
     date: request.updatedAtUtc || request.requestDate,
-    status: request.status === 'FinanceApproved'
-      ? 'APPROVED'
-      : request.status === 'FinanceRejected'
+    status: request.status === 'FinanceRejected'
         ? 'REJECTED'
-        : 'PENDING',
+        : request.status === 'FinanceApproved' || request.financeReviewedAtUtc
+          ? 'APPROVED'
+          : 'PENDING',
   };
 }
 
@@ -110,7 +117,7 @@ export function FinancePurchasingApproval() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (MR)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk MR yang sudah disetujui Engineering Supervisor sebelum Purchasing PO.</p>
+          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk MR yang sudah diproses Purchasing dan memiliki nilai PO.</p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
@@ -182,7 +189,7 @@ export function FinancePurchasingApproval() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada MR menunggu Finance approval saat ini.</td>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada MR berharga yang menunggu Finance approval saat ini.</td>
                 </tr>
               )}
             </tbody>
@@ -199,7 +206,7 @@ export function FinancePurchasingApproval() {
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <PackageOpen size={18} className="text-red-600" />
-                  Review Finance MR
+                  Review Finance Purchasing
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">{selectedPo.poNumber}</p>
               </div>
@@ -231,7 +238,7 @@ export function FinancePurchasingApproval() {
                 </div>
                 {selectedPo.totalAmount <= 0 && (
                   <p className="text-xs text-slate-500">
-                    Harga belum diinput pada MR. Purchasing akan mengisi total harga saat proses PO.
+                    Harga belum diinput oleh Purchasing sehingga belum bisa di-approve Finance.
                   </p>
                 )}
               </div>

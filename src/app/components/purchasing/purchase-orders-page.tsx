@@ -312,7 +312,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     }
 
     setCreateOpen(false);
-    window.alert("PO harus dibuat dari MR backend yang sudah approved Finance melalui halaman Buat PO.");
+    window.alert("PO harus dibuat dari MR backend yang sudah disetujui Supervisor melalui halaman Buat PO.");
   };
 
   return (
@@ -694,7 +694,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                           </tr>
                         </thead>
                         <tbody>
-                          {detail.items.map((item, i) => (
+                          {detail.items.map((item, i) => {
+                            const canReceive = detail.financeApproval === "Approved";
+                            return (
                             <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                               <td style={{ padding: "11px 16px", fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{item.code}</td>
                               <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 500, color: "#1F1F1F" }}>{item.name}</td>
@@ -709,7 +711,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                 {item.purchaseStatus !== "Received" ? (
                                   <button
                                     onClick={() => void receiveItem(item)}
-                                    className="rounded border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                                    disabled={!canReceive}
+                                    title={canReceive ? "Terima material" : "Menunggu approval Finance"}
+                                    className="rounded border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
                                   >
                                     Terima
                                   </button>
@@ -718,7 +722,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                 )}
                               </td>
                             </tr>
-                          ))}
+                          );
+                          })}
                         </tbody>
                         <tfoot>
                           <tr style={{ background: "#0f1e35" }}>

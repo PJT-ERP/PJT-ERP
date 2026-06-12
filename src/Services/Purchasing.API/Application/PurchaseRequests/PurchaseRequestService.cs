@@ -196,6 +196,11 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             }
         }
 
+        if (purchaseStatus == PurchaseItemStatuses.Received)
+        {
+            EnsurePurchaseRequestFinanceApprovedForReceiving(purchaseRequest);
+        }
+
         purchaseItem.SupplierName = requestedSupplier ?? purchaseItem.SupplierName;
         purchaseItem.PoNumber = request.PoNumber is null ? purchaseItem.PoNumber : NormalizeOptional(request.PoNumber);
         purchaseItem.EstimatedPrice = request.EstimatedPrice ?? purchaseItem.EstimatedPrice;
@@ -356,6 +361,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         }
 
         EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "receive material");
+        EnsurePurchaseRequestFinanceApprovedForReceiving(purchaseRequest);
 
         var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
         if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Rejected)
@@ -670,10 +676,28 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         string decision,
         DateTime now)
     {
-        if (purchaseRequest.Status != PurchaseRequestStatuses.SupervisorApproved)
+        if (purchaseRequest.Status is not PurchaseRequestStatuses.SupervisorApproved
+            and not PurchaseRequestStatuses.Processing)
         {
-            throw new InvalidOperationException("Purchase request must be approved by Engineering Supervisor before Finance review.");
+            throw new InvalidOperationException("Purchase request must be approved by Engineering Supervisor and priced by Purchasing before Finance review.");
         }
+
+        var activeItems = purchaseRequest.Items
+            .Where(item => item.PurchaseStatus != PurchaseItemStatuses.Rejected)
+            .ToArray();
+        var hasUnpricedItems = activeItems.Length == 0 || activeItems.Any(item =>
+            string.IsNullOrWhiteSpace(item.SupplierName)
+            || (!item.TotalPrice.HasValue || item.TotalPrice.Value <= 0)
+                && (!item.EstimatedPrice.HasValue || item.EstimatedPrice.Value <= 0));
+
+        if (hasUnpricedItems)
+        {
+            throw new InvalidOperationException("Purchasing must input supplier and pricing for every active item before Finance review.");
+        }
+
+        var alreadyProcessedByPurchasing = purchaseRequest.Status == PurchaseRequestStatuses.Processing
+            || purchaseRequest.Items.Any(item => item.PurchaseStatus is PurchaseItemStatuses.Ordered
+                or PurchaseItemStatuses.Received);
 
         purchaseRequest.FinanceReviewedByUserId = request.ReviewedByUserId;
         purchaseRequest.FinanceReviewedAtUtc = now;
@@ -687,18 +711,19 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
         foreach (var item in purchaseRequest.Items)
         {
-            item.PurchaseStatus = decision == PurchaseRequestStatuses.Approved
-                ? PurchaseItemStatuses.Approved
-                : PurchaseItemStatuses.Rejected;
+            if (decision == PurchaseRequestStatuses.Approved && !alreadyProcessedByPurchasing)
+            {
+                item.PurchaseStatus = PurchaseItemStatuses.Approved;
+                UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseApproved, now);
+            }
+            else if (decision == PurchaseRequestStatuses.Rejected)
+            {
+                item.PurchaseStatus = PurchaseItemStatuses.Rejected;
+                UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseRejected, now);
+            }
+
             item.RejectionReason = purchaseRequest.FinanceRejectionReason;
             item.UpdatedAtUtc = now;
-
-            UpdateMaterialRequirementStatus(
-                item,
-                decision == PurchaseRequestStatuses.Approved
-                    ? MaterialRequirementStatuses.PurchaseApproved
-                    : MaterialRequirementStatuses.PurchaseRejected,
-                now);
         }
     }
 
@@ -860,7 +885,8 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
     private static void EnsurePurchaseRequestAcceptedForPurchasing(PurchaseRequest purchaseRequest, string action)
     {
-        if (purchaseRequest.Status is PurchaseRequestStatuses.FinanceApproved
+        if (purchaseRequest.Status is PurchaseRequestStatuses.SupervisorApproved
+            or PurchaseRequestStatuses.FinanceApproved
             or PurchaseRequestStatuses.Approved
             or PurchaseRequestStatuses.Processing
             or PurchaseRequestStatuses.Completed)
@@ -868,7 +894,26 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return;
         }
 
-        throw new InvalidOperationException($"Purchase request must be approved by Finance before it can {action}.");
+        throw new InvalidOperationException($"Purchase request must be approved by Engineering Supervisor before it can {action}.");
+    }
+
+    private static void EnsurePurchaseRequestFinanceApprovedForReceiving(PurchaseRequest purchaseRequest)
+    {
+        if (purchaseRequest.Status is PurchaseRequestStatuses.FinanceApproved
+            or PurchaseRequestStatuses.Approved
+            or PurchaseRequestStatuses.Completed)
+        {
+            return;
+        }
+
+        if (purchaseRequest.Status == PurchaseRequestStatuses.Processing
+            && purchaseRequest.FinanceReviewedAtUtc.HasValue
+            && purchaseRequest.FinanceRejectionReason is null)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Purchase request must be approved by Finance before material can be received.");
     }
 
     private static bool IsRejectedRequest(string status)

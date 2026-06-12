@@ -180,7 +180,7 @@ export function InventoryPage() {
           </button>
           <button
             disabled
-            title="Buat PO melalui menu Buat PO setelah MR disetujui Finance"
+            title="Buat PO melalui menu Buat PO setelah MR disetujui Supervisor"
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white opacity-60 cursor-not-allowed"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
