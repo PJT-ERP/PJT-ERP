@@ -16,58 +16,66 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "owner@pjt.local",
-                Name = "Owner",
+                Name = "Wildan Pratama",
                 Department = "Executive",
-                Role = "Owner,Admin"
+                Role = "Owner",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "admin@pjt.local",
-                Name = "Admin",
-                Department = "Executive",
-                Role = "Admin"
+                Name = "System Admin",
+                Department = "IT",
+                Role = "Admin",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "sales@pjt.local",
-                Name = "Sales",
+                Name = "Budi Santoso",
                 Department = "Sales",
-                Role = "Sales,Sales Order"
+                Role = "Sales",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "engineering@pjt.local",
-                Name = "Engineering",
+                Name = "Reza Firmansyah",
                 Department = "Engineering",
-                Role = "Engineering"
+                Role = "Engineering",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "engineering-worker@pjt.local",
-                Name = "Engineering Worker",
+                Name = "Arief Worker",
                 Department = "Engineering",
-                Role = "Engineering Worker"
+                Role = "Engineering",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "engineering-supervisor@pjt.local",
-                Name = "Engineering Supervisor",
+                Name = "Dimas Supervisor",
                 Department = "Engineering",
-                Role = "Engineering Supervisor,Engineering Reviewer"
+                Role = "Engineering Supervisor",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "purchasing@pjt.local",
-                Name = "Purchasing",
+                Name = "Ahmad Fauzi",
                 Department = "Purchasing",
-                Role = "Purchasing"
+                Role = "Purchasing",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
             {
                 Email = "finance@pjt.local",
-                Name = "Finance",
+                Name = "Dewi Kusuma",
                 Department = "Finance",
-                Role = "Finance"
+                Role = "Finance",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             }
         };
 

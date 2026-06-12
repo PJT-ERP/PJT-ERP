@@ -13,7 +13,7 @@ interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; isH
 
 const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   Sales: [
-    { label: "Dashboard Penjualan", icon: <LayoutDashboard size={15} />, path: "/erp/so" },
+    { label: "Dashboard Penjualan", icon: <LayoutDashboard size={15} />, path: "/erp/so/dashboard" },
     { label: "Daftar Penawaran & SO", icon: <List size={15} />, path: "/erp/so/quotations" },
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
   ],
@@ -37,21 +37,21 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Dashboard Eksekutif", icon: <LayoutDashboard size={15} />, path: "/erp/dashboard" },
     { label: "Analitik Pelanggan", icon: <BarChart2 size={15} />, path: "/erp/customer-analytics" },
     { label: "PANTAU", isHeader: true },
-    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so" },
+    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
     { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
     { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
-    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing" },
-    { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance" },
+    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard" },
+    { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
   ],
   Admin: [
-    { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance" },
-    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so" },
+    { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard" },
+    { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
     { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production" },
     { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc" },
-    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing" },
+    { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin" },
   ],
   Finance: [
@@ -62,7 +62,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Approval MR", icon: <CheckSquare size={15} />, path: "/erp/finance/approval-po" },
   ],
   Purchasing: [
-    { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/purchasing" },
+    { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/purchasing/dashboard" },
     { label: "Req. Material", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
     { label: "Daftar PO", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
     { label: "Buat PO", icon: <Plus size={15} />, path: "/erp/purchasing/create" },
@@ -132,7 +132,10 @@ export function ERPLayout() {
               </p>
             );
           }
-          const active = item.path ? (location.pathname === item.path || (item.path !== `/erp/${paths[1]}` && location.pathname.startsWith(item.path))) : false;
+          const active = item.path ? (
+            location.pathname === item.path ||
+            (location.pathname.startsWith(item.path + "/") && !navItems.some(other => other.path && other.path !== item.path && other.path.length > item.path!.length && location.pathname.startsWith(other.path)))
+          ) : false;
           return (
             <NavItem
               key={item.label}
@@ -205,7 +208,7 @@ export function ERPLayout() {
         });
       }
     } else if (role === 'Purchasing') {
-      purchasingRequests.filter(pr => pr.status === 'Approved').forEach(pr => {
+      purchasingRequests.filter(pr => pr.status === 'Selesai').forEach(pr => {
         notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: '/erp/purchasing/create' });
       });
     } else if (role === 'Finance') {

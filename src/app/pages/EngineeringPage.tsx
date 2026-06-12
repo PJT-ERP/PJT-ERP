@@ -5,7 +5,7 @@ import {
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, QuotationStatus, getQuotationStatusColor, USERS } from "../components/data/mockData";
+import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
 import { useNavigate } from "react-router";
 
 const S = {
@@ -129,8 +129,8 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
 }
 
 function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation } = useApp();
-  const engineers = USERS.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
+  const { updateQuotation, users } = useApp();
+  const engineers = users.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
   
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
@@ -161,7 +161,7 @@ function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => 
 
 export function EngineeringPage() {
   const navigate = useNavigate();
-  const { quotations, salesOrders, customers, currentUser } = useApp();
+  const { quotations, salesOrders, customers, currentUser, users } = useApp();
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
   const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
@@ -275,7 +275,7 @@ export function EngineeringPage() {
             ) : (
               designQueue.slice(0, 10).map((qut, idx) => {
                 const canOpen = isSpv ? qut.status === 'design_review' : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
-                const assignedName = qut.assignedName || USERS.find(u => u.id === qut.assignedTo)?.name || 'Engineer';
+                const assignedName = qut.assignedName || users.find(u => u.id === qut.assignedTo)?.name || 'Engineer';
 
                 return (
                 <div

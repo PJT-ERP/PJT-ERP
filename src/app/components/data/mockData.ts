@@ -75,15 +75,7 @@ export interface SalesOrder {
 
 export const ENGINEERING_DESIGNS: any[] = [];
 
-export const USERS: User[] = [
-  { id: 'u1', name: 'Budi Santoso', username: 'sales01', password: 'sales123', role: 'Sales', email: 'budi@pjt.co.id', isActive: true },
-  { id: 'u2', name: 'Reza Firmansyah', username: 'eng01', password: 'eng123', role: 'Engineering', email: 'reza@pjt.co.id', isActive: true },
-  { id: 'u3', name: 'Wildan Pratama', username: 'owner', password: 'owner123', role: 'Owner', email: 'hendra@pjt.co.id', isActive: true },
-  { id: 'u4', name: 'Intan', username: 'admin01', password: 'admin123', role: 'Admin', email: 'siti@pjt.co.id', isActive: true },
-  { id: 'u5', name: 'Dewi Kusuma', username: 'finance01', password: 'fin123', role: 'Finance', email: 'dewi@pjt.co.id', isActive: true },
-  { id: 'u6', name: 'Ahmad Fauzi', username: 'purchasing01', password: 'purchase123', role: 'Purchasing', email: 'ahmad@pjt.co.id', isActive: true },
-  { id: 'u7', name: 'Dimas Supervisor', username: 'eng_spv', password: 'spv123', role: 'Engineering Supervisor', email: 'dimas@pjt.co.id', isActive: true },
-];
+
 
 export const STATUS_STEPS: SOStatus[] = [
   'Pending Design',
