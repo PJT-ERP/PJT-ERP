@@ -37,3 +37,25 @@ SET description = EXCLUDED.description,
     material_spec = EXCLUDED.material_spec,
     is_active = EXCLUDED.is_active,
     updated_at_utc = EXCLUDED.updated_at_utc;
+
+INSERT INTO suppliers ("Id", code, name, type, category, city, province, status, rating, created_at_utc, updated_at_utc)
+VALUES
+    ('33333333-3333-4333-8333-333333333001', 'SUP-003', 'PT Indo Steel', 'PT', 'Besi & Baja', 'Jakarta Utara', 'DKI Jakarta', 'Active', 4.8, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('33333333-3333-4333-8333-333333333002', 'SUP-007', 'PT Sumber Teknik', 'PT', 'Spare Parts & Bearing', 'Sidoarjo', 'Jawa Timur', 'Active', 4.5, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('33333333-3333-4333-8333-333333333003', 'SUP-012', 'CV Bintang Logam', 'CV', 'Besi & Aluminium', 'Bekasi Barat', 'Jawa Barat', 'Active', 4.2, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('33333333-3333-4333-8333-333333333004', 'SUP-015', 'CV Tekno Prima', 'CV', 'Alat Las & Consumable', 'Tangerang', 'Banten', 'Active', 4.0, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('33333333-3333-4333-8333-333333333005', 'SUP-021', 'UD Maju Jaya', 'UD', 'Cat & Bahan Kimia', 'Cikarang Selatan', 'Jawa Barat', 'On Hold', 3.5, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z')
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name,
+    type = EXCLUDED.type,
+    category = EXCLUDED.category,
+    city = EXCLUDED.city,
+    status = EXCLUDED.status,
+    rating = EXCLUDED.rating,
+    updated_at_utc = EXCLUDED.updated_at_utc;
+
+INSERT INTO supplier_contacts ("Id", supplier_id, name, role, phone, email, is_primary)
+VALUES
+    ('44444444-4444-4444-8444-444444444001', '33333333-3333-4333-8333-333333333001', 'Budi Santoso', 'Sales Manager', '0812-3456-7890', 'budi@indosteel.co.id', true),
+    ('44444444-4444-4444-8444-444444444002', '33333333-3333-4333-8333-333333333002', 'Siti Aminah', 'Account Executive', '0813-4567-8901', 'siti@sumberteknik.co.id', true)
+ON CONFLICT DO NOTHING;

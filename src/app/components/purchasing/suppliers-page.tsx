@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   Phone,
@@ -15,6 +15,8 @@ import {
   Filter,
   Building2,
   ChevronRight,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -28,6 +30,8 @@ import {
   Line,
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { usePurchasingData } from "./usePurchasingData";
+import { SupplierDto } from "../../services/masterDataApi";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -66,90 +70,35 @@ interface Supplier {
   since: string;
 }
 
-const SUPPLIERS: Supplier[] = [
-  {
-    id: "1", code: "SUP-003", name: "PT Indo Steel", type: "PT", category: "Besi & Baja",
-    city: "Jakarta Utara", province: "DKI Jakarta",
-    address: "Jl. Industri Besar No. 45, Kawasan Industri Pulogadung, Jakarta Utara 13920",
-    status: "Active", rating: 4.8, totalPOs: 47, totalValue: 2850000000, onTimeRate: 96, defectRate: 0.8,
-    bankName: "Bank BCA", bankAccount: "123-456-7890", bankBranch: "KCU Jakarta Kota",
-    npwp: "01.234.567.8-091.000", paymentTerms: "Net 30", since: "Maret 2021",
-    contacts: [
-      { name: "Hendra Wijaya", role: "Sales Manager", phone: "+62 812-3456-7890", email: "hendra@indosteel.co.id", isPrimary: true },
-      { name: "Lina Sari", role: "Finance & Admin", phone: "+62 821-9876-5432", email: "lina@indosteel.co.id" },
-    ],
-    history: [
-      { month: "Nov", value: 380, pos: 6 }, { month: "Des", value: 420, pos: 7 },
-      { month: "Jan", value: 510, pos: 8 }, { month: "Feb", value: 290, pos: 5 },
-      { month: "Mar", value: 640, pos: 9 }, { month: "Apr", value: 480, pos: 7 },
-    ],
-  },
-  {
-    id: "2", code: "SUP-007", name: "PT Sumber Teknik", type: "PT", category: "Spare Parts & Bearing",
-    city: "Sidoarjo", province: "Jawa Timur",
-    address: "Jl. Raya Berbek Industri III No. 12, Sidoarjo 61253",
-    status: "Active", rating: 4.5, totalPOs: 31, totalValue: 950000000, onTimeRate: 89, defectRate: 1.2,
-    bankName: "Bank Mandiri", bankAccount: "140-00-1234567-8", bankBranch: "Cabang Surabaya",
-    npwp: "03.456.789.0-611.000", paymentTerms: "Net 14", since: "Juli 2022",
-    contacts: [
-      { name: "Agus Setiawan", role: "Direktur", phone: "+62 811-2233-4455", email: "agus@sumberteknik.com", isPrimary: true },
-      { name: "Maya Putri", role: "Finance", phone: "+62 857-6543-2109", email: "maya@sumberteknik.com" },
-    ],
-    history: [
-      { month: "Nov", value: 120, pos: 4 }, { month: "Des", value: 95, pos: 3 },
-      { month: "Jan", value: 180, pos: 5 }, { month: "Feb", value: 140, pos: 4 },
-      { month: "Mar", value: 210, pos: 6 }, { month: "Apr", value: 165, pos: 5 },
-    ],
-  },
-  {
-    id: "3", code: "SUP-012", name: "CV Bintang Logam", type: "CV", category: "Besi & Aluminium",
-    city: "Bekasi Barat", province: "Jawa Barat",
-    address: "Jl. Rawa Terate II No. 8, Kawasan MM2100, Bekasi Barat 17520",
-    status: "Active", rating: 4.2, totalPOs: 28, totalValue: 720000000, onTimeRate: 82, defectRate: 2.1,
-    bankName: "Bank BRI", bankAccount: "0023-01-012345-30-6", bankBranch: "KCP Cikarang",
-    npwp: "05.678.901.2-432.000", paymentTerms: "Net 7", since: "November 2022",
-    contacts: [
-      { name: "Bambang Suprapto", role: "Owner / Direktur", phone: "+62 813-5678-9012", email: "bambang@bintanglogam.com", isPrimary: true },
-    ],
-    history: [
-      { month: "Nov", value: 95, pos: 3 }, { month: "Des", value: 110, pos: 4 },
-      { month: "Jan", value: 130, pos: 4 }, { month: "Feb", value: 88, pos: 3 },
-      { month: "Mar", value: 155, pos: 5 }, { month: "Apr", value: 142, pos: 5 },
-    ],
-  },
-  {
-    id: "4", code: "SUP-015", name: "CV Tekno Prima", type: "CV", category: "Alat Las & Consumable",
-    city: "Tangerang", province: "Banten",
-    address: "Ruko Paramount Business Park Blok A No. 23, Tangerang 15811",
-    status: "Active", rating: 4.0, totalPOs: 19, totalValue: 380000000, onTimeRate: 91, defectRate: 0.5,
-    bankName: "Bank BNI", bankAccount: "0450-123-456-78", bankBranch: "Cabang Tangerang",
-    npwp: "07.890.123.4-036.000", paymentTerms: "Cash", since: "Januari 2023",
-    contacts: [
-      { name: "Doni Prakoso", role: "Sales Representative", phone: "+62 878-1234-5678", email: "doni@teknoprima.id", isPrimary: true },
-    ],
-    history: [
-      { month: "Nov", value: 42, pos: 2 }, { month: "Des", value: 68, pos: 3 },
-      { month: "Jan", value: 55, pos: 2 }, { month: "Feb", value: 72, pos: 3 },
-      { month: "Mar", value: 49, pos: 2 }, { month: "Apr", value: 94, pos: 4 },
-    ],
-  },
-  {
-    id: "5", code: "SUP-021", name: "UD Maju Jaya", type: "UD", category: "Cat & Bahan Kimia",
-    city: "Cikarang Selatan", province: "Jawa Barat",
-    address: "Jl. Maju Indah No. 17, Cikarang Selatan, Bekasi 17530",
-    status: "On Hold", rating: 3.5, totalPOs: 14, totalValue: 210000000, onTimeRate: 71, defectRate: 4.2,
-    bankName: "Bank BCA", bankAccount: "456-789-0123", bankBranch: "KCP Cikarang",
-    npwp: "09.012.345.6-404.000", paymentTerms: "Net 14", since: "Mei 2023",
-    contacts: [
-      { name: "Joko Widodo", role: "Pemilik", phone: "+62 819-8765-4321", email: "joko@majujaya.com", isPrimary: true },
-    ],
-    history: [
-      { month: "Nov", value: 28, pos: 2 }, { month: "Des", value: 35, pos: 2 },
-      { month: "Jan", value: 42, pos: 3 }, { month: "Feb", value: 18, pos: 1 },
-      { month: "Mar", value: 55, pos: 3 }, { month: "Apr", value: 32, pos: 2 },
-    ],
-  },
-];
+const generateMockHistory = () => {
+  return [
+    { month: "Jan", value: 100, pos: 2 },
+    { month: "Feb", value: 120, pos: 3 },
+    { month: "Mar", value: 90, pos: 2 },
+    { month: "Apr", value: 150, pos: 4 },
+    { month: "May", value: 130, pos: 3 },
+    { month: "Jun", value: 160, pos: 4 },
+  ];
+};
+
+const MOCK_HISTORY = {
+  "SUP-003": [
+    { month: "Jan", value: 450, pos: 8 },
+    { month: "Feb", value: 520, pos: 10 },
+    { month: "Mar", value: 480, pos: 9 },
+    { month: "Apr", value: 610, pos: 12 },
+    { month: "May", value: 580, pos: 11 },
+    { month: "Jun", value: 680, pos: 14 }
+  ],
+  "SUP-007": [
+    { month: "Jan", value: 200, pos: 5 },
+    { month: "Feb", value: 180, pos: 4 },
+    { month: "Mar", value: 250, pos: 6 },
+    { month: "Apr", value: 220, pos: 5 },
+    { month: "May", value: 290, pos: 7 },
+    { month: "Jun", value: 310, pos: 8 }
+  ]
+};
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -446,16 +395,47 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
 export function SuppliersPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [selected, setSelected] = useState<Supplier | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
-  if (selected) return <SupplierDetail supplier={selected} onBack={() => setSelected(null)} />;
+  const { suppliers, isLoading } = usePurchasingData();
 
-  const filtered = SUPPLIERS.filter((s) => {
-    const q = search.toLowerCase();
-    const matchQ = !q || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || s.city.toLowerCase().includes(q);
-    const matchS = filterStatus === "all" || s.status === filterStatus;
-    return matchQ && matchS;
-  });
+  const enhancedSuppliers = useMemo(() => {
+    return (suppliers as any[]).map(s => {
+      const isIndo = s.code === "SUP-003";
+      const isSumber = s.code === "SUP-007";
+      return {
+        ...s,
+        totalPOs: isIndo ? 47 : isSumber ? 31 : 15,
+        totalValue: isIndo ? 2900000000 : isSumber ? 950000000 : 380000000,
+        onTimeRate: isIndo ? 96 : isSumber ? 89 : 82,
+        defectRate: isIndo ? 0.5 : isSumber ? 1.2 : 2.5,
+        rating: s.rating ?? 4.0,
+        history: MOCK_HISTORY[s.code as keyof typeof MOCK_HISTORY] || generateMockHistory()
+      };
+    });
+  }, [suppliers]);
+
+  const filtered = useMemo(() => {
+    return enhancedSuppliers.filter((s) => {
+      if (filterStatus !== "all" && s.status !== filterStatus) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          s.name.toLowerCase().includes(q) ||
+          s.code.toLowerCase().includes(q) ||
+          s.category.toLowerCase().includes(q) ||
+          (s.city?.toLowerCase().includes(q) ?? false)
+        );
+      }
+      return true;
+    });
+  }, [search, filterStatus, enhancedSuppliers]);
+
+  if (isLoading) {
+    return <div className="p-5 flex justify-center text-slate-500">Loading suppliers...</div>;
+  }
+
+  if (selectedSupplier) return <SupplierDetail supplier={selectedSupplier} onBack={() => setSelectedSupplier(null)} />;
 
   return (
     <div className="p-5 space-y-4">
@@ -538,7 +518,7 @@ export function SuppliersPage() {
                     style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                    onClick={() => setSelected(s)}
+                    onClick={() => setSelectedSupplier(s)}
                   >
                     <TD>
                       <div className="flex items-center gap-3">
@@ -587,7 +567,7 @@ export function SuppliersPage() {
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-red-50 transition-colors"
                           style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
-                          onClick={() => setSelected(s)}
+                          onClick={() => setSelectedSupplier(s)}
                         >
                           <Eye size={12} /> Detail
                         </button>
@@ -602,7 +582,7 @@ export function SuppliersPage() {
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
           <p style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} supplier ditemukan</p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
-            Total aktif: {SUPPLIERS.filter((s) => s.status === "Active").length}
+            Total aktif: {enhancedSuppliers.filter((s) => s.status === "Active").length}
           </p>
         </div>
       </div>
