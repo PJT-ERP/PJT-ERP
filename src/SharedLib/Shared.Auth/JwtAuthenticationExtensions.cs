@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -48,17 +49,32 @@ public static class JwtAuthenticationExtensions
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(2)
+                    ClockSkew = TimeSpan.FromMinutes(2),
+                    RoleClaimType = ClaimTypes.Role,
+                    NameClaimType = ClaimTypes.Name
                 };
 
                 options.Events = new JwtBearerEvents
                 {
                     OnMessageReceived = context =>
                     {
-                        if (context.Request.Cookies.TryGetValue("access_token", out var token)
-                            && !string.IsNullOrWhiteSpace(token))
+                        // Prioritas 1: Authorization: Bearer header (dipakai axios frontend)
+                        var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+                        if (authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
                         {
-                            context.Token = token;
+                            var headerToken = authHeader["Bearer ".Length..].Trim();
+                            if (!string.IsNullOrWhiteSpace(headerToken))
+                            {
+                                context.Token = headerToken;
+                                return Task.CompletedTask;
+                            }
+                        }
+
+                        // Prioritas 2: cookie HttpOnly (fallback)
+                        if (context.Request.Cookies.TryGetValue("access_token", out var cookieToken)
+                            && !string.IsNullOrWhiteSpace(cookieToken))
+                        {
+                            context.Token = cookieToken;
                         }
 
                         return Task.CompletedTask;
