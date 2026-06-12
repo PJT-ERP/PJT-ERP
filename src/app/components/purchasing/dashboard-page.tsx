@@ -523,7 +523,7 @@ export function DashboardPage({ onCreatePO }: DashboardPageProps) {
           <strong>{lowStockCount} material</strong> berada di bawah stok minimum — segera buat Purchase Order untuk menghindari hambatan produksi.
         </p>
         <button
-          onClick={() => navigate("/erp/purchasing/requests")}
+          onClick={() => navigate("/erp/purchasing/inventory")}
           className="ml-auto rounded px-3 py-1 text-white shrink-0 transition-opacity hover:opacity-90"
           style={{ fontSize: 11, background: "#c2410c" }}
         >
