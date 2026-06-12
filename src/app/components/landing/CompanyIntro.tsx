@@ -1,12 +1,12 @@
 import { CheckCircle } from "lucide-react";
 
 const capabilities = [
-  "Precision CNC Machining up to 5-axis",
-  "Custom part fabrication for heavy industry",
-  "Tight-tolerance production to ±0.01mm",
-  "Full in-house QC and material certification",
-  "On-time delivery with real-time order tracking",
-  "Serving energy, construction, and automotive sectors",
+  "Komponen presisi & custom sparepart",
+  "Jig, checking fixture & fabrikasi",
+  "Pembuatan mould & dies",
+  "Sistem otomasi PLC & konveyor",
+  "General trading komponen industri",
+  "Nilai inti: SPEED, SNIPE, STRENGTH",
 ];
 
 export function CompanyIntro() {
@@ -19,7 +19,7 @@ export function CompanyIntro() {
           <span
             style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
-            ABOUT THE COMPANY
+            TENTANG PERUSAHAAN
           </span>
         </div>
 
@@ -37,9 +37,7 @@ export function CompanyIntro() {
               }}
               className="mb-5"
             >
-              Engineering Excellence,
-              <br />
-              <span style={{ color: "#C8102E" }}>Built for Industry</span>
+              Menghadirkan Kecepatan, Akurasi, dan Inovasi untuk Masa Depan Industri
             </h2>
             <p
               style={{
@@ -50,9 +48,7 @@ export function CompanyIntro() {
               }}
               className="mb-6"
             >
-              PT Pratama Jaya Tekindo is a precision manufacturing company specializing in CNC machining,
-              custom part fabrication, and industrial engineering services. Established with a commitment
-              to quality, we serve clients across the energy, construction, and heavy equipment sectors.
+              Didirikan sejak tahun 2016 sebagai perusahaan manufaktur 100% lokal, PT Pratama Jaya Tekindo hadir untuk menjawab tingginya permintaan sektor industri akan layanan mechanical & engineering yang andal. Kami berfokus pada penyediaan komponen presisi dan rekayasa teknik dari hulu ke hilir guna mendukung kelancaran operasional pabrik dan lini produksi berskala besar.
             </p>
             <p
               style={{
@@ -63,8 +59,7 @@ export function CompanyIntro() {
               }}
               className="mb-8"
             >
-              Our production facility operates with modern CNC equipment and a rigorous quality control
-              process, ensuring every part meets exact specifications and is delivered on schedule.
+              Dengan memegang teguh filosofi kerja Speed (proses cepat dengan kualitas tinggi) dan Snipe (tingkat akurasi dan presisi yang tajam), kami mengombinasikan keahlian tenaga kerja profesional dengan permesinan CNC modern. Mulai dari industri otomotif hingga makanan dan minuman, kami berkomitmen menjadi mitra kerja tepercaya yang mampu menciptakan sistem produksi yang lebih efektif, efisien, dan kompetitif.
             </p>
 
             <div className="grid sm:grid-cols-2 gap-3">
@@ -91,7 +86,7 @@ export function CompanyIntro() {
               style={{ border: "1px solid #E2E8F0", boxShadow: "0 8px 32px rgba(24,24,24,0.08)" }}
             >
               <img
-                src="https://images.unsplash.com/photo-1717386255773-1e3037c81788?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwbWFudWZhY3R1cmluZyUyMGZhY3RvcnklMjBtYWNoaW5lcnl8ZW58MXx8fHwxNzc5NjM0NDQ5fDA&ixlib=rb-4.1.0&q=80&w=1080"
+                src="/spm_image_5.jpeg"
                 alt="Industrial manufacturing facility"
                 className="w-full h-72 lg:h-96 object-cover"
               />
@@ -109,14 +104,14 @@ export function CompanyIntro() {
               <div
                 style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "28px", fontWeight: 800, lineHeight: 1 }}
               >
-                15+
+                10+
               </div>
               <div
                 style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 500, marginTop: "4px" }}
               >
-                Years of Industrial
+                Tahun Pengalaman
                 <br />
-                Manufacturing Experience
+                Manufaktur Industri
               </div>
             </div>
           </div>

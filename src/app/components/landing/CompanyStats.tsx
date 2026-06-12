@@ -3,27 +3,27 @@ import { TrendingUp, Award, Activity, ThumbsUp } from "lucide-react";
 const stats = [
   {
     icon: Award,
-    value: "15+",
-    label: "Years Experience",
-    description: "Operating since 2009 in precision industrial manufacturing",
+    value: "10+",
+    label: "Tahun Pengalaman",
+    description: "Beroperasi sejak 2016 di bidang manufaktur industri presisi",
   },
   {
     icon: TrendingUp,
-    value: "500+",
-    label: "Projects Completed",
-    description: "Delivered across energy, construction, and heavy equipment sectors",
+    value: "100%",
+    label: "Saham Lokal",
+    description: "Bangga menjadi perusahaan penanaman modal dalam negeri sepenuhnya",
   },
   {
     icon: Activity,
-    value: "200K+",
-    label: "Parts Produced",
-    description: "Annual production capacity with consistent quality output",
+    value: "6",
+    label: "Divisi Utama",
+    description: "Layanan komprehensif mulai dari machining hingga general trading",
   },
   {
     icon: ThumbsUp,
-    value: "98%",
-    label: "Client Satisfaction",
-    description: "On-time delivery rate with repeat-order client retention above 85%",
+    value: "2",
+    label: "Lokasi Workshop",
+    description: "Berlokasi strategis di Tangerang dan Karawang",
   },
 ];
 
@@ -42,7 +42,7 @@ export function CompanyStats() {
             <span
               style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
             >
-              BY THE NUMBERS
+              DALAM ANGKA
             </span>
             <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           </div>
@@ -56,7 +56,7 @@ export function CompanyStats() {
               letterSpacing: "-0.02em",
             }}
           >
-            Operational Performance
+            Kinerja Operasional
           </h2>
         </div>
 
