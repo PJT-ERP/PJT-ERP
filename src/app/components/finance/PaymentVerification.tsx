@@ -365,13 +365,38 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
   );
 }
 
-function InvoiceVerificationDetailModal({ invoice, onClose, onRecordPayment }: {
+function InvoiceVerificationDetailModal({ invoice, onClose, onVerify, onReject }: {
   invoice: Invoice;
   onClose: () => void;
-  onRecordPayment: () => void;
+  onVerify: () => Promise<void>;
+  onReject: () => void;
 }) {
+  const [isSaving, setIsSaving] = useState(false);
   const remainingAmount = getRemainingAmount(invoice);
   const nextSchedule = getNextSchedule(invoice);
+
+  const handleVerify = async () => {
+    try {
+      setIsSaving(true);
+      await financeApi.recordPayment(invoice.id, {
+        paymentDate: todayInputValue(),
+        amount: remainingAmount,
+        notes: "Diverifikasi otomatis",
+      });
+      await onVerify();
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert('Gagal verifikasi pembayaran');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReject = () => {
+    onReject();
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -424,15 +449,6 @@ function InvoiceVerificationDetailModal({ invoice, onClose, onRecordPayment }: {
                 </div>
                 <p className="text-xs text-slate-500 font-medium mt-1">Bukti pembayaran belum dikirim</p>
               </div>
-              <div className="bg-amber-50 border-t border-amber-100 p-3 flex items-start gap-2">
-                <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold text-amber-800">Menunggu bukti dari Sales atau pelanggan</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Gunakan Catat Bayar kalau Finance menerima transfer langsung. Bukti yang sudah dikirim akan muncul di Riwayat Pembayaran.
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -450,15 +466,24 @@ function InvoiceVerificationDetailModal({ invoice, onClose, onRecordPayment }: {
           )}
 
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+            <button onClick={onClose} disabled={isSaving} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Tutup
             </button>
             <button
-              onClick={onRecordPayment}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors"
+              onClick={handleReject}
+              disabled={isSaving}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg py-2.5 text-sm font-medium transition-colors"
             >
-              <PlusCircle size={15} />
-              Catat Bayar
+              <XCircle size={15} />
+              Tolak
+            </button>
+            <button
+              onClick={handleVerify}
+              disabled={isSaving}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg py-2.5 text-sm font-medium transition-colors shadow-sm"
+            >
+              <CheckCircle2 size={15} />
+              {isSaving ? "Memproses..." : "Verifikasi"}
             </button>
           </div>
         </div>
@@ -816,9 +841,12 @@ export function PaymentVerification() {
         <InvoiceVerificationDetailModal
           invoice={selectedInvoiceDetail}
           onClose={() => setSelectedInvoiceDetail(null)}
-          onRecordPayment={() => {
-            setSelectedInvoice(selectedInvoiceDetail);
-            setSelectedInvoiceDetail(null);
+          onVerify={async () => {
+            setHiddenInvoiceIds(prev => new Set(prev).add(selectedInvoiceDetail.id));
+            await refresh();
+          }}
+          onReject={() => {
+            setHiddenInvoiceIds(prev => new Set(prev).add(selectedInvoiceDetail.id));
           }}
         />
       )}
