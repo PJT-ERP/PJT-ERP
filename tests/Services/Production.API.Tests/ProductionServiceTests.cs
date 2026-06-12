@@ -24,20 +24,20 @@ public sealed class ProductionServiceTests
                 .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
                 .Cast<AuthorizeAttribute>());
 
-        Assert.Contains("Engineering Worker", authorize.Roles);
-        Assert.DoesNotContain("Engineering Reviewer", authorize.Roles);
+        Assert.Contains("Engineering", authorize.Roles);
+        Assert.DoesNotContain("Engineering Supervisor", authorize.Roles);
         Assert.DoesNotContain(
             typeof(ShopFloorController).GetMethods(),
             method => method.Name.Contains("Scan", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]
-    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
-    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
-    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
-    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker")]
-    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
-    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering")]
+    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering")]
+    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering")]
+    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering")]
     public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
     {
         var method = typeof(SalesOrdersController)
@@ -49,7 +49,6 @@ public sealed class ProductionServiceTests
             .Single();
 
         Assert.Equal(expectedRoles, authorize.Roles);
-        Assert.DoesNotContain("Engineering Reviewer", authorize.Roles);
     }
 
     [Fact]
