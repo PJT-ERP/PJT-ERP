@@ -130,9 +130,52 @@ function SOCombobox({ value, onChange, options }: {
 // ─── Detail Modal ────────────────────────────────────────────────────────────
 
 function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => void }) {
+  const { currentUser, refreshBackendData } = useApp();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const items: PurchasingItem[] = pr.items && pr.items.length > 0
     ? pr.items
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
+
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+
+  const handleApprove = async () => {
+    if (!currentUser) return;
+    try {
+      setIsSubmitting(true);
+      await purchasingApi.supervisorReviewPurchaseRequest(pr.id, {
+        reviewedByUserId: toBackendUserId(currentUser) || "00000000-0000-0000-0000-000000000000",
+        decision: 'Accept',
+      });
+      await refreshBackendData();
+      onClose();
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menyetujui pengajuan di backend.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!currentUser) return;
+    const reason = prompt("Masukkan alasan penolakan:");
+    if (!reason) return;
+    try {
+      setIsSubmitting(true);
+      await purchasingApi.supervisorReviewPurchaseRequest(pr.id, {
+        reviewedByUserId: toBackendUserId(currentUser) || "00000000-0000-0000-0000-000000000000",
+        decision: 'Reject',
+        rejectionReason: reason,
+      });
+      await refreshBackendData();
+      onClose();
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menolak pengajuan di backend.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -227,6 +270,26 @@ function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => 
             <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px" }}>
               <p style={{ fontSize: "12px", color: "#EF4444", margin: "0 0 2px", fontWeight: 600 }}>Alasan Penolakan</p>
               <p style={{ fontSize: "13.5px", color: "#B91C1C", margin: 0 }}>{pr.rejectionReason}</p>
+            </div>
+          )}
+
+          {/* Supervisor Action Buttons */}
+          {isSpv && pr.status === 'Pending' && (
+            <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+              <button
+                onClick={handleReject}
+                disabled={isSubmitting}
+                style={{ flex: 1, padding: "10px", background: S.white, border: "1px solid #FECACA", color: "#EF4444", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.5 : 1 }}
+              >
+                Tolak
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={isSubmitting}
+                style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.5 : 1 }}
+              >
+                Setujui ke Purchasing
+              </button>
             </div>
           )}
         </div>
