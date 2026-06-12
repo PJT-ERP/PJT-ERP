@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+EXPOSE 8080
+
+ARG PUBLISH_DIR
+COPY ${PUBLISH_DIR} .
+
+ARG ENTRY_DLL
+ENV ENTRY_DLL=${ENTRY_DLL}
+ENTRYPOINT ["sh", "-c", "dotnet $ENTRY_DLL"]
