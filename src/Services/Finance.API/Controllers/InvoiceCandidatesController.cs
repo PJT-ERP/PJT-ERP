@@ -6,7 +6,7 @@ namespace PJT_ERP.Finance.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/finance/invoice-candidates")]
-[Authorize(Roles = "Admin,Finance,Owner")]
+[Authorize(Roles = "Admin,Finance,Owner,Sales")]
 public sealed class InvoiceCandidatesController(IFinanceService financeService) : ControllerBase
 {
     [HttpGet]

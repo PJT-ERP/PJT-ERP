@@ -487,7 +487,7 @@ export function MaterialRequestsPage() {
       {/* ── Detail Dialog ─────────────────────────────────────── */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent
-          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          className="max-w-2xl max-h-[90vh] overflow-y-auto [&>button]:hidden"
           style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
         >
           {detail && (() => {
@@ -630,7 +630,7 @@ export function MaterialRequestsPage() {
       {/* ── Create MR Dialog ─────────────────────────────────────── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent
-          className="w-[calc(100vw-24px)] sm:w-[min(900px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto"
+          className="w-[calc(100vw-24px)] sm:w-[min(900px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto [&>button]:hidden"
           style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
         >
           <div className="px-6 py-4" style={{ background: "#0f1e35", borderRadius: "8px 8px 0 0" }}>

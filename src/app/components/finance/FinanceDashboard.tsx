@@ -112,6 +112,7 @@ export function FinanceDashboard() {
   const navigate = useNavigate();
   const {
     invoices,
+    payments,
     isLoading,
     isUsingBackend,
     refresh,
@@ -122,11 +123,11 @@ export function FinanceDashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
 
   const recentInvoices = [...invoices].slice(0, 5);
-  const pendingPayments = invoices.filter(invoice => invoice.status === 'PENDING' || invoice.status === 'OVERDUE');
+  const pendingVerifications = payments.filter(payment => payment.status === 'PENDING');
   const chartRevenueData = monthlyRevenueData;
   const chartStatusData = invoiceStatusData;
   const quickActions = QUICK_ACTIONS.map(action => action.label === 'Verifikasi Pembayaran'
-    ? { ...action, badge: pendingPayments.length > 0 ? String(pendingPayments.length) : undefined }
+    ? { ...action, badge: pendingVerifications.length > 0 ? String(pendingVerifications.length) : undefined }
     : action);
 
   const uniqueCustomers = useMemo(() => Array.from(new Set(invoices.map(t => t.customerName))), [invoices]);
@@ -403,13 +404,13 @@ export function FinanceDashboard() {
           {/* Quick Actions + Pending Alert */}
           <div className="space-y-4">
             {/* Pending Payments Alert */}
-            {pendingPayments.length > 0 && (
+            {pendingVerifications.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-amber-800">Perlu Perhatian</p>
-                    <p className="text-xs text-amber-600 mt-0.5">{pendingPayments.length} pembayaran menunggu verifikasi</p>
+                    <p className="text-xs text-amber-600 mt-0.5">{pendingVerifications.length} pembayaran menunggu verifikasi</p>
                     <button onClick={() => navigate('/erp/finance/payment-verification')} className="mt-2 text-xs font-medium text-amber-700 hover:text-amber-900 underline">
                       Verifikasi Sekarang →
                     </button>

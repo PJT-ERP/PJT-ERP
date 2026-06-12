@@ -23,6 +23,7 @@ public sealed class IdentityContext(DbContextOptions<IdentityContext> options) :
             builder.Property(user => user.JoinDateUtc).HasColumnName("join_date_utc");
             builder.Property(user => user.LastActiveAtUtc).HasColumnName("last_active_at_utc");
             builder.Property(user => user.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(user => user.PasswordHash).HasMaxLength(255).HasColumnName("password_hash");
             builder.Property(user => user.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(user => user.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.Ignore(user => user.IsActive);

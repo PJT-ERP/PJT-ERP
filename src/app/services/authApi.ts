@@ -53,6 +53,15 @@ export const authApi = {
     }
   },
 
+  async getUsers(): Promise<LoginResponseDto[]> {
+    try {
+      const response = await apiClient.get<LoginResponseDto[]>("/api/v1/auth/users");
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
   getCurrentUser(): Omit<LoginResponseDto, "accessToken"> | null {
     try {
       const raw = localStorage.getItem("auth_user");

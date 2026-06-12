@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, getQuotationStatusColor, USERS } from "../components/data/mockData";
+import { Quotation, getQuotationStatusColor } from "../components/data/mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -230,8 +230,8 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
 }
 
 function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation } = useApp();
-  const engineers = USERS.filter(user => user.role === 'Engineering' && user.username !== 'eng_spv');
+  const { updateQuotation, users } = useApp();
+  const engineers = users.filter(user => user.role === 'Engineering' && user.username !== 'eng_spv');
 
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
@@ -274,7 +274,7 @@ function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => 
 }
 
 export function EngineeringTasksPage() {
-  const { quotations, customers, currentUser } = useApp();
+  const { quotations, customers, currentUser, users } = useApp();
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
   const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
@@ -326,7 +326,7 @@ export function EngineeringTasksPage() {
           </div>
         ) : (
           queue.map((qut, idx) => {
-            const assignedName = qut.assignedName || USERS.find(user => user.id === qut.assignedTo)?.name || "-";
+            const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
             const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
             const canReview = isSpv && qut.status === 'design_review';
             const canAssign = isSpv && qut.status === 'pending_design';

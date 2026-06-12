@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Search,
   AlertTriangle,
@@ -134,6 +135,7 @@ function mapRequirementToInventory(item: MaterialRequirementDto): InventoryItem 
 /* ── Page ──────────────────────────────────────────────────── */
 
 export function InventoryPage() {
+  const navigate = useNavigate();
   const { materialRequirements, refresh } = usePurchasingData();
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -179,9 +181,9 @@ export function InventoryPage() {
             <RefreshCcw size={13} /> Refresh
           </button>
           <button
-            disabled
-            title="Buat PO melalui menu Buat PO setelah MR disetujui Supervisor"
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white opacity-60 cursor-not-allowed"
+            onClick={() => navigate("/erp/purchasing/create")}
+            title="Buat PO untuk item reorder"
+            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
             <Plus size={13} /> Buat PO Reorder

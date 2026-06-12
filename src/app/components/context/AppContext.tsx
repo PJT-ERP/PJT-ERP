@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode, Dispatch, SetStateAction } from "react";
 import {
   User, SalesOrder, Customer, UserRole,
-  PurchasingRequest, PurchasingStatus, Quotation,
-  USERS
+  PurchasingRequest, PurchasingStatus, Quotation
 } from "../data/mockData";
 import { quotationApi, QuotationDto } from "../../services/quotationApi";
 import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../services/salesApi";
@@ -58,17 +57,12 @@ function restoreStoredUser(): User | null {
       return mapAuthProfileToUser(JSON.parse(storedAuthUser));
     }
 
-    const username = localStorage.getItem(AUTH_USER_KEY);
-    if (!username) {
-      return null;
-    }
-
     if (!localStorage.getItem(AUTH_TOKEN_KEY) && !HAS_DEV_TOKEN) {
       localStorage.removeItem(AUTH_USER_KEY);
       return null;
     }
 
-    return USERS.find(user => user.username === username && user.isActive) ?? null;
+    return null;
   } catch {
     return null;
   }
@@ -80,12 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [productCatalog, setProductCatalog] = useState<ProductDto[]>([]);
-  const [users, setUsers] = useState<User[]>(() => {
-    const restored = restoreStoredUser();
-    return restored && !USERS.some(user => user.username === restored.username)
-      ? [...USERS, restored]
-      : USERS;
-  });
+  const [users, setUsers] = useState<User[]>([]);
   const [purchasingRequests, setPurchasingRequests] = useState<PurchasingRequest[]>([]);
   const [backendCustomerIdsByCode, setBackendCustomerIdsByCode] = useState<Record<string, string>>({});
   const pendingCustomersByCode = useRef<Record<string, Customer>>({});
@@ -99,9 +88,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const user = mapAuthProfileToUser(auth);
 
       localStorage.setItem(AUTH_USER_KEY, user.username);
-      setUsers(prev => prev.some(item => item.username === user.username)
-        ? prev.map(item => item.username === user.username ? user : item)
-        : [...prev, user]);
       setCurrentUser(user);
       return true;
     } catch (error) {
@@ -126,25 +112,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // If users array is empty, it probably hasn't been fetched yet.
+    if (users.length === 0) {
+      return;
+    }
+
     const latestUser = users.find(user => user.username === currentUser.username && user.isActive);
     if (!latestUser) {
       logout();
       return;
     }
 
-    if (latestUser !== currentUser) {
+    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
+    if (latestUser.id !== currentUser.id || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
       setCurrentUser(latestUser);
     }
   }, [currentUser, users]);
 
   const refreshBackendData = useCallback(async () => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
-    const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult] = await Promise.allSettled([
+    const [customersResult, productsResult, quotationsResult, salesOrdersResult, purchaseRequestsResult, usersResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
       quotationApi.list(),
       salesApi.listSalesOrders(),
       shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
+      authApi.getUsers(),
     ]);
 
     if (customersResult.status === "fulfilled") {
@@ -164,7 +157,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     if (quotationsResult.status === "fulfilled") {
-      setQuotations(quotationsResult.value.map(mapQuotationDto));
+      const currentUsers = usersResult.status === "fulfilled" ? usersResult.value.map(dto => mapAuthProfileToUser({
+        userId: dto.userId,
+        email: dto.email,
+        name: dto.name,
+        roles: dto.roles,
+        department: dto.department,
+      })) : [];
+      setQuotations(quotationsResult.value.map(q => mapQuotationDto(q, currentUsers)));
     } else {
       console.warn("Quotation seed data was not loaded.", quotationsResult.reason);
     }
@@ -181,6 +181,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
     } else {
       console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
+    }
+
+    if (usersResult.status === "fulfilled") {
+      setUsers(usersResult.value.map(dto => mapAuthProfileToUser({
+        userId: dto.userId,
+        email: dto.email,
+        name: dto.name,
+        roles: dto.roles,
+        department: dto.department,
+      })));
+    } else {
+      console.warn("Users list was not loaded.", usersResult.reason);
     }
   }, [currentUser?.role]);
 
@@ -209,7 +221,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setQuotations(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
     const current = quotations.find(q => q.id === id);
     if (current) {
-      void syncUpdateQuotation(current, updates, currentUser, setQuotations, setSalesOrders);
+      void syncUpdateQuotation(current, updates, currentUser, users, setQuotations, setSalesOrders);
     }
   };
 
@@ -365,11 +377,12 @@ function canLoadPurchaseRequests(role?: UserRole | null) {
     || role === "Owner";
 }
 
-function mapQuotationDto(quotation: QuotationDto): Quotation {
+function mapQuotationDto(quotation: QuotationDto, allUsers: User[]): Quotation {
   const primaryItem = quotation.items[0];
   const assignedUser = findLocalUserByBackendAssignment(
     quotation.assignedEngineerId,
     quotation.assignedEngineerName,
+    allUsers
   );
 
   return {
@@ -602,7 +615,7 @@ async function syncCreateQuotation(
       ],
     });
 
-    setQuotations(prev => prev.map(item => item.id === quotation.id ? mapQuotationDto(createdQuotation) : item));
+    setQuotations(prev => prev.map(item => item.id === quotation.id ? mapQuotationDto(createdQuotation, []) : item));
   } catch (error) {
     console.warn("Failed to sync quotation to backend.", error);
   }
@@ -612,6 +625,7 @@ async function syncUpdateQuotation(
   quotation: Quotation,
   updates: Partial<Quotation>,
   currentUser: User | null,
+  allUsers: User[],
   setQuotations: Dispatch<SetStateAction<Quotation[]>>,
   setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
 ) {
@@ -623,7 +637,7 @@ async function syncUpdateQuotation(
 
   try {
     if (updates.assignedTo !== undefined) {
-      const assignedUser = USERS.find(user => user.id === updates.assignedTo);
+      const assignedUser = allUsers.find(user => user.id === updates.assignedTo);
       const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
       const engineerName = updates.assignedName || assignedUser?.name || quotation.assignedName || "Engineer";
 
@@ -636,7 +650,7 @@ async function syncUpdateQuotation(
         engineerId,
         engineerName,
       });
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
 
@@ -657,13 +671,13 @@ async function syncUpdateQuotation(
         engineerId,
         engineerName: currentUser?.name || "Engineer",
       });
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
 
     if (updates.status === "client_design_approval") {
       const updated = await quotationApi.approveSupervisorDesign(backendId);
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
 
@@ -674,13 +688,13 @@ async function syncUpdateQuotation(
         financeUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
         financeUserName: currentUser?.name || "Finance",
       });
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
 
     if (updates.status === "waiting_pricing") {
       const updated = await quotationApi.approveClientDesign(backendId);
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
 
@@ -688,13 +702,13 @@ async function syncUpdateQuotation(
       const updated = await quotationApi.requestDesignRevision(backendId, {
         notes: updates.notes || "Client requested design revision.",
       });
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
 
     if (updates.status === "won") {
       const wonQuotation = await quotationApi.markWon(backendId);
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(wonQuotation) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(wonQuotation, allUsers) : item));
 
       const createdSalesOrder = await quotationApi.convertToSalesOrder(backendId, {
         dpPercentage: 50,
@@ -712,7 +726,7 @@ async function syncUpdateQuotation(
       const updated = await quotationApi.markLost(backendId, {
         reason: updates.lostReason || "Quotation lost.",
       });
-      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated) : item));
+      setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
     }
   } catch (error) {
     console.warn("Failed to sync quotation update to backend.", error);
@@ -722,16 +736,17 @@ async function syncUpdateQuotation(
 function findLocalUserByBackendAssignment(
   backendUserId?: string | null,
   backendUserName?: string | null,
+  allUsers: User[] = []
 ): User | undefined {
   if (backendUserId) {
-    const userById = USERS.find(user => BACKEND_USER_IDS_BY_LOCAL_ID[user.id] === backendUserId || user.id === backendUserId);
+    const userById = allUsers.find(user => BACKEND_USER_IDS_BY_LOCAL_ID[user.id] === backendUserId || user.id === backendUserId);
     if (userById) {
       return userById;
     }
   }
 
   if (backendUserName) {
-    return USERS.find(user => user.name === backendUserName);
+    return allUsers.find(user => user.name === backendUserName);
   }
 
   return undefined;
