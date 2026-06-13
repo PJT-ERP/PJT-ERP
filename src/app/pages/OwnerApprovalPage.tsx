@@ -17,7 +17,7 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-type ApprovalItem = (SalesOrder | Quotation) & { isQuotation: boolean };
+export type ApprovalItem = (SalesOrder | Quotation) & { isQuotation: boolean };
 
 function StatusBadgeItem({ item }: { item: ApprovalItem }) {
   if (item.isQuotation) {
@@ -40,7 +40,7 @@ function StatusBadgeItem({ item }: { item: ApprovalItem }) {
 
 type RejectType = 'revision' | 'permanent';
 
-function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: () => void }) {
+export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: () => void }) {
   const { updateSalesOrder, updateQuotation, customers, currentUser } = useApp();
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectType, setRejectType] = useState<RejectType>('revision');

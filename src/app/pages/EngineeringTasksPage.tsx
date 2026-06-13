@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { Quotation, getQuotationStatusColor } from "../components/data/mockData";
+import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 
 const S = {
   font: "Inter, sans-serif",
@@ -443,7 +444,11 @@ export function EngineeringTasksPage() {
         )}
       </div>
 
-      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {selectedQUT && (isSpv && selectedQUT.status === 'design_review' ? (
+        <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
+      ) : (
+        <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />
+      ))}
       {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
