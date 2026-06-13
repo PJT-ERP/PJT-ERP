@@ -252,8 +252,8 @@ export function OwnerApprovalPage() {
       const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
       
       const isApproved = item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production';
-      const isRejected = item.isQuotation ? (item.status === 'lost' || (item.status === 'pending_design' && (item as Quotation).notes)) : item.status === 'Rejected';
-      const isRevision = item.isQuotation ? (item.status === 'pending_design' && (item as Quotation).notes) : item.status === 'Revision Required';
+      const isRejected = item.isQuotation ? item.status === 'lost' : item.status === 'Rejected';
+      const isRevision = item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required';
 
       const matchFilter =
         logFilter === 'all' ||
@@ -266,8 +266,8 @@ export function OwnerApprovalPage() {
 
   const logCounts = {
     approved: logItems.filter(item => item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production').length,
-    rejected: logItems.filter(item => item.isQuotation ? (item.status === 'lost' || (item.status === 'pending_design' && (item as Quotation).notes)) : item.status === 'Rejected').length,
-    revision: logItems.filter(item => item.isQuotation ? (item.status === 'pending_design' && (item as Quotation).notes) : item.status === 'Revision Required').length,
+    rejected: logItems.filter(item => item.isQuotation ? item.status === 'lost' : item.status === 'Rejected').length,
+    revision: logItems.filter(item => item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required').length,
   };
 
   return (
@@ -388,7 +388,9 @@ export function OwnerApprovalPage() {
                   <div style={{ alignSelf: "center" }}>
                     <StatusBadgeItem item={item} />
                   </div>
-                  <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", alignSelf: "center" }}>{item.rejectionReason ?? '—'}</span>
+                  <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", alignSelf: "center" }}>
+                    {(item.isQuotation ? (item as Quotation).notes : (item as SalesOrder).rejectionReason) ?? '—'}
+                  </span>
                 </div>
               );
             })}
