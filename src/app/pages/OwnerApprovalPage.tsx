@@ -61,7 +61,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
           reviewerName: currentUser?.name
         });
       }
-      
+
       if (isQuotation) {
         updateQuotation(item.id, {
           status: 'client_design_approval',
@@ -94,7 +94,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
           reviewerName: currentUser?.name
         });
       }
-      
+
       if (isQuotation) {
         updateQuotation(item.id, {
           status: 'pending_design',
@@ -129,8 +129,8 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
           {action === 'approve' ? 'Desain Disetujui!' : (rejectType === 'revision' ? 'Revisi Diminta' : 'Desain Ditolak Permanen')}
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {action === 'approve' 
-            ? (isQuotation ? 'Quotation dilanjutkan untuk approval pelanggan.' : 'SO dilanjutkan ke produksi.') 
+          {action === 'approve'
+            ? (isQuotation ? 'Quotation dilanjutkan untuk approval pelanggan.' : 'SO dilanjutkan ke produksi.')
             : (rejectType === 'revision' ? 'Dikembalikan ke tim Engineering.' : 'Dibatalkan dan tidak diproses lebih lanjut.')}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Selesai</button>
@@ -186,7 +186,8 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
                 <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Pilih Aksi Penolakan</p>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => setRejectType('revision')}
-                    style={{ flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    style={{
+                      flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                       background: rejectType === 'revision' ? "#FFE4E6" : S.white,
                       color: rejectType === 'revision' ? "#E11D48" : S.secondary,
                       border: `1px solid ${rejectType === 'revision' ? "#FDA4AF" : S.border}`
@@ -194,7 +195,8 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
                     <RotateCcw size={15} /> Minta Revisi
                   </button>
                   <button onClick={() => setRejectType('permanent')}
-                    style={{ flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    style={{
+                      flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                       background: rejectType === 'permanent' ? "#FEF2F2" : S.white,
                       color: rejectType === 'permanent' ? "#DC2626" : S.secondary,
                       border: `1px solid ${rejectType === 'permanent' ? "#FCA5A5" : S.border}`
@@ -232,17 +234,17 @@ export function OwnerApprovalPage() {
   const isAdmin = currentUser?.role === 'Admin';
   const isSpv = currentUser?.role === 'Engineering Supervisor';
   const isOwner = currentUser?.role === 'Owner';
-  
+
   const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
 
   const pendingQuotations = (isSpv || isAdmin) ? quotations.filter(q => q.status === 'design_review').map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
   const pendingSalesOrders = (isOwner || isAdmin) ? salesOrders.filter(so => so.status === 'Waiting Approval').map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
-  
+
   const waitingApproval = [...pendingQuotations, ...pendingSalesOrders];
 
-  const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['client_design_approval', 'lost'].includes(q.status) || q.rejectionReason).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
+  const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['client_design_approval', 'lost'].includes(q.status) || q.notes).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
   const logSalesOrders = (isOwner || isAdmin) ? salesOrders.filter(so => ['Ready for Production', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
 
   const logItems = [...logQuotations, ...logSalesOrders]
@@ -250,7 +252,7 @@ export function OwnerApprovalPage() {
       const q = logSearch.toLowerCase();
       const customer = customers.find(c => c.code === item.customerId);
       const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
-      
+
       const isApproved = item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production';
       const isRejected = item.isQuotation ? item.status === 'lost' : item.status === 'Rejected';
       const isRevision = item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required';
@@ -260,7 +262,7 @@ export function OwnerApprovalPage() {
         (logFilter === 'approved' && isApproved) ||
         (logFilter === 'rejected' && isRejected) ||
         (logFilter === 'revision' && isRevision);
-        
+
       return matchSearch && matchFilter;
     });
 
