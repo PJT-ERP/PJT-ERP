@@ -98,7 +98,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
       if (isQuotation) {
         updateQuotation(item.id, {
           status: 'pending_design',
-          rejectionReason: reason,
+          notes: reason,
         });
       } else {
         updateSalesOrder(item.id, {

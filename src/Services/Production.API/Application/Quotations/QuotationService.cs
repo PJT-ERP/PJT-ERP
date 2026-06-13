@@ -545,6 +545,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             quotation.DesignLink,
             quotation.EstimatedAmount,
             quotation.LostReason,
+            quotation.Notes,
             quotation.ConvertedSalesOrderId,
             quotation.ConvertedSalesOrderNumber,
             quotation.CreatedAtUtc,
