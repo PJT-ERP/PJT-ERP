@@ -109,7 +109,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpPost("{id:guid}/design-revision")]
-    [Authorize(Roles = "Admin,Sales,Sales Order")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor,Engineering Reviewer")]
     public async Task<ActionResult<QuotationDto>> RequestDesignRevision(
         Guid id,
         RequestQuotationRevisionRequest request,

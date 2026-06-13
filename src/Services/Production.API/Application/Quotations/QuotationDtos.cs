@@ -63,6 +63,7 @@ public sealed record QuotationDto(
     string? DesignLink,
     decimal? EstimatedAmount,
     string? LostReason,
+    string? Notes,
     Guid? ConvertedSalesOrderId,
     string? ConvertedSalesOrderNumber,
     DateTime CreatedAtUtc,

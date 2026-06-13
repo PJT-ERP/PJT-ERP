@@ -420,6 +420,7 @@ function mapQuotationDto(quotation: QuotationDto, allUsers: User[]): Quotation {
       spec: item.specification || "",
     })),
     lostReason: quotation.lostReason || undefined,
+    notes: quotation.notes || undefined,
   };
 }
 

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, XCircle, ExternalLink, Clock, RotateCcw, Search, FileText } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, SOStatus, getStatusColor } from "../components/data/mockData";
+import { SalesOrder, Quotation, getStatusColor, getQuotationStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
 import { toBackendUserId } from "../services/backendIds";
 
@@ -17,48 +17,67 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = getStatusColor(status as any);
+export type ApprovalItem = (SalesOrder | Quotation) & { isQuotation: boolean };
+
+function StatusBadgeItem({ item }: { item: ApprovalItem }) {
+  if (item.isQuotation) {
+    const cfg = getQuotationStatusColor((item as Quotation).status);
+    return (
+      <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
+        <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
+        {cfg.label}
+      </span>
+    );
+  }
+  const cfg = getStatusColor((item as SalesOrder).status as any);
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {status}
+      {item.status}
     </span>
   );
 }
 
 type RejectType = 'revision' | 'permanent';
 
-function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, customers, currentUser } = useApp();
+export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: () => void }) {
+  const { updateSalesOrder, updateQuotation, customers, currentUser } = useApp();
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectType, setRejectType] = useState<RejectType>('revision');
   const [reason, setReason] = useState('');
   const [done, setDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const customer = customers.find(c => c.code === so.customerId);
+  const customer = customers.find(c => c.code === item.customerId);
+  const isQuotation = item.isQuotation;
 
   const handleApprove = async () => {
     try {
       setIsSubmitting(true);
-      if (so.backendId) {
-        await productionApi.updateSalesOrderDesignStatus(so.backendId, {
+      if (!isQuotation && item.backendId) {
+        await productionApi.updateSalesOrderDesignStatus(item.backendId, {
           designStatus: 'Approved',
           reviewedByUserId: toBackendUserId(currentUser) || null,
           reviewerName: currentUser?.name
         });
       }
-      updateSalesOrder(so.id, {
-        status: 'Ready for Production',
-        approvedAt: new Date().toISOString(),
-        approvedBy: currentUser?.id,
-      });
+
+      if (isQuotation) {
+        updateQuotation(item.id, {
+          status: 'client_design_approval',
+        });
+      } else {
+        updateSalesOrder(item.id, {
+          status: 'Ready for Production',
+          approvedAt: new Date().toISOString(),
+          approvedBy: currentUser?.id,
+        });
+      }
       setAction('approve');
       setDone(true);
     } catch (e) {
       console.error(e);
-      alert('Gagal menyetujui desain di backend.');
+      alert('Gagal menyetujui desain.');
     } finally {
       setIsSubmitting(false);
     }
@@ -68,25 +87,37 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
     if (!reason.trim()) return;
     try {
       setIsSubmitting(true);
-      if (so.backendId) {
-        await productionApi.updateSalesOrderDesignStatus(so.backendId, {
+      if (!isQuotation && item.backendId) {
+        await productionApi.updateSalesOrderDesignStatus(item.backendId, {
           designStatus: rejectType === 'revision' ? 'RevisionRequired' : 'Rejected',
           reviewedByUserId: toBackendUserId(currentUser) || null,
           reviewerName: currentUser?.name
         });
       }
-      updateSalesOrder(so.id, {
-        status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
-        rejectionReason: reason,
-      });
+
+      if (isQuotation) {
+        updateQuotation(item.id, {
+          status: 'pending_design',
+          notes: reason,
+        });
+      } else {
+        updateSalesOrder(item.id, {
+          status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
+          rejectionReason: reason,
+        });
+      }
       setDone(true);
     } catch (e) {
       console.error(e);
-      alert('Gagal menolak desain di backend.');
+      alert('Gagal menolak desain.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const partNumberOrDesc = isQuotation ? (item as Quotation).productName : (item as SalesOrder).partNumber;
+  const description = item.description;
+  const submittedAt = isQuotation ? (item as Quotation).createdAt : (item as SalesOrder).submittedAt;
 
   if (done) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -98,7 +129,9 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
           {action === 'approve' ? 'Desain Disetujui!' : (rejectType === 'revision' ? 'Revisi Diminta' : 'Desain Ditolak Permanen')}
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {action === 'approve' ? 'SO dilanjutkan ke produksi.' : (rejectType === 'revision' ? 'SO dikembalikan ke tim Engineering.' : 'SO dibatalkan dan tidak diproses lebih lanjut.')}
+          {action === 'approve'
+            ? (isQuotation ? 'Quotation dilanjutkan untuk approval pelanggan.' : 'SO dilanjutkan ke produksi.')
+            : (rejectType === 'revision' ? 'Dikembalikan ke tim Engineering.' : 'Dibatalkan dan tidak diproses lebih lanjut.')}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Selesai</button>
       </div>
@@ -110,8 +143,8 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, display: "flex", flexDirection: "column", fontFamily: S.font }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Review Desain — {so.id}</h2>
-            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.partNumber} · {so.description}</p>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Review Desain — {item.id}</h2>
+            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{partNumberOrDesc} · {description}</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
         </div>
@@ -120,15 +153,15 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
           {/* SO Info */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: "13.5px" }}>
             <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p></div>
-            <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Quantity</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{so.quantity} {so.unit}</p></div>
-            <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{so.deadline}</p></div>
-            {so.submittedAt && (
-              <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Dikirim Oleh</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{new Date(so.submittedAt).toLocaleDateString('id-ID')}</p></div>
+            <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Quantity</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{item.quantity} {item.unit}</p></div>
+            <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{item.deadline}</p></div>
+            {submittedAt && (
+              <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Dikirim Oleh</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{new Date(submittedAt).toLocaleDateString('id-ID')}</p></div>
             )}
-            {so.designLink && (
+            {item.designLink && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Link Desain</p>
-                <a href={so.designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
+                <a href={item.designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
                   Buka Desain <ExternalLink size={12} />
                 </a>
               </div>
@@ -153,7 +186,8 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                 <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Pilih Aksi Penolakan</p>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => setRejectType('revision')}
-                    style={{ flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    style={{
+                      flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                       background: rejectType === 'revision' ? "#FFE4E6" : S.white,
                       color: rejectType === 'revision' ? "#E11D48" : S.secondary,
                       border: `1px solid ${rejectType === 'revision' ? "#FDA4AF" : S.border}`
@@ -161,7 +195,8 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                     <RotateCcw size={15} /> Minta Revisi
                   </button>
                   <button onClick={() => setRejectType('permanent')}
-                    style={{ flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    style={{
+                      flex: 1, padding: "10px", borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                       background: rejectType === 'permanent' ? "#FEF2F2" : S.white,
                       color: rejectType === 'permanent' ? "#DC2626" : S.secondary,
                       border: `1px solid ${rejectType === 'permanent' ? "#FCA5A5" : S.border}`
@@ -195,32 +230,46 @@ function ApprovalModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
 }
 
 export function OwnerApprovalPage() {
-  const { salesOrders, customers, currentUser } = useApp();
+  const { salesOrders, quotations, customers, currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
-  const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
+  const isSpv = currentUser?.role === 'Engineering Supervisor';
+  const isOwner = currentUser?.role === 'Owner';
+
+  const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
 
-  const waitingApproval = salesOrders.filter(so => so.status === 'Waiting Approval');
+  const pendingQuotations = (isSpv || isAdmin) ? quotations.filter(q => q.status === 'design_review').map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
+  const pendingSalesOrders = (isOwner || isAdmin) ? salesOrders.filter(so => so.status === 'Waiting Approval').map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
 
-  const logSOs = salesOrders
-    .filter(so => ['Ready for Production', 'Rejected', 'Revision Required'].includes(so.status))
-    .filter(so => {
+  const waitingApproval = [...pendingQuotations, ...pendingSalesOrders];
+
+  const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['client_design_approval', 'lost'].includes(q.status) || q.notes).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
+  const logSalesOrders = (isOwner || isAdmin) ? salesOrders.filter(so => ['Ready for Production', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
+
+  const logItems = [...logQuotations, ...logSalesOrders]
+    .filter(item => {
       const q = logSearch.toLowerCase();
-      const customer = customers.find(c => c.code === so.customerId);
-      const matchSearch = !logSearch || so.id.toLowerCase().includes(q) || so.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
+      const customer = customers.find(c => c.code === item.customerId);
+      const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
+
+      const isApproved = item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production';
+      const isRejected = item.isQuotation ? item.status === 'lost' : item.status === 'Rejected';
+      const isRevision = item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required';
+
       const matchFilter =
         logFilter === 'all' ||
-        (logFilter === 'approved' && so.status === 'Ready for Production') ||
-        (logFilter === 'rejected' && so.status === 'Rejected') ||
-        (logFilter === 'revision' && so.status === 'Revision Required');
+        (logFilter === 'approved' && isApproved) ||
+        (logFilter === 'rejected' && isRejected) ||
+        (logFilter === 'revision' && isRevision);
+
       return matchSearch && matchFilter;
     });
 
   const logCounts = {
-    approved: salesOrders.filter(so => so.status === 'Ready for Production').length,
-    rejected: salesOrders.filter(so => so.status === 'Rejected').length,
-    revision: salesOrders.filter(so => so.status === 'Revision Required').length,
+    approved: logItems.filter(item => item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production').length,
+    rejected: logItems.filter(item => item.isQuotation ? item.status === 'lost' : item.status === 'Rejected').length,
+    revision: logItems.filter(item => item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required').length,
   };
 
   return (
@@ -229,7 +278,7 @@ export function OwnerApprovalPage() {
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>Approval Desain</h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
-            Review dan setujui desain dari Engineering sebelum produksi dimulai
+            Review dan setujui desain dari Engineering sebelum dilanjutkan.
           </p>
         </div>
       </div>
@@ -250,32 +299,30 @@ export function OwnerApprovalPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {waitingApproval.map((so, idx) => {
-              const customer = customers.find(c => c.code === so.customerId);
-              const daysDiff = Math.ceil((new Date(so.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            {waitingApproval.map((item, idx) => {
+              const customer = customers.find(c => c.code === item.customerId);
+              const daysDiff = Math.ceil((new Date(item.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < waitingApproval.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < waitingApproval.length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ width: 40, height: 40, background: "#FEF3C7", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#D97706", flexShrink: 0 }}>
                     <Clock size={20} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
-                      <StatusBadge status={so.status} />
+                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{item.id}</span>
+                      <StatusBadgeItem item={item} />
                       {daysDiff <= 7 && daysDiff >= 0 && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#EA580C", borderRadius: 4, fontWeight: 500, border: "1px solid #FFEDD5" }}>{daysDiff} hari lagi</span>}
                       {daysDiff < 0 && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>{Math.abs(daysDiff)}h terlambat</span>}
                     </div>
-                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
+                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{item.description}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
-                      <span>{customer?.name}</span><span>·</span><span>{so.quantity} {so.unit}</span><span>·</span><span style={{ color: daysDiff < 0 ? "#DC2626" : S.secondary }}>Deadline: {so.deadline}</span>
+                      <span>{customer?.name}</span><span>·</span><span>{item.quantity} {item.unit}</span><span>·</span><span style={{ color: daysDiff < 0 ? "#DC2626" : S.secondary }}>Deadline: {item.deadline}</span>
                     </div>
                   </div>
-                  {!isAdmin && (
-                    <button onClick={() => setSelectedSO(so)}
-                      style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                      Review Desain
-                    </button>
-                  )}
+                  <button onClick={() => setSelectedItem(item)}
+                    style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                    Review Desain
+                  </button>
                 </div>
               );
             })}
@@ -294,7 +341,7 @@ export function OwnerApprovalPage() {
         <div style={{ padding: "12px 18px", borderBottom: `1px solid ${S.border}`, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
             <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
-            <input type="text" value={logSearch} onChange={e => setLogSearch(e.target.value)} placeholder="Cari SO, deskripsi, customer..."
+            <input type="text" value={logSearch} onChange={e => setLogSearch(e.target.value)} placeholder="Cari SO/QUT, deskripsi, customer..."
               style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -318,32 +365,34 @@ export function OwnerApprovalPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "110px 140px 1fr 170px 180px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["SO", "Customer", "Deskripsi", "Status", "Catatan"].map((h) => (
+          {["ID", "Customer", "Deskripsi", "Status", "Catatan"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
 
-        {logSOs.length === 0 ? (
+        {logItems.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center" }}>
             <FileText size={40} style={{ color: S.border, margin: "0 auto 12px" }} />
             <p style={{ color: S.secondary, margin: "0 0 4px", fontSize: "13.5px" }}>Belum ada log desain</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {logSOs.map((so, idx) => {
-              const customer = customers.find(c => c.code === so.customerId);
+            {logItems.map((item, idx) => {
+              const customer = customers.find(c => c.code === item.customerId);
               return (
-                <div key={so.id} style={{
+                <div key={item.id} style={{
                   display: "grid", gridTemplateColumns: "110px 140px 1fr 170px 180px", padding: "10px 18px",
-                  borderBottom: idx < logSOs.length - 1 ? `1px solid ${S.border}` : "none", transition: "background 0.1s"
+                  borderBottom: idx < logItems.length - 1 ? `1px solid ${S.border}` : "none", transition: "background 0.1s"
                 }} onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace", alignSelf: "center" }}>{so.id}</span>
+                  <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace", alignSelf: "center" }}>{item.id}</span>
                   <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{customer?.name}</span>
-                  <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{so.description}</span>
+                  <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{item.description}</span>
                   <div style={{ alignSelf: "center" }}>
-                    <StatusBadge status={so.status} />
+                    <StatusBadgeItem item={item} />
                   </div>
-                  <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", alignSelf: "center" }}>{so.rejectionReason ?? '—'}</span>
+                  <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", alignSelf: "center" }}>
+                    {(item.isQuotation ? (item as Quotation).notes : (item as SalesOrder).rejectionReason) ?? '—'}
+                  </span>
                 </div>
               );
             })}
@@ -351,7 +400,7 @@ export function OwnerApprovalPage() {
         )}
       </div>
 
-      {selectedSO && <ApprovalModal so={selectedSO} onClose={() => setSelectedSO(null)} />}
+      {selectedItem && <ApprovalModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
+import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 import { useNavigate } from "react-router";
 
 const S = {
@@ -396,7 +397,11 @@ export function EngineeringPage() {
         </div>
       </div>
 
-      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {selectedQUT && (isSpv && selectedQUT.status === 'design_review' ? (
+        <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
+      ) : (
+        <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />
+      ))}
       {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
