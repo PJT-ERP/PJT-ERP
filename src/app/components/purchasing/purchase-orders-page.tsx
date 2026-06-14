@@ -17,13 +17,12 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Dialog, DialogContent } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { useNavigate } from "react-router";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
-interface POItem {
+export interface POItem {
   purchaseRequestId: string;
   purchaseRequestItemId: string;
   purchaseStatus: string;
@@ -36,7 +35,7 @@ interface POItem {
   received: number;
 }
 
-interface PO {
+export interface PO {
   id: string;
   supplier: string;
   supplierCode: string;
@@ -60,7 +59,7 @@ const SUPPLIERS = ["CV Bintang Logam", "PT Sumber Teknik", "UD Maju Jaya", "PT I
 
 /* ── Status configs ────────────────────────────────────────── */
 
-const deliveryCfg: Record<string, { bg: string; color: string; dot: string; pct: number }> = {
+export const deliveryCfg: Record<string, { bg: string; color: string; dot: string; pct: number }> = {
   Open:       { bg: "#eff6ff", color: "#1d4ed8", dot: "#3b82f6", pct: 5 },
   Confirmed:  { bg: "#f0fdf4", color: "#166534", dot: "#22c55e", pct: 25 },
   "In Transit": { bg: "#fffbeb", color: "#92400e", dot: "#f59e0b", pct: 60 },
@@ -70,7 +69,7 @@ const deliveryCfg: Record<string, { bg: string; color: string; dot: string; pct:
   Cancelled:  { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", pct: 0 },
 };
 
-const paymentCfg: Record<string, { bg: string; color: string }> = {
+export const paymentCfg: Record<string, { bg: string; color: string }> = {
   Unpaid:  { bg: "#fee2e2", color: "#991b1b" },
   Partial: { bg: "#fffbeb", color: "#92400e" },
   Paid:    { bg: "#dcfce7", color: "#166534" },
@@ -78,12 +77,12 @@ const paymentCfg: Record<string, { bg: string; color: string }> = {
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
-const formatRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
-const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / item.qty : 0;
-const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
-const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
+export const formatRp = (n: number) => "Rp " + n.toLocaleString("id-ID");
+export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / item.qty : 0;
+export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
+export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -128,7 +127,7 @@ function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
           deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
-          paymentStatus: item.purchaseStatus === "Received" ? "Paid" : "Unpaid",
+          paymentStatus: request.financeReviewedAtUtc ? "Paid" : "Unpaid",
           paymentTerms: "Net 14",
           requestRefs: [request.prNumber],
           soRefs: item.salesOrderNumber ? [item.salesOrderNumber] : [],
@@ -219,20 +218,11 @@ interface PurchaseOrdersPageProps {
 }
 
 export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
+  const navigate = useNavigate();
   const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [detail, setDetail] = useState<PO | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  // Create form state
-  const [formSupplier, setFormSupplier] = useState("");
-  const [formCategory, setFormCategory] = useState<PO["category"]>("Consumable");
-  const [formDue, setFormDue] = useState("");
-  const [formTerms, setFormTerms] = useState("Net 14");
-  const [formNotes, setFormNotes] = useState("");
-  const [formItems, setFormItems] = useState<FormItem[]>([{ name: "", qty: "", unit: "pcs", totalPrice: "" }]);
 
   const loadPurchaseOrders = useCallback(async () => {
     try {
@@ -264,16 +254,6 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     const next = new Set(expanded);
     next.has(id) ? next.delete(id) : next.add(id);
     setExpanded(next);
-  };
-
-  const formTotal = formItems.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
-
-  const addItem = () => setFormItems([...formItems, { name: "", qty: "", unit: "pcs", totalPrice: "" }]);
-  const removeItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
-  const updateItem = (i: number, key: keyof FormItem, val: string) => {
-    const next = [...formItems];
-    next[i] = { ...next[i], [key]: val };
-    setFormItems(next);
   };
 
   const exportPOs = () => {
@@ -320,31 +300,25 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 style={{ color: "#1F1F1F" }}>Purchase Orders</h1>
-          <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-            PO dari Material Request yang sudah disetujui — PT Pratama Jaya Tekindo
+          <h1 style={{ color: "#1F1F1F", fontSize: 24, fontWeight: 700, margin: 0 }}>Daftar Pesanan ke Toko</h1>
+          <p style={{ fontSize: 14, color: "#64748b", marginTop: 4, margin: 0 }}>
+            Daftar pesanan (PO) berjalan dan yang sudah selesai.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={exportPOs}
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors"
-            style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
+            className="flex items-center gap-2 rounded-lg px-4 py-2 border hover:bg-slate-50 transition-colors"
+            style={{ fontSize: 14, fontWeight: 500, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
           >
-            <Download size={13} /> Export
+            <Download size={16} /> Unduh Data
           </button>
           <button
-            onClick={() => {
-              if (onCreatePO) {
-                onCreatePO();
-                return;
-              }
-              window.alert("Buat PO melalui halaman Buat PO agar tersambung ke backend MR.");
-            }}
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity"
-            style={{ fontSize: 12, background: "#1e3a5f" }}
+            onClick={() => navigate("/erp/purchasing/create")}
+            className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
+            style={{ fontSize: 13, fontWeight: 600, background: "#1e3a5f" }}
           >
-            <Plus size={13} /> Buat PO
+            <Plus size={16} /> Buat PO Manual
           </button>
         </div>
       </div>
@@ -427,21 +401,21 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             </thead>
             <tbody>
               {filtered.map((po) => {
-                const dc = deliveryCfg[po.deliveryStatus];
+                const dc = deliveryCfg[po.deliveryStatus] || { bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8", pct: 0 };
                 const fc = po.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : po.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
                 const isExp = expanded.has(po.id);
-                const isOverdue = po.deliveryStatus !== "Closed" && po.deliveryStatus !== "Cancelled";
                 return (
                   <Fragment key={po.id}>
                     <tr
-                      key={po.id}
-                      style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
+                      className="group cursor-pointer"
+                      style={{ borderBottom: "1px solid #f1f5f9" }}
+                      onClick={() => navigate(`/erp/purchasing/orders/${po.id}`)}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                     >
                       <TD>
                         <button
-                          onClick={() => toggleExpand(po.id)}
+                          onClick={(e) => { e.stopPropagation(); toggleExpand(po.id); }}
                           className="rounded p-0.5 hover:bg-slate-200 transition-colors"
                           style={{ color: "#94a3b8" }}
                         >
@@ -499,7 +473,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-red-50"
                           style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
-                          onClick={() => setDetail(po)}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/orders/${po.id}`); }}
                         >
                           <Eye size={12} /> Detail
                         </button>
@@ -576,396 +550,6 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           </p>
         </div>
       </div>
-
-      {/* ── PO Detail Dialog ──────────────────────────────────── */}
-      <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent
-          className="max-w-3xl max-h-[90vh] overflow-y-auto [&>button]:hidden bg-white"
-          style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
-        >
-          {detail && (() => {
-            const dc = deliveryCfg[detail.deliveryStatus];
-            const pc = paymentCfg[detail.paymentStatus];
-            return (
-              <>
-                {/* Header */}
-                <div
-                  className="flex items-start justify-between gap-4 px-6 py-4"
-                  style={{ background: "#0f1e35", borderRadius: "8px 8px 0 0" }}
-                >
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h2 style={{ color: "#fff" }}>{detail.id}</h2>
-                      <Pill bg="rgba(255,255,255,0.12)" color="#e2e8f0">{detail.requestRefs.join(", ")}</Pill>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Pill bg={dc.bg} color={dc.color}>{detail.deliveryStatus}</Pill>
-                      <Pill bg={pc.bg} color={pc.color}>{detail.paymentStatus}</Pill>
-                      {detail.financeApproval && (
-                        <Pill bg={detail.financeApproval === "Approved" ? "#dcfce7" : detail.financeApproval === "Rejected" ? "#fee2e2" : "#f1f5f9"} color={detail.financeApproval === "Approved" ? "#166534" : detail.financeApproval === "Rejected" ? "#991b1b" : "#475569"}>
-                          Finance: {detail.financeApproval}
-                        </Pill>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => window.print()}
-                      className="rounded p-1.5 hover:bg-white/10 transition-colors"
-                      style={{ color: "#94a3b8" }}
-                    >
-                      <Printer size={15} />
-                    </button>
-                    <button onClick={() => setDetail(null)} className="rounded p-1.5 hover:bg-white/10 transition-colors" style={{ color: "#94a3b8" }}>
-                      <X size={15} />
-                    </button>
-                  </div>
-                </div>
-
-                <Tabs defaultValue="overview" className="w-full">
-                  <div className="border-b border-slate-200 px-6">
-                    <TabsList className="h-11 w-full justify-start rounded-none bg-transparent p-0">
-                      {["overview", "items", "delivery"].map((t) => (
-                        <TabsTrigger
-                          key={t}
-                          value={t}
-                          className="relative h-11 rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-medium text-slate-500 hover:text-slate-900 data-[state=active]:border-blue-600 data-[state=active]:text-slate-900 data-[state=active]:shadow-none data-[state=active]:bg-transparent"
-                          style={{ fontSize: 13 }}
-                        >
-                          {t === "overview" ? "Informasi PO" : t === "items" ? "Detail Item" : "Pengiriman"}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </div>
-
-                  {/* Overview tab */}
-                  <TabsContent value="overview" className="p-6 space-y-5 mt-0">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
-                      {[
-                        { label: "Supplier", val: detail.supplier },
-                        { label: "Kode Supplier", val: detail.supplierCode },
-                        { label: "Contact Person", val: detail.contact },
-                        { label: "No. Telepon", val: detail.contactPhone },
-                        { label: "Tanggal Order", val: detail.orderDate },
-                        { label: "Jatuh Tempo", val: detail.dueDate },
-                        { label: "Terms Pembayaran", val: detail.paymentTerms },
-                        { label: "No Permintaan / MR", val: detail.requestRefs.join(", ") },
-                        { label: "Referensi SO", val: detail.soRefs.length > 0 ? detail.soRefs.join(", ") : "Non-project / tidak terkait SO" },
-                        { label: "Kategori PO", val: detail.category },
-                        { label: "Alamat Pengiriman", val: detail.shippingAddress },
-                      ].map(({ label, val }) => (
-                        <div key={label}>
-                          <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                          <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{val}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {detail.notes && (
-                      <div className="rounded p-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Catatan</p>
-                        <p style={{ fontSize: 13, color: "#475569" }}>{detail.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Value summary */}
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { label: "Nilai PO", val: formatRp(calcTotal(detail.items)), color: "#1F1F1F" },
-                        { label: "Terima", val: formatRp(calcReceived(detail.items)), color: "#16a34a" },
-                        { label: "Sisa", val: formatRp(calcTotal(detail.items) - calcReceived(detail.items)), color: "#d97706" },
-                      ].map((s) => (
-                        <div key={s.label} className="rounded p-3 text-center" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: s.color }}>{s.val}</p>
-                          <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{s.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  {/* Items tab */}
-                  <TabsContent value="items" className="p-6 mt-0">
-                    <div className="overflow-x-auto rounded border border-slate-200">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                            {["Kode", "Material", "Spesifikasi", "Qty", "Diterima", "Harga Satuan", "Subtotal", "Aksi"].map((h) => (
-                              <th key={h} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", padding: "10px 16px", textAlign: ["Qty", "Diterima", "Harga Satuan", "Subtotal"].includes(h) ? "right" : "left" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {detail.items.map((item, i) => {
-                            const canReceive = detail.financeApproval === "Approved";
-                            return (
-                            <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                              <td style={{ padding: "11px 16px", fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{item.code}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 500, color: "#1F1F1F" }}>{item.name}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 12, color: "#64748b" }}>{item.spec}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 500 }}>{item.qty} {item.unit}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
-                                {item.received} {item.unit}
-                              </td>
-                              <td style={{ padding: "11px 16px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
-                              <td style={{ padding: "11px 16px", fontSize: 13, textAlign: "right", fontWeight: 700, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
-                              <td style={{ padding: "11px 16px" }}>
-                                {item.purchaseStatus !== "Received" ? (
-                                  <button
-                                    onClick={() => void receiveItem(item)}
-                                    disabled={!canReceive}
-                                    title={canReceive ? "Terima material" : "Menunggu approval Finance"}
-                                    className="rounded border border-emerald-200 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
-                                  >
-                                    Terima
-                                  </button>
-                                ) : (
-                                  <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>Diterima</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{ background: "#0f1e35" }}>
-                            <td colSpan={7} style={{ padding: "11px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: "#cbd5e1" }}>Total Nilai PO</td>
-                            <td style={{ padding: "11px 16px", fontSize: 14, fontWeight: 700, textAlign: "right", color: "#fff" }}>{formatRp(calcTotal(detail.items))}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  </TabsContent>
-
-                  {/* Delivery tab */}
-                  <TabsContent value="delivery" className="p-6 space-y-4 mt-0">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>Progress Pengiriman</p>
-                        <Pill bg={dc.bg} color={dc.color}>{detail.deliveryStatus}</Pill>
-                      </div>
-                      <div className="relative h-2 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full transition-all"
-                          style={{ width: `${dc.pct}%`, background: dc.dot }}
-                        />
-                      </div>
-                      <div className="flex justify-between mt-1.5">
-                        {["Dibuat", "Dikonfirmasi", "In Transit", "Partial", "Selesai"].map((s) => (
-                          <span key={s} style={{ fontSize: 9, color: "#94a3b8" }}>{s}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { label: "Tanggal Order", val: detail.orderDate },
-                        { label: "Jatuh Tempo", val: detail.dueDate },
-                        { label: "Alamat Kirim", val: detail.shippingAddress },
-                        { label: "Terms", val: detail.paymentTerms },
-                      ].map(({ label, val }) => (
-                        <div key={label} className="rounded p-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                          <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                          <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{val}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Create PO Dialog ──────────────────────────────────── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent
-          className="w-[calc(100vw-24px)] sm:w-[min(1040px,calc(100vw-48px))] max-w-none max-h-[92vh] overflow-y-auto [&>button]:hidden"
-          style={{ padding: 0, borderRadius: 8, border: "1px solid #e2e8f0" }}
-        >
-          {/* Header */}
-          <div className="px-6 py-4" style={{ background: "#0f1e35", borderRadius: "8px 8px 0 0" }}>
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 style={{ color: "#fff" }}>Buat Purchase Order</h2>
-                <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>PT Pratama Jaya Tekindo</p>
-              </div>
-              <button onClick={() => setCreateOpen(false)} className="rounded p-1.5 hover:bg-white/10 transition-colors" style={{ color: "#94a3b8" }}>
-                <X size={15} />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-6 space-y-5">
-            {/* Supplier + dates */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2 space-y-1.5">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Supplier *</label>
-                <Select value={formSupplier} onValueChange={setFormSupplier}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
-                  <SelectContent>
-                    {SUPPLIERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Kategori PO</label>
-                <Select value={formCategory} onValueChange={(value) => setFormCategory(value as PO["category"])}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Asset", "Consumable", "Tools", "Project", "Maintenance"].map((category) => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Terms</label>
-                <Select value={formTerms} onValueChange={setFormTerms}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Cash", "Net 7", "Net 14", "Net 30", "Net 45"].map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Tanggal Jatuh Tempo *</label>
-                <input
-                  type="date"
-                  value={formDue}
-                  onChange={(e) => setFormDue(e.target.value)}
-                  className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
-                  style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", height: 36 }}
-                />
-              </div>
-            </div>
-
-            {/* Items */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Item Material *</label>
-                <button
-                  onClick={addItem}
-                  className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-slate-50 transition-colors"
-                  style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
-                >
-                  <Plus size={12} /> Tambah Item
-                </button>
-              </div>
-
-              <div className="rounded overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
-                {formItems.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(260px,1fr)_110px_130px_160px_36px] gap-3 lg:gap-2 items-end"
-                    style={{ padding: "12px", borderBottom: "1px solid #f1f5f9" }}
-                  >
-                    <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                      <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Nama Material</label>
-                      <input
-                        value={item.name}
-                        onChange={(e) => updateItem(idx, "name", e.target.value)}
-                        placeholder="Nama material"
-                        className="w-full rounded border px-2 py-2 outline-none focus:ring-1 focus:ring-blue-300"
-                        style={{ fontSize: 12, borderColor: "#e2e8f0", background: "#f8fafc" }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Qty</label>
-                      <input
-                        value={item.qty}
-                        onChange={(e) => updateItem(idx, "qty", e.target.value)}
-                        type="number"
-                        placeholder="0"
-                        className="w-full rounded border px-2 py-2 outline-none focus:ring-1 focus:ring-blue-300 text-right"
-                        style={{ fontSize: 12, borderColor: "#e2e8f0", background: "#f8fafc" }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Satuan</label>
-                      <Select value={item.unit} onValueChange={(v) => updateItem(idx, "unit", v)}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {["pcs", "batang", "lembar", "kg", "m", "box", "roll", "liter", "pasang", "kaleng"].map((u) => (
-                            <SelectItem key={u} value={u} className="text-xs">{u}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <label style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Harga</label>
-                        {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
-                          <span style={{ fontSize: 10, color: "#94a3b8" }}>@ {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
-                        )}
-                      </div>
-                      <input
-                        value={item.totalPrice}
-                        onChange={(e) => updateItem(idx, "totalPrice", e.target.value)}
-                        type="number"
-                        placeholder="0"
-                        className="w-full rounded border px-2 py-2 outline-none focus:ring-1 focus:ring-blue-300 text-right"
-                        style={{ fontSize: 12, borderColor: "#e2e8f0", background: "#f8fafc" }}
-                      />
-                    </div>
-                    <button
-                      onClick={() => removeItem(idx)}
-                      disabled={formItems.length === 1}
-                      className="flex items-center justify-center rounded border hover:bg-red-50 disabled:opacity-30 transition-colors sm:col-span-2 lg:col-span-1"
-                      style={{ height: 36, color: "#dc2626", borderColor: "#fee2e2" }}
-                      title="Hapus item"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-
-                {/* Total row */}
-                <div
-                  className="flex items-center justify-between px-4 py-2.5"
-                  style={{ background: "#0f1e35" }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#94a3b8" }}>Total Nilai PO</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{formatRp(formTotal)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <label style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em" }}>Catatan Pengiriman</label>
-              <textarea
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                rows={2}
-                placeholder="Instruksi khusus, kontak pengiriman, dll."
-                className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 resize-none"
-                style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc" }}
-              />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div
-            className="flex items-center justify-end gap-2 px-6 py-3"
-            style={{ borderTop: "1px solid #e2e8f0", background: "#fafafa" }}
-          >
-            <button
-              className="rounded px-4 py-2 border hover:bg-slate-50 transition-colors"
-              style={{ fontSize: 13, color: "#475569", borderColor: "#e2e8f0" }}
-              onClick={submitPO}
-            >
-              Batal
-            </button>
-            <button
-              className="flex items-center gap-1.5 rounded px-4 py-2 text-white hover:opacity-90 transition-opacity"
-              style={{ fontSize: 13, background: "#1e3a5f" }}
-              onClick={() => setCreateOpen(false)}
-            >
-              <CheckCircle2 size={13} /> Buat Purchase Order
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

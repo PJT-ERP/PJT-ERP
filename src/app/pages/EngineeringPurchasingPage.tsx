@@ -132,25 +132,47 @@ function SOCombobox({ value, onChange, options }: {
 function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successAction, setSuccessAction] = useState<'approve' | 'reject' | null>(null);
   const items: PurchasingItem[] = pr.items && pr.items.length > 0
     ? pr.items
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
 
+  if (successAction) return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 400, padding: 32, textAlign: "center", fontFamily: S.font }}>
+        <div style={{ width: 64, height: 64, background: successAction === 'approve' ? "#DCFCE7" : "#FEE2E2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          {successAction === 'approve' ? <CheckCircle size={32} style={{ color: "#22C55E" }} /> : <X size={32} style={{ color: "#EF4444" }} />}
+        </div>
+        <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
+          {successAction === 'approve' ? 'Pengajuan Disetujui' : 'Pengajuan Ditolak'}
+        </h3>
+        <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
+          {successAction === 'approve' 
+            ? 'Pengajuan telah diteruskan ke tim Purchasing untuk diproses.' 
+            : 'Pengajuan telah dikembalikan dengan status ditolak.'}
+        </p>
+        <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
+          Tutup
+        </button>
+      </div>
+    </div>
+  );
+
   const handleApprove = async () => {
     if (!currentUser) return;
     try {
       setIsSubmitting(true);
-      await purchasingApi.supervisorReviewPurchaseRequest(pr.id, {
+      await purchasingApi.supervisorReviewPurchaseRequest(pr.backendId || pr.id, {
         reviewedByUserId: toBackendUserId(currentUser) || "00000000-0000-0000-0000-000000000000",
         decision: 'Accept',
       });
       await refreshBackendData();
-      onClose();
-    } catch (error) {
+      setSuccessAction('approve');
+    } catch (error: any) {
       console.error(error);
-      alert("Gagal menyetujui pengajuan di backend.");
+      alert(`Gagal menyetujui pengajuan di backend: ${error?.response?.data?.message || error?.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -162,16 +184,16 @@ function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => 
     if (!reason) return;
     try {
       setIsSubmitting(true);
-      await purchasingApi.supervisorReviewPurchaseRequest(pr.id, {
+      await purchasingApi.supervisorReviewPurchaseRequest(pr.backendId || pr.id, {
         reviewedByUserId: toBackendUserId(currentUser) || "00000000-0000-0000-0000-000000000000",
         decision: 'Reject',
         rejectionReason: reason,
       });
       await refreshBackendData();
-      onClose();
-    } catch (error) {
+      setSuccessAction('reject');
+    } catch (error: any) {
       console.error(error);
-      alert("Gagal menolak pengajuan di backend.");
+      alert(`Gagal menolak pengajuan di backend: ${error?.response?.data?.message || error?.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

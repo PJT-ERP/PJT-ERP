@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ChangeEvent, type ReactNode } from "react";
 import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 import type { Page } from "./layout";
 import { purchasingApi } from "../../services/purchasingApi";
@@ -110,9 +110,10 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     }
 
     const openItems = request.items.filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
-    setRequestRefs(request.prNumber);
+    setRequestRefs(request.prNumber.replace(/^MR-/, "PR-"));
     setSoNumber(request.salesOrderNumber || "Non-project");
     setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+    setSupplier(openItems.find(item => item.supplierName)?.supplierName || "");
     setItems(openItems.map(item => ({
       requestItemId: item.id,
       code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
@@ -120,16 +121,28 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
       spec: item.size || item.notes || "",
       qty: String(item.qty),
       unit: "pcs",
-      totalPrice: item.totalPrice ? String(item.totalPrice) : "",
+      totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
     })));
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reqId = params.get("reqId");
+    if (reqId && eligibleRequests.length > 0) {
+      // Find matching request by PR number or backend ID
+      const request = eligibleRequests.find(r => r.id === reqId || r.prNumber.replace(/^MR-/, "PR-") === reqId);
+      if (request && selectedRequestId !== request.id) {
+        applySelectedRequest(request.id);
+      }
+    }
+  }, [eligibleRequests, selectedRequestId]);
 
   const submitPO = async () => {
     const request = eligibleRequests.find(item => item.id === selectedRequestId);
     const hasInvalidItem = items.some(item => !item.requestItemId || !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
 
     if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
-      window.alert("Pilih MR yang sudah disetujui Supervisor, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+      window.alert("Pilih PR yang sudah disetujui Supervisor, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
       return;
     }
 
@@ -162,7 +175,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="flex items-start gap-3">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Buat Purchase Order</h1>
-            <p className="mt-1 text-sm text-slate-500">Buat PO dari MR yang sudah disetujui, dengan referensi SO opsional.</p>
+            <p className="mt-1 text-sm text-slate-500">Buat PO dari PR yang sudah disetujui, dengan referensi SO opsional.</p>
           </div>
         </div>
 
@@ -192,24 +205,30 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
           <div className="space-y-1.5 md:col-span-2">
             <FieldLabel>Supplier *</FieldLabel>
-            <select value={supplier} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSupplier(e.target.value)} className={inputClass()}>
-              <option value="">Pilih supplier</option>
-              {SUPPLIERS.map(item => <option key={item} value={item}>{item}</option>)}
-            </select>
+            <input 
+              list="suppliers-list" 
+              value={supplier} 
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setSupplier(e.target.value)} 
+              className={inputClass()} 
+              placeholder="Pilih atau tulis supplier"
+            />
+            <datalist id="suppliers-list">
+              {SUPPLIERS.map(item => <option key={item} value={item} />)}
+            </datalist>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>No Permintaan / MR *</FieldLabel>
+            <FieldLabel>No Permintaan / PR *</FieldLabel>
             <select value={selectedRequestId} onChange={(e: ChangeEvent<HTMLSelectElement>) => applySelectedRequest(e.target.value)} className={inputClass()}>
-              <option value="">Pilih MR disetujui Supervisor</option>
-              {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
+              <option value="">Pilih PR disetujui Supervisor</option>
+              {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber.replace(/^MR-/, "PR-")} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No SO</FieldLabel>
-            <input value={soNumber} readOnly placeholder="Auto dari MR" className={inputClass("cursor-not-allowed text-slate-500")} />
+            <input value={soNumber} readOnly placeholder="Auto dari PR" className={inputClass("cursor-not-allowed text-slate-500")} />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Referensi MR</FieldLabel>
+            <FieldLabel>Referensi PR</FieldLabel>
             <input value={requestRefs} readOnly placeholder="Auto dari backend" className={inputClass("cursor-not-allowed text-slate-500")} />
           </div>
           <div className="space-y-1.5">
@@ -240,7 +259,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <h2 className="text-sm font-semibold uppercase tracking-[0.05em] text-slate-900">Item Material</h2>
           <button
             disabled
-            title="Item PO diambil dari MR backend"
+            title="Item PO diambil dari PR backend"
             className="flex cursor-not-allowed items-center gap-1.5 rounded border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-400"
           >
             <Plus size={13} />

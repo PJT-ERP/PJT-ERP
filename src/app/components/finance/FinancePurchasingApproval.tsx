@@ -1,54 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Search, CheckSquare, X, DollarSign, PackageOpen, CheckCircle2, AlertCircle } from 'lucide-react';
 import { formatIDR, formatDate } from './mockData';
-import { purchasingApi, PurchaseRequestDto } from '../../services/purchasingApi';
+import { purchasingApi } from '../../services/purchasingApi';
+import { PO, mapPurchaseRequestsToPos, calcTotal, calcReceived } from '../purchasing/purchase-orders-page';
 
 type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | '';
 
-interface PendingPO {
-  id: string;
-  backendId?: string;
-  poNumber: string;
-  department: string;
-  requestor: string;
-  items: string;
-  totalAmount: number;
-  date: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-}
-
-function mapPurchaseRequestToApproval(request: PurchaseRequestDto): PendingPO | null {
-  const totalAmount = request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0);
-  const activeItems = request.items.filter(item => item.purchaseStatus !== 'Rejected');
-  const readyForFinanceReview = request.status === 'Processing'
-    && activeItems.length > 0
-    && activeItems.every(item => !!item.supplierName && (item.totalPrice || item.estimatedPrice || 0) > 0);
-  const alreadyReviewed = ['FinanceApproved', 'FinanceRejected'].includes(request.status);
-
-  if (!readyForFinanceReview && !alreadyReviewed) {
-    return null;
-  }
-
-  return {
-    id: request.id,
-    poNumber: request.prNumber,
-    department: request.projectName?.split(' - ')[0] || 'Engineering',
-    requestor: request.requesterName,
-    items: request.items.map(item => item.itemName).join(', '),
-    totalAmount,
-    date: request.updatedAtUtc || request.requestDate,
-    status: request.status === 'FinanceRejected'
-        ? 'REJECTED'
-        : request.status === 'FinanceApproved' || request.financeReviewedAtUtc
-          ? 'APPROVED'
-          : 'PENDING',
-  };
-}
-
 export function FinancePurchasingApproval() {
-  const [pos, setPos] = useState<PendingPO[]>([]);
+  const [pos, setPos] = useState<PO[]>([]);
   const [search, setSearch] = useState('');
-  const [selectedPo, setSelectedPo] = useState<PendingPO | null>(null);
+  const [selectedPo, setSelectedPo] = useState<PO | null>(null);
   
   // Modal states
   const [category, setCategory] = useState<POCategory>('');
@@ -58,7 +19,22 @@ export function FinancePurchasingApproval() {
     const loadApprovals = async () => {
       try {
         const requests = await purchasingApi.listPurchaseRequests();
-        setPos(requests.map(mapPurchaseRequestToApproval).filter(Boolean) as PendingPO[]);
+        const allPos = mapPurchaseRequestsToPos(requests);
+        
+        // Tampilkan semua PO yang butuh pembayaran
+        const paymentPos = allPos.filter(po => {
+          const totalVal = calcTotal(po.items);
+          return po.items.length > 0 && totalVal > 0;
+        });
+
+        // Urutkan yang Unpaid di atas
+        paymentPos.sort((a, b) => {
+          if (a.paymentStatus === "Unpaid" && b.paymentStatus !== "Unpaid") return -1;
+          if (a.paymentStatus !== "Unpaid" && b.paymentStatus === "Unpaid") return 1;
+          return 0;
+        });
+
+        setPos(paymentPos);
       } catch (error) {
         console.warn('Purchasing API unavailable; finance approval seed data was not loaded.', error);
         setPos([]);
@@ -69,45 +45,32 @@ export function FinancePurchasingApproval() {
   }, []);
 
   const filtered = pos.filter(po => 
-    po.poNumber.toLowerCase().includes(search.toLowerCase()) || 
-    po.department.toLowerCase().includes(search.toLowerCase())
+    po.id.toLowerCase().includes(search.toLowerCase()) || 
+    po.supplier.toLowerCase().includes(search.toLowerCase()) ||
+    po.requestRefs.some(ref => ref.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const pendingCount = pos.filter(p => p.status === 'PENDING').length;
+  const pendingCount = pos.filter(p => p.paymentStatus !== 'Paid').length;
 
-  const handleApprove = () => {
+  const handlePay = () => {
     if (!selectedPo) return;
+    
+    // As a mock, we use the financeReview endpoint to represent payment processing
+    // since the PO is just mapped from the underlying PR
+    const prId = selectedPo.items[0].purchaseRequestId;
 
-    void purchasingApi.financeReviewPurchaseRequest(selectedPo.id, {
+    void purchasingApi.financeReviewPurchaseRequest(prId, {
       reviewedByUserId: '90000000-0000-4000-8000-000000000005',
       decision: 'Accept',
-      rejectionReason: notes || null,
+      rejectionReason: notes ? `Pembayaran Lunas: ${notes}` : 'Pembayaran Lunas',
     }).then(() => {
-      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'APPROVED' } : p));
+      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, paymentStatus: 'Paid' } : p));
       setSelectedPo(null);
       setCategory('');
       setNotes('');
     }).catch(error => {
-      console.warn('Failed to approve purchasing request in backend.', error);
-      window.alert('Gagal approve Finance. Cek koneksi API atau status MR.');
-    });
-  };
-
-  const handleReject = () => {
-    if (!selectedPo) return;
-
-    void purchasingApi.financeReviewPurchaseRequest(selectedPo.id, {
-      reviewedByUserId: '90000000-0000-4000-8000-000000000005',
-      decision: 'Reject',
-      rejectionReason: notes || 'Ditolak Finance.',
-    }).then(() => {
-      setPos(prev => prev.map(p => p.id === selectedPo.id ? { ...p, status: 'REJECTED' } : p));
-      setSelectedPo(null);
-      setCategory('');
-      setNotes('');
-    }).catch(error => {
-      console.warn('Failed to reject purchasing request in backend.', error);
-      window.alert('Gagal reject Finance. Cek koneksi API atau status MR.');
+      console.warn('Failed to process payment in backend.', error);
+      window.alert('Gagal memproses pembayaran. Cek koneksi API.');
     });
   };
 
@@ -116,12 +79,12 @@ export function FinancePurchasingApproval() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Approval Purchasing (MR)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Approval Finance untuk MR yang sudah diproses Purchasing dan memiliki nilai PO.</p>
+          <h1 className="text-xl font-bold text-slate-900">Daftar Tagihan & Pembayaran (AP)</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Approval pelunasan tagihan untuk Purchase Order yang barangnya telah diterima.</p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />
-          {pendingCount} MR Menunggu Finance Approval
+          {pendingCount} Tagihan Menunggu Pembayaran
         </div>
       </div>
 
@@ -133,8 +96,8 @@ export function FinancePurchasingApproval() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Cari No. MR atau Departemen..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-400 transition-all shadow-sm"
+              placeholder="Cari No. PO, Supplier, atau PR..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
             />
           </div>
         </div>
@@ -143,53 +106,59 @@ export function FinancePurchasingApproval() {
           <table className="w-full text-sm text-left">
             <thead className="bg-white border-b border-slate-100">
               <tr>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tanggal</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. MR</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Items</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Estimasi Dana</th>
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PO</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. MR/PR</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Tagihan</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status Pembayaran</th>
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(po => (
-                <tr key={po.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-5 py-4 text-slate-600">{formatDate(po.date)}</td>
-                  <td className="px-5 py-4 font-medium text-slate-800">{po.poNumber}</td>
-                  <td className="px-5 py-4 text-slate-600">
-                    <span className="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200">
-                      {po.department}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-slate-500 truncate max-w-[200px]" title={po.items}>{po.items}</td>
-                  <td className="px-5 py-4 text-right font-semibold text-slate-800">
-                    {po.totalAmount > 0 ? formatIDR(po.totalAmount) : <span className="text-slate-400">Belum diinput</span>}
-                  </td>
-                  <td className="px-5 py-4 text-center">
-                    {po.status === 'PENDING' && <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">PENDING</span>}
-                    {po.status === 'APPROVED' && <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">APPROVED</span>}
-                    {po.status === 'REJECTED' && <span className="text-red-600 bg-red-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200">REJECTED</span>}
-                  </td>
-                  <td className="px-5 py-4 text-center">
-                    {po.status === 'PENDING' ? (
-                      <button 
-                        onClick={() => setSelectedPo(po)}
-                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto"
-                      >
-                        <CheckSquare size={14} /> Review
-                      </button>
-                    ) : (
-                      <span className="text-slate-400 text-xs flex items-center justify-center gap-1">
-                        <CheckCircle2 size={14} /> Selesai
+              {filtered.map(po => {
+                const totalAmount = calcTotal(po.items);
+                
+                return (
+                  <tr key={po.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
+                    <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
+                    <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
+                    <td className="px-5 py-4 text-slate-600">
+                      <span className="bg-slate-100 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200">
+                        {po.requestRefs.join(', ')}
                       </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-5 py-4 text-right font-semibold text-slate-800">
+                      {formatIDR(totalAmount)}
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      {po.paymentStatus !== 'Paid' ? (
+                        <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">UNPAID</span>
+                      ) : (
+                        <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">LUNAS</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      {po.paymentStatus !== 'Paid' ? (
+                        <button 
+                          onClick={() => setSelectedPo(po)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto"
+                        >
+                          <DollarSign size={14} /> Bayar
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-xs flex items-center justify-center gap-1">
+                          <CheckCircle2 size={14} /> Selesai
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada MR berharga yang menunggu Finance approval saat ini.</td>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td>
                 </tr>
               )}
             </tbody>
@@ -197,7 +166,7 @@ export function FinancePurchasingApproval() {
         </div>
       </div>
 
-      {/* Approval Modal */}
+      {/* Payment Modal */}
       {selectedPo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedPo(null)} />
@@ -205,10 +174,10 @@ export function FinancePurchasingApproval() {
             <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <PackageOpen size={18} className="text-red-600" />
-                  Review Finance Purchasing
+                  <DollarSign size={18} className="text-blue-600" />
+                  Proses Pembayaran Tagihan
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">{selectedPo.poNumber}</p>
+                <p className="text-xs text-slate-500 mt-1">{selectedPo.id} - {selectedPo.supplier}</p>
               </div>
               <button onClick={() => setSelectedPo(null)} className="text-slate-400 hover:text-slate-600 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
                 <X size={16} />
@@ -217,58 +186,47 @@ export function FinancePurchasingApproval() {
             
             <div className="p-6 space-y-6">
               {/* Info Box */}
-              <div className="bg-red-50/50 border border-red-100 rounded-xl p-4 space-y-3">
+              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Departemen Pengaju</span>
-                  <span className="font-semibold text-slate-800">{selectedPo.department}</span>
+                  <span className="text-slate-500">No. Rekening Tujuan</span>
+                  <span className="font-semibold text-slate-800">(Terdaftar di Vendor Master)</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Requestor</span>
-                  <span className="font-semibold text-slate-800">{selectedPo.requestor}</span>
+                  <span className="text-slate-500">Termin Pembayaran</span>
+                  <span className="font-semibold text-slate-800">{selectedPo.paymentTerms}</span>
                 </div>
-                <div className="border-t border-red-100 pt-3">
-                  <span className="block text-xs text-slate-500 mb-1">Item yang dibeli:</span>
-                  <p className="text-sm font-medium text-slate-700">{selectedPo.items}</p>
-                </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-red-100 shadow-sm mt-2">
-                    <span className="text-sm font-bold text-slate-700">Estimasi Dana</span>
-                  <span className="text-lg font-black text-red-700 flex items-center gap-1">
-                    {selectedPo.totalAmount > 0 ? formatIDR(selectedPo.totalAmount) : 'Belum diinput'}
+                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm mt-2">
+                    <span className="text-sm font-bold text-slate-700">Total Tagihan</span>
+                  <span className="text-lg font-black text-blue-700 flex items-center gap-1">
+                    {formatIDR(calcTotal(selectedPo.items))}
                   </span>
                 </div>
-                {selectedPo.totalAmount <= 0 && (
-                  <p className="text-xs text-slate-500">
-                    Harga belum diinput oleh Purchasing sehingga belum bisa di-approve Finance.
-                  </p>
-                )}
               </div>
 
               {/* Finance Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Kategorisasi Aset Perusahaan <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Metode Pembayaran <span className="text-red-500">*</span></label>
                   <select 
                     value={category}
                     onChange={e => setCategory(e.target.value as POCategory)}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-500 bg-white shadow-sm"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm"
                   >
-                    <option value="" disabled>-- Pilih Kategori Pembukuan --</option>
-                    <option value="Asset">Asset (Inventaris Jangka Panjang)</option>
-                    <option value="Consumable">Consumable (Barang Habis Pakai)</option>
-                    <option value="Tools">Tools (Alat Kerja)</option>
-                    <option value="Project">Project (Beban Proyek Spesifik)</option>
-                    <option value="Maintenance">Maintenance (Biaya Perawatan)</option>
+                    <option value="" disabled>-- Pilih Akun Bank --</option>
+                    <option value="BCA">Bank BCA - Operasional</option>
+                    <option value="Mandiri">Bank Mandiri - Proyek</option>
+                    <option value="Cash">Kas Kecil (Petty Cash)</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Catatan Keuangan</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Referensi Bukti Transfer / Catatan</label>
                   <textarea 
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="Catatan persetujuan atau alasan penolakan..."
+                    placeholder="Contoh: TRF-BCA-12345..."
                     rows={3}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-red-500 resize-none bg-white shadow-sm"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none bg-white shadow-sm"
                   />
                 </div>
               </div>
@@ -276,17 +234,17 @@ export function FinancePurchasingApproval() {
 
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
               <button 
-                onClick={handleReject}
-                className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-md"
+                onClick={() => setSelectedPo(null)}
+                className="flex-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-sm"
               >
-                Tolak Pengajuan
+                Batal
               </button>
               <button 
-                onClick={handleApprove}
+                onClick={handlePay}
                 disabled={!category}
-                className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
+                className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
-                <DollarSign size={16} /> Approve Finance
+                <CheckCircle2 size={16} /> Konfirmasi Pembayaran Lunas
               </button>
             </div>
           </div>
