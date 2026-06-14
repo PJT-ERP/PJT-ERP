@@ -251,18 +251,18 @@ export function QuotationList({ onNavigate }: QuotationListProps) {
           />
           <HoverBtn
             icon={<Plus size={12} />}
-            label="Buat QUT"
+            label="Buat QU"
             onClick={() => onNavigate("quotation-create")}
             style={{ 
-              background: "linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)", 
+              background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
               border: "none", 
               color: "#fff",
-              boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
+              boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
               fontWeight: 600,
               padding: "7px 14px",
               borderRadius: "6px"
             }}
-            hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(37, 99, 235, 0.35)" }}
+            hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
             primary
           />
         </div>
