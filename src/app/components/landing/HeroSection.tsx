@@ -1,10 +1,6 @@
-import { ArrowRight, Search } from "lucide-react";
+
 
 export function HeroSection() {
-  const handleTrackClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    document.querySelector("#tracking")?.scrollIntoView({ behavior: "smooth" });
-  };
   const handleContactClick = (e: React.MouseEvent) => {
     e.preventDefault();
     document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" });
@@ -56,7 +52,7 @@ export function HeroSection() {
             <span
               style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em" }}
             >
-              SOLUSI MANUFAKTUR TERINTEGRASI
+              INTEGRATED MANUFACTURING SOLUTIONS
             </span>
           </div>
 
@@ -72,57 +68,39 @@ export function HeroSection() {
             }}
             className="mb-6"
           >
-            Mitra Strategis Komponen Presisi
+            We are Mechanical
             <br />
-            <span style={{ color: "#C8102E" }}>dan Otomasi Industri</span>
-            <br />
-            Berstandar Tinggi
+            <span style={{ color: "#FFFFFF" }}>Engineering Experts!</span>
           </h1>
 
           {/* Tagline */}
           <p
             style={{
-              color: "#94A3B8",
+              color: "#FFFFFF",
               fontFamily: "Inter, sans-serif",
               fontSize: "clamp(1rem, 2vw, 1.125rem)",
-              fontWeight: 400,
+              fontWeight: 600,
               lineHeight: 1.7,
             }}
             className="mb-10 max-w-xl"
           >
-            PT Pratama Jaya Tekindo menyediakan layanan manufaktur komponen presisi, pembuatan mould & dies, jig & fixture, hingga sistem otomasi lini produksi untuk mendorong efisiensi industri Anda.
+            Need Precision Components or Special Purpose Machines?
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4">
             <button
-              onClick={handleTrackClick}
+              onClick={handleContactClick}
               className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
               style={{
-                backgroundColor: "#C8102E",
+                backgroundColor: "#D93A4A",
                 color: "#FFFFFF",
                 fontFamily: "Inter, sans-serif",
                 fontSize: "15px",
                 fontWeight: 600,
               }}
             >
-              <Search className="w-4 h-4" />
-              Lacak Pesanan
-            </button>
-            <button
-              onClick={handleContactClick}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl transition-all hover:bg-white/10 active:scale-95"
-              style={{
-                backgroundColor: "transparent",
-                color: "#FFFFFF",
-                fontFamily: "Inter, sans-serif",
-                fontSize: "15px",
-                fontWeight: 600,
-                border: "1px solid rgba(255,255,255,0.25)",
-              }}
-            >
-              Hubungi Kami
-              <ArrowRight className="w-4 h-4" />
+              CONTACT US
             </button>
           </div>
 

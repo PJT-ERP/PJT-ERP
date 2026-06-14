@@ -14,18 +14,18 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; color: string; bg: strin
   draft: { label: "Draft", color: "#94A3B8", bg: "#F1F5F9", border: "#CBD5E1" },
   confirmed: { label: "Confirmed", color: "#3B82F6", bg: "#EFF6FF", border: "#BFDBFE" },
   waiting: { label: "Waiting Production", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-  in_progress: { label: "In Produksi", color: "#8B5CF6", bg: "#F5F3FF", border: "#DDD6FE" },
+  in_progress: { label: "In Production", color: "#8B5CF6", bg: "#F5F3FF", border: "#DDD6FE" },
   finished: { label: "Finished / QC", color: "#F97316", bg: "#FFF7ED", border: "#FED7AA" },
-  completed: { label: "Selesai", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
+  completed: { label: "Completed", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
 };
 
 const TIMELINE_STEPS: { key: StatusKey; label: string }[] = [
   { key: "draft", label: "Draft" },
   { key: "confirmed", label: "Confirmed" },
   { key: "waiting", label: "Waiting" },
-  { key: "in_progress", label: "Produksi" },
+  { key: "in_progress", label: "Production" },
   { key: "finished", label: "QC Check" },
-  { key: "completed", label: "Selesai" },
+  { key: "completed", label: "Completed" },
 ];
 
 const STEP_ORDER: StatusKey[] = [
@@ -454,7 +454,7 @@ export function OrderTracking() {
               {/* Progress timeline */}
               <div>
                 <div style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 700 }} className="mb-3">
-                  Produksi Progress
+                  Production Progress
                 </div>
                 <ProgressTimeline currentStatus={mappedStatus} />
               </div>

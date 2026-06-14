@@ -2,30 +2,30 @@ import { Cog, Mail, Phone, MapPin, Linkedin, Twitter, Youtube } from "lucide-rea
 
 const navGroups = [
   {
-    title: "Perusahaan",
+    title: "Company",
     links: [
-      { label: "Tentang Kami", href: "#about" },
-      { label: "Layanan Kami", href: "#services" },
-      { label: "Proses Manufaktur", href: "#process" },
-      { label: "Mengapa Memilih Kami", href: "#why" },
+      { label: "About Us", href: "#about" },
+      { label: "Our Services", href: "#services" },
+      { label: "Manufacturing Process", href: "#process" },
+      { label: "Why Choose Us", href: "#why" },
     ],
   },
   {
-    title: "Layanan",
+    title: "Services",
     links: [
-      { label: "Komponen Presisi", href: "#services" },
+      { label: "Precision Components", href: "#services" },
       { label: "Mould & Dies", href: "#services" },
       { label: "Jig & Fixture", href: "#services" },
-      { label: "Otomasi & Fabrikasi", href: "#services" },
+      { label: "Automation & Fabrication", href: "#services" },
     ],
   },
   {
-    title: "Pelanggan",
+    title: "Customers",
     links: [
-      { label: "Lacak Pesanan", href: "#tracking" },
-      { label: "Minta Penawaran", href: "#contact" },
-      { label: "Pelanggan Login", href: "#login" },
-      { label: "Hubungi Kami", href: "#contact" },
+      { label: "Order Tracking", href: "#tracking" },
+      { label: "Request Quote", href: "#contact" },
+      { label: "Customer Login", href: "#login" },
+      { label: "Contact Us", href: "#contact" },
     ],
   },
 ];
@@ -67,7 +67,7 @@ export function Footer() {
               style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "14px", lineHeight: 1.75, maxWidth: "280px" }}
               className="mb-6"
             >
-              Perusahaan manufaktur mekanikal dan rekayasa presisi terkemuka yang menyediakan komponen, cetakan, dan sistem otomasi industri.
+              Leading mechanical manufacturing and precision engineering company providing components, moulds, and industrial automation systems.
             </p>
 
             {/* Contact brief */}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Phone, Mail, Clock, Send, CheckCircle } from "lucide-react";
+import { MapPin, Send, CheckCircle } from "lucide-react";
 
 export function ContactSection() {
   const [submitted, setSubmitted] = useState(false);
@@ -45,7 +45,7 @@ export function ContactSection() {
           <span
             style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
-            HUBUNGI KAMI
+            Don't Know Where to Start?
           </span>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-12">
@@ -59,7 +59,7 @@ export function ContactSection() {
               letterSpacing: "-0.02em",
             }}
           >
-            Kontak & Pertanyaan
+            Get Solutions for All Your Engineering Needs
           </h2>
           <p
             style={{
@@ -70,7 +70,6 @@ export function ContactSection() {
               maxWidth: "400px",
             }}
           >
-            Hubungi kami untuk pertanyaan proyek, permintaan penawaran, atau diskusi kemitraan.
           </p>
         </div>
 
@@ -81,24 +80,19 @@ export function ContactSection() {
             {[
               {
                 icon: MapPin,
-                label: "Kantor Pusat & Workshop",
-                lines: ["Sunrise Bizpark Blok D3, Ps. Kemis", "Tangerang, Banten 15560"],
+                label: "Head Office",
+                lines: ["Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya, Kec.", "Ps. Kemis, Kabupaten Tangerang, Banten 15560"],
               },
               {
                 icon: MapPin,
-                label: "Kantor Cabang",
-                lines: ["Kawasan 3 bisnis centre, Ruko Shapire No 51", "Karawang Barat, Jawa Barat 41361"],
+                label: "Branch Office",
+                lines: ["Kawasan 3 bisnis centre,Ruko Shapire No 51 Jl. Lingkar", "Tanjungpura, Tanjungpura, kec. Karawang Barat, Jawa Barat 41361"],
               },
 
               {
-                icon: Phone,
-                label: "Telepon / WhatsApp",
-                lines: ["0821-2485-1442 (Wildan Yoga P.)"],
-              },
-              {
-                icon: Mail,
-                label: "Email",
-                lines: ["admin@pjt-automationtrading.com", "adm.pratama88@gmail.com"],
+                icon: MapPin,
+                label: "Workshop 2",
+                lines: ["Pergudangan centre point Blok B5, Krian, Sidoarjo,"],
               },
             ].map((item) => {
               const Icon = item.icon;
@@ -133,28 +127,7 @@ export function ContactSection() {
               );
             })}
 
-            {/* Map placeholder */}
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ border: "1px solid #E2E8F0", height: "180px", backgroundColor: "#E2E8F0", position: "relative" }}
-            >
-              <div
-                className="absolute inset-0 flex flex-col items-center justify-center gap-2"
-                style={{ backgroundColor: "#F1F5F9" }}
-              >
-                <MapPin className="w-8 h-8" style={{ color: "#94A3B8" }} />
-                <span
-                  style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 500 }}
-                >
-                  Sunrise Bizpark, Tangerang
-                </span>
-                <span
-                  style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-                >
-                  Google Maps embed
-                </span>
-              </div>
-            </div>
+
           </div>
 
           {/* Right: Form */}
@@ -174,7 +147,7 @@ export function ContactSection() {
                   <h3
                     style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "20px", fontWeight: 700 }}
                   >
-                    Pesan Terkirim
+                    Message Sent
                   </h3>
                   <p
                     style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "15px", lineHeight: 1.7, maxWidth: "320px" }}
@@ -185,63 +158,63 @@ export function ContactSection() {
                     onClick={() => { setSubmitted(false); setForm({ name: "", company: "", email: "", phone: "", message: "" }); }}
                     style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}
                   >
-                    Kirim pesan lain
+                    Send another message
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid sm:grid-cols-2 gap-5">
+                  <div className="mb-6">
+                    <div style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Free Consultation</div>
+                    <h3 style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "24px", fontWeight: 800 }}>Get a Free Quote for Your Next Project</h3>
+                  </div>
+                  <div className="grid sm:grid-cols-1 gap-5">
                     <div>
-                      <label style={labelStyle}>Nama Lengkap *</label>
                       <input
                         required
                         type="text"
                         name="name"
                         value={form.name}
                         onChange={handleChange}
-                        placeholder="Nama lengkap Anda"
+                        placeholder="Enter your full name"
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
                     <div>
-                      <label style={labelStyle}>Nama Perusahaan</label>
                       <input
-                        type="text"
-                        name="company"
-                        value={form.company}
+                        type="tel"
+                        name="phone"
+                        value={form.phone}
                         onChange={handleChange}
-                        placeholder="Perusahaan Anda"
+                        placeholder="Phone number"
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
                   </div>
-                  <div className="grid sm:grid-cols-2 gap-5">
+                  <div className="grid sm:grid-cols-1 gap-5">
                     <div>
-                      <label style={labelStyle}>Alamat Email *</label>
                       <input
                         required
                         type="email"
                         name="email"
                         value={form.email}
                         onChange={handleChange}
-                        placeholder="you@company.com"
+                        placeholder="Your email"
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
                       />
                     </div>
                     <div>
-                      <label style={labelStyle}>Telepon / WhatsApp</label>
                       <input
-                        type="tel"
-                        name="phone"
-                        value={form.phone}
+                        type="text"
+                        name="company"
+                        value={form.company}
                         onChange={handleChange}
-                        placeholder="+62 8xx xxxx xxxx"
+                        placeholder="Service Description"
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
@@ -249,14 +222,14 @@ export function ContactSection() {
                     </div>
                   </div>
                   <div>
-                    <label style={labelStyle}>Pesan / Pertanyaan *</label>
+
                     <textarea
                       required
                       name="message"
                       value={form.message}
                       onChange={handleChange}
                       rows={5}
-                      placeholder="Jelaskan proyek, spesifikasi suku cadang, atau pertanyaan Anda..."
+                      placeholder="Message"
                       style={{ ...inputStyle, resize: "vertical", minHeight: "130px" }}
                       onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
@@ -274,7 +247,7 @@ export function ContactSection() {
                     }}
                   >
                     <Send className="w-4 h-4" />
-                    Kirim Pesan
+                    Send Message
                   </button>
                   <p
                     style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "12px", textAlign: "center" }}

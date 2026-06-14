@@ -4,6 +4,8 @@ import { HeroSection } from "../components/landing/HeroSection";
 import { CompanyIntro } from "../components/landing/CompanyIntro";
 import { ServicesSection } from "../components/landing/ServicesSection";
 import { ManufacturingProcess } from "../components/landing/ManufacturingProcess";
+import { FacilitySection } from "../components/landing/FacilitySection";
+import { ProjectsSection } from "../components/landing/ProjectsSection";
 import { OrderTracking } from "../components/landing/OrderTracking";
 import { WhyChooseUs } from "../components/landing/WhyChooseUs";
 import { CompanyStats } from "../components/landing/CompanyStats";
@@ -19,6 +21,8 @@ export default function HomePage() {
       <CompanyIntro />
       <ServicesSection />
       <ManufacturingProcess />
+      <ProjectsSection />
+      <FacilitySection />
       <WhyChooseUs />
       <CompanyStats />
       <ContactSection />

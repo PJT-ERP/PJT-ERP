@@ -3,33 +3,33 @@ import { Target, Users, ShieldCheck, Clock, Wrench, Truck } from "lucide-react";
 const advantages = [
   {
     icon: ShieldCheck,
-    title: "Kualitas Terbaik (Q)",
-    description: "Setiap komponen melewati QC ketat menggunakan Hexagon Absolute Arm untuk menjamin presisi.",
+    title: "Quality Material",
+    description: "We use only the highest quality materials to ensure the durability and precision of every part we manufacture.",
   },
   {
     icon: Target,
-    title: "Biaya Rasional (C)",
-    description: "Proses manufaktur yang efisien dan pengadaan material yang cerdas menawarkan harga yang sangat kompetitif.",
-  },
-  {
-    icon: Truck,
-    title: "Pengiriman Tepat Waktu (D)",
-    description: "Komitmen pada penjadwalan produksi yang ketat untuk pemenuhan pesanan yang andal dan tepat waktu.",
+    title: "Accredited",
+    description: "Our company is accredited with industry-standard certifications, ensuring top-notch quality and reliability in every project.",
   },
   {
     icon: Users,
-    title: "Tim Profesional",
-    description: "Dioperasikan oleh tenaga kerja berpengalaman dengan keahlian teknis mendalam di bidang rekayasa industri.",
-  },
-  {
-    icon: Wrench,
-    title: "Solusi Layanan Lengkap",
-    description: "Mulai dari komponen custom dan checking fixture hingga perakitan konveyor dan general trading.",
+    title: "Skilled Workforce",
+    description: "Our team consists of highly trained professionals, each dedicated to delivering excellent engineering solutions tailored to your needs.",
   },
   {
     icon: Clock,
-    title: "Speed & Agility",
-    description: "Responsive quoting and rapid prototyping capabilities that keep your production line moving.",
+    title: "On-Time Availability",
+    description: "We understand the importance of deadlines, and our team is committed to providing timely service and project completion.",
+  },
+  {
+    icon: Truck,
+    title: "Quick Response",
+    description: "We offer rapid responses to all inquiries and service requests, ensuring smooth communication and fast action on your needs.",
+  },
+  {
+    icon: Wrench,
+    title: "1 Year Warranty",
+    description: "All our products and services come with a 1-year warranty, giving you peace of mind and confidence in our work.",
   },
 ];
 
@@ -44,6 +44,26 @@ const clients = [
   "PT. MULTISTRADA",
 ];
 
+const brandLogos = [
+  "/mitsubishi.png",
+  "/keyence.webp",
+  "/misumi.png",
+  "/hakko.webp",
+  "/SMC.png",
+  "/CKD.png",
+  "/omron.webp",
+  "/sanfix.png",
+  "/pferd.png",
+  "/nitto kohki.png",
+  "/3M.png",
+  "/boscch.png",
+  "/loctite.png",
+  "/insize.png",
+  "/tekiro.jpg",
+  "/kito.png",
+  "/tone.png",
+];
+
 export function WhyChooseUs() {
   return (
     <section id="why" style={{ backgroundColor: "#FFFFFF" }} className="py-20 lg:py-28">
@@ -55,7 +75,7 @@ export function WhyChooseUs() {
             <span
               style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
             >
-              WHY CHOOSE US
+              Why Choose Us
             </span>
             <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           </div>
@@ -70,7 +90,7 @@ export function WhyChooseUs() {
             }}
             className="mb-4"
           >
-            Komitmen Kualitas Kami
+            Six Reasons People Choose PT. PRATAMA JAYA TEKINDO
           </h2>
           <p
             style={{
@@ -82,7 +102,6 @@ export function WhyChooseUs() {
               margin: "0 auto",
             }}
           >
-            Kami memegang teguh standar mutu yang tinggi (Quality, Cost, Delivery) untuk memastikan setiap komponen diproduksi sesuai kebutuhan presisi Anda.
           </p>
         </div>
 
@@ -135,32 +154,45 @@ export function WhyChooseUs() {
         </div>
 
         {/* Trusted By Section */}
-        <div className="pt-16 border-t border-slate-200 text-center">
-          <h3
-            style={{
-              color: "#64748B",
-              fontFamily: "Inter, sans-serif",
-              fontSize: "14px",
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-            }}
-            className="mb-8 uppercase"
-          >
-            DIPERCAYA OLEH PERUSAHAAN TERKEMUKA
-          </h3>
-          <div className="flex flex-wrap justify-center gap-x-12 gap-y-6">
-            {clients.map((client) => (
+        <div id="brands" className="pt-20 border-t border-slate-200">
+          <div className="mb-12">
+            <h3
+              style={{
+                color: "#C8102E",
+                fontFamily: "Inter, sans-serif",
+                fontSize: "14px",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                marginBottom: "12px",
+              }}
+            >
+              Our Trusted Brands
+            </h3>
+            <h2
+              style={{
+                color: "#111827",
+                fontFamily: "Inter, sans-serif",
+                fontSize: "clamp(1.5rem, 2.5vw, 2rem)",
+                fontWeight: 800,
+                lineHeight: 1.3,
+                maxWidth: "900px",
+              }}
+            >
+              We collaborate with leading global brands in industrial automation to provide the best solutions for your business needs.
+            </h2>
+          </div>
+          <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-10 sm:gap-x-12">
+            {brandLogos.map((logo, i) => (
               <div
-                key={client}
-                style={{
-                  color: "#94A3B8",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "18px",
-                  fontWeight: 800,
-                }}
-                className="grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-default"
+                key={i}
+                className="w-28 h-14 sm:w-40 sm:h-20 flex items-center justify-center bg-white rounded"
+                style={{ border: "1px solid #E5E7EB" }}
               >
-                {client}
+                <img 
+                  src={logo} 
+                  alt={`Brand ${i + 1}`} 
+                  className="max-w-full max-h-full object-contain p-2" 
+                />
               </div>
             ))}
           </div>
