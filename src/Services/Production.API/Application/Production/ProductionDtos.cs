@@ -7,6 +7,7 @@ public sealed record CreateSalesOrderRequest(
     DateOnly SoDate,
     DateOnly? TargetDate,
     IReadOnlyCollection<CreateSalesOrderItemRequest> Items,
+    EngineerAssignment? DesignWorker = null,
     EngineerAssignment? ProductionWorker = null,
     EngineerAssignment? QcReviewer = null,
     string? CustomerDrawingUrl = null,
@@ -16,8 +17,16 @@ public sealed record CreateSalesOrderRequest(
 public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, string? Notes);
 
 public sealed record AssignSalesOrderEngineersRequest(
+    EngineerAssignment? DesignWorker,
     EngineerAssignment? ProductionWorker,
     EngineerAssignment? QcReviewer);
+
+public sealed record SubmitSalesOrderDesignRequest(
+    string DesignReference,
+    string? DrawingFileUrl = null);
+
+public sealed record UpdateSalesOrderItemsRequest(
+    IReadOnlyCollection<CreateSalesOrderItemRequest> Items);
 
 public sealed record UpdateSalesOrderDesignStatusRequest(
     string DesignStatus,
@@ -43,6 +52,8 @@ public sealed record SalesOrderDto(
     DateTime? DesignApprovedAtUtc,
     DateOnly SoDate,
     DateOnly? TargetDate,
+    Guid? DesignWorkerUserId,
+    string? DesignWorkerName,
     Guid? ProductionWorkerUserId,
     string? ProductionWorkerName,
     Guid? QcReviewerUserId,
@@ -77,6 +88,8 @@ public sealed record SalesOrderProductionProgressDto(
     Guid? DesignApprovedByUserId,
     string? DesignApprovedByName,
     DateTime? DesignApprovedAtUtc,
+    Guid? DesignWorkerUserId,
+    string? DesignWorkerName,
     Guid? ProductionWorkerUserId,
     string? ProductionWorkerName,
     Guid? QcReviewerUserId,

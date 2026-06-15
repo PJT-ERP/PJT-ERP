@@ -5,7 +5,7 @@ import {
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, QuotationStatus, getQuotationStatusColor } from "../components/data/mockData";
+import { Quotation, QuotationStatus, getStatusColor } from "../components/data/mockData";
 import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 import { useNavigate } from "react-router";
 
@@ -22,11 +22,11 @@ const S = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = getQuotationStatusColor(status);
+  const cfg = getStatusColor(status as any);
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {cfg.label}
+      {status}
     </span>
   );
 }
@@ -66,10 +66,10 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 <CheckCircle size={32} className="text-green-500" />
               </div>
               <h3 className="text-gray-900 mb-1">
-                {isSpv ? 'Desain Disetujui (Diteruskan ke Sales)' : 'Desain Menunggu Approval Supervisor'}
+                {isSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
-                {isSpv ? 'Status Penawaran dikembalikan ke Sales untuk Validasi Klien.' : 'Status Penawaran menjadi "Design Review"'}
+                {isSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={onClose} className="px-6 py-2 bg-red-600 text-white text-sm rounded-lg border-none cursor-pointer">Tutup</button>
             </div>
@@ -77,7 +77,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
             <div className="space-y-4 flex flex-col gap-4">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <p className="text-sm text-amber-800 m-0">
-                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? Dokumen akan masuk ke tahap Validasi Klien.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
+                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
                 </p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 flex flex-col gap-2 text-sm">
@@ -169,13 +169,13 @@ export function EngineeringPage() {
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
 
   // Pre-Sales Design Queue
-  const designQueue = quotations.filter(q => {
-    if (q.status !== 'pending_design' && q.status !== 'design_review') return false;
+  const designQueue = salesOrders.filter(so => {
+    if (so.status !== 'Pending Design' && so.status !== 'Waiting Spv Approval') return false;
     if (isSpv) return true;
-    return q.assignedTo === currentUser?.id;
+    return so.assignedTo === currentUser?.id;
   });
-  const pendingDesignCount = quotations.filter(q => q.status === 'pending_design').length;
-  const designReviewCount = quotations.filter(q => q.status === 'design_review').length;
+  const pendingDesignCount = salesOrders.filter(so => so.status === 'Pending Design').length;
+  const designReviewCount = salesOrders.filter(so => so.status === 'Waiting Spv Approval').length;
 
   // Production Stats
   const inProductionCount = salesOrders.filter(so => so.status === 'in_production' || so.status === 'material_preparation').length;
@@ -262,8 +262,8 @@ export function EngineeringPage() {
             </div>
 
             {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-              {["No. QUT", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+              {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
                 <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
@@ -274,25 +274,20 @@ export function EngineeringPage() {
                 <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
               </div>
             ) : (
-              designQueue.slice(0, 10).map((qut, idx) => {
-                const canOpen = isSpv ? qut.status === 'design_review' : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
-                const assignedName = qut.assignedName || users.find(u => u.id === qut.assignedTo)?.name || 'Engineer';
+              designQueue.slice(0, 10).map((so, idx) => {
+                const canOpen = isSpv ? so.status === 'Waiting Spv Approval' : so.assignedTo === currentUser?.id && so.status === 'Pending Design';
+                const assignedName = so.assignedName || users.find(u => u.id === so.assignedTo)?.name || 'Engineer';
 
                 return (
                 <div
-                  key={qut.id}
+                  key={so.id}
                   onClick={() => {
                     if (canOpen) {
-                      if (!isSpv) {
-                        navigate('/erp/engineer-tasks');
-                        return;
-                      }
-
-                      setSelectedQUT(qut);
+                      navigate('/erp/engineer-tasks');
                     }
                   }}
                   style={{
-                    display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
+                    display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", alignItems: "center",
                     padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
                     borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
                     transition: "background 0.1s",
@@ -300,19 +295,19 @@ export function EngineeringPage() {
                   onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{qut.id}</span>
+                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
                   <div>
-                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
+                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
                   </div>
-                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
-                  <div style={{ alignSelf: "center" }}>
-                    {qut.assignedTo ? (
+                  <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
+                  <div>
+                    {so.assignedTo ? (
                       <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
                         {assignedName}
                       </span>
                     ) : isSpv ? (
                       <button 
-                        onClick={(e) => { e.stopPropagation(); setAssignModalQUT(qut); }}
+                        onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
                         style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
                       >
                         Tugaskan
@@ -321,8 +316,8 @@ export function EngineeringPage() {
                       <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
                     )}
                   </div>
-                  <div style={{ alignSelf: "center" }}>
-                    <StatusBadge status={qut.status} />
+                  <div>
+                    <StatusBadge status={so.status} />
                   </div>
                 </div>
                 );

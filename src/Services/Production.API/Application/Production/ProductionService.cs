@@ -23,6 +23,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<SalesOrderDto> CreateSalesOrderAsync(CreateSalesOrderRequest request, CancellationToken cancellationToken)
     {
         ValidateSalesOrderItems(request.Items);
+        var designWorker = NormalizeAssignment(request.DesignWorker, "Design worker");
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
 
@@ -55,6 +56,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
+            DesignWorkerUserId = designWorker?.UserId,
+            DesignWorkerName = designWorker?.Name,
             ProductionWorkerUserId = productionWorker?.UserId,
             ProductionWorkerName = productionWorker?.Name,
             QcReviewerUserId = qcReviewer?.UserId,
@@ -100,6 +103,83 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         ApplyAssignment(salesOrder, request);
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
+    public async Task<SalesOrderDto?> SubmitSalesOrderDesignAsync(
+        Guid salesOrderId,
+        SubmitSalesOrderDesignRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        if (salesOrder.Status == SalesOrderStatuses.Cancelled)
+        {
+            throw new InvalidOperationException("Cancelled sales orders cannot submit design.");
+        }
+
+        salesOrder.DesignReference = request.DesignReference;
+        if (!string.IsNullOrWhiteSpace(request.DrawingFileUrl))
+        {
+            salesOrder.CustomerDrawingUrl = request.DrawingFileUrl;
+        }
+        
+        salesOrder.DesignStatus = SalesOrderDesignStatuses.WaitingApproval;
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
+    public async Task<SalesOrderDto?> UpdateSalesOrderItemsAsync(
+        Guid salesOrderId,
+        UpdateSalesOrderItemsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        if (salesOrder.DesignStatus == SalesOrderDesignStatuses.Approved)
+        {
+            throw new InvalidOperationException("Cannot update items after design is approved.");
+        }
+
+        ValidateSalesOrderItems(request.Items);
+
+        // For simplicity: remove existing, add new
+        db.SalesOrderItems.RemoveRange(salesOrder.Items);
+        
+        var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
+        var products = await db.ProductReplicas
+            .AsNoTracking()
+            .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
+            .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+
+        if (products.Count != productIds.Length)
+        {
+            throw new InvalidOperationException("One or more products have not been replicated from MasterData yet.");
+        }
+
+        salesOrder.Items = request.Items.Select(item => new SalesOrderItem
+        {
+            SalesOrderId = salesOrder.Id,
+            ProductId = item.ProductId,
+            ProductPartNumber = products[item.ProductId].PartNumber,
+            ProductDescription = products[item.ProductId].Description,
+            Qty = item.Qty,
+            Notes = item.Notes
+        }).ToList();
+
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(salesOrder);
     }
@@ -479,6 +559,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.DesignApprovedAtUtc,
             order.SoDate,
             order.TargetDate,
+            order.DesignWorkerUserId,
+            order.DesignWorkerName,
             order.ProductionWorkerUserId,
             order.ProductionWorkerName,
             order.QcReviewerUserId,
@@ -524,6 +606,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.DesignApprovedByUserId,
             order.DesignApprovedByName,
             order.DesignApprovedAtUtc,
+            order.DesignWorkerUserId,
+            order.DesignWorkerName,
             order.ProductionWorkerUserId,
             order.ProductionWorkerName,
             order.QcReviewerUserId,
@@ -691,8 +775,15 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     private static void ApplyAssignment(SalesOrder salesOrder, AssignSalesOrderEngineersRequest request)
     {
+        var designWorker = NormalizeAssignment(request.DesignWorker, "Design worker");
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
+
+        if (designWorker is not null)
+        {
+            salesOrder.DesignWorkerUserId = designWorker.UserId;
+            salesOrder.DesignWorkerName = designWorker.Name;
+        }
 
         if (productionWorker is not null)
         {

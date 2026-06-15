@@ -68,13 +68,18 @@ export function CreateInvoice() {
   // Auto-fill items when SO is selected
   useEffect(() => {
     if (backendCandidate) {
-      setItems(backendCandidate.items.map(item => ({
-        id: item.salesOrderItemId,
-        description: item.productDescription,
-        quantity: item.qty,
-        unit: 'Pcs',
-        unitPrice: item.unitPrice,
-      })));
+      const localSO = salesOrders.find(o => o.id === backendCandidate.salesOrderId);
+      
+      setItems(backendCandidate.items.map(item => {
+        const localItem = localSO?.items?.find(li => li.productId === item.productId || li.id === item.salesOrderItemId);
+        return {
+          id: item.salesOrderItemId,
+          description: item.productDescription,
+          quantity: item.qty,
+          unit: 'Pcs',
+          unitPrice: item.unitPrice || localItem?.unitPrice || 0,
+        };
+      }));
       if (backendCandidate.targetDate && !dueDate) {
         setDueDate(backendCandidate.targetDate);
       }

@@ -72,6 +72,42 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
     }
 
+    [HttpPut("{id:guid}/items")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Worker")]
+    public async Task<ActionResult<SalesOrderDto>> UpdateItems(
+        Guid id,
+        UpdateSalesOrderItemsRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.UpdateSalesOrderItemsAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/submit-design")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor")]
+    public async Task<ActionResult<SalesOrderDto>> SubmitDesign(
+        Guid id,
+        SubmitSalesOrderDesignRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.SubmitSalesOrderDesignAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id:guid}/confirm")]
     [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor,Engineering Worker")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)

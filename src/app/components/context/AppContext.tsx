@@ -170,7 +170,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     if (salesOrdersResult.status === "fulfilled") {
-      setSalesOrders(salesOrdersResult.value.map(mapSalesOrderDto));
+      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      setSalesOrders(salesOrdersResult.value.map(dto => {
+        const baseSo = mapSalesOrderDto(dto);
+        if (localUpdates[baseSo.id]) {
+          return { ...baseSo, ...localUpdates[baseSo.id] };
+        }
+        return baseSo;
+      }));
     } else {
       console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
     }
@@ -241,6 +248,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateSalesOrder = (id: string, updates: Partial<SalesOrder>) => {
     setSalesOrders(prev => prev.map(so => so.id === id ? { ...so, ...updates } : so));
+    const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+    currentLocal[id] = { ...(currentLocal[id] || {}), ...updates };
+    localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
   };
 
   const addUser = (user: Omit<User, 'id'>) => {
@@ -509,12 +519,28 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     return "Completed";
   }
 
-  if (order.status === "Draft") {
+  if (order.status === "Cancelled" || order.designStatus === "Rejected") {
+    return "Rejected";
+  }
+
+  // Pre-Sales/Design Phase overrides Draft status
+  if (order.status === "Draft" && order.designStatus !== "Approved") {
+    switch (order.designStatus) {
+      case "WaitingApproval":
+        return "Waiting Spv Approval";
+      case "RevisionRequired":
+        return "Revision Required";
+      default:
+        return "Pending Design";
+    }
+  }
+
+  if (order.status === "Draft" && order.designStatus === "Approved") {
     return "Menunggu Invoice DP";
   }
 
-  if (order.status === "Cancelled" || order.designStatus === "Rejected") {
-    return "Rejected";
+  if (order.status === "WaitingPayment") {
+    return "Menunggu Invoice DP";
   }
 
   if (order.productionStatus === "Finished") {
