@@ -121,6 +121,18 @@ export function OrganizationSection() {
                     </div>
                   </div>
                 </div>
+
+                {/* Info Card 1 */}
+                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Core Expertise</div>
+                  <div className="text-xl font-black text-slate-800">Precision Machining</div>
+                </div>
+
+                {/* Info Card 2 */}
+                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Technical Role</div>
+                  <div className="text-lg font-bold text-slate-700">Design & Execution</div>
+                </div>
               </div>
             </div>
 
