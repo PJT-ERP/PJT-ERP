@@ -169,13 +169,23 @@ export function EngineeringPage() {
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
 
   // Pre-Sales Design Queue
-  const designQueue = salesOrders.filter(so => {
-    if (so.status !== 'Pending Design' && so.status !== 'Waiting Spv Approval') return false;
+  const pendingQuotations = quotations
+    .filter(q => q.status === 'pending_design' || q.status === 'design_review')
+    .map(q => ({ ...q, isQuotation: true } as any));
+    
+  const pendingSalesOrders = salesOrders
+    .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
+    .map(so => ({ ...so, isQuotation: false } as any));
+
+  const allDesignQueue = [...pendingQuotations, ...pendingSalesOrders];
+
+  const designQueue = allDesignQueue.filter(item => {
     if (isSpv) return true;
-    return so.assignedTo === currentUser?.id;
-  });
-  const pendingDesignCount = salesOrders.filter(so => so.status === 'Pending Design').length;
-  const designReviewCount = salesOrders.filter(so => so.status === 'Waiting Spv Approval').length;
+    return item.assignedTo === currentUser?.id;
+  }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
+
+  const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design' || item.status === 'pending_design').length;
+  const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval' || item.status === 'design_review').length;
 
   // Production Stats
   const inProductionCount = salesOrders.filter(so => so.status === 'in_production' || so.status === 'material_preparation').length;

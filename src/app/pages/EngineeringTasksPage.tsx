@@ -4,6 +4,7 @@ import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 import { salesApi } from "../services/salesApi";
+import { quotationApi } from "../services/quotationApi";
 import { toBackendUserId, isGuid } from "../services/backendIds";
 
 const S = {
@@ -37,8 +38,8 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
   const customer = customers.find(c => c.code === qut.customerId);
   
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'Waiting Spv Approval';
-  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
+  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'design_review';
+  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'pending_design');
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -51,47 +52,81 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
 
     try {
       setIsSubmitting(true);
-      if (isSpv) {
-        await salesApi.updateSalesOrderDesignStatus(qut.id, {
-          designStatus: 'Approved',
-          notes: 'Approved by SPV',
-          reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
-          reviewerName: currentUser?.name || ''
+      
+      if (qut.isQuotation) {
+        // Handle Quotation
+        const backendId = qut.backendId || qut.id;
+        if (!isSpv) {
+          // Engineer submits design
+          const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+          await quotationApi.submitDesign(backendId, {
+            designLink,
+            bomItems: materials.map(m => ({
+              itemCode: m.id.length === 36 ? m.id : null,
+              name: m.name,
+              specification: m.spec || null,
+              quantity: Number(m.quantity) || 1,
+              unit: m.unit || "pcs",
+            })),
+            engineerId,
+            engineerName: currentUser?.name || "Engineer",
+          });
+        } else {
+          // SPV approves design
+          await quotationApi.approveSupervisorDesign(backendId);
+        }
+        
+        updateQuotation(qut.id, {
+          designLink,
+          designId: designLink,
+          materials,
+          status: isSpv ? 'waiting_pricing' : 'design_review',
         });
       } else {
-        await salesApi.updateSalesOrderItems(qut.id, {
-          items: qut.items.map(i => ({
-            productId: i.productId,
-            quantity: i.quantity,
-            notes: i.notes,
-            unitPrice: i.unitPrice || 0,
-            materials: materials.map(m => ({
-              materialId: m.id.length === 36 ? m.id : null, // Assuming backend expects GUID or null
-              name: m.name,
-              specifications: m.spec,
-              quantity: m.quantity,
-              unit: m.unit
+        // Handle Sales Order
+        const backendId = qut.backendId || qut.id;
+        if (isSpv) {
+          await salesApi.updateSalesOrderDesignStatus(backendId, {
+            designStatus: 'Approved',
+            notes: 'Approved by SPV',
+            reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+            reviewerName: currentUser?.name || ''
+          });
+        } else {
+          await salesApi.updateSalesOrderItems(backendId, {
+            items: qut.items.map((i: any) => ({
+              productId: i.productId,
+              quantity: i.quantity,
+              notes: i.notes,
+              unitPrice: i.unitPrice || 0,
+              materials: materials.map(m => ({
+                materialId: m.id.length === 36 ? m.id : null,
+                name: m.name,
+                specifications: m.spec,
+                quantity: m.quantity,
+                unit: m.unit
+              }))
             }))
-          }))
-        });
+          });
 
-        await salesApi.submitSalesOrderDesign(qut.id, {
-          designReference: designLink,
-          drawingFileUrl: designLink
+          await salesApi.submitSalesOrderDesign(backendId, {
+            designReference: designLink,
+            drawingFileUrl: designLink
+          });
+        }
+
+        updateSalesOrder(qut.id, {
+          designLink,
+          designId: designLink,
+          materials,
+          status: isSpv ? 'Menunggu Invoice DP' : 'Waiting Spv Approval',
+          backendDesignStatus: isSpv ? 'Approved' : 'WaitingApproval',
         });
       }
-
-      updateSalesOrder(qut.id, {
-        designLink,
-        designId: designLink,
-        materials,
-        status: isSpv ? 'Menunggu Invoice DP' : 'Waiting Spv Approval',
-        backendDesignStatus: isSpv ? 'Approved' : 'WaitingApproval',
-      });
       setStep('done');
     } catch (err) {
       console.error(err);
-      alert('Gagal mengupdate SO ke server.');
+      alert('Gagal mengupdate data ke server. Pastikan API backend berjalan.');
     } finally {
       setIsSubmitting(false);
     }
@@ -101,17 +136,29 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
     if (!rejectReason.trim()) return;
     try {
       setIsSubmitting(true);
-      await salesApi.updateSalesOrderDesignStatus(qut.id, {
-        designStatus: 'Rejected',
-        notes: rejectReason,
-        reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
-        reviewerName: currentUser?.name || ''
-      });
-      updateSalesOrder(qut.id, {
-        status: 'Pending Design',
-        backendDesignStatus: 'Rejected',
-        notes: rejectReason,
-      });
+      const backendId = qut.backendId || qut.id;
+      
+      if (qut.isQuotation) {
+        await quotationApi.requestDesignRevision(backendId, {
+          notes: rejectReason,
+        });
+        updateQuotation(qut.id, {
+          status: 'pending_design',
+          notes: rejectReason,
+        });
+      } else {
+        await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: 'Rejected',
+          notes: rejectReason,
+          reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+          reviewerName: currentUser?.name || ''
+        });
+        updateSalesOrder(qut.id, {
+          status: 'Pending Design',
+          backendDesignStatus: 'Rejected',
+          notes: rejectReason,
+        });
+      }
       setStep('rejected');
     } catch (err) {
       console.error(err);
@@ -334,22 +381,33 @@ function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () =>
 }
 
 export function EngineeringTasksPage() {
-  const { salesOrders, customers, currentUser, users } = useApp();
-  const [selectedQUT, setSelectedQUT] = useState<SalesOrder | null>(null);
-  const [assignModalQUT, setAssignModalQUT] = useState<SalesOrder | null>(null);
+  const { salesOrders, quotations, customers, currentUser, users } = useApp();
+  const [selectedQUT, setSelectedQUT] = useState<any | null>(null);
+  const [assignModalQUT, setAssignModalQUT] = useState<any | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const queue = salesOrders
+  
+  const pendingQuotations = quotations
+    .filter(q => q.status === 'pending_design' || q.status === 'design_review')
+    .map(q => ({ ...q, isQuotation: true } as any));
+    
+  const pendingSalesOrders = salesOrders
+    .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
+    .map(so => ({ ...so, isQuotation: false } as any));
+
+  const allQueue = [...pendingQuotations, ...pendingSalesOrders];
+  
+  const queue = allQueue
     .filter(q => {
       if (isSpv) {
         return true;
       }
       return q.assignedTo === currentUser?.id;
     })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -384,9 +442,9 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
-            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
-            const canReview = isSpv && qut.status === 'Waiting Spv Approval';
-            const canAssign = isSpv && qut.status === 'Pending Design';
+            const canWork = !isSpv && qut.assignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'pending_design');
+            const canReview = isSpv && (qut.status === 'Waiting Spv Approval' || qut.status === 'design_review');
+            const canAssign = isSpv && (qut.status === 'Pending Design' || qut.status === 'pending_design');
 
             return (
             <div
