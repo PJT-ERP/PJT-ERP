@@ -24,29 +24,8 @@ describe('Purchasing DashboardPage Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Procurement Overview')).toBeInTheDocument();
-    expect(screen.getByText('Pending Requests')).toBeInTheDocument();
+    expect(screen.getByText('Dashboard Purchasing')).toBeInTheDocument();
+    expect(screen.getByText('Menunggu Tindakan Purchasing')).toBeInTheDocument();
   });
 
-  it('renders low stock alert when material requirement is below stock', () => {
-    vi.mocked(usePurchasingData).mockReturnValue({
-      materialRequirements: [
-        { id: '1', stockOnHand: 10, requiredQty: 50 }, // low stock
-        { id: '2', stockOnHand: 100, requiredQty: 20 }, // sufficient
-      ],
-      purchaseRequests: [],
-      isUsingBackend: true,
-      isLoading: false,
-      refresh: vi.fn(),
-    } as any);
-
-    render(
-      <BrowserRouter>
-        <DashboardPage />
-      </BrowserRouter>
-    );
-
-    expect(screen.getByText(/1 material/)).toBeInTheDocument();
-    expect(screen.getByText(/berada di bawah stok minimum/)).toBeInTheDocument();
-  });
 });

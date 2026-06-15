@@ -1,29 +1,23 @@
-import { TrendingUp, Award, Activity, ThumbsUp } from "lucide-react";
+import { TrendingUp, Award, Activity } from "lucide-react";
 
 const stats = [
   {
     icon: Award,
-    value: "10+",
-    label: "Tahun Pengalaman",
-    description: "Beroperasi sejak 2016 di bidang manufaktur industri presisi",
+    value: "Jeniffer Smith",
+    label: "Manufacturing Manager",
+    description: "PT. PRATAMA JAYA TEKINDO provided us with high-quality, precision parts for our production line. Their expertise in custom manufacturing and commitment to deadlines truly sets them apart.",
   },
   {
     icon: TrendingUp,
-    value: "100%",
-    label: "Saham Lokal",
-    description: "Bangga menjadi perusahaan penanaman modal dalam negeri sepenuhnya",
+    value: "Project Director",
+    label: "DIRECTOR",
+    description: "We've relied on PT. PRATAMA JAYA TEKINDO for several special-purpose machines, and their technical support has been exceptional. Always responsive and professional.",
   },
   {
     icon: Activity,
-    value: "6",
-    label: "Divisi Utama",
-    description: "Layanan komprehensif mulai dari machining hingga general trading",
-  },
-  {
-    icon: ThumbsUp,
-    value: "2",
-    label: "Lokasi Workshop",
-    description: "Berlokasi strategis di Tangerang dan Karawang",
+    value: "Steve Tailor",
+    label: "CFO",
+    description: "Their team's ability to deliver complex parts on time with the highest quality has greatly improved our production efficiency. Highly recommended for any engineering needs.",
   },
 ];
 
@@ -31,7 +25,7 @@ export function CompanyStats() {
   return (
     <section
       style={{
-        background: "linear-gradient(135deg, #1F1F1F 0%, #111827 100%)",
+        backgroundColor: "#F8FAFC",
       }}
       className="py-20 lg:py-24"
     >
@@ -42,13 +36,13 @@ export function CompanyStats() {
             <span
               style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
             >
-              DALAM ANGKA
+              TESTIMONIALS
             </span>
             <div style={{ backgroundColor: "#C8102E" }} className="w-1 h-6 rounded-full" />
           </div>
           <h2
             style={{
-              color: "#FFFFFF",
+              color: "#111827",
               fontFamily: "Inter, sans-serif",
               fontSize: "clamp(1.75rem, 3vw, 2.25rem)",
               fontWeight: 800,
@@ -56,11 +50,21 @@ export function CompanyStats() {
               letterSpacing: "-0.02em",
             }}
           >
-            Kinerja Operasional
+            People Say The Nicest Things
           </h2>
+          <p
+            style={{
+              color: "#64748B",
+              fontFamily: "Inter, sans-serif",
+              fontSize: "15px",
+              marginTop: "10px",
+            }}
+          >
+            Here's what our clients have to say about our services.
+          </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -68,25 +72,28 @@ export function CompanyStats() {
                 key={stat.label}
                 className="rounded-xl p-6 text-center"
                 style={{
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(10px)",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
                 }}
               >
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
-                  style={{ backgroundColor: "rgba(200,16,46,0.15)" }}
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ backgroundColor: "#E2E8F0" }}
                 >
-                  <Icon className="w-6 h-6" style={{ color: "#C8102E" }} />
+                  <Icon className="w-8 h-8" style={{ color: "#64748B" }} />
+                </div>
+                <div style={{ color: "#D93A4A", marginBottom: "10px", fontSize: "18px" }}>
+                  ★★★★★
                 </div>
                 <div
                   style={{
-                    color: "#FFFFFF",
+                    color: "#111827",
                     fontFamily: "Inter, sans-serif",
-                    fontSize: "clamp(2rem, 4vw, 2.75rem)",
-                    fontWeight: 800,
+                    fontSize: "18px",
+                    fontWeight: 700,
                     lineHeight: 1,
-                    letterSpacing: "-0.02em",
+                    letterSpacing: "-0.01em",
                   }}
                   className="mb-1"
                 >
@@ -94,11 +101,12 @@ export function CompanyStats() {
                 </div>
                 <div
                   style={{
-                    color: "#C8102E",
+                    color: "#64748B",
                     fontFamily: "Inter, sans-serif",
-                    fontSize: "14px",
-                    fontWeight: 700,
+                    fontSize: "13px",
+                    fontWeight: 600,
                     letterSpacing: "0.02em",
+                    textTransform: "uppercase",
                   }}
                   className="mb-2"
                 >

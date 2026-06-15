@@ -132,4 +132,18 @@ export const productionApi = {
     );
     return response.data;
   },
+
+  async updateSalesOrderDesignStatus(salesOrderId: string, request: {
+    designStatus: string;
+    reviewedByUserId?: string | null;
+    reviewerName?: string | null;
+    designReference?: string | null;
+    customerDrawingUrl?: string | null;
+  }) {
+    const response = await apiClient.put(
+      `/api/v1/production/sales-orders/${salesOrderId}/design-status`,
+      request,
+    );
+    return response.data;
+  },
 };

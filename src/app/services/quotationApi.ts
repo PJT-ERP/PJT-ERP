@@ -52,6 +52,7 @@ export interface QuotationDto {
   designLink?: string | null;
   estimatedAmount?: number | null;
   lostReason?: string | null;
+  notes?: string | null;
   convertedSalesOrderId?: string | null;
   convertedSalesOrderNumber?: string | null;
   createdAtUtc: string;

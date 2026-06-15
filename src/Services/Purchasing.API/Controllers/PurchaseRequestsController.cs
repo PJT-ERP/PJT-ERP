@@ -28,7 +28,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Engineering")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor")]
     public async Task<ActionResult<PurchaseRequestDto>> Create(CreatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try

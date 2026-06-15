@@ -1,87 +1,56 @@
 import { useState } from "react";
-import { Search, Package, User, Hash, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Search, Package, User, Hash, Calendar, CheckCircle2, Clock, AlertCircle, Loader2, BoxIcon } from "lucide-react";
+import { productionApi, type PublicProductionTrackingDto } from "../../services/productionApi";
 
 type StatusKey =
-  | "waiting_finance"
-  | "waiting_payment"
-  | "engineering_review"
-  | "in_production"
-  | "qc_checking"
+  | "draft"
+  | "confirmed"
+  | "waiting"
+  | "in_progress"
+  | "finished"
   | "completed";
 
 const STATUS_CONFIG: Record<StatusKey, { label: string; color: string; bg: string; border: string }> = {
-  waiting_finance: { label: "Waiting Finance", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-  waiting_payment: { label: "Waiting Payment", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
-  engineering_review: { label: "Engineering Review", color: "#8B5CF6", bg: "#F5F3FF", border: "#DDD6FE" },
-  in_production: { label: "In Produksi", color: "#3B82F6", bg: "#EFF6FF", border: "#BFDBFE" },
-  qc_checking: { label: "QC Checking", color: "#F97316", bg: "#FFF7ED", border: "#FED7AA" },
-  completed: { label: "Selesai", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
+  draft: { label: "Draft", color: "#94A3B8", bg: "#F1F5F9", border: "#CBD5E1" },
+  confirmed: { label: "Confirmed", color: "#3B82F6", bg: "#EFF6FF", border: "#BFDBFE" },
+  waiting: { label: "Waiting Production", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+  in_progress: { label: "In Production", color: "#8B5CF6", bg: "#F5F3FF", border: "#DDD6FE" },
+  finished: { label: "Finished / QC", color: "#F97316", bg: "#FFF7ED", border: "#FED7AA" },
+  completed: { label: "Completed", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
 };
 
 const TIMELINE_STEPS: { key: StatusKey; label: string }[] = [
-  { key: "waiting_finance", label: "Finance" },
-  { key: "waiting_payment", label: "Payment" },
-  { key: "engineering_review", label: "Engineering" },
-  { key: "in_production", label: "Produksi" },
-  { key: "qc_checking", label: "QC Check" },
-  { key: "completed", label: "Selesai" },
+  { key: "draft", label: "Draft" },
+  { key: "confirmed", label: "Confirmed" },
+  { key: "waiting", label: "Waiting" },
+  { key: "in_progress", label: "Production" },
+  { key: "finished", label: "QC Check" },
+  { key: "completed", label: "Completed" },
 ];
 
 const STEP_ORDER: StatusKey[] = [
-  "waiting_finance",
-  "waiting_payment",
-  "engineering_review",
-  "in_production",
-  "qc_checking",
+  "draft",
+  "confirmed",
+  "waiting",
+  "in_progress",
+  "finished",
   "completed",
 ];
 
-const MOCK_ORDERS: Record<string, {
-  soNumber: string;
-  customer: string;
-  product: string;
-  quantity: string;
-  status: StatusKey;
-  estimatedCompletion: string;
-  notes: string;
-}> = {
-  "SO-2024-001": {
-    soNumber: "SO-2024-001",
-    customer: "PT Energi Nusantara",
-    product: "Shaft Coupling CNC — Ø80mm",
-    quantity: "25 pcs",
-    status: "in_production",
-    estimatedCompletion: "2 June 2026",
-    notes: "Material certified, machining in progress — Batch 1 of 2",
-  },
-  "SO-2024-002": {
-    soNumber: "SO-2024-002",
-    customer: "CV Mitra Konstruksi",
-    product: "Custom Bracket Assembly",
-    quantity: "50 pcs",
-    status: "qc_checking",
-    estimatedCompletion: "28 May 2026",
-    notes: "Produksi complete, undergoing dimensional inspection",
-  },
-  "SO-2024-003": {
-    soNumber: "SO-2024-003",
-    customer: "PT Alat Berat Sejahtera",
-    product: "Precision Bushing Ø45mm",
-    quantity: "100 pcs",
-    status: "completed",
-    estimatedCompletion: "20 May 2026",
-    notes: "Delivered with CoC documentation",
-  },
-  "SO-2024-004": {
-    soNumber: "SO-2024-004",
-    customer: "PT Industri Prima",
-    product: "Flange Plate — Custom Spec",
-    quantity: "12 pcs",
-    status: "engineering_review",
-    estimatedCompletion: "15 June 2026",
-    notes: "DFM review in progress, awaiting engineering sign-off",
-  },
-};
+function mapApiStatusToKey(salesOrderStatus: string, productionStatus: string): StatusKey {
+  const soStatus = salesOrderStatus.toLowerCase();
+  const prodStatus = productionStatus.toLowerCase();
+
+  if (soStatus === "completed" || prodStatus === "closed") return "completed";
+  if (prodStatus === "finished") return "finished";
+  if (prodStatus === "inprogress" || prodStatus === "in_progress") return "in_progress";
+  if (soStatus === "inproduction" || soStatus === "in_production") {
+    if (prodStatus === "waiting") return "waiting";
+    return "in_progress";
+  }
+  if (soStatus === "confirmed") return "confirmed";
+  return "draft";
+}
 
 function StatusBadge({ status }: { status: StatusKey }) {
   const cfg = STATUS_CONFIG[status];
@@ -114,7 +83,6 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
         {TIMELINE_STEPS.map((step, idx) => {
           const isSelesai = idx < currentIdx;
           const isCurrent = idx === currentIdx;
-          const cfg = STATUS_CONFIG[step.key];
           return (
             <div key={step.key} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center">
@@ -203,30 +171,41 @@ function ProgressTimeline({ currentStatus }: { currentStatus: StatusKey }) {
 
 export function OrderTracking() {
   const [soInput, setSoInput] = useState("");
-  const [result, setResult] = useState<typeof MOCK_ORDERS[string] | null>(null);
+  const [result, setResult] = useState<PublicProductionTrackingDto | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleTrack = () => {
+  const handleTrack = async () => {
     const trimmed = soInput.trim().toUpperCase();
     if (!trimmed) return;
     setLoading(true);
     setNotFound(false);
     setResult(null);
-    setTimeout(() => {
-      const found = MOCK_ORDERS[trimmed];
-      if (found) {
-        setResult(found);
-      } else {
+    setError(null);
+
+    try {
+      const data = await productionApi.getPublicTracking(trimmed);
+      setResult(data);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
         setNotFound(true);
+      } else {
+        setError("Gagal terhubung ke server. Silakan coba lagi nanti.");
       }
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleTrack();
   };
+
+  const mappedStatus = result
+    ? mapApiStatusToKey(result.salesOrderStatus, result.productionStatus)
+    : "draft";
 
   return (
     <section
@@ -294,7 +273,7 @@ export function OrderTracking() {
                 value={soInput}
                 onChange={(e) => setSoInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="e.g. SO-2024-001"
+                placeholder="e.g. SO-2506-001"
                 style={{
                   width: "100%",
                   fontFamily: "Inter, sans-serif",
@@ -324,7 +303,11 @@ export function OrderTracking() {
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              <Search className="w-4 h-4" />
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4" />
+              )}
               {loading ? "Searching..." : "Track Order"}
             </button>
           </div>
@@ -334,19 +317,26 @@ export function OrderTracking() {
             style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "12px" }}
             className="mb-6"
           >
-            Try: <button
-              onClick={() => { setSoInput("SO-2024-001"); }}
-              style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2024-001</button>,{" "}
-            <button
-              onClick={() => { setSoInput("SO-2024-002"); }}
-              style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2024-002</button>,{" "}
-            <button
-              onClick={() => { setSoInput("SO-2024-003"); }}
-              style={{ color: "#C8102E", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "Inter, sans-serif", fontSize: "12px" }}
-            >SO-2024-003</button>
+            Enter your SO number (e.g. SO-2506-001) to track your order status.
           </p>
+
+          {/* Error state */}
+          {error && (
+            <div
+              className="flex items-start gap-3 p-4 rounded-xl mb-4"
+              style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}
+            >
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#EF4444" }} />
+              <div>
+                <p style={{ color: "#991B1B", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 700 }}>
+                  Connection Error
+                </p>
+                <p style={{ color: "#DC2626", fontFamily: "Inter, sans-serif", fontSize: "13px", lineHeight: 1.6 }}>
+                  {error}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Not found state */}
           {notFound && (
@@ -383,16 +373,16 @@ export function OrderTracking() {
                       {result.soNumber}
                     </div>
                   </div>
-                  <StatusBadge status={result.status} />
+                  <StatusBadge status={mappedStatus} />
                 </div>
 
                 {/* Details grid */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   {[
-                    { icon: User, label: "Customer", value: result.customer },
-                    { icon: Package, label: "Product", value: result.product },
-                    { icon: Hash, label: "Quantity", value: result.quantity },
-                    { icon: Calendar, label: "Estimasi Selesai", value: result.estimatedCompletion },
+                    { icon: User, label: "Customer", value: result.customerName },
+                    { icon: BoxIcon, label: "Total Items", value: `${result.totalItems} item(s)` },
+                    { icon: Hash, label: "Total Quantity", value: `${result.totalQuantity} pcs` },
+                    { icon: Calendar, label: "Progress", value: `${result.progressPercent}%` },
                   ].map((item) => {
                     const Icon = item.icon;
                     return (
@@ -416,22 +406,57 @@ export function OrderTracking() {
                   })}
                 </div>
 
-                {/* Notes */}
+                {/* Items list */}
+                {result.items && result.items.length > 0 && (
+                  <div className="mt-4">
+                    <div style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em" }} className="mb-2">
+                      ITEMS
+                    </div>
+                    <div className="space-y-2">
+                      {result.items.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 rounded-lg"
+                          style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Package className="w-4 h-4" style={{ color: "#C8102E" }} />
+                            <div>
+                              <div style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 600 }}>
+                                {item.productPartNumber}
+                              </div>
+                              <div style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "12px" }}>
+                                {item.productDescription}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ color: "#1F1F1F", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700 }}>
+                            {item.qty} pcs
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Timestamps */}
                 <div
                   className="mt-4 p-3 rounded-lg"
                   style={{ backgroundColor: "rgba(200,16,46,0.06)", border: "1px solid rgba(200,16,46,0.15)" }}
                 >
-                  <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "12px", fontWeight: 700 }}>NOTE: </span>
-                  <span style={{ color: "#475569", fontFamily: "Inter, sans-serif", fontSize: "13px" }}>{result.notes}</span>
+                  <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "12px", fontWeight: 700 }}>LAST UPDATED: </span>
+                  <span style={{ color: "#475569", fontFamily: "Inter, sans-serif", fontSize: "13px" }}>
+                    {new Date(result.updatedAtUtc).toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" })}
+                  </span>
                 </div>
               </div>
 
               {/* Progress timeline */}
               <div>
                 <div style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 700 }} className="mb-3">
-                  Produksi Progress
+                  Production Progress
                 </div>
-                <ProgressTimeline currentStatus={result.status} />
+                <ProgressTimeline currentStatus={mappedStatus} />
               </div>
             </div>
           )}

@@ -1,12 +1,12 @@
 import { CheckCircle } from "lucide-react";
 
 const capabilities = [
-  "Komponen presisi & custom sparepart",
-  "Jig, checking fixture & fabrikasi",
-  "Pembuatan mould & dies",
-  "Sistem otomasi PLC & konveyor",
-  "General trading komponen industri",
-  "Nilai inti: SPEED, SNIPE, STRENGTH",
+  "Precision components & custom spare parts",
+  "Jigs, checking fixtures & fabrication",
+  "Mould & dies manufacturing",
+  "PLC automation systems & conveyors",
+  "General trading of industrial components",
+  "Core values: SPEED, SNIPE, STRENGTH",
 ];
 
 export function CompanyIntro() {
@@ -19,7 +19,7 @@ export function CompanyIntro() {
           <span
             style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
-            TENTANG PERUSAHAAN
+            ABOUT COMPANY
           </span>
         </div>
 
@@ -37,7 +37,7 @@ export function CompanyIntro() {
               }}
               className="mb-5"
             >
-              Menghadirkan Kecepatan, Akurasi, dan Inovasi untuk Masa Depan Industri
+              Delivering Speed, Accuracy, and Innovation for the Future of Industry
             </h2>
             <p
               style={{
@@ -48,7 +48,7 @@ export function CompanyIntro() {
               }}
               className="mb-6"
             >
-              Didirikan sejak tahun 2016 sebagai perusahaan manufaktur 100% lokal, PT Pratama Jaya Tekindo hadir untuk menjawab tingginya permintaan sektor industri akan layanan mechanical & engineering yang andal. Kami berfokus pada penyediaan komponen presisi dan rekayasa teknik dari hulu ke hilir guna mendukung kelancaran operasional pabrik dan lini produksi berskala besar.
+              Established in 2016 as a 100% local manufacturing company, PT Pratama Jaya Tekindo is here to answer the high industrial demand for reliable mechanical & engineering services. We focus on providing precision components and end-to-to-end engineering solutions to support the smooth operation of large-scale factories and production lines.
             </p>
             <p
               style={{
@@ -59,7 +59,7 @@ export function CompanyIntro() {
               }}
               className="mb-8"
             >
-              Dengan memegang teguh filosofi kerja Speed (proses cepat dengan kualitas tinggi) dan Snipe (tingkat akurasi dan presisi yang tajam), kami mengombinasikan keahlian tenaga kerja profesional dengan permesinan CNC modern. Mulai dari industri otomotif hingga makanan dan minuman, kami berkomitmen menjadi mitra kerja tepercaya yang mampu menciptakan sistem produksi yang lebih efektif, efisien, dan kompetitif.
+              Upholding the work philosophy of Speed (fast processes with high quality) and Snipe (sharp level of accuracy and precision), we combine the expertise of professional workforce with modern CNC machining. From the automotive industry to food and beverage, we are committed to being a trusted partner capable of creating more effective, efficient, and competitive production systems.
             </p>
 
             <div className="grid sm:grid-cols-2 gap-3">
@@ -70,7 +70,13 @@ export function CompanyIntro() {
                     style={{ color: "#C8102E" }}
                   />
                   <span
-                    style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 500, lineHeight: 1.5 }}
+                    style={{
+                      color: "#111827",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      lineHeight: 1.5,
+                    }}
                   >
                     {item}
                   </span>
@@ -79,39 +85,34 @@ export function CompanyIntro() {
             </div>
           </div>
 
-          {/* Right: Image + highlight card */}
-          <div className="relative">
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{ border: "1px solid #E2E8F0", boxShadow: "0 8px 32px rgba(24,24,24,0.08)" }}
-            >
-              <img
-                src="/spm_image_5.jpeg"
-                alt="Industrial manufacturing facility"
-                className="w-full h-72 lg:h-96 object-cover"
-              />
-            </div>
-
-            {/* Floating card */}
-            <div
-              className="absolute -bottom-5 -left-5 rounded-xl p-5"
-              style={{
-                backgroundColor: "#1F1F1F",
-                boxShadow: "0 12px 40px rgba(24,24,24,0.25)",
-                minWidth: "200px",
-              }}
-            >
+          {/* Right: Images Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div
-                style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "28px", fontWeight: 800, lineHeight: 1 }}
+                className="w-full aspect-[4/5] rounded-2xl overflow-hidden"
+                style={{
+                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                }}
               >
-                10+
+                <img
+                  src="/spm1.jpeg"
+                  alt="Precision Machining 1"
+                  className="w-full h-full object-cover"
+                />
               </div>
+            </div>
+            <div className="space-y-4 pt-8">
               <div
-                style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 500, marginTop: "4px" }}
+                className="w-full aspect-[4/5] rounded-2xl overflow-hidden"
+                style={{
+                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                }}
               >
-                Tahun Pengalaman
-                <br />
-                Manufaktur Industri
+                <img
+                  src="/spm2.jpeg"
+                  alt="Precision Machining 2"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
           </div>

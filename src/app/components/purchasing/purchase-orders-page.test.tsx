@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { BrowserRouter } from 'react-router';
 import { PurchaseOrdersPage } from './purchase-orders-page';
 import { purchasingApi } from '../../services/purchasingApi';
 
@@ -33,10 +34,14 @@ describe('PurchaseOrdersPage', () => {
       }
     ] as any);
 
-    render(<PurchaseOrdersPage />);
+    render(
+      <BrowserRouter>
+        <PurchaseOrdersPage />
+      </BrowserRouter>
+    );
     
     await waitFor(() => {
-      expect(screen.getByText('Purchase Orders')).toBeInTheDocument();
+      expect(screen.getByText('Daftar Pesanan ke Toko')).toBeInTheDocument();
       expect(screen.getByText('PO-2001')).toBeInTheDocument();
       expect(screen.getByText('PT Steel')).toBeInTheDocument();
     });

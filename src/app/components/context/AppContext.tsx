@@ -420,6 +420,7 @@ function mapQuotationDto(quotation: QuotationDto, allUsers: User[]): Quotation {
       spec: item.specification || "",
     })),
     lostReason: quotation.lostReason || undefined,
+    notes: quotation.notes || undefined,
   };
 }
 
@@ -496,7 +497,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
 
 function mapPurchasingStatus(status: string): PurchasingStatus {
   if (status === "Completed") return "Selesai";
-  if (status === "Processing" || status === "FinanceApproved") return "Diproses";
+  if (status === "Processing" || status === "FinanceApproved" || status === "SupervisorApproved") return "Diproses";
   if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
   return "Pending";
 }

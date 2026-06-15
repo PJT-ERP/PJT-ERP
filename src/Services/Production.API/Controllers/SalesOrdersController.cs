@@ -10,14 +10,14 @@ namespace PJT_ERP.Production.Api.Controllers;
 public sealed class SalesOrdersController(IProductionService productionService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}/progress")]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
     {
         var progress = await productionService.GetSalesOrderProgressAsync(id, cancellationToken);
@@ -40,11 +40,8 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/engineers")]
-    [Authorize(Roles = "Admin,Sales,Sales Order")]
-    public async Task<ActionResult<SalesOrderDto>> AssignEngineers(
-        Guid id,
-        AssignSalesOrderEngineersRequest request,
-        CancellationToken cancellationToken)
+    [Authorize(Roles = "Admin,Engineering Supervisor,Owner")]
+    public async Task<ActionResult<SalesOrderDto>> AssignEngineers(Guid id, AssignSalesOrderEngineersRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -58,7 +55,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/design-status")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering")]
     public async Task<ActionResult<SalesOrderDto>> UpdateDesignStatus(
         Guid id,
         UpdateSalesOrderDesignStatusRequest request,
@@ -76,7 +73,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/confirm")]
-    [Authorize(Roles = "Admin,Sales,Sales Order")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor,Engineering")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try
@@ -90,7 +87,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/engineering-drawing")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> UploadEngineeringDrawing(
         Guid id,
         UploadEngineeringDrawingRequest request,
@@ -108,7 +105,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/material-requests")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> SubmitMaterialRequest(
         Guid id,
         SubmitProductionMaterialRequest request,
@@ -126,7 +123,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/production/start")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> StartProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -144,7 +141,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/production/finish")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> FinishProduction(
         Guid id,
         ProductionStatusUpdateRequest request,

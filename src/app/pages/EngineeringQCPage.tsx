@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ExternalLink, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { qcApi } from "../services/qcApi";
 import type { QcInspectionDto } from "../services/qcApi";
+import { QCReadOnlyView } from "./QCReadOnlyView";
 
 const S = {
   font: "Inter, sans-serif",
@@ -335,10 +336,22 @@ function QCInspectionModal({ so, inspection, onClose }: { so: SalesOrder; inspec
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function EngineeringQCPage() {
-  const { salesOrders, customers } = useApp();
+  const { salesOrders, customers, currentUser } = useApp();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
   const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
+
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyFilter, setHistoryFilter] = useState("All");
+  const [currentPageHistory, setCurrentPageHistory] = useState(1);
+  const itemsPerPage = 8;
+
+  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
+
+  if (isRegularEngineer) {
+    return <QCReadOnlyView />;
+  }
 
   useEffect(() => {
     const loadInspections = async () => {
@@ -353,9 +366,23 @@ export function EngineeringQCPage() {
   }, []);
 
   const qcQueue = salesOrders.filter(so => so.status === 'QC');
-  const recentCompleted = salesOrders.filter(so => so.status === 'Completed').slice(0, 8);
+  const recentCompleted = salesOrders.filter(so => so.status === 'Completed');
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
   const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
+
+  const filteredHistory = recentCompleted.filter(so => {
+    const cust = customers.find(c => c.code === so.customerId);
+    const matchSearch = !historySearch || 
+      so.id.toLowerCase().includes(historySearch.toLowerCase()) || 
+      so.description.toLowerCase().includes(historySearch.toLowerCase()) ||
+      (cust?.name || '').toLowerCase().includes(historySearch.toLowerCase());
+    const matchFilter = 
+      historyFilter === 'All' || 
+      (historyFilter === 'Pass' && isGo(so.qcStatus)) || 
+      (historyFilter === 'Fail' && isNoGo(so.qcStatus));
+    
+    return matchSearch && matchFilter;
+  });
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -466,6 +493,39 @@ export function EngineeringQCPage() {
             <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Riwayat QC</span>
           </div>
 
+          <div style={{ padding: "12px 18px", borderBottom: `1px solid ${S.border}`, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
+              <input 
+                type="text" 
+                placeholder="Cari SO, Deskripsi, Customer..." 
+                value={historySearch}
+                onChange={(e) => { setHistorySearch(e.target.value); setCurrentPageHistory(1); }}
+                style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} 
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { value: 'All', label: 'Semua' },
+                { value: 'Pass', label: `Go (${passCount})` },
+                { value: 'Fail', label: `NoGo (${failCount})` },
+              ].map(f => (
+                <button 
+                  key={f.value} 
+                  onClick={() => { setHistoryFilter(f.value); setCurrentPageHistory(1); }}
+                  style={{ 
+                    padding: "6px 16px", borderRadius: 6, fontSize: "12.5px", fontWeight: 500, cursor: "pointer",
+                    background: historyFilter === f.value ? S.slate : S.white, 
+                    color: historyFilter === f.value ? "#fff" : S.secondary, 
+                    boxShadow: historyFilter === f.value ? "none" : "0 1px 2px rgba(0,0,0,0.05)",
+                    border: historyFilter === f.value ? `1px solid ${S.slate}` : `1px solid ${S.border}`
+                  }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 80px 1fr 100px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
             {["SO", "Deskripsi", "Foto", "Hasil", "Catatan", "Tanggal"].map((h) => (
               <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
@@ -473,12 +533,12 @@ export function EngineeringQCPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {recentCompleted.map((so, idx) => (
+            {filteredHistory.slice((currentPageHistory - 1) * itemsPerPage, currentPageHistory * itemsPerPage).map((so, idx) => (
               <div key={so.id} onClick={() => setHistoryDetail(so)}
                 style={{
                   display: "grid", gridTemplateColumns: "110px 1fr 100px 80px 1fr 100px",
                   padding: "10px 18px", cursor: "pointer",
-                  borderBottom: idx < recentCompleted.length - 1 ? `1px solid ${S.border}` : "none",
+                  borderBottom: idx < filteredHistory.slice((currentPageHistory - 1) * itemsPerPage, currentPageHistory * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
                   transition: "background 0.1s",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
@@ -503,6 +563,27 @@ export function EngineeringQCPage() {
               </div>
             ))}
           </div>
+
+          {filteredHistory.length > itemsPerPage && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+              <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+                {(currentPageHistory - 1) * itemsPerPage + 1}–{Math.min(currentPageHistory * itemsPerPage, filteredHistory.length)} dari {filteredHistory.length} hasil
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => setCurrentPageHistory(p => Math.max(1, p - 1))} disabled={currentPageHistory === 1} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageHistory === 1 ? "#CBD5E1" : S.secondary, cursor: currentPageHistory === 1 ? "not-allowed" : "pointer" }}>
+                  <ChevronLeft size={18} />
+                </button>
+                {Array.from({ length: Math.ceil(filteredHistory.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => setCurrentPageHistory(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 28, height: 28, padding: "0 8px", borderRadius: 8, border: "none", background: p === currentPageHistory ? S.cyan : "transparent", color: p === currentPageHistory ? "#FFFFFF" : "#475569", fontSize: "13.5px", fontWeight: p === currentPageHistory ? 600 : 500, cursor: "pointer", transition: "all 0.1s" }}>
+                    {p}
+                  </button>
+                ))}
+                <button onClick={() => setCurrentPageHistory(p => Math.min(Math.ceil(filteredHistory.length / itemsPerPage), p + 1))} disabled={currentPageHistory >= Math.ceil(filteredHistory.length / itemsPerPage)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageHistory >= Math.ceil(filteredHistory.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPageHistory >= Math.ceil(filteredHistory.length / itemsPerPage) ? "not-allowed" : "pointer" }}>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

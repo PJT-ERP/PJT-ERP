@@ -410,7 +410,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { label: "Buat QU Baru", icon: <Plus size={13} />, page: "quotation-create" as Page, primary: true },
+                { label: "Buat QU", icon: <Plus size={13} />, page: "quotation-create" as Page, primary: true },
                 { label: "Lihat Semua Order", icon: <List size={13} />, page: "so-list" as Page, primary: false },
                 { label: "Data Pelanggan", icon: <Users size={13} />, page: "customer-list" as Page, primary: false },
               ].map((action) => (

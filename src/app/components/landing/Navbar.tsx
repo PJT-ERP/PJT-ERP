@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
-  { label: "Beranda", href: "#home" },
-  { label: "Tentang Kami", href: "#about" },
-  { label: "Layanan", href: "#services" },
-  { label: "Lacak Pesanan", href: "#tracking" },
-  { label: "Kontak", href: "#contact" },
+  { label: "Home", href: "#home" },
+  { label: "About", href: "#about" },
+  { label: "Projects", href: "#projects" },
+  { label: "Facility", href: "#facility" },
+  { label: "Brands", href: "#brands" },
+  { label: "Contact Us", href: "#contact" },
 ];
 
 export function Navbar() {
@@ -35,12 +36,12 @@ export function Navbar() {
               <img src="/pjt-logo-new.png" alt="PJT Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <span style={{ color: "#1F1F1F", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700, letterSpacing: "-0.01em" }}>
-                PT Pratama Jaya
+              <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700, letterSpacing: "-0.01em" }}>
+                PT. PRATAMA JAYA TEKINDO
               </span>
-              <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700 }}>
-                {" "}Tekindo
-              </span>
+              <div style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "10px", marginTop: "2px" }}>
+                General Supplier, Mechanical Component, Design Engineering
+              </div>
             </div>
           </div>
 
@@ -59,6 +60,19 @@ export function Navbar() {
                 {link.label}
               </a>
             ))}
+            <button
+              onClick={(e) => handleNavClick(e as any, "#contact")}
+              className="hidden md:inline-flex items-center justify-center px-4 py-2 rounded-lg transition-all hover:opacity-90 active:scale-95 ml-4"
+              style={{
+                backgroundColor: "#D93A4A",
+                color: "#FFFFFF",
+                fontFamily: "Inter, sans-serif",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
+            >
+              BOOK A CALL
+            </button>
           </div>
 
           <div className="flex items-center gap-3">

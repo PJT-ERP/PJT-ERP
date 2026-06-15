@@ -13,7 +13,7 @@ namespace Purchasing.API.Tests;
 public sealed class PurchaseRequestServiceTests
 {
     [Theory]
-    [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering")]
+    [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering,Engineering Supervisor")]
     [InlineData(nameof(PurchaseRequestsController.SupervisorReview), "Admin,Engineering Supervisor")]
     [InlineData(nameof(PurchaseRequestsController.FinanceReview), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { Quotation, getQuotationStatusColor } from "../components/data/mockData";
+import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 
 const S = {
   font: "Inter, sans-serif",
@@ -278,6 +279,9 @@ export function EngineeringTasksPage() {
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
   const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
   const STATUS_ORDER = ['pending_design', 'design_review'];
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
   const queue = quotations
@@ -325,7 +329,7 @@ export function EngineeringTasksPage() {
             <p style={{ color: S.slate, margin: 0, fontSize: "13.5px" }}>Semua pesanan sudah selesai didesain.</p>
           </div>
         ) : (
-          queue.map((qut, idx) => {
+          queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
             const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
             const canReview = isSpv && qut.status === 'design_review';
@@ -342,7 +346,7 @@ export function EngineeringTasksPage() {
               style={{
                 display: "grid", gridTemplateColumns: "130px 1fr 1fr 120px 100px 130px 110px",
                 padding: "10px 18px", cursor: canWork || canReview ? "pointer" : "default",
-                borderBottom: idx < queue.length - 1 ? `1px solid ${S.border}` : "none",
+                borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
                 transition: "background 0.1s",
               }}
               onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
@@ -397,9 +401,54 @@ export function EngineeringTasksPage() {
             );
           })
         )}
+
+        {queue.length > itemsPerPage && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+            <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+              {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, queue.length)} dari {queue.length} hasil
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                disabled={currentPage === 1}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : S.secondary, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              {Array.from({ length: Math.ceil(queue.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 28, height: 28, padding: "0 8px",
+                    borderRadius: 8, border: "none",
+                    background: p === currentPage ? S.cyan : "transparent",
+                    color: p === currentPage ? "#FFFFFF" : "#475569",
+                    fontSize: "13.5px", fontWeight: p === currentPage ? 600 : 500,
+                    cursor: "pointer", transition: "all 0.1s"
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(queue.length / itemsPerPage), p + 1))} 
+                disabled={currentPage >= Math.ceil(queue.length / itemsPerPage)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= Math.ceil(queue.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPage >= Math.ceil(queue.length / itemsPerPage) ? "not-allowed" : "pointer" }}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
+      {selectedQUT && (isSpv && selectedQUT.status === 'design_review' ? (
+        <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
+      ) : (
+        <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />
+      ))}
       {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
