@@ -53,6 +53,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

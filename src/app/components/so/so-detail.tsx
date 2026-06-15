@@ -585,8 +585,13 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
               
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
-                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" />
-                <InvoiceBtn icon={<Download size={12} />} label="Download PDF" />
+                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf`, '_blank')} />
+                <InvoiceBtn icon={<Download size={12} />} label="Download PDF" onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf`;
+                  link.download = `Invoice-${invoice!.invoiceNumber}.pdf`;
+                  link.click();
+                }} />
                 {status === "waiting" && !invoice?.paymentDate && !hasPendingPaymentProof && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn 
@@ -624,38 +629,25 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
   const [bankName, setBankName] = useState("");
   const [amountText, setAmountText] = useState(`Rp ${amount.toLocaleString('id-ID')}`);
   const [paymentDate, setPaymentDate] = useState(todayInputValue());
-  const [proofFileName, setProofFileName] = useState("");
-  const [proofFileUrl, setProofFileUrl] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
   const handleProofFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      setProofFileName("");
-      setProofFileUrl("");
+      setProofFile(null);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setProofFileName("");
-      setProofFileUrl("");
+      setProofFile(null);
       setError("Ukuran bukti transfer maksimal 5MB.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProofFileName(file.name);
-      setProofFileUrl(String(reader.result || ""));
-      setError("");
-    };
-    reader.onerror = () => {
-      setProofFileName("");
-      setProofFileUrl("");
-      setError("Gagal membaca file bukti transfer.");
-    };
-    reader.readAsDataURL(file);
+    setProofFile(file);
+    setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -669,7 +661,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
       setError("Nominal transfer harus lebih dari 0.");
       return;
     }
-    if (!proofFileName || !proofFileUrl) {
+    if (!proofFile) {
       setError("Bukti transfer wajib diupload.");
       return;
     }
@@ -682,8 +674,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
         amount: numericAmount,
         bankName,
         bankReference: null,
-        proofFileName,
-        proofFileUrl,
+        proofFile: proofFile,
         notes: notes.trim() || null,
       });
       onSubmit();

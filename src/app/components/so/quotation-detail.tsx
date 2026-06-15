@@ -686,8 +686,13 @@ function InvoiceSection({ invoice }: { invoice?: Quotation["invoice"] }) {
               
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
-                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" />
-                <InvoiceBtn icon={<Download size={12} />} label="Download PDF" />
+                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${(import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${(invoice as any).invoiceId}/pdf`, '_blank')} />
+                <InvoiceBtn icon={<Download size={12} />} label="Download PDF" onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = `${(import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${(invoice as any).invoiceId}/pdf`;
+                  link.download = `Invoice-${(invoice as any).invoiceNumber}.pdf`;
+                  link.click();
+                }} />
                 {status === "waiting" && !paymentReported && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn 

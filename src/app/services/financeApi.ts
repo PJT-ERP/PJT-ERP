@@ -100,8 +100,7 @@ export interface SubmitPaymentProofRequest {
   amount: number;
   bankName?: string | null;
   bankReference?: string | null;
-  proofFileName?: string | null;
-  proofFileUrl?: string | null;
+  proofFile?: File;
   notes?: string | null;
 }
 
@@ -178,7 +177,19 @@ export const financeApi = {
   },
 
   async submitPaymentProof(invoiceId: string, request: SubmitPaymentProofRequest) {
-    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, request);
+    const formData = new FormData();
+    formData.append('paymentDate', request.paymentDate);
+    formData.append('amount', request.amount.toString());
+    if (request.bankName) formData.append('bankName', request.bankName);
+    if (request.bankReference) formData.append('bankReference', request.bankReference);
+    if (request.notes) formData.append('notes', request.notes);
+    if (request.proofFile) formData.append('proofFile', request.proofFile);
+
+    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 

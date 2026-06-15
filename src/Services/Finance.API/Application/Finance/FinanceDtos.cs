@@ -1,5 +1,6 @@
 namespace PJT_ERP.Finance.Api.Application.Finance;
 
+using Microsoft.AspNetCore.Http;
 public record InvoiceCandidateDto(
     Guid SalesOrderId,
     string SalesOrderNumber,
@@ -51,6 +52,16 @@ public record SubmitPaymentProofRequest(
     string? ProofFileName,
     string? ProofFileUrl,
     string? Notes);
+
+public class SubmitPaymentProofFormRequest
+{
+    public DateOnly PaymentDate { get; set; }
+    public decimal Amount { get; set; }
+    public string? BankName { get; set; }
+    public string? BankReference { get; set; }
+    public string? Notes { get; set; }
+    public IFormFile? ProofFile { get; set; }
+}
 
 public record RejectPaymentVerificationRequest(string Reason);
 

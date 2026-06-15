@@ -176,25 +176,16 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
     onClose();
   };
 
+  const getFullProofUrl = () => {
+    if (!payment.proofFileUrl) return '';
+    const baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+    return payment.proofFileUrl.startsWith('http') ? payment.proofFileUrl : `${baseUrl}${payment.proofFileUrl}`;
+  };
+
   const openProof = () => {
     if (!payment.proofFileUrl) return;
     try {
-      if (payment.proofFileUrl.startsWith('data:')) {
-        const parts = payment.proofFileUrl.split(',');
-        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mimeType });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank', 'noopener,noreferrer');
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-      } else {
-        window.open(payment.proofFileUrl, '_blank', 'noopener,noreferrer');
-      }
+      window.open(getFullProofUrl(), '_blank', 'noopener,noreferrer');
     } catch (err) {
       console.error('Failed to open proof', err);
     }
@@ -203,31 +194,10 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
   const downloadProof = () => {
     if (!payment.proofFileUrl) return;
     try {
-      let downloadUrl = payment.proofFileUrl;
-      let isBlob = false;
-      
-      if (payment.proofFileUrl.startsWith('data:')) {
-        const parts = payment.proofFileUrl.split(',');
-        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mimeType });
-        downloadUrl = URL.createObjectURL(blob);
-        isBlob = true;
-      }
-      
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = getFullProofUrl();
       link.download = payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`;
       link.click();
-      
-      if (isBlob) {
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 10000);
-      }
     } catch (err) {
       console.error('Failed to download proof', err);
     }
