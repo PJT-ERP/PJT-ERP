@@ -34,7 +34,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   const [rejectReason, setRejectReason] = useState('');
   const customer = customers.find(c => c.code === qut.customerId);
   
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'design_review';
   const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
 
@@ -232,7 +232,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
 
 function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, users } = useApp();
-  const engineers = users.filter(user => user.role === 'Engineering' && user.username !== 'eng_spv');
+  const engineers = users.filter(user => user.role === 'Engineering Worker' && user.username !== 'eng_spv');
 
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
@@ -283,7 +283,7 @@ export function EngineeringTasksPage() {
   const itemsPerPage = 8;
 
   const STATUS_ORDER = ['pending_design', 'design_review'];
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const queue = quotations
     .filter(q => {
       if (!STATUS_ORDER.includes(q.status)) {

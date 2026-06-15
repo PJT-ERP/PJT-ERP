@@ -26,10 +26,8 @@ public sealed class DevMasterTokenAuthenticationHandler(
         "Sales",
         "Sales Order",
         "Finance",
-        "Engineering",
         "Engineering Worker",
         "Engineering Supervisor",
-        "Engineering Reviewer",
         "Purchasing"
     ];
 

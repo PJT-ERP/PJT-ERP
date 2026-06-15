@@ -43,7 +43,7 @@ PtPjtErp.sln
 
 `Production.API` menangani Sales Order sebagai pusat tracking produksi: item SO, assignment engineer worker/reviewer, barcode/QR lookup berbasis SO, start/finish produksi oleh worker yang ditugaskan, tracking waktu otomatis, progress per Sales Order, dan dashboard owner. Record production order di database hanya dipakai sebagai state internal workflow, bukan identitas yang ditampilkan ke user.
 
-`QC.API` menangani QC Inspection sederhana oleh Engineering Reviewer: upload foto/form QC, notes, dan keputusan `Go`/`NoGo`. Tidak ada lagi form checklist visual/dimension di aplikasi.
+`QC.API` menangani QC Inspection sederhana oleh Engineering Supervisor: upload foto/form QC, notes, dan keputusan `Go`/`NoGo`. Tidak ada lagi form checklist visual/dimension di aplikasi.
 
 `Purchasing.API` menangani kebutuhan material dari Sales Order, daftar item untuk purchasing, visibilitas stok, pengajuan pembelian dari Engineering/Production, approval Engineering Supervisor, approval Finance, proses pembelian oleh Purchasing, informasi supplier/PO/estimasi harga/tanggal pembelian, serta tracking bahan baku sampai diterima.
 
@@ -127,7 +127,7 @@ Alternatif header:
 X-Dev-Master-Token: dev-master-token
 ```
 
-Token ini diberi semua role development: `Admin`, `Owner`, `Sales Order`, `Finance`, `Engineering`, `Engineering Worker`, `Engineering Reviewer`, dan `Purchasing`. Di luar `Development`, token ini otomatis tidak berlaku.
+Token ini diberi semua role development: `Admin`, `Owner`, `Sales Order`, `Finance`, `Engineering Worker`, `Engineering Supervisor`, dan `Purchasing`. Di luar `Development`, token ini otomatis tidak berlaku.
 
 ## Database dan Microservices
 
@@ -187,7 +187,7 @@ Production.API
 
 QC.API
   └── QcCheckCompletedEvent
-      └── Production.API menyimpan hasil review Engineering Reviewer pada production order
+      └── Production.API menyimpan hasil review Engineering Supervisor pada production order
 
 Production.API
   └── SalesOrderReadyForInvoiceEvent
@@ -251,7 +251,7 @@ Production Tracking adalah workflow lintas service, bukan module yang berdiri se
 
 - Sales Order membuat Sales Order, mengisi item, dan assign engineer worker/reviewer.
 - Engineering Worker melihat Sales Order yang ditugaskan, upload link gambar engineering, dan melakukan start/finish produksi.
-- Engineering Reviewer hanya mengerjakan QC review setelah produksi selesai.
+- Engineering Supervisor mengerjakan QC review setelah produksi selesai.
 - Owner melakukan lookup barcode berbasis SO, melihat progress produksi, dashboard, dan bottleneck.
 - Customer/public dapat membuka link tracking produksi tanpa login untuk melihat progress order sudah sampai mana. Akses ini read-only dan tidak menampilkan data internal seperti uploader, link drawing, atau user id.
 - Finance dan Purchasing dapat membaca progress produksi untuk konteks material, pengajuan pembelian, dan planning, tetapi tidak mengubah status produksi.
@@ -282,7 +282,7 @@ Alur kerja:
 
 1. Admin login ke sistem.
 2. Admin membuka halaman User Management.
-3. Admin membuat user baru untuk Sales Order, Finance, Engineering, Purchasing, Owner, atau Admin.
+3. Admin membuat user baru untuk Sales Order, Finance, Engineering Worker, Engineering Supervisor, Purchasing, Owner, atau Admin.
 4. Admin mengubah role user jika ada perpindahan divisi.
 5. Admin menonaktifkan user yang sudah tidak boleh mengakses sistem.
 6. Admin dapat melihat user aktif dan status terakhir login.
@@ -307,7 +307,7 @@ Alur kerja:
 4. User memilih product/part yang dipesan.
 5. User mengisi quantity, target date, notes, referensi desain, dan link gambar/customer drawing jika ada.
 6. User menyimpan Sales Order.
-7. Engineering Reviewer/Supervisor mengubah status desain menjadi `Approved`, `RevisionRequired`, atau `Rejected`.
+7. Engineering Supervisor mengubah status desain menjadi `Approved`, `RevisionRequired`, atau `Rejected`.
 8. Saat Sales Order dengan desain `Approved` dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
 9. Sistem membuat barcode unik berbasis Sales Order.
 
@@ -335,7 +335,7 @@ Alur kerja:
 5. Sistem mengisi `started_at_utc`, mengubah production status menjadi `InProgress`, dan mulai menghitung duration.
 6. Engineering Worker yang sama melakukan finish produksi pada Sales Order.
 7. Sistem mengisi `finished_at_utc`, mengubah production status menjadi `Finished`, menghitung final duration, dan mengirim `ProductionFinishedEvent` untuk menyiapkan QC.
-8. Sales Order, Engineering, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order.
+8. Sales Order, Engineering Worker, Finance, Purchasing, Owner, atau Admin dapat membuka progress Sales Order.
 9. Customer dapat membuka public tracking memakai kode Sales Order atau barcode UID yang diberikan untuk melihat progress tanpa login. Public tracking hanya menampilkan status, progress, item, quantity, waktu mulai/selesai, dan duration.
 
 Endpoint utama:
@@ -361,7 +361,7 @@ Output utama:
 
 ## Skenario Engineering
 
-Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Reviewer/Supervisor menangani approval desain dan QC.
+Engineering Worker menangani upload link gambar engineering ke Sales Order sekaligus start/finish produksi. Engineering Supervisor menangani approval desain dan QC.
 
 Alur kerja:
 
@@ -381,13 +381,13 @@ Output utama:
 - Waktu upload.
 - Approval desain: `PendingDesign`, `WaitingApproval`, `Approved`, `RevisionRequired`, atau `Rejected`.
 
-## Skenario Engineering Reviewer untuk QC
+## Skenario Engineering Supervisor untuk QC
 
-Engineering Reviewer melakukan QC sederhana setelah produksi selesai: upload foto/form QC, isi notes, lalu memberi keputusan `Go` atau `NoGo`. Aplikasi tidak menyimpan tabel hasil inspeksi visual/dimension.
+Engineering Supervisor melakukan QC sederhana setelah produksi selesai: upload foto/form QC, isi notes, lalu memberi keputusan `Go` atau `NoGo`. Aplikasi tidak menyimpan tabel hasil inspeksi visual/dimension.
 
 Alur kerja:
 
-1. Engineering Reviewer login ke sistem.
+1. Engineering Supervisor login ke sistem.
 2. Reviewer membuka menu QC.
 3. Saat SO dikonfirmasi, QC API menyiapkan inspection internal melalui event workflow.
 4. Saat produksi selesai, inspection berubah menjadi siap QC melalui `ProductionFinishedEvent`.
@@ -458,7 +458,7 @@ Finance membuat invoice dari Sales Order yang sudah selesai QC. Item invoice tid
 
 Alur kerja:
 
-1. Engineering Reviewer memberi keputusan QC `Go`.
+1. Engineering Supervisor memberi keputusan QC `Go`.
 2. Production API menutup production order, mengubah Sales Order menjadi `Completed`, lalu mengirim `SalesOrderReadyForInvoiceEvent`.
 3. Finance API membuat invoice candidate berisi customer, email, nomor SO, target date, dan list item SO.
 4. User Finance membuat invoice dengan mengisi harga satuan per item, pajak, tanggal invoice, jatuh tempo, rekening transfer, dan termin pembayaran seperti DP 25%, DP 50%, atau pelunasan.
@@ -493,7 +493,7 @@ Alur kerja:
 1. Owner login ke sistem.
 2. Owner membuka Executive Dashboard.
 3. Owner melihat jumlah order yang masih waiting, in progress, finished, dan closed.
-4. Owner melihat ringkasan hasil QC dari Engineering Reviewer: `Go` dan `NoGo`.
+4. Owner melihat ringkasan hasil QC dari Engineering Supervisor: `Go` dan `NoGo`.
 5. Owner melihat NoGo rate.
 6. Owner memakai data ini untuk melihat bottleneck produksi dan kualitas barang.
 
@@ -545,11 +545,11 @@ dotnet test tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj --co
 dotnet test tests/Services/Finance.API.Tests/Finance.API.Tests.csproj --configuration Release --no-restore
 ```
 
-Test ini fokus ke logic QC: upload image/form QC, notes, keputusan `Go`/`NoGo` dari Engineering Reviewer, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke reviewer/admin.
+Test ini fokus ke logic QC: upload image/form QC, notes, keputusan `Go`/`NoGo` dari Engineering Supervisor, event `QcCheckCompletedEvent`, dan pembatasan endpoint QC ke supervisor/admin.
 
 Test Production fokus ke logic Production Tracking berbasis Sales Order: confirm SO menyiapkan barcode SO, lookup barcode read-only, start/finish oleh assigned worker, validasi finish sebelum start, duration otomatis, event `ProductionFinishedEvent`, dan progress per Sales Order.
 
-Test Purchasing fokus ke material requirement dari event Sales Order, submit Material Request multi-item dari Engineering, approval Engineering Supervisor, approval Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
+Test Purchasing fokus ke material requirement dari event Sales Order, submit Material Request multi-item dari Engineering Worker, approval Engineering Supervisor, approval Finance, proses/reject/receive item oleh Purchasing, update informasi pembelian/stok, tracking bahan baku per Sales Order, dan pembatasan role endpoint.
 
 Test Finance fokus ke kandidat invoice dari event Sales Order completed, pembuatan invoice dari item SO, termin DP/pelunasan, pencatatan pembayaran, surat penagihan overdue, dashboard per customer, dan pembatasan role endpoint.
 

@@ -37,7 +37,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
   const customer = customers.find(c => c.code === qut.customerId);
   
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'design_review';
 
   const handleForward = () => {
@@ -131,7 +131,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
 
 function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
   const { updateQuotation, users } = useApp();
-  const engineers = users.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
+  const engineers = users.filter(u => u.role === 'Engineering Worker' && u.username !== 'eng_spv');
   
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
@@ -166,7 +166,7 @@ export function EngineeringPage() {
   const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
   const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
 
   // Pre-Sales Design Queue
   const designQueue = quotations.filter(q => {

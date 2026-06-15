@@ -348,7 +348,9 @@ function mapBackendRoleToUserRole(role?: string | null): UserRole {
       return "Purchasing";
     case "engineering":
     case "engineer":
-      return "Engineering";
+    case "engineeringworker":
+    case "engineeringreviewer":
+      return "Engineering Worker";
     case "engineeringsupervisor":
     case "supervisorengineering":
       return "Engineering Supervisor";
@@ -371,7 +373,7 @@ function mapCustomerDto(customer: CustomerDto): Customer {
 function canLoadPurchaseRequests(role?: UserRole | null) {
   return role === "Purchasing"
     || role === "Finance"
-    || role === "Engineering"
+    || role === "Engineering Worker"
     || role === "Engineering Supervisor"
     || role === "Admin"
     || role === "Owner";

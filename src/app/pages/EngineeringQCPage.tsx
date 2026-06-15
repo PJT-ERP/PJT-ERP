@@ -143,7 +143,17 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
   );
 }
 
-function QCInspectionModal({ so, inspection, onClose }: { so: SalesOrder; inspection?: QcInspectionDto; onClose: () => void }) {
+function QCInspectionModal({
+  so,
+  inspection,
+  onClose,
+  onSaved,
+}: {
+  so: SalesOrder;
+  inspection?: QcInspectionDto;
+  onClose: () => void;
+  onSaved: (inspection: QcInspectionDto) => Promise<void>;
+}) {
   const { updateSalesOrder, customers, currentUser } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customer = customers.find(c => c.code === so.customerId);
@@ -173,25 +183,40 @@ function QCInspectionModal({ so, inspection, onClose }: { so: SalesOrder; inspec
   const handleSubmit = async () => {
     if (!result) return;
 
-    if (inspection && isGuid(currentUser?.id)) {
-      if (!/^https?:\/\//i.test(qcImageUrl.trim())) {
-        alert("Isi link foto/form QC valid sebelum submit ke backend.");
-        return;
-      }
+    if (!inspection) {
+      alert("Data inspeksi QC belum tersedia dari backend. Refresh data setelah produksi selesai, lalu coba lagi.");
+      return;
+    }
 
-      try {
-        await qcApi.uploadResult(inspection.id, {
-          reviewerUserId: currentUser.id,
-          reviewerName: currentUser.name,
-          qcImageUrl: qcImageUrl.trim(),
-          notes: notes || null,
-          decision: result,
-        });
-      } catch (error) {
-        console.warn("Failed to submit QC result to backend.", error);
-        alert("Gagal submit hasil QC ke backend. Cek assignment reviewer atau koneksi API.");
-        return;
-      }
+    if (!/^https?:\/\//i.test(qcImageUrl.trim())) {
+      alert("Isi link foto/form QC valid sebelum submit ke backend.");
+      return;
+    }
+
+    const reviewerUserId = isGuid(inspection.assignedReviewerUserId)
+      ? inspection.assignedReviewerUserId
+      : isGuid(currentUser?.id)
+        ? currentUser.id
+        : undefined;
+
+    if (!reviewerUserId) {
+      alert("Reviewer QC belum punya ID backend yang valid. Login ulang dengan akun Engineering Supervisor/Admin.");
+      return;
+    }
+
+    try {
+      const updatedInspection = await qcApi.uploadResult(inspection.id, {
+        reviewerUserId,
+        reviewerName: currentUser?.name || inspection.assignedReviewerName || "QC Reviewer",
+        qcImageUrl: qcImageUrl.trim(),
+        notes: notes || null,
+        decision: result,
+      });
+      await onSaved(updatedInspection);
+    } catch (error) {
+      console.warn("Failed to submit QC result to backend.", error);
+      alert("Gagal submit hasil QC ke backend. Cek assignment reviewer atau koneksi API.");
+      return;
     }
 
     if (result === 'Go') {
@@ -336,7 +361,7 @@ function QCInspectionModal({ so, inspection, onClose }: { so: SalesOrder; inspec
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function EngineeringQCPage() {
-  const { salesOrders, customers, currentUser } = useApp();
+  const { salesOrders, customers, currentUser, refreshBackendData } = useApp();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
   const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
@@ -347,7 +372,7 @@ export function EngineeringQCPage() {
   const itemsPerPage = 8;
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
+  const isRegularEngineer = currentUser?.role === 'Engineering Worker' && !isSupervisor && currentUser?.username !== 'admin';
 
   if (isRegularEngineer) {
     return <QCReadOnlyView />;
@@ -365,8 +390,17 @@ export function EngineeringQCPage() {
     void loadInspections();
   }, []);
 
-  const qcQueue = salesOrders.filter(so => so.status === 'QC');
-  const recentCompleted = salesOrders.filter(so => so.status === 'Completed');
+  const hasBackendInspections = inspections.length > 0;
+  const qcQueue = hasBackendInspections
+    ? inspections
+        .filter(inspection => inspection.status === "ReadyForInspection")
+        .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
+    : salesOrders.filter(so => so.status === 'QC');
+  const recentCompleted = hasBackendInspections
+    ? inspections
+        .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
+        .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
+    : salesOrders.filter(so => so.status === 'Completed');
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
   const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
 
@@ -587,8 +621,59 @@ export function EngineeringQCPage() {
         </div>
       )}
 
-      {selectedSO && <QCInspectionModal so={selectedSO} inspection={findInspectionForSo(inspections, selectedSO)} onClose={() => setSelectedSO(null)} />}
+      {selectedSO && (
+        <QCInspectionModal
+          so={selectedSO}
+          inspection={findInspectionForSo(inspections, selectedSO)}
+          onClose={() => setSelectedSO(null)}
+          onSaved={async (updatedInspection) => {
+            setInspections(prev => prev.map(item => item.id === updatedInspection.id ? updatedInspection : item));
+            await refreshBackendData();
+          }}
+        />
+      )}
       {historyDetail && <QCHistoryModal so={historyDetail} inspection={findInspectionForSo(inspections, historyDetail)} onClose={() => setHistoryDetail(null)} />}
     </div>
   );
+}
+
+function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: SalesOrder[]): SalesOrder {
+  const existing = salesOrders.find(order =>
+    order.soNumber === inspection.salesOrderNumber ||
+    order.id === inspection.salesOrderNumber ||
+    inspection.refNo.endsWith(order.soNumber || order.id),
+  );
+  const decision = inspection.decision || inspection.status;
+
+  return {
+    ...(existing ?? {
+      id: inspection.salesOrderNumber || inspection.refNo,
+      customerId: "-",
+      partNumber: inspection.productCode || inspection.refNo,
+      description: inspection.productName || inspection.refNo,
+      quantity: inspection.orderQty || 0,
+      unit: "PCS",
+      deadline: inspection.productionFinishedAtUtc?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      createdBy: "backend",
+      createdAt: inspection.updatedAtUtc.slice(0, 10),
+    }),
+    id: existing?.id || inspection.salesOrderNumber || inspection.refNo,
+    soNumber: existing?.soNumber || inspection.salesOrderNumber,
+    description: existing?.description || inspection.productName || inspection.refNo,
+    partNumber: existing?.partNumber || inspection.productCode || inspection.refNo,
+    quantity: existing?.quantity || inspection.orderQty || 0,
+    material: existing?.material || inspection.materialSpec || undefined,
+    status: inspection.status === "ReadyForInspection"
+      ? "QC"
+      : isGo(decision)
+        ? "Completed"
+        : "Ready for Production",
+    qcStatus: isGo(decision) ? "Go" : isNoGo(decision) ? "NoGo" : existing?.qcStatus,
+    qcNotes: inspection.notes || existing?.qcNotes,
+    qcAt: inspection.reviewedAtUtc || existing?.qcAt,
+    qcPhotos: inspection.qcImageUrl ? [inspection.qcImageUrl] : existing?.qcPhotos,
+    customerDrawingUrl: inspection.customerDrawingUrl || existing?.customerDrawingUrl,
+    designLink: inspection.customerDrawingUrl || existing?.designLink,
+    backendDesignStatus: inspection.designReference || existing?.backendDesignStatus,
+  };
 }

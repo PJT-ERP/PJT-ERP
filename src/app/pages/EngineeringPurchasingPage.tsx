@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, ShoppingCart, CheckCircle, X, Search, ChevronDown, Trash2 } from "lucide-react";
+import { Plus, ShoppingCart, CheckCircle, X, Search, ChevronDown, Trash2, Edit2 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingRequest, PurchasingItem, PurchasingUrgency, PurchasingStatus } from "../components/data/mockData";
 import { purchasingApi } from "../services/purchasingApi";
@@ -129,15 +129,19 @@ function SOCombobox({ value, onChange, options }: {
 
 // ─── Detail Modal ────────────────────────────────────────────────────────────
 
-function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => void }) {
+function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose: () => void; onEdit: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successAction, setSuccessAction] = useState<'approve' | 'reject' | null>(null);
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const items: PurchasingItem[] = pr.items && pr.items.length > 0
     ? pr.items
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Admin')
+    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
 
   if (successAction) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -180,7 +184,7 @@ function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => 
 
   const handleReject = async () => {
     if (!currentUser) return;
-    const reason = prompt("Masukkan alasan penolakan:");
+    const reason = rejectReason.trim();
     if (!reason) return;
     try {
       setIsSubmitting(true);
@@ -295,11 +299,42 @@ function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => 
             </div>
           )}
 
+          {rejectMode && (
+            <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 12 }}>
+              <p style={{ fontSize: "12px", color: "#991B1B", margin: "0 0 8px", fontWeight: 700 }}>Catatan Penolakan Supervisor</p>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="Contoh: qty terlalu banyak, spesifikasi belum lengkap, atau belum sesuai SO..."
+                style={{ width: "100%", padding: "10px 12px", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", resize: "none", boxSizing: "border-box" }}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => { setRejectMode(false); setRejectReason(''); }}
+                  disabled={isSubmitting}
+                  style={{ flex: 1, padding: "9px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: isSubmitting ? "not-allowed" : "pointer" }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReject}
+                  disabled={isSubmitting || !rejectReason.trim()}
+                  style={{ flex: 1, padding: "9px", background: "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: isSubmitting || !rejectReason.trim() ? "not-allowed" : "pointer", opacity: isSubmitting || !rejectReason.trim() ? 0.55 : 1 }}
+                >
+                  {isSubmitting ? "Menolak..." : "Konfirmasi Tolak"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Supervisor Action Buttons */}
-          {isSpv && pr.status === 'Pending' && (
+          {isSpv && pr.status === 'Pending' && !rejectMode && (
             <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
               <button
-                onClick={handleReject}
+                onClick={() => setRejectMode(true)}
                 disabled={isSubmitting}
                 style={{ flex: 1, padding: "10px", background: S.white, border: "1px solid #FECACA", color: "#EF4444", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: isSubmitting ? "not-allowed" : "pointer", opacity: isSubmitting ? 0.5 : 1 }}
               >
@@ -313,6 +348,16 @@ function PRDetailModal({ pr, onClose }: { pr: PurchasingRequest; onClose: () => 
                 Setujui ke Purchasing
               </button>
             </div>
+          )}
+
+          {canEdit && !rejectMode && (
+            <button
+              onClick={onEdit}
+              disabled={isSubmitting}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", background: "#FFF7ED", border: "1px solid #FED7AA", color: "#C2410C", borderRadius: 8, fontSize: "13.5px", fontWeight: 700, cursor: isSubmitting ? "not-allowed" : "pointer" }}
+            >
+              <Edit2 size={15} /> Edit Pengajuan
+            </button>
           )}
         </div>
       </div>
@@ -329,14 +374,27 @@ interface ItemDraft {
   unit: string;
 }
 
-function PurchasingFormModal({ onClose }: { onClose: () => void }) {
+function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; editRequest?: PurchasingRequest | null }) {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
-  const [soId, setSoId] = useState('');
-  const [urgency, setUrgency] = useState<PurchasingUrgency>('Normal');
-  const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<ItemDraft[]>([
-    { itemName: '', specification: '', quantity: '', unit: 'PCS' },
-  ]);
+  const [soId, setSoId] = useState(editRequest?.soId || '');
+  const [urgency, setUrgency] = useState<PurchasingUrgency>(editRequest?.urgency || 'Normal');
+  const [notes, setNotes] = useState(editRequest?.notes || '');
+  const [items, setItems] = useState<ItemDraft[]>(() => {
+    const sourceItems = editRequest?.items && editRequest.items.length > 0
+      ? editRequest.items
+      : editRequest
+        ? [{ itemName: editRequest.itemName, specification: editRequest.specification, quantity: editRequest.quantity, unit: editRequest.unit }]
+        : [];
+
+    return sourceItems.length > 0
+      ? sourceItems.map(item => ({
+          itemName: item.itemName,
+          specification: item.specification,
+          quantity: String(item.quantity || ''),
+          unit: item.unit || 'PCS',
+        }))
+      : [{ itemName: '', specification: '', quantity: '', unit: 'PCS' }];
+  });
   const [done, setDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -364,7 +422,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
       quantity: parseInt(it.quantity),
       unit: it.unit,
     }));
-    const selectedSo = salesOrders.find(order => order.id === soId);
+    const selectedSo = salesOrders.find(order => order.id === soId || order.soNumber === soId);
     const requesterId = toBackendUserId(currentUser);
 
     if (!requesterId) {
@@ -374,10 +432,10 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
 
     try {
       setIsSubmitting(true);
-      await purchasingApi.createPurchaseRequest({
+      const payload = {
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || "Engineering",
+        requesterName: currentUser?.name || editRequest?.requestedBy || "Engineering Worker",
         salesOrderId: selectedSo?.backendId || null,
         salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
         projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
@@ -392,7 +450,13 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
           urgency,
           purchaseCategory: selectedSo ? "Project" : "Consumable",
         })),
-      });
+      };
+
+      if (editRequest?.backendId) {
+        await purchasingApi.updatePurchaseRequest(editRequest.backendId, payload);
+      } else {
+        await purchasingApi.createPurchaseRequest(payload);
+      }
       await refreshBackendData();
       setDone(true);
     } catch (error) {
@@ -409,9 +473,9 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
         <div style={{ width: 64, height: 64, background: "#DCFCE7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <CheckCircle size={32} style={{ color: "#22C55E" }} />
         </div>
-        <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>Pengajuan Berhasil Dikirim</h3>
+        <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>{editRequest ? "Pengajuan Berhasil Diperbarui" : "Pengajuan Berhasil Dikirim"}</h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {items.length > 1 ? `${items.length} item` : 'Permintaan'} akan diproses oleh tim Purchasing.
+          {items.length > 1 ? `${items.length} item` : 'Permintaan'} akan masuk kembali ke review Supervisor.
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
           Tutup
@@ -428,7 +492,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 600, maxHeight: "90vh", display: "flex", flexDirection: "column", fontFamily: S.font }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
-          <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Pengajuan Purchasing Baru</h2>
+          <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>{editRequest ? `Edit ${editRequest.id}` : "Pengajuan Purchasing Baru"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary }}>
             <X size={20} />
           </button>
@@ -540,7 +604,7 @@ function PurchasingFormModal({ onClose }: { onClose: () => void }) {
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" disabled={!canSubmit || isSubmitting}
               style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
-              {isSubmitting ? "Mengajukan..." : "Ajukan Permintaan"}
+              {isSubmitting ? "Menyimpan..." : editRequest ? "Simpan & Kirim Ulang" : "Ajukan Permintaan"}
             </button>
           </div>
         </form>
@@ -555,6 +619,7 @@ export function EngineeringPurchasingPage() {
   const { purchasingRequests, refreshBackendData } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
+  const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
 
   useEffect(() => {
     void refreshBackendData();
@@ -571,7 +636,7 @@ export function EngineeringPurchasingPage() {
             Ajukan permintaan material dan pantau statusnya
           </p>
         </div>
-        <button onClick={() => setShowForm(true)}
+        <button onClick={() => { setEditRequest(null); setShowForm(true); }}
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "7px 14px", borderRadius: 4, border: "none",
@@ -668,8 +733,26 @@ export function EngineeringPurchasingPage() {
         </div>
       )}
 
-      {showForm && <PurchasingFormModal onClose={() => setShowForm(false)} />}
-      {selected && <PRDetailModal pr={selected} onClose={() => setSelected(null)} />}
+      {showForm && (
+        <PurchasingFormModal
+          editRequest={editRequest}
+          onClose={() => {
+            setShowForm(false);
+            setEditRequest(null);
+          }}
+        />
+      )}
+      {selected && (
+        <PRDetailModal
+          pr={selected}
+          onClose={() => setSelected(null)}
+          onEdit={() => {
+            setEditRequest(selected);
+            setSelected(null);
+            setShowForm(true);
+          }}
+        />
+      )}
     </div>
   );
 }

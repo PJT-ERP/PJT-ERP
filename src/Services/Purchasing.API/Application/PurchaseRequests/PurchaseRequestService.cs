@@ -110,6 +110,113 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         return ToDto(purchaseRequest);
     }
 
+    public async Task<PurchaseRequestDto?> UpdateAsync(
+        Guid id,
+        UpdatePurchaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        ValidateUpdateRequest(request);
+
+        var purchaseRequest = await IncludeItems(db.PurchaseRequests)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+
+        if (purchaseRequest is null)
+        {
+            return null;
+        }
+
+        if (purchaseRequest.Status is not PurchaseRequestStatuses.Submitted
+            and not PurchaseRequestStatuses.SupervisorRejected)
+        {
+            throw new InvalidOperationException("Only submitted or supervisor-rejected purchase requests can be edited.");
+        }
+
+        var materialRequirementIds = request.Items
+            .Where(item => item.MaterialRequirementId.HasValue)
+            .Select(item => item.MaterialRequirementId!.Value)
+            .Distinct()
+            .ToArray();
+
+        var materialRequirements = materialRequirementIds.Length == 0
+            ? new Dictionary<Guid, MaterialRequirement>()
+            : await db.MaterialRequirements
+                .Where(requirement => materialRequirementIds.Contains(requirement.Id))
+                .ToDictionaryAsync(requirement => requirement.Id, cancellationToken);
+
+        if (materialRequirements.Count != materialRequirementIds.Length)
+        {
+            throw new InvalidOperationException("One or more material requirements were not found.");
+        }
+
+        var firstRequirement = materialRequirements.Values.FirstOrDefault();
+        var now = DateTime.UtcNow;
+
+        foreach (var oldItem in purchaseRequest.Items)
+        {
+            if (oldItem.MaterialRequirement is not null)
+            {
+                oldItem.MaterialRequirement.Status = MaterialRequirementStatuses.Required;
+                oldItem.MaterialRequirement.UpdatedAtUtc = now;
+            }
+        }
+
+        db.PurchaseRequestItems.RemoveRange(purchaseRequest.Items);
+
+        purchaseRequest.RequestDate = request.RequestDate;
+        purchaseRequest.RequestedByUserId = request.RequestedByUserId;
+        purchaseRequest.RequesterName = request.RequesterName.Trim();
+        purchaseRequest.SalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId;
+        purchaseRequest.SalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber;
+        purchaseRequest.ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName;
+        purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+        purchaseRequest.ReviewedByUserId = null;
+        purchaseRequest.ReviewedAtUtc = null;
+        purchaseRequest.RejectionReason = null;
+        purchaseRequest.SupervisorReviewedByUserId = null;
+        purchaseRequest.SupervisorReviewedAtUtc = null;
+        purchaseRequest.SupervisorRejectionReason = null;
+        purchaseRequest.FinanceReviewedByUserId = null;
+        purchaseRequest.FinanceReviewedAtUtc = null;
+        purchaseRequest.FinanceRejectionReason = null;
+        purchaseRequest.UpdatedAtUtc = now;
+        purchaseRequest.Items = request.Items.Select(item =>
+        {
+            materialRequirements.TryGetValue(item.MaterialRequirementId ?? Guid.Empty, out var requirement);
+            var purchaseItem = new PurchaseRequestItem
+            {
+                PurchaseRequestId = purchaseRequest.Id,
+                MaterialRequirementId = item.MaterialRequirementId,
+                SalesOrderId = item.SalesOrderId ?? requirement?.SalesOrderId ?? request.SalesOrderId,
+                SalesOrderNumber = NormalizeOptional(item.SalesOrderNumber) ?? requirement?.SalesOrderNumber ?? NormalizeOptional(request.SalesOrderNumber),
+                ProductionOrderId = requirement?.ProductionOrderId,
+                SpkNumber = requirement?.SpkNumber,
+                ProjectName = NormalizeOptional(item.ProjectName) ?? requirement?.ProjectName ?? NormalizeOptional(request.ProjectName),
+                ItemName = ResolveItemName(item, requirement),
+                Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
+                Qty = item.Qty,
+                Urgency = NormalizeUrgency(item.Urgency),
+                PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId),
+                TotalPrice = NormalizePrice(item.TotalPrice, "Total price"),
+                SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier),
+                Notes = NormalizeOptional(item.Notes),
+                PurchaseStatus = PurchaseItemStatuses.Requested,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+            if (requirement is not null)
+            {
+                requirement.Status = MaterialRequirementStatuses.PurchaseRequested;
+                requirement.UpdatedAtUtc = now;
+            }
+
+            return purchaseItem;
+        }).ToList();
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(purchaseRequest);
+    }
+
     public async Task<PurchaseRequestDto?> ReviewAsync(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
         var purchaseRequest = await IncludeItems(db.PurchaseRequests)
@@ -504,6 +611,29 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         }
     }
 
+    private static void ValidateUpdateRequest(UpdatePurchaseRequest request)
+    {
+        if (request.Items.Count == 0)
+        {
+            throw new InvalidOperationException("Purchase request must contain at least one item.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RequesterName))
+        {
+            throw new InvalidOperationException("Requester name is required.");
+        }
+
+        if (request.Items.Any(item => item.Qty <= 0))
+        {
+            throw new InvalidOperationException("Purchase request item quantity must be greater than zero.");
+        }
+
+        if (request.Items.Any(item => !item.MaterialRequirementId.HasValue && string.IsNullOrWhiteSpace(item.ItemName)))
+        {
+            throw new InvalidOperationException("Item name is required when the item is not linked to a material requirement.");
+        }
+    }
+
     private static IQueryable<PurchaseRequest> IncludeItems(IQueryable<PurchaseRequest> query)
     {
         return query
@@ -618,6 +748,21 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
     }
 
     private static string ResolveItemName(CreatePurchaseRequestItem item, MaterialRequirement? requirement)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ItemName))
+        {
+            return item.ItemName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(requirement?.MaterialSpec))
+        {
+            return requirement.MaterialSpec;
+        }
+
+        return requirement?.ProductDescription ?? "";
+    }
+
+    private static string ResolveItemName(UpdatePurchaseRequestItem item, MaterialRequirement? requirement)
     {
         if (!string.IsNullOrWhiteSpace(item.ItemName))
         {

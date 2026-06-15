@@ -17,7 +17,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Penawaran & SO", icon: <List size={15} />, path: "/erp/so/quotations" },
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
   ],
-  Engineering: [
+  'Engineering Worker': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
     { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Req. Pembelian", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
@@ -201,7 +201,7 @@ export function ERPLayout() {
       salesOrders.filter(so => so.status === 'Rejected').forEach(so => {
         notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
       });
-    } else if (role === 'Engineering' || role === 'Engineering Supervisor') {
+    } else if (role === 'Engineering Worker' || role === 'Engineering Supervisor') {
       quotations.filter(q => q.status === 'pending_design').forEach(q => {
         notifs.push({ id: q.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `Quotation ${q.id} menunggu desain dan BOM.`, targetPath: '/erp/engineer-tasks' });
       });

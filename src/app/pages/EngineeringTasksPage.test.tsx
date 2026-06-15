@@ -42,7 +42,7 @@ describe('EngineeringTasksPage', () => {
       ],
       customers: [],
       users: [],
-      currentUser: { id: 'eng-1', role: 'Engineering' },
+      currentUser: { id: 'eng-1', role: 'Engineering Worker' },
       updateQuotation: vi.fn(),
     } as any);
 

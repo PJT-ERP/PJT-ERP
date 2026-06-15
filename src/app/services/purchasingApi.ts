@@ -128,6 +128,14 @@ export const purchasingApi = {
     return response.data;
   },
 
+  async updatePurchaseRequest(purchaseRequestId: string, request: CreatePurchaseRequestPayload) {
+    const response = await apiClient.put<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}`,
+      request,
+    );
+    return response.data;
+  },
+
   async reviewPurchaseRequest(purchaseRequestId: string, request: {
     reviewedByUserId: string;
     decision: 'Accept' | 'Reject';

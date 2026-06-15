@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, Plus, X } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
@@ -7,26 +7,25 @@ import { toBackendUserId } from "../../services/backendIds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { MRItem } from "./material-requests-page"; // Will export this next
 
+type ManualRequestItem = Partial<MRItem> & {
+  category?: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
+};
+
+const PURCHASE_CATEGORIES: ManualRequestItem["category"][] = ["Project", "Consumable", "Tools", "Asset", "Maintenance"];
+
 export function CreatePurchaseRequestPage() {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formSoNumber, setFormSoNumber] = useState("");
-  const [formItems, setFormItems] = useState<Partial<MRItem>[]>([{ code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
+  const [formItems, setFormItems] = useState<ManualRequestItem[]>([{ code: "", name: "", spec: "", qty: 1, unit: "PCS", category: "Consumable" }]);
   const [formPriority, setFormPriority] = useState("Medium");
   const [formUrgency, setFormUrgency] = useState("");
   const [formNotes, setFormNotes] = useState("");
 
-  const availableMaterials = useMemo(() => {
-    if (!formSoNumber) return [];
-    const so = salesOrders.find((s) => (s.soNumber || s.id) === formSoNumber);
-    if (so) return [so.material || so.description];
-    return [];
-  }, [formSoNumber, salesOrders]);
-
-  const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "pcs" }]);
+  const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "PCS", category: formSoNumber && formSoNumber !== "none" ? "Project" : "Consumable" }]);
   const removeFormItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
-  const updateFormItem = (i: number, key: keyof MRItem, val: any) => {
+  const updateFormItem = (i: number, key: keyof ManualRequestItem, val: any) => {
     const next = [...formItems];
     next[i] = { ...next[i], [key]: val };
     setFormItems(next);
@@ -46,7 +45,9 @@ export function CreatePurchaseRequestPage() {
       return;
     }
 
-    const selectedSo = salesOrders.find((so) => (so.soNumber || so.id) === formSoNumber);
+    const selectedSo = formSoNumber && formSoNumber !== "none"
+      ? salesOrders.find((so) => (so.soNumber || so.id) === formSoNumber)
+      : undefined;
     const urgency = formPriority === "High" ? "Urgent" : "Normal";
 
     try {
@@ -67,7 +68,7 @@ export function CreatePurchaseRequestPage() {
           qty: Number(item.qty) || 1,
           notes: [formUrgency, formNotes].filter(Boolean).join(" - ") || null,
           urgency,
-          purchaseCategory: selectedSo ? "Project" : "Consumable",
+          purchaseCategory: item.category || (selectedSo ? "Project" : "Consumable"),
         })),
       });
       await refreshBackendData();
@@ -135,39 +136,70 @@ export function CreatePurchaseRequestPage() {
           <div className="flex items-center justify-between mb-3">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Daftar Barang (Item)</label>
             <button
+              type="button"
               onClick={addFormItem}
-              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+              className="flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
             >
-              <Plus size={14} /> Tambah Baris
+              <Plus size={14} /> Tambah Item
             </button>
           </div>
-          <div className="rounded border border-slate-200 overflow-hidden">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-3 py-2 text-left font-semibold text-slate-600 w-[15%]">Kode</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-600 w-[35%]">Nama Material</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-600 w-[20%]">Spesifikasi</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-600 w-[15%]">Jumlah</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-600 w-[10%]">Satuan</th>
-                  <th className="px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {formItems.map((item, i) => (
-                  <tr key={i} className="border-b border-slate-100 last:border-0">
-                    <td className="p-2"><input type="text" className="w-full border rounded px-2 py-1 outline-none focus:border-blue-500" value={item.code} onChange={(e) => updateFormItem(i, "code", e.target.value)} placeholder="Opsional" /></td>
-                    <td className="p-2"><input type="text" className="w-full border rounded px-2 py-1 outline-none focus:border-blue-500" value={item.name} onChange={(e) => updateFormItem(i, "name", e.target.value)} placeholder="Contoh: Baut 10mm" /></td>
-                    <td className="p-2"><input type="text" className="w-full border rounded px-2 py-1 outline-none focus:border-blue-500" value={item.spec} onChange={(e) => updateFormItem(i, "spec", e.target.value)} placeholder="Warna/Ukuran" /></td>
-                    <td className="p-2"><input type="number" className="w-full border rounded px-2 py-1 outline-none focus:border-blue-500" value={item.qty} onChange={(e) => updateFormItem(i, "qty", e.target.value)} min={1} /></td>
-                    <td className="p-2"><input type="text" className="w-full border rounded px-2 py-1 outline-none focus:border-blue-500" value={item.unit} onChange={(e) => updateFormItem(i, "unit", e.target.value)} /></td>
-                    <td className="p-2 text-center">
-                      <button onClick={() => removeFormItem(i)} className="p-1 text-red-500 hover:bg-red-50 rounded" disabled={formItems.length === 1}><X size={16} /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="space-y-3">
+            {formItems.map((item, i) => (
+              <div key={i} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="m-0 text-sm font-semibold text-slate-800">Item #{i + 1}</p>
+                    <p className="m-0 mt-0.5 text-xs text-slate-500">Isi material, qty, satuan, dan kategori PO.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFormItem(i)}
+                    className="rounded p-1.5 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={formItems.length === 1}
+                    title="Hapus item"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                  <div className="md:col-span-3">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kode</label>
+                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.code} onChange={(e) => updateFormItem(i, "code", e.target.value)} placeholder="Opsional" />
+                  </div>
+                  <div className="md:col-span-5">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Nama Material *</label>
+                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.name} onChange={(e) => updateFormItem(i, "name", e.target.value)} placeholder="Contoh: Baut 10mm" />
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kategori</label>
+                    <Select value={item.category || "Consumable"} onValueChange={(value) => updateFormItem(i, "category", value)}>
+                      <SelectTrigger className="h-10 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PURCHASE_CATEGORIES.map(category => (
+                          <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-6">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Spesifikasi</label>
+                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.spec} onChange={(e) => updateFormItem(i, "spec", e.target.value)} placeholder="Grade, ukuran, warna, standar, dll." />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Jumlah *</label>
+                    <input type="number" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.qty} onChange={(e) => updateFormItem(i, "qty", e.target.value)} min={1} />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Satuan</label>
+                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm uppercase outline-none focus:border-blue-500" value={item.unit} onChange={(e) => updateFormItem(i, "unit", e.target.value.toUpperCase())} placeholder="PCS" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -183,12 +215,14 @@ export function CreatePurchaseRequestPage() {
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
           <button
+            type="button"
             onClick={() => navigate("/erp/purchasing/requests")}
             className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded"
           >
             Batal
           </button>
           <button
+            type="button"
             onClick={submitManualRequest}
             disabled={isSubmitting}
             className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors disabled:opacity-50"

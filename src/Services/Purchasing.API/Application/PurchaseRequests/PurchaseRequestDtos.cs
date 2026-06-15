@@ -23,6 +23,29 @@ public sealed record CreatePurchaseRequestItem(
     string? PurchaseCategory = null,
     decimal? TotalPrice = null);
 
+public sealed record UpdatePurchaseRequest(
+    DateOnly RequestDate,
+    Guid RequestedByUserId,
+    string RequesterName,
+    Guid? SalesOrderId,
+    string? SalesOrderNumber,
+    string? ProjectName,
+    IReadOnlyCollection<UpdatePurchaseRequestItem> Items);
+
+public sealed record UpdatePurchaseRequestItem(
+    Guid? MaterialRequirementId,
+    Guid? SalesOrderId,
+    string? SalesOrderNumber,
+    string? ProjectName,
+    string ItemName,
+    string? Size,
+    int Qty,
+    string? SuggestedSupplier,
+    string? Notes,
+    string? Urgency = null,
+    string? PurchaseCategory = null,
+    decimal? TotalPrice = null);
+
 public sealed record ReviewPurchaseRequest(
     Guid ReviewedByUserId,
     string Decision,

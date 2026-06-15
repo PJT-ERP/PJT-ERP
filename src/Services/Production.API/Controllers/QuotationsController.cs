@@ -10,7 +10,7 @@ namespace PJT_ERP.Production.Api.Controllers;
 public sealed class QuotationsController(IQuotationService quotationService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Supervisor,Engineering Worker,Purchasing")]
     public async Task<ActionResult<IReadOnlyCollection<QuotationDto>>> List(
         [FromQuery] string? status,
         [FromQuery] Guid? customerId,
@@ -20,7 +20,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Supervisor,Engineering Worker,Purchasing")]
     public async Task<ActionResult<QuotationDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var quotation = await quotationService.GetAsync(id, cancellationToken);
@@ -43,7 +43,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpPost("{id:guid}/assign-engineer")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Engineering Supervisor")]
     public async Task<ActionResult<QuotationDto>> AssignEngineer(
         Guid id,
         AssignQuotationEngineerRequest request,
@@ -61,7 +61,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpPost("{id:guid}/design-submission")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker")]
     public async Task<ActionResult<QuotationDto>> SubmitDesign(
         Guid id,
         SubmitQuotationDesignRequest request,
@@ -79,7 +79,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpPost("{id:guid}/supervisor-design-approval")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Engineering Supervisor")]
     public async Task<ActionResult<QuotationDto>> ApproveDesignBySupervisor(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -109,7 +109,7 @@ public sealed class QuotationsController(IQuotationService quotationService) : C
     }
 
     [HttpPost("{id:guid}/design-revision")]
-    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor")]
     public async Task<ActionResult<QuotationDto>> RequestDesignRevision(
         Guid id,
         RequestQuotationRevisionRequest request,

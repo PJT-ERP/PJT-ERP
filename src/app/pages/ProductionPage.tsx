@@ -72,7 +72,7 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   const [operatorId, setOperatorId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const operators = users.filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor');
+  const operators = users.filter(u => u.role === 'Engineering Worker' || u.role === 'Engineering Supervisor');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -15,32 +15,27 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const ROLES: UserRole[] = ['Sales', 'Engineering', 'Owner', 'Admin', 'Finance', 'Purchasing'];
+const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Owner', 'Admin', 'Finance', 'Purchasing'];
 
 function getRoleColors(role: string) {
   switch (role) {
     case 'Owner': return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' };
     case 'Admin': return { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' };
     case 'Engineering Supervisor':
-    case 'Engineering': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
+    case 'Engineering Worker': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
     default: return { bg: '#DBEAFE', text: '#C8102E', border: '#BFDBFE' }; // Sales
   }
 }
 
-function RoleBadge({ role, isSupervisor }: { role: string, isSupervisor?: boolean }) {
+function RoleBadge({ role }: { role: string }) {
   const cfg = getRoleColors(role);
   return (
     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 4, border: `1px solid ${cfg.border}`, background: cfg.bg, color: cfg.text, fontSize: "11px", fontWeight: 500, whiteSpace: "nowrap" }}>
-        {role === 'Engineering Supervisor' ? 'Engineering' : role}
+        {role}
       </span>
-      {isSupervisor && (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 4, border: `1px solid ${cfg.border}`, background: cfg.bg, color: cfg.text, fontSize: "11px", fontWeight: 500, whiteSpace: "nowrap" }}>
-          Supervisor
-        </span>
-      )}
     </div>
   );
 }
@@ -48,7 +43,7 @@ function RoleBadge({ role, isSupervisor }: { role: string, isSupervisor?: boolea
 function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
   const { addUser, updateUser } = useApp();
   const isActuallyEngSpv = user?.role === 'Engineering Supervisor';
-  const initialRole = isActuallyEngSpv ? 'Engineering' : (user?.role ?? 'Sales');
+  const initialRole = isActuallyEngSpv ? 'Engineering Worker' : (user?.role ?? 'Sales');
 
   const [form, setForm] = useState({
     name: user?.name ?? '',
@@ -62,7 +57,7 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalRole = (form.role === 'Engineering' && form.isSupervisor) ? 'Engineering Supervisor' : form.role;
+    const finalRole = (form.role === 'Engineering Worker' && form.isSupervisor) ? 'Engineering Supervisor' : form.role;
     
     const submitData = {
        name: form.name,
@@ -113,7 +108,7 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          {form.role === 'Engineering' && (
+          {form.role === 'Engineering Worker' && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F3E8FF", border: "1px solid #E9D5FF", borderRadius: 8, padding: "10px 12px" }}>
               <input type="checkbox" id="isSupervisor" checked={form.isSupervisor} onChange={e => setForm(f => ({ ...f, isSupervisor: e.target.checked }))} style={{ accentColor: "#9333EA" }} />
               <label htmlFor="isSupervisor" style={{ fontSize: "13px", color: "#6B21A8", cursor: "pointer" }}>
@@ -291,7 +286,7 @@ export function AdminPage() {
                 <span style={{ color: S.slate, fontSize: "13px", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{u.username}</span>
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{u.email}</span>
                 <div>
-                  <RoleBadge role={u.role} isSupervisor={u.role === 'Engineering Supervisor'} />
+                  <RoleBadge role={u.role} />
                 </div>
                 <div>
                   {u.isActive

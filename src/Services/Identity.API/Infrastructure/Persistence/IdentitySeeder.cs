@@ -42,7 +42,7 @@ public static class IdentitySeeder
                 Email = "engineering@pjt.local",
                 Name = "Reza Firmansyah",
                 Department = "Engineering",
-                Role = "Engineering",
+                Role = "Engineering Worker",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount
@@ -50,7 +50,7 @@ public static class IdentitySeeder
                 Email = "engineering-worker@pjt.local",
                 Name = "Arief Worker",
                 Department = "Engineering",
-                Role = "Engineering",
+                Role = "Engineering Worker",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
             },
             new UserAccount

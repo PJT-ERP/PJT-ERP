@@ -116,6 +116,8 @@ function getDefaultRouteForBackendRole(role?: string): string {
       return "/erp/purchasing";
     case "engineering":
     case "engineer":
+    case "engineeringworker":
+    case "engineeringreviewer":
     case "engineeringsupervisor":
       return "/erp/engineer";
     case "owner":

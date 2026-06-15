@@ -1,4 +1,4 @@
-export type UserRole = 'Sales' | 'Engineering' | 'Engineering Supervisor' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
+export type UserRole = 'Sales' | 'Engineering Worker' | 'Engineering Supervisor' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
   | 'Menunggu Invoice DP'
@@ -193,7 +193,7 @@ export interface PurchasingRequest {
 export function getDefaultRouteForRole(role: UserRole): string {
   const map: Record<UserRole, string> = {
     Sales: '/app/sales',
-    Engineering: '/app/engineering',
+    'Engineering Worker': '/app/engineering',
     'Engineering Supervisor': '/app/engineering',
     Owner: '/app/dashboard',
     Admin: '/app/admin',

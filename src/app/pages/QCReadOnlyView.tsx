@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { type SalesOrder } from "../components/data/mockData";
+import { toBackendUserId } from "../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -97,9 +98,10 @@ export function QCReadOnlyView() {
   const itemsPerPage = 10;
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
+  const isRegularEngineer = currentUser?.role === 'Engineering Worker' && !isSupervisor && currentUser?.username !== 'admin';
+  const currentBackendUserId = toBackendUserId(currentUser);
   const baseOrders = isRegularEngineer 
-    ? salesOrders.filter(so => so.assignedTo === currentUser?.id)
+    ? salesOrders.filter(so => so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId)
     : salesOrders;
 
   const completed = baseOrders.filter(so => so.status === 'Completed');

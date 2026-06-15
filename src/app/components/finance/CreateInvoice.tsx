@@ -5,7 +5,7 @@ import {
   CheckCircle2, Building2, FileText, Hash, Calendar, Printer
 } from 'lucide-react';
 import { formatIDR } from './mockData';
-import { financeApi } from '../../services/financeApi';
+import { financeApi, type InvoiceDto } from '../../services/financeApi';
 import { useFinanceData } from './useFinanceData';
 
 interface LineItem {
@@ -41,6 +41,9 @@ export function CreateInvoice() {
   const [ppnEnabled, setPpnEnabled] = useState(true);
   const [items, setItems] = useState<LineItem[]>([newItem()]);
   const [submitted, setSubmitted] = useState(false);
+  const [createdInvoice, setCreatedInvoice] = useState<InvoiceDto | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   
   // New Finance features
   const [invoiceType, setInvoiceType] = useState('Full Payment');
@@ -95,7 +98,7 @@ export function CreateInvoice() {
   const pct = dpPercentage === 'Custom' ? (Number(customDp) || 0) : Number(dpPercentage);
   const invoiceTotal = isDP ? Math.round((grandTotal * pct) / 100) : grandTotal;
 
-  const invoiceNumber = `INV-2026-${String(Math.floor(Math.random() * 900) + 271).padStart(4, '0')}`;
+  const invoiceNumber = createdInvoice?.invoiceNumber || 'Otomatis setelah simpan';
   const hasLockedBackendPrices = !!backendCandidate && items.every(item => item.unitPrice > 0);
   const canSubmit = !!selectedSO
     && !!dueDate
@@ -103,8 +106,15 @@ export function CreateInvoice() {
     && items.every(item => item.description && item.unitPrice > 0);
 
   const handleSubmit = async () => {
-    if (backendCandidate) {
-      await financeApi.createInvoice({
+    if (!backendCandidate || isSaving) {
+      return;
+    }
+
+    setSubmitError('');
+    setIsSaving(true);
+
+    try {
+      const invoice = await financeApi.createInvoice({
         salesOrderId: backendCandidate.salesOrderId,
         invoiceDate: issueDate,
         dueDate: isDP && dpDeadline ? dpDeadline : dueDate,
@@ -137,16 +147,22 @@ export function CreateInvoice() {
         bankAccountName: 'PT Pratama Jaya',
         bankAccountNumber: '1234567890',
       });
+      setCreatedInvoice(invoice);
       await refresh();
+      setSubmitted(true);
+    } catch (error) {
+      console.warn('Failed to create invoice.', error);
+      setSubmitError('Gagal membuat invoice. Pastikan SO belum pernah dibuatkan invoice dan harga sudah tersedia.');
+    } finally {
+      setIsSaving(false);
     }
-    setSubmitted(true);
   };
 
   const handlePreview = () => {
     const customer = displayCustomerName || 'Belum dipilih';
     window.alert(
       [
-        `Preview Invoice ${invoiceNumber}`,
+        'Preview Draft Invoice',
         `Pelanggan: ${customer}`,
         `Subtotal: ${formatIDR(subtotal)}`,
         `PPN: ${formatIDR(ppn)}`,
@@ -164,16 +180,16 @@ export function CreateInvoice() {
             <CheckCircle2 size={32} className="text-green-600" />
           </div>
           <h2 className="text-lg text-slate-900 mb-2">Invoice Berhasil Dibuat!</h2>
-          <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{invoiceNumber}</span></p>
-          {backendCandidate && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{displayCustomerName}</span></p>}
-          <div className="flex gap-3">
-            <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
-              Lihat Daftar Invoice
+          <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{createdInvoice?.invoiceNumber || '-'}</span></p>
+          {createdInvoice && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{createdInvoice.customerName}</span></p>}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button onClick={() => navigate('/erp/finance/invoices')} className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
+              Lihat Invoice
             </button>
-            <button onClick={() => window.print()} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2">
-              <Printer size={15} /> Cetak Surat Penagihan
+            <button onClick={() => window.print()} className="bg-red-600 hover:bg-red-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+              <Printer size={15} /> Cetak Invoice
             </button>
-            <button onClick={() => { setSubmitted(false); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+            <button onClick={() => { setSubmitted(false); setCreatedInvoice(null); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Buat Lagi
             </button>
           </div>
@@ -184,11 +200,11 @@ export function CreateInvoice() {
 
   return (
     <div className="p-4 lg:p-8 min-h-full bg-[#F8FAFC] flex justify-center" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <div className="w-full max-w-[850px] pb-10">
+      <div className="w-full max-w-[1100px] pb-10">
         
         {/* Top actions */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div className="flex flex-wrap items-center gap-3">
             <button onClick={() => navigate('/erp/finance/invoices')} className="text-slate-400 hover:text-slate-700 p-2 rounded-full hover:bg-slate-200 transition-all">
               <ArrowLeft size={18} />
             </button>
@@ -198,11 +214,17 @@ export function CreateInvoice() {
             <button onClick={handlePreview} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
               <Eye size={16} /> Preview
             </button>
-            <button onClick={handleSubmit} disabled={!canSubmit} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
-              <Save size={16} /> Simpan Invoice
+            <button onClick={handleSubmit} disabled={!canSubmit || isSaving} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-sm">
+              <Save size={16} /> {isSaving ? 'Menyimpan...' : 'Simpan Invoice'}
             </button>
           </div>
         </div>
+
+        {submitError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {submitError}
+          </div>
+        )}
 
         {/* Paper Document Wrapper */}
         <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden relative">
@@ -220,17 +242,17 @@ export function CreateInvoice() {
                   Data pelanggan, item SO, dan harga hasil nego akan diisi otomatis dari backend Finance.
                 </p>
               </div>
-              <div className="relative w-full sm:w-72 flex-shrink-0">
+              <div className="relative w-full sm:w-[420px] flex-shrink-0">
                 <select
                   value={selectedSO}
                   onChange={e => setSelectedSO(e.target.value)}
                   className="w-full appearance-none border border-red-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-red-500 transition-all shadow-sm pr-10"
                 >
-                  <option value="">— Pilih Sales Order —</option>
+                  <option value="">Pilih Sales Order</option>
                   {invoiceCandidates.some(candidate => candidate.status !== 'Invoiced') && (
                     <optgroup label="Backend Invoice Candidates">
                       {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
-                        <option key={candidate.salesOrderId} value={candidate.salesOrderId}>API · {candidate.salesOrderNumber} · {candidate.customerName}</option>
+                        <option key={candidate.salesOrderId} value={candidate.salesOrderId}>{candidate.salesOrderNumber} - {candidate.customerName}</option>
                       ))}
                     </optgroup>
                   )}

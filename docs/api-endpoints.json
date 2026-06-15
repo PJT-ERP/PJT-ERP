@@ -25,10 +25,8 @@
         "Owner",
         "Sales Order",
         "Finance",
-        "Engineering",
         "Engineering Supervisor",
         "Engineering Worker",
-        "Engineering Reviewer",
         "Purchasing"
       ]
     }
@@ -36,10 +34,8 @@
   "roles": [
     "Sales Order",
     "Finance",
-    "Engineering",
     "Engineering Supervisor",
     "Engineering Worker",
-    "Engineering Reviewer",
     "Purchasing",
     "Owner",
     "Admin"
@@ -52,20 +48,20 @@
         "salesOrderProductionStartFinish": ["Admin", "Engineering Worker"],
         "salesOrderDrawingUpload": ["Admin", "Engineering Worker"],
         "salesOrderMaterialRequest": ["Admin", "Engineering Worker"],
-        "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing"]
+        "barcodeLookup": ["Admin", "Owner", "Sales Order", "Finance", "Engineering Worker", "Purchasing"]
       },
       "readAccess": {
-        "salesOrderProgress": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing", "Owner", "Admin"],
+        "salesOrderProgress": ["Sales Order", "Finance", "Engineering Worker", "Purchasing", "Owner", "Admin"],
         "publicCustomerTracking": "anonymous"
       }
     },
     "qc": {
-      "summary": "QC is image/form upload, notes, and Go/NoGo decision by Engineering Reviewer. There are no visual/dimension checklist endpoints.",
+      "summary": "QC is image/form upload, notes, and Go/NoGo decision by Engineering Supervisor. There are no visual/dimension checklist endpoints.",
       "writeAccess": {
-        "qcResultUpload": ["Admin", "Engineering Reviewer"]
+        "qcResultUpload": ["Admin", "Engineering Supervisor"]
       },
       "readAccess": {
-        "qcInspections": ["Admin", "Engineering Reviewer"]
+        "qcInspections": ["Admin", "Owner", "Engineering Supervisor"]
       }
     },
     "finance": {
@@ -99,7 +95,7 @@
         },
         "qcReviewer": {
           "userId": "00000000-0000-0000-0000-000000000002",
-          "name": "Engineering Reviewer"
+          "name": "Engineering Supervisor"
         },
         "items": [
           {
@@ -116,15 +112,15 @@
       "method": "PUT",
       "path": "/api/v1/production/sales-orders/{id}/engineers",
       "roles": ["Admin", "Sales Order"],
-      "description": "Assign or update the Engineering Worker and Engineering Reviewer responsible for the Sales Order."
+      "description": "Assign or update the Engineering Worker responsible for the Sales Order."
     },
     {
       "service": "Production.API",
       "feature": "Design Approval",
       "method": "PUT",
       "path": "/api/v1/production/sales-orders/{id}/design-status",
-      "roles": ["Admin", "Engineering Reviewer"],
-      "description": "Engineering supervisor/reviewer updates design status. Sales Order confirmation requires designStatus Approved.",
+      "roles": ["Admin", "Engineering Supervisor"],
+      "description": "Engineering Supervisor updates design status. Sales Order confirmation requires designStatus Approved.",
       "requestBody": {
         "designStatus": "Approved",
         "reviewedByUserId": "00000000-0000-0000-0000-000000000002",
@@ -149,7 +145,7 @@
       "feature": "Sales Order Tracking",
       "method": "GET",
       "path": "/api/v1/production/sales-orders/{id}/progress",
-      "roles": ["Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing", "Owner", "Admin"],
+      "roles": ["Sales Order", "Finance", "Engineering Worker", "Purchasing", "Owner", "Admin"],
       "description": "Read Sales Order production progress, assignment, drawing, barcode, timestamps, duration, and item lines."
     },
     {
@@ -157,7 +153,7 @@
       "feature": "Sales Order Tracking",
       "method": "POST",
       "path": "/api/v1/production/tracking/lookup",
-      "roles": ["Admin", "Owner", "Sales Order", "Finance", "Engineering", "Engineering Worker", "Purchasing"],
+      "roles": ["Admin", "Owner", "Sales Order", "Finance", "Engineering Worker", "Purchasing"],
       "description": "Lookup Sales Order tracking by SO number or barcode. This endpoint is read-only.",
       "requestBody": {
         "trackingCode": "SO-20260522120000-ABCDEF"
@@ -236,19 +232,19 @@
       "feature": "QC Inspection",
       "method": "GET",
       "path": "/api/v1/qc/inspections",
-      "roles": ["Admin", "Engineering Reviewer"],
-      "description": "List QC inspection records prepared by the Sales Order workflow for Engineering Reviewer QC."
+      "roles": ["Admin", "Owner", "Engineering Supervisor"],
+      "description": "List QC inspection records prepared by the Sales Order workflow for Engineering Supervisor QC."
     },
     {
       "service": "QC.API",
       "feature": "QC Result",
       "method": "PUT",
       "path": "/api/v1/qc/inspections/{id}/result",
-      "roles": ["Admin", "Engineering Reviewer"],
+      "roles": ["Admin", "Engineering Supervisor"],
       "description": "Upload QC image/form URL, notes, and Go/NoGo decision.",
       "requestBody": {
         "reviewerUserId": "00000000-0000-0000-0000-000000000002",
-        "reviewerName": "Engineering Reviewer",
+        "reviewerName": "Engineering Supervisor",
         "qcImageUrl": "https://drive.example/qc-form.jpg",
         "notes": "Visual condition acceptable.",
         "decision": "Go"
@@ -262,7 +258,7 @@
       "feature": "Material Requirements",
       "method": "GET",
       "path": "/api/v1/purchasing/material-requirements?salesOrderId={salesOrderId}",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "roles": ["Admin", "Finance", "Engineering Worker", "Purchasing", "Owner", "Sales Order"],
       "description": "List material requirements by Sales Order with stock visibility."
     },
     {
@@ -278,7 +274,7 @@
       "feature": "Purchase Requests",
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "roles": ["Admin", "Finance", "Engineering Worker", "Purchasing", "Owner", "Sales Order"],
       "description": "List purchase requests submitted by Engineering, approved by Engineering Supervisor, approved by Finance, and handled by Purchasing. UI can filter by status or Sales Order."
     },
     {
@@ -286,7 +282,7 @@
       "feature": "Purchase Requests",
       "method": "GET",
       "path": "/api/v1/purchasing/purchase-requests/{id}",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "roles": ["Admin", "Finance", "Engineering Worker", "Purchasing", "Owner", "Sales Order"],
       "description": "Open purchase request detail with item, urgency, requester, SO reference, Supervisor review data, Finance review data, supplier, PO number, total price, calculated unit price, ETA, received date, and notes."
     },
     {
@@ -294,8 +290,8 @@
       "feature": "Purchase Requests",
       "method": "POST",
       "path": "/api/v1/purchasing/purchase-requests",
-      "roles": ["Admin", "Engineering"],
-      "description": "Engineering submits a multi-item purchase request.",
+      "roles": ["Admin", "Engineering Worker"],
+      "description": "Engineering Worker submits a multi-item purchase request.",
       "requestBody": {
         "requestDate": "2026-05-22",
         "requestedByUserId": "00000000-0000-0000-0000-000000000010",
@@ -409,7 +405,7 @@
       "feature": "Sales Order Material Tracking",
       "method": "GET",
       "path": "/api/v1/purchasing/sales-orders/{salesOrderId}/material-tracking",
-      "roles": ["Admin", "Finance", "Engineering", "Purchasing", "Owner", "Sales Order"],
+      "roles": ["Admin", "Finance", "Engineering Worker", "Purchasing", "Owner", "Sales Order"],
       "description": "Track raw material progress from one Sales Order, including requirement counts and linked purchasing item status."
     },
     {
