@@ -106,11 +106,11 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
           });
         } else {
           await salesApi.updateSalesOrderItems(backendId, {
-            items: qut.items.map((i: any) => ({
-              productId: i.productId,
-              quantity: i.quantity,
-              notes: i.notes,
-              unitPrice: i.unitPrice || 0,
+            items: [{
+              productId: null,
+              quantity: qut.quantity || 1,
+              notes: qut.notes || '',
+              unitPrice: qut.estimatedAmount || 0,
               materials: materials.map(m => ({
                 materialId: m.id.length === 36 ? m.id : null,
                 name: m.name,
@@ -118,7 +118,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
                 quantity: m.quantity,
                 unit: m.unit
               }))
-            }))
+            }]
           });
 
           await salesApi.submitSalesOrderDesign(backendId, {
