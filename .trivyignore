@@ -1,0 +1,3 @@
+# False positive: Missing binary integrity verification in Deno module
+# Does not affect us because we do not use Deno in our stack.
+GHSA-gv7w-rqvm-qjhr

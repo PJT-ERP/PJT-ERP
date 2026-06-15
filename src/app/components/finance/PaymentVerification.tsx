@@ -176,17 +176,31 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
     onClose();
   };
 
+  const getFullProofUrl = () => {
+    if (!payment.proofFileUrl) return '';
+    const baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+    return payment.proofFileUrl.startsWith('http') ? payment.proofFileUrl : `${baseUrl}${payment.proofFileUrl}`;
+  };
+
   const openProof = () => {
     if (!payment.proofFileUrl) return;
-    window.open(payment.proofFileUrl, '_blank', 'noopener,noreferrer');
+    try {
+      window.open(getFullProofUrl(), '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('Failed to open proof', err);
+    }
   };
 
   const downloadProof = () => {
     if (!payment.proofFileUrl) return;
-    const link = document.createElement('a');
-    link.href = payment.proofFileUrl;
-    link.download = payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`;
-    link.click();
+    try {
+      const link = document.createElement('a');
+      link.href = getFullProofUrl();
+      link.download = payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`;
+      link.click();
+    } catch (err) {
+      console.error('Failed to download proof', err);
+    }
   };
 
   return (

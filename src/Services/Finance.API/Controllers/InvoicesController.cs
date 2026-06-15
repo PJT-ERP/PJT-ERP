@@ -28,6 +28,20 @@ public sealed class InvoicesController(IFinanceService financeService) : Control
         return invoice is null ? NotFound() : Ok(invoice);
     }
 
+    [HttpGet("{invoiceId:guid}/pdf")]
+    [AllowAnonymous] // Allow viewing PDF without Auth header (e.g. window.open) or we can leave it Authorized if we pass token
+    public async Task<ActionResult> GetPdf(Guid invoiceId, CancellationToken cancellationToken)
+    {
+        var invoice = await financeService.GetInvoiceAsync(invoiceId, cancellationToken);
+        if (invoice is null)
+        {
+            return NotFound();
+        }
+
+        var pdfBytes = PdfGeneratorService.GenerateInvoicePdf(invoice);
+        return File(pdfBytes, "application/pdf", $"Invoice-{invoice.InvoiceNumber}.pdf");
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Finance")]
     public async Task<ActionResult<InvoiceDto>> Create(CreateInvoiceRequest request, CancellationToken cancellationToken)

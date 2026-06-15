@@ -39,7 +39,7 @@ public sealed class FinanceServiceTests
 
         await handler.Handle(CreateReadyForInvoiceEvent(), CancellationToken.None);
 
-        var service = new FinanceService(db);
+        var service = new FinanceService(db, null!);
         var candidates = await service.ListInvoiceCandidatesAsync(null, CancellationToken.None);
         var candidate = Assert.Single(candidates);
         Assert.Equal("SO-001", candidate.SalesOrderNumber);
@@ -70,7 +70,7 @@ public sealed class FinanceServiceTests
     {
         await using var db = CreateDbContext();
         await SeedCandidateAsync(db);
-        var service = new FinanceService(db);
+        var service = new FinanceService(db, null!);
 
         var invoice = await service.CreateInvoiceAsync(
             new CreateInvoiceRequest(
@@ -109,7 +109,7 @@ public sealed class FinanceServiceTests
         await using var db = CreateDbContext();
         var invoice = await CreateInvoiceAsync(db);
         var eventPublisher = new RecordingEventPublisher();
-        var service = new FinanceService(db, eventPublisher);
+        var service = new FinanceService(db, null!, eventPublisher);
 
         var updated = await service.RecordPaymentAsync(
             invoice.Id,
@@ -137,7 +137,7 @@ public sealed class FinanceServiceTests
         await using var db = CreateDbContext();
         var invoice = await CreateInvoiceAsync(db);
         var eventPublisher = new RecordingEventPublisher();
-        var service = new FinanceService(db, eventPublisher);
+        var service = new FinanceService(db, null!, eventPublisher);
         var request = new RecordPaymentRequest(new DateOnly(2026, 6, 10), 166_500, "DP received");
 
         await service.RecordPaymentAsync(invoice.Id, request, CancellationToken.None);
@@ -155,7 +155,7 @@ public sealed class FinanceServiceTests
     {
         await using var db = CreateDbContext();
         var invoice = await CreateInvoiceAsync(db, new DateOnly(2026, 1, 15));
-        var service = new FinanceService(db);
+        var service = new FinanceService(db, null!);
 
         var updated = await service.CreateCollectionLetterAsync(
             invoice.Id,
@@ -173,7 +173,7 @@ public sealed class FinanceServiceTests
     {
         await using var db = CreateDbContext();
         await CreateInvoiceAsync(db);
-        var service = new FinanceService(db);
+        var service = new FinanceService(db, null!);
 
         var dashboard = await service.GetDashboardAsync(CustomerId, CancellationToken.None);
 
@@ -186,7 +186,7 @@ public sealed class FinanceServiceTests
     private static async Task<InvoiceDto> CreateInvoiceAsync(FinanceContext db, DateOnly? dueDate = null)
     {
         await SeedCandidateAsync(db);
-        var service = new FinanceService(db);
+        var service = new FinanceService(db, null!);
         var invoice = await service.CreateInvoiceAsync(
             new CreateInvoiceRequest(
                 SalesOrderId,

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Finance.Api.Domain.Entities;
 using PJT_ERP.Finance.Api.Infrastructure.Persistence;
@@ -6,7 +8,7 @@ using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.Finance.Api.Application.Finance;
 
-public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPublisher = null) : IFinanceService
+public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, IEventPublisher? eventPublisher = null) : IFinanceService
 {
     public async Task<IReadOnlyCollection<InvoiceCandidateDto>> ListInvoiceCandidatesAsync(Guid? customerId, CancellationToken cancellationToken)
     {
@@ -196,7 +198,7 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
 
     public async Task<PaymentVerificationRequestDto?> SubmitPaymentProofAsync(
         Guid invoiceId,
-        SubmitPaymentProofRequest request,
+        SubmitPaymentProofFormRequest request,
         CancellationToken cancellationToken)
     {
         if (request.Amount <= 0)
@@ -204,7 +206,14 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
             throw new InvalidOperationException("Payment amount must be greater than zero.");
         }
 
-        var proofFileName = NormalizeOptional(request.ProofFileName);
+        if (request.ProofFile is null || request.ProofFile.Length == 0)
+        {
+            throw new InvalidOperationException("Payment proof file is required.");
+        }
+
+        var originalFileName = request.ProofFile.FileName;
+        var proofFileName = NormalizeOptional(originalFileName);
+        
         if (proofFileName is null)
         {
             throw new InvalidOperationException("Payment proof file name is required.");
@@ -234,14 +243,28 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
                 existing.InvoiceId == invoice.Id
                 && existing.Status == PaymentVerificationStatuses.Pending
                 && existing.PaymentDate == request.PaymentDate
-                && existing.Amount == paymentAmount
-                && existing.ProofFileName == proofFileName,
+                && existing.Amount == paymentAmount,
                 cancellationToken);
 
         if (duplicateRequest is not null)
         {
             return ToDto(duplicateRequest);
         }
+
+        // Save file
+        var extension = Path.GetExtension(originalFileName);
+        var safeInvoiceNumber = invoice.InvoiceNumber.Replace("/", "-");
+        var uniqueFileName = $"bukti-{safeInvoiceNumber}-{Guid.NewGuid():N}{extension}";
+        var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "proofs");
+        Directory.CreateDirectory(uploadsFolder);
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+        
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await request.ProofFile.CopyToAsync(stream, cancellationToken);
+        }
+        
+        var proofFileUrl = $"/proofs/{uniqueFileName}";
 
         var proofRequest = new PaymentVerificationRequest
         {
@@ -250,8 +273,8 @@ public sealed class FinanceService(FinanceContext db, IEventPublisher? eventPubl
             Amount = paymentAmount,
             BankName = bankName,
             BankReference = bankReference,
-            ProofFileName = proofFileName,
-            ProofFileUrl = NormalizeOptional(request.ProofFileUrl),
+            ProofFileName = originalFileName,
+            ProofFileUrl = proofFileUrl,
             Notes = notes,
             Status = PaymentVerificationStatuses.Pending,
             SubmittedBy = "Sales",
