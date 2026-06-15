@@ -7,6 +7,8 @@ import { quotationApi, QuotationDto } from "../../services/quotationApi";
 import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../services/salesApi";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 import { authApi } from "../../services/authApi";
+import { productionApi } from "../../services/productionApi";
+import { qcApi } from "../../services/qcApi";
 import { BACKEND_USER_IDS_BY_LOCAL_ID, isGuid, toBackendUserId } from "../../services/backendIds";
 
 interface AppContextType {
@@ -243,6 +245,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdBy: currentUser?.id ?? 'u1',
     };
     setSalesOrders(prev => [so, ...prev]);
+    void syncCreateSalesOrder(so, customers, pendingCustomersByCode.current, backendCustomerIdsByCode, setBackendCustomerIdsByCode, setSalesOrders);
     return so;
   };
 
@@ -251,6 +254,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
     currentLocal[id] = { ...(currentLocal[id] || {}), ...updates };
     localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
+    const current = salesOrders.find(so => so.id === id);
+    if (current) {
+      void syncUpdateSalesOrder(current, updates, currentUser, users, setSalesOrders);
+    }
   };
 
   const addUser = (user: Omit<User, 'id'>) => {
@@ -297,14 +304,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       requestedBy: currentUser?.id ?? 'u2',
     };
     setPurchasingRequests(prev => [req, ...prev]);
+    void syncCreatePurchasingRequest(req, currentUser, salesOrders, setPurchasingRequests);
   };
 
   const updatePurchasingStatus = (id: string, status: PurchasingStatus) => {
     setPurchasingRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    const current = purchasingRequests.find(pr => pr.id === id);
+    if (current) {
+      void syncUpdatePurchasingStatus(current, status, currentUser, setPurchasingRequests);
+    }
   };
 
   const updatePurchasingRequest = (id: string, updates: Partial<PurchasingRequest>) => {
     setPurchasingRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    const current = purchasingRequests.find(pr => pr.id === id);
+    if (current) {
+      void syncUpdatePurchasingRequest(current, updates, currentUser, setPurchasingRequests);
+    }
   };
 
   return (
@@ -787,3 +803,186 @@ function addDaysIso(date: Date, days: number) {
   return next.toISOString().split("T")[0];
 }
 
+async function syncCreateSalesOrder(
+  so: SalesOrder,
+  customers: Customer[],
+  pendingCustomersByCode: Record<string, Customer>,
+  customerIdsByCode: Record<string, string>,
+  setCustomerIdsByCode: Dispatch<SetStateAction<Record<string, string>>>,
+  setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
+) {
+  try {
+    let customerId = customerIdsByCode[so.customerId];
+    let customer = customers.find(item => item.code === so.customerId) || pendingCustomersByCode[so.customerId];
+
+    if (!customerId) {
+      if (!customer) return;
+      const created = await salesApi.createCustomer({
+        code: customer.code,
+        name: customer.name,
+        address: customer.address,
+        contactPerson: customer.contact,
+        email: customer.contact,
+      });
+      customerId = created.id;
+      setCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
+    }
+
+    const createdSo = await salesApi.createSalesOrder({
+      customerId,
+      soDate: so.createdAt,
+      targetDate: so.deadline,
+      items: [
+        {
+          productId: "00000000-0000-0000-0000-000000000000",
+          qty: so.quantity,
+          notes: so.material,
+        }
+      ],
+      customerDrawingUrl: so.designLink,
+      designReference: so.designLink,
+      designStatus: "Approved",
+    });
+
+    setSalesOrders(prev => prev.map(item => item.id === so.id ? mapSalesOrderDto(createdSo) : item));
+  } catch (error) {
+    console.warn("Failed to sync sales order to backend.", error);
+  }
+}
+
+async function syncUpdateSalesOrder(
+  so: SalesOrder,
+  updates: Partial<SalesOrder>,
+  currentUser: User | null,
+  allUsers: User[],
+  setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
+) {
+  const backendId = so.backendId || so.id;
+  if (!isGuid(backendId)) return;
+
+  try {
+    if (updates.assignedTo !== undefined) {
+      const assignedUser = allUsers.find(user => user.id === updates.assignedTo);
+      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
+      if (engineerId) {
+        const updated = await salesApi.assignSalesOrderEngineers(backendId, {
+           productionWorker: {
+             userId: engineerId,
+             name: assignedUser?.name || updates.assignedName || "Worker",
+           }
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+      }
+    }
+
+    if (updates.status === "In Production") {
+       const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+       const updated = await productionApi.startProduction(backendId, {
+         workerUserId: workerId,
+         workerName: currentUser?.name || "Production Worker"
+       });
+       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated as any) : item));
+    }
+
+    if (updates.status === "QC") {
+       const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+       const updated = await productionApi.finishProduction(backendId, {
+         workerUserId: workerId,
+         workerName: currentUser?.name || "Production Worker"
+       });
+       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated as any) : item));
+    }
+
+    if (updates.qcStatus === "Go" || updates.qcStatus === "NoGo") {
+      // Missing qcApi integration due to missing inspectionId logic
+    }
+  } catch (error) {
+    console.warn("Failed to sync sales order update to backend.", error);
+  }
+}
+
+async function syncCreatePurchasingRequest(
+  req: PurchasingRequest,
+  currentUser: User | null,
+  salesOrders: SalesOrder[],
+  setPurchasingRequests: Dispatch<SetStateAction<PurchasingRequest[]>>,
+) {
+  try {
+    const so = salesOrders.find(so => so.id === req.soId || so.soNumber === req.soId);
+    
+    const createdReq = await purchasingApi.createPurchaseRequest({
+      requestDate: req.requestedAt,
+      requestedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+      requesterName: currentUser?.name || "Purchasing User",
+      salesOrderId: so?.backendId || so?.id,
+      salesOrderNumber: so?.soNumber || req.soId,
+      projectName: req.notes,
+      items: req.items.map(item => ({
+        itemName: item.itemName,
+        size: item.specification,
+        qty: item.quantity,
+        urgency: req.urgency,
+      })),
+    });
+
+    setPurchasingRequests(prev => prev.map(item => item.id === req.id ? mapPurchaseRequestDto(createdReq) : item));
+  } catch (error) {
+    console.warn("Failed to sync purchasing request to backend.", error);
+  }
+}
+
+async function syncUpdatePurchasingStatus(
+  req: PurchasingRequest,
+  status: PurchasingStatus,
+  currentUser: User | null,
+  setPurchasingRequests: Dispatch<SetStateAction<PurchasingRequest[]>>,
+) {
+  const backendId = req.backendId || req.id;
+  if (!isGuid(backendId)) return;
+
+  try {
+    const userId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+    const decision = status === "Ditolak" ? "Reject" : "Accept";
+    
+    let updated;
+    if (currentUser?.role === "Engineering Supervisor" || currentUser?.role === "Owner") {
+      updated = await purchasingApi.supervisorReviewPurchaseRequest(backendId, {
+        reviewedByUserId: userId,
+        decision,
+        rejectionReason: req.rejectionReason,
+      });
+    } else if (currentUser?.role === "Finance" || currentUser?.role === "Admin") {
+      updated = await purchasingApi.financeReviewPurchaseRequest(backendId, {
+        reviewedByUserId: userId,
+        decision,
+        rejectionReason: req.rejectionReason,
+      });
+    } else {
+      updated = await purchasingApi.reviewPurchaseRequest(backendId, {
+        reviewedByUserId: userId,
+        decision,
+        rejectionReason: req.rejectionReason,
+      });
+    }
+
+    setPurchasingRequests(prev => prev.map(item => item.backendId === backendId || item.id === req.id ? mapPurchaseRequestDto(updated) : item));
+  } catch (error) {
+    console.warn("Failed to sync purchasing status to backend.", error);
+  }
+}
+
+async function syncUpdatePurchasingRequest(
+  req: PurchasingRequest,
+  updates: Partial<PurchasingRequest>,
+  currentUser: User | null,
+  setPurchasingRequests: Dispatch<SetStateAction<PurchasingRequest[]>>,
+) {
+  const backendId = req.backendId || req.id;
+  if (!isGuid(backendId)) return;
+
+  try {
+    // Basic catchall
+  } catch (error) {
+    console.warn("Failed to sync purchasing request update to backend.", error);
+  }
+}
