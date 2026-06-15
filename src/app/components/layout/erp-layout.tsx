@@ -108,7 +108,7 @@ export function ERPLayout() {
         justifyContent: sidebarMinimized ? "center" : "flex-start"
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <img src="/logoPJT.png" alt="Logo" style={{ height: 32, maxWidth: sidebarMinimized ? 32 : 140, objectFit: "contain", mixBlendMode: "multiply" }} />
+          <img src="/pjt-logo-new.png" alt="Logo" style={{ height: 38, maxWidth: sidebarMinimized ? 38 : 140, objectFit: "contain", mixBlendMode: "multiply" }} />
         </div>
         {!sidebarMinimized && (
           <div style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>

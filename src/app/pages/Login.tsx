@@ -46,7 +46,7 @@ export function Login() {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/logoPJT.png" alt="PT Pratama Jaya" className="h-20 mx-auto mb-4 object-contain mix-blend-multiply" />
+          <img src="/pjt-logo-new.png" alt="PT Pratama Jaya" className="h-24 mx-auto mb-4 object-contain mix-blend-multiply" />
           <h1 className="text-2xl font-bold text-[#111827] mb-2">Welcome Back</h1>
           <p className="text-[#64748B] text-sm">Sign in to the Manufacturing ERP System</p>
         </div>
