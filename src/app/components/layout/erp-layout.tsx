@@ -99,20 +99,21 @@ export function ERPLayout() {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div style={{
+        <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "16px 14px 14px",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "#ffffff",
+        borderBottom: "1px solid #E2E8F0",
         flexShrink: 0,
         justifyContent: sidebarMinimized ? "center" : "flex-start"
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <img src="/logoPJT.png" alt="Logo" style={{ height: 28, maxWidth: sidebarMinimized ? 28 : 120, objectFit: "contain" }} />
+          <img src="/logoPJT.png" alt="Logo" style={{ height: 32, maxWidth: sidebarMinimized ? 32 : 140, objectFit: "contain", mixBlendMode: "multiply" }} />
         </div>
         {!sidebarMinimized && (
           <div style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
-            <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#F9FAFB", fontFamily: "Inter, sans-serif", lineHeight: 1.3 }}>PT Pratama Jaya</p>
-            <p style={{ margin: 0, fontSize: "10px", color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>{currentUser.role} Module</p>
+            <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#111827", fontFamily: "Inter, sans-serif", lineHeight: 1.3 }}>PT Pratama Jaya</p>
+            <p style={{ margin: 0, fontSize: "10.5px", color: "#64748B", fontFamily: "Inter, sans-serif" }}>{currentUser.role}</p>
           </div>
         )}
         {!sidebarMinimized && (
