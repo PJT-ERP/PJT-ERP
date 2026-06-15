@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { formatIDR } from "../data/mockData";
+import { formatIDR } from "./mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -25,8 +25,9 @@ export function FinanceCosting() {
   const waitingPricingList = salesOrders.filter(so => so.status === "Menunggu Invoice DP");
 
   const filteredList = waitingPricingList.filter(so => 
-    so.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    so.customerId.toLowerCase().includes(searchTerm.toLowerCase())
+    so.id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    so.customerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    so.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // State for costing
