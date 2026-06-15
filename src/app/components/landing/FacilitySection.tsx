@@ -1,29 +1,29 @@
 import React, { useState } from 'react';
-import { MapPin, Settings2, ShieldCheck, Wrench, ImageIcon, Box, Ruler } from 'lucide-react';
+import { MapPin, Settings2, ShieldCheck, Wrench, ImageIcon, Box } from 'lucide-react';
 
 const tangerangMachines = [
-  { no: 1, desc: "CNC Milling Hurco 2014", unit: 1, travel: "1300x520x510" },
-  { no: 2, desc: "CNC Milling Twinhorn 2021", unit: 1, travel: "1060x520x510" },
-  { no: 3, desc: "CNC Milling YCM 2022", unit: 1, travel: "1050x520x510" },
-  { no: 4, desc: "CNC Milling Akira Seiki 2015", unit: 1, travel: "800x400x500" },
-  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 3, travel: "D 180 x 250" },
-  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, travel: "D180x250" },
-  { no: 7, desc: "CNC LATHE M/C Microcut 6 inch 2016", unit: 1, travel: "D150x500" },
-  { no: 8, desc: "Lathe Machine", unit: 1, travel: "D 500x1000" },
-  { no: 9, desc: "Surface Grinding PROTH 2012", unit: 1, travel: "800x400" },
-  { no: 10, desc: "Milling Machine STD SM5", unit: 1, travel: "1100x350" },
-  { no: 11, desc: "Milling Machine STD SM4", unit: 1, travel: "800x250" },
+  { no: 1, desc: "CNC Milling Hurco 2014", unit: 1, img: null },
+  { no: 2, desc: "CNC Milling Twinhorn 2021", unit: 1, img: null },
+  { no: 3, desc: "CNC Milling YCM 2022", unit: 1, img: "/CNC MILLING YCM E5.png" },
+  { no: 4, desc: "CNC Milling Akira Seiki 2015", unit: 1, img: null },
+  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 3, img: "/CNC Turning.png" },
+  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/CNC Turning.png" },
+  { no: 7, desc: "CNC LATHE M/C Microcut 6 inch 2016", unit: 1, img: "/CNC Turning.png" },
+  { no: 8, desc: "Lathe Machine", unit: 1, img: "/BUBUT MANUAL.webp" },
+  { no: 9, desc: "Surface Grinding PROTH 2012", unit: 1, img: "/SURFACE GRINDING.png" },
+  { no: 10, desc: "Milling Machine STD SM5", unit: 1, img: "/MILLING MANUAL.jpeg" },
+  { no: 11, desc: "Milling Machine STD SM4", unit: 1, img: "/MILLING MANUAL.jpeg" },
 ];
 
 const surabayaMachines = [
-  { no: 1, desc: "CNC Milling YCM 2015", unit: 3, travel: "800x400x510" },
-  { no: 2, desc: "CNC Milling YCM 2015", unit: 1, travel: "1060x520x510" },
-  { no: 3, desc: "CNC Milling VICTOR 2018", unit: 1, travel: "1050x520x510" },
-  { no: 4, desc: "CNC Milling First 2017", unit: 1, travel: "800x400x500" },
-  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 2, travel: "D 180 x 250" },
-  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, travel: "D180x250" },
-  { no: 7, desc: "CNC LATHE M/C Goodway 10 inch 2016", unit: 1, travel: "D150x500" },
-  { no: 8, desc: "HORIZONTAL MILLING", unit: 1, travel: "800x800" },
+  { no: 1, desc: "CNC Milling YCM 2015", unit: 3, img: "/CNC MILLING YCM E5.png" },
+  { no: 2, desc: "CNC Milling YCM 2015", unit: 1, img: "/CNC MILLING YCM E5.png" },
+  { no: 3, desc: "CNC Milling VICTOR 2018", unit: 1, img: null },
+  { no: 4, desc: "CNC Milling First 2017", unit: 1, img: null },
+  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 2, img: "/CNC Turning.png" },
+  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/CNC Turning.png" },
+  { no: 7, desc: "CNC LATHE M/C Goodway 10 inch 2016", unit: 1, img: "/CNC Turning.png" },
+  { no: 8, desc: "HORIZONTAL MILLING", unit: 1, img: null },
 ];
 
 export function FacilitySection() {
@@ -123,10 +123,16 @@ export function FacilitySection() {
               key={idx} 
               className="flex flex-col bg-white overflow-hidden p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
             >
-              {/* Image Placeholder */}
-              <div className="w-full aspect-[4/3] mb-5 flex flex-col items-center justify-center bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-slate-100 transition-colors">
-                <ImageIcon className="text-slate-300 mb-2" size={48} />
-                <span className="text-xs text-slate-400 font-medium tracking-wide uppercase">Image Coming Soon</span>
+              {/* Image / Placeholder */}
+              <div className="w-full aspect-[4/3] mb-5 flex flex-col items-center justify-center bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-slate-100 transition-colors overflow-hidden">
+                {m.img ? (
+                  <img src={m.img} alt={m.desc} className="w-full h-full object-contain mix-blend-multiply" />
+                ) : (
+                  <>
+                    <ImageIcon className="text-slate-300 mb-2" size={48} />
+                    <span className="text-xs text-slate-400 font-medium tracking-wide uppercase">Image Coming Soon</span>
+                  </>
+                )}
               </div>
               
               {/* Machine Details */}
@@ -151,16 +157,6 @@ export function FacilitySection() {
                       <span>Total Units</span>
                     </div>
                     <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{m.unit}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center text-slate-500">
-                      <Ruler size={16} className="mr-2 opacity-70" />
-                      <span>Travel Area</span>
-                    </div>
-                    <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                      {m.travel}
-                    </span>
                   </div>
                 </div>
               </div>
