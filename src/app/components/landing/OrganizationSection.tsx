@@ -121,29 +121,6 @@ export function OrganizationSection() {
                     </div>
                   </div>
                 </div>
-
-                {/* Education Breakdown Bar Chart */}
-                <div className="bg-white rounded-xl border border-slate-200 p-6 relative overflow-hidden shadow-sm flex flex-col justify-between">
-                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest text-center">Education Breakdown</div>
-                  <div className="flex justify-center items-end gap-8 mt-6 h-24 border-b border-slate-100 pb-2">
-                    <div className="flex flex-col items-center gap-2 relative group cursor-pointer w-12">
-                      <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs px-2 py-1 rounded font-bold">2</div>
-                      <div className="w-full bg-blue-100 hover:bg-blue-200 rounded-t-md transition-colors" style={{ height: '25%' }}></div>
-                      <div className="text-xs font-bold text-slate-500">S1</div>
-                    </div>
-                    <div className="flex flex-col items-center gap-2 relative group cursor-pointer w-12">
-                      <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs px-2 py-1 rounded font-bold">6</div>
-                      <div className="w-full bg-[#2563EB] hover:bg-blue-700 rounded-t-md transition-colors" style={{ height: '75%' }}></div>
-                      <div className="text-xs font-bold text-slate-500">D3</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ratio Card */}
-                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Ratio S1 : D3</div>
-                  <div className="text-3xl font-black text-[#2563EB]">1 : 3</div>
-                </div>
               </div>
             </div>
 
