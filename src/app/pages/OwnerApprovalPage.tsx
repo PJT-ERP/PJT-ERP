@@ -244,7 +244,7 @@ export function OwnerApprovalPage() {
 
   const waitingApproval = [...pendingQuotations, ...pendingSalesOrders];
 
-  const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['client_design_approval', 'lost'].includes(q.status) || q.notes).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
+  const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['waiting_pricing', 'client_design_approval', 'lost', 'client_price_approval', 'won'].includes(q.status) || q.notes).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
   const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Menunggu Invoice DP', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
 
   const logItems = [...logQuotations, ...logSalesOrders]
@@ -253,7 +253,7 @@ export function OwnerApprovalPage() {
       const customer = customers.find(c => c.code === item.customerId);
       const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
 
-      const isApproved = item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Menunggu Invoice DP';
+      const isApproved = item.isQuotation ? ['waiting_pricing', 'client_design_approval', 'client_price_approval', 'won'].includes(item.status) : item.status === 'Menunggu Invoice DP';
       const isRejected = item.isQuotation ? item.status === 'lost' : item.status === 'Rejected';
       const isRevision = item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required';
 
