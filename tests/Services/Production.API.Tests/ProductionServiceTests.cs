@@ -32,12 +32,12 @@ public sealed class ProductionServiceTests
     }
 
     [Theory]
-    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing")]
-    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing")]
-    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering")]
-    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering")]
-    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering")]
-    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering")]
+    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker")]
+    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker")]
     public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
     {
         var method = typeof(SalesOrdersController)
