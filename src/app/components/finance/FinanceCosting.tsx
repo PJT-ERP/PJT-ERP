@@ -1,5 +1,17 @@
 import React, { useState } from "react";
-import { formatIDR, S } from "../../styles";
+import { formatIDR } from "../data/mockData";
+
+const S = {
+  font: "Inter, sans-serif",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
+  slate: "#111827",
+  secondary: "#64748B",
+  border: "#E2E8F0",
+  bg: "#F8FAFC",
+  white: "#FFFFFF",
+  cardBorder: "#E2E8F0",
+};
 import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { SalesOrder } from "../data/mockData";
