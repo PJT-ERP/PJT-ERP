@@ -720,8 +720,14 @@ async function syncUpdateQuotation(
       return;
     }
 
-    if (updates.status === "client_design_approval") {
-      const updated = await quotationApi.approveSupervisorDesign(backendId);
+    if (updates.status === "waiting_pricing") {
+      let updated: any;
+      if (quotation.status === "design_review") {
+        await quotationApi.approveSupervisorDesign(backendId);
+        updated = await quotationApi.approveClientDesign(backendId);
+      } else {
+        updated = await quotationApi.approveClientDesign(backendId);
+      }
       setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
     }
@@ -737,7 +743,7 @@ async function syncUpdateQuotation(
       return;
     }
 
-    if (updates.status === "waiting_pricing") {
+    if (updates.status === "client_design_approval") {
       const updated = await quotationApi.approveClientDesign(backendId);
       setQuotations(prev => prev.map(item => item.backendId === backendId || item.id === quotation.id ? mapQuotationDto(updated, allUsers) : item));
       return;
