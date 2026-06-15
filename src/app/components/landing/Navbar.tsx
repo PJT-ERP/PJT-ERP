@@ -26,21 +26,23 @@ export function Navbar() {
       className="fixed top-0 left-0 right-0 z-50"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between py-3 min-h-[5rem]">
           {/* Logo */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white p-1"
+              className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 bg-white p-1"
               style={{ border: "1px solid #E5E7EB" }}
             >
               <img src="/pjt-logo-new.png" alt="PJT Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <span style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "15px", fontWeight: 700, letterSpacing: "-0.01em" }}>
+              <div style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "16px", fontWeight: 800, letterSpacing: "-0.01em" }}>
                 PT. PRATAMA JAYA TEKINDO
-              </span>
-              <div style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "10px", marginTop: "2px" }}>
-                General Supplier, Mechanical Component, Design Engineering
+              </div>
+              <div 
+                className="max-w-[280px] md:max-w-[320px] leading-[1.3]"
+                style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "11px", marginTop: "4px" }}>
+                General Supplier, Mechanical Component, Design Engineering, CNC 3D Programming, Jig & Checking Fixture, Fabrication, PLC Automation System
               </div>
             </div>
           </div>

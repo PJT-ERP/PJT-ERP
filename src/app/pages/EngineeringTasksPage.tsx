@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, getQuotationStatusColor } from "../components/data/mockData";
+import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 
 const S = {
@@ -17,7 +17,7 @@ const S = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = getQuotationStatusColor(status);
+  const cfg = getStatusColor(status as any);
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
@@ -26,17 +26,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation, customers, currentUser } = useApp();
+function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
+  const { updateSalesOrder, customers, currentUser } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
   const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
   const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
   const [rejectReason, setRejectReason] = useState('');
   const customer = customers.find(c => c.code === qut.customerId);
   
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'design_review';
-  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isPendingSpv = qut.status === 'Waiting Spv Approval';
+  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -47,19 +47,19 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
       return;
     }
 
-    updateQuotation(qut.id, {
+    updateSalesOrder(qut.id, {
       designLink,
       designId: designLink,
       materials,
-      status: isSpv ? 'client_design_approval' : 'design_review',
+      status: isSpv ? 'Waiting Pricing' : 'Waiting Spv Approval',
     });
     setStep('done');
   };
 
   const handleReject = () => {
     if (!rejectReason.trim()) return;
-    updateQuotation(qut.id, {
-      status: 'pending_design',
+    updateSalesOrder(qut.id, {
+      status: 'Pending Design',
       notes: rejectReason,
     });
     setStep('rejected');
@@ -230,13 +230,13 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   );
 }
 
-function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation, users } = useApp();
-  const engineers = users.filter(user => user.role === 'Engineering Worker' && user.username !== 'eng_spv');
+function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
+  const { updateSalesOrder, users } = useApp();
+  const engineers = users.filter(user => user.role === 'Engineering' && user.username !== 'eng_spv');
 
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
-    updateQuotation(qut.id, {
+    updateSalesOrder(qut.id, {
       assignedTo: userId,
       assignedName: engineer?.name,
     });
@@ -275,16 +275,16 @@ function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => 
 }
 
 export function EngineeringTasksPage() {
-  const { quotations, customers, currentUser, users } = useApp();
-  const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
-  const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
+  const { salesOrders, customers, currentUser, users } = useApp();
+  const [selectedQUT, setSelectedQUT] = useState<SalesOrder | null>(null);
+  const [assignModalQUT, setAssignModalQUT] = useState<SalesOrder | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const STATUS_ORDER = ['pending_design', 'design_review'];
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const queue = quotations
+  const STATUS_ORDER = ['Pending Design', 'Waiting Spv Approval'];
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const queue = salesOrders
     .filter(q => {
       if (!STATUS_ORDER.includes(q.status)) {
         return false;
@@ -294,7 +294,7 @@ export function EngineeringTasksPage() {
         return true;
       }
 
-      return q.status === 'pending_design' && q.assignedTo === currentUser?.id;
+      return q.status === 'Pending Design' && q.assignedTo === currentUser?.id;
     })
     .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
 
@@ -331,9 +331,9 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
-            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
-            const canReview = isSpv && qut.status === 'design_review';
-            const canAssign = isSpv && qut.status === 'pending_design';
+            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
+            const canReview = isSpv && qut.status === 'Waiting Spv Approval';
+            const canAssign = isSpv && qut.status === 'Pending Design';
 
             return (
             <div
@@ -444,7 +444,7 @@ export function EngineeringTasksPage() {
         )}
       </div>
 
-      {selectedQUT && (isSpv && selectedQUT.status === 'design_review' ? (
+      {selectedQUT && (isSpv && selectedQUT.status === 'Waiting Spv Approval' ? (
         <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
       ) : (
         <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />

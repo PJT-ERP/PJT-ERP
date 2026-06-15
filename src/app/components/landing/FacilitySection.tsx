@@ -52,7 +52,7 @@ export function FacilitySection() {
               marginBottom: "12px" 
             }}
           >
-            Our Facility
+            Our Facility & Resources
           </h3>
           <h2 
             style={{ 
@@ -66,6 +66,26 @@ export function FacilitySection() {
           >
             Each Facility reflects our dedication to delivering the best results for every client.
           </h2>
+        </div>
+
+        {/* Organizational & Resources Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1">
+            <div style={{ color: "#C8102E", fontSize: "36px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>50+</div>
+            <div style={{ color: "#475569", fontSize: "14px", fontWeight: 600, marginTop: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Employees</div>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1">
+            <div style={{ color: "#C8102E", fontSize: "36px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>20+</div>
+            <div style={{ color: "#475569", fontSize: "14px", fontWeight: 600, marginTop: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Production Machines</div>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1">
+            <div style={{ color: "#C8102E", fontSize: "36px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>10+</div>
+            <div style={{ color: "#475569", fontSize: "14px", fontWeight: 600, marginTop: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Engineering Team</div>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1">
+            <div style={{ color: "#C8102E", fontSize: "36px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>15+</div>
+            <div style={{ color: "#475569", fontSize: "14px", fontWeight: 600, marginTop: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Years Experience</div>
+          </div>
         </div>
 
         {/* Grid */}

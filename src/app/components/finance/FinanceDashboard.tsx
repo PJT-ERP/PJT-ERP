@@ -13,6 +13,7 @@ import {
   formatIDR, formatDate
 } from './mockData';
 import { useFinanceData } from './useFinanceData';
+import { useApp } from '../context/AppContext';
 
 const KPI_CARDS = [
   {
@@ -119,11 +120,13 @@ export function FinanceDashboard() {
     monthlyRevenueData,
     invoiceStatusData,
   } = useFinanceData();
+  const { salesOrders } = useApp();
   const [activeTab, setActiveTab] = useState<'GLOBAL' | 'CUSTOMER'>('GLOBAL');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
 
   const recentInvoices = [...invoices].slice(0, 5);
   const pendingVerifications = payments.filter(payment => payment.status === 'PENDING');
+  const pendingPricingOrders = salesOrders.filter(so => so.status === 'Waiting Pricing');
   const chartRevenueData = monthlyRevenueData;
   const chartStatusData = invoiceStatusData;
   const quickActions = QUICK_ACTIONS.map(action => action.label === 'Verifikasi Pembayaran'
@@ -403,6 +406,22 @@ export function FinanceDashboard() {
 
           {/* Quick Actions + Pending Alert */}
           <div className="space-y-4">
+            {/* Pending Pricing Alert */}
+            {pendingPricingOrders.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={16} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-blue-800">Tugas Estimasi Harga</p>
+                    <p className="text-xs text-blue-600 mt-0.5">{pendingPricingOrders.length} Sales Order menunggu estimasi harga</p>
+                    <button onClick={() => navigate('/erp/sales/orders')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
+                      Lihat Daftar SO →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Pending Payments Alert */}
             {pendingVerifications.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">

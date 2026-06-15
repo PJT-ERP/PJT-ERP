@@ -68,7 +68,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
         });
       } else {
         updateSalesOrder(item.id, {
-          status: 'Ready for Production',
+          status: 'Menunggu Invoice DP',
           approvedAt: new Date().toISOString(),
           approvedBy: currentUser?.id,
         });
@@ -130,8 +130,8 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
           {action === 'approve'
-            ? (isQuotation ? 'Quotation dilanjutkan untuk approval pelanggan.' : 'SO dilanjutkan ke produksi.')
-            : (rejectType === 'revision' ? 'Dikembalikan ke tim Engineering.' : 'Dibatalkan dan tidak diproses lebih lanjut.')}
+            ? (isQuotation ? 'Quotation dilanjutkan untuk approval pelanggan.' : 'SO dilanjutkan ke tahap pembayaran / produksi.')
+            : (rejectType === 'revision' ? 'Dikembalikan ke tim Engineering / Finance.' : 'Dibatalkan dan tidak diproses lebih lanjut.')}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Selesai</button>
       </div>
@@ -240,12 +240,12 @@ export function OwnerApprovalPage() {
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
 
   const pendingQuotations = (isSpv || isAdmin) ? quotations.filter(q => q.status === 'design_review').map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
-  const pendingSalesOrders = (isOwner || isAdmin) ? salesOrders.filter(so => so.status === 'Waiting Approval').map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
+  const pendingSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => so.status === 'Waiting Client Approval').map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
 
   const waitingApproval = [...pendingQuotations, ...pendingSalesOrders];
 
   const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['client_design_approval', 'lost'].includes(q.status) || q.notes).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
-  const logSalesOrders = (isOwner || isAdmin) ? salesOrders.filter(so => ['Ready for Production', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
+  const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Menunggu Invoice DP', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
 
   const logItems = [...logQuotations, ...logSalesOrders]
     .filter(item => {
@@ -253,7 +253,7 @@ export function OwnerApprovalPage() {
       const customer = customers.find(c => c.code === item.customerId);
       const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
 
-      const isApproved = item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production';
+      const isApproved = item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Menunggu Invoice DP';
       const isRejected = item.isQuotation ? item.status === 'lost' : item.status === 'Rejected';
       const isRevision = item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required';
 
@@ -267,7 +267,7 @@ export function OwnerApprovalPage() {
     });
 
   const logCounts = {
-    approved: logItems.filter(item => item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Ready for Production').length,
+    approved: logItems.filter(item => item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Menunggu Invoice DP').length,
     rejected: logItems.filter(item => item.isQuotation ? item.status === 'lost' : item.status === 'Rejected').length,
     revision: logItems.filter(item => item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required').length,
   };

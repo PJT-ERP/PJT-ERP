@@ -14,7 +14,7 @@ interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; act
 const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   Sales: [
     { label: "Dashboard Penjualan", icon: <LayoutDashboard size={15} />, path: "/erp/so/dashboard" },
-    { label: "Daftar Penawaran & SO", icon: <List size={15} />, path: "/erp/so/quotations" },
+    { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
   ],
   'Engineering Worker': [
