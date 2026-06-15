@@ -83,15 +83,25 @@ export function OrganizationSection() {
                 </div>
 
                 {/* Info Card 1 */}
-                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Office Location</div>
-                  <div className="text-2xl font-black text-slate-800">Headquarters</div>
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-4">
+                    <MapPin size={20} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Office Location</div>
+                    <div className="text-xl font-black text-slate-800">Headquarters</div>
+                  </div>
                 </div>
 
                 {/* Info Card 2 */}
-                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Department Type</div>
-                  <div className="text-lg font-bold text-slate-700">Management & Admin</div>
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Department Type</div>
+                    <div className="text-lg font-bold text-slate-700">Management & Admin</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -123,15 +133,25 @@ export function OrganizationSection() {
                 </div>
 
                 {/* Info Card 1 */}
-                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Core Expertise</div>
-                  <div className="text-xl font-black text-slate-800">Precision Machining</div>
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#2563EB] mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Core Expertise</div>
+                    <div className="text-xl font-black text-slate-800">Precision Machining</div>
+                  </div>
                 </div>
 
                 {/* Info Card 2 */}
-                <div className="border border-dashed border-slate-300 bg-slate-50 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                  <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-3">Technical Role</div>
-                  <div className="text-lg font-bold text-slate-700">Design & Execution</div>
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#2563EB] mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Technical Role</div>
+                    <div className="text-lg font-bold text-slate-700">Design & Execution</div>
+                  </div>
                 </div>
               </div>
             </div>
