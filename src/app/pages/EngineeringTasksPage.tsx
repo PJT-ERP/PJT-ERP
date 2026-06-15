@@ -138,7 +138,8 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
       setStep('done');
     } catch (err: any) {
       console.error(err);
-      alert('Gagal mengupdate data ke server. Pesan: ' + (err?.response?.data?.message || err?.message || 'Pastikan API backend berjalan.'));
+      const url = err?.config?.url || 'unknown';
+      alert(`Gagal mengupdate data ke server. Pesan: ${err?.response?.data?.message || err?.message}. URL: ${url}`);
     } finally {
       setIsSubmitting(false);
     }
