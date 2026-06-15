@@ -33,7 +33,7 @@ jobs:
           curl -f http://localhost:5173 || echo "Frontend not yet fully ready, proceeding to let ZAP retry"
 
       - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.14.0
         with:
           # Target the frontend UI which connects to the Web Gateway
           target: 'http://localhost:5173'
@@ -41,6 +41,7 @@ jobs:
           # but the report will be available in the workflow logs and artifacts.
           fail_action: false
           allow_issue_writing: false
+          artifact_name: 'zap-report'
           
       - name: Stop Application Stack
         if: always()
