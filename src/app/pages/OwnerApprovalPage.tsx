@@ -64,7 +64,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
 
       if (isQuotation) {
         updateQuotation(item.id, {
-          status: 'client_design_approval',
+          status: 'waiting_pricing',
         });
       } else {
         updateSalesOrder(item.id, {
@@ -130,7 +130,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
           {action === 'approve'
-            ? (isQuotation ? 'Quotation dilanjutkan untuk approval pelanggan.' : 'SO dilanjutkan ke tahap pembayaran / produksi.')
+            ? (isQuotation ? 'Quotation diteruskan ke Finance untuk penentuan harga.' : 'SO dilanjutkan ke tahap pembayaran / produksi.')
             : (rejectType === 'revision' ? 'Dikembalikan ke tim Engineering / Finance.' : 'Dibatalkan dan tidak diproses lebih lanjut.')}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Selesai</button>
