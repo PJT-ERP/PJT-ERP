@@ -124,9 +124,9 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
         });
       }
       setStep('done');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Gagal mengupdate data ke server. Pastikan API backend berjalan.');
+      alert('Gagal mengupdate data ke server. Pesan: ' + (err?.response?.data?.message || err?.message || 'Pastikan API backend berjalan.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -160,9 +160,9 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
         });
       }
       setStep('rejected');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Gagal mereject desain ke server.');
+      alert('Gagal mereject desain ke server. Pesan: ' + (err?.response?.data?.message || err?.message || 'Pastikan API backend berjalan.'));
     } finally {
       setIsSubmitting(false);
     }
