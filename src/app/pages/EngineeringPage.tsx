@@ -44,7 +44,7 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
     updateQuotation(qut.id, {
       designLink,
       designId: designLink,
-      status: isSpv ? 'client_design_approval' : 'design_review',
+      status: isSpv ? 'waiting_pricing' : 'design_review',
     });
     setStep('done');
   };

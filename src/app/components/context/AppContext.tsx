@@ -722,7 +722,42 @@ async function syncUpdateQuotation(
 
     if (updates.status === "waiting_pricing") {
       let updated: any;
-      if (quotation.status === "design_review") {
+      if (quotation.status === "pending_design") {
+        const designLink = updates.designLink || updates.designId || quotation.designLink || quotation.designId || "";
+        const materials = updates.materials || quotation.materials || [];
+        const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : "");
+        await quotationApi.submitDesign(backendId, {
+          designLink,
+          bomItems: materials.map(material => ({
+            itemCode: material.id || null,
+            name: material.name,
+            specification: material.spec || material.specification || null,
+            quantity: Number(material.quantity) || 1,
+            unit: material.unit || "pcs",
+          })),
+          engineerId,
+          engineerName: currentUser?.name || "Engineer",
+        });
+        await quotationApi.approveSupervisorDesign(backendId);
+        updated = await quotationApi.approveClientDesign(backendId);
+      } else if (quotation.status === "design_review") {
+        if (updates.designLink && updates.designLink !== quotation.designLink) {
+          // If supervisor updated the design link during review, we need to re-submit design
+          const materials = updates.materials || quotation.materials || [];
+          const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : "");
+          await quotationApi.submitDesign(backendId, {
+            designLink: updates.designLink,
+            bomItems: materials.map(material => ({
+              itemCode: material.id || null,
+              name: material.name,
+              specification: material.spec || material.specification || null,
+              quantity: Number(material.quantity) || 1,
+              unit: material.unit || "pcs",
+            })),
+            engineerId,
+            engineerName: currentUser?.name || "Engineer",
+          });
+        }
         await quotationApi.approveSupervisorDesign(backendId);
         updated = await quotationApi.approveClientDesign(backendId);
       } else {
