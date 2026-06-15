@@ -17,17 +17,27 @@ import { useApp } from "../context/AppContext";
 import { SalesOrder } from "../data/mockData";
 
 export function FinanceCosting() {
-  const { salesOrders, updateSalesOrder } = useApp();
+  const { salesOrders, updateSalesOrder, quotations, updateQuotation } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
   // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingList = salesOrders.filter(so => so.status === "Menunggu Invoice DP");
+  const waitingPricingSO = salesOrders.filter(so => so.status === "Menunggu Invoice DP").map(so => ({ ...so, isQuotation: false }));
+  const waitingPricingQuotations = quotations.filter(q => q.status === "waiting_pricing").map(q => ({
+    ...q,
+    isQuotation: true,
+    soNumber: q.id,
+    customerName: q.customerId,
+    items: [{ productId: "QUT-ITEM", productName: q.productName || q.description, quantity: q.quantity, unit: q.unit, unitPrice: q.estimatedAmount || 0 }],
+    material: q.notes || "",
+  }));
 
-  const filteredList = waitingPricingList.filter(so => 
-    so.id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    so.customerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    so.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+  const waitingPricingList = [...waitingPricingSO, ...waitingPricingQuotations];
+
+  const filteredList = waitingPricingList.filter(item => 
+    item.id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    item.customerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // State for costing
@@ -37,49 +47,56 @@ export function FinanceCosting() {
 
   // Populate initial prices when an SO is selected
   React.useEffect(() => {
-    if (selectedSO) {
+    if (selectedItem) {
       const initialPrices: Record<string, number> = {};
-      selectedSO.items?.forEach(item => {
+      selectedItem.items?.forEach((item: any) => {
         initialPrices[item.productId] = item.unitPrice || 0;
       });
       setItemPrices(initialPrices);
-      setCostingNotes(selectedSO.material || "");
+      setCostingNotes(selectedItem.material || selectedItem.notes || "");
     }
-  }, [selectedSO]);
+  }, [selectedItem]);
 
   const handleSubmitCosting = () => {
-    if (!selectedSO || !selectedSO.items) return;
+    if (!selectedItem || !selectedItem.items) return;
     setIsSubmitting(true);
     
-    // Simulating backend call delay
     setTimeout(() => {
-      // Update local state: save unitPrices into items
-      const updatedItems = selectedSO.items!.map(item => ({
-        ...item,
-        unitPrice: itemPrices[item.productId] || 0
-      }));
+      if (selectedItem.isQuotation) {
+        // Handle Quotation logic
+        const finalPrice = itemPrices["QUT-ITEM"] || 0;
+        updateQuotation(selectedItem.id, {
+          estimatedAmount: finalPrice,
+          notes: costingNotes,
+          status: 'client_price_approval',
+        });
+      } else {
+        // Handle SO logic
+        const updatedItems = selectedItem.items!.map((item: any) => ({
+          ...item,
+          unitPrice: itemPrices[item.productId] || 0
+        }));
 
-      updateSalesOrder(selectedSO.id, { 
-        items: updatedItems,
-        // Since it's done costing, we can move it to a status that CreateInvoice picks up,
-        // or just keep it as 'Menunggu Invoice DP' because CreateInvoice looks for it anyway.
-        status: "Menunggu Invoice DP" 
-      });
+        updateSalesOrder(selectedItem.id, { 
+          items: updatedItems,
+          status: "Menunggu Invoice DP" 
+        });
+      }
       
       setIsSubmitting(false);
-      setSelectedSO(null);
-      alert("Harga berhasil ditetapkan untuk SO ini!");
+      setSelectedItem(null);
+      alert("Harga berhasil ditetapkan!");
     }, 800);
   };
 
   const calculateTotal = () => {
-    if (!selectedSO || !selectedSO.items) return 0;
-    return selectedSO.items.reduce((total, item) => {
+    if (!selectedItem || !selectedItem.items) return 0;
+    return selectedItem.items.reduce((total: number, item: any) => {
       return total + (itemPrices[item.productId] || 0) * item.quantity;
     }, 0);
   };
 
-  const isAllPriced = selectedSO?.items?.every(item => (itemPrices[item.productId] || 0) > 0);
+  const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -136,7 +153,7 @@ export function FinanceCosting() {
                 </div>
                 <div>
                   <button 
-                    onClick={() => setSelectedSO(so)}
+                    onClick={() => setSelectedItem(so)}
                     style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     Set Harga
@@ -149,17 +166,17 @@ export function FinanceCosting() {
       </div>
 
       {/* Modal / Dialog Detail Costing */}
-      {selectedSO && (
+      {selectedItem && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 800, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
               <div>
-                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Costing & Pricing - {selectedSO.soNumber || selectedSO.id}</h2>
+                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Costing & Pricing - {selectedItem.soNumber || selectedItem.id}</h2>
                 <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "13px" }}>
-                  Pelanggan: {selectedSO.customerId}
+                  Pelanggan: {selectedItem.customerName || selectedItem.customerId}
                 </p>
               </div>
-              <button onClick={() => setSelectedSO(null)} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
+              <button onClick={() => setSelectedItem(null)} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
             </div>
             
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
@@ -168,8 +185,8 @@ export function FinanceCosting() {
                 <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
                   <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
-                  {selectedSO.designLink || selectedSO.customerDrawingUrl ? (
-                    <a href={selectedSO.designLink || selectedSO.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                  {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
+                    <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                       Lihat Dokumen <ExternalLink size={12} />
                     </a>
                   ) : (
@@ -181,79 +198,92 @@ export function FinanceCosting() {
                 </p>
               </div>
 
-              {/* Form Input Costing per Item */}
-              <div>
-                <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px" }}>Daftar Item & Penetapan Harga</h3>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", marginBottom: 16 }}>
-                  <thead>
-                    <tr style={{ background: "#F8FAFC", borderBottom: `2px solid ${S.border}` }}>
-                      <th style={{ textAlign: "left", padding: "10px", color: S.slate, fontWeight: 600 }}>Produk</th>
-                      <th style={{ textAlign: "right", padding: "10px", color: S.slate, fontWeight: 600 }}>Qty</th>
-                      <th style={{ textAlign: "right", padding: "10px", color: S.slate, fontWeight: 600 }}>Harga Satuan (Rp)</th>
-                      <th style={{ textAlign: "right", padding: "10px", color: S.slate, fontWeight: 600 }}>Total Harga (Rp)</th>
+              {/* Rincian Items */}
+              <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Rincian Item SO</h3>
+              <div style={{ border: `1px solid ${S.border}`, borderRadius: 8, overflow: "hidden", marginBottom: 20 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+                  <thead style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                    <tr>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary }}>Produk</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary, width: "100px" }}>Qty</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary, width: "200px" }}>Harga Jual (Rp)</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary, width: "150px", textAlign: "right" }}>Subtotal (Rp)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedSO.items?.map((item, idx) => {
-                      const unitPrice = itemPrices[item.productId] || 0;
-                      const lineTotal = unitPrice * item.quantity;
+                    {selectedItem.items?.map((item: any, idx: number) => {
+                      const price = itemPrices[item.productId] || 0;
+                      const subtotal = price * item.quantity;
                       return (
-                        <tr key={idx} style={{ borderBottom: `1px solid ${S.border}` }}>
-                          <td style={{ padding: "12px 10px", color: S.slate }}>
-                            <div style={{ fontWeight: 500 }}>{item.productPartNumber || item.productId}</div>
-                            {item.productDescription && <div style={{ fontSize: "11px", color: S.secondary, marginTop: 2 }}>{item.productDescription}</div>}
+                        <tr key={item.productId || idx} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
+                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName}</td>
+                          <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity} {item.unit}</td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <div style={{ position: "relative" }}>
+                              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>
+                              <input 
+                                type="number"
+                                min="0"
+                                value={price || ""}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value) })}
+                                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
+                              />
+                            </div>
                           </td>
-                          <td style={{ padding: "12px 10px", color: S.slate, textAlign: "right" }}>{item.quantity}</td>
-                          <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                            <input 
-                              type="number" 
-                              value={unitPrice || ''} 
-                              onChange={e => setItemPrices(prev => ({ ...prev, [item.productId]: Number(e.target.value) }))}
-                              placeholder="Harga Satuan"
-                              style={{ width: "120px", padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "13px", fontFamily: S.font, outline: "none", textAlign: "right" }} 
-                            />
-                          </td>
-                          <td style={{ padding: "12px 10px", color: S.slate, textAlign: "right", fontWeight: 600 }}>
-                            {formatIDR(lineTotal)}
+                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 600, textAlign: "right" }}>
+                            {subtotal.toLocaleString("id-ID")}
                           </td>
                         </tr>
                       );
                     })}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ background: "#F8FAFC" }}>
-                      <td colSpan={3} style={{ padding: "12px 10px", textAlign: "right", fontWeight: 600, color: S.slate }}>Grand Total:</td>
-                      <td style={{ padding: "12px 10px", textAlign: "right", fontWeight: 700, color: S.cyan, fontSize: "14px" }}>
-                        {formatIDR(calculateTotal())}
+                    <tr style={{ background: "#FAFAFA", borderTop: `2px solid ${S.border}` }}>
+                      <td colSpan={3} style={{ padding: "12px 14px", textAlign: "right", fontWeight: 600, color: S.slate }}>Total Keseluruhan:</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: S.cyan, fontSize: "14px" }}>
+                        Rp {calculateTotal().toLocaleString("id-ID")}
                       </td>
                     </tr>
-                  </tfoot>
+                  </tbody>
                 </table>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Catatan Pricing (Opsional)</label>
-                  <textarea 
-                    value={costingNotes}
-                    onChange={e => setCostingNotes(e.target.value)}
-                    placeholder="Catatan HPP, Margin, atau Penjelasan..."
-                    rows={2}
-                    style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "vertical" }}
-                  />
-                </div>
               </div>
+
+              {/* Catatan Costing */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}><FileText size={14} /> Catatan / Rincian Modal (HPP)</h3>
+                <textarea 
+                  rows={4}
+                  placeholder="Misal: Material A: 50.000, Material B: 30.000, Ongkos Produksi: 20.000. Total Modal: 100.000. Margin: 20%"
+                  value={costingNotes}
+                  onChange={(e) => setCostingNotes(e.target.value)}
+                  style={{ width: "100%", padding: "12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                />
+              </div>
+
             </div>
 
-            <div style={{ padding: "16px 24px", borderTop: `1px solid ${S.border}`, display: "flex", justifyContent: "flex-end", gap: 12, background: "#F8FAFC", borderRadius: "0 0 12px 12px" }}>
-              <button onClick={() => setSelectedSO(null)} style={{ padding: "10px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>
+            <div style={{ padding: "16px 24px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button 
+                onClick={() => setSelectedItem(null)}
+                style={{ padding: "10px 20px", border: `1px solid ${S.border}`, background: S.white, color: S.slate, borderRadius: 6, cursor: "pointer", fontWeight: 500, fontSize: "13.5px" }}
+              >
                 Batal
               </button>
               <button 
-                disabled={!isAllPriced || isSubmitting}
-                onClick={handleSubmitCosting} 
-                style={{ padding: "10px 20px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, opacity: isAllPriced && !isSubmitting ? 1 : 0.5 }}
+                onClick={handleSubmitCosting}
+                disabled={isSubmitting || !isAllPriced}
+                style={{ 
+                  padding: "10px 24px", border: "none", 
+                  background: isAllPriced ? S.cyan : "#E2E8F0", 
+                  color: isAllPriced ? "#fff" : "#94A3B8", 
+                  borderRadius: 6, cursor: isAllPriced ? "pointer" : "not-allowed", 
+                  fontWeight: 600, fontSize: "13.5px",
+                  display: "flex", alignItems: "center", gap: 8
+                }}
               >
-                <Save size={15} /> 
-                {isSubmitting ? 'Menyimpan...' : 'Tetapkan Harga'}
+                {isSubmitting ? "Menyimpan..." : (
+                  <>
+                    <CheckCircle size={16} /> Simpan & Tetapkan Harga
+                  </>
+                )}
               </button>
             </div>
           </div>
