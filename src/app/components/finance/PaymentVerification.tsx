@@ -178,15 +178,59 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 
   const openProof = () => {
     if (!payment.proofFileUrl) return;
-    window.open(payment.proofFileUrl, '_blank', 'noopener,noreferrer');
+    try {
+      if (payment.proofFileUrl.startsWith('data:')) {
+        const parts = payment.proofFileUrl.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      } else {
+        window.open(payment.proofFileUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      console.error('Failed to open proof', err);
+    }
   };
 
   const downloadProof = () => {
     if (!payment.proofFileUrl) return;
-    const link = document.createElement('a');
-    link.href = payment.proofFileUrl;
-    link.download = payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`;
-    link.click();
+    try {
+      let downloadUrl = payment.proofFileUrl;
+      let isBlob = false;
+      
+      if (payment.proofFileUrl.startsWith('data:')) {
+        const parts = payment.proofFileUrl.split(',');
+        const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mimeType });
+        downloadUrl = URL.createObjectURL(blob);
+        isBlob = true;
+      }
+      
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = payment.proofFileName || `bukti_transfer_${payment.bankRef}.pdf`;
+      link.click();
+      
+      if (isBlob) {
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 10000);
+      }
+    } catch (err) {
+      console.error('Failed to download proof', err);
+    }
   };
 
   return (
