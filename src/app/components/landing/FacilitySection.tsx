@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Settings2, ShieldCheck, Wrench, ArrowRight } from 'lucide-react';
+import { MapPin, Settings2, ShieldCheck, Wrench, ImageIcon, Box, Ruler } from 'lucide-react';
 
 const tangerangMachines = [
   { no: 1, desc: "CNC Milling Hurco 2014", unit: 1, travel: "1300x520x510" },
@@ -116,44 +116,56 @@ export function FacilitySection() {
           </button>
         </div>
 
-        {/* Facility Content */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="p-6 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
-            <MapPin className="text-[#C8102E]" size={20} />
-            <h4 className="font-bold text-slate-800 text-lg">
-              Machine List & Manufacturing Capacities - {activeTab === "tangerang" ? "Tangerang" : "Surabaya"}
-            </h4>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
-                  <th className="py-4 px-6 font-bold w-16">No</th>
-                  <th className="py-4 px-6 font-bold">Description</th>
-                  <th className="py-4 px-6 font-bold w-24 text-center">Unit</th>
-                  <th className="py-4 px-6 font-bold w-48 text-right">Travel Area</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {activeMachines.map((m, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-6 text-slate-500 font-medium">{m.no}</td>
-                    <td className="py-4 px-6 text-slate-800 font-semibold">{m.desc}</td>
-                    <td className="py-4 px-6 text-slate-600 text-center font-bold bg-slate-50/50">{m.unit}</td>
-                    <td className="py-4 px-6 text-slate-500 text-right font-mono text-sm">{m.travel}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Future Images Placeholder Notice */}
-        <div className="mt-8 flex items-start gap-3 p-4 bg-blue-50 text-blue-800 rounded-lg border border-blue-100">
-          <ArrowRight className="mt-0.5 flex-shrink-0" size={18} />
-          <p className="text-sm font-medium">
-            Gallery and images for our {activeTab === "tangerang" ? "Tangerang" : "Surabaya"} facilities will be updated soon. Check back later to see our manufacturing floors in action.
-          </p>
+        {/* Machine Cards Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {activeMachines.map((m, idx) => (
+            <div 
+              key={idx} 
+              className="flex flex-col bg-white overflow-hidden p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
+            >
+              {/* Image Placeholder */}
+              <div className="w-full aspect-[4/3] mb-5 flex flex-col items-center justify-center bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-slate-100 transition-colors">
+                <ImageIcon className="text-slate-300 mb-2" size={48} />
+                <span className="text-xs text-slate-400 font-medium tracking-wide uppercase">Image Coming Soon</span>
+              </div>
+              
+              {/* Machine Details */}
+              <div className="flex-1 flex flex-col">
+                <h3 
+                  style={{ 
+                    color: "#111827", 
+                    fontFamily: "Inter, sans-serif", 
+                    fontSize: "16px", 
+                    fontWeight: 700, 
+                    marginBottom: "16px",
+                    lineHeight: 1.4
+                  }}
+                >
+                  {m.desc}
+                </h3>
+                
+                <div className="mt-auto space-y-3">
+                  <div className="flex items-center justify-between text-sm border-t border-slate-100 pt-3">
+                    <div className="flex items-center text-slate-500">
+                      <Box size={16} className="mr-2 opacity-70" />
+                      <span>Total Units</span>
+                    </div>
+                    <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{m.unit}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center text-slate-500">
+                      <Ruler size={16} className="mr-2 opacity-70" />
+                      <span>Travel Area</span>
+                    </div>
+                    <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                      {m.travel}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
       </div>
