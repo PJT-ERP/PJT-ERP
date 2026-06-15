@@ -106,11 +106,11 @@ export function ERPLayout() {
         flexShrink: 0,
         justifyContent: sidebarMinimized ? "center" : "flex-start"
       }}>
-        <div style={{ width: 30, height: 30, borderRadius: 6, background: "#C8102E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Building2 size={15} style={{ color: "#fff" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <img src="/logoPJT.png" alt="Logo" style={{ height: 28, maxWidth: sidebarMinimized ? 28 : 120, objectFit: "contain" }} />
         </div>
         {!sidebarMinimized && (
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
             <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#F9FAFB", fontFamily: "Inter, sans-serif", lineHeight: 1.3 }}>PT Pratama Jaya</p>
             <p style={{ margin: 0, fontSize: "10px", color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>{currentUser.role} Module</p>
           </div>
