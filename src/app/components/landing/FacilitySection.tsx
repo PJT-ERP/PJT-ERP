@@ -63,34 +63,34 @@ export function FacilitySection() {
         </div>
 
         {/* Organizational & Resources Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <MapPin className="text-[#C8102E]" size={24} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-12 max-w-4xl">
+          <div className="bg-slate-50 py-4 px-3 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2">
+              <MapPin className="text-[#C8102E]" size={18} />
             </div>
-            <div style={{ color: "#111827", fontSize: "24px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>2</div>
-            <div style={{ color: "#475569", fontSize: "13px", fontWeight: 600, marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Strategic Regions</div>
+            <div style={{ color: "#111827", fontSize: "20px", fontWeight: 800, fontFamily: "Inter, sans-serif", lineHeight: 1.2 }}>2</div>
+            <div style={{ color: "#475569", fontSize: "11px", fontWeight: 700, marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Strategic Regions</div>
           </div>
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <Settings2 className="text-[#C8102E]" size={24} />
+          <div className="bg-slate-50 py-4 px-3 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2">
+              <Settings2 className="text-[#C8102E]" size={18} />
             </div>
-            <div style={{ color: "#111827", fontSize: "24px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>19+</div>
-            <div style={{ color: "#475569", fontSize: "13px", fontWeight: 600, marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Advanced Machines</div>
+            <div style={{ color: "#111827", fontSize: "20px", fontWeight: 800, fontFamily: "Inter, sans-serif", lineHeight: 1.2 }}>19+</div>
+            <div style={{ color: "#475569", fontSize: "11px", fontWeight: 700, marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Advanced Machines</div>
           </div>
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <Wrench className="text-[#C8102E]" size={24} />
+          <div className="bg-slate-50 py-4 px-3 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2">
+              <Wrench className="text-[#C8102E]" size={18} />
             </div>
-            <div style={{ color: "#111827", fontSize: "24px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>10+</div>
-            <div style={{ color: "#475569", fontSize: "13px", fontWeight: 600, marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Engineering Team</div>
+            <div style={{ color: "#111827", fontSize: "20px", fontWeight: 800, fontFamily: "Inter, sans-serif", lineHeight: 1.2 }}>10+</div>
+            <div style={{ color: "#475569", fontSize: "11px", fontWeight: 700, marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Engineering Team</div>
           </div>
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <ShieldCheck className="text-[#C8102E]" size={24} />
+          <div className="bg-slate-50 py-4 px-3 rounded-xl border border-slate-200 text-center transition-transform hover:-translate-y-1 flex flex-col items-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-2">
+              <ShieldCheck className="text-[#C8102E]" size={18} />
             </div>
-            <div style={{ color: "#111827", fontSize: "24px", fontWeight: 800, fontFamily: "Inter, sans-serif" }}>100%</div>
-            <div style={{ color: "#475569", fontSize: "13px", fontWeight: 600, marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Quality Assurance</div>
+            <div style={{ color: "#111827", fontSize: "20px", fontWeight: 800, fontFamily: "Inter, sans-serif", lineHeight: 1.2 }}>100%</div>
+            <div style={{ color: "#475569", fontSize: "11px", fontWeight: 700, marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Quality Assurance</div>
           </div>
         </div>
 

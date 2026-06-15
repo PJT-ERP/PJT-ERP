@@ -2,10 +2,10 @@ import "../../styles/fonts.css";
 import { Navbar } from "../components/landing/Navbar";
 import { HeroSection } from "../components/landing/HeroSection";
 import { CompanyIntro } from "../components/landing/CompanyIntro";
+import { OrganizationSection } from "../components/landing/OrganizationSection";
 import { ServicesSection } from "../components/landing/ServicesSection";
 import { ManufacturingProcess } from "../components/landing/ManufacturingProcess";
 import { FacilitySection } from "../components/landing/FacilitySection";
-import { OrganizationSection } from "../components/landing/OrganizationSection";
 import { ProjectsSection } from "../components/landing/ProjectsSection";
 import { OrderTracking } from "../components/landing/OrderTracking";
 import { WhyChooseUs } from "../components/landing/WhyChooseUs";
@@ -20,11 +20,11 @@ export default function HomePage() {
       <HeroSection />
       <OrderTracking />
       <CompanyIntro />
+      <OrganizationSection />
       <ServicesSection />
       <ManufacturingProcess />
       <ProjectsSection />
       <FacilitySection />
-      <OrganizationSection />
       <WhyChooseUs />
       <CompanyStats />
       <ContactSection />
