@@ -56,6 +56,12 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
       if (qut.isQuotation) {
         // Handle Quotation
         const backendId = qut.backendId || qut.id;
+        if (!isGuid(backendId)) {
+          alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
+          setIsSubmitting(false);
+          return;
+        }
+
         if (!isSpv) {
           // Engineer submits design
           const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
@@ -85,6 +91,12 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
       } else {
         // Handle Sales Order
         const backendId = qut.backendId || qut.id;
+        if (!isGuid(backendId)) {
+          alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
+          setIsSubmitting(false);
+          return;
+        }
+
         if (isSpv) {
           await salesApi.updateSalesOrderDesignStatus(backendId, {
             designStatus: 'Approved',
@@ -137,6 +149,11 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
     try {
       setIsSubmitting(true);
       const backendId = qut.backendId || qut.id;
+      if (!isGuid(backendId)) {
+        alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
+        setIsSubmitting(false);
+        return;
+      }
       
       if (qut.isQuotation) {
         await quotationApi.requestDesignRevision(backendId, {
