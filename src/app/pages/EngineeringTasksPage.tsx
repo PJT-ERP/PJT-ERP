@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
-import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
 import { salesApi } from "../services/salesApi";
 import { quotationApi } from "../services/quotationApi";
 import { toBackendUserId, isGuid } from "../services/backendIds";
@@ -30,7 +29,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, customers, currentUser } = useApp();
+  const { updateSalesOrder, customers, currentUser, refreshBackendData } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
   const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
   const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
@@ -38,7 +37,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
   const customer = customers.find(c => c.code === qut.customerId);
   
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'design_review';
+  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'design_review' || qut.status === 'Waiting Pricing';
   const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'pending_design');
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
@@ -105,35 +104,30 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
             reviewerName: currentUser?.name || ''
           });
         } else {
-          await salesApi.updateSalesOrderItems(backendId, {
-            items: [{
-              productId: null,
-              quantity: qut.quantity || 1,
-              notes: qut.notes || '',
-              unitPrice: qut.estimatedAmount || 0,
-              materials: materials.map(m => ({
-                materialId: m.id.length === 36 ? m.id : null,
-                name: m.name,
-                specifications: m.spec,
-                quantity: m.quantity,
-                unit: m.unit
-              }))
-            }]
-          });
-
+          // Engineer submits design reference and drawing URL to the server.
+          // Materials (BOM) are stored locally in the frontend state only.
           await salesApi.submitSalesOrderDesign(backendId, {
             designReference: designLink,
             drawingFileUrl: designLink
           });
         }
 
-        updateSalesOrder(qut.id, {
-          designLink,
-          designId: designLink,
-          materials,
-          status: isSpv ? 'Menunggu Invoice DP' : 'Waiting Spv Approval',
-          backendDesignStatus: isSpv ? 'Approved' : 'WaitingApproval',
-        });
+        if (isSpv) {
+          // Do not clear localUpdates here so we don't lose the BOM that is stored locally.
+          const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+          localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
+          localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
+          // Refresh all data from backend so Finance sees the approved SO
+          await refreshBackendData();
+        } else {
+          updateSalesOrder(qut.id, {
+            designLink,
+            designId: designLink,
+            materials,
+            status: 'Waiting Spv Approval',
+            backendDesignStatus: 'WaitingApproval',
+          });
+        }
       }
       setStep('done');
     } catch (err: any) {
@@ -176,6 +170,13 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
           backendDesignStatus: 'Rejected',
           notes: rejectReason,
         });
+      }
+      if (isSpv) {
+        // Clear localStorage override before refreshing
+        const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+        delete localUpdates[qut.id];
+        localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
+        await refreshBackendData();
       }
       setStep('rejected');
     } catch (err: any) {
@@ -340,9 +341,9 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
                   </button>
                 )}
                 {canProcess && (
-                  <button onClick={() => setStep('confirm')} disabled={!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0) || isSubmitting}
-                    style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: (designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0) && !isSubmitting) ? 1 : 0.5 }}>
-                    <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}
+                  <button onClick={() => setStep('confirm')} disabled={(!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)) || isSubmitting}
+                    style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: ((designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) && !isSubmitting) ? 1 : 0.5 }}>
+                    <Send size={15} /> {isSpv && isPendingSpv ? (qut.status === 'Waiting Pricing' ? 'Simpan Perubahan' : 'Review & Approve') : 'Submit & Forward'}
                   </button>
                 )}
               </div>
@@ -412,8 +413,20 @@ export function EngineeringTasksPage() {
     .filter(q => q.status === 'pending_design' || q.status === 'design_review')
     .map(q => ({ ...q, isQuotation: true } as any));
     
+  // Supervisor sees all SOs in the engineering design phase (any design status while still Draft)
+  // Worker only sees ones assigned to them that are pending/waiting
   const pendingSalesOrders = salesOrders
-    .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
+    .filter(so => {
+      if (isSpv) {
+        // Show all SOs that went through design phase (have a backendDesignStatus)
+        // and haven't moved to production yet
+        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
+        return engineeringStatuses.includes(so.status) && 
+               so.backendDesignStatus !== undefined &&
+               so.backendDesignStatus !== null;
+      }
+      return so.status === 'Pending Design' || so.status === 'Waiting Spv Approval';
+    })
     .map(so => ({ ...so, isQuotation: false } as any));
 
   const allQueue = [...pendingQuotations, ...pendingSalesOrders];
@@ -461,8 +474,10 @@ export function EngineeringTasksPage() {
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
             const canWork = !isSpv && qut.assignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'pending_design');
-            const canReview = isSpv && (qut.status === 'Waiting Spv Approval' || qut.status === 'design_review');
-            const canAssign = isSpv && (qut.status === 'Pending Design' || qut.status === 'pending_design');
+            // Review button: only when design is waiting for supervisor approval
+            const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'design_review');
+            // Assign button: only when design hasn't started yet
+            const canAssign = isSpv && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'pending_design');
 
             return (
             <div
@@ -587,11 +602,7 @@ export function EngineeringTasksPage() {
         )}
       </div>
 
-      {selectedQUT && (isSpv && selectedQUT.status === 'Waiting Spv Approval' ? (
-        <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
-      ) : (
-        <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />
-      ))}
+      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
       {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );

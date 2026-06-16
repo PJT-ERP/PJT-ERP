@@ -74,6 +74,7 @@ public sealed record SalesOrderItemDto(
     string ProductPartNumber,
     string ProductDescription,
     int Qty,
+    decimal UnitPrice,
     string? Notes);
 
 public sealed record SalesOrderProductionProgressDto(

@@ -859,7 +859,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
               <div style={{ position: "relative", border: "1px dashed #CBD5E1", borderRadius: 8, padding: 24, textAlign: "center", background: "#F8FAFC" }}>
                 <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
                 <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFileName || "Max ukuran file 5MB"}</p>
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFile?.name || "Max ukuran file 5MB"}</p>
                 <input required type="file" accept=".pdf,image/*" onChange={handleProofFileChange} style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
               </div>
             </div>

@@ -600,6 +600,8 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             salesOrder.DesignApprovedAtUtc,
             salesOrder.SoDate,
             salesOrder.TargetDate,
+            salesOrder.DesignWorkerUserId,
+            salesOrder.DesignWorkerName,
             salesOrder.ProductionWorkerUserId,
             salesOrder.ProductionWorkerName,
             salesOrder.QcReviewerUserId,
@@ -620,6 +622,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                     item.ProductPartNumber,
                     item.ProductDescription,
                     item.Qty,
+                    item.UnitPrice,
                     item.Notes))
                 .ToArray());
     }

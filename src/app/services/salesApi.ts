@@ -147,6 +147,11 @@ export const salesApi = {
     return response.data;
   },
 
+  async updateSalesOrderPricing(salesOrderId: string, request: { items: Array<{ salesOrderItemId: string, unitPrice: number }> }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/pricing`, request);
+    return response.data;
+  },
+
   async submitSalesOrderDesign(salesOrderId: string, request: { designReference: string, drawingFileUrl: string }) {
     const response = await apiClient.post<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/submit-design`, request);
     return response.data;

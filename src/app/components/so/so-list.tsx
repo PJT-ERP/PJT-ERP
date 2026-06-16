@@ -169,6 +169,8 @@ export function SOList({ onNavigate }: SOListProps) {
   const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (customerFilter !== "all" ? 1 : 0) + (dateFilter ? 1 : 0);
 
   const filtered = useMemo(() => salesOrders.filter(o => {
+    if (o.id.startsWith("QU")) return false; // Hide quotations from SO List
+    
     const cust = customers.find(c => c.code === o.customerId);
     const cName = cust?.name || "";
     const q = search.toLowerCase();
@@ -218,14 +220,6 @@ export function SOList({ onNavigate }: SOListProps) {
 
       {/* ── Tabs ──────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, marginBottom: 4 }}>
-        <button
-          onClick={() => onNavigate("quotation-list")}
-          style={{ padding: "10px 20px", border: "none", background: "none", color: S.secondary, borderBottom: "2px solid transparent", fontWeight: 500, fontSize: "13px", cursor: "pointer" }}
-          onMouseEnter={e => e.currentTarget.style.color = S.slate}
-          onMouseLeave={e => e.currentTarget.style.color = S.secondary}
-        >
-          Penawaran (QUT)
-        </button>
         <button
           style={{ padding: "10px 20px", border: "none", background: "none", color: "#C8102E", borderBottom: "2px solid #C8102E", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
         >

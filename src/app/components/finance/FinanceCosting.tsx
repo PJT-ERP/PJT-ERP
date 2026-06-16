@@ -15,14 +15,19 @@ const S = {
 import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { SalesOrder } from "../data/mockData";
+import { salesApi } from "../../services/salesApi";
 
 export function FinanceCosting() {
   const { salesOrders, updateSalesOrder, quotations, updateQuotation } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingSO = salesOrders.filter(so => so.status === "Menunggu Invoice DP").map(so => ({ ...so, isQuotation: false }));
+  const waitingPricingSO = salesOrders.filter(so => so.status === "Waiting Pricing").map(so => ({
+    ...so,
+    isQuotation: false
+  }));
   const waitingPricingQuotations = quotations.filter(q => q.status === "waiting_pricing").map(q => ({
     ...q,
     isQuotation: true,
@@ -32,7 +37,7 @@ export function FinanceCosting() {
     material: q.notes || "",
   }));
 
-  const waitingPricingList = [...waitingPricingSO, ...waitingPricingQuotations];
+  const waitingPricingList = [...waitingPricingSO]; // QUT hidden per user request
 
   const filteredList = waitingPricingList.filter(item => 
     item.id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -61,7 +66,7 @@ export function FinanceCosting() {
     if (!selectedItem || !selectedItem.items) return;
     setIsSubmitting(true);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       if (selectedItem.isQuotation) {
         // Handle Quotation logic
         const finalPrice = itemPrices["QUT-ITEM"] || 0;
@@ -77,15 +82,32 @@ export function FinanceCosting() {
           unitPrice: itemPrices[item.productId] || 0
         }));
 
-        updateSalesOrder(selectedItem.id, { 
-          items: updatedItems,
-          status: "Menunggu Invoice DP" 
-        });
+        try {
+          // Backend integration
+          await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
+            items: updatedItems.map((item: any) => ({
+              salesOrderItemId: item.id,
+              unitPrice: item.unitPrice
+            }))
+          });
+
+          // Local state update for smooth UX
+          updateSalesOrder(selectedItem.id, { 
+            items: updatedItems,
+            status: "Menunggu Invoice DP" 
+          });
+        } catch (error) {
+          console.error("Failed to update pricing to backend", error);
+          alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
+          updateSalesOrder(selectedItem.id, { 
+            items: updatedItems,
+            status: "Menunggu Invoice DP" 
+          });
+        }
       }
       
       setIsSubmitting(false);
-      setSelectedItem(null);
-      alert("Harga berhasil ditetapkan!");
+      setSubmitSuccess(true);
     }, 800);
   };
 
@@ -130,8 +152,12 @@ export function FinanceCosting() {
           ))}
         </div>
         {filteredList.length === 0 ? (
-          <div style={{ padding: "32px", textAlign: "center", color: S.secondary, fontSize: "14px" }}>
-            Tidak ada Sales Order yang menunggu penetapan harga.
+          <div style={{ padding: "32px", textAlign: "center", color: S.secondary, fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span>Tidak ada Sales Order yang menunggu penetapan harga.</span>
+            <span style={{ fontSize: "11px", color: "#EF4444" }}>
+              DEBUG INFO: Total SO: {salesOrders.length} | Waiting Pricing SO: {waitingPricingSO.length} | 
+              Statuses: {salesOrders.slice(0, 5).map(s => s.status).join(", ")}
+            </span>
           </div>
         ) : (
           filteredList.map((so, idx) => {
@@ -176,9 +202,39 @@ export function FinanceCosting() {
                   Pelanggan: {selectedItem.customerName || selectedItem.customerId}
                 </p>
               </div>
-              <button onClick={() => setSelectedItem(null)} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
+              <button onClick={() => { setSelectedItem(null); setSubmitSuccess(false); }} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
             </div>
             
+            {submitSuccess ? (
+              <div style={{ padding: "60px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <CheckCircle size={50} style={{ color: "#10B981", margin: "0 auto 16px" }} />
+                <h3 style={{ fontSize: "20px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Harga Berhasil Ditetapkan!</h3>
+                <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 400 }}>
+                  Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya.
+                </p>
+                <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                  <button 
+                    onClick={() => {
+                      setSubmitSuccess(false);
+                      setSelectedItem(null);
+                    }}
+                    style={{ background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Tutup & Kembali
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const soId = selectedItem.backendId || selectedItem.id;
+                      window.location.href = `/erp/finance/create-invoice?so=${soId}`;
+                    }}
+                    style={{ background: S.cyan, color: S.white, border: "none", padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Buat Invoice Sekarang
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
               {/* Info Dokumen Desain */}
               <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
@@ -196,6 +252,29 @@ export function FinanceCosting() {
                 <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
                   Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                 </p>
+                {selectedItem.materials && selectedItem.materials.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
+                      <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
+                        <tr>
+                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
+                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
+                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedItem.materials.map((m: any, i: number) => (
+                          <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
+                            <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
+                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Rincian Items */}
@@ -262,7 +341,7 @@ export function FinanceCosting() {
 
             <div style={{ padding: "16px 24px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "flex-end", gap: 12 }}>
               <button 
-                onClick={() => setSelectedItem(null)}
+                onClick={() => { setSelectedItem(null); setSubmitSuccess(false); }}
                 style={{ padding: "10px 20px", border: `1px solid ${S.border}`, background: S.white, color: S.slate, borderRadius: 6, cursor: "pointer", fontWeight: 500, fontSize: "13.5px" }}
               >
                 Batal
@@ -286,6 +365,8 @@ export function FinanceCosting() {
                 )}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

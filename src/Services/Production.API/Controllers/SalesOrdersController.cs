@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PJT_ERP.Production.Api.Application.Production;
@@ -10,14 +11,14 @@ namespace PJT_ERP.Production.Api.Controllers;
 public sealed class SalesOrdersController(IProductionService productionService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Engineering,Purchasing")]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}/progress")]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Engineering,Purchasing")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
     {
         var progress = await productionService.GetSalesOrderProgressAsync(id, cancellationToken);
@@ -55,7 +56,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/design-status")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Worker,Engineering")]
     public async Task<ActionResult<SalesOrderDto>> UpdateDesignStatus(
         Guid id,
         UpdateSalesOrderDesignStatusRequest request,
@@ -73,7 +74,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/items")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Worker,Engineering")]
     public async Task<ActionResult<SalesOrderDto>> UpdateItems(
         Guid id,
         UpdateSalesOrderItemsRequest request,
@@ -90,8 +91,26 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
     }
 
+    [HttpPut("{id:guid}/pricing")]
+    [Authorize(Roles = "Admin,Finance,Owner")]
+    public async Task<ActionResult<SalesOrderDto>> SetPricing(
+        Guid id,
+        SetSalesOrderPricingRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.SetSalesOrderPricingAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id:guid}/submit-design")]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Engineering")]
     public async Task<ActionResult<SalesOrderDto>> SubmitDesign(
         Guid id,
         SubmitSalesOrderDesignRequest request,
@@ -109,7 +128,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/confirm")]
-    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor,Engineering Worker")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Supervisor,Engineering Worker,Engineering")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> Confirm(Guid id, ConfirmSalesOrderRequest request, CancellationToken cancellationToken)
     {
         try
@@ -141,7 +160,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/material-requests")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> SubmitMaterialRequest(
         Guid id,
         SubmitProductionMaterialRequest request,
@@ -149,7 +168,8 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var result = await productionService.SubmitMaterialRequestAsync(id, request, cancellationToken);
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.SubmitMaterialRequestAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -159,7 +179,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/production/start")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> StartProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -167,7 +187,8 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var result = await productionService.StartProductionAsync(id, request, cancellationToken);
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.StartProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -177,7 +198,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/production/finish")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> FinishProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -185,7 +206,8 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var result = await productionService.FinishProductionAsync(id, request, cancellationToken);
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.FinishProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   Plus, Trash2, ChevronDown, Save, Eye, ArrowLeft,
   CheckCircle2, Building2, FileText, Hash, Calendar, Printer
@@ -7,6 +7,7 @@ import {
 import { formatIDR } from './mockData';
 import { financeApi, type InvoiceDto } from '../../services/financeApi';
 import { useFinanceData } from './useFinanceData';
+import { useApp } from '../context/AppContext';
 
 interface LineItem {
   id: string;
@@ -31,9 +32,11 @@ const newItem = (): LineItem => ({
 
 export function CreateInvoice() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { invoiceCandidates, refresh } = useFinanceData();
-  
-  const [selectedSO, setSelectedSO] = useState('');
+  const { salesOrders } = useApp();
+
+  const [selectedSO, setSelectedSO] = useState(searchParams.get('so') || '');
   const [paymentTerm, setPaymentTerm] = useState('30 Hari');
   const [dueDate, setDueDate] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
@@ -51,26 +54,26 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  const backendCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
+  const activeCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
   
   // Unified data for display
-  const displayCustomer = backendCandidate ? {
-    name: backendCandidate.customerName,
-    contact: backendCandidate.customerEmail || backendCandidate.customerCode,
-    email: backendCandidate.customerEmail || '',
+  const displayCustomer = activeCandidate ? {
+    name: activeCandidate.customerName,
+    contact: activeCandidate.customerEmail || activeCandidate.customerCode,
+    email: activeCandidate.customerEmail || '',
     npwp: '-',
     address: '',
   } : null;
   
-  const displaySoNumber = backendCandidate ? backendCandidate.salesOrderNumber : '';
-  const displayCustomerName = backendCandidate ? backendCandidate.customerName : '';
+  const displaySoNumber = activeCandidate ? activeCandidate.salesOrderNumber : '';
+  const displayCustomerName = activeCandidate ? activeCandidate.customerName : '';
 
   // Auto-fill items when SO is selected
   useEffect(() => {
-    if (backendCandidate) {
-      const localSO = salesOrders.find(o => o.id === backendCandidate.salesOrderId);
+    if (activeCandidate) {
+      const localSO = salesOrders.find(o => o.id === activeCandidate.salesOrderId);
       
-      setItems(backendCandidate.items.map(item => {
+      setItems(activeCandidate.items.map(item => {
         const localItem = localSO?.items?.find(li => li.productId === item.productId || li.id === item.salesOrderItemId);
         return {
           id: item.salesOrderItemId,
@@ -80,13 +83,13 @@ export function CreateInvoice() {
           unitPrice: item.unitPrice || localItem?.unitPrice || 0,
         };
       }));
-      if (backendCandidate.targetDate && !dueDate) {
-        setDueDate(backendCandidate.targetDate);
+      if (activeCandidate.targetDate && !dueDate) {
+        setDueDate(activeCandidate.targetDate);
       }
     } else {
       setItems([newItem()]);
     }
-  }, [selectedSO]); // Ignore other deps to prevent infinite loops
+  }, [activeCandidate, salesOrders, dueDate]);
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
@@ -104,14 +107,14 @@ export function CreateInvoice() {
   const invoiceTotal = isDP ? Math.round((grandTotal * pct) / 100) : grandTotal;
 
   const invoiceNumber = createdInvoice?.invoiceNumber || 'Otomatis setelah simpan';
-  const hasLockedBackendPrices = !!backendCandidate && items.every(item => item.unitPrice > 0);
+  const hasLockedBackendPrices = !!activeCandidate && items.every(item => item.unitPrice > 0);
   const canSubmit = !!selectedSO
     && !!dueDate
     && (!isDP || !!dpDeadline)
     && items.every(item => item.description && item.unitPrice > 0);
 
   const handleSubmit = async () => {
-    if (!backendCandidate || isSaving) {
+    if (!activeCandidate || isSaving) {
       return;
     }
 
@@ -120,7 +123,7 @@ export function CreateInvoice() {
 
     try {
       const invoice = await financeApi.createInvoice({
-        salesOrderId: backendCandidate.salesOrderId,
+        salesOrderId: activeCandidate!.salesOrderId,
         invoiceDate: issueDate,
         dueDate: isDP && dpDeadline ? dpDeadline : dueDate,
         taxPercent: ppnEnabled ? 11 : 0,
@@ -180,21 +183,21 @@ export function CreateInvoice() {
   if (submitted) {
     return (
       <div className="p-4 lg:p-6 min-h-full flex items-center justify-center">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center max-w-md w-full">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center max-w-lg w-full">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 size={32} className="text-green-600" />
           </div>
-          <h2 className="text-lg text-slate-900 mb-2">Invoice Berhasil Dibuat!</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Invoice Berhasil Dibuat!</h2>
           <p className="text-sm text-slate-500 mb-1">Nomor Invoice: <span className="font-semibold text-slate-700">{createdInvoice?.invoiceNumber || '-'}</span></p>
-          {createdInvoice && <p className="text-sm text-slate-500 mb-6">Pelanggan: <span className="font-semibold text-slate-700">{createdInvoice.customerName}</span></p>}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button onClick={() => navigate('/erp/finance/invoices')} className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2.5 text-sm font-medium transition-colors">
+          {createdInvoice && <p className="text-sm text-slate-500 mb-8">Pelanggan: <span className="font-semibold text-slate-700">{createdInvoice.customerName}</span></p>}
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
               Lihat Invoice
             </button>
-            <button onClick={() => window.print()} className="bg-red-600 hover:bg-red-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2">
-              <Printer size={15} /> Cetak Invoice
+            <button onClick={() => window.print()} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
+              <Printer size={16} /> Cetak Invoice
             </button>
-            <button onClick={() => { setSubmitted(false); setCreatedInvoice(null); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+            <button onClick={() => { setSubmitted(false); setCreatedInvoice(null); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
               Buat Lagi
             </button>
           </div>
@@ -250,17 +253,15 @@ export function CreateInvoice() {
               <div className="relative w-full sm:w-[420px] flex-shrink-0">
                 <select
                   value={selectedSO}
-                  onChange={e => setSelectedSO(e.target.value)}
-                  className="w-full appearance-none border border-red-200 rounded-lg px-4 py-2.5 text-sm bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-red-500 transition-all shadow-sm pr-10"
+                  onChange={(e) => setSelectedSO(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
                 >
-                  <option value="">Pilih Sales Order</option>
-                  {invoiceCandidates.some(candidate => candidate.status !== 'Invoiced') && (
-                    <optgroup label="Backend Invoice Candidates">
-                      {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
-                        <option key={candidate.salesOrderId} value={candidate.salesOrderId}>{candidate.salesOrderNumber} - {candidate.customerName}</option>
-                      ))}
-                    </optgroup>
-                  )}
+                  <option value="">Pilih SO...</option>
+                  {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
+                    <option key={candidate.salesOrderId} value={candidate.salesOrderId}>
+                      {candidate.salesOrderNumber} - {candidate.customerName}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
@@ -317,7 +318,7 @@ export function CreateInvoice() {
 
             {/* Items Table */}
             <div className="mb-12">
-              {backendCandidate && !hasLockedBackendPrices && (
+              {activeCandidate && !hasLockedBackendPrices && (
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
                   Harga hasil nego belum tersedia di candidate ini. Buat invoice dari SO hasil Convert QUT terbaru agar harga otomatis terkunci dari pricing Finance.
                 </div>
@@ -339,11 +340,11 @@ export function CreateInvoice() {
                         <td className="py-3 px-2 align-top">
                           <textarea
                             value={item.description}
-                            onChange={e => !backendCandidate && updateItem(item.id, 'description', e.target.value)}
-                            readOnly={!!backendCandidate}
+                            onChange={e => !activeCandidate && updateItem(item.id, 'description', e.target.value)}
+                            readOnly={!!activeCandidate}
                             placeholder="Deskripsi barang..."
                             rows={1}
-                            className={`w-full bg-transparent resize-none border-none focus:ring-0 p-0 text-slate-800 placeholder:text-slate-300 focus:outline-none ${backendCandidate ? 'cursor-not-allowed' : ''}`}
+                            className={`w-full bg-transparent resize-none border-none focus:ring-0 p-0 text-slate-800 placeholder:text-slate-300 focus:outline-none ${activeCandidate ? 'cursor-not-allowed' : ''}`}
                             style={{ minHeight: '24px' }}
                           />
                         </td>
@@ -353,15 +354,15 @@ export function CreateInvoice() {
                               type="number"
                               min="0"
                               value={item.quantity}
-                              onChange={e => !backendCandidate && updateItem(item.id, 'quantity', Number(e.target.value))}
-                              readOnly={!!backendCandidate}
-                              className={`w-16 bg-transparent border-b border-transparent text-right p-0 focus:outline-none text-slate-800 transition-colors ${backendCandidate ? 'cursor-not-allowed' : 'hover:border-slate-300 focus:border-red-500'}`}
+                              onChange={e => !activeCandidate && updateItem(item.id, 'quantity', Number(e.target.value))}
+                              readOnly={!!activeCandidate}
+                              className={`w-16 bg-transparent border-b border-transparent text-right p-0 focus:outline-none text-slate-800 transition-colors ${activeCandidate ? 'cursor-not-allowed' : 'hover:border-slate-300 focus:border-red-500'}`}
                             />
                             <select
                               value={item.unit}
-                              onChange={e => !backendCandidate && updateItem(item.id, 'unit', e.target.value)}
-                              disabled={!!backendCandidate}
-                              className={`bg-transparent border-none text-slate-500 focus:outline-none appearance-none p-0 w-8 ${backendCandidate ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              onChange={e => !activeCandidate && updateItem(item.id, 'unit', e.target.value)}
+                              disabled={!!activeCandidate}
+                              className={`bg-transparent border-none text-slate-500 focus:outline-none appearance-none p-0 w-8 ${activeCandidate ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               {UNITS.map(u => <option key={u}>{u}</option>)}
                             </select>
@@ -375,7 +376,7 @@ export function CreateInvoice() {
                           {formatIDR(item.quantity * item.unitPrice)}
                         </td>
                         <td className="py-3 align-top text-right">
-                          {!backendCandidate && items.length > 1 && (
+                          {!activeCandidate && items.length > 1 && (
                             <button onClick={() => removeItem(item.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100">
                               <Trash2 size={16} />
                             </button>
@@ -386,7 +387,7 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-              {!backendCandidate && (
+              {!activeCandidate && (
                 <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
                   <Plus size={16} /> Tambah Baris
                 </button>

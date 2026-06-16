@@ -141,6 +141,8 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.DesignApprovedAtUtc).HasColumnName("design_approved_at_utc");
             builder.Property(order => order.SoDate).HasColumnName("so_date");
             builder.Property(order => order.TargetDate).HasColumnName("target_date");
+            builder.Property(order => order.DesignWorkerUserId).HasColumnName("design_worker_user_id");
+            builder.Property(order => order.DesignWorkerName).HasMaxLength(160).HasColumnName("design_worker_name");
             builder.Property(order => order.ProductionWorkerUserId).HasColumnName("production_worker_user_id");
             builder.Property(order => order.ProductionWorkerName).HasMaxLength(160).HasColumnName("production_worker_name");
             builder.Property(order => order.QcReviewerUserId).HasColumnName("qc_reviewer_user_id");

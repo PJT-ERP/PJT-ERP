@@ -54,7 +54,8 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db, IEventPub
                                 item.ProductId,
                                 item.ProductPartNumber,
                                 item.ProductDescription,
-                                item.Qty))
+                                item.Qty,
+                                item.UnitPrice))
                             .ToArray()),
                     cancellationToken);
             }

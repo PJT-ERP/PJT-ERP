@@ -8,13 +8,14 @@ public interface IProductionService
     Task<SalesOrderDto?> UpdateSalesOrderDesignStatusAsync(Guid salesOrderId, UpdateSalesOrderDesignStatusRequest request, CancellationToken cancellationToken);
     Task<SalesOrderDto?> SubmitSalesOrderDesignAsync(Guid salesOrderId, SubmitSalesOrderDesignRequest request, CancellationToken cancellationToken);
     Task<SalesOrderDto?> UpdateSalesOrderItemsAsync(Guid salesOrderId, UpdateSalesOrderItemsRequest request, CancellationToken cancellationToken);
+    Task<SalesOrderDto?> SetSalesOrderPricingAsync(Guid salesOrderId, SetSalesOrderPricingRequest request, CancellationToken cancellationToken);
     Task<SalesOrderProductionProgressDto> ConfirmSalesOrderAsync(Guid salesOrderId, ConfirmSalesOrderRequest request, CancellationToken cancellationToken);
     Task<SalesOrderProductionProgressDto?> GetSalesOrderProgressAsync(Guid salesOrderId, CancellationToken cancellationToken);
     Task<SalesOrderProductionProgressDto?> GetSalesOrderTrackingByCodeAsync(string trackingCode, CancellationToken cancellationToken);
     Task<PublicProductionTrackingDto?> GetPublicTrackingAsync(string trackingCode, CancellationToken cancellationToken);
     Task<SalesOrderProductionProgressDto?> UploadEngineeringDrawingAsync(Guid salesOrderId, UploadEngineeringDrawingRequest request, CancellationToken cancellationToken);
-    Task<SalesOrderProductionProgressDto?> SubmitMaterialRequestAsync(Guid salesOrderId, SubmitProductionMaterialRequest request, CancellationToken cancellationToken);
-    Task<SalesOrderProductionProgressDto?> StartProductionAsync(Guid salesOrderId, ProductionStatusUpdateRequest request, CancellationToken cancellationToken);
-    Task<SalesOrderProductionProgressDto?> FinishProductionAsync(Guid salesOrderId, ProductionStatusUpdateRequest request, CancellationToken cancellationToken);
+    Task<SalesOrderProductionProgressDto?> SubmitMaterialRequestAsync(Guid salesOrderId, SubmitProductionMaterialRequest request, CancellationToken cancellationToken, bool isPrivileged = false);
+    Task<SalesOrderProductionProgressDto?> StartProductionAsync(Guid salesOrderId, ProductionStatusUpdateRequest request, CancellationToken cancellationToken, bool isPrivileged = false);
+    Task<SalesOrderProductionProgressDto?> FinishProductionAsync(Guid salesOrderId, ProductionStatusUpdateRequest request, CancellationToken cancellationToken, bool isPrivileged = false);
     Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken);
 }

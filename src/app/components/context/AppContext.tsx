@@ -172,14 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     if (salesOrdersResult.status === "fulfilled") {
-      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      setSalesOrders(salesOrdersResult.value.map(dto => {
-        const baseSo = mapSalesOrderDto(dto);
-        if (localUpdates[baseSo.id]) {
-          return { ...baseSo, ...localUpdates[baseSo.id] };
-        }
-        return baseSo;
-      }));
+      setSalesOrders(salesOrdersResult.value.map(dto => mapSalesOrderDto(dto)));
     } else {
       console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
     }
@@ -482,6 +475,14 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     assignedName: order.productionWorkerName || undefined,
     notes: order.items.map(item => item.notes).filter(Boolean).join("; ") || undefined,
     backendDesignStatus: order.designStatus,
+    items: order.items.map(item => ({
+      id: item.id,
+      productId: item.productId,
+      productName: item.productDescription,
+      quantity: item.qty,
+      unitPrice: 0,
+      unit: "PCS"
+    }))
   };
 }
 
@@ -551,12 +552,12 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     }
   }
 
-  if (order.status === "Draft" && order.designStatus === "Approved") {
-    return "Menunggu Invoice DP";
+  if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
+    return "Waiting Pricing";
   }
 
-  if (order.status === "WaitingPayment") {
-    return "Menunggu Invoice DP";
+  if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
+    return "Waiting Payment";
   }
 
   if (order.productionStatus === "Finished") {
