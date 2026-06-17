@@ -10,14 +10,14 @@ namespace PJT_ERP.QC.Api.Controllers;
 public sealed class QcInspectionsController(IQcInspectionService inspectionService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Owner,Engineering Supervisor")]
     public async Task<ActionResult<IReadOnlyCollection<QcInspectionDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await inspectionService.ListAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Owner,Engineering Supervisor")]
     public async Task<ActionResult<QcInspectionDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var inspection = await inspectionService.GetAsync(id, cancellationToken);
@@ -25,7 +25,7 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
     }
 
     [HttpPut("{id:guid}/result")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Engineering Reviewer")]
+    [Authorize(Roles = "Admin,Engineering Supervisor")]
     public async Task<ActionResult<QcInspectionDto>> UploadResult(
         Guid id,
         UploadQcResultRequest request,

@@ -16,7 +16,7 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Worker")]
     public async Task<ActionResult<ProductDto>> Create(CreateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await catalogService.CreateProductAsync(request, cancellationToken);

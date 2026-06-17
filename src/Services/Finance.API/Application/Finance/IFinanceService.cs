@@ -14,7 +14,7 @@ public interface IFinanceService
     Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceRequest request, CancellationToken cancellationToken);
     Task<InvoiceDto?> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<PaymentVerificationRequestDto>> ListPaymentVerificationsAsync(string? status, CancellationToken cancellationToken);
-    Task<PaymentVerificationRequestDto?> SubmitPaymentProofAsync(Guid invoiceId, SubmitPaymentProofRequest request, CancellationToken cancellationToken);
+    Task<PaymentVerificationRequestDto?> SubmitPaymentProofAsync(Guid invoiceId, SubmitPaymentProofFormRequest request, CancellationToken cancellationToken);
     Task<PaymentVerificationRequestDto?> VerifyPaymentProofAsync(Guid requestId, CancellationToken cancellationToken);
     Task<PaymentVerificationRequestDto?> RejectPaymentProofAsync(Guid requestId, RejectPaymentVerificationRequest request, CancellationToken cancellationToken);
     Task<InvoiceDto?> CreateCollectionLetterAsync(Guid invoiceId, CreateCollectionLetterRequest request, CancellationToken cancellationToken);

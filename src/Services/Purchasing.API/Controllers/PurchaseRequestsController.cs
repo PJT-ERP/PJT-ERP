@@ -10,7 +10,7 @@ namespace PJT_ERP.Purchasing.Api.Controllers;
 public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseRequestService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Finance,Engineering,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
+    [Authorize(Roles = "Admin,Finance,Engineering Worker,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<IReadOnlyCollection<PurchaseRequestDto>>> List(
         [FromQuery] Guid? salesOrderId,
         [FromQuery] string? status,
@@ -20,7 +20,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Admin,Finance,Engineering,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
+    [Authorize(Roles = "Admin,Finance,Engineering Worker,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<PurchaseRequestDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var result = await purchaseRequestService.GetAsync(id, cancellationToken);
@@ -28,13 +28,28 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor")]
     public async Task<ActionResult<PurchaseRequestDto>> Create(CreatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try
         {
             var result = await purchaseRequestService.CreateAsync(request, cancellationToken);
             return CreatedAtAction(nameof(List), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor")]
+    public async Task<ActionResult<PurchaseRequestDto>> Update(Guid id, UpdatePurchaseRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await purchaseRequestService.UpdateAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
         {

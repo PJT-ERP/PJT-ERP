@@ -52,6 +52,7 @@ export interface MR {
   supplierAssigned?: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
   isReadyForPo?: boolean;
+  rejectionReason?: string;
 }
 
 /* ── Pill configs ──────────────────────────────────────────── */
@@ -97,6 +98,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     notes: request.items.map(item => item.notes).filter(Boolean).join("; ") || request.projectName || "",
     approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
     approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
+    rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
     supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"

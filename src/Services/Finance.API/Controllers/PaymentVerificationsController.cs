@@ -21,7 +21,7 @@ public sealed class PaymentVerificationsController(IFinanceService financeServic
     [Authorize(Roles = "Admin,Finance,Sales")]
     public async Task<ActionResult<PaymentVerificationRequestDto>> SubmitPaymentProof(
         Guid invoiceId,
-        SubmitPaymentProofRequest request,
+        [FromForm] SubmitPaymentProofFormRequest request,
         CancellationToken cancellationToken)
     {
         try

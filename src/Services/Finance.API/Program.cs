@@ -32,8 +32,7 @@ builder.Services.AddPgmqEventBus<FinanceContext>(builder.Configuration, options 
     options.FanOutQueues = ["pjt_production_events"];
 })
     .WithReceiver()
-    .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>()
-    .AddSubscription<SalesOrderDpInvoiceRequestedEvent, SalesOrderDpInvoiceRequestedEventHandler>();
+    .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
@@ -53,6 +52,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

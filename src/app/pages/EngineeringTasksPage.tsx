@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, getQuotationStatusColor } from "../components/data/mockData";
-import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
+import { SalesOrder, getStatusColor } from "../components/data/mockData";
+import { salesApi } from "../services/salesApi";
+import { toBackendUserId, isGuid } from "../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -17,52 +18,141 @@ const S = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = getQuotationStatusColor(status);
+  const cfg = getStatusColor(status as any);
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {cfg.label}
+      {status}
     </span>
   );
 }
 
-function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation, customers, currentUser } = useApp();
+function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
+  const { updateSalesOrder, customers, currentUser, refreshBackendData } = useApp();
   const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
   const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>(qut.materials || []);
   const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
   const [rejectReason, setRejectReason] = useState('');
   const customer = customers.find(c => c.code === qut.customerId);
   
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'design_review';
-  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
+  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Pricing';
+  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
   const updateMaterial = (id: string, field: string, value: any) => setMaterials(materials.map(m => m.id === id ? { ...m, [field]: value } : m));
 
-  const handleForward = () => {
-    if (!canProcess) {
-      return;
-    }
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    updateQuotation(qut.id, {
-      designLink,
-      designId: designLink,
-      materials,
-      status: isSpv ? 'client_design_approval' : 'design_review',
-    });
-    setStep('done');
+  const handleForward = async () => {
+    if (!canProcess) return;
+
+    try {
+      setIsSubmitting(true);
+      
+      const backendId = qut.backendId || qut.id;
+      if (!isGuid(backendId)) {
+        alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (isSpv) {
+        await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: 'Approved',
+          notes: 'Approved by SPV',
+          reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+          reviewerName: currentUser?.name || ''
+        });
+      } else {
+        // Engineer submits design reference and drawing URL to the server.
+        // Also update SalesOrderItems to persist BOM locally mapped on backend.
+        await salesApi.submitSalesOrderDesign(backendId, {
+          designReference: designLink,
+          drawingFileUrl: designLink
+        });
+        
+        if (materials && materials.length > 0) {
+          try {
+             const serializedMaterials = JSON.stringify(materials);
+             const updatedItems = qut.items?.map((it, idx) => ({
+                salesOrderItemId: it.id,
+                productId: it.productId,
+                qty: it.quantity,
+                notes: idx === 0 ? serializedMaterials : it.notes
+             })) || [];
+             if (updatedItems.length > 0) {
+                await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
+             }
+          } catch(e) {
+             console.warn("Failed to update BOM on backend", e);
+          }
+        }
+      }
+
+      if (isSpv) {
+        // Do not clear localUpdates here so we don't lose the BOM that is stored locally.
+        const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+        localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
+        localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
+        // Refresh all data from backend so Finance sees the approved SO
+        await refreshBackendData();
+      } else {
+        updateSalesOrder(qut.id, {
+          designLink,
+          designId: designLink,
+          materials,
+          status: 'Waiting Spv Approval',
+          backendDesignStatus: 'WaitingApproval',
+        });
+      }
+      setStep('done');
+    } catch (err: any) {
+      console.error(err);
+      const url = err?.config?.url || 'unknown';
+      alert(`Gagal mengupdate data ke server. Pesan: ${err?.response?.data?.message || err?.message}. URL: ${url}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!rejectReason.trim()) return;
-    updateQuotation(qut.id, {
-      status: 'pending_design',
-      notes: rejectReason,
-    });
-    setStep('rejected');
+    try {
+      setIsSubmitting(true);
+      const backendId = qut.backendId || qut.id;
+      if (!isGuid(backendId)) {
+        alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      await salesApi.updateSalesOrderDesignStatus(backendId, {
+        designStatus: 'Rejected',
+        notes: rejectReason,
+        reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+        reviewerName: currentUser?.name || ''
+      });
+      updateSalesOrder(qut.id, {
+        status: 'Pending Design',
+        backendDesignStatus: 'Rejected',
+        notes: rejectReason,
+      });
+      if (isSpv) {
+        // Clear localStorage override before refreshing
+        const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+        delete localUpdates[qut.id];
+        localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
+        await refreshBackendData();
+      }
+      setStep('rejected');
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal mereject desain ke server. Pesan: ' + (err?.response?.data?.message || err?.message || 'Pastikan API backend berjalan.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -77,14 +167,14 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
         </div>
         <div style={{ padding: "20px 24px" }}>
-          {!canProcess ? (
+          {!canProcess && !(qut.designLink || qut.designId || qut.materials?.length) ? (
             <div style={{ textAlign: "center", padding: "24px 0" }}>
               <div style={{ width: 64, height: 64, background: "#FEF3C7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                 <UserPlus size={30} style={{ color: "#D97706" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>Belum Bisa Dikerjakan</h3>
               <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-                QUT ini harus ditugaskan oleh Engineering Supervisor sebelum Engineer bisa mengirim desain.
+                SO ini harus ditugaskan oleh Engineering Supervisor sebelum Engineer bisa mengirim desain.
               </p>
               <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Tutup</button>
             </div>
@@ -94,10 +184,10 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-                {isSpv ? 'Desain Disetujui (Diteruskan ke Sales)' : 'Desain Menunggu Approval Supervisor'}
+                {isSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-                {isSpv ? 'Status Penawaran dikembalikan ke Sales untuk Validasi Klien.' : 'Status Penawaran menjadi "Design Review"'}
+                {isSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Tutup</button>
             </div>
@@ -135,16 +225,16 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
 
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Kembali</button>
-                <button onClick={handleReject} disabled={!rejectReason.trim()} style={{ flex: 1, padding: "10px", background: "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: rejectReason.trim() ? 1 : 0.5 }}>
-                  <Trash2 size={15} /> Tolak Desain
+                <button onClick={handleReject} disabled={!rejectReason.trim() || isSubmitting} style={{ flex: 1, padding: "10px", background: "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: rejectReason.trim() && !isSubmitting ? 1 : 0.5 }}>
+                  <Trash2 size={15} /> {isSubmitting ? 'Memproses...' : 'Tolak Desain'}
                 </button>
               </div>
             </div>
           ) : step === 'confirm' ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 8, padding: 16 }}>
-                <p style={{ color: "#92400E", margin: 0, fontSize: "13.5px" }}>
-                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? Dokumen akan masuk ke tahap Validasi Klien.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
+              <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 16 }}>
+                <p style={{ color: "#92400E", fontSize: "13.5px", margin: 0 }}>
+                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
                 </p>
               </div>
               <div style={{ background: S.bg, borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 8, fontSize: "13.5px" }}>
@@ -157,19 +247,47 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Kembali</button>
-                <button onClick={handleForward} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  <Send size={15} /> {isSpv ? 'Approve & Forward' : 'Forward ke Supervisor'}
+                <button onClick={handleForward} disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.5 : 1 }}>
+                  <Send size={15} /> {isSubmitting ? 'Memproses...' : (isSpv ? 'Approve & Forward' : 'Forward ke Supervisor')}
                 </button>
               </div>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: "13.5px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: "13.5px", marginBottom: 12 }}>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p></div>
-                <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Qty</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.quantity} {qut.unit}</p></div>
+                <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.quantity} {qut.unit}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.deadline}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.createdAt}</p></div>
               </div>
+              
+              <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                <p style={{ fontSize: "12.5px", color: S.slate, fontWeight: 600, margin: "0 0 8px" }}>Instruksi / Referensi dari Sales</p>
+                {qut.customerDrawingUrl ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: "12px", color: S.secondary, display: "block" }}>Referensi Desain Customer:</span>
+                    <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "12.5px", display: "flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
+                      <ExternalLink size={12} /> Buka Lampiran Referensi
+                    </a>
+                  </div>
+                ) : null}
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: "12px", color: S.secondary, display: "block", marginBottom: 4 }}>Daftar Item / Produk:</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {qut.items?.map((item, idx) => (
+                      <div key={idx} style={{ fontSize: "12.5px", color: S.slate, display: "flex", justifyContent: "space-between", background: "#fff", padding: "4px 8px", borderRadius: 4, border: `1px solid ${S.border}` }}>
+                        <span>{item.productName || "Custom Product"}</span>
+                        <span style={{ fontWeight: 500 }}>{item.quantity} {item.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: "12px", color: S.secondary, display: "block" }}>Catatan Pesanan / Spesifikasi:</span>
+                  <p style={{ fontSize: "12.5px", color: S.slate, margin: "2px 0 0", whiteSpace: "pre-wrap" }}>{qut.notes || "Tidak ada catatan khusus."}</p>
+                </div>
+              </div>
+
               <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 12 }}>
                 <p style={{ fontSize: "12px", color: "#1D4ED8", margin: 0 }}>Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
               </div>
@@ -177,7 +295,8 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                 <label style={{ display: "block", fontSize: "13.5px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
                 <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+                  disabled={!canProcess}
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: canProcess ? "#fff" : "#f1f5f9" }} />
               </div>
               
               <div style={{ marginTop: 4 }}>
@@ -186,24 +305,24 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
                   <button onClick={addMaterial} style={{ padding: "4px 8px", background: "rgba(200,16,46,0.1)", color: S.cyan, border: "none", borderRadius: 4, fontSize: "12px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}><Plus size={12} /> Tambah Material</button>
                 </div>
                 {materials.length === 0 ? (
-                  <div style={{ padding: 12, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, fontSize: "12.5px", color: "#991B1B" }}>
-                    Daftar material masih kosong. Wajib menambahkan minimal 1 material.
+                  <div style={{ textAlign: "center", padding: "20px", color: S.secondary, fontSize: "13px", background: "#F8FAFC", borderRadius: 8, border: `1px dashed ${S.border}` }}>
+                    Daftar material masih kosong. {canProcess && 'Wajib menambahkan minimal 1 material.'}
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "200px", overflowY: "auto", paddingRight: 4 }}>
                     {materials.map(m => (
                       <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "center", background: "#F8FAFC", padding: 8, borderRadius: 6, border: `1px solid ${S.border}` }}>
-                        <input placeholder="Nama material..." value={m.name} onChange={e => updateMaterial(m.id, 'name', e.target.value)} style={{ flex: 1.5, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", minWidth: 0 }} />
-                        <input placeholder="Spesifikasi..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} style={{ flex: 1, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", minWidth: 0 }} />
-                        <input type="number" min="0.1" step="0.1" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} style={{ width: 60, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none" }} />
-                        <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} style={{ width: 70, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none" }}>
+                        <input placeholder="Nama material..." value={m.name} onChange={e => updateMaterial(m.id, 'name', e.target.value)} disabled={!canProcess} style={{ flex: 1.5, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "transparent" }} />
+                        <input placeholder="Spesifikasi..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess} style={{ flex: 1, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "transparent" }} />
+                        <input type="number" min="0.1" step="0.1" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess} style={{ width: 60, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", backgroundColor: canProcess ? "#fff" : "transparent" }} />
+                        <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} disabled={!canProcess} style={{ width: 70, padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none", backgroundColor: canProcess ? "#fff" : "transparent" }}>
                           <option value="pcs">pcs</option>
                           <option value="kg">kg</option>
                           <option value="meter">meter</option>
                           <option value="lembar">lembar</option>
                           <option value="batang">batang</option>
                         </select>
-                        <button onClick={() => removeMaterial(m.id)} style={{ padding: 4, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex" }}><Trash2 size={14} /></button>
+                        {canProcess && <button onClick={() => removeMaterial(m.id)} style={{ padding: 4, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex" }}><Trash2 size={14} /></button>}
                       </div>
                     ))}
                   </div>
@@ -211,16 +330,18 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
               </div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-                {isSpv && isPendingSpv && (
+                <button onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>{canProcess ? "Batal" : "Tutup"}</button>
+                {canProcess && isSpv && isPendingSpv && (
                   <button onClick={() => setStep('reject')} style={{ flex: 1, padding: "10px", background: "#FEF2F2", border: "1px solid #FCA5A5", color: "#DC2626", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                     Tolak / Revisi
                   </button>
                 )}
-                <button onClick={() => setStep('confirm')} disabled={!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)}
-                  style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: (designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) ? 1 : 0.5 }}>
-                  <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}
-                </button>
+                {canProcess && (
+                  <button onClick={() => setStep('confirm')} disabled={(!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)) || isSubmitting}
+                    style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: ((designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) && !isSubmitting) ? 1 : 0.5 }}>
+                    <Send size={15} /> {isSpv && isPendingSpv ? (qut.status === 'Waiting Pricing' ? 'Simpan Perubahan' : 'Review & Approve') : 'Submit & Forward'}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -230,13 +351,13 @@ function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) 
   );
 }
 
-function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation, users } = useApp();
-  const engineers = users.filter(user => user.role === 'Engineering' && user.username !== 'eng_spv');
+function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
+  const { updateSalesOrder, users } = useApp();
+  const engineers = users.filter(user => user.role === 'Engineering Worker' && user.username !== 'eng_spv');
 
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
-    updateQuotation(qut.id, {
+    updateSalesOrder(qut.id, {
       assignedTo: userId,
       assignedName: engineer?.name,
     });
@@ -275,28 +396,38 @@ function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => 
 }
 
 export function EngineeringTasksPage() {
-  const { quotations, customers, currentUser, users } = useApp();
-  const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
-  const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
+  const { salesOrders, customers, currentUser, users } = useApp();
+  const [selectedQUT, setSelectedQUT] = useState<any | null>(null);
+  const [assignModalQUT, setAssignModalQUT] = useState<any | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const STATUS_ORDER = ['pending_design', 'design_review'];
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
-  const queue = quotations
-    .filter(q => {
-      if (!STATUS_ORDER.includes(q.status)) {
-        return false;
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
+  
+  const pendingSalesOrders = salesOrders
+    .filter(so => {
+      if (isSpv) {
+        // Show all SOs that went through design phase (have a backendDesignStatus)
+        // and haven't moved to production yet
+        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
+        return engineeringStatuses.includes(so.status) && 
+               so.backendDesignStatus !== undefined &&
+               so.backendDesignStatus !== null;
       }
+      return so.status === 'Pending Design' || so.status === 'Waiting Spv Approval';
+    });
 
+  const allQueue = [...pendingSalesOrders];
+  
+  const queue = allQueue
+    .filter(q => {
       if (isSpv) {
         return true;
       }
-
-      return q.status === 'pending_design' && q.assignedTo === currentUser?.id;
+      return q.assignedTo === currentUser?.id;
     })
-    .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
+    .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -317,8 +448,8 @@ export function EngineeringTasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 120px 100px 130px 110px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["No. QUT", "Pelanggan", "Produk", "Ditugaskan", "Deadline", "Status", "Aksi"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "100px 1.2fr 1.5fr 130px 100px 160px 110px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+          {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Deadline", "Status", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
@@ -331,21 +462,21 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
-            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'pending_design';
-            const canReview = isSpv && qut.status === 'design_review';
-            const canAssign = isSpv && qut.status === 'pending_design';
+            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
+            // Review button: only when design is waiting for supervisor approval
+            const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
+            // Assign button: only when design hasn't started yet
+            const canAssign = isSpv && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
 
             return (
             <div
               key={qut.id}
               onClick={() => {
-                if (canWork || canReview) {
-                  setSelectedQUT(qut);
-                }
+                setSelectedQUT(qut);
               }}
               style={{
-                display: "grid", gridTemplateColumns: "130px 1fr 1fr 120px 100px 130px 110px",
-                padding: "10px 18px", cursor: canWork || canReview ? "pointer" : "default",
+                display: "grid", gridTemplateColumns: "100px 1.2fr 1.5fr 130px 100px 160px 110px", alignItems: "center",
+                padding: "10px 18px", cursor: "pointer",
                 borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
                 transition: "background 0.1s",
               }}
@@ -356,20 +487,28 @@ export function EngineeringTasksPage() {
               <div style={{ minWidth: 0, paddingRight: 10 }}>
                 <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
               </div>
-              <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.productName}</span>
-              <span style={{ color: S.secondary, fontSize: "12.5px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{assignedName}</span>
-              <span style={{ color: S.slate, fontSize: "12.5px", alignSelf: "center", fontWeight: 500 }}>{qut.deadline}</span>
-              <div style={{ alignSelf: "center" }}>
+              <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.description || qut.partNumber || "-"}</span>
+              <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
+                {qut.assignedTo ? (
+                  <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                    {assignedName}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                )}
+              </span>
+              <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500 }}>{qut.deadline}</span>
+              <div>
                 <StatusBadge status={qut.status} />
               </div>
-              <div style={{ alignSelf: "center" }}>
+              <div>
                 {canAssign ? (
                   <button
                     onClick={(event) => {
                       event.stopPropagation();
                       setAssignModalQUT(qut);
                     }}
-                    style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    style={{ fontSize: "11px", background: "#C8102E", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     {qut.assignedTo ? "Ganti" : "Tugaskan"}
                   </button>
@@ -379,7 +518,7 @@ export function EngineeringTasksPage() {
                       event.stopPropagation();
                       setSelectedQUT(qut);
                     }}
-                    style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     Kerjakan
                   </button>
@@ -394,7 +533,15 @@ export function EngineeringTasksPage() {
                     Review
                   </button>
                 ) : (
-                  <span style={{ color: S.secondary, fontSize: "12px" }}>-</span>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedQUT(qut);
+                    }}
+                    style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Detail
+                  </button>
                 )}
               </div>
             </div>
@@ -444,11 +591,7 @@ export function EngineeringTasksPage() {
         )}
       </div>
 
-      {selectedQUT && (isSpv && selectedQUT.status === 'design_review' ? (
-        <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
-      ) : (
-        <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />
-      ))}
+      {selectedQUT && <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />}
       {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );

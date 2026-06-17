@@ -16,6 +16,8 @@ public sealed class SalesOrder
     public DateTime? DesignApprovedAtUtc { get; set; }
     public DateOnly SoDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public DateOnly? TargetDate { get; set; }
+    public Guid? DesignWorkerUserId { get; set; }
+    public string? DesignWorkerName { get; set; }
     public Guid? ProductionWorkerUserId { get; set; }
     public string? ProductionWorkerName { get; set; }
     public Guid? QcReviewerUserId { get; set; }

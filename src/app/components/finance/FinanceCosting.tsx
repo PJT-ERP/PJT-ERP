@@ -1,125 +1,171 @@
 import React, { useState } from "react";
-import { DollarSign, CheckCircle, Calculator, ChevronDown, List, X, ExternalLink, Save, History } from "lucide-react";
-import { useApp } from "../context/AppContext";
-import { Quotation, getQuotationStatusColor } from "../data/mockData";
+import { formatIDR } from "./mockData";
 
 const S = {
   font: "Inter, sans-serif",
+  navy: "#1F1F1F",
+  cyan: "#C8102E",
   slate: "#111827",
   secondary: "#64748B",
   border: "#E2E8F0",
   bg: "#F8FAFC",
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
-  cyan: "#C8102E",
 };
-
-function formatIDR(amount: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(amount);
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = getQuotationStatusColor(status as any);
-  return (
-    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
-      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {cfg.label}
-    </span>
-  );
-}
+import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
+import { useApp } from "../context/AppContext";
+import { SalesOrder } from "../data/mockData";
+import { salesApi } from "../../services/salesApi";
 
 export function FinanceCosting() {
-  const { quotations, customers, updateQuotation } = useApp();
-  const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
-  const [estimatedAmount, setEstimatedAmount] = useState("");
+  const { salesOrders, updateSalesOrder } = useApp();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
+  const waitingPricingSO = salesOrders.filter(so => so.status === "Waiting Pricing").map(so => ({
+    ...so,
+    isQuotation: false
+  }));
+
+  const waitingPricingList = [...waitingPricingSO];
+
+  const filteredList = waitingPricingList.filter(item => 
+    (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (item.customerId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.customerName || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // State for costing
+  const [itemPrices, setItemPrices] = useState<Record<string, number>>({});
   const [costingNotes, setCostingNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const waitingPricingList = quotations.filter(q => q.status === "waiting_pricing" || q.status === "client_price_approval");
 
-  const handleSelect = (q: Quotation) => {
-    setSelectedQUT(q);
-    setEstimatedAmount(q.estimatedAmount ? q.estimatedAmount.toString() : "");
-    setCostingNotes("");
-  };
+  // Populate initial prices when an SO is selected
+  React.useEffect(() => {
+    if (selectedItem) {
+      const initialPrices: Record<string, number> = {};
+      selectedItem.items?.forEach((item: any) => {
+        initialPrices[item.productId] = item.unitPrice || 0;
+      });
+      setItemPrices(initialPrices);
+      setCostingNotes(selectedItem.material || selectedItem.notes || "");
+    }
+  }, [selectedItem]);
 
   const handleSubmitCosting = () => {
-    if (!selectedQUT || !estimatedAmount || isSubmitting) return;
-
+    if (!selectedItem || !selectedItem.items) return;
     setIsSubmitting(true);
-    const amount = Number(estimatedAmount);
     
-    // Add revision history
-    const prevRevisions = selectedQUT.revisions || [];
-    const newRevNumber = prevRevisions.length + 1;
-    
-    const newRevision = {
-      revNumber: newRevNumber,
-      amount,
-      date: new Date().toISOString().split("T")[0],
-      notes: costingNotes,
-    };
+    setTimeout(async () => {
+      // Handle SO logic
+      const updatedItems = selectedItem.items!.map((item: any) => ({
+        ...item,
+        unitPrice: itemPrices[item.productId] || 0
+      }));
 
-    updateQuotation(selectedQUT.id, {
-      estimatedAmount: amount,
-      revisions: [...prevRevisions, newRevision],
-      status: "client_price_approval", // send back to sales/client
-    });
+      try {
+        // Backend integration
+        await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
+          items: updatedItems.map((item: any) => ({
+            salesOrderItemId: item.id,
+            unitPrice: item.unitPrice
+          }))
+        });
 
-    setSelectedQUT(null);
-    setIsSubmitting(false);
+        // Local state update for smooth UX
+        updateSalesOrder(selectedItem.id, { 
+          items: updatedItems,
+          status: "Menunggu Invoice DP" 
+        });
+      } catch (error) {
+        console.error("Failed to update pricing to backend", error);
+        alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
+        updateSalesOrder(selectedItem.id, { 
+          items: updatedItems,
+          status: "Menunggu Invoice DP" 
+        });
+      }
+      
+      setIsSubmitting(false);
+      setSubmitSuccess(true);
+    }, 800);
   };
 
+  const calculateTotal = () => {
+    if (!selectedItem || !selectedItem.items) return 0;
+    return selectedItem.items.reduce((total: number, item: any) => {
+      return total + (itemPrices[item.productId] || 0) * item.quantity;
+    }, 0);
+  };
+
+  const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
+
   return (
-    <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
+      {/* Header */}
       <div>
-        <h1 style={{ color: S.slate, margin: 0, fontSize: "20px", fontWeight: 600 }}>Costing & Pricing</h1>
-        <p style={{ color: S.secondary, fontSize: "13px", marginTop: 4 }}>
-          Hitung HPP dan tetapkan penawaran harga untuk desain yang telah disetujui
+        <h1 style={{ color: S.slate, margin: "0 0 8px 0", fontSize: "24px" }}>Costing & Pricing</h1>
+        <p style={{ color: S.secondary, margin: 0, fontSize: "14px" }}>
+          Tentukan harga modal (HPP) dan tetapkan harga jual berdasarkan BOM dari tim Engineering.
         </p>
       </div>
 
-      <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Calculator size={16} style={{ color: S.cyan }} />
-            <span style={{ color: S.slate, fontSize: "14px", fontWeight: 600 }}>Antrian Penentuan Harga</span>
-          </div>
+      {/* Toolbar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ position: "relative", width: 300 }}>
+          <Search size={18} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
+          <input 
+            type="text" 
+            placeholder="Cari No. SO atau Pelanggan..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px 10px 38px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none" }}
+          />
         </div>
+      </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "10px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["No. QUT", "Pelanggan", "Produk", "Qty", "Status"].map((h) => (
-            <span key={h} style={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+      {/* List / Table SO */}
+      <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 100px 150px", padding: "12px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+          {["No. SO", "Pelanggan", "Produk (Items)", "Status", "Aksi"].map((h) => (
+            <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
-
-        {waitingPricingList.length === 0 ? (
-          <div style={{ padding: "60px 20px", textAlign: "center" }}>
-            <CheckCircle size={40} style={{ color: "#86EFAC", margin: "0 auto 12px" }} />
-            <p style={{ color: S.slate, margin: 0, fontSize: "14px", fontWeight: 500 }}>Tidak ada antrian costing saat ini.</p>
+        {filteredList.length === 0 ? (
+          <div style={{ padding: "32px", textAlign: "center", color: S.secondary, fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span>Tidak ada Sales Order yang menunggu penetapan harga.</span>
+            <span style={{ fontSize: "11px", color: "#EF4444" }}>
+              DEBUG INFO: Total SO: {salesOrders.length} | Waiting Pricing SO: {waitingPricingSO.length} | 
+              Statuses: {salesOrders.slice(0, 5).map(s => s.status).join(", ")}
+            </span>
           </div>
         ) : (
-          waitingPricingList.map((qut, idx) => {
-            const customer = customers.find(c => c.code === qut.customerId);
+          filteredList.map((so, idx) => {
+            const itemCount = so.items?.length || 0;
             return (
-              <div
-                key={qut.id}
-                onClick={() => handleSelect(qut)}
-                style={{
-                  display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                  padding: "12px 18px", cursor: "pointer",
-                  borderBottom: idx < waitingPricingList.length - 1 ? `1px solid ${S.border}` : "none",
-                  transition: "background 0.1s",
+              <div 
+                key={so.id}
+                style={{ 
+                  display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 100px 150px", alignItems: "center",
+                  padding: "12px 18px", 
+                  borderBottom: idx < filteredList.length - 1 ? `1px solid ${S.border}` : "none"
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
-                <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customer?.name || "-"}</span>
-                <span style={{ color: S.slate, fontSize: "13px" }}>{qut.productName}</span>
-                <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{qut.quantity} {qut.unit}</span>
+                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.soNumber || so.id}</span>
+                <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.customerId}</span>
+                <span style={{ color: S.slate, fontSize: "13px" }}>{itemCount} Items</span>
                 <div style={{ alignSelf: "center" }}>
-                  <StatusBadge status={qut.status} />
+                  <span style={{ fontSize: "11px", background: "#FEF3C7", color: "#D97706", padding: "4px 8px", borderRadius: 12, fontWeight: 500 }}>Waiting Pricing</span>
+                </div>
+                <div>
+                  <button 
+                    onClick={() => setSelectedItem(so)}
+                    style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Set Harga
+                  </button>
                 </div>
               </div>
             );
@@ -128,27 +174,57 @@ export function FinanceCosting() {
       </div>
 
       {/* Modal / Dialog Detail Costing */}
-      {selectedQUT && (
+      {selectedItem && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 600, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+          <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 800, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
               <div>
-                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Costing & Pricing - {selectedQUT.id}</h2>
+                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Costing & Pricing - {selectedItem.soNumber || selectedItem.id}</h2>
                 <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "13px" }}>
-                  {selectedQUT.productName} ({selectedQUT.quantity} {selectedQUT.unit})
+                  Pelanggan: {selectedItem.customerName || selectedItem.customerId}
                 </p>
               </div>
-              <button onClick={() => setSelectedQUT(null)} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
+              <button onClick={() => { setSelectedItem(null); setSubmitSuccess(false); }} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px", fontWeight: "bold" }}>&times;</button>
             </div>
             
+            {submitSuccess ? (
+              <div style={{ padding: "60px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <CheckCircle size={50} style={{ color: "#10B981", margin: "0 auto 16px" }} />
+                <h3 style={{ fontSize: "20px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Harga Berhasil Ditetapkan!</h3>
+                <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 400 }}>
+                  Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya.
+                </p>
+                <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+                  <button 
+                    onClick={() => {
+                      setSubmitSuccess(false);
+                      setSelectedItem(null);
+                    }}
+                    style={{ background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Tutup & Kembali
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const soId = selectedItem.backendId || selectedItem.id;
+                      window.location.href = `/erp/finance/create-invoice?so=${soId}`;
+                    }}
+                    style={{ background: S.cyan, color: S.white, border: "none", padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Buat Invoice Sekarang
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
               {/* Info Dokumen Desain */}
               <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
                 <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
                   <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
-                  {selectedQUT.designLink || selectedQUT.designId ? (
-                    <a href={selectedQUT.designLink || selectedQUT.designId} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                  {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
+                    <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                       Lihat Dokumen <ExternalLink size={12} />
                     </a>
                   ) : (
@@ -156,78 +232,123 @@ export function FinanceCosting() {
                   )}
                 </div>
                 <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
-                  Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual.
+                  Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                 </p>
+                {selectedItem.materials && selectedItem.materials.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
+                      <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
+                        <tr>
+                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
+                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
+                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedItem.materials.map((m: any, i: number) => (
+                          <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
+                            <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
+                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
-              {/* History Revisi Harga Jika Ada */}
-              {(selectedQUT.revisions && selectedQUT.revisions.length > 0) && (
-                <div style={{ marginBottom: 20 }}>
-                  <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}><History size={14} /> Riwayat Harga</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {selectedQUT.revisions.map((rev, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", background: S.bg, padding: "8px 12px", borderRadius: 6, border: `1px solid ${S.border}`, fontSize: "13px" }}>
-                        <div>
-                          <span style={{ fontWeight: 600, color: S.slate }}>Rev {rev.revNumber}</span>
-                          <span style={{ color: S.secondary, marginLeft: 8 }}>{rev.date}</span>
-                          {rev.notes && <p style={{ fontSize: "11px", color: S.secondary, margin: "4px 0 0" }}>{rev.notes}</p>}
-                        </div>
-                        <span style={{ fontWeight: 600, color: S.slate }}>{formatIDR(rev.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Form Input Costing */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>
-                    Harga Penawaran Total (Rp) <span style={{ color: "#EF4444" }}>*</span>
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontWeight: 500 }}>Rp</div>
-                    <input 
-                      type="number" 
-                      value={estimatedAmount} 
-                      onChange={e => setEstimatedAmount(e.target.value)}
-                      placeholder="Contoh: 15000000"
-                      style={{ width: "100%", padding: "10px 12px 10px 36px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", fontWeight: 500 }} 
-                    />
-                  </div>
-                  {estimatedAmount && (
-                    <p style={{ fontSize: "12px", color: S.cyan, marginTop: 6, fontWeight: 500 }}>
-                      Terbilang format: {formatIDR(Number(estimatedAmount))}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Catatan Pricing (Opsional)</label>
-                  <textarea 
-                    value={costingNotes}
-                    onChange={e => setCostingNotes(e.target.value)}
-                    placeholder="Catatan HPP, Margin, atau Penjelasan Revisi..."
-                    rows={3}
-                    style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "vertical" }}
-                  />
-                </div>
+              {/* Rincian Items */}
+              <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Rincian Item SO</h3>
+              <div style={{ border: `1px solid ${S.border}`, borderRadius: 8, overflow: "hidden", marginBottom: 20 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+                  <thead style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                    <tr>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary }}>Produk</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary, width: "100px" }}>Qty</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary, width: "200px" }}>Harga Jual (Rp)</th>
+                      <th style={{ padding: "10px 14px", fontWeight: 600, color: S.secondary, width: "150px", textAlign: "right" }}>Subtotal (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedItem.items?.map((item: any, idx: number) => {
+                      const price = itemPrices[item.productId] || 0;
+                      const subtotal = price * item.quantity;
+                      return (
+                        <tr key={item.productId || idx} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
+                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName}</td>
+                          <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity} {item.unit}</td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <div style={{ position: "relative" }}>
+                              <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>
+                              <input 
+                                type="number"
+                                min="0"
+                                value={price || ""}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value) })}
+                                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
+                              />
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 600, textAlign: "right" }}>
+                            {subtotal.toLocaleString("id-ID")}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ background: "#FAFAFA", borderTop: `2px solid ${S.border}` }}>
+                      <td colSpan={3} style={{ padding: "12px 14px", textAlign: "right", fontWeight: 600, color: S.slate }}>Total Keseluruhan:</td>
+                      <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: S.cyan, fontSize: "14px" }}>
+                        Rp {calculateTotal().toLocaleString("id-ID")}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+
+              {/* Catatan Costing */}
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 6 }}><FileText size={14} /> Catatan / Rincian Modal (HPP)</h3>
+                <textarea 
+                  rows={4}
+                  placeholder="Misal: Material A: 50.000, Material B: 30.000, Ongkos Produksi: 20.000. Total Modal: 100.000. Margin: 20%"
+                  value={costingNotes}
+                  onChange={(e) => setCostingNotes(e.target.value)}
+                  style={{ width: "100%", padding: "12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                />
+              </div>
+
             </div>
 
-            <div style={{ padding: "16px 24px", borderTop: `1px solid ${S.border}`, display: "flex", justifyContent: "flex-end", gap: 12, background: "#F8FAFC", borderRadius: "0 0 12px 12px" }}>
-              <button onClick={() => setSelectedQUT(null)} style={{ padding: "10px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>
+            <div style={{ padding: "16px 24px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button 
+                onClick={() => { setSelectedItem(null); setSubmitSuccess(false); }}
+                style={{ padding: "10px 20px", border: `1px solid ${S.border}`, background: S.white, color: S.slate, borderRadius: 6, cursor: "pointer", fontWeight: 500, fontSize: "13.5px" }}
+              >
                 Batal
               </button>
               <button 
-                disabled={!estimatedAmount || isSubmitting}
-                onClick={handleSubmitCosting} 
-                style={{ padding: "10px 20px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, opacity: estimatedAmount && !isSubmitting ? 1 : 0.5 }}
+                onClick={handleSubmitCosting}
+                disabled={isSubmitting || !isAllPriced}
+                style={{ 
+                  padding: "10px 24px", border: "none", 
+                  background: isAllPriced ? S.cyan : "#E2E8F0", 
+                  color: isAllPriced ? "#fff" : "#94A3B8", 
+                  borderRadius: 6, cursor: isAllPriced ? "pointer" : "not-allowed", 
+                  fontWeight: 600, fontSize: "13.5px",
+                  display: "flex", alignItems: "center", gap: 8
+                }}
               >
-                <Save size={15} /> 
-                {isSubmitting ? 'Menyimpan...' : (selectedQUT.revisions && selectedQUT.revisions.length > 0) ? 'Kirim Revisi Harga' : 'Tetapkan Harga'}
+                {isSubmitting ? "Menyimpan..." : (
+                  <>
+                    <CheckCircle size={16} /> Simpan & Tetapkan Harga
+                  </>
+                )}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

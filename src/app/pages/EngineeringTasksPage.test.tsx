@@ -10,15 +10,17 @@ vi.mock('../components/context/AppContext', () => ({
 describe('EngineeringTasksPage', () => {
   it('renders engineering queue for supervisor with Assignment capability', () => {
     vi.mocked(useApp).mockReturnValue({
-      quotations: [
-        {
-          id: 'q1',
-          status: 'pending_design',
-          productName: 'Custom Mold A',
-        }
-      ],
+      quotations: [],
       customers: [],
       users: [],
+      salesOrders: [
+        {
+          id: 'q1',
+          status: 'Pending Design',
+          description: 'Custom Mold A',
+          backendDesignStatus: 'PendingDesign',
+        }
+      ],
       currentUser: { role: 'Engineering Supervisor' },
       updateQuotation: vi.fn(),
     } as any);
@@ -32,17 +34,19 @@ describe('EngineeringTasksPage', () => {
 
   it('renders engineering queue for regular engineer without Assignment capability', () => {
     vi.mocked(useApp).mockReturnValue({
-      quotations: [
+      quotations: [],
+      customers: [],
+      users: [],
+      salesOrders: [
         {
           id: 'q1',
-          status: 'pending_design',
-          productName: 'Custom Mold A',
+          status: 'Pending Design',
+          description: 'Custom Mold A',
+          backendDesignStatus: 'PendingDesign',
           assignedTo: 'eng-1'
         }
       ],
-      customers: [],
-      users: [],
-      currentUser: { id: 'eng-1', role: 'Engineering' },
+      currentUser: { id: 'eng-1', role: 'Engineering Worker' },
       updateQuotation: vi.fn(),
     } as any);
 

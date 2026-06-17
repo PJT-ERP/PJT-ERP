@@ -5,6 +5,7 @@ public interface IPurchaseRequestService
     Task<IReadOnlyCollection<PurchaseRequestDto>> ListAsync(Guid? salesOrderId, string? status, CancellationToken cancellationToken);
     Task<PurchaseRequestDto?> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<PurchaseRequestDto> CreateAsync(CreatePurchaseRequest request, CancellationToken cancellationToken);
+    Task<PurchaseRequestDto?> UpdateAsync(Guid id, UpdatePurchaseRequest request, CancellationToken cancellationToken);
     Task<PurchaseRequestDto?> ReviewAsync(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken);
     Task<PurchaseRequestDto?> UpdatePurchaseItemInfoAsync(Guid purchaseRequestId, Guid itemId, UpdatePurchaseItemInfoRequest request, CancellationToken cancellationToken);
     Task<PurchaseRequestDto?> ProcessPurchaseItemAsync(Guid purchaseRequestId, Guid itemId, ProcessPurchaseItemRequest request, CancellationToken cancellationToken);

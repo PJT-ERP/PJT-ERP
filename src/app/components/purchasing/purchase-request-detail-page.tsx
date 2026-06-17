@@ -295,6 +295,13 @@ export function PurchaseRequestDetailPage() {
             </div>
           )}
 
+          {detail.rejectionReason && (
+            <div className="rounded border border-red-200 bg-red-50 p-4">
+              <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-2">Alasan Penolakan</p>
+              <p className="m-0 text-sm text-red-800">{detail.rejectionReason}</p>
+            </div>
+          )}
+
           {/* Actions */}
           {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForPo && (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">

@@ -1,0 +1,48 @@
+name: OWASP ZAP Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - "feature/**"
+  pull_request:
+  schedule:
+    - cron: '0 0 * * 0' # Run weekly as DAST scans can take some time
+  workflow_dispatch:
+
+jobs:
+  zap_scan:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Application Stack (Docker Compose)
+        run: |
+          # Build and start the entire application for the DAST scan
+          docker compose up -d --build
+        
+      - name: Wait for Application to Boot
+        run: |
+          echo "Waiting for frontend and backend to initialize..."
+          sleep 45 
+          # Basic check to ensure the frontend is returning HTTP 200
+          curl -f http://localhost:5173 || echo "Frontend not yet fully ready, proceeding to let ZAP retry"
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          # Target the frontend UI which connects to the Web Gateway
+          target: 'http://localhost:5173'
+          # We don't fail the build aggressively for baseline issues, 
+          # but the report will be available in the workflow logs and artifacts.
+          fail_action: false
+          allow_issue_writing: false
+          artifact_name: 'zap-report'
+          
+      - name: Stop Application Stack
+        if: always()
+        run: docker compose down

@@ -142,6 +142,26 @@ export const salesApi = {
     return response.data;
   },
 
+  async updateSalesOrderDesignStatus(salesOrderId: string, request: { designStatus: string, reviewedByUserId?: string, reviewerName?: string, notes?: string }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/design-status`, request);
+    return response.data;
+  },
+
+  async updateSalesOrderPricing(salesOrderId: string, request: { items: Array<{ salesOrderItemId: string, unitPrice: number }> }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/pricing`, request);
+    return response.data;
+  },
+
+  async submitSalesOrderDesign(salesOrderId: string, request: { designReference: string, drawingFileUrl: string }) {
+    const response = await apiClient.post<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/submit-design`, request);
+    return response.data;
+  },
+
+  async updateSalesOrderItems(salesOrderId: string, request: { items: any[] }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/items`, request);
+    return response.data;
+  },
+
   async confirmSalesOrder(salesOrderId: string, approvedByUserId: string) {
     const response = await apiClient.post(`/api/v1/production/sales-orders/${salesOrderId}/confirm`, {
       approvedByUserId,

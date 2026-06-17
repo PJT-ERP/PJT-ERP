@@ -141,7 +141,7 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
                 <span className="text-slate-700">{formatIDR(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">PPN 10%</span>
+                <span className="text-slate-500">PPN</span>
                 <span className="text-slate-700">{formatIDR(invoice.ppn)}</span>
               </div>
               <div className="flex justify-between text-sm font-semibold border-t border-slate-200 pt-2">

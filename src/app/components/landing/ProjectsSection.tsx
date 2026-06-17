@@ -1,25 +1,5 @@
 const projects = [
   {
-    title: "Custom Part Manufacturing",
-    description: "We specialize in precision manufacturing of custom parts for various industries. From core pins to cavity machining, our solutions are tailored to meet specific requirements with high accuracy and efficiency.",
-    image: "/1.png",
-  },
-  {
-    title: "Special Purpose Machines",
-    description: "We design and manufacture custom-built machines to improve production efficiency and meet unique operational challenges. Each unit is engineered for reliability, performance, and long-term value.",
-    image: "/2.png",
-  },
-  {
-    title: "Machine Installation & Service",
-    description: "Our team provides professional installation, calibration, and maintenance for industrial machinery, ensuring smooth operation, reduced downtime, and extended equipment lifespan.",
-    image: "/3.png",
-  },
-  {
-    title: "General Trading",
-    description: "We supply a broad selection of industrial components—from electrical and pneumatic systems to hydraulic parts—sourced from trusted global brands to support your operations.",
-    image: "/4.png",
-  },
-  {
     title: "ROTARY JIG INSPECTION",
     description: "We design and fabricate rotary jig inspection systems that ensure precision and consistency in production quality control processes.",
     image: "/5.jpg",
