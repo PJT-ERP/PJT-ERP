@@ -435,6 +435,12 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
     quantity: firstItem?.qty || request.items.length,
     unit: "PCS",
     items: request.items.map(item => ({
+      itemId: item.id,
+      materialRequirementId: item.materialRequirementId || null,
+      salesOrderId: item.salesOrderId || request.salesOrderId || null,
+      salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
+      projectName: item.projectName || request.projectName || null,
+      purchaseCategory: item.purchaseCategory || null,
       itemName: item.itemName,
       specification: item.size || item.notes || "",
       quantity: item.qty,
@@ -455,8 +461,8 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
 }
 
 function mapPurchasingStatus(status: string): PurchasingStatus {
-  if (status === "Completed") return "Selesai";
-  if (status === "Processing" || status === "FinanceApproved" || status === "SupervisorApproved") return "Diproses";
+  if (status === "Completed" || status === "FinanceApproved") return "Selesai";
+  if (status === "Processing" || status === "SupervisorApproved") return "Diproses";
   if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
   return "Pending";
 }

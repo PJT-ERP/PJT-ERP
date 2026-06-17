@@ -178,6 +178,12 @@ export type PurchasingUrgency = 'Normal' | 'Urgent' | 'Critical';
 export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak';
 
 export interface PurchasingItem {
+  itemId?: string;
+  materialRequirementId?: string | null;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  projectName?: string | null;
+  purchaseCategory?: 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | string | null;
   itemName: string;
   specification: string;
   quantity: number;

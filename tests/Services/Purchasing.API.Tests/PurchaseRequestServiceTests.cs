@@ -14,6 +14,7 @@ public sealed class PurchaseRequestServiceTests
 {
     [Theory]
     [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering Worker,Engineering Supervisor")]
+    [InlineData(nameof(PurchaseRequestsController.Update), "Admin,Engineering Worker,Engineering Supervisor")]
     [InlineData(nameof(PurchaseRequestsController.SupervisorReview), "Admin,Engineering Supervisor")]
     [InlineData(nameof(PurchaseRequestsController.FinanceReview), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
@@ -192,6 +193,49 @@ public sealed class PurchaseRequestServiceTests
 
         var updatedRequirement = await db.MaterialRequirements.SingleAsync();
         Assert.Equal(MaterialRequirementStatuses.PurchaseRequested, updatedRequirement.Status);
+    }
+
+    [Theory]
+    [InlineData(PurchaseRequestStatuses.SupervisorRejected)]
+    [InlineData(PurchaseRequestStatuses.FinanceRejected)]
+    [InlineData(PurchaseRequestStatuses.Rejected)]
+    public async Task UpdateAsync_allows_rejected_request_to_be_resubmitted(string rejectedStatus)
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
+
+        var entity = await db.PurchaseRequests.Include(request => request.Items).SingleAsync();
+        entity.Status = rejectedStatus;
+        entity.RejectionReason = "Need clearer material spec";
+        entity.SupervisorRejectionReason = rejectedStatus == PurchaseRequestStatuses.SupervisorRejected ? entity.RejectionReason : null;
+        entity.FinanceRejectionReason = rejectedStatus == PurchaseRequestStatuses.FinanceRejected ? entity.RejectionReason : null;
+        await db.SaveChangesAsync();
+
+        var updated = await service.UpdateAsync(
+            purchaseRequest.Id,
+            new UpdatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                "Engineering Worker",
+                null,
+                null,
+                null,
+                [new UpdatePurchaseRequestItem(requirement.Id, null, null, null, "", "S45C Round Bar 12mm", 3, "Supplier B", "Revised item", "Urgent")]),
+            CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal(PurchaseRequestStatuses.Submitted, updated.Status);
+        Assert.Null(updated.RejectionReason);
+        Assert.Null(updated.SupervisorRejectionReason);
+        Assert.Null(updated.FinanceRejectionReason);
+        var item = Assert.Single(updated.Items);
+        Assert.Equal(requirement.Id, item.MaterialRequirementId);
+        Assert.Equal("S45C", item.ItemName);
+        Assert.Equal(3, item.Qty);
+        Assert.Equal("S45C Round Bar 12mm", item.Size);
+        Assert.Equal(MaterialRequirementStatuses.PurchaseRequested, (await db.MaterialRequirements.SingleAsync()).Status);
     }
 
     [Fact]

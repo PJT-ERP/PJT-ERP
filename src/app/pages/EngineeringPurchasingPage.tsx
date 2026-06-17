@@ -368,6 +368,12 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
 // ─── Form Modal ──────────────────────────────────────────────────────────────
 
 interface ItemDraft {
+  itemId?: string;
+  materialRequirementId?: string | null;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  projectName?: string | null;
+  purchaseCategory?: string | null;
   itemName: string;
   specification: string;
   quantity: string;
@@ -388,6 +394,12 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 
     return sourceItems.length > 0
       ? sourceItems.map(item => ({
+          itemId: item.itemId,
+          materialRequirementId: item.materialRequirementId,
+          salesOrderId: item.salesOrderId,
+          salesOrderNumber: item.salesOrderNumber,
+          projectName: item.projectName,
+          purchaseCategory: item.purchaseCategory,
           itemName: item.itemName,
           specification: item.specification,
           quantity: String(item.quantity || ''),
@@ -417,6 +429,12 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
     if (!canSubmit || isSubmitting) return;
 
     const parsedItems: PurchasingItem[] = items.map(it => ({
+      itemId: it.itemId,
+      materialRequirementId: it.materialRequirementId,
+      salesOrderId: it.salesOrderId,
+      salesOrderNumber: it.salesOrderNumber,
+      projectName: it.projectName,
+      purchaseCategory: it.purchaseCategory,
       itemName: it.itemName.trim(),
       specification: it.specification.trim(),
       quantity: parseInt(it.quantity),
@@ -440,15 +458,16 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
         salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
         projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
         items: parsedItems.map(item => ({
-          salesOrderId: selectedSo?.backendId || null,
-          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
-          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
+          materialRequirementId: item.materialRequirementId || null,
+          salesOrderId: selectedSo?.backendId || item.salesOrderId || null,
+          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || item.salesOrderNumber || null,
+          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : item.projectName || "General Engineering Request",
           itemName: item.itemName,
           size: item.specification || null,
           qty: item.quantity,
           notes: notes || null,
           urgency,
-          purchaseCategory: selectedSo ? "Project" : "Consumable",
+          purchaseCategory: selectedSo ? "Project" : item.purchaseCategory || "Consumable",
         })),
       };
 
@@ -459,9 +478,13 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
       }
       await refreshBackendData();
       setDone(true);
-    } catch (error) {
-      console.warn("Failed to create backend purchase request.", error);
-      alert("Gagal membuat pengajuan di backend. Cek response API untuk detail.");
+    } catch (error: any) {
+      console.warn("Failed to submit backend purchase request.", error);
+      const message = error?.response?.data?.message
+        || error?.response?.data?.title
+        || error?.message
+        || "Cek response API untuk detail.";
+      alert(`Gagal ${editRequest ? "memperbarui" : "membuat"} pengajuan di backend: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
