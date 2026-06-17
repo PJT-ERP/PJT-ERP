@@ -16,6 +16,7 @@ public sealed class InvoicePaymentRecordedEventHandler(ProductionContext db) : I
         }
 
         var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
             .FirstOrDefaultAsync(order => order.Id == integrationEvent.SalesOrderId, cancellationToken);
 
         if (salesOrder is null)

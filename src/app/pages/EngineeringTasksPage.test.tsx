@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi } from 'vitest';
 import { EngineeringTasksPage } from './EngineeringTasksPage';
 import { useApp } from '../components/context/AppContext';
@@ -43,7 +44,7 @@ describe('EngineeringTasksPage', () => {
           status: 'Pending Design',
           description: 'Custom Mold A',
           backendDesignStatus: 'PendingDesign',
-          assignedTo: 'eng-1'
+          designAssignedTo: 'eng-1'
         }
       ],
       currentUser: { id: 'eng-1', role: 'Engineering Worker' },

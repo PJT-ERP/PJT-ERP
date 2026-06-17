@@ -5,6 +5,7 @@ import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { qcApi } from "../services/qcApi";
 import type { QcInspectionDto } from "../services/qcApi";
 import { QCReadOnlyView } from "./QCReadOnlyView";
+import { toBackendUserId } from "../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -197,7 +198,7 @@ function QCInspectionModal({
       ? inspection.assignedReviewerUserId
       : isGuid(currentUser?.id)
         ? currentUser.id
-        : undefined;
+        : toBackendUserId(currentUser) || undefined;
 
     if (!reviewerUserId) {
       alert("Reviewer QC belum punya ID backend yang valid. Login ulang dengan akun Engineering Supervisor/Admin.");

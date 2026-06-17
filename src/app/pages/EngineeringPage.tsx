@@ -52,7 +52,7 @@ export function EngineeringPage() {
   const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
   // Production Stats
-  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Material Preparation').length;
+  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
   const qcCount = salesOrders.filter(so => so.status === 'QC').length;
 
   const summaryCards = [
@@ -149,8 +149,8 @@ export function EngineeringPage() {
               </div>
             ) : (
               designQueue.slice(0, 10).map((so, idx) => {
-                const canOpen = isSpv ? so.status === 'Waiting Spv Approval' : so.assignedTo === currentUser?.id && so.status === 'Pending Design';
-                const assignedName = so.assignedName || users.find(u => u.id === so.assignedTo)?.name || 'Engineer';
+                const canOpen = isSpv ? so.status === 'Waiting Spv Approval' : so.designAssignedTo === currentUser?.id && so.status === 'Pending Design';
+                const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
 
                 return (
                 <div
@@ -175,7 +175,7 @@ export function EngineeringPage() {
                   </div>
                   <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
                   <div>
-                    {so.assignedTo ? (
+                    {so.designAssignedTo ? (
                       <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
                         {assignedName}
                       </span>

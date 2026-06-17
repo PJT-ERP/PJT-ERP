@@ -36,6 +36,7 @@ public static class SalesOrderStatuses
     public const string Draft = "Draft";
     public const string Confirmed = "Confirmed";
     public const string InProduction = "InProduction";
+    public const string QC = "QC";
     public const string Completed = "Completed";
     public const string Cancelled = "Cancelled";
 }

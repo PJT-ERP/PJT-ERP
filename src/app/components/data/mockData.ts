@@ -74,6 +74,8 @@ export interface SalesOrder {
   designApprovedAt?: string;
   assignedTo?: string;
   assignedName?: string;
+  designAssignedTo?: string;
+  designAssignedName?: string;
   materialRequestStatus?: 'none' | 'requested' | 'approved';
   materialShortageDetected?: boolean;
   estimatedAmount?: number;
