@@ -23,6 +23,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 export interface MRItem {
   itemId: string;
+  materialRequirementId?: string | null;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  projectName?: string | null;
+  purchaseCategory?: string | null;
   code: string;
   name: string;
   spec: string;
@@ -106,6 +111,11 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     isReadyForPo: isReadyForFinance,
     items: request.items.map(item => ({
       itemId: item.id,
+      materialRequirementId: item.materialRequirementId || null,
+      salesOrderId: item.salesOrderId || request.salesOrderId || null,
+      salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
+      projectName: item.projectName || request.projectName || null,
+      purchaseCategory: item.purchaseCategory || null,
       code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
       name: item.itemName,
       spec: item.size || item.notes || "-",
@@ -119,7 +129,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
 }
 
 function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
-  if (request.status === "Completed" || request.items.every(item => item.purchaseStatus === "Received")) {
+  if (request.status === "Completed" || request.status === "FinanceApproved" || request.items.every(item => item.purchaseStatus === "Received")) {
     return "Completed";
   }
 
@@ -131,7 +141,7 @@ function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
     return "Rejected";
   }
 
-  if (request.status === "SupervisorApproved" || request.status === "FinanceApproved" || request.items.some(item => item.purchaseStatus === "Approved")) {
+  if (request.status === "SupervisorApproved" || request.items.some(item => item.purchaseStatus === "Approved")) {
     return "Approved";
   }
 
