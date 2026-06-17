@@ -15,14 +15,14 @@ interface CustomerListProps {
 }
 
 const S = {
-  font:      "Inter, sans-serif",
-  cyan:      "#C8102E",
-  slate:     "#111827",
+  font: "Inter, sans-serif",
+  cyan: "#C8102E",
+  slate: "#111827",
   secondary: "#64748B",
-  border:    "#E2E8F0",
-  bg:        "#F8FAFC",
-  white:     "#FFFFFF",
-  red:       "#EF4444",
+  border: "#E2E8F0",
+  bg: "#F8FAFC",
+  white: "#FFFFFF",
+  red: "#EF4444",
 };
 
 const PAGE_SIZE = 8;
@@ -165,10 +165,10 @@ function CustomerModal({ state, onSave, onClose }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 export function CustomerList({ onNavigate }: CustomerListProps) {
   const { customers, salesOrders, addCustomer, updateCustomer } = useApp();
-  const [search, setSearch]   = useState("");
-  const [page, setPage]       = useState(1);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
-  const [modal, setModal]     = useState<ModalState | null>(null);
+  const [modal, setModal] = useState<ModalState | null>(null);
 
   const filtered = useMemo(() => {
     if (!search) return customers;
@@ -181,7 +181,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
   }, [search, customers]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const activeCustomers = customers.filter(c =>
     salesOrders.some(o => o.customerId === c.code && !["Completed", "Rejected", "Cancelled"].includes(o.status))
@@ -191,24 +191,24 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
     salesOrders.filter(o => o.customerId === cid && !["Completed", "Rejected", "Cancelled"].includes(o.status)).length;
 
   const summaryCards = [
-    { label: "Total Pelanggan",  value: customers.length,                                             color: "#C8102E", bg: "rgba(200,16,46,0.08)"   },
-    { label: "Pelanggan Aktif",  value: activeCustomers,                                                   color: "#22C55E", bg: "rgba(34,197,94,0.08)"   },
-    { label: "Order Bulan Ini",  value: salesOrders.filter(o => o.createdAt.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-    { label: "Kota Terjangkau",  value: new Set(customers.map(c => c.address)).size,                     color: "#8B5CF6", bg: "rgba(139,92,246,0.08)"  },
+    { label: "Total Pelanggan", value: customers.length, color: "#C8102E", bg: "rgba(200,16,46,0.08)" },
+    { label: "Pelanggan Aktif", value: activeCustomers, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
+    { label: "Order Bulan Ini", value: salesOrders.filter(o => o.createdAt.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+    { label: "Kota Terjangkau", value: new Set(customers.map(c => c.address)).size, color: "#8B5CF6", bg: "rgba(139,92,246,0.08)" },
   ];
 
   // ── Modal handlers ──────────────────────────────────────────────────────────
-  const openAdd  = () => setModal({ mode: "add",  customer: emptyForm() });
+  const openAdd = () => setModal({ mode: "add", customer: emptyForm() });
   const openEdit = (c: Customer) => setModal({ mode: "edit", customer: { ...c } });
 
   const handleSave = (data: Partial<Customer>) => {
     if (modal?.mode === "add") {
       const newCustomer: Customer = {
-        code:          `C${String(customers.length + 1).padStart(3, "0")}`,
-        name:          data.name    ?? "",
-        contact:       data.contact ?? "",
-        phone:         data.phone   ?? "",
-        address:       data.address ?? "",
+        code: `C${String(customers.length + 1).padStart(3, "0")}`,
+        name: data.name ?? "",
+        contact: data.contact ?? "",
+        phone: data.phone ?? "",
+        address: data.address ?? "",
       };
       addCustomer(newCustomer);
     } else if (modal?.mode === "edit" && data.code) {
@@ -217,7 +217,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
     setModal(null);
   };
 
-  const goCreateSO    = (cid: string) => onNavigate("so-create", { customerId: cid, orderType: "new"    });
+  const goCreateSO = (cid: string) => onNavigate("so-create", { customerId: cid, orderType: "new" });
   const goRepeatOrder = (cid: string) => onNavigate("so-create", { customerId: cid, orderType: "repeat" });
 
   return (
@@ -233,7 +233,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>{customers.length} pelanggan terdaftar</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <HeaderBtn icon={<Download size={12} />} label="Export" onClick={() => {}} />
+          <HeaderBtn icon={<Download size={12} />} label="Export" onClick={() => { }} />
           <HeaderBtn icon={<Plus size={12} />} label="Tambah Pelanggan" onClick={openAdd} primary />
         </div>
       </div>
@@ -303,9 +303,9 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 {paginated.length === 0 ? (
                   <tr><td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px" }}>Tidak ada pelanggan yang sesuai pencarian</td></tr>
                 ) : paginated.map((c, idx) => {
-                  const initials    = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-                  const active      = getActiveOrders(c.code);
-                  const isLast      = idx === paginated.length - 1;
+                  const initials = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                  const active = getActiveOrders(c.code);
+                  const isLast = idx === paginated.length - 1;
                   return (
                     <CustomerTableRow
                       key={c.code}
@@ -334,7 +334,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
             </div>
           ) : paginated.map(c => {
             const initials = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-            const active   = getActiveOrders(c.code);
+            const active = getActiveOrders(c.code);
             return (
               <div key={c.code}
                 style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: 16, transition: "border-color 0.15s, box-shadow 0.15s" }}
@@ -363,8 +363,8 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 <div style={{ marginBottom: 10, display: "flex", flexDirection: "column", gap: 4 }}>
                   {[
                     { icon: <Phone size={10} />, val: c.phone },
-                    { icon: <Mail size={10} />,  val: c.contact },
-                    { icon: <MapPin size={10} />,val: c.address  },
+                    { icon: <Mail size={10} />, val: c.contact },
+                    { icon: <MapPin size={10} />, val: c.address },
                   ].map((f, i) => (
                     <p key={i} style={{ margin: 0, fontSize: "11.5px", color: S.secondary, display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ color: "#94A3B8", flexShrink: 0 }}>{f.icon}</span>
@@ -376,8 +376,8 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10, padding: "8px 0", borderTop: `1px solid #F8FAFC`, borderBottom: `1px solid #F8FAFC` }}>
                   {[
                     { label: "Total Order", value: salesOrders.filter(o => o.customerId === c.code).length, color: S.slate },
-                    { label: "Aktif",       value: active,        color: active > 0 ? S.cyan : S.secondary },
-                    { label: "Terakhir",    value: salesOrders.filter(o => o.customerId === c.code).pop()?.createdAt || "-", color: S.slate },
+                    { label: "Aktif", value: active, color: active > 0 ? S.cyan : S.secondary },
+                    { label: "Terakhir", value: salesOrders.filter(o => o.customerId === c.code).pop()?.createdAt || "-", color: S.slate },
                   ].map(s => (
                     <div key={s.label} style={{ textAlign: "center" }}>
                       <p style={{ margin: 0, fontSize: "10px", color: "#94A3B8" }}>{s.label}</p>
@@ -455,9 +455,9 @@ function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCre
       <td style={{ padding: "10px 14px" }}>
         <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
           {[
-            { icon: <Edit size={12} />,        title: "Edit Pelanggan",  hb: "#FFFBEB",  hc: "#D97706", act: onEdit      },
-            { icon: <ShoppingCart size={12} />, title: "Buat SO Baru",   hb: "#ECFEFF",  hc: S.cyan,    act: onCreateSO  },
-            { icon: <RefreshCw size={12} />,    title: "Repeat Order",   hb: "#F5F3FF",  hc: "#7C3AED", act: onRepeat    },
+            { icon: <Edit size={12} />, title: "Edit Pelanggan", hb: "#FFFBEB", hc: "#D97706", act: onEdit },
+            { icon: <ShoppingCart size={12} />, title: "Buat SO Baru", hb: "#ECFEFF", hc: S.cyan, act: onCreateSO },
+            { icon: <RefreshCw size={12} />, title: "Repeat Order", hb: "#F5F3FF", hc: "#7C3AED", act: onRepeat },
           ].map(btn => (
             <button key={btn.title} title={btn.title} onClick={btn.act}
               style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "none", background: "transparent", color: "#94A3B8", cursor: "pointer", transition: "all 0.1s" }}

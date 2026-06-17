@@ -34,7 +34,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
   const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
   const [rejectReason, setRejectReason] = useState('');
   const customer = customers.find(c => c.code === qut.customerId);
-  
+
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Pricing';
   const canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
@@ -50,7 +50,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
 
     try {
       setIsSubmitting(true);
-      
+
       const backendId = qut.backendId || qut.id;
       if (!isGuid(backendId)) {
         alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
@@ -72,21 +72,21 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
           designReference: designLink,
           drawingFileUrl: designLink
         });
-        
+
         if (materials && materials.length > 0) {
           try {
-             const serializedMaterials = JSON.stringify(materials);
-             const updatedItems = qut.items?.map((it, idx) => ({
-                salesOrderItemId: it.id,
-                productId: it.productId,
-                qty: it.quantity,
-                notes: idx === 0 ? serializedMaterials : it.notes
-             })) || [];
-             if (updatedItems.length > 0) {
-                await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
-             }
-          } catch(e) {
-             console.warn("Failed to update BOM on backend", e);
+            const serializedMaterials = JSON.stringify(materials);
+            const updatedItems = qut.items?.map((it, idx) => ({
+              salesOrderItemId: it.id,
+              productId: it.productId,
+              qty: it.quantity,
+              notes: idx === 0 ? serializedMaterials : it.notes
+            })) || [];
+            if (updatedItems.length > 0) {
+              await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
+            }
+          } catch (e) {
+            console.warn("Failed to update BOM on backend", e);
           }
         }
       }
@@ -127,7 +127,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
         setIsSubmitting(false);
         return;
       }
-      
+
       await salesApi.updateSalesOrderDesignStatus(backendId, {
         designStatus: 'Rejected',
         notes: rejectReason,
@@ -214,7 +214,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
                   Desain akan dikembalikan ke Engineer untuk direvisi.
                 </p>
               </div>
-              
+
               <div>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>
                   Catatan Revisi <span style={{ color: "#EF4444" }}>*</span>
@@ -260,7 +260,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.deadline}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.createdAt}</p></div>
               </div>
-              
+
               <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
                 <p style={{ fontSize: "12.5px", color: S.slate, fontWeight: 600, margin: "0 0 8px" }}>Instruksi / Referensi dari Sales</p>
                 {qut.customerDrawingUrl ? (
@@ -298,7 +298,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
                   disabled={!canProcess}
                   style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: canProcess ? "#fff" : "#f1f5f9" }} />
               </div>
-              
+
               <div style={{ marginTop: 4 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <label style={{ fontSize: "13.5px", color: S.slate, fontWeight: 500 }}>Bill of Materials (BOM) <span style={{ color: "#EF4444" }}>*</span></label>
@@ -404,22 +404,22 @@ export function EngineeringTasksPage() {
   const itemsPerPage = 8;
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  
+
   const pendingSalesOrders = salesOrders
     .filter(so => {
       if (isSpv) {
         // Show all SOs that went through design phase (have a backendDesignStatus)
         // and haven't moved to production yet
         const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
-        return engineeringStatuses.includes(so.status) && 
-               so.backendDesignStatus !== undefined &&
-               so.backendDesignStatus !== null;
+        return engineeringStatuses.includes(so.status) &&
+          so.backendDesignStatus !== undefined &&
+          so.backendDesignStatus !== null;
       }
       return so.status === 'Pending Design' || so.status === 'Waiting Spv Approval';
     });
 
   const allQueue = [...pendingSalesOrders];
-  
+
   const queue = allQueue
     .filter(q => {
       if (isSpv) {
@@ -469,82 +469,82 @@ export function EngineeringTasksPage() {
             const canAssign = isSpv && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
 
             return (
-            <div
-              key={qut.id}
-              onClick={() => {
-                setSelectedQUT(qut);
-              }}
-              style={{
-                display: "grid", gridTemplateColumns: "100px 1.2fr 1.5fr 130px 100px 160px 110px", alignItems: "center",
-                padding: "10px 18px", cursor: "pointer",
-                borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
-                transition: "background 0.1s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
-              <div style={{ minWidth: 0, paddingRight: 10 }}>
-                <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
+              <div
+                key={qut.id}
+                onClick={() => {
+                  setSelectedQUT(qut);
+                }}
+                style={{
+                  display: "grid", gridTemplateColumns: "100px 1.2fr 1.5fr 130px 100px 160px 110px", alignItems: "center",
+                  padding: "10px 18px", cursor: "pointer",
+                  borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
+                <div style={{ minWidth: 0, paddingRight: 10 }}>
+                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
+                </div>
+                <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.description || qut.partNumber || "-"}</span>
+                <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
+                  {qut.designAssignedTo ? (
+                    <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                      {assignedName}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                  )}
+                </span>
+                <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500 }}>{qut.deadline}</span>
+                <div>
+                  <StatusBadge status={qut.status} />
+                </div>
+                <div>
+                  {canAssign ? (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setAssignModalQUT(qut);
+                      }}
+                      style={{ fontSize: "11px", background: "#C8102E", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
+                    </button>
+                  ) : canWork ? (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedQUT(qut);
+                      }}
+                      style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Kerjakan
+                    </button>
+                  ) : canReview ? (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedQUT(qut);
+                      }}
+                      style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Review
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedQUT(qut);
+                      }}
+                      style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Detail
+                    </button>
+                  )}
+                </div>
               </div>
-              <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.description || qut.partNumber || "-"}</span>
-              <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                {qut.designAssignedTo ? (
-                  <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                    {assignedName}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                )}
-              </span>
-              <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500 }}>{qut.deadline}</span>
-              <div>
-                <StatusBadge status={qut.status} />
-              </div>
-              <div>
-                {canAssign ? (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setAssignModalQUT(qut);
-                    }}
-                    style={{ fontSize: "11px", background: "#C8102E", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
-                  </button>
-                ) : canWork ? (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedQUT(qut);
-                    }}
-                    style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Kerjakan
-                  </button>
-                ) : canReview ? (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedQUT(qut);
-                    }}
-                    style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Review
-                  </button>
-                ) : (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedQUT(qut);
-                    }}
-                    style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Detail
-                  </button>
-                )}
-              </div>
-            </div>
             );
           })
         )}
@@ -555,8 +555,8 @@ export function EngineeringTasksPage() {
               {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, queue.length)} dari {queue.length} hasil
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <button 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : S.secondary, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
               >
@@ -579,8 +579,8 @@ export function EngineeringTasksPage() {
                   {p}
                 </button>
               ))}
-              <button 
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(queue.length / itemsPerPage), p + 1))} 
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(queue.length / itemsPerPage), p + 1))}
                 disabled={currentPage >= Math.ceil(queue.length / itemsPerPage)}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= Math.ceil(queue.length / itemsPerPage) ? "#CBD5E1" : S.secondary, cursor: currentPage >= Math.ceil(queue.length / itemsPerPage) ? "not-allowed" : "pointer" }}
               >

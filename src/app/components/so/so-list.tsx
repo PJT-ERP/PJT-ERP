@@ -45,15 +45,15 @@ function downloadCsv(filename: string, rows: string[][]) {
 }
 
 const STATUS_OPTIONS = [
-  { value: "all",                 label: "Semua Status"         },
-  { value: "Menunggu Invoice DP", label: "Menunggu Invoice DP"   },
-  { value: "Pending Design",      label: "Pending Design"        },
-  { value: "Waiting Approval",    label: "Waiting Approval"      },
-  { value: "Ready for Production",label: "Ready for Production"  },
-  { value: "In Production",       label: "In Production"         },
-  { value: "QC",                  label: "QC"                    },
-  { value: "Completed",           label: "Completed"             },
-  { value: "Rejected",            label: "Rejected"              },
+  { value: "all", label: "Semua Status" },
+  { value: "Menunggu Invoice DP", label: "Menunggu Invoice DP" },
+  { value: "Pending Design", label: "Pending Design" },
+  { value: "Waiting Approval", label: "Waiting Approval" },
+  { value: "Ready for Production", label: "Ready for Production" },
+  { value: "In Production", label: "In Production" },
+  { value: "QC", label: "QC" },
+  { value: "Completed", label: "Completed" },
+  { value: "Rejected", label: "Rejected" },
 ];
 
 // ─── StatusBadge ──────────────────────────────────────────────────────────────
@@ -158,11 +158,11 @@ function ActionBtn({
 export function SOList({ onNavigate }: SOListProps) {
   const { salesOrders, customers } = useApp();
   const { invoices } = useFinanceData();
-  const [search, setSearch]               = useState("");
-  const [statusFilter, setStatusFilter]   = useState("all");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
-  const [dateFilter, setDateFilter]       = useState("");
-  const [page, setPage]                   = useState(1);
+  const [dateFilter, setDateFilter] = useState("");
+  const [page, setPage] = useState(1);
   const [searchFocused, setSearchFocused] = useState(false);
 
   const hasActiveFilters = statusFilter !== "all" || customerFilter !== "all" || !!dateFilter;
@@ -170,7 +170,7 @@ export function SOList({ onNavigate }: SOListProps) {
 
   const filtered = useMemo(() => salesOrders.filter(o => {
     if (o.id.startsWith("QU")) return false; // Hide quotations from SO List
-    
+
     const cust = customers.find(c => c.code === o.customerId);
     const cName = cust?.name || "";
     const q = search.toLowerCase();
@@ -185,7 +185,7 @@ export function SOList({ onNavigate }: SOListProps) {
   }), [salesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const resetAll = () => {
     setSearch(""); setStatusFilter("all");
@@ -198,16 +198,17 @@ export function SOList({ onNavigate }: SOListProps) {
       ...filtered.map(order => {
         const cust = customers.find(c => c.code === order.customerId);
         return [
-        order.id,
-        cust?.name || "",
-        cust?.name || "",
-        order.description,
-        String(order.quantity),
-        order.unit,
-        order.deadline,
-        invoiceStatusConfig[getSalesOrderInvoiceStatus(order, invoices)].label,
-        order.status,
-      ]})
+          order.id,
+          cust?.name || "",
+          cust?.name || "",
+          order.description,
+          String(order.quantity),
+          order.unit,
+          order.deadline,
+          invoiceStatusConfig[getSalesOrderInvoiceStatus(order, invoices)].label,
+          order.status,
+        ]
+      })
     ]);
   };
 
@@ -250,9 +251,9 @@ export function SOList({ onNavigate }: SOListProps) {
             icon={<Plus size={12} />}
             label="Buat SO"
             onClick={() => onNavigate("so-create")}
-            style={{ 
-              background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
-              border: "none", 
+            style={{
+              background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
+              border: "none",
               color: "#fff",
               boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
               fontWeight: 600,
@@ -371,51 +372,51 @@ export function SOList({ onNavigate }: SOListProps) {
       {/* ── Table ─────────────────────────────────────────────────────────────── */}
       <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-              {[
-                { label: "No. SO",          align: "left"  },
-                { label: "Pelanggan",        align: "left"  },
-                { label: "Produk",           align: "left"  },
-                { label: "Qty",              align: "left"  },
-                { label: "Deadline",         align: "left"  },
-                { label: "Status Invoice",   align: "left"  },
-                { label: "Status Workflow",  align: "left"  },
-                { label: "Dibuat",           align: "left"  },
-                { label: "Aksi",             align: "right" },
-              ].map(h => (
-                <th key={h.label} style={{
-                  padding: "8px 14px", textAlign: h.align as "left"|"right",
-                  fontSize: "10px", fontWeight: 700, color: "#94A3B8",
-                  letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap",
-                }}>
-                  {h.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginated.length === 0 ? (
-              <tr>
-                <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
-                  Tidak ada data yang sesuai dengan filter
-                </td>
+          <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                {[
+                  { label: "No. SO", align: "left" },
+                  { label: "Pelanggan", align: "left" },
+                  { label: "Produk", align: "left" },
+                  { label: "Qty", align: "left" },
+                  { label: "Deadline", align: "left" },
+                  { label: "Status Invoice", align: "left" },
+                  { label: "Status Workflow", align: "left" },
+                  { label: "Dibuat", align: "left" },
+                  { label: "Aksi", align: "right" },
+                ].map(h => (
+                  <th key={h.label} style={{
+                    padding: "8px 14px", textAlign: h.align as "left" | "right",
+                    fontSize: "10px", fontWeight: 700, color: "#94A3B8",
+                    letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap",
+                  }}>
+                    {h.label}
+                  </th>
+                ))}
               </tr>
-            ) : paginated.map((order, idx) => (
-              <TableRow
-                key={order.id}
-                order={mergeSalesOrderInvoice(order, invoices)}
-                customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
-                isLast={idx === paginated.length - 1}
-                onView={() => onNavigate("so-detail", order.id)}
-                onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
-                onDuplicate={() => onNavigate("so-create")}
-                onPrint={() => window.print()}
-              />
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
+                    Tidak ada data yang sesuai dengan filter
+                  </td>
+                </tr>
+              ) : paginated.map((order, idx) => (
+                <TableRow
+                  key={order.id}
+                  order={mergeSalesOrderInvoice(order, invoices)}
+                  customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
+                  isLast={idx === paginated.length - 1}
+                  onView={() => onNavigate("so-detail", order.id)}
+                  onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
+                  onDuplicate={() => onNavigate("so-create")}
+                  onPrint={() => window.print()}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {/* Pagination */}
@@ -489,10 +490,10 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
       </td>
       <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-          <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
-          <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
-          <ActionBtn icon={<Copy size={12} />}    label="Duplikat" hoverBg="#F5F3FF" hoverColor="#7C3AED" onClick={onDuplicate} title="Duplikat order" />
-          <ActionBtn icon={<Printer size={12} />} label="Cetak"    hoverBg="#F8FAFC" hoverColor="#475569" onClick={onPrint}     title="Cetak SO" />
+          <ActionBtn icon={<Eye size={12} />} label="Detail" hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView} title="Lihat detail" />
+          <ActionBtn icon={<Edit size={12} />} label="Edit" hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit} title="Edit order" />
+          <ActionBtn icon={<Copy size={12} />} label="Duplikat" hoverBg="#F5F3FF" hoverColor="#7C3AED" onClick={onDuplicate} title="Duplikat order" />
+          <ActionBtn icon={<Printer size={12} />} label="Cetak" hoverBg="#F8FAFC" hoverColor="#475569" onClick={onPrint} title="Cetak SO" />
         </div>
       </td>
     </tr>

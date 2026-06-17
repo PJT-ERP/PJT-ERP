@@ -278,7 +278,7 @@ function QCInspectionModal({
           {/* Photo Upload */}
           <div>
             <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Foto Hasil Produksi</p>
-            <div 
+            <div
               style={{ border: `2px dashed ${S.border}`, borderRadius: 8, padding: 16, textAlign: "center", cursor: "pointer", transition: "border 0.2s" }}
               onMouseEnter={e => e.currentTarget.style.borderColor = S.cyan}
               onMouseLeave={e => e.currentTarget.style.borderColor = S.border}
@@ -394,28 +394,28 @@ export function EngineeringQCPage() {
   const hasBackendInspections = inspections.length > 0;
   const qcQueue = hasBackendInspections
     ? inspections
-        .filter(inspection => inspection.status === "ReadyForInspection")
-        .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
+      .filter(inspection => inspection.status === "ReadyForInspection")
+      .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
     : salesOrders.filter(so => so.status === 'QC');
   const recentCompleted = hasBackendInspections
     ? inspections
-        .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
-        .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
+      .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
+      .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
     : salesOrders.filter(so => so.status === 'Completed');
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
   const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
 
   const filteredHistory = recentCompleted.filter(so => {
     const cust = customers.find(c => c.code === so.customerId);
-    const matchSearch = !historySearch || 
-      so.id.toLowerCase().includes(historySearch.toLowerCase()) || 
+    const matchSearch = !historySearch ||
+      so.id.toLowerCase().includes(historySearch.toLowerCase()) ||
       so.description.toLowerCase().includes(historySearch.toLowerCase()) ||
       (cust?.name || '').toLowerCase().includes(historySearch.toLowerCase());
-    const matchFilter = 
-      historyFilter === 'All' || 
-      (historyFilter === 'Pass' && isGo(so.qcStatus)) || 
+    const matchFilter =
+      historyFilter === 'All' ||
+      (historyFilter === 'Pass' && isGo(so.qcStatus)) ||
       (historyFilter === 'Fail' && isNoGo(so.qcStatus));
-    
+
     return matchSearch && matchFilter;
   });
 
@@ -475,7 +475,7 @@ export function EngineeringQCPage() {
             <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Antrian Inspeksi QC</span>
           </div>
         </div>
-        
+
         {qcQueue.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center" }}>
             <Shield size={40} style={{ color: S.border, margin: "0 auto 12px" }} />
@@ -531,12 +531,12 @@ export function EngineeringQCPage() {
           <div style={{ padding: "12px 18px", borderBottom: `1px solid ${S.border}`, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
               <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
-              <input 
-                type="text" 
-                placeholder="Cari SO, Deskripsi, Customer..." 
+              <input
+                type="text"
+                placeholder="Cari SO, Deskripsi, Customer..."
                 value={historySearch}
                 onChange={(e) => { setHistorySearch(e.target.value); setCurrentPageHistory(1); }}
-                style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} 
+                style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }}
               />
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -545,13 +545,13 @@ export function EngineeringQCPage() {
                 { value: 'Pass', label: `Go (${passCount})` },
                 { value: 'Fail', label: `NoGo (${failCount})` },
               ].map(f => (
-                <button 
-                  key={f.value} 
+                <button
+                  key={f.value}
                   onClick={() => { setHistoryFilter(f.value); setCurrentPageHistory(1); }}
-                  style={{ 
+                  style={{
                     padding: "6px 16px", borderRadius: 6, fontSize: "12.5px", fontWeight: 500, cursor: "pointer",
-                    background: historyFilter === f.value ? S.slate : S.white, 
-                    color: historyFilter === f.value ? "#fff" : S.secondary, 
+                    background: historyFilter === f.value ? S.slate : S.white,
+                    color: historyFilter === f.value ? "#fff" : S.secondary,
                     boxShadow: historyFilter === f.value ? "none" : "0 1px 2px rgba(0,0,0,0.05)",
                     border: historyFilter === f.value ? `1px solid ${S.slate}` : `1px solid ${S.border}`
                   }}>

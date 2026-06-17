@@ -24,10 +24,10 @@ const URGENCY_COLORS: Record<PurchasingUrgency, string> = {
 };
 
 const PR_STATUS_COLORS: Record<PurchasingStatus, string> = {
-  Pending:  'bg-slate-600 text-white border-transparent shadow-sm',
+  Pending: 'bg-slate-600 text-white border-transparent shadow-sm',
   Diproses: 'bg-red-600 text-white border-transparent shadow-sm',
-  Selesai:  'bg-green-600 text-white border-transparent shadow-sm',
-  Ditolak:  'bg-red-600 text-white border-transparent shadow-sm',
+  Selesai: 'bg-green-600 text-white border-transparent shadow-sm',
+  Ditolak: 'bg-red-600 text-white border-transparent shadow-sm',
 };
 
 const UNITS = ['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'];
@@ -153,8 +153,8 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
           {successAction === 'approve' ? 'Pengajuan Disetujui' : 'Pengajuan Ditolak'}
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {successAction === 'approve' 
-            ? 'Pengajuan telah diteruskan ke tim Purchasing untuk diproses.' 
+          {successAction === 'approve'
+            ? 'Pengajuan telah diteruskan ke tim Purchasing untuk diproses.'
             : 'Pengajuan telah dikembalikan dengan status ditolak.'}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
@@ -523,7 +523,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
           <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
-            
+
             {/* Header fields */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: "span 2" }}>
@@ -676,7 +676,7 @@ export function EngineeringPurchasingPage() {
           if (s === 'Diproses') { accent = "#3B82F6"; bg = "rgba(59,130,246,0.08)"; }
           if (s === 'Selesai') { accent = "#22C55E"; bg = "rgba(34,197,94,0.08)"; }
           if (s === 'Ditolak') { accent = "#EF4444"; bg = "rgba(239,68,68,0.08)"; }
-          
+
           return (
             <div key={s} style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
