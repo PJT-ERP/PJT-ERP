@@ -6,6 +6,8 @@ import { productionApi } from "../services/productionApi";
 import { purchasingApi } from "../services/purchasingApi";
 import { salesApi } from "../services/salesApi";
 import { isGuid, toBackendUserId } from "../services/backendIds";
+import { useFinanceData } from "../components/finance/useFinanceData";
+import { mergeSalesOrderInvoice } from "../components/so/invoice-sync";
 
 const S = {
   font: "Inter, sans-serif",
@@ -193,11 +195,22 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
 
     if (isSubmitting) return;
 
-    const requesterId = toBackendUserId(currentUser) || (isGuid(so.assignedTo) ? so.assignedTo : "");
+    // Priority order for requestedByUserId:
+    // 1. currentUser.id if it's a real GUID (user logged in via backend JWT)
+    // 2. productionWorkerUserId from the SO (the assigned backend worker's GUID)
+    // 3. local assignedTo if it's a GUID
+    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
+    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
+    const requesterId = currentUserGuid || assignedWorkerGuid || "";
 
     const salesOrderId = getBackendSalesOrderId(so);
-    if (!isGuid(salesOrderId) || !requesterId) {
-      alert("Tidak bisa mengajukan MR karena data backend SO/operator belum lengkap.");
+    if (!isGuid(salesOrderId)) {
+      alert("Tidak bisa mengajukan MR karena data backend SO belum lengkap.");
+      return;
+    }
+
+    if (!requesterId) {
+      alert("Tidak bisa mengajukan MR karena ID operator tidak ditemukan. Pastikan Anda login ulang.");
       return;
     }
 
@@ -226,9 +239,14 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
       }, 1500);
       alert("MR diajukan ke Supervisor Produksi.");
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("Failed to submit production material request to backend.", error);
-      alert("Gagal mengajukan MR ke backend. Cek koneksi API atau data operator.");
+      // Try to extract backend error message
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const backendMsg = axiosError?.response?.data?.message;
+      alert(backendMsg
+        ? `Gagal mengajukan MR: ${backendMsg}`
+        : "Gagal mengajukan MR ke backend. Cek koneksi API atau data operator.");
     } finally {
       setIsSubmitting(false);
     }
@@ -342,7 +360,9 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    const workerUserId = toBackendUserId(currentUser) || (isGuid(so.assignedTo) ? so.assignedTo : "");
+    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
+    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
+    const workerUserId = currentUserGuid || assignedWorkerGuid || "";
 
     const salesOrderId = getBackendSalesOrderId(so);
     if (!isGuid(salesOrderId) || !workerUserId) {
@@ -358,9 +378,11 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
       });
       await refreshBackendData();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("Failed to start production in backend.", error);
-      alert("Gagal mulai produksi di backend. Cek koneksi API atau data operator.");
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const backendMsg = axiosError?.response?.data?.message;
+      alert(backendMsg ? `Gagal mulai produksi: ${backendMsg}` : "Gagal mulai produksi di backend. Cek koneksi API atau data operator.");
     } finally {
       setIsSubmitting(false);
     }
@@ -403,7 +425,9 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    const workerUserId = toBackendUserId(currentUser) || (isGuid(so.assignedTo) ? so.assignedTo : "");
+    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
+    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
+    const workerUserId = currentUserGuid || assignedWorkerGuid || "";
 
     const salesOrderId = getBackendSalesOrderId(so);
     if (!isGuid(salesOrderId) || !workerUserId) {
@@ -419,9 +443,11 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
       });
       await refreshBackendData();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("Failed to finish production in backend.", error);
-      alert("Gagal menyelesaikan produksi di backend. Cek koneksi API atau data operator.");
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const backendMsg = axiosError?.response?.data?.message;
+      alert(backendMsg ? `Gagal selesai produksi: ${backendMsg}` : "Gagal menyelesaikan produksi di backend. Cek koneksi API atau data operator.");
     } finally {
       setIsSubmitting(false);
     }
@@ -503,6 +529,13 @@ function PaginationControl({ currentPage, totalItems, itemsPerPage, onPageChange
 
 export function ProductionPage() {
   const { salesOrders, currentUser, users, purchasingRequests, customers, refreshBackendData } = useApp();
+  const canReadFinanceData = currentUser?.role === "Finance"
+    || currentUser?.role === "Admin"
+    || currentUser?.role === "Owner"
+    || currentUser?.role === "Sales";
+  const { invoices } = useFinanceData(canReadFinanceData);
+  const mergedSalesOrders = salesOrders.map(so => mergeSalesOrderInvoice(so, invoices));
+
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const currentBackendUserId = toBackendUserId(currentUser);
 
@@ -521,10 +554,10 @@ export function ProductionPage() {
 
   // Lists
   const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
-  const pendingAssignment = salesOrders.filter(so => so.status === 'Ready for Production' && !so.assignedTo);
-  const materialPrep = salesOrders.filter(so => so.status === 'Ready for Production' && !!so.assignedTo && isAssignedToCurrentUser(so));
-  const inProduction = salesOrders.filter(so => so.status === 'In Production' && isAssignedToCurrentUser(so));
-  const waitingQC = salesOrders.filter(so => so.status === 'QC');
+  const pendingAssignment = mergedSalesOrders.filter(so => so.status === 'Ready for Production' && !so.assignedTo);
+  const materialPrep = mergedSalesOrders.filter(so => so.status === 'Ready for Production' && !!so.assignedTo && isAssignedToCurrentUser(so));
+  const inProduction = mergedSalesOrders.filter(so => so.status === 'In Production' && isAssignedToCurrentUser(so));
+  const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC');
 
   const getMaterialRequest = (so: SalesOrder) => {
     const backendId = getBackendSalesOrderId(so);

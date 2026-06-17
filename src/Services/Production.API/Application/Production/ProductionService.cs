@@ -23,19 +23,38 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<SalesOrderDto> CreateSalesOrderAsync(CreateSalesOrderRequest request, CancellationToken cancellationToken)
     {
         ValidateSalesOrderItems(request.Items);
+        var designWorker = NormalizeAssignment(request.DesignWorker, "Design worker");
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
 
-        var customer = await db.CustomerReplicas
-            .AsNoTracking()
-            .FirstOrDefaultAsync(replica => replica.Id == request.CustomerId && replica.IsActive, cancellationToken)
-            ?? throw new InvalidOperationException("Customer has not been replicated from MasterData yet.");
+        CustomerReplica? customer = null;
+        for (int i = 0; i < 5; i++)
+        {
+            customer = await db.CustomerReplicas
+                .AsNoTracking()
+                .FirstOrDefaultAsync(replica => replica.Id == request.CustomerId && replica.IsActive, cancellationToken);
+            
+            if (customer is not null) break;
+            await Task.Delay(1500, cancellationToken);
+        }
+
+        if (customer is null)
+        {
+            throw new InvalidOperationException("Customer has not been replicated from MasterData yet.");
+        }
 
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
-        var products = await db.ProductReplicas
-            .AsNoTracking()
-            .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
-            .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+        Dictionary<Guid, ProductReplica> products = new();
+        for (int i = 0; i < 5; i++)
+        {
+            products = await db.ProductReplicas
+                .AsNoTracking()
+                .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
+                .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+                
+            if (products.Count == productIds.Length) break;
+            await Task.Delay(1500, cancellationToken);
+        }
 
         if (products.Count != productIds.Length)
         {
@@ -55,6 +74,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
+            DesignWorkerUserId = designWorker?.UserId,
+            DesignWorkerName = designWorker?.Name,
             ProductionWorkerUserId = productionWorker?.UserId,
             ProductionWorkerName = productionWorker?.Name,
             QcReviewerUserId = qcReviewer?.UserId,
@@ -104,6 +125,143 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return ToDto(salesOrder);
     }
 
+    public async Task<SalesOrderDto?> SubmitSalesOrderDesignAsync(
+        Guid salesOrderId,
+        SubmitSalesOrderDesignRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        if (salesOrder.Status == SalesOrderStatuses.Cancelled)
+        {
+            throw new InvalidOperationException("Cancelled sales orders cannot submit design.");
+        }
+
+        salesOrder.DesignReference = request.DesignReference;
+        if (!string.IsNullOrWhiteSpace(request.DrawingFileUrl))
+        {
+            salesOrder.CustomerDrawingUrl = request.DrawingFileUrl;
+        }
+        
+        salesOrder.DesignStatus = SalesOrderDesignStatuses.WaitingApproval;
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
+    public async Task<SalesOrderDto?> UpdateSalesOrderItemsAsync(
+        Guid salesOrderId,
+        UpdateSalesOrderItemsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        if (salesOrder.DesignStatus == SalesOrderDesignStatuses.Approved)
+        {
+            throw new InvalidOperationException("Cannot update items after design is approved.");
+        }
+
+        ValidateSalesOrderItems(request.Items);
+
+        // For simplicity: remove existing, add new
+        db.SalesOrderItems.RemoveRange(salesOrder.Items);
+        
+        var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
+        Dictionary<Guid, ProductReplica> products = new();
+        for (int i = 0; i < 5; i++)
+        {
+            products = await db.ProductReplicas
+                .AsNoTracking()
+                .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
+                .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+                
+            if (products.Count == productIds.Length) break;
+            await Task.Delay(1500, cancellationToken);
+        }
+
+        if (products.Count != productIds.Length)
+        {
+            throw new InvalidOperationException("One or more products have not been replicated from MasterData yet.");
+        }
+
+        salesOrder.Items = request.Items.Select(item => new SalesOrderItem
+        {
+            SalesOrderId = salesOrder.Id,
+            ProductId = item.ProductId,
+            ProductPartNumber = products[item.ProductId].PartNumber,
+            ProductDescription = products[item.ProductId].Description,
+            Qty = item.Qty,
+            Notes = item.Notes
+        }).ToList();
+
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
+    public async Task<SalesOrderDto?> SetSalesOrderPricingAsync(
+        Guid salesOrderId,
+        SetSalesOrderPricingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Menunggu Invoice DP")
+        {
+            throw new InvalidOperationException("Only sales orders waiting for pricing can be updated.");
+        }
+
+        foreach (var itemRequest in request.Items)
+        {
+            var item = salesOrder.Items.FirstOrDefault(i => i.Id == itemRequest.SalesOrderItemId);
+            if (item != null)
+            {
+                item.UnitPrice = itemRequest.UnitPrice;
+            }
+        }
+
+        salesOrder.Status = "Menunggu Invoice DP";
+        salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+
+        var integrationEvent = new SalesOrderReadyForInvoiceEvent(
+            salesOrder.Id,
+            salesOrder.SoNumber,
+            salesOrder.CustomerId,
+            salesOrder.CustomerCode,
+            salesOrder.CustomerName,
+            salesOrder.CustomerEmail,
+            salesOrder.TargetDate,
+            DateTime.UtcNow,
+            salesOrder.Items.Select(item => new SalesOrderReadyForInvoiceItem(
+                item.Id,
+                item.ProductId,
+                item.ProductPartNumber,
+                item.ProductDescription,
+                item.Qty,
+                item.UnitPrice
+            )).ToList()
+        );
+
+        await eventPublisher.PublishAsync(integrationEvent, cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(salesOrder);
+    }
+
     public async Task<SalesOrderDto?> UpdateSalesOrderDesignStatusAsync(
         Guid salesOrderId,
         UpdateSalesOrderDesignStatusRequest request,
@@ -148,6 +306,11 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         salesOrder.DesignStatus = designStatus;
+        if (designStatus == SalesOrderDesignStatuses.Approved)
+        {
+            salesOrder.Status = "Waiting Pricing";
+        }
+
         salesOrder.DesignReference = request.DesignReference is null
             ? salesOrder.DesignReference
             : NormalizeOptional(request.DesignReference);
@@ -302,7 +465,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<SalesOrderProductionProgressDto?> SubmitMaterialRequestAsync(
         Guid salesOrderId,
         SubmitProductionMaterialRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
     {
         var salesOrder = await IncludeProduction(db.SalesOrders)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
@@ -316,7 +480,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             ?? throw new InvalidOperationException("Sales order must be confirmed before material requests can be submitted.");
 
         ValidateMaterialRequest(request);
-        EnsureAssignedWorker(productionOrder, request.RequestedByUserId);
+        EnsureAssignedWorker(productionOrder, request.RequestedByUserId, isPrivileged);
 
         if (productionOrder.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
         {
@@ -357,7 +521,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<SalesOrderProductionProgressDto?> StartProductionAsync(
         Guid salesOrderId,
         ProductionStatusUpdateRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
     {
         var salesOrder = await IncludeProduction(db.SalesOrders)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
@@ -371,7 +536,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             ?? throw new InvalidOperationException("Sales order must be confirmed before production can start.");
 
         ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder, request.WorkerUserId);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
         StartProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
         await db.SaveChangesAsync(cancellationToken);
@@ -381,7 +546,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     public async Task<SalesOrderProductionProgressDto?> FinishProductionAsync(
         Guid salesOrderId,
         ProductionStatusUpdateRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
     {
         var salesOrder = await IncludeProduction(db.SalesOrders)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
@@ -395,7 +561,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             ?? throw new InvalidOperationException("Sales order must be confirmed before production can finish.");
 
         ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder, request.WorkerUserId);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
 
         var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
         FinishProduction(productionOrder, request, DateTime.UtcNow);
@@ -479,6 +645,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.DesignApprovedAtUtc,
             order.SoDate,
             order.TargetDate,
+            order.DesignWorkerUserId,
+            order.DesignWorkerName,
             order.ProductionWorkerUserId,
             order.ProductionWorkerName,
             order.QcReviewerUserId,
@@ -502,6 +670,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             item.ProductPartNumber,
             item.ProductDescription,
             item.Qty,
+            item.UnitPrice,
             item.Notes);
     }
 
@@ -524,6 +693,8 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             order.DesignApprovedByUserId,
             order.DesignApprovedByName,
             order.DesignApprovedAtUtc,
+            order.DesignWorkerUserId,
+            order.DesignWorkerName,
             order.ProductionWorkerUserId,
             order.ProductionWorkerName,
             order.QcReviewerUserId,
@@ -691,8 +862,15 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
     private static void ApplyAssignment(SalesOrder salesOrder, AssignSalesOrderEngineersRequest request)
     {
+        var designWorker = NormalizeAssignment(request.DesignWorker, "Design worker");
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
+
+        if (designWorker is not null)
+        {
+            salesOrder.DesignWorkerUserId = designWorker.UserId;
+            salesOrder.DesignWorkerName = designWorker.Name;
+        }
 
         if (productionWorker is not null)
         {
@@ -782,12 +960,20 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
     }
 
-    private static void EnsureAssignedWorker(ProductionOrder productionOrder, Guid workerUserId)
+    private static void EnsureAssignedWorker(ProductionOrder productionOrder, Guid workerUserId, bool isPrivileged = false)
     {
+        // Privileged users (Admin, Owner, Engineering Supervisor) can bypass worker assignment check
+        if (isPrivileged)
+        {
+            return;
+        }
+
         var assignedWorkerId = productionOrder.SalesOrder?.ProductionWorkerUserId;
+
+        // If no worker is assigned yet, allow any engineering team member to submit
         if (!assignedWorkerId.HasValue)
         {
-            throw new InvalidOperationException("This sales order does not have an assigned production worker.");
+            return;
         }
 
         if (assignedWorkerId.Value != workerUserId)

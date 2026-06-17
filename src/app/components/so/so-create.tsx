@@ -8,16 +8,14 @@ import {
 } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
-import type { Page } from "../layout/erp-layout";
-import { quotationApi } from "../../services/quotationApi";
 import { salesApi } from "../../services/salesApi";
 
 interface SOCreateProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
   initialData?: { customerId?: string; orderType?: "new" | "repeat"; mode?: string; soId?: string };
 }
 
-type OrderType = "new" | "repeat" | "from_qut" | null;
+type OrderType = "new" | "repeat" | null;
 
 const S = {
   font: "Inter, sans-serif",
@@ -313,7 +311,7 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                   onChange({
                     ...row,
                     designId: selectedDesignId,
-                    materials: design ? design.materials.map(m => ({
+                    materials: design ? design.materials.map((m: any) => ({
                       id: m.id,
                       name: m.name,
                       specification: m.spec || "",
@@ -349,13 +347,16 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                   </tr>
                 </thead>
                 <tbody>
-                  {row.materials.map(mat => (
-                    <tr key={mat.id}>
-                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
-                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
-                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{mat.quantity} {mat.unit}</td>
-                    </tr>
-                  ))}
+                  {row.materials.map((mat: any, i) => {
+                    const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
+                    return (
+                      <tr key={mat.id}>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{totalQty} {mat.unit}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -408,7 +409,7 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, productCatalog, salesOrders, quotations, refreshBackendData } = useApp();
+  const { customers, productCatalog, salesOrders, refreshBackendData } = useApp();
   const catalogProductOptions = productCatalog.map(product => ({
     id: product.id,
     label: `${product.partNumber} - ${product.description}`,
@@ -448,7 +449,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       customName: existingAppSo.description,
       quantity: String(existingAppSo.quantity),
       unit: existingAppSo.unit,
-      materials: existingAppSo.materials || emptyProduct().materials,
+      materials: emptyProduct().materials,
     } : emptyProduct()
   ]);
   const [submitted, setSubmitted] = useState(false);
@@ -461,19 +462,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     customerId: initialData?.customerId || "", previousSoId: "", deadline: today, generalNotes: "", customerImageUrl: "", estimatedAmount: 0
   });
 
-  const [qutForm, setQutForm] = useState({
-    qutId: "", customerId: "", deadline: today, generalNotes: "", customerImageUrl: ""
-  });
-
-
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
-  const [qutProducts, setQutProducts] = useState<ProductRow[]>([]);
 
   const selectedCustomer = orderType === "repeat"
     ? customers.find(c => c.code === repeatForm.customerId)
-    : orderType === "from_qut"
-      ? customers.find(c => c.code === qutForm.customerId)
-      : null;
+    : null;
 
   const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
 
@@ -489,8 +482,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setRepeatProducts([]);
-    setQutForm({ qutId: "", customerId: "", deadline: today, generalNotes: "", customerImageUrl: "" });
-    setQutProducts([]);
   };
 
   const handleRepeatSoSelect = (soId: string) => {
@@ -509,23 +500,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
-  const handleQutSelect = (qutId: string) => {
-    const qut = quotations.find(q => q.id === qutId);
-    if (qut) {
-      setQutForm({ ...qutForm, qutId: qutId, customerId: qut.customerId });
-      setQutProducts([{
-        ...emptyProduct(),
-        productName: qut.productName || qut.description,
-        quantity: String(qut.quantity),
-        unit: qut.unit,
-        designId: qut.designId || "",
-        materials: qut.materials || []
-      }]);
-    } else {
-      setQutForm({ ...qutForm, qutId: "", customerId: "" });
-      setQutProducts([]);
-    }
-  };
+
 
   const ensureCustomerId = async (input: {
     code: string;
@@ -585,7 +560,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       notes: row.notes || row.materials.map(material => `${material.name}: ${material.specification}`).filter(Boolean).join("; ") || null,
     })));
 
-    return salesApi.createSalesOrder({
+    const payload = {
       customerId,
       soDate: today,
       targetDate,
@@ -593,7 +568,20 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       designReference: null,
       designStatus: "PendingDesign",
       items,
-    });
+    };
+
+    // Retry loop untuk menangani eventual consistency (replikasi PGMQ dari MasterData ke Production)
+    let lastError: any;
+    for (let i = 0; i < 6; i++) {
+      try {
+        return await salesApi.createSalesOrder(payload);
+      } catch (error: any) {
+        lastError = error;
+        // Tunggu 2.5 detik sebelum mencoba lagi agar replika MasterData punya waktu sinkronisasi
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
+    }
+    throw lastError;
   };
 
   const handleNewOrderSubmit = async (e: React.FormEvent) => {
@@ -650,35 +638,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
-  const handleQutSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const quotation = quotations.find(q => q.id === qutForm.qutId);
-    if (!quotation?.backendId) return;
 
-    setIsSubmitting(true);
-    try {
-      const created = await quotationApi.convertToSalesOrder(quotation.backendId, {
-        dpPercentage: 50,
-        dueDate: addDaysIso(new Date(), 7),
-      });
-      await refreshBackendData();
-      setGeneratedSONumber(created.soNumber);
-      setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to convert quotation to sales order in backend.", error);
-      window.alert("Gagal convert QUT ke SO di backend. Pastikan QUT sudah Won dan punya harga.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // ─── Success screen ──────────────────────────────────────────────────────────
   if (submitted) {
-    const totalItems = orderType === "from_qut"
-      ? qutProducts.length
-      : orderType === "repeat"
-        ? repeatProducts.length
-        : products.length;
+    const totalItems = orderType === "repeat"
+      ? repeatProducts.length
+      : products.length;
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
@@ -694,7 +660,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
-              {" "}Dokumen SO tersimpan di backend dan siap mengikuti workflow produksi/finance berikutnya.
+              {" "}
+              Desain dan BOM (Bill of Materials) sedang diajukan ke tim Engineering. SO akan berstatus Pending Design.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -728,21 +695,21 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </button>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>
-            {!orderType ? "Buat Sales Order" : orderType === "repeat" ? "Repeat Order" : "Dari Penawaran (QUT)"}
+            {!orderType ? "Buat Sales Order" : orderType === "repeat" ? "Repeat Order" : "Pesanan Baru"}
           </h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             {!orderType
               ? "Pilih jenis order untuk melanjutkan"
               : orderType === "repeat"
                 ? "Pilih pelanggan existing dan tambahkan produk repeat"
-                : "Pilih Quotation yang telah disetujui (Won) untuk dibuatkan Sales Order"}
+                : "Isi form untuk membuat pesanan baru"}
           </p>
         </div>
       </div>
 
       {/* Step breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Dari QUT", "Submit"].map((step, i) => {
+        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Pesanan Baru", "Submit"].map((step, i) => {
           const active = (i === 0 && !orderType) || (i === 1 && !!orderType);
           const done = i === 0 && !!orderType;
           return (
@@ -760,7 +727,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       {!orderType && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, maxWidth: 860 }}>
           {[
-            { type: "from_qut" as const, icon: <FileText size={22} style={{ color: "#10B981" }} />, title: "Dari Penawaran (QUT)", desc: "Pilih Quotation yang telah disetujui untuk langsung dikonversi menjadi Sales Order. Data akan ditarik secara otomatis.", accentColor: "#10B981" },
+            { type: "new" as const, icon: <Plus size={22} style={{ color: "#10B981" }} />, title: "Pesanan Baru (New Order)", desc: "Buat Sales Order baru dari awal. Dapat dilanjutkan ke request desain jika pesanan bersifat custom.", accentColor: "#10B981" },
             { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.", accentColor: "#6366F1" },
           ].map(card => (
             <button key={card.type} onClick={() => setOrderType(card.type)}
@@ -818,12 +785,15 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <SectionCard title="Detail Order" icon={<Calendar size={14} />}>
             <Grid2>
               <div>
-                <Label text="Deadline" required />
+                <Label text="Target Pengiriman (Project Deadline)" required />
                 <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
               </div>
               <div>
-                <Label text="URL Design" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} required />
+                <Label text="URL Design Referensi Customer (Opsional)" />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="Kosongkan jika tim engineering yang desain" value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} />
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                  *Kosongkan jika pelanggan belum ada gambaran dan meminta tim Engineering yang mendesain.
+                </p>
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
@@ -913,12 +883,15 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <SectionCard title="Detail Order" icon={<Calendar size={14} />}>
             <Grid2>
               <div>
-                <Label text="Deadline" required />
+                <Label text="Target Pengiriman (Project Deadline)" required />
                 <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
               </div>
               <div>
-                <Label text="URL Gambar Referensi Customer" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} required />
+                <Label text="URL Gambar Referensi Customer (Opsional)" />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="Kosongkan jika tim engineering yang desain" value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} />
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                  *Kosongkan jika pelanggan belum ada gambaran dan meminta tim Engineering yang mendesain.
+                </p>
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
@@ -964,95 +937,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </form>
       )}
 
-      {/* ── From QUT Order Form ───────────────────────────────────────────────── */}
-      {orderType === "from_qut" && (
-        <form onSubmit={handleQutSubmit}
-          style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
 
-          <SectionCard title="Pilih Penawaran (QUT)" icon={<FileText size={14} />}>
-            <div style={{ marginBottom: 14 }}>
-              <Label text="Nomor Penawaran (QUT)" required />
-              <Select value={qutForm.qutId} onChange={e => handleQutSelect(e.target.value)} required>
-                <option value="">— Pilih Penawaran (QUT) —</option>
-                {quotations.filter(q => q.status === 'won').map(q => {
-                  const cust = customers.find(c => c.code === q.customerId);
-                  return (
-                    <option key={q.id} value={q.id}>{q.id} - {cust?.name} ({q.productName})</option>
-                  );
-                })}
-              </Select>
-            </div>
-            {selectedCustomer && (
-              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 4, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
-                {[
-                  { icon: <User size={11} />, label: "Pelanggan", value: selectedCustomer.name },
-                  { icon: <Building2 size={11} />, label: "Perusahaan", value: selectedCustomer.name },
-                  { icon: <Phone size={11} />, label: "Telepon", value: selectedCustomer.phone },
-                  { icon: <Mail size={11} />, label: "Email", value: selectedCustomer.contact },
-                ].map(f => (
-                  <div key={f.label}>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#16A34A", display: "flex", alignItems: "center", gap: 4 }}>{f.icon} {f.label}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#14532D", fontWeight: 500 }}>{f.value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard title="Detail Order" icon={<Calendar size={14} />}>
-            <Grid2>
-              <div>
-                <Label text="Deadline" required />
-                <Input icon={<Calendar size={11} />} type="date" value={qutForm.deadline} onChange={e => setQutForm({ ...qutForm, deadline: e.target.value })} required />
-              </div>
-              <div>
-                <Label text="URL Gambar Referensi Customer" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://..." value={qutForm.customerImageUrl} onChange={e => setQutForm({ ...qutForm, customerImageUrl: e.target.value })} required />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Label text="Catatan Tambahan" />
-                <Input placeholder="Catatan khusus terkait pembuatan SO ini..." value={qutForm.generalNotes} onChange={e => setQutForm({ ...qutForm, generalNotes: e.target.value })} />
-              </div>
-            </Grid2>
-          </SectionCard>
-
-          <SectionCard
-            title={`Produk dari QUT`}
-            icon={<Layers size={14} />}
-          >
-            {qutForm.qutId ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {qutProducts.map((row) => (
-                  <div key={row.id} style={{ border: `1px solid ${S.border}`, borderRadius: 6, padding: 14, background: "#F8FAFC" }}>
-                    <div style={{ fontWeight: 600, fontSize: "13px", color: S.slate, marginBottom: 4 }}>{row.productName}</div>
-                    <div style={{ fontSize: "12px", color: S.secondary }}>Jumlah: {row.quantity} {row.unit}</div>
-                    {row.designId && <div style={{ fontSize: "12px", color: S.primary, marginTop: 4 }}>Desain: {row.designId}</div>}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: "12.5px", color: S.secondary, padding: "10px 0" }}>
-                Pilih QUT terlebih dahulu untuk memuat produk secara otomatis.
-              </div>
-            )}
-          </SectionCard>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setOrderType(null)}
-              style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
-              onMouseLeave={e => (e.currentTarget.style.background = S.white)}
-            >Batal</button>
-            <button type="submit" disabled={!qutForm.qutId || isSubmitting}
-              style={{ flex: 1, maxWidth: 320, padding: "8px 20px", borderRadius: 4, border: "none", background: !qutForm.qutId || isSubmitting ? "#94A3B8" : S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: !qutForm.qutId || isSubmitting ? "not-allowed" : "pointer", fontFamily: S.font, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "opacity 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = !qutForm.qutId || isSubmitting ? "1" : "0.88")}
-              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-            >
-              <CheckCircle2 size={14} /> {isSubmitting ? "Menyimpan..." : "Submit SO dari QUT"}
-            </button>
-          </div>
-        </form>
-      )}
     </div>
   );
 }

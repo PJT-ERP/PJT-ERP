@@ -12,77 +12,10 @@ public static class ProductionSchemaInitializer
         // Dev-friendly schema evolution until formal EF migrations are introduced.
         await db.Database.ExecuteSqlRawAsync(
             """
-            CREATE TABLE IF NOT EXISTS quotations (
-                "Id" uuid NOT NULL PRIMARY KEY,
-                quotation_number character varying(100) NOT NULL UNIQUE,
-                customer_id uuid NOT NULL,
-                customer_code character varying(50) NOT NULL,
-                customer_name character varying(255) NOT NULL,
-                customer_email character varying(160) NULL,
-                deadline date NOT NULL,
-                notes text NULL,
-                status character varying(50) NOT NULL,
-                assigned_engineer_id uuid NULL,
-                assigned_engineer_name character varying(160) NULL,
-                design_link character varying(1000) NULL,
-                estimated_amount numeric(18,2) NULL,
-                lost_reason text NULL,
-                converted_sales_order_id uuid NULL,
-                converted_sales_order_number character varying(100) NULL,
-                created_at_utc timestamp with time zone NOT NULL,
-                updated_at_utc timestamp with time zone NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS quotation_items (
-                "Id" uuid NOT NULL PRIMARY KEY,
-                quotation_id uuid NOT NULL REFERENCES quotations ("Id") ON DELETE CASCADE,
-                product_id uuid NULL,
-                product_name character varying(255) NOT NULL,
-                description text NULL,
-                quantity integer NOT NULL,
-                unit character varying(30) NOT NULL,
-                customer_image_url character varying(1000) NULL,
-                design_link character varying(1000) NULL,
-                created_at_utc timestamp with time zone NOT NULL,
-                updated_at_utc timestamp with time zone NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS quotation_bom_items (
-                "Id" uuid NOT NULL PRIMARY KEY,
-                quotation_id uuid NOT NULL REFERENCES quotations ("Id") ON DELETE CASCADE,
-                quotation_item_id uuid NULL,
-                item_code character varying(100) NULL,
-                name character varying(255) NOT NULL,
-                specification text NULL,
-                quantity numeric(18,3) NOT NULL,
-                unit character varying(30) NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS quotation_price_revisions (
-                "Id" uuid NOT NULL PRIMARY KEY,
-                quotation_id uuid NOT NULL REFERENCES quotations ("Id") ON DELETE CASCADE,
-                revision_number integer NOT NULL,
-                amount numeric(18,2) NOT NULL,
-                revision_date date NOT NULL,
-                notes text NULL,
-                finance_user_id uuid NOT NULL,
-                finance_user_name character varying(160) NOT NULL
-            );
-
-            CREATE INDEX IF NOT EXISTS ix_quotations_customer_id
-                ON quotations (customer_id);
-
-            CREATE INDEX IF NOT EXISTS ix_quotations_status
-                ON quotations (status);
-
-            CREATE INDEX IF NOT EXISTS ix_quotation_items_quotation_id
-                ON quotation_items (quotation_id);
-
-            CREATE INDEX IF NOT EXISTS ix_quotation_bom_items_quotation_id
-                ON quotation_bom_items (quotation_id);
-
-            CREATE INDEX IF NOT EXISTS ix_quotation_price_revisions_quotation_id
-                ON quotation_price_revisions (quotation_id);
+            DROP TABLE IF EXISTS quotation_price_revisions CASCADE;
+            DROP TABLE IF EXISTS quotation_bom_items CASCADE;
+            DROP TABLE IF EXISTS quotation_items CASCADE;
+            DROP TABLE IF EXISTS quotations CASCADE;
 
             ALTER TABLE customer_replicas ADD COLUMN IF NOT EXISTS email character varying(160);
 
@@ -90,9 +23,13 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_status character varying(50) NOT NULL DEFAULT 'PendingDesign';
+            
+            ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS unit_price numeric NOT NULL DEFAULT 0;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_at_utc timestamp with time zone;
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_worker_user_id uuid;
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_worker_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_worker_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_worker_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_reviewer_user_id uuid;

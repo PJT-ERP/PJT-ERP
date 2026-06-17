@@ -126,6 +126,15 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     && payments.some(payment => payment.invoiceId === order.invoice?.invoiceId && payment.status === "PENDING");
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const currentUser = useApp().currentUser;
+  
+  const [actionForm, setActionForm] = useState({
+    estimatedAmount: order?.estimatedAmount || 0,
+    engineerName: order?.assignedName || "",
+    designUrl: order?.designLink || "",
+  });
+
   const [editForm, setEditForm] = useState({
     customerName: customer?.name || "",
     company: customer?.name || "",
@@ -138,6 +147,33 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     deadline: order?.deadline || "",
     notes: order?.notes || "",
   });
+
+  const handleAction = async (action: string) => {
+    if (!order) return;
+    setIsSubmittingAction(true);
+    
+    try {
+      if (action === 'deal') {
+        updateSalesOrder(orderId, { status: 'Menunggu Invoice DP' });
+      } else if (action === 'reject') {
+        updateSalesOrder(orderId, { status: 'Rejected' });
+      } else if (action === 'revise_price') {
+        updateSalesOrder(orderId, { status: 'Waiting Pricing' });
+      } else if (action === 'submit_price') {
+        updateSalesOrder(orderId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
+      } else if (action === 'assign_engineer') {
+        updateSalesOrder(orderId, { assignedName: actionForm.engineerName });
+      } else if (action === 'upload_design') {
+        updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
+      } else if (action === 'approve_design') {
+        updateSalesOrder(orderId, { status: 'Waiting Pricing' });
+      } else if (action === 'reject_design') {
+        updateSalesOrder(orderId, { status: 'Pending Design' });
+      }
+    } finally {
+      setIsSubmittingAction(false);
+    }
+  };
 
   const handleSave = () => {
     if (!order) return;
@@ -477,6 +513,102 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
+          {/* ── Action Panel (Sales Validation) ── */}
+          {(currentUser?.role === 'Sales' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && (order.status === 'Waiting Client Approval') && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FFFBEB" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#D97706", display: "flex", alignItems: "center", gap: 6 }}>
+                  <AlertTriangle size={14} /> Validasi Klien
+                </p>
+              </div>
+              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
+                  Finance telah memberikan Estimasi Harga: <strong style={{ color: S.slate }}>Rp {(order.estimatedAmount || 0).toLocaleString("id-ID")}</strong>
+                </p>
+                <ActionBtn icon={<CheckCircle2 size={13} />} label="Klien Deal (Lanjut SO)" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('deal')} />
+                <ActionBtn icon={<RefreshCw size={13} />} label="Nego / Revisi Harga" bg="#FFFBEB" color="#D97706" border="1px solid #F59E0B" onClick={() => handleAction('revise_price')} />
+                <ActionBtn icon={<X size={13} />} label="Gagal / Batal (Rejected)" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('reject')} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Action Panel (Finance Pricing) ── */}
+          {(currentUser?.role === 'Finance' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Waiting Pricing' && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Finance: Estimasi Harga Jual</p>
+              </div>
+              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: "11px", color: S.secondary }}>Estimasi Total Harga (Rp)</label>
+                <input 
+                  type="number" 
+                  value={actionForm.estimatedAmount} 
+                  onChange={e => setActionForm(prev => ({...prev, estimatedAmount: Number(e.target.value)}))}
+                  style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
+                />
+                <ActionBtn icon={<CheckCircle2 size={13} />} label="Submit Harga" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('submit_price')} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Action Panel (Engineering Supervisor Assign) ── */}
+          {(currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Spv Engineering: Assign Task</p>
+              </div>
+              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: "11px", color: S.secondary }}>Assign to Engineer</label>
+                <select
+                  value={actionForm.engineerName}
+                  onChange={e => setActionForm(prev => ({...prev, engineerName: e.target.value}))}
+                  style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box", background: "#fff" }}
+                >
+                  <option value="">-- Pilih Engineer --</option>
+                  <option value="Budi Santoso">Budi Santoso</option>
+                  <option value="Andi Pratama">Andi Pratama</option>
+                </select>
+                <ActionBtn icon={<CheckCircle2 size={13} />} label="Assign Engineer" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('assign_engineer')} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Action Panel (Engineering Supervisor Approve) ── */}
+          {(currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Waiting Spv Approval' && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Spv Engineering: Approval Desain</p>
+              </div>
+              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
+                  Engineer {order.assignedName || "Engineer"} telah mensubmit desain. Mohon review.
+                </p>
+                <ActionBtn icon={<CheckCircle2 size={13} />} label="Approve Desain" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('approve_design')} />
+                <ActionBtn icon={<RefreshCw size={13} />} label="Reject & Minta Revisi" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('reject_design')} />
+              </div>
+            </div>
+          )}
+
+          {/* ── Action Panel (Engineer Upload) ── */}
+          {(currentUser?.role === 'Engineering' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering') && (
+            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Engineering: Upload Desain</p>
+              </div>
+              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: "11px", color: S.secondary }}>URL Gambar Desain</label>
+                <input 
+                  type="text" 
+                  value={actionForm.designUrl} 
+                  onChange={e => setActionForm(prev => ({...prev, designUrl: e.target.value}))}
+                  placeholder="https://example.com/design.png"
+                  style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
+                />
+                <ActionBtn icon={<Upload size={13} />} label="Submit ke Supervisor" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('upload_design')} />
+              </div>
+            </div>
+          )}
+
           {/* ── End-to-End History (Jejak Rekam Proyek) ── */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
@@ -727,7 +859,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
               <div style={{ position: "relative", border: "1px dashed #CBD5E1", borderRadius: 8, padding: 24, textAlign: "center", background: "#F8FAFC" }}>
                 <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
                 <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFileName || "Max ukuran file 5MB"}</p>
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFile?.name || "Max ukuran file 5MB"}</p>
                 <input required type="file" accept=".pdf,image/*" onChange={handleProofFileChange} style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
               </div>
             </div>

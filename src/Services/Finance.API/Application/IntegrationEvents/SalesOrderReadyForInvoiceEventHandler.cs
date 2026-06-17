@@ -48,7 +48,8 @@ public sealed class SalesOrderReadyForInvoiceEventHandler(FinanceContext db) : I
                 ProductId = item.ProductId,
                 ProductPartNumber = item.ProductPartNumber,
                 ProductDescription = item.ProductDescription,
-                Qty = item.Qty
+                Qty = item.Qty,
+                UnitPrice = item.UnitPrice
             });
         }
 

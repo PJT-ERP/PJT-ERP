@@ -35,10 +35,36 @@ public sealed class InvoicePaymentRecordedEventHandler(ProductionContext db) : I
             return;
         }
 
-        if (salesOrder.Status == SalesOrderStatuses.Draft)
+        if (salesOrder.Status == SalesOrderStatuses.Draft || salesOrder.Status == "Menunggu Invoice DP")
         {
+            var now = DateTime.UtcNow;
             salesOrder.Status = SalesOrderStatuses.Confirmed;
-            salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+            salesOrder.ApprovedAtUtc ??= now;
+            salesOrder.UpdatedAtUtc = now;
+
+            // Initialize Production Order
+            var firstItem = salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First();
+            var productionOrder = await db.ProductionOrders
+                .OrderBy(po => po.CreatedAtUtc)
+                .FirstOrDefaultAsync(po => po.SalesOrderId == salesOrder.Id, cancellationToken);
+                
+            if (productionOrder is null)
+            {
+                productionOrder = new ProductionOrder
+                {
+                    SalesOrderId = salesOrder.Id,
+                    SalesOrder = salesOrder,
+                    SalesOrderItemId = firstItem.Id,
+                    PoNumber = salesOrder.SoNumber,
+                    DrawingRef = salesOrder.SoNumber,
+                    BarcodeUid = $"PJT|SO|{now:yyyyMMdd}|{salesOrder.Id:N}",
+                    OrderQty = salesOrder.Items.Sum(item => item.Qty)
+                };
+
+                await db.ProductionOrders.AddAsync(productionOrder, cancellationToken);
+                salesOrder.ProductionOrders.Add(productionOrder);
+            }
+
             await db.SaveChangesAsync(cancellationToken);
         }
     }

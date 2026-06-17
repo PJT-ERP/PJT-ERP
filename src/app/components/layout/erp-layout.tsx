@@ -14,7 +14,7 @@ interface NavItemDef { label: string; icon?: React.ReactNode; path?: string; act
 const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   Sales: [
     { label: "Dashboard Penjualan", icon: <LayoutDashboard size={15} />, path: "/erp/so/dashboard" },
-    { label: "Daftar Penawaran & SO", icon: <List size={15} />, path: "/erp/so/quotations" },
+    { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
   ],
   'Engineering Worker': [
@@ -75,7 +75,7 @@ export function ERPLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const { currentUser, logout, purchasingRequests, salesOrders, quotations } = useApp();
+  const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
   const canReadFinanceData = currentUser?.role === "Finance"
     || currentUser?.role === "Admin"
     || currentUser?.role === "Owner"
@@ -99,18 +99,18 @@ export function ERPLayout() {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div style={{
+        <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "16px 14px 14px",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
         flexShrink: 0,
         justifyContent: sidebarMinimized ? "center" : "flex-start"
       }}>
-        <div style={{ width: 30, height: 30, borderRadius: 6, background: "#C8102E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Building2 size={15} style={{ color: "#fff" }} />
+        <div style={{ width: 34, height: 34, background: "#ffffff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 3 }}>
+          <img src="/pjt-logo-new.png" alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         </div>
         {!sidebarMinimized && (
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
             <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#F9FAFB", fontFamily: "Inter, sans-serif", lineHeight: 1.3 }}>PT Pratama Jaya</p>
             <p style={{ margin: 0, fontSize: "10px", color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>{currentUser.role} Module</p>
           </div>
@@ -192,22 +192,23 @@ export function ERPLayout() {
       // Owner hanya memantau info, tidak melakukan approval.
       // Jika ada insight kritis lain, bisa ditambahkan di sini.
     } else if (role === 'Sales') {
-      quotations.filter(q => q.status === 'client_design_approval').forEach(q => {
-        notifs.push({ id: q.id, type: 'info', title: 'Desain Siap Dikirim', desc: `Quotation ${q.id} menunggu approval desain dari pelanggan.`, targetPath: `/erp/so/detail/${q.id}` });
-      });
-      quotations.filter(q => q.status === 'client_price_approval').forEach(q => {
-        notifs.push({ id: q.id, type: 'info', title: 'Harga Siap Dinegosiasikan', desc: `Quotation ${q.id} sudah dihitung Finance dan siap ditawarkan ke pelanggan.`, targetPath: `/erp/so/detail/${q.id}` });
+      salesOrders.filter(so => so.status === 'Waiting Payment' || so.status === 'Waiting Pricing').forEach(so => {
+        if (so.status === 'Waiting Pricing') {
+          notifs.push({ id: so.id, type: 'info', title: 'Harga Sedang Dihitung', desc: `SO ${so.id} sedang dihitung harganya oleh Finance.`, targetPath: `/erp/so/detail/${so.id}` });
+        } else {
+          notifs.push({ id: so.id, type: 'info', title: 'Tagihan Siap', desc: `Invoice untuk SO ${so.id} siap dibayar oleh pelanggan.`, targetPath: `/erp/so/detail/${so.id}` });
+        }
       });
       salesOrders.filter(so => so.status === 'Rejected').forEach(so => {
         notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
       });
     } else if (role === 'Engineering Worker' || role === 'Engineering Supervisor') {
-      quotations.filter(q => q.status === 'pending_design').forEach(q => {
-        notifs.push({ id: q.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `Quotation ${q.id} menunggu desain dan BOM.`, targetPath: '/erp/engineer-tasks' });
+      salesOrders.filter(so => so.status === 'Pending Design' || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired').forEach(so => {
+        notifs.push({ id: so.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `SO ${so.id} menunggu desain dan BOM.`, targetPath: '/erp/engineer-tasks' });
       });
       if (role === 'Engineering Supervisor') {
-        quotations.filter(q => q.status === 'design_review').forEach(q => {
-          notifs.push({ id: q.id, type: 'warning', title: 'Desain Butuh Review', desc: `Quotation ${q.id} menunggu approval Engineering Supervisor.`, targetPath: '/erp/engineer-tasks' });
+        salesOrders.filter(so => so.backendDesignStatus === 'WaitingApproval').forEach(so => {
+          notifs.push({ id: so.id, type: 'warning', title: 'Desain Butuh Review', desc: `SO ${so.id} menunggu approval Engineering Supervisor.`, targetPath: '/erp/engineer-tasks' });
         });
       }
     } else if (role === 'Purchasing') {
@@ -215,11 +216,11 @@ export function ERPLayout() {
         notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: '/erp/purchasing/create' });
       });
     } else if (role === 'Finance') {
-      quotations.filter(q => q.status === 'waiting_pricing').forEach(q => {
-        notifs.push({ id: q.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS untuk Quotation ${q.id}.`, targetPath: '/erp/finance/costing' });
+      salesOrders.filter(so => so.status === 'Waiting Pricing').forEach(so => {
+        notifs.push({ id: so.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS & buat Invoice untuk SO ${so.id}.`, targetPath: '/erp/finance/costing' });
       });
       readyInvoices.forEach(inv => {
-        notifs.push({ id: inv.id, type: 'info', title: 'Tagihan Siap Rilis', desc: `Invoice ${inv.invoiceNumber} menunggu verifikasi pengiriman.`, targetPath: '/erp/finance/invoices' });
+        notifs.push({ id: inv.id, type: 'info', title: 'Tagihan Menunggu Pembayaran', desc: `Invoice ${inv.invoiceNumber} menunggu verifikasi pembayaran.`, targetPath: '/erp/finance/invoices' });
       });
     } else if (role === 'Admin') {
       purchasingRequests.filter(pr => pr.status === 'Pending').forEach(pr => {
@@ -227,7 +228,7 @@ export function ERPLayout() {
       });
     }
     return notifs;
-  }, [currentUser, salesOrders, quotations, purchasingRequests, readyInvoices]);
+  }, [currentUser, salesOrders, purchasingRequests, readyInvoices]);
 
   const hasNotif = notifications.length > 0;
 

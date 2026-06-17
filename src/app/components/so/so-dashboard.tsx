@@ -129,7 +129,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           </p>
         </div>
         <button
-          onClick={() => onNavigate("quotation-create")}
+          onClick={() => onNavigate("so-create")}
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "8px 16px", borderRadius: 6, border: "none",
@@ -148,7 +148,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             e.currentTarget.style.boxShadow = "0 4px 12px rgba(200, 16, 46, 0.25)";
           }}
         >
-          <Plus size={14} /> Buat QU
+          <Plus size={14} /> Buat SO
         </button>
       </div>
 
@@ -410,7 +410,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { label: "Buat QU", icon: <Plus size={13} />, page: "quotation-create" as Page, primary: true },
+                { label: "Buat SO", icon: <Plus size={13} />, page: "so-create" as Page, primary: true },
                 { label: "Lihat Semua Order", icon: <List size={13} />, page: "so-list" as Page, primary: false },
                 { label: "Data Pelanggan", icon: <Users size={13} />, page: "customer-list" as Page, primary: false },
               ].map((action) => (

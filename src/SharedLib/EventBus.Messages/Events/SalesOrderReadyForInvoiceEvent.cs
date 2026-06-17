@@ -16,4 +16,5 @@ public record SalesOrderReadyForInvoiceItem(
     Guid ProductId,
     string ProductPartNumber,
     string ProductDescription,
-    int Qty);
+    int Qty,
+    decimal UnitPrice);

@@ -10,6 +10,7 @@ public sealed class SalesOrderItem
     public string ProductDescription { get; set; } = "";
     public string? ProductMaterialSpec { get; set; }
     public int Qty { get; set; }
+    public decimal UnitPrice { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

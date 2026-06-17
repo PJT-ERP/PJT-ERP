@@ -49,23 +49,6 @@ public sealed class FinanceServiceTests
     }
 
     [Fact]
-    public async Task SalesOrderDpInvoiceRequestedEventHandler_creates_invoice_candidate_for_manual_dp_invoice()
-    {
-        await using var db = CreateDbContext();
-        var handler = new SalesOrderDpInvoiceRequestedEventHandler(db);
-
-        await handler.Handle(CreateDpInvoiceRequestedEvent(), CancellationToken.None);
-
-        Assert.Empty(await db.Invoices.ToListAsync());
-
-        var candidate = await db.InvoiceCandidates.Include(item => item.Items).SingleAsync();
-        Assert.Equal("SO-001", candidate.SalesOrderNumber);
-        Assert.Equal("PT Customer", candidate.CustomerName);
-        Assert.Equal(InvoiceCandidateStatuses.ReadyForInvoice, candidate.Status);
-        Assert.Equal(2, candidate.Items.Count);
-    }
-
-    [Fact]
     public async Task CreateInvoiceAsync_uses_sales_order_items_and_builds_payment_schedule()
     {
         await using var db = CreateDbContext();
@@ -233,46 +216,16 @@ public sealed class FinanceServiceTests
                     Guid.Parse("55555555-5555-5555-5555-555555555555"),
                     "PART-001",
                     "Shaft",
-                    2),
+                    2,
+                    100_000m),
                 new SalesOrderReadyForInvoiceItem(
                     SecondSalesOrderItemId,
                     Guid.Parse("66666666-6666-6666-6666-666666666666"),
                     "PART-002",
                     "Bushing",
-                    2)
+                    2,
+                    50_000m)
             ]);
-    }
-
-    private static SalesOrderDpInvoiceRequestedEvent CreateDpInvoiceRequestedEvent()
-    {
-        return new SalesOrderDpInvoiceRequestedEvent(
-            SalesOrderId,
-            "SO-001",
-            CustomerId,
-            "CUST-001",
-            "PT Customer",
-            "billing@example.com",
-            new DateOnly(2026, 6, 30),
-            500_000m,
-            50m,
-            new DateOnly(2026, 6, 12),
-            [
-                new SalesOrderDpInvoiceItem(
-                    FirstSalesOrderItemId,
-                    Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                    "PART-001",
-                    "Shaft",
-                    2),
-                new SalesOrderDpInvoiceItem(
-                    SecondSalesOrderItemId,
-                    Guid.Parse("66666666-6666-6666-6666-666666666666"),
-                    "PART-002",
-                    "Bushing",
-                    2)
-            ])
-        {
-            OccurredAtUtc = new DateTime(2026, 6, 8, 10, 0, 0, DateTimeKind.Utc)
-        };
     }
 
     private static FinanceContext CreateDbContext()

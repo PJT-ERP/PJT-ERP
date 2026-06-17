@@ -3,6 +3,10 @@ export type UserRole = 'Sales' | 'Engineering Worker' | 'Engineering Supervisor'
 export type SOStatus =
   | 'Menunggu Invoice DP'
   | 'Pending Design'
+  | 'Waiting Spv Approval'
+  | 'Waiting Pricing'
+  | 'Waiting Payment'
+  | 'Waiting Client Approval'
   | 'Waiting Approval'
   | 'Revision Required'
   | 'Ready for Production'
@@ -34,6 +38,7 @@ export interface SalesOrder {
   backendId?: string;
   soNumber?: string;
   customerId: string;
+  customerName?: string;
   customerEmail?: string;
   customerDrawingUrl?: string;
   partNumber: string;
@@ -71,6 +76,13 @@ export interface SalesOrder {
   assignedName?: string;
   materialRequestStatus?: 'none' | 'requested' | 'approved';
   materialShortageDetected?: boolean;
+  estimatedAmount?: number;
+  customerImageUrl?: string;
+  items?: any[];
+  materials?: any[];
+  designId?: string;
+  productName?: string;
+  isQuotation?: boolean;
 }
 
 export const ENGINEERING_DESIGNS: any[] = [];
@@ -92,6 +104,10 @@ export function getStatusColor(status: SOStatus): { bg: string; text: string; bo
   const map: Record<SOStatus, { bg: string; text: string; border: string }> = {
     'Menunggu Invoice DP': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
     'Pending Design': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' },
+    'Waiting Spv Approval': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+    'Waiting Pricing': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
+    'Waiting Payment': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+    'Waiting Client Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
     'Waiting Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
     'Revision Required': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
     'Ready for Production': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-300' },
