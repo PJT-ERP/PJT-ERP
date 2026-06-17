@@ -128,7 +128,11 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         if (purchaseRequest.Status is not PurchaseRequestStatuses.Submitted
             and not PurchaseRequestStatuses.SupervisorRejected)
         {
-            throw new InvalidOperationException("Only submitted or supervisor-rejected purchase requests can be edited.");
+            if (purchaseRequest.Status is not PurchaseRequestStatuses.FinanceRejected
+                and not PurchaseRequestStatuses.Rejected)
+            {
+                throw new InvalidOperationException("Only submitted or rejected purchase requests can be edited.");
+            }
         }
 
         var materialRequirementIds = request.Items
@@ -151,7 +155,12 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         var firstRequirement = materialRequirements.Values.FirstOrDefault();
         var now = DateTime.UtcNow;
 
-        foreach (var oldItem in purchaseRequest.Items)
+        var oldItems = purchaseRequest.Items
+            .OrderBy(item => item.CreatedAtUtc)
+            .ThenBy(item => item.Id)
+            .ToList();
+
+        foreach (var oldItem in oldItems)
         {
             if (oldItem.MaterialRequirement is not null)
             {
@@ -159,8 +168,6 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                 oldItem.MaterialRequirement.UpdatedAtUtc = now;
             }
         }
-
-        db.PurchaseRequestItems.RemoveRange(purchaseRequest.Items);
 
         purchaseRequest.RequestDate = request.RequestDate;
         purchaseRequest.RequestedByUserId = request.RequestedByUserId;
@@ -179,30 +186,44 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         purchaseRequest.FinanceReviewedAtUtc = null;
         purchaseRequest.FinanceRejectionReason = null;
         purchaseRequest.UpdatedAtUtc = now;
-        purchaseRequest.Items = request.Items.Select(item =>
+
+        var requestedItems = request.Items.ToArray();
+        for (var index = 0; index < requestedItems.Length; index++)
         {
+            var item = requestedItems[index];
             materialRequirements.TryGetValue(item.MaterialRequirementId ?? Guid.Empty, out var requirement);
-            var purchaseItem = new PurchaseRequestItem
-            {
-                PurchaseRequestId = purchaseRequest.Id,
-                MaterialRequirementId = item.MaterialRequirementId,
-                SalesOrderId = item.SalesOrderId ?? requirement?.SalesOrderId ?? request.SalesOrderId,
-                SalesOrderNumber = NormalizeOptional(item.SalesOrderNumber) ?? requirement?.SalesOrderNumber ?? NormalizeOptional(request.SalesOrderNumber),
-                ProductionOrderId = requirement?.ProductionOrderId,
-                SpkNumber = requirement?.SpkNumber,
-                ProjectName = NormalizeOptional(item.ProjectName) ?? requirement?.ProjectName ?? NormalizeOptional(request.ProjectName),
-                ItemName = ResolveItemName(item, requirement),
-                Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
-                Qty = item.Qty,
-                Urgency = NormalizeUrgency(item.Urgency),
-                PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId),
-                TotalPrice = NormalizePrice(item.TotalPrice, "Total price"),
-                SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier),
-                Notes = NormalizeOptional(item.Notes),
-                PurchaseStatus = PurchaseItemStatuses.Requested,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
-            };
+            var purchaseItem = index < oldItems.Count
+                ? oldItems[index]
+                : new PurchaseRequestItem
+                {
+                    PurchaseRequestId = purchaseRequest.Id,
+                    CreatedAtUtc = now
+                };
+
+            purchaseItem.MaterialRequirementId = item.MaterialRequirementId;
+            purchaseItem.SalesOrderId = item.SalesOrderId ?? requirement?.SalesOrderId ?? request.SalesOrderId;
+            purchaseItem.SalesOrderNumber = NormalizeOptional(item.SalesOrderNumber) ?? requirement?.SalesOrderNumber ?? NormalizeOptional(request.SalesOrderNumber);
+            purchaseItem.ProductionOrderId = requirement?.ProductionOrderId;
+            purchaseItem.SpkNumber = requirement?.SpkNumber;
+            purchaseItem.ProjectName = NormalizeOptional(item.ProjectName) ?? requirement?.ProjectName ?? NormalizeOptional(request.ProjectName);
+            purchaseItem.ItemName = ResolveItemName(item, requirement);
+            purchaseItem.Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec;
+            purchaseItem.Qty = item.Qty;
+            purchaseItem.Urgency = NormalizeUrgency(item.Urgency);
+            purchaseItem.PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId);
+            purchaseItem.SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier);
+            purchaseItem.SupplierName = null;
+            purchaseItem.PoNumber = null;
+            purchaseItem.EstimatedPrice = null;
+            purchaseItem.TotalPrice = NormalizePrice(item.TotalPrice, "Total price");
+            purchaseItem.PurchaseDate = null;
+            purchaseItem.ExpectedArrivalDate = null;
+            purchaseItem.ReceivedDate = null;
+            purchaseItem.PurchaseStatus = PurchaseItemStatuses.Requested;
+            purchaseItem.PurchaseNotes = null;
+            purchaseItem.RejectionReason = null;
+            purchaseItem.Notes = NormalizeOptional(item.Notes);
+            purchaseItem.UpdatedAtUtc = now;
 
             if (requirement is not null)
             {
@@ -210,8 +231,16 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                 requirement.UpdatedAtUtc = now;
             }
 
-            return purchaseItem;
-        }).ToList();
+            if (index >= oldItems.Count)
+            {
+                purchaseRequest.Items.Add(purchaseItem);
+            }
+        }
+
+        if (oldItems.Count > requestedItems.Length)
+        {
+            db.PurchaseRequestItems.RemoveRange(oldItems.Skip(requestedItems.Length));
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
