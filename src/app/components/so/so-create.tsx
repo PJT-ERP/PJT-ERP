@@ -504,7 +504,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const ensureCustomerId = async (input: {
     code: string;
-    name: string;
+    company: string;
+    customerName: string;
     email?: string;
     phone?: string;
     address?: string;
@@ -518,10 +519,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     const created = await salesApi.createCustomer({
       code,
-      name: input.name.trim() || code,
+      name: input.company.trim() || input.customerName.trim() || code,
       address: input.address || null,
-      contactPerson: input.name.trim() || null,
+      contactPerson: input.customerName.trim() || null,
       email: input.email || null,
+      phone: input.phone || null,
     });
     return created.id;
   };
@@ -596,7 +598,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     try {
       const customerId = await ensureCustomerId({
         code: customerForm.customerCode,
-        name: customerForm.company || customerForm.customerName,
+        company: customerForm.company,
+        customerName: customerForm.customerName,
         email: customerForm.email,
         phone: customerForm.phone,
         address: customerForm.address,
@@ -621,8 +624,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     try {
       const customerId = await ensureCustomerId({
         code: selectedCustomer.code,
-        name: selectedCustomer.name,
-        email: selectedCustomer.contact,
+        company: selectedCustomer.name,
+        customerName: selectedCustomer.contactPerson || selectedCustomer.name,
+        email: selectedCustomer.email || selectedCustomer.contact,
         phone: selectedCustomer.phone,
         address: selectedCustomer.address,
       });

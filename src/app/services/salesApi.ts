@@ -17,6 +17,7 @@ export interface CreateCustomerRequest {
   address?: string | null;
   contactPerson?: string | null;
   email?: string | null;
+  phone?: string | null;
 }
 
 export interface ProductDto {
