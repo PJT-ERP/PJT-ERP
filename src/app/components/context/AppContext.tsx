@@ -241,8 +241,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       code: customer.code,
       name: customer.name,
       address: customer.address,
-      contactPerson: customer.contact,
-      email: customer.contact,
+      contactPerson: customer.contactPerson || customer.contact,
+      email: customer.email || customer.contact,
+      phone: customer.phone,
     }).then(created => {
       setBackendCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
     }).catch(err => {
@@ -349,9 +350,11 @@ function mapCustomerDto(customer: CustomerDto): Customer {
   return {
     code: customer.code,
     name: customer.name,
-    contact: customer.email || customer.contactPerson || "",
+    contact: customer.contactPerson || customer.email || "",
     phone: customer.phone || "",
     address: customer.address || "",
+    email: customer.email || "",
+    contactPerson: customer.contactPerson || "",
   };
 }
 
@@ -581,8 +584,9 @@ async function syncCreateSalesOrder(
         code: customer.code,
         name: customer.name,
         address: customer.address,
-        contactPerson: customer.contact,
-        email: customer.contact,
+        contactPerson: customer.contactPerson || customer.contact,
+        email: customer.email || customer.contact,
+        phone: customer.phone,
       });
       customerId = created.id;
       setCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));

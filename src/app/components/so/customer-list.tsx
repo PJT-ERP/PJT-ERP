@@ -4,7 +4,7 @@ import {
   Phone, Mail, Building2, MapPin,
   ShoppingCart, Calendar, Users,
   ChevronLeft, ChevronRight,
-  Hash, RefreshCw, CheckCircle2,
+  Hash, RefreshCw, CheckCircle2, LayoutGrid, List,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import type { Customer } from "../data/mockData";
@@ -126,12 +126,16 @@ function CustomerModal({ state, onSave, onClose }: {
                 <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
               </div>
               <div>
-                <ModalLabel text="Kontak PIC" required />
-                <ModalInput placeholder="Nama kontak" value={form.contact ?? ""} onChange={e => set("contact", e.target.value)} required />
+                <ModalLabel text="Nama Pelanggan" required />
+                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? form.contact ?? ""} onChange={e => { set("contactPerson", e.target.value); set("contact", e.target.value); }} required />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
                 <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required />
+              </div>
+              <div>
+                <ModalLabel text="Email" />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? ""} onChange={e => set("email", e.target.value)} />
               </div>
             </div>
             <div>
@@ -220,6 +224,18 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
   const goCreateSO = (cid: string) => onNavigate("so-create", { customerId: cid, orderType: "new" });
   const goRepeatOrder = (cid: string) => onNavigate("so-create", { customerId: cid, orderType: "repeat" });
 
+  const HeaderBtn = ({ icon, label, onClick, primary }: { icon: React.ReactNode, label: string, onClick: () => void, primary?: boolean }) => (
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 4, border: primary ? "none" : `1px solid ${S.border}`, background: primary ? S.cyan : S.white, color: primary ? "#fff" : S.slate, fontSize: "12px", cursor: "pointer", fontWeight: 500 }}>
+      {icon} {label}
+    </button>
+  );
+
+  const PagBtn = ({ icon, label, onClick, active, disabled }: any) => (
+    <button onClick={onClick} disabled={disabled} style={{ padding: "4px 9px", borderRadius: 4, border: `1px solid ${S.border}`, background: active ? S.cyan : S.white, color: active ? "#fff" : S.slate, fontSize: "11px", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}>
+      {icon || label}
+    </button>
+  );
+
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -274,56 +290,46 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
             </button>
           )}
         </div>
-        <div style={{ display: "flex", borderRadius: 4, border: `1px solid ${S.border}`, overflow: "hidden" }}>
-          {(["table", "card"] as const).map(mode => (
-            <button key={mode} onClick={() => setViewMode(mode)}
-              style={{ padding: "5px 12px", fontSize: "12px", background: viewMode === mode ? S.cyan : S.white, color: viewMode === mode ? "#fff" : S.secondary, border: "none", cursor: "pointer", fontFamily: S.font, fontWeight: viewMode === mode ? 500 : 400, transition: "background 0.1s" }}
-            >
-              {mode === "table" ? "Tabel" : "Kartu"}
-            </button>
-          ))}
-        </div>
       </div>
 
+
       {/* ── Table view ────────────────────────────────────────────────────────── */}
-      {viewMode === "table" && (
-        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-                  {["Pelanggan", "Kontak", "Kota", "Total Order", "Order Aktif", "Order Terakhir", "Aksi"].map((h, i) => (
-                    <th key={h} style={{ padding: "9px 14px", textAlign: i === 6 ? "right" : "left", fontSize: "10.5px", fontWeight: 600, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 ? (
-                  <tr><td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px" }}>Tidak ada pelanggan yang sesuai pencarian</td></tr>
-                ) : paginated.map((c, idx) => {
-                  const initials = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-                  const active = getActiveOrders(c.code);
-                  const isLast = idx === paginated.length - 1;
-                  return (
-                    <CustomerTableRow
-                      key={c.code}
-                      customer={c}
-                      initials={initials}
-                      active={active}
-                      isLast={isLast}
-                      onEdit={() => openEdit(c)}
-                      onCreateSO={() => goCreateSO(c.code)}
-                      onRepeat={() => goRepeatOrder(c.code)}
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                {["Pelanggan", "Kontak", "Kota", "Total Order", "Order Aktif", "Order Terakhir", "Aksi"].map((h, i) => (
+                  <th key={h} style={{ padding: "9px 14px", textAlign: i === 6 ? "right" : "left", fontSize: "10.5px", fontWeight: 600, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: "48px 0", color: "#94A3B8", fontSize: "13px" }}>Tidak ada pelanggan yang sesuai pencarian</td></tr>
+              ) : paginated.map((c, idx) => {
+                const initials = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                const active = getActiveOrders(c.code);
+                const isLast = idx === paginated.length - 1;
+                return (
+                  <CustomerTableRow
+                    key={c.code}
+                    customer={c}
+                    initials={initials}
+                    active={active}
+                    isLast={isLast}
+                    onEdit={() => openEdit(c)}
+                    onCreateSO={() => goCreateSO(c.code)}
+                    onRepeat={() => goRepeatOrder(c.code)}
+                  />
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
       {/* ── Card view ─────────────────────────────────────────────────────────── */}
       {viewMode === "card" && (
@@ -460,9 +466,9 @@ function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCre
             { icon: <RefreshCw size={12} />, title: "Repeat Order", hb: "#F5F3FF", hc: "#7C3AED", act: onRepeat },
           ].map(btn => (
             <button key={btn.title} title={btn.title} onClick={btn.act}
-              style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "none", background: "transparent", color: "#94A3B8", cursor: "pointer", transition: "all 0.1s" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = btn.hb; (e.currentTarget as HTMLButtonElement).style.color = btn.hc; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "#94A3B8"; }}
+              style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: "#64748B", cursor: "pointer", transition: "all 0.1s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = btn.hb; (e.currentTarget as HTMLButtonElement).style.color = btn.hc; (e.currentTarget as HTMLButtonElement).style.borderColor = btn.hc; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; (e.currentTarget as HTMLButtonElement).style.color = "#64748B"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E2E8F0"; }}
             >
               {btn.icon}
             </button>

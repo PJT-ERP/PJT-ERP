@@ -30,7 +30,7 @@ public sealed class InvoicesController(IFinanceService financeService) : Control
 
     [HttpGet("{invoiceId:guid}/pdf")]
     [AllowAnonymous] // Allow viewing PDF without Auth header (e.g. window.open) or we can leave it Authorized if we pass token
-    public async Task<ActionResult> GetPdf(Guid invoiceId, CancellationToken cancellationToken)
+    public async Task<ActionResult> GetPdf(Guid invoiceId, [FromQuery] bool inline = false, CancellationToken cancellationToken = default)
     {
         var invoice = await financeService.GetInvoiceAsync(invoiceId, cancellationToken);
         if (invoice is null)
@@ -39,6 +39,10 @@ public sealed class InvoicesController(IFinanceService financeService) : Control
         }
 
         var pdfBytes = PdfGeneratorService.GenerateInvoicePdf(invoice);
+        if (inline)
+        {
+            return File(pdfBytes, "application/pdf");
+        }
         return File(pdfBytes, "application/pdf", $"Invoice-{invoice.InvoiceNumber}.pdf");
     }
 

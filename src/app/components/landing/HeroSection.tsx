@@ -125,7 +125,7 @@ export function HeroSection() {
                 </div>
                 <div
                   style={{
-                    color: "#64748B",
+                    color: "#E2E8F0",
                     fontFamily: "Inter, sans-serif",
                     fontSize: "13px",
                     fontWeight: 500,

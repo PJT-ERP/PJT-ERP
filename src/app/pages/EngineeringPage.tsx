@@ -45,7 +45,7 @@ export function EngineeringPage() {
 
   const designQueue = allDesignQueue.filter(item => {
     if (isSpv) return true;
-    return item.assignedTo === currentUser?.id;
+    return item.designAssignedTo === currentUser?.id || item.assignedTo === currentUser?.id;
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design').length;
@@ -62,7 +62,7 @@ export function EngineeringPage() {
       icon: <List size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: "Dari Tim Sales",
+      change: isSpv ? "Dari Tim Sales" : "Dari Supervisor",
     },
     {
       label: "Waiting Spv Approval",
@@ -145,7 +145,7 @@ export function EngineeringPage() {
             {designQueue.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                 <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
+                <p style={{ margin: 0 }}>{isSpv ? "Tidak ada antrean desain dari Sales." : "Tidak ada antrean desain dari Supervisor."}</p>
               </div>
             ) : (
               designQueue.slice(0, 10).map((so, idx) => {

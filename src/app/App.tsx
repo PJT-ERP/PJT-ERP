@@ -21,6 +21,7 @@ import { FinancePurchasingApproval } from "./components/finance/FinancePurchasin
 // Migrated Pages from Folder B
 import { AdminPage } from "./pages/AdminPage";
 import { EngineeringTasksPage } from "./pages/EngineeringTasksPage";
+import { EngineeringTaskDetailPage } from "./pages/EngineeringTaskDetailPage";
 import { EngineeringPage } from "./pages/EngineeringPage";
 import { EngineeringPurchasingPage } from "./pages/EngineeringPurchasingPage";
 import { EngineeringQCPage } from "./pages/EngineeringQCPage";
@@ -61,6 +62,7 @@ export default function App() {
             {/* Engineer: Engineering Worker, Admin, Owner, Engineering Supervisor */}
             <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPage /></ProtectedRoute>} />
             <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
+            <Route path="engineer-tasks/:id" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTaskDetailPage /></ProtectedRoute>} />
             <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
             <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
             <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />

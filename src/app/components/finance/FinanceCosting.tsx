@@ -18,10 +18,12 @@ import { SalesOrder } from "../data/mockData";
 import { salesApi } from "../../services/salesApi";
 
 export function FinanceCosting() {
-  const { salesOrders, updateSalesOrder } = useApp();
+  const { salesOrders, customers, updateSalesOrder } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
 
   // Status that indicates SO is ready for Costing (after SPV Engineering approval)
   const waitingPricingSO = salesOrders.filter(so => so.status === "Waiting Pricing").map(so => ({
@@ -29,9 +31,16 @@ export function FinanceCosting() {
     isQuotation: false
   }));
 
-  const waitingPricingList = [...waitingPricingSO];
+  const historySO = salesOrders.filter(so => 
+    so.items && so.items.some((item: any) => item.unitPrice && item.unitPrice > 0) && so.status !== "Waiting Pricing"
+  ).map(so => ({
+    ...so,
+    isQuotation: false
+  })).sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
 
-  const filteredList = waitingPricingList.filter(item => 
+  const activeList = activeTab === 'queue' ? waitingPricingSO : historySO;
+
+  const filteredList = activeList.filter(item => 
     (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
     (item.customerId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.customerName || "").toLowerCase().includes(searchTerm.toLowerCase())
@@ -101,6 +110,7 @@ export function FinanceCosting() {
   };
 
   const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
+  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Menunggu Invoice DP";
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -114,6 +124,34 @@ export function FinanceCosting() {
 
       {/* Toolbar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", background: S.bg, padding: 4, borderRadius: 8, border: `1px solid ${S.border}` }}>
+          <button
+            onClick={() => setActiveTab('queue')}
+            style={{
+              padding: "8px 16px", borderRadius: 6, border: "none",
+              background: activeTab === 'queue' ? S.white : "transparent",
+              color: activeTab === 'queue' ? S.slate : S.secondary,
+              fontWeight: activeTab === 'queue' ? 600 : 500, fontSize: "13px", cursor: "pointer",
+              boxShadow: activeTab === 'queue' ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+              display: "flex", alignItems: "center", gap: 6
+            }}
+          >
+            <List size={14} /> Antrean ({waitingPricingSO.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            style={{
+              padding: "8px 16px", borderRadius: 6, border: "none",
+              background: activeTab === 'history' ? S.white : "transparent",
+              color: activeTab === 'history' ? S.slate : S.secondary,
+              fontWeight: activeTab === 'history' ? 600 : 500, fontSize: "13px", cursor: "pointer",
+              boxShadow: activeTab === 'history' ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+              display: "flex", alignItems: "center", gap: 6
+            }}
+          >
+            <History size={14} /> Riwayat
+          </button>
+        </div>
         <div style={{ position: "relative", width: 300 }}>
           <Search size={18} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
           <input 
@@ -128,18 +166,14 @@ export function FinanceCosting() {
 
       {/* List / Table SO */}
       <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 100px 150px", padding: "12px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["No. SO", "Pelanggan", "Produk (Items)", "Status", "Aksi"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 120px 100px 150px", padding: "12px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+          {["No. SO", "Pelanggan", "Produk (Items)", "Deadline", "Status", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
         {filteredList.length === 0 ? (
-          <div style={{ padding: "32px", textAlign: "center", color: S.secondary, fontSize: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span>Tidak ada Sales Order yang menunggu penetapan harga.</span>
-            <span style={{ fontSize: "11px", color: "#EF4444" }}>
-              DEBUG INFO: Total SO: {salesOrders.length} | Waiting Pricing SO: {waitingPricingSO.length} | 
-              Statuses: {salesOrders.slice(0, 5).map(s => s.status).join(", ")}
-            </span>
+          <div style={{ padding: "40px", textAlign: "center", color: S.secondary, fontSize: "14px" }}>
+            {activeTab === 'queue' ? "Tidak ada antrean pesanan yang menunggu penetapan harga." : "Riwayat costing masih kosong."}
           </div>
         ) : (
           filteredList.map((so, idx) => {
@@ -148,23 +182,27 @@ export function FinanceCosting() {
               <div 
                 key={so.id}
                 style={{ 
-                  display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 100px 150px", alignItems: "center",
+                  display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 120px 100px 150px", alignItems: "center",
                   padding: "12px 18px", 
                   borderBottom: idx < filteredList.length - 1 ? `1px solid ${S.border}` : "none"
                 }}
               >
                 <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.soNumber || so.id}</span>
-                <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.customerId}</span>
-                <span style={{ color: S.slate, fontSize: "13px" }}>{itemCount} Items</span>
+                <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers?.find(c => c.code === so.customerId)?.name || so.customerName || so.customerId}</span>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.productName || so.description || "-"}</span>
+                  <span style={{ color: S.secondary, fontSize: "11px" }}>{itemCount} items</span>
+                </div>
+                <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
                 <div style={{ alignSelf: "center" }}>
-                  <span style={{ fontSize: "11px", background: "#FEF3C7", color: "#D97706", padding: "4px 8px", borderRadius: 12, fontWeight: 500 }}>Waiting Pricing</span>
+                  <span style={{ fontSize: "11px", background: activeTab === 'queue' ? "#FEF3C7" : "#F1F5F9", color: activeTab === 'queue' ? "#D97706" : "#475569", padding: "4px 8px", borderRadius: 12, fontWeight: 500 }}>{so.status}</span>
                 </div>
                 <div>
                   <button 
                     onClick={() => setSelectedItem(so)}
-                    style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    style={{ fontSize: "11px", background: activeTab === 'queue' ? S.cyan : S.white, color: activeTab === 'queue' ? "#fff" : S.slate, border: activeTab === 'queue' ? "none" : `1px solid ${S.border}`, padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
-                    Set Harga
+                    {activeTab === 'queue' ? "Set Harga" : "Detail / Revisi"}
                   </button>
                 </div>
               </div>
@@ -218,6 +256,16 @@ export function FinanceCosting() {
             ) : (
             <>
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
+              {isReadOnly && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <p style={{ color: "#991B1B", margin: 0, fontSize: "13.5px", fontWeight: 500 }}>
+                    ⚠️ Data bersifat Read-Only
+                  </p>
+                  <p style={{ color: "#B91C1C", margin: "4px 0 0", fontSize: "12.5px" }}>
+                    Pesanan ini sudah dibuatkan Invoice / dilanjutkan prosesnya, sehingga harga tidak bisa diubah lagi.
+                  </p>
+                </div>
+              )}
               {/* Info Dokumen Desain */}
               <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
                 <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
@@ -286,8 +334,9 @@ export function FinanceCosting() {
                                 type="number"
                                 min="0"
                                 value={price || ""}
+                                disabled={isReadOnly}
                                 onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value) })}
-                                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
+                                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                               />
                             </div>
                           </td>
@@ -314,8 +363,9 @@ export function FinanceCosting() {
                   rows={4}
                   placeholder="Misal: Material A: 50.000, Material B: 30.000, Ongkos Produksi: 20.000. Total Modal: 100.000. Margin: 20%"
                   value={costingNotes}
+                  disabled={isReadOnly}
                   onChange={(e) => setCostingNotes(e.target.value)}
-                  style={{ width: "100%", padding: "12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "vertical", boxSizing: "border-box", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                 />
               </div>
 
@@ -328,24 +378,26 @@ export function FinanceCosting() {
               >
                 Batal
               </button>
-              <button 
-                onClick={handleSubmitCosting}
-                disabled={isSubmitting || !isAllPriced}
-                style={{ 
-                  padding: "10px 24px", border: "none", 
-                  background: isAllPriced ? S.cyan : "#E2E8F0", 
-                  color: isAllPriced ? "#fff" : "#94A3B8", 
-                  borderRadius: 6, cursor: isAllPriced ? "pointer" : "not-allowed", 
-                  fontWeight: 600, fontSize: "13.5px",
-                  display: "flex", alignItems: "center", gap: 8
-                }}
-              >
-                {isSubmitting ? "Menyimpan..." : (
-                  <>
-                    <CheckCircle size={16} /> Simpan & Tetapkan Harga
-                  </>
-                )}
-              </button>
+              {!isReadOnly && (
+                <button 
+                  onClick={handleSubmitCosting}
+                  disabled={isSubmitting || !isAllPriced}
+                  style={{ 
+                    padding: "10px 24px", border: "none", 
+                    background: isAllPriced ? S.cyan : "#E2E8F0", 
+                    color: isAllPriced ? "#fff" : "#94A3B8", 
+                    borderRadius: 6, cursor: isAllPriced ? "pointer" : "not-allowed", 
+                    fontWeight: 600, fontSize: "13.5px",
+                    display: "flex", alignItems: "center", gap: 8
+                  }}
+                >
+                  {isSubmitting ? "Menyimpan..." : (
+                    <>
+                      <CheckCircle size={16} /> Simpan & Tetapkan Harga
+                    </>
+                  )}
+                </button>
+              )}
             </div>
             </>
             )}
