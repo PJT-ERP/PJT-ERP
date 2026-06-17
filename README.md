@@ -59,7 +59,7 @@ Engineering Supervisor menerima request desain, melihat beban kerja tim, lalu as
 
 Finance menghitung harga dari BOM/list parts yang dibuat Engineer, memasukkan harga jual ke Quotation, dan membantu proses revisi harga jika ada negosiasi. Revisi harga tetap berada di dokumen Quotation yang sama sebagai revision history. Setelah customer deal harga, Sales melakukan `Convert to SO`, lalu Finance menerbitkan invoice DP. DP bisa 25%, 50%, atau persentase lain, dan setiap invoice punya tanggal jatuh tempo serta progress pembayaran.
 
-Produksi hanya berjalan setelah DP diverifikasi lunas sesuai termin yang ditetapkan Finance. Sales Order masuk ke Supervisor Produksi/Engineering untuk assignment Engineer/Operator lapangan. Operator dapat melihat link gambar dari SO, termasuk customer drawing dan engineering drawing. Production Tracker juga membaca gambar dari SO supaya tidak ada file produksi yang terpisah dari order.
+Produksi hanya berjalan setelah DP diverifikasi lunas sesuai termin yang ditetapkan Finance. Setelah verifikasi Finance, sistem secara otomatis mengubah status pesanan (Sales Order) menjadi Confirmed, yang diterjemahkan menjadi "Ready for Production". Sales Order tersebut langsung masuk ke dalam antrean (Pending Assignment) milik Supervisor Produksi/Engineering untuk penugasan Engineer/Operator lapangan. Operator dapat melihat link gambar dari SO, termasuk customer drawing dan engineering drawing. Production Tracker juga membaca gambar dari SO supaya tidak ada file produksi yang terpisah dari order.
 
 Jika saat persiapan produksi ada material, tools, consumable, asset, project item, atau kebutuhan maintenance yang kurang, Engineer membuat Material Request (MR) multi-item. MR tersebut masuk ke Supervisor untuk approval operasional, lalu Purchasing menyiapkan PO yang tetap perlu approval Finance sebelum pembelian dijalankan. Consumable tidak wajib terikat ke satu SO karena bisa dipakai lintas banyak SO; satu PO juga boleh merujuk banyak MR dan banyak SO.
 
@@ -308,7 +308,7 @@ Alur kerja:
 5. User mengisi quantity, target date, notes, referensi desain, dan link gambar/customer drawing jika ada.
 6. User menyimpan Sales Order.
 7. Engineering Supervisor mengubah status desain menjadi `Approved`, `RevisionRequired`, atau `Rejected`.
-8. Saat Sales Order dengan desain `Approved` dikonfirmasi, Production API menyiapkan state produksi internal untuk SO tersebut.
+8. Setelah Sales Order dikonfirmasi otomatis melalui verifikasi pembayaran Finance, Production API menyiapkan state produksi internal untuk SO tersebut tanpa perlu konfirmasi manual Owner.
 9. Sistem membuat barcode unik berbasis Sales Order.
 
 Output utama:

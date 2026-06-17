@@ -38,7 +38,7 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[]): 
   const invoice = resolveSalesOrderInvoice(order, invoices);
   let status = order.status;
 
-  if (invoice?.status === "paid" && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
+  if ((invoice?.status === "paid" || invoice?.status === "verified") && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
     status = "Ready for Production";
   }
 

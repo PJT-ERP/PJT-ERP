@@ -92,9 +92,9 @@ public sealed class ProductionServiceTests
                     new CreateSalesOrderItemRequest(products[0].Id, 10, "Urgent"),
                     new CreateSalesOrderItemRequest(products[1].Id, 4, null)
                 ],
+                null,
                 new EngineerAssignment(WorkerUserId, "Worker Engineer"),
                 new EngineerAssignment(ReviewerUserId, "Reviewer Engineer"),
-                null,
                 "https://drive.example/customer-drawing.jpg",
                 "DESIGN-001",
                 SalesOrderDesignStatuses.Approved),

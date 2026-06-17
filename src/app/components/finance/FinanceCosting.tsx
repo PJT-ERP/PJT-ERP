@@ -18,7 +18,7 @@ import { SalesOrder } from "../data/mockData";
 import { salesApi } from "../../services/salesApi";
 
 export function FinanceCosting() {
-  const { salesOrders, updateSalesOrder, quotations, updateQuotation } = useApp();
+  const { salesOrders, updateSalesOrder } = useApp();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -28,21 +28,13 @@ export function FinanceCosting() {
     ...so,
     isQuotation: false
   }));
-  const waitingPricingQuotations = quotations.filter(q => q.status === "waiting_pricing").map(q => ({
-    ...q,
-    isQuotation: true,
-    soNumber: q.id,
-    customerName: q.customerId,
-    items: [{ productId: "QUT-ITEM", productName: q.productName || q.description, quantity: q.quantity, unit: q.unit, unitPrice: q.estimatedAmount || 0 }],
-    material: q.notes || "",
-  }));
 
-  const waitingPricingList = [...waitingPricingSO]; // QUT hidden per user request
+  const waitingPricingList = [...waitingPricingSO];
 
   const filteredList = waitingPricingList.filter(item => 
-    item.id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.customerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+    (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (item.customerId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.customerName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // State for costing
@@ -67,43 +59,33 @@ export function FinanceCosting() {
     setIsSubmitting(true);
     
     setTimeout(async () => {
-      if (selectedItem.isQuotation) {
-        // Handle Quotation logic
-        const finalPrice = itemPrices["QUT-ITEM"] || 0;
-        updateQuotation(selectedItem.id, {
-          estimatedAmount: finalPrice,
-          notes: costingNotes,
-          status: 'client_price_approval',
+      // Handle SO logic
+      const updatedItems = selectedItem.items!.map((item: any) => ({
+        ...item,
+        unitPrice: itemPrices[item.productId] || 0
+      }));
+
+      try {
+        // Backend integration
+        await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
+          items: updatedItems.map((item: any) => ({
+            salesOrderItemId: item.id,
+            unitPrice: item.unitPrice
+          }))
         });
-      } else {
-        // Handle SO logic
-        const updatedItems = selectedItem.items!.map((item: any) => ({
-          ...item,
-          unitPrice: itemPrices[item.productId] || 0
-        }));
 
-        try {
-          // Backend integration
-          await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
-            items: updatedItems.map((item: any) => ({
-              salesOrderItemId: item.id,
-              unitPrice: item.unitPrice
-            }))
-          });
-
-          // Local state update for smooth UX
-          updateSalesOrder(selectedItem.id, { 
-            items: updatedItems,
-            status: "Menunggu Invoice DP" 
-          });
-        } catch (error) {
-          console.error("Failed to update pricing to backend", error);
-          alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
-          updateSalesOrder(selectedItem.id, { 
-            items: updatedItems,
-            status: "Menunggu Invoice DP" 
-          });
-        }
+        // Local state update for smooth UX
+        updateSalesOrder(selectedItem.id, { 
+          items: updatedItems,
+          status: "Menunggu Invoice DP" 
+        });
+      } catch (error) {
+        console.error("Failed to update pricing to backend", error);
+        alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
+        updateSalesOrder(selectedItem.id, { 
+          items: updatedItems,
+          status: "Menunggu Invoice DP" 
+        });
       }
       
       setIsSubmitting(false);

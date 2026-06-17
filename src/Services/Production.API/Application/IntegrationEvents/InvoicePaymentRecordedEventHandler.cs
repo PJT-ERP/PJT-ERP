@@ -38,7 +38,7 @@ public sealed class InvoicePaymentRecordedEventHandler(ProductionContext db) : I
         if (salesOrder.Status == SalesOrderStatuses.Draft || salesOrder.Status == "Menunggu Invoice DP")
         {
             var now = DateTime.UtcNow;
-            salesOrder.Status = SalesOrderStatuses.InProduction;
+            salesOrder.Status = SalesOrderStatuses.Confirmed;
             salesOrder.ApprovedAtUtc ??= now;
             salesOrder.UpdatedAtUtc = now;
 

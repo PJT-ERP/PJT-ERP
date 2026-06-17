@@ -27,16 +27,34 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
 
-        var customer = await db.CustomerReplicas
-            .AsNoTracking()
-            .FirstOrDefaultAsync(replica => replica.Id == request.CustomerId && replica.IsActive, cancellationToken)
-            ?? throw new InvalidOperationException("Customer has not been replicated from MasterData yet.");
+        CustomerReplica? customer = null;
+        for (int i = 0; i < 5; i++)
+        {
+            customer = await db.CustomerReplicas
+                .AsNoTracking()
+                .FirstOrDefaultAsync(replica => replica.Id == request.CustomerId && replica.IsActive, cancellationToken);
+            
+            if (customer is not null) break;
+            await Task.Delay(1500, cancellationToken);
+        }
+
+        if (customer is null)
+        {
+            throw new InvalidOperationException("Customer has not been replicated from MasterData yet.");
+        }
 
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
-        var products = await db.ProductReplicas
-            .AsNoTracking()
-            .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
-            .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+        Dictionary<Guid, ProductReplica> products = new();
+        for (int i = 0; i < 5; i++)
+        {
+            products = await db.ProductReplicas
+                .AsNoTracking()
+                .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
+                .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+                
+            if (products.Count == productIds.Length) break;
+            await Task.Delay(1500, cancellationToken);
+        }
 
         if (products.Count != productIds.Length)
         {
@@ -158,10 +176,17 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         db.SalesOrderItems.RemoveRange(salesOrder.Items);
         
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
-        var products = await db.ProductReplicas
-            .AsNoTracking()
-            .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
-            .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+        Dictionary<Guid, ProductReplica> products = new();
+        for (int i = 0; i < 5; i++)
+        {
+            products = await db.ProductReplicas
+                .AsNoTracking()
+                .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
+                .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+                
+            if (products.Count == productIds.Length) break;
+            await Task.Delay(1500, cancellationToken);
+        }
 
         if (products.Count != productIds.Length)
         {

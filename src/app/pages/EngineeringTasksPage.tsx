@@ -3,7 +3,6 @@ import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronL
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { salesApi } from "../services/salesApi";
-import { quotationApi } from "../services/quotationApi";
 import { toBackendUserId, isGuid } from "../services/backendIds";
 
 const S = {
@@ -37,8 +36,8 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
   const customer = customers.find(c => c.code === qut.customerId);
   
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'design_review' || qut.status === 'Waiting Pricing';
-  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'pending_design');
+  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Pricing';
+  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -52,82 +51,61 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
     try {
       setIsSubmitting(true);
       
-      if (qut.isQuotation) {
-        // Handle Quotation
-        const backendId = qut.backendId || qut.id;
-        if (!isGuid(backendId)) {
-          alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
-          setIsSubmitting(false);
-          return;
-        }
+      const backendId = qut.backendId || qut.id;
+      if (!isGuid(backendId)) {
+        alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
+        setIsSubmitting(false);
+        return;
+      }
 
-        if (!isSpv) {
-          // Engineer submits design
-          const engineerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
-          await quotationApi.submitDesign(backendId, {
-            designLink,
-            bomItems: materials.map(m => ({
-              itemCode: m.id.length === 36 ? m.id : null,
-              name: m.name,
-              specification: m.spec || null,
-              quantity: Number(m.quantity) || 1,
-              unit: m.unit || "pcs",
-            })),
-            engineerId,
-            engineerName: currentUser?.name || "Engineer",
-          });
-        } else {
-          // SPV approves design
-          await quotationApi.approveSupervisorDesign(backendId);
-        }
+      if (isSpv) {
+        await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: 'Approved',
+          notes: 'Approved by SPV',
+          reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+          reviewerName: currentUser?.name || ''
+        });
+      } else {
+        // Engineer submits design reference and drawing URL to the server.
+        // Also update SalesOrderItems to persist BOM locally mapped on backend.
+        await salesApi.submitSalesOrderDesign(backendId, {
+          designReference: designLink,
+          drawingFileUrl: designLink
+        });
         
-        updateQuotation(qut.id, {
+        if (materials && materials.length > 0) {
+          try {
+             const serializedMaterials = JSON.stringify(materials);
+             const updatedItems = qut.items?.map((it, idx) => ({
+                salesOrderItemId: it.id,
+                productId: it.productId,
+                qty: it.quantity,
+                notes: idx === 0 ? serializedMaterials : it.notes
+             })) || [];
+             if (updatedItems.length > 0) {
+                await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
+             }
+          } catch(e) {
+             console.warn("Failed to update BOM on backend", e);
+          }
+        }
+      }
+
+      if (isSpv) {
+        // Do not clear localUpdates here so we don't lose the BOM that is stored locally.
+        const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+        localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
+        localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
+        // Refresh all data from backend so Finance sees the approved SO
+        await refreshBackendData();
+      } else {
+        updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
           materials,
-          status: isSpv ? 'waiting_pricing' : 'design_review',
+          status: 'Waiting Spv Approval',
+          backendDesignStatus: 'WaitingApproval',
         });
-      } else {
-        // Handle Sales Order
-        const backendId = qut.backendId || qut.id;
-        if (!isGuid(backendId)) {
-          alert("Gagal: Dokumen ini belum tersinkronisasi dengan server atau memiliki ID yang tidak valid. Silakan coba refresh halaman.");
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (isSpv) {
-          await salesApi.updateSalesOrderDesignStatus(backendId, {
-            designStatus: 'Approved',
-            notes: 'Approved by SPV',
-            reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
-            reviewerName: currentUser?.name || ''
-          });
-        } else {
-          // Engineer submits design reference and drawing URL to the server.
-          // Materials (BOM) are stored locally in the frontend state only.
-          await salesApi.submitSalesOrderDesign(backendId, {
-            designReference: designLink,
-            drawingFileUrl: designLink
-          });
-        }
-
-        if (isSpv) {
-          // Do not clear localUpdates here so we don't lose the BOM that is stored locally.
-          const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-          localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
-          localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
-          // Refresh all data from backend so Finance sees the approved SO
-          await refreshBackendData();
-        } else {
-          updateSalesOrder(qut.id, {
-            designLink,
-            designId: designLink,
-            materials,
-            status: 'Waiting Spv Approval',
-            backendDesignStatus: 'WaitingApproval',
-          });
-        }
       }
       setStep('done');
     } catch (err: any) {
@@ -150,27 +128,17 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
         return;
       }
       
-      if (qut.isQuotation) {
-        await quotationApi.requestDesignRevision(backendId, {
-          notes: rejectReason,
-        });
-        updateQuotation(qut.id, {
-          status: 'pending_design',
-          notes: rejectReason,
-        });
-      } else {
-        await salesApi.updateSalesOrderDesignStatus(backendId, {
-          designStatus: 'Rejected',
-          notes: rejectReason,
-          reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
-          reviewerName: currentUser?.name || ''
-        });
-        updateSalesOrder(qut.id, {
-          status: 'Pending Design',
-          backendDesignStatus: 'Rejected',
-          notes: rejectReason,
-        });
-      }
+      await salesApi.updateSalesOrderDesignStatus(backendId, {
+        designStatus: 'Rejected',
+        notes: rejectReason,
+        reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+        reviewerName: currentUser?.name || ''
+      });
+      updateSalesOrder(qut.id, {
+        status: 'Pending Design',
+        backendDesignStatus: 'Rejected',
+        notes: rejectReason,
+      });
       if (isSpv) {
         // Clear localStorage override before refreshing
         const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
@@ -286,12 +254,40 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: "13.5px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: "13.5px", marginBottom: 12 }}>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p></div>
-                <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Qty</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.quantity} {qut.unit}</p></div>
+                <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.quantity} {qut.unit}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.deadline}</p></div>
                 <div><p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{qut.createdAt}</p></div>
               </div>
+              
+              <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                <p style={{ fontSize: "12.5px", color: S.slate, fontWeight: 600, margin: "0 0 8px" }}>Instruksi / Referensi dari Sales</p>
+                {qut.customerDrawingUrl ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: "12px", color: S.secondary, display: "block" }}>Referensi Desain Customer:</span>
+                    <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "12.5px", display: "flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
+                      <ExternalLink size={12} /> Buka Lampiran Referensi
+                    </a>
+                  </div>
+                ) : null}
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: "12px", color: S.secondary, display: "block", marginBottom: 4 }}>Daftar Item / Produk:</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {qut.items?.map((item, idx) => (
+                      <div key={idx} style={{ fontSize: "12.5px", color: S.slate, display: "flex", justifyContent: "space-between", background: "#fff", padding: "4px 8px", borderRadius: 4, border: `1px solid ${S.border}` }}>
+                        <span>{item.productName || "Custom Product"}</span>
+                        <span style={{ fontWeight: 500 }}>{item.quantity} {item.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: "12px", color: S.secondary, display: "block" }}>Catatan Pesanan / Spesifikasi:</span>
+                  <p style={{ fontSize: "12.5px", color: S.slate, margin: "2px 0 0", whiteSpace: "pre-wrap" }}>{qut.notes || "Tidak ada catatan khusus."}</p>
+                </div>
+              </div>
+
               <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 12 }}>
                 <p style={{ fontSize: "12px", color: "#1D4ED8", margin: 0 }}>Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
               </div>
@@ -400,7 +396,7 @@ function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () =>
 }
 
 export function EngineeringTasksPage() {
-  const { salesOrders, quotations, customers, currentUser, users } = useApp();
+  const { salesOrders, customers, currentUser, users } = useApp();
   const [selectedQUT, setSelectedQUT] = useState<any | null>(null);
   const [assignModalQUT, setAssignModalQUT] = useState<any | null>(null);
 
@@ -409,12 +405,6 @@ export function EngineeringTasksPage() {
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   
-  const pendingQuotations = quotations
-    .filter(q => q.status === 'pending_design' || q.status === 'design_review')
-    .map(q => ({ ...q, isQuotation: true } as any));
-    
-  // Supervisor sees all SOs in the engineering design phase (any design status while still Draft)
-  // Worker only sees ones assigned to them that are pending/waiting
   const pendingSalesOrders = salesOrders
     .filter(so => {
       if (isSpv) {
@@ -426,10 +416,9 @@ export function EngineeringTasksPage() {
                so.backendDesignStatus !== null;
       }
       return so.status === 'Pending Design' || so.status === 'Waiting Spv Approval';
-    })
-    .map(so => ({ ...so, isQuotation: false } as any));
+    });
 
-  const allQueue = [...pendingQuotations, ...pendingSalesOrders];
+  const allQueue = [...pendingSalesOrders];
   
   const queue = allQueue
     .filter(q => {
@@ -473,11 +462,11 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
-            const canWork = !isSpv && qut.assignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'pending_design');
+            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
             // Review button: only when design is waiting for supervisor approval
-            const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'design_review');
+            const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet
-            const canAssign = isSpv && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'pending_design');
+            const canAssign = isSpv && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
 
             return (
             <div

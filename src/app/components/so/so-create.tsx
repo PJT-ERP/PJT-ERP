@@ -8,12 +8,10 @@ import {
 } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
-import type { Page } from "../layout/erp-layout";
-import { quotationApi } from "../../services/quotationApi";
 import { salesApi } from "../../services/salesApi";
 
 interface SOCreateProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
   initialData?: { customerId?: string; orderType?: "new" | "repeat"; mode?: string; soId?: string };
 }
 
@@ -313,7 +311,7 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                   onChange({
                     ...row,
                     designId: selectedDesignId,
-                    materials: design ? design.materials.map(m => ({
+                    materials: design ? design.materials.map((m: any) => ({
                       id: m.id,
                       name: m.name,
                       specification: m.spec || "",
@@ -349,13 +347,16 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                   </tr>
                 </thead>
                 <tbody>
-                  {row.materials.map(mat => (
-                    <tr key={mat.id}>
-                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
-                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
-                      <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{mat.quantity} {mat.unit}</td>
-                    </tr>
-                  ))}
+                  {row.materials.map((mat: any, i) => {
+                    const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
+                    return (
+                      <tr key={mat.id}>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{totalQty} {mat.unit}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -408,7 +409,7 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, productCatalog, salesOrders, quotations, refreshBackendData } = useApp();
+  const { customers, productCatalog, salesOrders, refreshBackendData } = useApp();
   const catalogProductOptions = productCatalog.map(product => ({
     id: product.id,
     label: `${product.partNumber} - ${product.description}`,
@@ -448,7 +449,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       customName: existingAppSo.description,
       quantity: String(existingAppSo.quantity),
       unit: existingAppSo.unit,
-      materials: existingAppSo.materials || emptyProduct().materials,
+      materials: emptyProduct().materials,
     } : emptyProduct()
   ]);
   const [submitted, setSubmitted] = useState(false);
@@ -571,13 +572,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     // Retry loop untuk menangani eventual consistency (replikasi PGMQ dari MasterData ke Production)
     let lastError: any;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
       try {
         return await salesApi.createSalesOrder(payload);
       } catch (error: any) {
         lastError = error;
-        // Tunggu 1.5 detik sebelum mencoba lagi agar replika MasterData punya waktu sinkronisasi
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Tunggu 2.5 detik sebelum mencoba lagi agar replika MasterData punya waktu sinkronisasi
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
     }
     throw lastError;
@@ -660,9 +661,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
               {" "}
-              {(orderType === "new" && !customerForm.customerImageUrl) || (orderType === "repeat" && !repeatForm.customerImageUrl)
-                ? "Karena URL Gambar kosong, desain sedang diajukan ke tim Engineering. SO akan berstatus Pending Design."
-                : "Dokumen SO tersimpan di backend dan siap mengikuti workflow produksi/finance berikutnya."}
+              Desain dan BOM (Bill of Materials) sedang diajukan ke tim Engineering. SO akan berstatus Pending Design.
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>

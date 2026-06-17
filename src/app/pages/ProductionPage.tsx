@@ -529,7 +529,11 @@ function PaginationControl({ currentPage, totalItems, itemsPerPage, onPageChange
 
 export function ProductionPage() {
   const { salesOrders, currentUser, users, purchasingRequests, customers, refreshBackendData } = useApp();
-  const { invoices } = useFinanceData(true);
+  const canReadFinanceData = currentUser?.role === "Finance"
+    || currentUser?.role === "Admin"
+    || currentUser?.role === "Owner"
+    || currentUser?.role === "Sales";
+  const { invoices } = useFinanceData(canReadFinanceData);
   const mergedSalesOrders = salesOrders.map(so => mergeSalesOrderInvoice(so, invoices));
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';

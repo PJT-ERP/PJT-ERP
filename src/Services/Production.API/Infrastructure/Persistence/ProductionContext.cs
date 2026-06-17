@@ -86,6 +86,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(item => item.ProductDescription).HasColumnName("product_description");
             builder.Property(item => item.ProductMaterialSpec).HasColumnName("product_material_spec");
             builder.Property(item => item.Qty).HasColumnName("qty");
+            builder.Property(item => item.UnitPrice).HasColumnName("unit_price");
             builder.Property(item => item.Notes).HasColumnName("notes");
             builder.Property(item => item.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(item => item.UpdatedAtUtc).HasColumnName("updated_at_utc");

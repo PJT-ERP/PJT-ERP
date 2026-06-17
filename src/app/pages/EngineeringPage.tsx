@@ -5,8 +5,7 @@ import {
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { Quotation, QuotationStatus, getStatusColor } from "../components/data/mockData";
-import { ApprovalModal, ApprovalItem } from "./OwnerApprovalPage";
+import { getStatusColor } from "../components/data/mockData";
 import { useNavigate } from "react-router";
 
 const S = {
@@ -31,165 +30,30 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function DesignModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation, customers, currentUser } = useApp();
-  const [designLink, setDesignLink] = useState(qut.designLink ?? qut.designId ?? '');
-  const [step, setStep] = useState<'upload' | 'confirm' | 'done'>('upload');
-  const customer = customers.find(c => c.code === qut.customerId);
-  
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'design_review';
-
-  const handleForward = () => {
-    updateQuotation(qut.id, {
-      designLink,
-      designId: designLink,
-      status: isSpv ? 'waiting_pricing' : 'design_review',
-    });
-    setStep('done');
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <h2 className="text-gray-900 m-0">{qut.id}</h2>
-            <p className="text-xs text-gray-500 m-0 mt-1">{qut.productName} - {qut.description}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold bg-transparent border-none cursor-pointer">&times;</button>
-        </div>
-        <div className="px-6 py-5">
-          {step === 'done' ? (
-            <div className="text-center py-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle size={32} className="text-green-500" />
-              </div>
-              <h3 className="text-gray-900 mb-1">
-                {isSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
-              </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                {isSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
-              </p>
-              <button onClick={onClose} className="px-6 py-2 bg-red-600 text-white text-sm rounded-lg border-none cursor-pointer">Tutup</button>
-            </div>
-          ) : step === 'confirm' ? (
-            <div className="space-y-4 flex flex-col gap-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm text-amber-800 m-0">
-                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3 flex flex-col gap-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Customer</span><span className="text-gray-900 font-medium">{customer?.name}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Qty</span><span className="text-gray-900 font-medium">{qut.quantity} {qut.unit}</span></div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Link Desain</span>
-                  <a href={designLink} target="_blank" rel="noreferrer" className="text-red-600 text-xs flex items-center gap-1 font-medium decoration-transparent hover:underline">Lihat <ExternalLink size={11} /></a>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setStep('upload')} className="flex-1 py-2 border border-gray-300 text-gray-700 bg-white text-sm rounded-lg hover:bg-gray-50 cursor-pointer">Kembali</button>
-                <button onClick={handleForward} className="flex-1 py-2 bg-red-600 text-white text-sm border-none rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 cursor-pointer font-medium">
-                  <Send size={15} /> {isSpv ? 'Approve & Forward' : 'Forward ke Supervisor'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-gray-500 m-0">Customer</p><p className="text-gray-900 m-0 font-medium">{customer?.name}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Qty</p><p className="text-gray-900 m-0 font-medium">{qut.quantity} {qut.unit}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Deadline</p><p className="text-gray-900 m-0 font-medium">{qut.deadline}</p></div>
-                <div><p className="text-xs text-gray-500 m-0">Tanggal Request</p><p className="text-gray-900 m-0 font-medium">{qut.createdAt}</p></div>
-              </div>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800 m-0">Silakan unggah dokumen CAD dan daftar material (BOM) ke folder cloud proyek ini, lalu tempelkan linknya di bawah.</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-700 mb-1.5 font-medium">Link Desain / Drawing & BOM <span className="text-red-500">*</span></label>
-                <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-red-600" />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 bg-white text-gray-700 text-sm rounded-lg hover:bg-gray-50 cursor-pointer">Batal</button>
-                <button onClick={() => setStep('confirm')} disabled={!designLink.trim()}
-                  className="flex-1 py-2.5 bg-red-600 border-none text-white text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer font-medium">
-                  <Send size={15} /> {isSpv && isPendingSpv ? 'Review & Approve' : 'Submit & Forward'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AssignEngineerModal({ qut, onClose }: { qut: Quotation; onClose: () => void }) {
-  const { updateQuotation, users } = useApp();
-  const engineers = users.filter(u => u.role === 'Engineering Worker' && u.username !== 'eng_spv');
-  
-  const handleAssign = (userId: string) => {
-    const engineer = engineers.find(user => user.id === userId);
-    updateQuotation(qut.id, {
-      assignedTo: userId,
-      assignedName: engineer?.name,
-    });
-    onClose();
-  };
-  
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-        <h2 className="text-lg text-gray-900 m-0 mb-4 font-semibold font-sans">Tugaskan Desain</h2>
-        <div className="space-y-2 flex flex-col gap-2">
-          {engineers.map(eng => (
-            <button key={eng.id} onClick={() => handleAssign(eng.id)} className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-red-50 hover:border-red-200 transition-colors cursor-pointer bg-white">
-              <p className="m-0 font-medium text-gray-900 text-sm">{eng.name}</p>
-              <p className="m-0 text-xs text-gray-500">{eng.email}</p>
-            </button>
-          ))}
-        </div>
-        <button onClick={onClose} className="w-full mt-4 py-2 border border-gray-300 text-gray-700 bg-white text-sm font-medium rounded-lg hover:bg-gray-50 cursor-pointer">Batal</button>
-      </div>
-    </div>
-  );
-}
-
 export function EngineeringPage() {
   const navigate = useNavigate();
-  const { quotations, salesOrders, customers, currentUser, users } = useApp();
-  const [selectedQUT, setSelectedQUT] = useState<Quotation | null>(null);
-  const [assignModalQUT, setAssignModalQUT] = useState<Quotation | null>(null);
+  const { salesOrders, customers, currentUser, users } = useApp();
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
 
   // Pre-Sales Design Queue
-  const pendingQuotations = quotations
-    .filter(q => q.status === 'pending_design' || q.status === 'design_review')
-    .map(q => ({ ...q, isQuotation: true } as any));
-    
   const pendingSalesOrders = salesOrders
     .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
     .map(so => ({ ...so, isQuotation: false } as any));
 
-  const allDesignQueue = [...pendingQuotations, ...pendingSalesOrders];
+  const allDesignQueue = [...pendingSalesOrders];
 
   const designQueue = allDesignQueue.filter(item => {
     if (isSpv) return true;
     return item.assignedTo === currentUser?.id;
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design' || item.status === 'pending_design').length;
-  const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval' || item.status === 'design_review').length;
+  const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design').length;
+  const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
   // Production Stats
-  const inProductionCount = salesOrders.filter(so => so.status === 'in_production' || so.status === 'material_preparation').length;
-  const qcCount = salesOrders.filter(so => so.status === 'qc_check').length;
+  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Material Preparation').length;
+  const qcCount = salesOrders.filter(so => so.status === 'QC').length;
 
   const summaryCards = [
     {
@@ -402,12 +266,6 @@ export function EngineeringPage() {
         </div>
       </div>
 
-      {selectedQUT && (isSpv && selectedQUT.status === 'design_review' ? (
-        <ApprovalModal item={{ ...selectedQUT, isQuotation: true } as ApprovalItem} onClose={() => setSelectedQUT(null)} />
-      ) : (
-        <DesignModal qut={selectedQUT} onClose={() => setSelectedQUT(null)} />
-      ))}
-      {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
 }

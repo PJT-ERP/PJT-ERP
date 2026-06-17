@@ -38,72 +38,7 @@ SET part_number = EXCLUDED.part_number,
     is_active = EXCLUDED.is_active,
     updated_at_utc = EXCLUDED.updated_at_utc;
 
-INSERT INTO quotations ("Id", quotation_number, customer_id, customer_code, customer_name, customer_email, deadline, notes, status, assigned_engineer_id, assigned_engineer_name, design_link, estimated_amount, lost_reason, converted_sales_order_id, converted_sales_order_number, created_at_utc, updated_at_utc)
-VALUES
-    ('33333333-3333-4333-8333-333333333001', 'QU-2026-001', '11111111-1111-4111-8111-111111111009', 'CUST-9012', 'PT. PRESISI BAUT NUSANTARA', 'raka@presisibaut.co.id', '2026-06-30', 'Customer baru meminta baut presisi 0.05mm. Sales meminta desain ke Engineering.', 'pending_design', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-01T08:00:00Z', '2026-06-01T08:00:00Z'),
-    ('33333333-3333-4333-8333-333333333002', 'QU-2026-002', '11111111-1111-4111-8111-111111111002', '0002', 'PT. SUMBER JAYA STEEL', 'lisa@sumberjayasteel.co.id', '2026-06-25', 'Desain sudah disetujui supervisor dan menunggu costing Finance.', 'waiting_pricing', '90000000-0000-4000-8000-000000000002', 'Reza Firmansyah', 'https://drive.google.com/file/d/pjt-design-002', NULL, NULL, NULL, NULL, '2026-06-02T08:00:00Z', '2026-06-05T11:00:00Z'),
-    ('33333333-3333-4333-8333-333333333003', 'QU-2026-003', '11111111-1111-4111-8111-111111111003', '0003', 'CV. TEKNIK MANDIRI', 'budi@teknikmandiri.co.id', '2026-06-20', 'Harga sudah direvisi setelah nego awal.', 'client_price_approval', '90000000-0000-4000-8000-000000000002', 'Reza Firmansyah', 'https://drive.google.com/file/d/pjt-design-003', 25000000, NULL, NULL, NULL, '2026-06-03T08:00:00Z', '2026-06-06T10:00:00Z'),
-    ('33333333-3333-4333-8333-333333333004', 'QU-2026-004', '11111111-1111-4111-8111-111111111004', '0004', 'PT. INDO PRESISI PART', 'harry@indopresisi.co.id', '2026-06-15', 'Quotation ditutup setelah customer memilih vendor lain.', 'lost', '90000000-0000-4000-8000-000000000002', 'Reza Firmansyah', 'https://drive.google.com/file/d/pjt-design-004', 40000000, 'Harga terlalu mahal dibanding kompetitor', NULL, NULL, '2026-06-04T08:00:00Z', '2026-06-08T10:00:00Z'),
-    ('33333333-3333-4333-8333-333333333005', 'QUT-2026-007', '11111111-1111-4111-8111-111111111005', '0005', 'PT. ANEKA KOMPONEN', 'rini@anekakomponen.co.id', '2026-08-05', 'Toleransi dimensi terlalu ketat, perlu dikonfirmasi ulang dengan customer. Revisi drawing section A-A.', 'pending_design', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-05T08:00:00Z', '2026-06-05T08:00:00Z'),
-    ('33333333-3333-4333-8333-333333333006', 'QUT-2026-001', '11111111-1111-4111-8111-111111111001', '0001', 'PT. METAL FASTINDO ABADI', 'agus@metalfastindo.co.id', '2026-07-25', 'Desain awal', 'pending_design', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-05T08:00:00Z', '2026-06-05T08:00:00Z'),
-    ('33333333-3333-4333-8333-333333333007', 'QUT-2026-005', '11111111-1111-4111-8111-111111111008', '0008', 'PT. PRIMA SOLUSI INDUSTRI', 'wati@primasolusi.co.id', '2026-07-28', 'Desain awal', 'pending_design', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-05T08:00:00Z', '2026-06-05T08:00:00Z'),
-    ('33333333-3333-4333-8333-333333333008', 'QUT-2026-006', '11111111-1111-4111-8111-111111111002', '0002', 'PT. SUMBER JAYA STEEL', 'lisa@sumberjayasteel.co.id', '2026-08-01', 'Desain awal', 'pending_design', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-05T08:00:00Z', '2026-06-05T08:00:00Z')
-ON CONFLICT ("Id") DO UPDATE
-SET quotation_number = EXCLUDED.quotation_number,
-    customer_id = EXCLUDED.customer_id,
-    customer_code = EXCLUDED.customer_code,
-    customer_name = EXCLUDED.customer_name,
-    customer_email = EXCLUDED.customer_email,
-    deadline = EXCLUDED.deadline,
-    notes = EXCLUDED.notes,
-    status = EXCLUDED.status,
-    assigned_engineer_id = EXCLUDED.assigned_engineer_id,
-    assigned_engineer_name = EXCLUDED.assigned_engineer_name,
-    design_link = EXCLUDED.design_link,
-    estimated_amount = EXCLUDED.estimated_amount,
-    lost_reason = EXCLUDED.lost_reason,
-    updated_at_utc = EXCLUDED.updated_at_utc;
 
-INSERT INTO quotation_items ("Id", quotation_id, product_id, product_name, description, quantity, unit, customer_image_url, design_link, created_at_utc, updated_at_utc)
-VALUES
-    ('33333333-3333-4333-8333-333333333101', '33333333-3333-4333-8333-333333333001', '22222222-2222-4222-8222-222222222012', 'Baut Custom 0.05mm', 'Baut baja presisi tinggi untuk mesin bubut', 100, 'pcs', 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=600', NULL, '2026-06-01T08:00:00Z', '2026-06-01T08:00:00Z'),
-    ('33333333-3333-4333-8333-333333333102', '33333333-3333-4333-8333-333333333002', '22222222-2222-4222-8222-222222222005', 'Pipa Galvanis 3 Inch Bracket', 'Bracket khusus untuk fixture pipa galvanis', 50, 'pcs', NULL, 'https://drive.google.com/file/d/pjt-design-002', '2026-06-02T08:00:00Z', '2026-06-05T11:00:00Z'),
-    ('33333333-3333-4333-8333-333333333103', '33333333-3333-4333-8333-333333333003', '22222222-2222-4222-8222-222222222002', 'Shaft Coupling SS316L', 'Assembly coupling shaft', 10, 'pcs', 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&q=80&w=600', 'https://drive.google.com/file/d/pjt-design-003', '2026-06-03T08:00:00Z', '2026-06-06T10:00:00Z'),
-    ('33333333-3333-4333-8333-333333333104', '33333333-3333-4333-8333-333333333004', '22222222-2222-4222-8222-222222222004', 'Gear Box Helical', 'Ratio 1:20', 2, 'set', NULL, 'https://drive.google.com/file/d/pjt-design-004', '2026-06-04T08:00:00Z', '2026-06-08T10:00:00Z')
-ON CONFLICT ("Id") DO UPDATE
-SET product_id = EXCLUDED.product_id,
-    product_name = EXCLUDED.product_name,
-    description = EXCLUDED.description,
-    quantity = EXCLUDED.quantity,
-    unit = EXCLUDED.unit,
-    customer_image_url = EXCLUDED.customer_image_url,
-    design_link = EXCLUDED.design_link,
-    updated_at_utc = EXCLUDED.updated_at_utc;
-
-INSERT INTO quotation_bom_items ("Id", quotation_id, quotation_item_id, item_code, name, specification, quantity, unit)
-VALUES
-    ('33333333-3333-4333-8333-333333333201', '33333333-3333-4333-8333-333333333002', '33333333-3333-4333-8333-333333333102', 'MAT-SS304-050', 'Stainless Steel Bar SS304', 'Diameter 50mm, 3m', 10, 'batang'),
-    ('33333333-3333-4333-8333-333333333202', '33333333-3333-4333-8333-333333333002', '33333333-3333-4333-8333-333333333102', 'MAT-COOLANT', 'Coolant Bubut', 'Water soluble coolant', 20, 'liter'),
-    ('33333333-3333-4333-8333-333333333203', '33333333-3333-4333-8333-333333333003', '33333333-3333-4333-8333-333333333103', 'MAT-SS316L-080', 'SS316L Round Bar', 'Diameter 80mm', 4, 'batang'),
-    ('33333333-3333-4333-8333-333333333204', '33333333-3333-4333-8333-333333333003', '33333333-3333-4333-8333-333333333103', 'MAT-BEARING-6205', 'Bearing SKF 6205-2RS', 'Original SKF', 10, 'pcs'),
-    ('33333333-3333-4333-8333-333333333205', '33333333-3333-4333-8333-333333333004', '33333333-3333-4333-8333-333333333104', 'MAT-FC250', 'Cast Iron FC250', 'Housing casting', 2, 'set')
-ON CONFLICT ("Id") DO UPDATE
-SET item_code = EXCLUDED.item_code,
-    name = EXCLUDED.name,
-    specification = EXCLUDED.specification,
-    quantity = EXCLUDED.quantity,
-    unit = EXCLUDED.unit;
-
-INSERT INTO quotation_price_revisions ("Id", quotation_id, revision_number, amount, revision_date, notes, finance_user_id, finance_user_name)
-VALUES
-    ('33333333-3333-4333-8333-333333333301', '33333333-3333-4333-8333-333333333003', 1, 28000000, '2026-06-04', 'Penawaran awal dengan material premium.', '90000000-0000-4000-8000-000000000005', 'Dewi Kusuma'),
-    ('33333333-3333-4333-8333-333333333302', '33333333-3333-4333-8333-333333333003', 2, 25000000, '2026-06-06', 'Diskon volume setelah nego dengan klien.', '90000000-0000-4000-8000-000000000005', 'Dewi Kusuma')
-ON CONFLICT ("Id") DO UPDATE
-SET amount = EXCLUDED.amount,
-    revision_date = EXCLUDED.revision_date,
-    notes = EXCLUDED.notes,
-    finance_user_id = EXCLUDED.finance_user_id,
-    finance_user_name = EXCLUDED.finance_user_name;
 
 INSERT INTO sales_orders ("Id", so_number, customer_id, customer_code, customer_name, customer_email, customer_drawing_url, design_reference, design_status, design_approved_by_user_id, design_approved_by_name, design_approved_at_utc, so_date, target_date, production_worker_user_id, production_worker_name, qc_reviewer_user_id, qc_reviewer_name, status, approved_by_user_id, approved_at_utc, created_at_utc, updated_at_utc)
 VALUES

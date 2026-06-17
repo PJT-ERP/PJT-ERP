@@ -38,6 +38,7 @@ export interface SalesOrder {
   backendId?: string;
   soNumber?: string;
   customerId: string;
+  customerName?: string;
   customerEmail?: string;
   customerDrawingUrl?: string;
   partNumber: string;
@@ -78,6 +79,10 @@ export interface SalesOrder {
   estimatedAmount?: number;
   customerImageUrl?: string;
   items?: any[];
+  materials?: any[];
+  designId?: string;
+  productName?: string;
+  isQuotation?: boolean;
 }
 
 export const ENGINEERING_DESIGNS: any[] = [];

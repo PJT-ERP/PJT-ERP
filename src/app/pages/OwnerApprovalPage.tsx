@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, XCircle, ExternalLink, Clock, RotateCcw, Search, FileText } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, Quotation, getStatusColor, getQuotationStatusColor } from "../components/data/mockData";
+import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
 import { toBackendUserId } from "../services/backendIds";
 
@@ -17,19 +17,10 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-export type ApprovalItem = (SalesOrder | Quotation) & { isQuotation: boolean };
+export type ApprovalItem = SalesOrder;
 
 function StatusBadgeItem({ item }: { item: ApprovalItem }) {
-  if (item.isQuotation) {
-    const cfg = getQuotationStatusColor((item as Quotation).status);
-    return (
-      <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
-        <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-        {cfg.label}
-      </span>
-    );
-  }
-  const cfg = getStatusColor((item as SalesOrder).status as any);
+  const cfg = getStatusColor(item.status as any);
   return (
     <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
       <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
@@ -41,7 +32,7 @@ function StatusBadgeItem({ item }: { item: ApprovalItem }) {
 type RejectType = 'revision' | 'permanent';
 
 export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: () => void }) {
-  const { updateSalesOrder, updateQuotation, customers, currentUser } = useApp();
+  const { updateSalesOrder, customers, currentUser } = useApp();
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectType, setRejectType] = useState<RejectType>('revision');
   const [reason, setReason] = useState('');
@@ -49,12 +40,11 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const customer = customers.find(c => c.code === item.customerId);
-  const isQuotation = item.isQuotation;
 
   const handleApprove = async () => {
     try {
       setIsSubmitting(true);
-      if (!isQuotation && item.backendId) {
+      if (item.backendId) {
         await productionApi.updateSalesOrderDesignStatus(item.backendId, {
           designStatus: 'Approved',
           reviewedByUserId: toBackendUserId(currentUser) || null,
@@ -62,17 +52,12 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
         });
       }
 
-      if (isQuotation) {
-        updateQuotation(item.id, {
-          status: 'waiting_pricing',
-        });
-      } else {
-        updateSalesOrder(item.id, {
-          status: 'Menunggu Invoice DP',
-          approvedAt: new Date().toISOString(),
-          approvedBy: currentUser?.id,
-        });
-      }
+      updateSalesOrder(item.id, {
+        status: 'Menunggu Invoice DP',
+        approvedAt: new Date().toISOString(),
+        approvedBy: currentUser?.id,
+      });
+      
       setAction('approve');
       setDone(true);
     } catch (e) {
@@ -87,7 +72,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
     if (!reason.trim()) return;
     try {
       setIsSubmitting(true);
-      if (!isQuotation && item.backendId) {
+      if (item.backendId) {
         await productionApi.updateSalesOrderDesignStatus(item.backendId, {
           designStatus: rejectType === 'revision' ? 'RevisionRequired' : 'Rejected',
           reviewedByUserId: toBackendUserId(currentUser) || null,
@@ -95,17 +80,11 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
         });
       }
 
-      if (isQuotation) {
-        updateQuotation(item.id, {
-          status: 'pending_design',
-          notes: reason,
-        });
-      } else {
-        updateSalesOrder(item.id, {
-          status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
-          rejectionReason: reason,
-        });
-      }
+      updateSalesOrder(item.id, {
+        status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
+        rejectionReason: reason,
+      });
+      
       setDone(true);
     } catch (e) {
       console.error(e);
@@ -115,9 +94,9 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
     }
   };
 
-  const partNumberOrDesc = isQuotation ? (item as Quotation).productName : (item as SalesOrder).partNumber;
+  const partNumberOrDesc = item.partNumber;
   const description = item.description;
-  const submittedAt = isQuotation ? (item as Quotation).createdAt : (item as SalesOrder).submittedAt;
+  const submittedAt = item.submittedAt;
 
   if (done) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -130,7 +109,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
           {action === 'approve'
-            ? (isQuotation ? 'Quotation diteruskan ke Finance untuk penentuan harga.' : 'SO dilanjutkan ke tahap pembayaran / produksi.')
+            ? 'SO dilanjutkan ke tahap pembayaran / produksi.'
             : (rejectType === 'revision' ? 'Dikembalikan ke tim Engineering / Finance.' : 'Dibatalkan dan tidak diproses lebih lanjut.')}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>Selesai</button>
@@ -230,7 +209,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
 }
 
 export function OwnerApprovalPage() {
-  const { salesOrders, quotations, customers, currentUser } = useApp();
+  const { salesOrders, customers, currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
   const isSpv = currentUser?.role === 'Engineering Supervisor';
   const isOwner = currentUser?.role === 'Owner';
@@ -239,23 +218,21 @@ export function OwnerApprovalPage() {
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
 
-  const pendingQuotations = (isSpv || isAdmin) ? quotations.filter(q => q.status === 'design_review').map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
-  const pendingSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => so.status === 'Waiting Client Approval').map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
+  const pendingSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => so.status === 'Waiting Client Approval').map(so => ({ ...so } as ApprovalItem)) : [];
 
-  const waitingApproval = [...pendingQuotations, ...pendingSalesOrders];
+  const waitingApproval = [...pendingSalesOrders];
 
-  const logQuotations = (isSpv || isAdmin) ? quotations.filter(q => ['waiting_pricing', 'client_design_approval', 'lost', 'client_price_approval', 'won'].includes(q.status) || q.notes).map(q => ({ ...q, isQuotation: true } as ApprovalItem)) : [];
-  const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Menunggu Invoice DP', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so, isQuotation: false } as ApprovalItem)) : [];
+  const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Menunggu Invoice DP', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so } as ApprovalItem)) : [];
 
-  const logItems = [...logQuotations, ...logSalesOrders]
+  const logItems = [...logSalesOrders]
     .filter(item => {
       const q = logSearch.toLowerCase();
       const customer = customers.find(c => c.code === item.customerId);
       const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
 
-      const isApproved = item.isQuotation ? ['waiting_pricing', 'client_design_approval', 'client_price_approval', 'won'].includes(item.status) : item.status === 'Menunggu Invoice DP';
-      const isRejected = item.isQuotation ? item.status === 'lost' : item.status === 'Rejected';
-      const isRevision = item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required';
+      const isApproved = item.status === 'Menunggu Invoice DP';
+      const isRejected = item.status === 'Rejected';
+      const isRevision = item.status === 'Revision Required';
 
       const matchFilter =
         logFilter === 'all' ||
@@ -267,9 +244,9 @@ export function OwnerApprovalPage() {
     });
 
   const logCounts = {
-    approved: logItems.filter(item => item.isQuotation ? item.status === 'client_design_approval' : item.status === 'Menunggu Invoice DP').length,
-    rejected: logItems.filter(item => item.isQuotation ? item.status === 'lost' : item.status === 'Rejected').length,
-    revision: logItems.filter(item => item.isQuotation ? (item.status === 'pending_design' && !!(item as Quotation).notes) : item.status === 'Revision Required').length,
+    approved: logItems.filter(item => item.status === 'Menunggu Invoice DP').length,
+    rejected: logItems.filter(item => item.status === 'Rejected').length,
+    revision: logItems.filter(item => item.status === 'Revision Required').length,
   };
 
   return (
@@ -391,7 +368,7 @@ export function OwnerApprovalPage() {
                     <StatusBadgeItem item={item} />
                   </div>
                   <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", alignSelf: "center" }}>
-                    {(item.isQuotation ? (item as Quotation).notes : (item as SalesOrder).rejectionReason) ?? '—'}
+                    {item.rejectionReason ?? '—'}
                   </span>
                 </div>
               );
