@@ -44,7 +44,8 @@
     "productionTracking": {
       "summary": "Sales Order is the visible tracking root. ProductionOrder rows are internal workflow state only.",
       "writeAccess": {
-        "salesOrderCreationConfirmationAndEngineerAssignment": ["Admin", "Sales Order"],
+        "salesOrderCreationAndEngineerAssignment": ["Admin", "Sales", "Sales Order"],
+        "salesOrderConfirmation": ["Admin", "Sales", "Sales Order", "Engineering Supervisor", "Engineering Worker", "Engineering"],
         "salesOrderProductionStartFinish": ["Admin", "Engineering Worker"],
         "salesOrderDrawingUpload": ["Admin", "Engineering Worker"],
         "salesOrderMaterialRequest": ["Admin", "Engineering Worker"],
@@ -80,8 +81,8 @@
       "feature": "Sales Orders",
       "method": "POST",
       "path": "/api/v1/production/sales-orders",
-      "roles": ["Admin", "Sales Order"],
-      "description": "Create a Sales Order with one or more item lines, customer drawing/design reference, and optional engineer worker/reviewer assignment.",
+      "roles": ["Admin", "Sales", "Sales Order"],
+      "description": "Create a Sales Order with one or more item lines, customer drawing/design reference.",
       "requestBody": {
         "customerId": "00000000-0000-0000-0000-000000000000",
         "soDate": "2026-05-22",
@@ -137,8 +138,8 @@
       "feature": "Sales Orders",
       "method": "POST",
       "path": "/api/v1/production/sales-orders/{id}/confirm",
-      "roles": ["Admin", "Sales Order"],
-      "description": "Confirm an approved-design Sales Order and prepare internal production tracking. Response is SO tracking, not an internal workflow object."
+      "roles": ["Admin", "Sales", "Sales Order", "Engineering Supervisor", "Engineering Worker", "Engineering"],
+      "description": "Confirm an approved-design Sales Order and prepare internal production tracking. Automatically prepares SO tracking."
     },
     {
       "service": "Production.API",
