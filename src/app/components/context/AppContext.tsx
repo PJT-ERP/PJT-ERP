@@ -703,12 +703,12 @@ async function syncCreatePurchasingRequest(
       salesOrderId: so?.backendId || so?.id,
       salesOrderNumber: so?.soNumber || req.soId,
       projectName: req.notes,
-      items: req.items.map(item => ({
+      items: req.items?.map(item => ({
         itemName: item.itemName,
         size: item.specification,
         qty: item.quantity,
         urgency: req.urgency,
-      })),
+      })) || [],
     });
 
     setPurchasingRequests(prev => prev.map(item => item.id === req.id ? mapPurchaseRequestDto(createdReq) : item));

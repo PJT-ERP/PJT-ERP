@@ -1,5 +1,5 @@
 import type { SalesOrder } from "../data/mockData";
-import type { Invoice } from "../finance/mockData";
+import type { Invoice, Payment } from "../finance/mockData";
 
 export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created";
 

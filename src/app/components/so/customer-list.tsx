@@ -8,10 +8,10 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import type { Customer } from "../data/mockData";
-import type { Page } from "../layout/erp-layout";
+
 
 interface CustomerListProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
 }
 
 const S = {
