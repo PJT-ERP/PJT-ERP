@@ -538,6 +538,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
         StartProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.Status = SalesOrderStatuses.InProduction;
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
         await db.SaveChangesAsync(cancellationToken);
         return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
@@ -565,6 +566,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
         FinishProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.Status = SalesOrderStatuses.QC;
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
         if (!wasAlreadyFinished)
         {

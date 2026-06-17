@@ -48,6 +48,8 @@ export interface SalesOrderDto {
   designApprovedAtUtc?: string | null;
   soDate: string;
   targetDate?: string | null;
+  designWorkerUserId?: string | null;
+  designWorkerName?: string | null;
   productionWorkerUserId?: string | null;
   productionWorkerName?: string | null;
   qcReviewerUserId?: string | null;
@@ -91,6 +93,10 @@ export interface CreateSalesOrderRequest {
 }
 
 export interface AssignSalesOrderEngineersRequest {
+  designWorker?: {
+    userId: string;
+    name: string;
+  } | null;
   productionWorker?: {
     userId: string;
     name: string;

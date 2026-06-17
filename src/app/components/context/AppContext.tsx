@@ -393,6 +393,8 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
+    designAssignedTo: order.designWorkerUserId || undefined,
+    designAssignedName: order.designWorkerName || undefined,
     notes: order.items.map(item => (item.notes && item.notes.startsWith('[')) ? null : item.notes).filter(Boolean).join("; ") || undefined,
     materials: (function() {
       try {
@@ -627,13 +629,31 @@ async function syncUpdateSalesOrder(
       }
     }
 
+    if (updates.designAssignedTo !== undefined) {
+      const assignedUser = allUsers.find(user => user.id === updates.designAssignedTo);
+      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.designAssignedTo) ? updates.designAssignedTo : null);
+      if (engineerId) {
+        const updated = await salesApi.assignSalesOrderEngineers(backendId, {
+           designWorker: {
+             userId: engineerId,
+             name: assignedUser?.name || updates.designAssignedName || "Worker",
+           }
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+      }
+    }
+
     if (updates.status === "In Production") {
        const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
        const updated = await productionApi.startProduction(backendId, {
          workerUserId: workerId,
          workerName: currentUser?.name || "Production Worker"
        });
-       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated as any) : item));
+       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+         ...item,
+         status: 'In Production',
+         startTime: updated.startedAtUtc?.split('T')?.[0] || item.startTime
+       } : item));
     }
 
     if (updates.status === "QC") {
@@ -642,7 +662,11 @@ async function syncUpdateSalesOrder(
          workerUserId: workerId,
          workerName: currentUser?.name || "Production Worker"
        });
-       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated as any) : item));
+       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+         ...item,
+         status: 'QC',
+         endTime: updated.finishedAtUtc?.split('T')?.[0] || item.endTime
+       } : item));
     }
 
     if (updates.qcStatus === "Go" || updates.qcStatus === "NoGo") {

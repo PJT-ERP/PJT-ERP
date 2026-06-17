@@ -37,7 +37,7 @@ function DesignModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void })
   
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Pricing';
-  const canProcess = isSpv ? isPendingSpv : qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
+  const canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -358,8 +358,8 @@ function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () =>
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
     updateSalesOrder(qut.id, {
-      assignedTo: userId,
-      assignedName: engineer?.name,
+      designAssignedTo: userId,
+      designAssignedName: engineer?.name,
     });
     onClose();
   };
@@ -425,7 +425,7 @@ export function EngineeringTasksPage() {
       if (isSpv) {
         return true;
       }
-      return q.assignedTo === currentUser?.id;
+      return q.designAssignedTo === currentUser?.id;
     })
     .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
@@ -461,8 +461,8 @@ export function EngineeringTasksPage() {
           </div>
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
-            const assignedName = qut.assignedName || users.find(user => user.id === qut.assignedTo)?.name || "-";
-            const canWork = !isSpv && qut.assignedTo === currentUser?.id && qut.status === 'Pending Design';
+            const assignedName = qut.designAssignedName || users.find(user => user.id === qut.designAssignedTo)?.name || "-";
+            const canWork = !isSpv && qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
             // Review button: only when design is waiting for supervisor approval
             const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet
@@ -489,7 +489,7 @@ export function EngineeringTasksPage() {
               </div>
               <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.description || qut.partNumber || "-"}</span>
               <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                {qut.assignedTo ? (
+                {qut.designAssignedTo ? (
                   <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
                     {assignedName}
                   </span>
@@ -510,7 +510,7 @@ export function EngineeringTasksPage() {
                     }}
                     style={{ fontSize: "11px", background: "#C8102E", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
-                    {qut.assignedTo ? "Ganti" : "Tugaskan"}
+                    {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
                   </button>
                 ) : canWork ? (
                   <button

@@ -51,10 +51,10 @@ const todayInputValue = () => {
 
 const parseCurrencyAmount = (value: string) => {
   const normalized = value
-    .replace(/[^\d,]/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
-  return Math.round(Number(normalized) || 0);
+    .replace(/[^\d,.-]/g, "") // Allow minus, dot, comma, digit
+    .replace(/\./g, "")       // Remove dots (assuming they are thousand separators)
+    .replace(",", ".");       // Convert comma to dot for decimal
+  return Math.round((Number(normalized) || 0) * 100) / 100;
 };
 
 const WORKFLOW_STEPS = [
