@@ -29,14 +29,14 @@ interface SODetailProps {
 }
 
 const S = {
-  font:      "Inter, sans-serif",
-  cyan:      "#C8102E",
-  navy:      "#1F1F1F",
-  slate:     "#111827",
+  font: "Inter, sans-serif",
+  cyan: "#C8102E",
+  navy: "#1F1F1F",
+  slate: "#111827",
   secondary: "#64748B",
-  border:    "#E2E8F0",
-  bg:        "#F8FAFC",
-  white:     "#FFFFFF",
+  border: "#E2E8F0",
+  bg: "#F8FAFC",
+  white: "#FFFFFF",
 };
 
 function isGo(value?: string | null) {
@@ -58,12 +58,12 @@ const parseCurrencyAmount = (value: string) => {
 };
 
 const WORKFLOW_STEPS = [
-  { key: "customer_request", label: "Customer Request", dept: "SO Team"         },
-  { key: "finance",          label: "Finance",          dept: "Finance Dept"    },
-  { key: "engineering",      label: "Engineering",      dept: "Engineering"     },
-  { key: "production",       label: "Production",       dept: "Production Floor"},
-  { key: "qc",               label: "QC",               dept: "QC Team"         },
-  { key: "completed",        label: "Completed",        dept: ""                },
+  { key: "customer_request", label: "Customer Request", dept: "SO Team" },
+  { key: "finance", label: "Finance", dept: "Finance Dept" },
+  { key: "engineering", label: "Engineering", dept: "Engineering" },
+  { key: "production", label: "Production", dept: "Production Floor" },
+  { key: "qc", label: "QC", dept: "QC Team" },
+  { key: "completed", label: "Completed", dept: "" },
 ];
 
 function InfoRow({ icon, label, value, isEdit, onChange, type = "text" }: { icon: React.ReactNode; label: string; value: string; isEdit?: boolean; onChange?: (val: string) => void; type?: string }) {
@@ -118,7 +118,7 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder } = useApp();
   const { invoices, payments } = useFinanceData();
-  
+
   const baseOrder = salesOrders.find(o => o.id === orderId);
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
@@ -128,7 +128,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const currentUser = useApp().currentUser;
-  
+
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
     engineerName: order?.assignedName || "",
@@ -151,7 +151,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const handleAction = async (action: string) => {
     if (!order) return;
     setIsSubmittingAction(true);
-    
+
     try {
       if (action === 'deal') {
         updateSalesOrder(orderId, { status: 'Menunggu Invoice DP' });
@@ -233,9 +233,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <HeaderBtn icon={<Printer size={13} />} label="Cetak"    />
-          <HeaderBtn icon={<Copy size={13} />}    label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
-          <HeaderBtn icon={<Edit size={13} />}    label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
+          <HeaderBtn icon={<Printer size={13} />} label="Cetak" />
+          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
+          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
       </div>
 
@@ -247,8 +247,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </p>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
             {WORKFLOW_STEPS.map((step, idx) => {
-              const tStep     = order.timeline?.find(t => t.step === step.key);
-              const isDone    = tStep?.completed && !tStep?.current;
+              const tStep = order.timeline?.find(t => t.step === step.key);
+              const isDone = tStep?.completed && !tStep?.current;
               const isCurrent = tStep?.current;
 
               return (
@@ -301,12 +301,12 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           {/* Customer info */}
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <InfoRow icon={<User size={11} />}     label="Nama"       value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, customerName: v}))} />
-              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, company: v}))} />
-              <InfoRow icon={<Phone size={11} />}    label="Telepon"    value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, phone: v}))} />
-              <InfoRow icon={<Mail size={11} />}     label="Kontak"     value={isEditMode ? editForm.contact : (customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, contact: v}))} />
+              <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
+              <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, company: v }))} />
+              <InfoRow icon={<Phone size={11} />} label="Telepon" value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, phone: v }))} />
+              <InfoRow icon={<Mail size={11} />} label="Kontak" value={isEditMode ? editForm.contact : (customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, address: v}))} />
+                <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, address: v }))} />
               </div>
             </div>
           </InfoCard>
@@ -316,13 +316,13 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <InfoRow icon={<Hash size={11} />} label="Nomor Part" value={order.partNumber || "-"} isEdit={false} />
-                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, description: v}))} />
+                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, description: v }))} />
               </div>
-              <InfoRow icon={<Hash size={11} />}    label="Jumlah"   value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({...prev, quantity: v}))} />
-              <InfoRow icon={<Hash size={11} />}    label="Unit"     value={isEditMode ? editForm.unit : order.unit} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, unit: v}))} />
-              <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({...prev, deadline: v}))} />
+              <InfoRow icon={<Hash size={11} />} label="Jumlah" value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({ ...prev, quantity: v }))} />
+              <InfoRow icon={<Hash size={11} />} label="Unit" value={isEditMode ? editForm.unit : order.unit} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, unit: v }))} />
+              <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({...prev, notes: v}))} />
+                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
               </div>
             </div>
           </InfoCard>
@@ -503,7 +503,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                       <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
                       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
                         {order.qcPhotos.map((photo, i) => (
-                          <img key={i} src={photo} alt={`QC Photo ${i+1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />
+                          <img key={i} src={photo} alt={`QC Photo ${i + 1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />
                         ))}
                       </div>
                     </div>
@@ -540,10 +540,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               </div>
               <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: "11px", color: S.secondary }}>Estimasi Total Harga (Rp)</label>
-                <input 
-                  type="number" 
-                  value={actionForm.estimatedAmount} 
-                  onChange={e => setActionForm(prev => ({...prev, estimatedAmount: Number(e.target.value)}))}
+                <input
+                  type="number"
+                  value={actionForm.estimatedAmount}
+                  onChange={e => setActionForm(prev => ({ ...prev, estimatedAmount: Number(e.target.value) }))}
                   style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
                 />
                 <ActionBtn icon={<CheckCircle2 size={13} />} label="Submit Harga" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('submit_price')} />
@@ -561,7 +561,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 <label style={{ fontSize: "11px", color: S.secondary }}>Assign to Engineer</label>
                 <select
                   value={actionForm.engineerName}
-                  onChange={e => setActionForm(prev => ({...prev, engineerName: e.target.value}))}
+                  onChange={e => setActionForm(prev => ({ ...prev, engineerName: e.target.value }))}
                   style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box", background: "#fff" }}
                 >
                   <option value="">-- Pilih Engineer --</option>
@@ -597,10 +597,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               </div>
               <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <label style={{ fontSize: "11px", color: S.secondary }}>URL Gambar Desain</label>
-                <input 
-                  type="text" 
-                  value={actionForm.designUrl} 
-                  onChange={e => setActionForm(prev => ({...prev, designUrl: e.target.value}))}
+                <input
+                  type="text"
+                  value={actionForm.designUrl}
+                  onChange={e => setActionForm(prev => ({ ...prev, designUrl: e.target.value }))}
                   placeholder="https://example.com/design.png"
                   style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
                 />
@@ -649,7 +649,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
   const status = (invoice?.status ?? "not_created") as SalesInvoiceStatus;
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
-  
+
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [paymentReported, setPaymentReported] = useState(false);
   const hasPendingPaymentProof = pendingPaymentProof || paymentReported;
@@ -714,7 +714,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                   </div>
                 )}
               </div>
-              
+
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
                 <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf`, '_blank')} />
@@ -726,11 +726,11 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                 }} />
                 {status === "waiting" && !invoice?.paymentDate && !hasPendingPaymentProof && (
                   <div style={{ marginLeft: "auto" }}>
-                    <InvoiceBtn 
-                      icon={<Upload size={12} />} 
-                      label="Lapor Pembayaran" 
-                      primary 
-                      onClick={() => setShowUploadModal(true)} 
+                    <InvoiceBtn
+                      icon={<Upload size={12} />}
+                      label="Lapor Pembayaran"
+                      primary
+                      onClick={() => setShowUploadModal(true)}
                     />
                   </div>
                 )}
@@ -741,7 +741,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
       </div>
 
       {showUploadModal && (
-        <ReportPaymentModal 
+        <ReportPaymentModal
           invoiceId={invoice?.invoiceId}
           invoiceNumber={invoice?.invoiceNumber || ""}
           amount={invoice?.amount || 0}
@@ -831,7 +831,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
             <X size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} style={{ padding: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
@@ -842,10 +842,10 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
                 <option value="Mandiri">Mandiri - PT Pratama Jaya (0987654321)</option>
               </select>
             </div>
-            
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Nominal Transfer</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Nominal Transfer</label>
                 <input required type="text" value={amountText} onChange={e => setAmountText(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
               </div>
               <div>

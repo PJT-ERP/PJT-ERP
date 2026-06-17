@@ -69,12 +69,12 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
 
   const workflowStats = [
     { label: "Menunggu Invoice DP", count: salesOrders.filter(o => o.status === "Menunggu Invoice DP").length, color: "#F59E0B" },
-    { label: "Pending Design",      count: salesOrders.filter(o => o.status === "Pending Design").length,      color: "#94A3B8" },
-    { label: "Waiting Approval",    count: salesOrders.filter(o => o.status === "Waiting Approval").length,    color: "#F59E0B" },
-    { label: "Revision Required",   count: salesOrders.filter(o => o.status === "Revision Required").length,   color: "#EF4444" },
-    { label: "In Production",       count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
-    { label: "QC",                  count: salesOrders.filter(o => o.status === "QC").length,                  color: "#3B82F6" },
-    { label: "Completed",           count: salesOrders.filter(o => o.status === "Completed").length,           color: "#22C55E" },
+    { label: "Pending Design", count: salesOrders.filter(o => o.status === "Pending Design").length, color: "#94A3B8" },
+    { label: "Waiting Approval", count: salesOrders.filter(o => o.status === "Waiting Approval").length, color: "#F59E0B" },
+    { label: "Revision Required", count: salesOrders.filter(o => o.status === "Revision Required").length, color: "#EF4444" },
+    { label: "In Production", count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
+    { label: "QC", count: salesOrders.filter(o => o.status === "QC").length, color: "#3B82F6" },
+    { label: "Completed", count: salesOrders.filter(o => o.status === "Completed").length, color: "#22C55E" },
   ];
 
   const allActivities = salesOrders
@@ -133,7 +133,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "8px 16px", borderRadius: 6, border: "none",
-            background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
+            background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
             color: "#fff", cursor: "pointer",
             fontSize: "13px", fontWeight: 600, fontFamily: S.font, whiteSpace: "nowrap",
             boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
@@ -155,14 +155,14 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         {summaryCards.map((card) => (
-          <button 
-            key={card.label} 
+          <button
+            key={card.label}
             onClick={() => onNavigate("so-list", { filter: card.label })}
-            style={{ 
-              background: S.white, 
-              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", 
-              border: `1px solid ${S.cardBorder}`, 
-              borderRadius: 6, 
+            style={{
+              background: S.white,
+              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)",
+              border: `1px solid ${S.cardBorder}`,
+              borderRadius: 6,
               padding: "16px 18px",
               textAlign: "left",
               cursor: "pointer",

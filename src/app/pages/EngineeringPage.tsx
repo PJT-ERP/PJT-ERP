@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { 
-  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield, 
-  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp, 
+import {
+  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield,
+  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp,
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
@@ -83,15 +83,15 @@ export function EngineeringPage() {
   ];
 
   const workflowStats = [
-    { label: "Pending Design",    count: pendingDesignCount,    color: "#94A3B8" },
-    { label: "Waiting Spv",       count: designReviewCount,     color: "#8B5CF6" },
-    { label: "In Production",     count: inProductionCount,     color: "#3B82F6" },
-    { label: "QC",                count: qcCount,               color: "#C8102E" },
+    { label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" },
+    { label: "Waiting Spv", count: designReviewCount, color: "#8B5CF6" },
+    { label: "In Production", count: inProductionCount, color: "#3B82F6" },
+    { label: "QC", count: qcCount, color: "#C8102E" },
   ];
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
-      
+
       {/* Page header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
@@ -122,10 +122,10 @@ export function EngineeringPage() {
 
       {/* Main grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">
-        
+
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          
+
           {/* Pre-Sales Design Queue Table */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
@@ -153,53 +153,53 @@ export function EngineeringPage() {
                 const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
 
                 return (
-                <div
-                  key={so.id}
-                  onClick={() => {
-                    if (canOpen) {
-                      navigate('/erp/engineer-tasks');
-                    }
-                  }}
-                  style={{
-                    display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", alignItems: "center",
-                    padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
-                    borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
-                  <div>
-                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
+                  <div
+                    key={so.id}
+                    onClick={() => {
+                      if (canOpen) {
+                        navigate('/erp/engineer-tasks');
+                      }
+                    }}
+                    style={{
+                      display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", alignItems: "center",
+                      padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
+                      borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
+                    <div>
+                      <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
+                    </div>
+                    <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
+                    <div>
+                      {so.designAssignedTo ? (
+                        <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                          {assignedName}
+                        </span>
+                      ) : isSpv ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
+                          style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
+                        >
+                          Tugaskan
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                      )}
+                    </div>
+                    <div>
+                      <StatusBadge status={so.status} />
+                    </div>
                   </div>
-                  <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
-                  <div>
-                    {so.designAssignedTo ? (
-                      <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                        {assignedName}
-                      </span>
-                    ) : isSpv ? (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
-                        style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
-                      >
-                        Tugaskan
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                    )}
-                  </div>
-                  <div>
-                    <StatusBadge status={so.status} />
-                  </div>
-                </div>
                 );
               })
             )}
-            
+
             {designQueue.length > 10 && (
-              <div 
+              <div
                 onClick={() => navigate('/erp/engineer-tasks')}
                 style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
@@ -213,7 +213,7 @@ export function EngineeringPage() {
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          
+
           {/* Pipeline stats */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>

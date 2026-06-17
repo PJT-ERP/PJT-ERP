@@ -235,7 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addCustomer = (customer: Customer) => {
     pendingCustomersByCode.current[customer.code] = customer;
     setCustomers(prev => [...prev, customer]);
-    
+
     // Simpan ke backend agar tidak hilang saat refresh
     salesApi.createCustomer({
       code: customer.code,
@@ -396,12 +396,12 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     designAssignedTo: order.designWorkerUserId || undefined,
     designAssignedName: order.designWorkerName || undefined,
     notes: order.items.map(item => (item.notes && item.notes.startsWith('[')) ? null : item.notes).filter(Boolean).join("; ") || undefined,
-    materials: (function() {
+    materials: (function () {
       try {
         if (primaryItem?.notes?.startsWith('[')) {
           return JSON.parse(primaryItem.notes);
         }
-      } catch (e) {}
+      } catch (e) { }
       return undefined;
     })(),
     backendDesignStatus: order.designStatus,
@@ -620,10 +620,10 @@ async function syncUpdateSalesOrder(
       const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
       if (engineerId) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
-           productionWorker: {
-             userId: engineerId,
-             name: assignedUser?.name || updates.assignedName || "Worker",
-           }
+          productionWorker: {
+            userId: engineerId,
+            name: assignedUser?.name || updates.assignedName || "Worker",
+          }
         });
         setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
       }
@@ -634,39 +634,39 @@ async function syncUpdateSalesOrder(
       const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.designAssignedTo) ? updates.designAssignedTo : null);
       if (engineerId) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
-           designWorker: {
-             userId: engineerId,
-             name: assignedUser?.name || updates.designAssignedName || "Worker",
-           }
+          designWorker: {
+            userId: engineerId,
+            name: assignedUser?.name || updates.designAssignedName || "Worker",
+          }
         });
         setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
       }
     }
 
     if (updates.status === "In Production") {
-       const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
-       const updated = await productionApi.startProduction(backendId, {
-         workerUserId: workerId,
-         workerName: currentUser?.name || "Production Worker"
-       });
-       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
-         ...item,
-         status: 'In Production',
-         startTime: updated.startedAtUtc?.split('T')?.[0] || item.startTime
-       } : item));
+      const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+      const updated = await productionApi.startProduction(backendId, {
+        workerUserId: workerId,
+        workerName: currentUser?.name || "Production Worker"
+      });
+      setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+        ...item,
+        status: 'In Production',
+        startTime: updated.startedAtUtc?.split('T')?.[0] || item.startTime
+      } : item));
     }
 
     if (updates.status === "QC") {
-       const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
-       const updated = await productionApi.finishProduction(backendId, {
-         workerUserId: workerId,
-         workerName: currentUser?.name || "Production Worker"
-       });
-       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
-         ...item,
-         status: 'QC',
-         endTime: updated.finishedAtUtc?.split('T')?.[0] || item.endTime
-       } : item));
+      const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+      const updated = await productionApi.finishProduction(backendId, {
+        workerUserId: workerId,
+        workerName: currentUser?.name || "Production Worker"
+      });
+      setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+        ...item,
+        status: 'QC',
+        endTime: updated.finishedAtUtc?.split('T')?.[0] || item.endTime
+      } : item));
     }
 
     if (updates.qcStatus === "Go" || updates.qcStatus === "NoGo") {
@@ -685,7 +685,7 @@ async function syncCreatePurchasingRequest(
 ) {
   try {
     const so = salesOrders.find(so => so.id === req.soId || so.soNumber === req.soId);
-    
+
     const createdReq = await purchasingApi.createPurchaseRequest({
       requestDate: req.requestedAt,
       requestedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
@@ -719,7 +719,7 @@ async function syncUpdatePurchasingStatus(
   try {
     const userId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
     const decision = status === "Ditolak" ? "Reject" : "Accept";
-    
+
     let updated;
     if (currentUser?.role === "Engineering Supervisor" || currentUser?.role === "Owner") {
       updated = await purchasingApi.supervisorReviewPurchaseRequest(backendId, {

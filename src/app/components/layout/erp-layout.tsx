@@ -91,7 +91,7 @@ export function ERPLayout() {
   }
 
   const navItems = ROLE_NAVIGATION[currentUser.role] || [];
-  
+
   // Create breadcrumb from URL path
   const paths = location.pathname.split("/").filter(Boolean);
   const breadcrumb = paths.slice(1); // skip "erp"
@@ -99,7 +99,7 @@ export function ERPLayout() {
   const SidebarContent = () => (
     <>
       {/* Logo */}
-        <div style={{
+      <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "16px 14px 14px",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -136,8 +136,8 @@ export function ERPLayout() {
           }
           const active = item.path ? (
             item.activePrefix ? location.pathname.startsWith(item.activePrefix) :
-            (location.pathname === item.path ||
-            (location.pathname.startsWith(item.path + "/") && !navItems.some(other => other.path && other.path !== item.path && other.path.length > item.path!.length && location.pathname.startsWith(other.path))))
+              (location.pathname === item.path ||
+                (location.pathname.startsWith(item.path + "/") && !navItems.some(other => other.path && other.path !== item.path && other.path.length > item.path!.length && location.pathname.startsWith(other.path))))
           ) : false;
           return (
             <NavItem
@@ -185,7 +185,7 @@ export function ERPLayout() {
 
   const notifications = React.useMemo(() => {
     if (!currentUser) return [];
-    const notifs: { id: string, type: 'alert'|'warning'|'success'|'info', title: string, desc: string, targetPath?: string }[] = [];
+    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string }[] = [];
     const role = currentUser.role;
 
     if (role === 'Owner') {
@@ -239,7 +239,7 @@ export function ERPLayout() {
       )}
 
       {/* Slide-over Notifikasi */}
-      <div 
+      <div
         className={cn(
           "fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col border-l border-slate-200",
           isNotifOpen ? "translate-x-0" : "translate-x-full"
@@ -312,7 +312,7 @@ export function ERPLayout() {
           height: 46, background: "#fff", borderBottom: "1px solid #E2E8F0",
           display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0,
         }}>
-          <button 
+          <button
             onClick={() => {
               if (window.innerWidth >= 1024) {
                 setSidebarMinimized(!sidebarMinimized);

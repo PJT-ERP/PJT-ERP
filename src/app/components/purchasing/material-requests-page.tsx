@@ -58,17 +58,17 @@ export interface MR {
 /* ── Pill configs ──────────────────────────────────────────── */
 
 export const statusCfg: Record<string, { bg: string; color: string; icon: React.ReactNode; dot: string }> = {
-  Submitted:  { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b",  icon: <Clock size={11} /> },
-  Approved:   { bg: "#dcfce7", color: "#166534", dot: "#16a34a",  icon: <CheckCircle2 size={11} /> },
-  Rejected:   { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626",  icon: <XCircle size={11} /> },
+  Submitted: { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", icon: <Clock size={11} /> },
+  Approved: { bg: "#dcfce7", color: "#166534", dot: "#16a34a", icon: <CheckCircle2 size={11} /> },
+  Rejected: { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", icon: <XCircle size={11} /> },
   Processing: { bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", icon: <FileText size={11} /> },
-  Completed:  { bg: "#f0fdf4", color: "#166534", dot: "#16a34a",  icon: <CheckCircle2 size={11} /> },
+  Completed: { bg: "#f0fdf4", color: "#166534", dot: "#16a34a", icon: <CheckCircle2 size={11} /> },
 };
 
 export const priorityCfg: Record<string, { bg: string; color: string }> = {
-  High:   { bg: "#fee2e2", color: "#991b1b" },
+  High: { bg: "#fee2e2", color: "#991b1b" },
   Medium: { bg: "#fef9c3", color: "#92400e" },
-  Low:    { bg: "#f0f9ff", color: "#0369a1" },
+  Low: { bg: "#f0f9ff", color: "#0369a1" },
 };
 
 export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
@@ -76,7 +76,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
   const status = mapRequestStatus(request);
   const activeItems = request.items.filter(item => item.purchaseStatus !== "Rejected");
   const isReadyForFinance = activeItems.length > 0 && activeItems.every(i => !!i.supplierName && ((i.totalPrice || 0) > 0 || (i.estimatedPrice || 0) > 0));
-  
+
   const priority: MR["priority"] = request.items.some(item => item.urgency === "Critical")
     ? "High"
     : request.items.some(item => item.urgency === "Urgent")
@@ -373,7 +373,7 @@ export function MaterialRequestsPage() {
                       <Pill cfg={sc} label={mr.status} />
                     </TD>
                     <TD>
-                      {mr.financeApproval ? <Pill cfg={fc} label={mr.financeApproval} /> : <span style={{fontSize: 11, color: "#94a3b8"}}>—</span>}
+                      {mr.financeApproval ? <Pill cfg={fc} label={mr.financeApproval} /> : <span style={{ fontSize: 11, color: "#94a3b8" }}>—</span>}
                     </TD>
                     <TD className="hidden xl:table-cell">
                       {mr.supplierAssigned ? (
