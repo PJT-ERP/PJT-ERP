@@ -88,6 +88,11 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
         user.Status = request.IsActive ? "Active" : "Inactive";
         user.UpdatedAtUtc = DateTime.UtcNow;
 
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        }
+
         db.UserAccounts.Update(user);
         await db.SaveChangesAsync(cancellationToken);
 

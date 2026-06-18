@@ -249,7 +249,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           name: updates.name ?? currentUserData.name,
           email: updates.email ?? currentUserData.email,
           role: updates.role ?? currentUserData.role,
-          isActive: updates.isActive ?? currentUserData.isActive
+          isActive: updates.isActive ?? currentUserData.isActive,
+          password: (updates as any).password // if it exists
         });
       }
     }
