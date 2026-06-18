@@ -71,7 +71,7 @@ export interface SalesOrder {
   notes?: string;
   timeline?: { id: string; step: string; label: string; date: string; completed: boolean; current?: boolean; assignedTo?: string }[];
   activities?: { id: string; user: string; role: string; action: string; timestamp: string }[];
-  invoice?: { invoiceId?: string; invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string };
+  invoice?: { invoiceId?: string; invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string; rejectedPayments?: { date: string; reason: string }[] };
   quotationDate?: string;
   designApprovedAt?: string;
   assignedTo?: string;
@@ -132,24 +132,24 @@ export const invoiceStatusConfig: Record<string, { label: string; bgColor: strin
   },
 };
 
-export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string } {
-  const map: Record<SOStatus, { bg: string; text: string; border: string }> = {
-    'Menunggu Invoice DP': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
-    'Pending Design': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' },
-    'Waiting Spv Approval': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
-    'Waiting Pricing': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
-    'Waiting Payment': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
-    'Waiting Client Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
-    'Waiting Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
-    'Revision Required': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
-    'Ready for Production': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-300' },
-    'In Production': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-300' },
-    QC: { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300' },
-    Completed: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
-    Rejected: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' },
+export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string; dot: string } {
+  const map: Record<SOStatus, { bg: string; text: string; border: string; dot: string }> = {
+    'Menunggu Invoice DP': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-600' },
+    'Pending Design': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-700' },
+    'Waiting Spv Approval': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-600' },
+    'Waiting Pricing': { bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-800' },
+    'Waiting Payment': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-600' },
+    'Waiting Client Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-600' },
+    'Waiting Approval': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-600' },
+    'Revision Required': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-600' },
+    'Ready for Production': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-800' },
+    'In Production': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-800' },
+    QC: { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-200', dot: 'bg-sky-600' },
+    Completed: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-600' },
+    Rejected: { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-600' },
   };
 
-  return map[status] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+  return map[status] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-600' };
 }
 
 export type QuotationStatus = 'draft' | 'pending_design' | 'design_review' | 'client_design_approval' | 'waiting_pricing' | 'client_price_approval' | 'won' | 'lost';

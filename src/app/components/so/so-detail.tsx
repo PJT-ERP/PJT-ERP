@@ -615,26 +615,46 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>End-to-End History</p>
             </div>
             <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
-              {[
-                { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
-                { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
-                { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
-                { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate },
-                { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
-              ].map((step, idx, arr) => (
-                <div key={idx} style={{ display: "flex", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ width: 14, height: 14, borderRadius: "50%", background: step.active ? S.cyan : "#F1F5F9", border: `2px solid ${step.active ? S.cyan : "#CBD5E1"}`, zIndex: 1 }} />
-                    {idx < arr.length - 1 && (
-                      <div style={{ width: 2, flex: 1, background: step.active ? "#A5F3FC" : "#F1F5F9", marginTop: -2, marginBottom: -4 }} />
-                    )}
+              {(() => {
+                const historySteps: { label: string; date?: string; active: boolean; isRejection?: boolean; reason?: string }[] = [
+                  { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
+                  { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
+                  { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
+                  { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
+                ];
+                
+                if (order.invoice?.rejectedPayments) {
+                  order.invoice.rejectedPayments.forEach(rp => {
+                    historySteps.push({
+                      label: 'Pembayaran Ditolak',
+                      date: rp.date,
+                      active: true,
+                      isRejection: true,
+                      reason: rp.reason
+                    });
+                  });
+                }
+                
+                historySteps.push(
+                  { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
+                );
+
+                return historySteps.map((step, idx, arr) => (
+                  <div key={idx} style={{ display: "flex", gap: 10 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div style={{ width: 14, height: 14, borderRadius: "50%", background: step.isRejection ? "#FEF2F2" : (step.active ? S.cyan : "#F1F5F9"), border: `2px solid ${step.isRejection ? "#EF4444" : (step.active ? S.cyan : "#CBD5E1")}`, zIndex: 1 }} />
+                      {idx < arr.length - 1 && (
+                        <div style={{ width: 2, flex: 1, background: step.active ? (step.isRejection ? "#F1F5F9" : "#A5F3FC") : "#F1F5F9", marginTop: -2, marginBottom: -4 }} />
+                      )}
+                    </div>
+                    <div style={{ paddingTop: -1, paddingBottom: 4 }}>
+                      <p style={{ margin: 0, fontSize: "12px", fontWeight: step.active ? 600 : 400, color: step.isRejection ? "#DC2626" : (step.active ? S.slate : "#94A3B8") }}>{step.label}</p>
+                      {step.date && <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>{step.date}</p>}
+                      {step.reason && <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#EF4444", fontStyle: "italic" }}>Alasan: {step.reason}</p>}
+                    </div>
                   </div>
-                  <div style={{ paddingTop: -1, paddingBottom: 4 }}>
-                    <p style={{ margin: 0, fontSize: "12px", fontWeight: step.active ? 600 : 400, color: step.active ? S.slate : "#94A3B8" }}>{step.label}</p>
-                    {step.date && <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>{step.date}</p>}
-                  </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </div>
 

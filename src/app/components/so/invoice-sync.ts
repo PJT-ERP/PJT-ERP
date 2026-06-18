@@ -52,11 +52,24 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
 
   // Also enhance the invoice status string for badge display if there is a pending payment
   const mergedInvoice = invoice ? { ...invoice } : undefined;
-  if (mergedInvoice && mergedInvoice.status === "waiting" && hasPendingPayment) {
-    // We can piggyback "verified" for the badge color but label it differently in the UI, 
-    // or we can just leave it as waiting and let the UI know it has a pending payment.
-    // Actually, returning a special status string like 'pending_verification' works if we update the badge.
-    mergedInvoice.status = "pending_verification" as any;
+  if (mergedInvoice) {
+    if (mergedInvoice.status === "waiting" && hasPendingPayment) {
+      // We can piggyback "verified" for the badge color but label it differently in the UI, 
+      // or we can just leave it as waiting and let the UI know it has a pending payment.
+      // Actually, returning a special status string like 'pending_verification' works if we update the badge.
+      mergedInvoice.status = "pending_verification" as any;
+    }
+
+    const rejectedForInvoice = payments
+      .filter(p => p.invoiceId === mergedInvoice.invoiceId && p.status === "REJECTED")
+      .map(p => ({
+        date: p.paymentDate || new Date().toISOString().slice(0, 10),
+        reason: p.rejectionReason || "Tidak memenuhi syarat"
+      }));
+
+    if (rejectedForInvoice.length > 0) {
+      mergedInvoice.rejectedPayments = rejectedForInvoice;
+    }
   }
 
   return {

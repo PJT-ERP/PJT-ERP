@@ -75,7 +75,7 @@ export function Footer() {
               {[
                 { icon: MapPin, text: "Sunrise Bizpark Blok D3, Tangerang" },
                 { icon: Phone, text: "0821-2485-1442" },
-                { icon: Mail, text: "admin@pjt-automationtrading.com" },
+                { icon: Mail, text: "marketing.innovation-pratama.co.id" },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
