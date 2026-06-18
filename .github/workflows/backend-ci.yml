@@ -16,7 +16,7 @@ env:
 jobs:
   backend-build:
     name: Build backend solution
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout
@@ -35,7 +35,7 @@ jobs:
 
   backend-tests:
     name: Test ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: backend-build
     strategy:
       fail-fast: false
