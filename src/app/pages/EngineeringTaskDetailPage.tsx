@@ -159,7 +159,7 @@ export function EngineeringTaskDetailPage() {
   const customer = customers.find(c => c.code === qut.customerId);
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
-  let canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
+  let canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
   
   // Strictly prevent any processing if it has moved past the engineering phase
   if (['Waiting Pricing', 'Menunggu Invoice DP', 'In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
