@@ -61,7 +61,7 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
     
     const submitData = {
        name: form.name,
-       username: form.username,
+       username: form.email,
        password: form.password,
        email: form.email,
        role: finalRole as UserRole,

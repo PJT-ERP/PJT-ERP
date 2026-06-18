@@ -113,15 +113,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const latestUser = users.find(user => user.username === currentUser.username && user.isActive);
+    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
+    const latestUser = users.find(user => user.id === currentUser.id && user.isActive);
     if (!latestUser) {
       logout();
       return;
     }
 
-    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
-    if (latestUser.id !== currentUser.id || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
+    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
       setCurrentUser(latestUser);
+      // Update local storage so on reload they still have the latest profile
+      localStorage.setItem(AUTH_USER_KEY, latestUser.username);
+      
+      const storedAuthUser = localStorage.getItem(AUTH_PROFILE_KEY);
+      if (storedAuthUser) {
+        try {
+          const parsed = JSON.parse(storedAuthUser);
+          parsed.email = latestUser.email;
+          parsed.name = latestUser.name;
+          parsed.roles = [latestUser.role]; // Simplified
+          localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(parsed));
+        } catch (e) {
+          console.error("Failed to update stored auth profile", e);
+        }
+      }
     }
   }, [currentUser, users]);
 
