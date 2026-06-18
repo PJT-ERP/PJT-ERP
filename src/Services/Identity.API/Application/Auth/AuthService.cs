@@ -55,4 +55,42 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
             .Select(user => new CurrentUserResponse(user.Id, user.Email, user.Name, user.Role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), user.Department))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<CurrentUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = new PJT_ERP.Identity.Api.Domain.Entities.UserAccount
+        {
+            Name = request.Name,
+            Email = request.Email,
+            Role = request.Role,
+            Status = request.IsActive ? "Active" : "Inactive",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Department = "Engineering" // Or derive from role if needed
+        };
+
+        db.UserAccounts.Add(user);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department);
+    }
+
+    public async Task<CurrentUserResponse?> UpdateUserAsync(Guid userId, UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.UserAccounts.FindAsync([userId], cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.Name = request.Name;
+        user.Email = request.Email;
+        user.Role = request.Role;
+        user.Status = request.IsActive ? "Active" : "Inactive";
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        db.UserAccounts.Update(user);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department);
+    }
 }

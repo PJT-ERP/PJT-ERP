@@ -84,4 +84,24 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         var users = await authService.GetAllUsersAsync(cancellationToken);
         return Ok(users);
     }
+
+    [HttpPost("users")]
+    [Authorize]
+    public async Task<ActionResult<CurrentUserResponse>> CreateUser(CreateUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await authService.CreateUserAsync(request, cancellationToken);
+        return Created($"/api/v1/auth/users/{user.UserId}", user);
+    }
+
+    [HttpPut("users/{userId:guid}")]
+    [Authorize]
+    public async Task<ActionResult<CurrentUserResponse>> UpdateUser(Guid userId, UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await authService.UpdateUserAsync(userId, request, cancellationToken);
+        if (user is null)
+        {
+            return NotFound();
+        }
+        return Ok(user);
+    }
 }

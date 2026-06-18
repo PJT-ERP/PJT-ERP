@@ -221,11 +221,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addUser = (user: Omit<User, 'id'>) => {
-    setUsers(prev => [...prev, { ...user, id: `u${Date.now()}` }]);
+    const tempId = `u${Date.now()}`;
+    setUsers(prev => [...prev, { ...user, id: tempId }]);
+    
+    // Simpan ke backend
+    authApi.createUser({
+      name: user.name,
+      email: user.email,
+      password: (user as any).password || "DefaultPass123!",
+      role: user.role,
+      isActive: user.isActive
+    }).then(created => {
+      if (created) {
+        setUsers(prev => prev.map(u => u.id === tempId ? { ...u, id: created.userId || tempId } : u));
+      }
+    });
   };
 
   const updateUser = (id: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+
+    // Update ke backend
+    if (!id.startsWith('u')) {
+      const currentUserData = users.find(u => u.id === id);
+      if (currentUserData) {
+        authApi.updateUser(id, {
+          name: updates.name ?? currentUserData.name,
+          email: updates.email ?? currentUserData.email,
+          role: updates.role ?? currentUserData.role,
+          isActive: updates.isActive ?? currentUserData.isActive
+        });
+      }
+    }
   };
 
   const deleteUser = (id: string) => {
