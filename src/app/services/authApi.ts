@@ -7,6 +7,7 @@ export interface LoginResponseDto {
   name: string;
   roles: string[];
   department: string;
+  status?: string;
 }
 
 export const authApi = {
@@ -28,6 +29,7 @@ export const authApi = {
           name: data.name,
           roles: data.roles,
           department: data.department,
+          status: data.status,
         })
       );
     }

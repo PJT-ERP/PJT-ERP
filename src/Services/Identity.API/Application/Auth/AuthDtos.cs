@@ -15,7 +15,8 @@ public sealed record CurrentUserResponse(
     string Email,
     string Name,
     string[] Roles,
-    string Department);
+    string Department,
+    string Status);
 
 public sealed record CreateUserRequest(
     string Name,

@@ -57,7 +57,7 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             var department = User.FindFirstValue("department") ?? "Development";
             var roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray();
 
-            return Ok(new CurrentUserResponse(userId, email, name, roles, department));
+            return Ok(new CurrentUserResponse(userId, email, name, roles, department, "Active"));
         }
 
         return Unauthorized();

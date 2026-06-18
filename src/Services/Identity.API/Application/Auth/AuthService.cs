@@ -40,19 +40,17 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
     {
         var user = await db.UserAccounts
             .AsNoTracking()
-            .FirstOrDefaultAsync(account => account.Email == email && account.Status == "Active", cancellationToken);
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
 
-        return user is null
-            ? null
-            : new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department);
+        if (user is null) return null;
+        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department, user.Status);
     }
 
     public async Task<IReadOnlyList<CurrentUserResponse>> GetAllUsersAsync(CancellationToken cancellationToken)
     {
         return await db.UserAccounts
             .AsNoTracking()
-            .Where(account => account.Status == "Active")
-            .Select(user => new CurrentUserResponse(user.Id, user.Email, user.Name, user.Role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), user.Department))
+            .Select(user => new CurrentUserResponse(user.Id, user.Email, user.Name, user.Role.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), user.Department, user.Status))
             .ToListAsync(cancellationToken);
     }
 
@@ -71,31 +69,25 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
         db.UserAccounts.Add(user);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department);
+        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department, user.Status);
     }
 
     public async Task<CurrentUserResponse?> UpdateUserAsync(Guid userId, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        var user = await db.UserAccounts.FindAsync([userId], cancellationToken);
-        if (user is null)
-        {
-            return null;
-        }
+        var user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null) return null;
 
         user.Name = request.Name;
         user.Email = request.Email;
         user.Role = request.Role;
         user.Status = request.IsActive ? "Active" : "Inactive";
-        user.UpdatedAtUtc = DateTime.UtcNow;
 
-        if (!string.IsNullOrWhiteSpace(request.Password))
+        if (!string.IsNullOrEmpty(request.Password))
         {
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         }
 
-        db.UserAccounts.Update(user);
         await db.SaveChangesAsync(cancellationToken);
-
-        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department);
+        return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department, user.Status);
     }
 }

@@ -15,11 +15,10 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Owner', 'Admin', 'Finance', 'Purchasing'];
+const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Admin', 'Finance', 'Purchasing'];
 
 function getRoleColors(role: string) {
   switch (role) {
-    case 'Owner': return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' };
     case 'Admin': return { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' };
     case 'Engineering Supervisor':
     case 'Engineering Worker': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
@@ -58,14 +57,14 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalRole = (form.role === 'Engineering Worker' && form.isSupervisor) ? 'Engineering Supervisor' : form.role;
-    
+
     const submitData = {
-       name: form.name,
-       username: form.email,
-       password: form.password,
-       email: form.email,
-       role: finalRole as UserRole,
-       isActive: form.isActive
+      name: form.name,
+      username: form.email,
+      password: form.password,
+      email: form.email,
+      role: finalRole as UserRole,
+      isActive: form.isActive
     };
 
     if (user) {
@@ -203,7 +202,7 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: { isOpen:
 }
 
 export function AdminPage() {
-  const { users, customers, deleteUser, currentUser } = useApp();
+  const { users, customers, deleteUser, currentUser, deleteCustomerMaster } = useApp();
   const [tab, setTab] = useState<'users' | 'customers'>('users');
   const [showUserForm, setShowUserForm] = useState(false);
   const [showCustForm, setShowCustForm] = useState(false);
@@ -212,6 +211,7 @@ export function AdminPage() {
   const [userSearch, setUserSearch] = useState('');
   const [custSearch, setCustSearch] = useState('');
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
 
   const filteredUsers = users.filter(u => {
     const q = userSearch.toLowerCase();
@@ -232,6 +232,17 @@ export function AdminPage() {
     if (userToDelete) {
       deleteUser(userToDelete);
       setUserToDelete(null);
+    }
+  };
+
+  const handleDeleteCustomerClick = (code: string) => {
+    setCustomerToDelete(code);
+  };
+
+  const confirmDeleteCustomer = () => {
+    if (customerToDelete) {
+      deleteCustomerMaster(customerToDelete);
+      setCustomerToDelete(null);
     }
   };
 
@@ -362,9 +373,12 @@ export function AdminPage() {
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{c.contact}</span>
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{c.phone}</span>
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{c.address}</span>
-                <div>
+                <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => { setEditCustomer(c); setShowCustForm(true); }} style={{ padding: 6, background: "none", border: "none", color: S.secondary, cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = S.bg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => handleDeleteCustomerClick(c.code)} style={{ padding: 6, background: "none", border: "none", color: "#EF4444", cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -375,13 +389,20 @@ export function AdminPage() {
 
       {showUserForm && <UserFormModal user={editUser} onClose={() => { setShowUserForm(false); setEditUser(undefined); }} />}
       {showCustForm && <CustomerFormModal customer={editCustomer} onClose={() => { setShowCustForm(false); setEditCustomer(undefined); }} />}
-      
+
       <ConfirmModal
         isOpen={!!userToDelete}
         title="Hapus User"
         message="Yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan."
         onConfirm={confirmDeleteUser}
         onCancel={() => setUserToDelete(null)}
+      />
+      <ConfirmModal
+        isOpen={!!customerToDelete}
+        title="Hapus Customer"
+        message="Yakin ingin menghapus customer ini? Tindakan ini tidak dapat dibatalkan dan dapat memengaruhi data pesanan."
+        onConfirm={confirmDeleteCustomer}
+        onCancel={() => setCustomerToDelete(null)}
       />
     </div>
   );

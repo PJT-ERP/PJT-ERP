@@ -22,4 +22,22 @@ public sealed class CustomersController(ICatalogService catalogService) : Contro
         var customer = await catalogService.CreateCustomerAsync(request, cancellationToken);
         return CreatedAtAction(nameof(List), new { id = customer.Id }, customer);
     }
+
+    [HttpPut("{code}")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
+    public async Task<ActionResult<CustomerDto>> Update(string code, UpdateCustomerRequest request, CancellationToken cancellationToken)
+    {
+        var customer = await catalogService.UpdateCustomerAsync(code, request, cancellationToken);
+        if (customer is null) return NotFound();
+        return Ok(customer);
+    }
+
+    [HttpDelete("{code}")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
+    public async Task<ActionResult> Delete(string code, CancellationToken cancellationToken)
+    {
+        var success = await catalogService.DeleteCustomerAsync(code, cancellationToken);
+        if (!success) return NotFound();
+        return NoContent();
+    }
 }

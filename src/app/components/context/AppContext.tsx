@@ -27,6 +27,7 @@ interface AppContextType {
   deleteUser: (id: string) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomer: (code: string, updates: Partial<Customer>) => void;
+  deleteCustomerMaster: (code: string) => void;
   addPurchasingRequest: (req: Omit<PurchasingRequest, 'id' | 'requestedAt' | 'requestedBy'>) => void;
   updatePurchasingStatus: (id: string, status: PurchasingStatus) => void;
   updatePurchasingRequest: (id: string, updates: Partial<PurchasingRequest>) => void;
@@ -38,12 +39,13 @@ const AUTH_TOKEN_KEY = "auth_token";
 const AUTH_PROFILE_KEY = "auth_user";
 const HAS_DEV_TOKEN = Boolean(import.meta.env.VITE_DEV_MASTER_TOKEN?.trim());
 
-type StoredAuthUser = {
+export interface StoredAuthUser {
   userId?: string;
   email?: string;
   name?: string;
   roles?: string[];
   department?: string;
+  status?: string;
 };
 
 function restoreStoredUser(): User | null {
@@ -197,6 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: dto.name,
         roles: dto.roles,
         department: dto.department,
+        status: dto.status,
       })));
     } else {
       console.warn("Users list was not loaded.", usersResult.reason);
@@ -296,6 +299,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateCustomer = (code: string, updates: Partial<Customer>) => {
     setCustomers(prev => prev.map(c => c.code === code ? { ...c, ...updates } : c));
+    salesApi.updateCustomer(code, {
+      name: updates.name || "",
+      address: updates.address,
+      contactPerson: updates.contact,
+      email: updates.contact,
+      phone: updates.phone,
+      isActive: true
+    }).catch(err => {
+      console.warn("Gagal update pelanggan ke backend", err);
+      refreshBackendData();
+    });
+  };
+
+  const deleteCustomerMaster = (code: string) => {
+    setCustomers(prev => prev.filter(c => c.code !== code));
+    salesApi.deleteCustomer(code).catch(err => {
+      console.warn("Gagal menghapus pelanggan dari backend", err);
+      refreshBackendData();
+    });
   };
 
   const addPurchasingRequest = (data: Omit<PurchasingRequest, 'id' | 'requestedAt' | 'requestedBy'>) => {
@@ -334,7 +356,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshBackendData,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
-      addCustomer, updateCustomer,
+      addCustomer, updateCustomer, deleteCustomerMaster,
       addPurchasingRequest, updatePurchasingStatus, updatePurchasingRequest,
     }}>
       {children}
@@ -359,7 +381,7 @@ function mapAuthProfileToUser(profile: StoredAuthUser): User {
     password: "",
     role,
     email,
-    isActive: true,
+    isActive: profile.status !== "Inactive",
   };
 }
 
