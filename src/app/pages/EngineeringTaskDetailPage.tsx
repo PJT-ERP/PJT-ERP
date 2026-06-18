@@ -159,7 +159,15 @@ export function EngineeringTaskDetailPage() {
   const customer = customers.find(c => c.code === qut.customerId);
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
-  const canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
+  let canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
+  
+  // Strictly prevent any processing if it has moved past the engineering phase
+  if (['Waiting Pricing', 'Menunggu Invoice DP', 'In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
+    canProcess = false;
+  }
+  if (qut.backendDesignStatus === 'Approved') {
+    canProcess = false;
+  }
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -245,7 +253,7 @@ export function EngineeringTaskDetailPage() {
       }
       
       await salesApi.updateSalesOrderDesignStatus(backendId, {
-        designStatus: 'Rejected',
+        designStatus: 'RevisionRequired',
         notes: rejectReason,
         reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
         reviewerName: currentUser?.name || ''
@@ -270,8 +278,8 @@ export function EngineeringTaskDetailPage() {
       }
 
       updateSalesOrder(qut.id, {
-        status: 'Pending Design',
-        backendDesignStatus: 'Rejected',
+        status: 'Revision Required',
+        backendDesignStatus: 'RevisionRequired',
         notes: rejectReason,
         materials: materials, // Ensure local context keeps the materials
       });

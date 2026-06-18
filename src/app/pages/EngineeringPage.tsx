@@ -38,7 +38,15 @@ export function EngineeringPage() {
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
-    .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
+    .filter(so => {
+      if (isSpv) {
+        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
+        return engineeringStatuses.includes(so.status) && 
+               so.backendDesignStatus !== undefined &&
+               so.backendDesignStatus !== null;
+      }
+      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
+    })
     .map(so => ({ ...so, isQuotation: false } as any));
 
   const allDesignQueue = [...pendingSalesOrders];
@@ -48,7 +56,7 @@ export function EngineeringPage() {
     return item.designAssignedTo === currentUser?.id || item.assignedTo === currentUser?.id;
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design').length;
+  const pendingDesignCount = allDesignQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
   const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
   // Production Stats
