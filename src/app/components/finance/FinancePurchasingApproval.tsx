@@ -244,7 +244,7 @@ export function FinancePurchasingApproval() {
                 disabled={!category}
                 className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
-                <CheckCircle2 size={16} /> Konfirmasi Pembayaran Lunas
+                <CheckCircle2 size={16} /> Konfirmasi Pembayaran
               </button>
             </div>
           </div>

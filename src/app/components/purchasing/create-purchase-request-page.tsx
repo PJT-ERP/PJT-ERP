@@ -11,7 +11,7 @@ type ManualRequestItem = Partial<MRItem> & {
   category?: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
 };
 
-const PURCHASE_CATEGORIES: ManualRequestItem["category"][] = ["Project", "Consumable", "Tools", "Asset", "Maintenance"];
+const PURCHASE_CATEGORIES: NonNullable<ManualRequestItem["category"]>[] = ["Project", "Consumable", "Tools", "Asset", "Maintenance"];
 
 export function CreatePurchaseRequestPage() {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
@@ -174,7 +174,7 @@ export function CreatePurchaseRequestPage() {
                   </div>
                   <div className="md:col-span-4">
                     <label className="mb-1 block text-xs font-semibold text-slate-500">Kategori</label>
-                    <Select value={item.category || "Consumable"} onValueChange={(value) => updateFormItem(i, "category", value)}>
+                    <Select value={item.category || "Consumable"} onValueChange={(value) => updateFormItem(i, "category", value as ManualRequestItem["category"])}>
                       <SelectTrigger className="h-10 bg-white">
                         <SelectValue />
                       </SelectTrigger>

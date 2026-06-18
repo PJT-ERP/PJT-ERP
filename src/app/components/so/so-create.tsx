@@ -512,10 +512,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerCode: prefillCustomer?.code ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-    customerName: prefillCustomer?.name ?? "",
+    customerName: prefillCustomer?.contactPerson ?? prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
-    email: prefillCustomer?.contact ?? "",
+    email: prefillCustomer?.email ?? prefillCustomer?.contact ?? "",
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",

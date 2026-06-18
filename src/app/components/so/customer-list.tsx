@@ -29,7 +29,7 @@ const PAGE_SIZE = 8;
 
 // ─── empty form ───────────────────────────────────────────────────────────────
 const emptyForm = (): Partial<Customer> => ({
-  name: "", contact: "", phone: "", address: "",
+  name: "", contactPerson: "", contact: "", phone: "", address: "", email: ""
 });
 
 // ─── Form field helpers ────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ function CustomerModal({ state, onSave, onClose }: {
               </div>
               <div>
                 <ModalLabel text="Nama Pelanggan" required />
-                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? form.contact ?? ""} onChange={e => { set("contactPerson", e.target.value); set("contact", e.target.value); }} required />
+                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
@@ -135,7 +135,7 @@ function CustomerModal({ state, onSave, onClose }: {
               </div>
               <div>
                 <ModalLabel text="Email" />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? ""} onChange={e => set("email", e.target.value)} />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} />
               </div>
             </div>
             <div>
@@ -210,9 +210,11 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
       const newCustomer: Customer = {
         code: `C${String(customers.length + 1).padStart(3, "0")}`,
         name: data.name ?? "",
+        contactPerson: data.contactPerson ?? "",
         contact: data.contact ?? "",
         phone: data.phone ?? "",
         address: data.address ?? "",
+        email: data.email ?? "",
       };
       addCustomer(newCustomer);
     } else if (modal?.mode === "edit" && data.code) {
