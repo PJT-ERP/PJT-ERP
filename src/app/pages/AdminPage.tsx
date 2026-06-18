@@ -186,6 +186,22 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
   );
 }
 
+function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: { isOpen: boolean, title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{ fontFamily: S.font }}>
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", padding: 24, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+        <h3 style={{ margin: "0 0 8px", color: S.slate, fontSize: "18px", fontWeight: 600 }}>{title}</h3>
+        <p style={{ margin: "0 0 24px", color: S.secondary, fontSize: "14px", lineHeight: 1.5 }}>{message}</p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+          <button onClick={onCancel} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.white, color: S.slate, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+          <button onClick={onConfirm} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: S.cyan, color: S.white, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Hapus</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminPage() {
   const { users, customers, deleteUser, currentUser } = useApp();
   const [tab, setTab] = useState<'users' | 'customers'>('users');
@@ -195,6 +211,7 @@ export function AdminPage() {
   const [editCustomer, setEditCustomer] = useState<Customer | undefined>(undefined);
   const [userSearch, setUserSearch] = useState('');
   const [custSearch, setCustSearch] = useState('');
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   const filteredUsers = users.filter(u => {
     const q = userSearch.toLowerCase();
@@ -206,9 +223,16 @@ export function AdminPage() {
     return !custSearch || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.contact.toLowerCase().includes(q);
   });
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUserClick = (id: string) => {
     if (id === currentUser?.id) return;
-    if (confirm('Yakin ingin menghapus user ini?')) deleteUser(id);
+    setUserToDelete(id);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteUser(userToDelete);
+      setUserToDelete(null);
+    }
   };
 
   return (
@@ -294,7 +318,7 @@ export function AdminPage() {
                     <Edit2 size={14} />
                   </button>
                   {u.id !== currentUser?.id && (
-                    <button onClick={() => handleDeleteUser(u.id)} style={{ padding: 6, background: "none", border: "none", color: "#DC2626", cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <button onClick={() => handleDeleteUserClick(u.id)} style={{ padding: 6, background: "none", border: "none", color: "#DC2626", cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -351,6 +375,14 @@ export function AdminPage() {
 
       {showUserForm && <UserFormModal user={editUser} onClose={() => { setShowUserForm(false); setEditUser(undefined); }} />}
       {showCustForm && <CustomerFormModal customer={editCustomer} onClose={() => { setShowCustForm(false); setEditCustomer(undefined); }} />}
+      
+      <ConfirmModal
+        isOpen={!!userToDelete}
+        title="Hapus User"
+        message="Yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan."
+        onConfirm={confirmDeleteUser}
+        onCancel={() => setUserToDelete(null)}
+      />
     </div>
   );
 }
