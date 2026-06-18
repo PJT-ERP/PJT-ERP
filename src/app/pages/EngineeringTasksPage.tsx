@@ -94,7 +94,7 @@ export function EngineeringTasksPage() {
                so.backendDesignStatus !== undefined &&
                so.backendDesignStatus !== null;
       }
-      return so.status === 'Pending Design' || so.status === 'Waiting Spv Approval';
+      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
     });
 
   const allQueue = [...pendingSalesOrders];
