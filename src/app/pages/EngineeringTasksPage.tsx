@@ -143,9 +143,9 @@ export function EngineeringTasksPage() {
             const assignedName = qut.designAssignedName || users.find(user => user.id === qut.designAssignedTo)?.name || "-";
             const canWork = !isSpv && qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
             // Review button: only when design is waiting for supervisor approval
-            const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
+            const canReview = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet
-            const canAssign = isSpv && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
+            const canAssign = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
 
             return (
             <div

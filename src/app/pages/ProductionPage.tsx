@@ -956,10 +956,12 @@ export function ProductionPage() {
                   <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
                   <DrawingLinks so={so} />
                 </div>
-                <button onClick={() => setAssignModal(so)}
-                  style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
-                  Tugaskan Operator
-                </button>
+                {currentUser?.role !== 'Admin' && (
+                  <button onClick={() => setAssignModal(so)}
+                    style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
+                    Tugaskan Operator
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1003,7 +1005,7 @@ export function ProductionPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    {isSupervisor && mrState === 'requested' && (
+                    {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
                       <button onClick={() => setReviewMrModal(so)}
                         style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
                         Review MR

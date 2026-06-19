@@ -510,10 +510,12 @@ export function EngineeringQCPage() {
                       <DrawingLink so={so} inspection={inspection} />
                     </div>
                   </div>
-                  <button onClick={() => setSelectedSO(so)}
-                    style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
-                    Mulai Inspeksi
-                  </button>
+                  {currentUser?.role !== 'Admin' && (
+                    <button onClick={() => setSelectedSO(so)}
+                      style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Mulai Inspeksi
+                    </button>
+                  )}
                 </div>
               );
             })}

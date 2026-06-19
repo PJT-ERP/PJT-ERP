@@ -187,7 +187,7 @@ export function EngineeringPage() {
                         <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
                           {assignedName}
                         </span>
-                      ) : isSpv ? (
+                      ) : isSpv && currentUser?.role !== 'Admin' ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
                           style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
