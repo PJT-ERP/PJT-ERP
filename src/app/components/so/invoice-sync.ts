@@ -1,5 +1,5 @@
 import type { SalesOrder } from "../data/mockData";
-import type { Invoice } from "../finance/mockData";
+import type { Invoice, Payment } from "../finance/mockData";
 
 export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created";
 
@@ -46,8 +46,6 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
     status = "Ready for Production";
   } else if (hasPendingPayment && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
     status = "Waiting Approval"; // Using an existing SOStatus that implies waiting for an approval
-  } else if ((!invoice || invoice.status === "not_created" || invoice.status === "waiting") && advancedStatuses.includes(status)) {
-    status = "Waiting Payment";
   }
 
   // Also enhance the invoice status string for badge display if there is a pending payment

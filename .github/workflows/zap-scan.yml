@@ -14,7 +14,7 @@ on:
 jobs:
   zap_scan:
     name: ZAP Baseline Scan
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code

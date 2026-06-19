@@ -94,7 +94,7 @@ export function EngineeringTasksPage() {
                so.backendDesignStatus !== undefined &&
                so.backendDesignStatus !== null;
       }
-      return so.status === 'Pending Design' || so.status === 'Waiting Spv Approval';
+      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
     });
 
   const allQueue = [...pendingSalesOrders];
@@ -141,7 +141,7 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.designAssignedName || users.find(user => user.id === qut.designAssignedTo)?.name || "-";
-            const canWork = !isSpv && qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
+            const canWork = !isSpv && qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
             // Review button: only when design is waiting for supervisor approval
             const canReview = isSpv && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet

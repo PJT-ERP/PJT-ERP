@@ -5,8 +5,8 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
-import type { Page } from "../layout/erp-layout";
 import { useFinanceData } from "../finance/useFinanceData";
+
 import { getSalesOrderInvoiceStatus, mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
 
 const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
@@ -17,7 +17,7 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
 };
 
 interface SOListProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
 }
 
 const S = {

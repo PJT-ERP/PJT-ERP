@@ -20,6 +20,15 @@ export interface CreateCustomerRequest {
   phone?: string | null;
 }
 
+export interface UpdateCustomerRequest {
+  name: string;
+  address?: string | null;
+  contactPerson?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  isActive?: boolean;
+}
+
 export interface ProductDto {
   id: string;
   partNumber: string;
@@ -117,6 +126,15 @@ export const salesApi = {
   async createCustomer(request: CreateCustomerRequest) {
     const response = await apiClient.post<CustomerDto>('/api/v1/master-data/customers', request);
     return response.data;
+  },
+
+  async updateCustomer(code: string, request: UpdateCustomerRequest) {
+    const response = await apiClient.put<CustomerDto>(`/api/v1/master-data/customers/${code}`, request);
+    return response.data;
+  },
+
+  async deleteCustomer(code: string) {
+    await apiClient.delete(`/api/v1/master-data/customers/${code}`);
   },
 
   async listProducts() {

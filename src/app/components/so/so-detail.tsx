@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
-import type { Page } from "../layout/erp-layout";
+
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
 import { financeApi } from "../../services/financeApi";
@@ -24,7 +24,7 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
 
 interface SODetailProps {
   orderId: string;
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
   initialEditMode?: boolean;
 }
 
@@ -240,7 +240,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       </div>
 
       {/* ── Workflow Pipeline ─────────────────────────────────────────────────── */}
-      {order.status !== "cancelled" && (
+      {order.status !== "Rejected" && (
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "18px 20px" }}>
           <p style={{ margin: "0 0 16px", fontSize: "11px", fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Workflow Pipeline
@@ -285,7 +285,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       )}
 
-      {order.status === "cancelled" && (
+      {order.status === "Rejected" && (
         <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <AlertTriangle size={16} style={{ color: "#EF4444", flexShrink: 0 }} />
           <p style={{ margin: 0, color: "#991B1B", fontSize: "13px" }}>Sales Order ini telah dibatalkan.</p>
@@ -590,7 +590,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
 
           {/* ── Action Panel (Engineer Upload) ── */}
-          {(currentUser?.role === 'Engineering' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering') && (
+          {(currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering Worker') && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
                 <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Engineering: Upload Desain</p>

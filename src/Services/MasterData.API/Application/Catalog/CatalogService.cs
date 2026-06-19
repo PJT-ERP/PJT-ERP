@@ -20,6 +20,7 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
                 customer.Address,
                 customer.ContactPerson,
                 customer.Email,
+                customer.Phone,
                 customer.IsActive))
             .ToListAsync(cancellationToken);
     }
@@ -32,7 +33,8 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             Name = request.Name.Trim(),
             Address = request.Address,
             ContactPerson = request.ContactPerson,
-            Email = NormalizeEmail(request.Email)
+            Email = NormalizeEmail(request.Email),
+            Phone = request.Phone
         };
 
         await db.Customers.AddAsync(customer, cancellationToken);
@@ -54,7 +56,61 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             customer.Address,
             customer.ContactPerson,
             customer.Email,
+            customer.Phone,
             customer.IsActive);
+    }
+
+    public async Task<CustomerDto?> UpdateCustomerAsync(string code, UpdateCustomerRequest request, CancellationToken cancellationToken)
+    {
+        var customer = await db.Customers.FirstOrDefaultAsync(c => c.Code == code, cancellationToken);
+        if (customer is null) return null;
+
+        customer.Name = request.Name.Trim();
+        customer.Address = request.Address;
+        customer.ContactPerson = request.ContactPerson;
+        customer.Email = NormalizeEmail(request.Email);
+        customer.Phone = request.Phone;
+        customer.IsActive = request.IsActive;
+        customer.UpdatedAtUtc = DateTime.UtcNow;
+
+        await eventPublisher.PublishAsync(
+            new MasterDataUpdatedEvent(
+                customer.Id,
+                "Customer",
+                "Updated",
+                customer.Code,
+                customer.Name,
+                Email: customer.Email),
+            cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new CustomerDto(
+            customer.Id,
+            customer.Code,
+            customer.Name,
+            customer.Address,
+            customer.ContactPerson,
+            customer.Email,
+            customer.Phone,
+            customer.IsActive);
+    }
+
+    public async Task<bool> DeleteCustomerAsync(string code, CancellationToken cancellationToken)
+    {
+        var customer = await db.Customers.FirstOrDefaultAsync(c => c.Code == code, cancellationToken);
+        if (customer is null) return false;
+
+        db.Customers.Remove(customer);
+        await eventPublisher.PublishAsync(
+            new MasterDataUpdatedEvent(
+                customer.Id,
+                "Customer",
+                "Deleted",
+                customer.Code,
+                customer.Name),
+            cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<IReadOnlyCollection<ProductDto>> ListProductsAsync(CancellationToken cancellationToken)

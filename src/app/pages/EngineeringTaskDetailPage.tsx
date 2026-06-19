@@ -28,10 +28,108 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function MaterialAutocomplete({
+  value,
+  onChange,
+  onSelectProduct,
+  options,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectProduct: (product: any) => void;
+  options: any[];
+  disabled: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 280) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
+
+  const filtered = options.filter(p => 
+    (p.partNumber + ' ' + p.description).toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column" }}>
+      <input
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+        onBlur={() => setIsFocused(false)}
+        placeholder="Nama material (pilih atau ketik sendiri)..."
+        disabled={disabled}
+        style={{
+          width: "100%", padding: "10px 14px", 
+          border: `1px solid ${isFocused ? S.cyan : S.border}`, 
+          borderRadius: 6, fontSize: "14px", outline: "none", 
+          boxSizing: "border-box", 
+          backgroundColor: disabled ? "#F8FAFC" : "#fff",
+          transition: "border 0.2s, box-shadow 0.2s",
+          boxShadow: isFocused ? `0 0 0 3px rgba(200, 16, 46, 0.1)` : "none"
+        }}
+      />
+      {isOpen && !disabled && filtered.length > 0 && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, zIndex: 50,
+          ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
+          background: "#fff", border: `1px solid ${S.border}`,
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          maxHeight: 280, overflowY: "auto", overflowX: "hidden"
+        }}>
+          {filtered.map(p => (
+            <div 
+              key={p.id}
+              onClick={() => {
+                onSelectProduct(p);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${S.bg}`,
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
+            >
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.description}</div>
+              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.partNumber}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function EngineeringTaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { salesOrders, updateSalesOrder, customers, currentUser, refreshBackendData } = useApp();
+  const { salesOrders, updateSalesOrder, customers, currentUser, refreshBackendData, productCatalog } = useApp();
   
   const qut = salesOrders.find(so => so.id === id);
 
@@ -61,7 +159,15 @@ export function EngineeringTaskDetailPage() {
   const customer = customers.find(c => c.code === qut.customerId);
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
-  const canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && qut.status === 'Pending Design';
+  let canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+  
+  // Strictly prevent any processing if it has moved past the engineering phase
+  if (['Waiting Pricing', 'Menunggu Invoice DP', 'In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
+    canProcess = false;
+  }
+  if (qut.backendDesignStatus === 'Approved') {
+    canProcess = false;
+  }
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -147,19 +253,40 @@ export function EngineeringTaskDetailPage() {
       }
       
       await salesApi.updateSalesOrderDesignStatus(backendId, {
-        designStatus: 'Rejected',
+        designStatus: 'RevisionRequired',
         notes: rejectReason,
         reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
         reviewerName: currentUser?.name || ''
       });
+
+      // Save BOM to backend so it's not lost when rejected
+      if (materials && materials.length > 0) {
+        try {
+           const serializedMaterials = JSON.stringify(materials);
+           const updatedItems = qut.items?.map((it, idx) => ({
+              salesOrderItemId: it.id,
+              productId: it.productId,
+              qty: it.quantity,
+              notes: idx === 0 ? serializedMaterials : it.notes
+           })) || [];
+           if (updatedItems.length > 0) {
+              await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
+           }
+        } catch(e) {
+           console.warn("Failed to update BOM on backend", e);
+        }
+      }
+
       updateSalesOrder(qut.id, {
-        status: 'Pending Design',
-        backendDesignStatus: 'Rejected',
+        status: 'Revision Required',
+        backendDesignStatus: 'RevisionRequired',
         notes: rejectReason,
+        materials: materials, // Ensure local context keeps the materials
       });
       if (isSpv) {
         const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-        delete localUpdates[qut.id];
+        // Do not delete localUpdates[qut.id] entirely, just update it so the BOM is preserved locally as fallback
+        localUpdates[qut.id] = { ...localUpdates[qut.id], materials, designLink };
         localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
         await refreshBackendData();
       }
@@ -348,7 +475,21 @@ export function EngineeringTaskDetailPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {materials.map(m => (
                       <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 16, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-                        <input placeholder="Nama material..." value={m.name} onChange={e => updateMaterial(m.id, 'name', e.target.value)} disabled={!canProcess} style={{ flex: 2, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "#F8FAFC" }} />
+                        <MaterialAutocomplete
+                          value={m.name}
+                          onChange={val => updateMaterial(m.id, 'name', val)}
+                          onSelectProduct={product => {
+                            const newMaterials = materials.map(mat => mat.id === m.id ? {
+                              ...mat,
+                              name: product.description || product.partNumber,
+                              spec: product.materialSpec || mat.spec,
+                              unit: (product.unit || mat.unit).toLowerCase()
+                            } : mat);
+                            setMaterials(newMaterials);
+                          }}
+                          options={productCatalog}
+                          disabled={!canProcess}
+                        />
                         <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "#F8FAFC" }} />
                         <input type="number" min="0.1" step="0.1" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", textAlign: "right" }} />
                         <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} disabled={!canProcess} style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC" }}>
