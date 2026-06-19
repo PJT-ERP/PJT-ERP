@@ -12,6 +12,7 @@ public static class MasterDataSchemaInitializer
         await db.Database.ExecuteSqlRawAsync(
             """
             ALTER TABLE customers ADD COLUMN IF NOT EXISTS email character varying(160);
+            ALTER TABLE customers ADD COLUMN IF NOT EXISTS phone character varying(40);
             
             CREATE TABLE IF NOT EXISTS suppliers (
                 "Id" uuid NOT NULL,

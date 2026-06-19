@@ -140,7 +140,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Admin')
+  const canEdit = (currentUser?.role === 'Engineering Worker')
     && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
 
   if (successAction) return (
@@ -331,7 +331,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
           )}
 
           {/* Supervisor Action Buttons */}
-          {isSpv && pr.status === 'Pending' && !rejectMode && (
+          {isSpv && currentUser?.role !== 'Admin' && pr.status === 'Pending' && !rejectMode && (
             <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
               <button
                 onClick={() => setRejectMode(true)}
@@ -639,7 +639,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests, refreshBackendData } = useApp();
+  const { purchasingRequests, refreshBackendData, currentUser } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
@@ -659,15 +659,17 @@ export function EngineeringPurchasingPage() {
             Ajukan permintaan material dan pantau statusnya
           </p>
         </div>
-        <button onClick={() => { setEditRequest(null); setShowForm(true); }}
-          style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "7px 14px", borderRadius: 4, border: "none",
-            background: S.cyan, color: "#fff", cursor: "pointer",
-            fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-          }}>
-          <Plus size={14} /> Ajukan Baru
-        </button>
+        {currentUser?.role !== 'Admin' && (
+          <button onClick={() => { setEditRequest(null); setShowForm(true); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 14px", borderRadius: 4, border: "none",
+              background: S.cyan, color: "#fff", cursor: "pointer",
+              fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+            }}>
+            <Plus size={14} /> Ajukan Baru
+          </button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>

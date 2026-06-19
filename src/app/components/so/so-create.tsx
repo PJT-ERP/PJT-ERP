@@ -430,10 +430,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerCode: prefillCustomer?.code ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-    customerName: prefillCustomer?.name ?? "",
+    customerName: prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
-    email: prefillCustomer?.contact ?? "",
+    email: prefillCustomer?.email ?? (prefillCustomer?.contact && prefillCustomer?.contact.includes('@') ? prefillCustomer.contact : ""),
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",
@@ -764,12 +764,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 </div>
               </div>
               <div>
-                <Label text="Nama Pelanggan" required />
-                <Input icon={<User size={11} />} placeholder="Nama lengkap" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
+                <Label text="Nama Kontak (PIC)" required />
+                <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
               </div>
               <div>
-                <Label text="Perusahaan" required />
-                <Input icon={<Building2 size={11} />} placeholder="Nama perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required />
+                <Label text="Nama Perusahaan" required />
+                <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required />
               </div>
               <div>
                 <Label text="No. Telepon" required />

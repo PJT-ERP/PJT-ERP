@@ -159,7 +159,11 @@ export function EngineeringTaskDetailPage() {
   const customer = customers.find(c => c.code === qut.customerId);
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
-  let canProcess = isSpv ? isPendingSpv : qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+  
+  const isDoingWorkerSubmission = qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+  const isDoingSpvApproval = isSpv && isPendingSpv;
+
+  let canProcess = isDoingWorkerSubmission || isDoingSpvApproval;
   
   // Strictly prevent any processing if it has moved past the engineering phase
   if (['Waiting Pricing', 'Menunggu Invoice DP', 'In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
@@ -186,14 +190,14 @@ export function EngineeringTaskDetailPage() {
         return;
       }
 
-      if (isSpv) {
+      if (isDoingSpvApproval) {
         await salesApi.updateSalesOrderDesignStatus(backendId, {
           designStatus: 'Approved',
           notes: 'Approved by SPV',
           reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
           reviewerName: currentUser?.name || ''
         });
-      } else {
+      } else if (isDoingWorkerSubmission) {
         await salesApi.submitSalesOrderDesign(backendId, {
           designReference: designLink,
           drawingFileUrl: designLink
@@ -217,12 +221,12 @@ export function EngineeringTaskDetailPage() {
         }
       }
 
-      if (isSpv) {
+      if (isDoingSpvApproval) {
         const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
         localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
         localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
         await refreshBackendData();
-      } else {
+      } else if (isDoingWorkerSubmission) {
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
@@ -283,7 +287,7 @@ export function EngineeringTaskDetailPage() {
         notes: rejectReason,
         materials: materials, // Ensure local context keeps the materials
       });
-      if (isSpv) {
+      if (isDoingSpvApproval) {
         const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
         // Do not delete localUpdates[qut.id] entirely, just update it so the BOM is preserved locally as fallback
         localUpdates[qut.id] = { ...localUpdates[qut.id], materials, designLink };
@@ -343,10 +347,10 @@ export function EngineeringTaskDetailPage() {
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-                {isSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
+                {isDoingSpvApproval ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                {isSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+                {isDoingSpvApproval ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={() => navigate('/erp/engineer-tasks')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
             </div>
@@ -386,7 +390,7 @@ export function EngineeringTaskDetailPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 20 }}>
                 <p style={{ color: "#92400E", fontSize: "14px", margin: 0 }}>
-                  {isSpv ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
+                  {isDoingSpvApproval ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
                 </p>
               </div>
               <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, display: "flex", flexDirection: "column", gap: 16, fontSize: "14px" }}>
@@ -451,8 +455,8 @@ export function EngineeringTaskDetailPage() {
                 <label style={{ display: "block", fontSize: "14px", color: S.slate, fontWeight: 600, marginBottom: 8 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
                 <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  disabled={!canProcess}
-                  style={{ width: "100%", padding: "14px 16px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: canProcess ? "#fff" : "#F8FAFC", transition: "border 0.2s" }}
+                  disabled={!canProcess || isDoingSpvApproval}
+                  style={{ width: "100%", padding: "14px 16px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: (!canProcess || isDoingSpvApproval) ? "#F8FAFC" : "#fff", transition: "border 0.2s" }}
                   onFocus={e => e.currentTarget.style.borderColor = S.cyan}
                   onBlur={e => e.currentTarget.style.borderColor = S.border}
                 />
@@ -461,7 +465,7 @@ export function EngineeringTaskDetailPage() {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Bill of Materials (BOM) <span style={{ color: "#EF4444" }}>*</span></label>
-                  {canProcess && (
+                  {canProcess && !isDoingSpvApproval && (
                     <button onClick={addMaterial} style={{ padding: "8px 16px", background: "rgba(200,16,46,0.05)", color: S.cyan, border: `1px solid rgba(200,16,46,0.1)`, borderRadius: 6, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(200,16,46,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(200,16,46,0.05)"}>
                       <Plus size={16} /> Tambah Material
                     </button>
@@ -527,12 +531,12 @@ export function EngineeringTaskDetailPage() {
               <>
                 <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "14px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali</button>
                 <button onClick={handleForward} disabled={isSubmitting} style={{ flex: 1, padding: "14px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.5 : 1 }}>
-                  <Send size={18} /> {isSubmitting ? 'Memproses...' : (isSpv ? 'Approve & Forward' : 'Forward ke Supervisor')}
+                  <Send size={18} /> {isSubmitting ? 'Memproses...' : (isDoingSpvApproval ? 'Approve & Forward' : 'Forward ke Supervisor')}
                 </button>
               </>
             ) : (
               <>
-                {canProcess && isSpv && isPendingSpv && (
+                {canProcess && isDoingSpvApproval && (
                   <button onClick={() => setStep('reject')} style={{ flex: 1, padding: "14px", background: "#FEF2F2", border: "1px solid #FCA5A5", color: "#DC2626", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEE2E2"} onMouseLeave={e => e.currentTarget.style.background = "#FEF2F2"}>
                     Tolak / Revisi
                   </button>
@@ -544,7 +548,7 @@ export function EngineeringTaskDetailPage() {
                     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                   >
-                    <Send size={18} /> {isSpv ? 'Review & Approve' : 'Submit & Forward'}
+                    <Send size={18} /> {isDoingSpvApproval ? 'Review & Approve' : 'Submit & Forward'}
                   </button>
                 )}
               </>
