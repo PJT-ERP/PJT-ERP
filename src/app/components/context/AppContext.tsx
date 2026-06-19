@@ -288,12 +288,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       name: customer.name,
       address: customer.address,
       contactPerson: customer.contactPerson || customer.contact,
-      email: customer.email || customer.contact,
+      email: customer.email,
       phone: customer.phone,
     }).then(created => {
       setBackendCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
     }).catch(err => {
-      console.warn("Gagal menyimpan pelanggan ke backend", err);
+      console.warn("Gagal simpan pelanggan ke backend", err);
+      refreshBackendData();
     });
   };
 
@@ -302,8 +303,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     salesApi.updateCustomer(code, {
       name: updates.name || "",
       address: updates.address,
-      contactPerson: updates.contact,
-      email: updates.contact,
+      contactPerson: updates.contactPerson || updates.contact,
+      email: updates.email,
       phone: updates.phone,
       isActive: true
     }).catch(err => {

@@ -19,12 +19,13 @@ const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Admin', 'Finance', 'P
 
 function getRoleColors(role: string) {
   switch (role) {
+    case 'Owner': return { bg: '#1E293B', text: '#F8FAFC', border: '#334155' };
     case 'Admin': return { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' };
     case 'Engineering Supervisor':
     case 'Engineering Worker': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
-    default: return { bg: '#DBEAFE', text: '#C8102E', border: '#BFDBFE' }; // Sales
+    default: return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' }; // Sales
   }
 }
 
@@ -88,13 +89,14 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
             <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email *</label>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email / Username *</label>
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>{user ? 'Password Baru (opsional)' : 'Password *'}</label>
-              <input type="text" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={!user} placeholder={user ? 'Kosongkan jika tidak diubah' : ''} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Password {user ? '' : '*'}</label>
+              <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={!user} placeholder={user ? "Kosongkan jika tidak diubah" : "Password baru"} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              {user && <span style={{ fontSize: "11px", color: S.secondary, marginTop: 4, display: "block" }}>Disembunyikan karena alasan keamanan.</span>}
             </div>
           </div>
           <div>
@@ -131,6 +133,7 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
     code: customer?.code ?? '',
     name: customer?.name ?? '',
     contact: customer?.contact ?? '',
+    email: customer?.email ?? '',
     phone: customer?.phone ?? '',
     address: customer?.address ?? '',
   });
@@ -138,9 +141,9 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (customer) {
-      updateCustomer(customer.code, form);
+      updateCustomer(customer.code, { ...form, contactPerson: form.contact });
     } else {
-      addCustomer(form);
+      addCustomer({ ...form, contactPerson: form.contact });
     }
     onClose();
   };
@@ -162,20 +165,24 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
               <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Kontak PIC *</label>
               <input type="text" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
             </div>
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Perusahaan *</label>
-            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nomor Telepon</label>
-            <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Perusahaan *</label>
+              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nomor Telepon</label>
+              <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            </div>
           </div>
           <div>
             <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Alamat</label>
-            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} rows={2} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", resize: "none" }} />
+            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", minHeight: 60, resize: "vertical" }} />
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Simpan</button>
           </div>
