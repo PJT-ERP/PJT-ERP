@@ -15,4 +15,19 @@ public sealed record CurrentUserResponse(
     string Email,
     string Name,
     string[] Roles,
-    string Department);
+    string Department,
+    string Status);
+
+public sealed record CreateUserRequest(
+    string Name,
+    string Email,
+    string Password,
+    string Role,
+    bool IsActive);
+
+public sealed record UpdateUserRequest(
+    string Name,
+    string Email,
+    string Role,
+    bool IsActive,
+    string? Password);

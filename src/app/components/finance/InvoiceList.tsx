@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { formatIDR, formatDate, type Invoice, type InvoiceStatus } from './mockData';
 import { useFinanceData } from './useFinanceData';
+import { financeApi } from '../../services/financeApi';
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   PAID: 'Lunas', PENDING: 'Menunggu', OVERDUE: 'Jatuh Tempo', PARTIAL: 'Sebagian',
@@ -35,8 +36,26 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+function InvoiceDetailModal({ invoice, onClose, payments, refresh }: { invoice: Invoice; onClose: () => void; payments?: any[]; refresh?: () => void }) {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const pendingPayment = payments?.find(p => p.invoiceId === invoice.id && p.status === 'PENDING');
+  
   const subtotal = invoice.items.reduce((s, i) => s + i.total, 0);
+
+  const handleVerify = async () => {
+    if (!pendingPayment || !refresh) return;
+    setIsVerifying(true);
+    try {
+      await financeApi.verifyPaymentProof(pendingPayment.id);
+      await refresh();
+      onClose();
+    } catch (err) {
+      console.error("Gagal memverifikasi:", err);
+      alert('Gagal memverifikasi pembayaran');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
   const exportInvoice = () => {
     downloadCsv(`${invoice.invoiceNumber}.csv`, [
       ['Invoice', 'SO', 'Customer', 'Amount', 'Status', 'Due Date'],
@@ -54,10 +73,9 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative bg-white rounded-[24px] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col transform transition-all border border-white/20">
         {/* OVERDUE Watermark */}
         {invoice.status === 'OVERDUE' && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 opacity-10 pointer-events-none z-0">
@@ -66,66 +84,77 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
         )}
 
         {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 shadow-md">
+        <div className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-slate-100 px-6 py-3.5 flex items-center justify-between rounded-t-[24px] z-20">
           <div>
-            <h2 className="text-slate-900 text-base">{invoice.invoiceNumber}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{invoice.soNumber}</p>
+            <h2 className="text-xl font-bold text-slate-800 tracking-tight">{invoice.invoiceNumber}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">SO: {invoice.soNumber}</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs text-slate-500 font-medium">{formatDate(invoice.issueDate)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${STATUS_COLORS[invoice.status]}`}>
+          <div className="flex items-center gap-4">
+            <span className={`text-xs font-bold px-3.5 py-1.5 rounded-full border shadow-sm ${STATUS_COLORS[invoice.status]}`} style={{ color: STATUS_COLORS[invoice.status], backgroundColor: `${STATUS_COLORS[invoice.status]}15`, borderColor: `${STATUS_COLORS[invoice.status]}30` }}>
               {STATUS_LABELS[invoice.status]}
             </span>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
-              <X size={20} />
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-full p-2 transition-colors">
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-5 space-y-4 bg-[#FAFAFA]">
           {/* Customer Info */}
-          <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4">
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Pelanggan</p>
-              <p className="text-sm font-semibold text-slate-800">{invoice.customerName}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1">NPWP</p>
-              <p className="text-sm text-slate-700">—</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Tanggal Invoice</p>
-              <p className="text-sm text-slate-700">{formatDate(invoice.issueDate)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1">Jatuh Tempo</p>
-              <p className={`text-sm font-medium ${invoice.status === 'OVERDUE' ? 'text-red-600' : 'text-slate-700'}`}>
-                {formatDate(invoice.dueDate)}
-              </p>
+          <div className="bg-gradient-to-br from-red-700 to-red-900 rounded-2xl p-4 text-white shadow-lg shadow-red-900/20 border border-red-800/50 relative overflow-hidden">
+            {/* Subtle overlay accent */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 relative z-10">
+              <div>
+                <p className="text-[10px] text-red-200/80 font-semibold uppercase tracking-wider mb-0.5">Pelanggan</p>
+                <p className="text-sm font-semibold">{invoice.customerName}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-red-200/80 font-semibold uppercase tracking-wider mb-0.5">NPWP</p>
+                <p className="text-sm text-red-100 font-medium">—</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-red-200/80 font-semibold uppercase tracking-wider mb-0.5">Tgl Terbit</p>
+                <p className="text-sm text-red-50 font-medium">{formatDate(invoice.issueDate)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-red-200/80 font-semibold uppercase tracking-wider mb-0.5">Jatuh Tempo</p>
+                <p className={`text-sm font-bold ${invoice.status === 'OVERDUE' ? 'text-amber-300' : 'text-white'}`}>
+                  {formatDate(invoice.dueDate)}
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Line Items */}
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Detail Item</p>
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Detail Item Pembelian</h3>
+            </div>
+            <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50/80 border-b border-slate-200/80">
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">Deskripsi</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 w-16">Qty</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 w-24">Satuan</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">Harga Satuan</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">Total</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Deskripsi</th>
+                    <th className="text-center px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider w-16">Qty</th>
+                    <th className="text-center px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Satuan</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Harga Satuan</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-100/50">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {invoice.items.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 text-slate-700">{item.description}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{item.quantity}</td>
-                      <td className="px-4 py-3 text-right text-slate-500">{item.unit}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{formatIDR(item.unitPrice)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-800">{formatIDR(item.total)}</td>
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-4 py-2 text-slate-700 font-medium">{item.description}</td>
+                      <td className="px-4 py-2 text-center text-slate-600 bg-slate-50/30 group-hover:bg-transparent">{item.quantity}</td>
+                      <td className="px-4 py-2 text-center text-slate-500">{item.unit}</td>
+                      <td className="px-4 py-2 text-right text-slate-600">{formatIDR(item.unitPrice)}</td>
+                      <td className="px-4 py-2 text-right font-semibold text-slate-800 bg-slate-50/30 group-hover:bg-transparent">{formatIDR(item.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -135,31 +164,33 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
 
           {/* Totals */}
           <div className="flex justify-end">
-            <div className="w-64 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="text-slate-700">{formatIDR(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">PPN</span>
-                <span className="text-slate-700">{formatIDR(invoice.ppn)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-semibold border-t border-slate-200 pt-2">
-                <span className="text-slate-800">Total</span>
-                <span className="text-slate-900">{formatIDR(invoice.amount)}</span>
-              </div>
-              {invoice.paidAmount > 0 && (
-                <>
-                  <div className="flex justify-between text-sm text-green-600">
-                    <span>Sudah Dibayar</span>
-                    <span>{formatIDR(invoice.paidAmount)}</span>
+            <div className="w-72 bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="text-slate-700 font-medium">{formatIDR(subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">PPN</span>
+                  <span className="text-slate-700 font-medium">{formatIDR(invoice.ppn)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t border-slate-100 pt-2 mt-1">
+                  <span className="text-slate-800">Total Akhir</span>
+                  <span className="text-red-600">{formatIDR(invoice.amount)}</span>
+                </div>
+                {invoice.paidAmount > 0 && (
+                  <div className="border-t border-dashed border-slate-200 pt-2 mt-2 space-y-1.5">
+                    <div className="flex justify-between text-sm text-emerald-600 font-medium">
+                      <span>Sudah Dibayar</span>
+                      <span>-{formatIDR(invoice.paidAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold text-slate-800 bg-slate-50 px-3 py-1.5 rounded-lg">
+                      <span>Sisa Tagihan</span>
+                      <span>{formatIDR(invoice.amount - invoice.paidAmount)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm font-bold text-red-600 border-t border-slate-200 pt-2">
-                    <span>Sisa Tagihan</span>
-                    <span>{formatIDR(invoice.amount - invoice.paidAmount)}</span>
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -172,19 +203,29 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2 relative z-10">
+          <div className="flex gap-3 pt-3 border-t border-slate-200/60 relative z-10">
+            {pendingPayment && (
+              <button
+                onClick={handleVerify}
+                disabled={isVerifying}
+                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
+              >
+                <CheckCircle2 size={16} />
+                {isVerifying ? "Memverifikasi..." : "Verifikasi Pembayaran"}
+              </button>
+            )}
             <button
               onClick={() => window.print()}
-              className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-medium rounded-lg py-2.5 transition-colors ${invoice.status === 'OVERDUE' ? 'bg-red-600 hover:bg-red-700' : 'bg-red-600 hover:bg-red-700'}`}
+              className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg ${invoice.status === 'OVERDUE' ? 'bg-gradient-to-r from-red-600 to-rose-600 shadow-red-600/20 hover:from-red-700 hover:to-rose-700' : 'bg-gradient-to-r from-red-600 to-red-700 shadow-red-600/20 hover:from-red-700 hover:to-red-800'}`}
             >
-              <Printer size={15} />
-              {invoice.status === 'OVERDUE' ? 'Cetak Surat Penagihan Khusus' : 'Print Invoice'}
+              <Printer size={16} />
+              {invoice.status === 'OVERDUE' ? 'Cetak Penagihan' : 'Print Invoice'}
             </button>
             <button
               onClick={exportInvoice}
-              className="flex-1 flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg py-2.5 transition-colors shadow-md"
+              className="flex-1 flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-xl py-2 transition-all shadow-sm"
             >
-              <Download size={15} />
+              <Download size={16} />
               Export CSV
             </button>
           </div>
@@ -196,7 +237,7 @@ function InvoiceDetailModal({ invoice, onClose }: { invoice: Invoice; onClose: (
 
 export function InvoiceList() {
   const navigate = useNavigate();
-  const { invoices, isLoading, isUsingBackend, refresh } = useFinanceData();
+  const { invoices, payments, isLoading, isUsingBackend, refresh } = useFinanceData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
@@ -463,7 +504,7 @@ export function InvoiceList() {
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+        <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} payments={payments} refresh={refresh} />
       )}
     </div>
   );

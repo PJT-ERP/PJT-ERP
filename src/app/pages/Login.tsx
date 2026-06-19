@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Factory, Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
@@ -7,12 +7,23 @@ import { authApi } from "../services/authApi";
 export function Login() {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const { login } = useApp();
+  const { login, currentUser } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [helperMessage, setHelperMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fromLocation = (state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+
+  useEffect(() => {
+    if (currentUser) {
+      if (fromLocation?.pathname && fromLocation.pathname !== "/login") {
+        navigate(`${fromLocation.pathname}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`, { replace: true });
+      } else {
+        const storedUser = authApi.getCurrentUser();
+        navigate(getDefaultRouteForBackendRole(storedUser?.roles?.[0]), { replace: true });
+      }
+    }
+  }, [currentUser, navigate, fromLocation]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,20 +33,14 @@ export function Login() {
     try {
       const success = await login(email.trim(), password);
 
-      if (success) {
-        if (fromLocation?.pathname && fromLocation.pathname !== "/login") {
-          navigate(`${fromLocation.pathname}${fromLocation.search ?? ""}${fromLocation.hash ?? ""}`, { replace: true });
-          return;
-        }
-
-        const currentUser = authApi.getCurrentUser();
-        navigate(getDefaultRouteForBackendRole(currentUser?.roles?.[0]), { replace: true });
-      } else {
+      if (!success) {
         setHelperMessage("Login gagal. Periksa email dan password, lalu coba lagi.");
+        setIsSubmitting(false);
       }
+      // If success, the useEffect above will handle the navigation 
+      // once the context is fully updated.
     } catch {
       setHelperMessage("Login gagal karena server tidak dapat dihubungi. Coba beberapa saat lagi.");
-    } finally {
       setIsSubmitting(false);
     }
   };

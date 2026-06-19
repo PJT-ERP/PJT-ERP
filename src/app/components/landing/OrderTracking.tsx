@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Package, User, Hash, Calendar, CheckCircle2, Clock, AlertCircle, Loader2, BoxIcon } from "lucide-react";
 import { productionApi, type PublicProductionTrackingDto } from "../../services/productionApi";
 
@@ -176,8 +176,8 @@ export function OrderTracking() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleTrack = async () => {
-    const trimmed = soInput.trim().toUpperCase();
+  const doTrack = async (idToTrack: string) => {
+    const trimmed = idToTrack.trim().toUpperCase();
     if (!trimmed) return;
     setLoading(true);
     setNotFound(false);
@@ -198,6 +198,21 @@ export function OrderTracking() {
       setLoading(false);
     }
   };
+
+  const handleTrack = () => doTrack(soInput);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const trackId = params.get("track");
+    if (trackId) {
+      setSoInput(trackId);
+      doTrack(trackId);
+      setTimeout(() => {
+        const el = document.getElementById("tracking");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 500);
+    }
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleTrack();
@@ -317,7 +332,7 @@ export function OrderTracking() {
             style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "12px" }}
             className="mb-6"
           >
-            Enter your SO number (e.g. SO-2506-001) to track your order status.
+            Enter your SO number (e.g. SO-2026-080) to track your order status.
           </p>
 
           {/* Error state */}

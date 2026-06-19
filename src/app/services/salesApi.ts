@@ -17,6 +17,16 @@ export interface CreateCustomerRequest {
   address?: string | null;
   contactPerson?: string | null;
   email?: string | null;
+  phone?: string | null;
+}
+
+export interface UpdateCustomerRequest {
+  name: string;
+  address?: string | null;
+  contactPerson?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  isActive?: boolean;
 }
 
 export interface ProductDto {
@@ -48,6 +58,8 @@ export interface SalesOrderDto {
   designApprovedAtUtc?: string | null;
   soDate: string;
   targetDate?: string | null;
+  designWorkerUserId?: string | null;
+  designWorkerName?: string | null;
   productionWorkerUserId?: string | null;
   productionWorkerName?: string | null;
   qcReviewerUserId?: string | null;
@@ -91,6 +103,10 @@ export interface CreateSalesOrderRequest {
 }
 
 export interface AssignSalesOrderEngineersRequest {
+  designWorker?: {
+    userId: string;
+    name: string;
+  } | null;
   productionWorker?: {
     userId: string;
     name: string;
@@ -110,6 +126,15 @@ export const salesApi = {
   async createCustomer(request: CreateCustomerRequest) {
     const response = await apiClient.post<CustomerDto>('/api/v1/master-data/customers', request);
     return response.data;
+  },
+
+  async updateCustomer(code: string, request: UpdateCustomerRequest) {
+    const response = await apiClient.put<CustomerDto>(`/api/v1/master-data/customers/${code}`, request);
+    return response.data;
+  },
+
+  async deleteCustomer(code: string) {
+    await apiClient.delete(`/api/v1/master-data/customers/${code}`);
   },
 
   async listProducts() {

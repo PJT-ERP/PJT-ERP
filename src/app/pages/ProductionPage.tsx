@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PlayCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
+import { PurchasingRequest, PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
 import { purchasingApi } from "../services/purchasingApi";
 import { salesApi } from "../services/salesApi";
@@ -20,6 +20,56 @@ const S = {
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
 };
+
+type SystemMessage = {
+  tone: "success" | "info" | "warning" | "error";
+  title: string;
+  message: string;
+  steps?: string[];
+};
+
+function SystemMessageDialog({ message, onClose }: { message: SystemMessage; onClose: () => void }) {
+  const tone = {
+    success: { bg: "#DCFCE7", border: "#BBF7D0", color: "#15803D", icon: <CheckSquare size={24} /> },
+    info: { bg: "#E0F2FE", border: "#BAE6FD", color: "#0369A1", icon: <Package size={24} /> },
+    warning: { bg: "#FEF3C7", border: "#FCD34D", color: "#B45309", icon: <FileWarning size={24} /> },
+    error: { bg: "#FEE2E2", border: "#FCA5A5", color: "#B91C1C", icon: <FileWarning size={24} /> },
+  }[message.tone];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+      <div style={{ width: "100%", maxWidth: 480, background: S.white, borderRadius: 12, border: `1px solid ${S.border}`, boxShadow: "0 20px 45px rgba(15,23,42,0.18)", overflow: "hidden", fontFamily: S.font }}>
+        <div style={{ padding: "18px 22px", display: "flex", gap: 14, borderBottom: `1px solid ${S.border}` }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: tone.bg, border: `1px solid ${tone.border}`, color: tone.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {tone.icon}
+          </div>
+          <div>
+            <h3 style={{ margin: 0, color: S.slate, fontSize: 18, fontWeight: 700 }}>{message.title}</h3>
+            <p style={{ margin: "5px 0 0", color: S.secondary, fontSize: 13.5, lineHeight: 1.5 }}>{message.message}</p>
+          </div>
+        </div>
+        {message.steps && message.steps.length > 0 && (
+          <div style={{ padding: "16px 22px", background: S.bg }}>
+            <p style={{ margin: "0 0 10px", color: S.slate, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Alur Berikutnya</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {message.steps.map((step, index) => (
+                <div key={step} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 99, background: S.white, border: `1px solid ${S.border}`, color: S.slate, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{index + 1}</span>
+                  <span style={{ color: S.slate, fontSize: 13, lineHeight: 1.45 }}>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{ padding: "14px 22px", display: "flex", justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose} style={{ padding: "9px 18px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+            Mengerti
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);
@@ -48,6 +98,72 @@ function getDrawingUrl(so: SalesOrder) {
 
 function getBackendSalesOrderId(so: SalesOrder) {
   return so.backendId || so.id;
+}
+
+type MaterialOption = {
+  key: string;
+  itemName: string;
+  specification: string;
+};
+
+function parseMaterialText(value?: string | null): MaterialOption[] {
+  if (!value) return [];
+
+  return value
+    .split(/[;\n]+/)
+    .map((entry, index) => {
+      const text = entry.trim();
+      if (!text) return null;
+      const separatorIndex = text.indexOf(":");
+      const itemName = separatorIndex >= 0 ? text.slice(0, separatorIndex).trim() : text;
+      const specification = separatorIndex >= 0 ? text.slice(separatorIndex + 1).trim() : "";
+      if (!itemName) return null;
+
+      return {
+        key: `text-${index}-${itemName}`,
+        itemName,
+        specification,
+      };
+    })
+    .filter(Boolean) as MaterialOption[];
+}
+
+function getMaterialOptions(so: SalesOrder): MaterialOption[] {
+  const options: MaterialOption[] = [];
+
+  if (Array.isArray(so.materials)) {
+    so.materials.forEach((material: any, index: number) => {
+      const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
+      const specification = String(material?.specification || material?.spec || material?.size || "").trim();
+      if (itemName) {
+        options.push({ key: `material-${index}-${itemName}`, itemName, specification });
+      }
+    });
+  }
+
+  options.push(...parseMaterialText(so.material));
+  options.push(...parseMaterialText(so.notes));
+
+  if (Array.isArray(so.items)) {
+    so.items.forEach((item: any, index: number) => {
+      const itemName = String(item?.productName || item?.productDescription || item?.partNumber || "").trim();
+      if (itemName) {
+        options.push({ key: `product-${index}-${itemName}`, itemName, specification: "" });
+      }
+    });
+  }
+
+  if (so.description) {
+    options.push({ key: "so-description", itemName: so.description, specification: so.spec || "" });
+  }
+
+  const seen = new Set<string>();
+  return options.filter(option => {
+    const key = `${option.itemName.toLowerCase()}|${option.specification.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function DrawingLinks({ so }: { so: SalesOrder }) {
@@ -144,14 +260,27 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   );
 }
 
-function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; onClose: () => void; onSubmitted: () => void }) {
+function MaterialRequestModal({
+  so,
+  onClose,
+  onSubmitted,
+  onMessage,
+}: {
+  so: SalesOrder;
+  onClose: () => void;
+  onSubmitted: () => void;
+  onMessage: (message: SystemMessage) => void;
+}) {
   const { currentUser, refreshBackendData } = useApp();
+  const materialOptions = getMaterialOptions(so);
+  const firstMaterial = materialOptions[0];
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [items, setItems] = useState([
     {
-      itemName: so.material || so.description || "",
-      specification: so.spec || "",
+      materialKey: firstMaterial?.key || "",
+      itemName: firstMaterial?.itemName || "",
+      specification: firstMaterial?.specification || "",
       quantity: "1",
       unit: "PCS",
       urgency: "Urgent" as PurchasingUrgency,
@@ -165,6 +294,7 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
 
   const addItem = () => {
     setItems(prev => [...prev, {
+      materialKey: "",
       itemName: "",
       specification: "",
       quantity: "1",
@@ -176,6 +306,18 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
 
   const removeItem = (index: number) => {
     setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const selectMaterial = (index: number, materialKey: string) => {
+    const selected = materialOptions.find(option => option.key === materialKey);
+    setItems(prev => prev.map((item, itemIndex) => itemIndex === index
+      ? {
+          ...item,
+          materialKey,
+          itemName: selected?.itemName || "",
+          specification: selected?.specification || "",
+        }
+      : item));
   };
 
   const parsedItems = items.map(item => ({
@@ -205,12 +347,20 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
 
     const salesOrderId = getBackendSalesOrderId(so);
     if (!isGuid(salesOrderId)) {
-      alert("Tidak bisa mengajukan MR karena data backend SO belum lengkap.");
+      onMessage({
+        tone: "error",
+        title: "MR Tidak Bisa Diajukan",
+        message: "Data backend Sales Order belum lengkap. Refresh data atau pastikan SO sudah tersinkron ke backend.",
+      });
       return;
     }
 
     if (!requesterId) {
-      alert("Tidak bisa mengajukan MR karena ID operator tidak ditemukan. Pastikan Anda login ulang.");
+      onMessage({
+        tone: "error",
+        title: "Operator Tidak Ditemukan",
+        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering Worker yang ditugaskan.",
+      });
       return;
     }
 
@@ -237,16 +387,29 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
       window.setTimeout(() => {
         void refreshBackendData();
       }, 1500);
-      alert("MR diajukan ke Supervisor Produksi.");
+      onMessage({
+        tone: "success",
+        title: "MR Diajukan ke Supervisor",
+        message: `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
+        steps: [
+          "Supervisor membuka Persiapan Material dan approve MR.",
+          "Setelah approve, MR muncul di Purchasing untuk isi supplier dan harga.",
+          "Purchasing membuat PO dari MR yang sudah lengkap.",
+          "Finance melakukan approval/pembayaran MR.",
+          "Setelah Finance approve, status material menjadi lengkap dan produksi bisa dimulai.",
+        ],
+      });
       onClose();
     } catch (error: unknown) {
       console.warn("Failed to submit production material request to backend.", error);
       // Try to extract backend error message
       const axiosError = error as { response?: { data?: { message?: string } } };
       const backendMsg = axiosError?.response?.data?.message;
-      alert(backendMsg
-        ? `Gagal mengajukan MR: ${backendMsg}`
-        : "Gagal mengajukan MR ke backend. Cek koneksi API atau data operator.");
+      onMessage({
+        tone: "error",
+        title: "Gagal Mengajukan MR",
+        message: backendMsg || "MR gagal dikirim ke backend. Cek koneksi API atau data operator.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -275,13 +438,19 @@ function MaterialRequestModal({ so, onClose, onSubmitted }: { so: SalesOrder; on
                     </button>
                   )}
                 </div>
-                <input
-                  value={item.itemName}
-                  onChange={e => updateItem(index, "itemName", e.target.value)}
-                  placeholder="Nama item / material"
+                <select
+                  value={item.materialKey}
+                  onChange={e => selectMaterial(index, e.target.value)}
                   required
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
-                />
+                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
+                >
+                  <option value="" disabled>Pilih material / item...</option>
+                  {materialOptions.map(option => (
+                    <option key={option.key} value={option.key}>
+                      {option.itemName}{option.specification ? ` - ${option.specification}` : ""}
+                    </option>
+                  ))}
+                </select>
                 <textarea
                   value={item.specification}
                   onChange={e => updateItem(index, "specification", e.target.value)}
@@ -527,6 +696,96 @@ function PaginationControl({ currentPage, totalItems, itemsPerPage, onPageChange
   );
 }
 
+function MaterialReviewModal({
+  so,
+  request,
+  onClose,
+  onApprove,
+}: {
+  so: SalesOrder;
+  request?: PurchasingRequest;
+  onClose: () => void;
+  onApprove: () => Promise<boolean>;
+}) {
+  const [isApproving, setIsApproving] = useState(false);
+  const items = request?.items && request.items.length > 0
+    ? request.items
+    : [{
+        itemName: request?.itemName || so.description,
+        specification: request?.specification || so.spec || "-",
+        quantity: request?.quantity || 1,
+        unit: request?.unit || "PCS",
+      }];
+
+  const handleApprove = async () => {
+    if (isApproving) return;
+    setIsApproving(true);
+    const ok = await onApprove();
+    setIsApproving(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 560, maxHeight: "90vh", overflow: "hidden", fontFamily: S.font, display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "16px 22px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: 18 }}>Review Material Request</h2>
+            <p style={{ color: S.secondary, margin: "4px 0 0", fontSize: 12.5 }}>{so.id} - {so.description}</p>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: 22, lineHeight: 1 }}>&times;</button>
+        </div>
+
+        <div style={{ padding: "18px 22px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <p style={{ margin: 0, color: S.secondary, fontSize: 12, fontWeight: 600 }}>No. MR</p>
+              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5, fontFamily: "monospace" }}>{request?.id || "-"}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, color: S.secondary, fontSize: 12, fontWeight: 600 }}>Diajukan Oleh</p>
+              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5 }}>{request?.requestedBy || so.assignedName || "Engineering Worker"}</p>
+            </div>
+          </div>
+
+          <div>
+            <p style={{ margin: "0 0 8px", color: S.secondary, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Daftar Material</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {items.map((item, index) => (
+                <div key={`${item.itemName}-${index}`} style={{ border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, background: S.bg }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <p style={{ margin: 0, color: S.slate, fontSize: 13.5, fontWeight: 700 }}>{item.itemName}</p>
+                    <span style={{ color: S.slate, fontSize: 12, fontWeight: 700, background: S.white, border: `1px solid ${S.border}`, borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
+                      {item.quantity} {item.unit}
+                    </span>
+                  </div>
+                  <p style={{ margin: "5px 0 0", color: S.secondary, fontSize: 12.5 }}>{item.specification || "-"}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {request?.notes && (
+            <div style={{ border: `1px solid ${S.border}`, borderRadius: 8, padding: 12 }}>
+              <p style={{ margin: "0 0 4px", color: S.secondary, fontSize: 12, fontWeight: 700 }}>Catatan Engineer</p>
+              <p style={{ margin: 0, color: S.slate, fontSize: 13 }}>{request.notes}</p>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "14px 22px", borderTop: `1px solid ${S.border}`, display: "flex", gap: 10 }}>
+          <button type="button" onClick={onClose} disabled={isApproving} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: isApproving ? "not-allowed" : "pointer" }}>
+            Batal
+          </button>
+          <button type="button" onClick={handleApprove} disabled={isApproving} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: isApproving ? "not-allowed" : "pointer", opacity: isApproving ? 0.65 : 1 }}>
+            {isApproving ? "Menyetujui..." : "Approve ke Purchasing"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProductionPage() {
   const { salesOrders, currentUser, users, purchasingRequests, customers, refreshBackendData } = useApp();
   const canReadFinanceData = currentUser?.role === "Finance"
@@ -543,6 +802,8 @@ export function ProductionPage() {
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
   const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
+  const [reviewMrModal, setReviewMrModal] = useState<SalesOrder | null>(null);
+  const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
 
   // Pagination states
@@ -587,10 +848,9 @@ export function ProductionPage() {
     const request = getMaterialRequest(so);
     if (!request) return hasLocalMaterialRequest(so) ? 'requested' : 'none';
     if (request.backendStatus === 'SupervisorRejected' || request.backendStatus === 'FinanceRejected' || request.backendStatus === 'Rejected') return 'rejected';
-    if (request.backendStatus === 'Completed') return 'completed';
-    if (request.backendStatus === 'SupervisorApproved' || request.backendStatus === 'Processing' || request.backendStatus === 'FinanceApproved') return 'approved';
+    if (request.backendStatus === 'Completed' || request.backendStatus === 'FinanceApproved' || request.status === 'Selesai') return 'completed';
+    if (request.backendStatus === 'SupervisorApproved' || request.backendStatus === 'Processing') return 'approved';
     if (request.status === 'Ditolak') return 'rejected';
-    if (request.status === 'Selesai') return 'completed';
     if (request.status === 'Diproses') return 'approved';
     return 'requested';
   };
@@ -600,22 +860,38 @@ export function ProductionPage() {
     const reviewerId = toBackendUserId(currentUser);
 
     if (!request?.backendId || !reviewerId) {
-      alert("MR belum punya data backend lengkap untuk approval.");
-      return;
+      setSystemMessage({
+        tone: "error",
+        title: "MR Belum Lengkap",
+        message: "MR belum punya data backend lengkap untuk approval. Refresh data atau minta engineer submit ulang MR.",
+      });
+      return false;
     }
 
     if (request.backendStatus && request.backendStatus !== 'Submitted') {
       await refreshBackendData();
       if (request.backendStatus === 'SupervisorApproved') {
-        alert("MR sudah disetujui Supervisor dan diteruskan ke Purchasing.");
-        return;
+        setSystemMessage({
+          tone: "info",
+          title: "MR Sudah Disetujui",
+          message: "MR ini sudah disetujui Supervisor dan sudah berada di antrian Purchasing.",
+        });
+        return false;
       }
       if (request.backendStatus === 'FinanceApproved' || request.backendStatus === 'Processing' || request.backendStatus === 'Completed') {
-        alert("MR sudah diteruskan ke Purchasing.");
-        return;
+        setSystemMessage({
+          tone: "info",
+          title: "MR Sudah Diproses",
+          message: "MR ini sudah melewati approval Supervisor dan sedang/selesai diproses Purchasing atau Finance.",
+        });
+        return false;
       }
-      alert("MR tidak bisa di-approve pada status saat ini.");
-      return;
+      setSystemMessage({
+        tone: "warning",
+        title: "MR Tidak Bisa Di-approve",
+        message: "MR tidak bisa di-approve pada status saat ini. Cek ulang status pengajuan di daftar MR.",
+      });
+      return false;
     }
 
     try {
@@ -624,10 +900,28 @@ export function ProductionPage() {
         decision: 'Accept',
       });
       await refreshBackendData();
-      alert("Permintaan disetujui dan diteruskan ke Purchasing.");
+      setSystemMessage({
+        tone: "success",
+        title: "MR Disetujui Supervisor",
+        message: "Permintaan material sudah diteruskan ke Purchasing untuk pengecekan supplier, harga, dan pembuatan PO.",
+        steps: [
+          "Purchasing membuka daftar MR dan mengisi supplier serta total harga.",
+          "Purchasing membuat Purchase Order dari MR tersebut.",
+          "Finance melakukan approval/pembayaran MR.",
+          "Setelah Finance approve, status material menjadi lengkap.",
+          "Engineer Worker bisa mulai produksi dari kartu SO terkait.",
+        ],
+      });
+      return true;
     } catch (error) {
       console.warn("Failed to approve MR in backend.", error);
-      alert("Gagal approve MR di backend. Cek koneksi API atau status MR.");
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      setSystemMessage({
+        tone: "error",
+        title: "Gagal Approve MR",
+        message: axiosError?.response?.data?.message || "Approval MR gagal dikirim ke backend. Cek koneksi API atau status MR.",
+      });
+      return false;
     }
   };
 
@@ -662,10 +956,12 @@ export function ProductionPage() {
                   <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
                   <DrawingLinks so={so} />
                 </div>
-                <button onClick={() => setAssignModal(so)}
-                  style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
-                  Tugaskan Operator
-                </button>
+                {currentUser?.role !== 'Admin' && (
+                  <button onClick={() => setAssignModal(so)}
+                    style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
+                    Tugaskan Operator
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -709,19 +1005,19 @@ export function ProductionPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    {isSupervisor && mrState === 'requested' && (
-                      <button onClick={() => approveMaterialRequest(so)}
+                    {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
+                      <button onClick={() => setReviewMrModal(so)}
                         style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
-                        Approve Request
+                        Review MR
                       </button>
                     )}
-                    {mrState === 'none' && !isSupervisor && (
+                    {mrState === 'none' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                       <button onClick={() => setReqModal(so)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
                       </button>
                     )}
-                    {!isSupervisor && (mrState === 'none' || mrState === 'completed') && (
+                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (mrState === 'none' || mrState === 'completed') && (
                       <button onClick={() => setStartModal(so)}
                         style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <PlayCircle size={14} /> Mulai Produksi
@@ -766,7 +1062,7 @@ export function ProductionPage() {
                       <DrawingLinks so={so} />
                     </div>
                   </div>
-                  {!isSupervisor && (
+                  {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                     <button onClick={() => setCompleteModal(so)}
                       style={{ padding: "8px 16px", background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                       <CheckSquare size={14} /> Selesai Produksi
@@ -820,10 +1116,20 @@ export function ProductionPage() {
           so={reqModal}
           onClose={() => setReqModal(null)}
           onSubmitted={() => rememberMaterialRequest(reqModal)}
+          onMessage={setSystemMessage}
         />
       )}
       {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} />}
       {completeModal && <CompleteProductionModal so={completeModal} onClose={() => setCompleteModal(null)} />}
+      {reviewMrModal && (
+        <MaterialReviewModal
+          so={reviewMrModal}
+          request={getMaterialRequest(reviewMrModal)}
+          onClose={() => setReviewMrModal(null)}
+          onApprove={() => approveMaterialRequest(reviewMrModal)}
+        />
+      )}
+      {systemMessage && <SystemMessageDialog message={systemMessage} onClose={() => setSystemMessage(null)} />}
     </div>
   );
 }

@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from "react";
 import {
   Search, Plus, Download, Eye, Edit, Copy, Printer,
-  ChevronLeft, ChevronRight, X, SlidersHorizontal,
+  ChevronLeft, ChevronRight, X, SlidersHorizontal, LayoutGrid, List,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
-import type { Page } from "../layout/erp-layout";
 import { useFinanceData } from "../finance/useFinanceData";
+
 import { getSalesOrderInvoiceStatus, mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
 
 const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
@@ -17,7 +17,7 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
 };
 
 interface SOListProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
 }
 
 const S = {
@@ -157,18 +157,21 @@ function ActionBtn({
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOList({ onNavigate }: SOListProps) {
   const { salesOrders, customers } = useApp();
-  const { invoices } = useFinanceData();
+  const { invoices, payments } = useFinanceData();
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [dateFilter, setDateFilter]       = useState("");
   const [page, setPage]                   = useState(1);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [viewMode, setViewMode]           = useState<"table" | "card">("table");
 
   const hasActiveFilters = statusFilter !== "all" || customerFilter !== "all" || !!dateFilter;
   const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (customerFilter !== "all" ? 1 : 0) + (dateFilter ? 1 : 0);
 
-  const filtered = useMemo(() => salesOrders.filter(o => {
+  const mergedSalesOrders = useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
+
+  const filtered = useMemo(() => mergedSalesOrders.filter(o => {
     if (o.id.startsWith("QU")) return false; // Hide quotations from SO List
     
     const cust = customers.find(c => c.code === o.customerId);
@@ -182,7 +185,7 @@ export function SOList({ onNavigate }: SOListProps) {
       (statusFilter === "all" || o.status === statusFilter) &&
       (customerFilter === "all" || o.customerId === customerFilter) &&
       (!dateFilter || o.createdAt.startsWith(dateFilter));
-  }), [salesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
+  }), [mergedSalesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -312,6 +315,36 @@ export function SOList({ onNavigate }: SOListProps) {
               </button>
             </div>
           )}
+
+          {/* View toggle */}
+          <div style={{ display: "flex", background: S.bg, borderRadius: 6, padding: 3, border: `1px solid ${S.border}` }}>
+            <button
+              onClick={() => setViewMode("table")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 28, borderRadius: 4, border: "none", cursor: "pointer",
+                background: viewMode === "table" ? S.white : "transparent",
+                boxShadow: viewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                color: viewMode === "table" ? S.cyan : S.secondary,
+                transition: "all 0.2s"
+              }}
+              title="Tampilan Tabel"
+            >
+              <List size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode("card")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 28, borderRadius: 4, border: "none", cursor: "pointer",
+                background: viewMode === "card" ? S.white : "transparent",
+                boxShadow: viewMode === "card" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                color: viewMode === "card" ? S.cyan : S.secondary,
+                transition: "all 0.2s"
+              }}
+              title="Tampilan Kartu"
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
         </div>
 
         {/* Row 2: Dropdown filters */}
@@ -368,66 +401,134 @@ export function SOList({ onNavigate }: SOListProps) {
         </div>
       </div>
 
-      {/* ── Table ─────────────────────────────────────────────────────────────── */}
-      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-              {[
-                { label: "No. SO",          align: "left"  },
-                { label: "Pelanggan",        align: "left"  },
-                { label: "Produk",           align: "left"  },
-                { label: "Qty",              align: "left"  },
-                { label: "Deadline",         align: "left"  },
-                { label: "Status Invoice",   align: "left"  },
-                { label: "Status Workflow",  align: "left"  },
-                { label: "Dibuat",           align: "left"  },
-                { label: "Aksi",             align: "right" },
-              ].map(h => (
-                <th key={h.label} style={{
-                  padding: "8px 14px", textAlign: h.align as "left"|"right",
-                  fontSize: "10px", fontWeight: 700, color: "#94A3B8",
-                  letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap",
-                }}>
-                  {h.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginated.length === 0 ? (
-              <tr>
-                <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
-                  Tidak ada data yang sesuai dengan filter
-                </td>
+      {/* ── Table / Cards ─────────────────────────────────────────────────────────── */}
+      {viewMode === "table" ? (
+        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                {[
+                  { label: "No. SO",          align: "left"  },
+                  { label: "Pelanggan",        align: "left"  },
+                  { label: "Produk",           align: "left"  },
+                  { label: "Qty",              align: "left"  },
+                  { label: "Deadline",         align: "left"  },
+                  { label: "Status Invoice",   align: "left"  },
+                  { label: "Status Workflow",  align: "left"  },
+                  { label: "Dibuat",           align: "left"  },
+                  { label: "Aksi",             align: "right" },
+                ].map(h => (
+                  <th key={h.label} style={{
+                    padding: "8px 14px", textAlign: h.align as "left"|"right",
+                    fontSize: "10px", fontWeight: 700, color: "#94A3B8",
+                    letterSpacing: "0.08em", textTransform: "uppercase", whiteSpace: "nowrap",
+                  }}>
+                    {h.label}
+                  </th>
+                ))}
               </tr>
-            ) : paginated.map((order, idx) => (
-              <TableRow
-                key={order.id}
-                order={mergeSalesOrderInvoice(order, invoices)}
-                customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
-                isLast={idx === paginated.length - 1}
-                onView={() => onNavigate("so-detail", order.id)}
-                onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
-                onDuplicate={() => onNavigate("so-create")}
-                onPrint={() => window.print()}
-              />
-            ))}
-          </tbody>
-        </table>
-        </div>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
+                    Tidak ada data yang sesuai dengan filter
+                  </td>
+                </tr>
+              ) : paginated.map((order, idx) => (
+                <TableRow
+                  key={order.id}
+                  order={order}
+                  customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
+                  isLast={idx === paginated.length - 1}
+                  onView={() => onNavigate("so-detail", order.id)}
+                  onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
+                  onDuplicate={() => onNavigate("so-create")}
+                  onPrint={() => window.print()}
+                />
+              ))}
+            </tbody>
+          </table>
+          </div>
 
-        {/* Pagination */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 16px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-          <span style={{ color: S.secondary, fontSize: "12px" }}>
-            {filtered.length === 0
-              ? "Tidak ada hasil"
-              : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} dari ${filtered.length} hasil`}
-          </span>
-          <Pagination page={page} total={totalPages} onChange={setPage} />
+          {/* Pagination */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 16px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+            <span style={{ color: S.secondary, fontSize: "12px" }}>
+              {filtered.length === 0
+                ? "Tidak ada hasil"
+                : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} dari ${filtered.length} hasil`}
+            </span>
+            <Pagination page={page} total={totalPages} onChange={setPage} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: 16
+          }}>
+            {paginated.length === 0 ? (
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 8, border: `1px solid ${S.border}` }}>
+                Tidak ada data yang sesuai dengan filter
+              </div>
+            ) : paginated.map((order) => {
+              const customerName = customers.find(c => c.code === order.customerId)?.name || "Unknown";
+              return (
+                <div key={order.id} style={{
+                  background: S.white, borderRadius: 8, border: `1px solid ${S.border}`, padding: 16,
+                  display: "flex", flexDirection: "column", gap: 12,
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <span style={{ color: "#C8102E", fontSize: "14px", fontWeight: 600 }}>{order.id}</span>
+                      <p style={{ margin: "2px 0 0", color: "#111827", fontSize: "13px", fontWeight: 500 }}>{customerName}</p>
+                    </div>
+                    <StatusBadge status={order.status as SOStatus} />
+                  </div>
+                  
+                  <div>
+                    <p style={{ margin: 0, color: "#64748B", fontSize: "12px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{order.description}</p>
+                    <p style={{ margin: "4px 0 0", color: "#334155", fontSize: "12px", fontWeight: 500 }}>
+                      Qty: {order.quantity.toLocaleString("id-ID")} {order.unit}
+                    </p>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "8px 0", borderTop: `1px solid #F1F5F9`, borderBottom: `1px solid #F1F5F9` }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "10px", color: "#94A3B8", textTransform: "uppercase" }}>Deadline</p>
+                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#334155" }}>{order.deadline}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "10px", color: "#94A3B8", textTransform: "uppercase" }}>Invoice</p>
+                      <div style={{ marginTop: 2 }}>
+                        <InvoiceBadge status={(order.invoice?.status ?? "not_created") as SalesInvoiceStatus} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: "auto" }}>
+                    <MobileActionBtn label="Detail" bg="#EFF6FF" color="#C8102E" action={() => onNavigate("so-detail", order.id)} />
+                    <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination for cards */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", marginTop: 8 }}>
+            <span style={{ color: S.secondary, fontSize: "12px" }}>
+              {filtered.length === 0
+                ? "Tidak ada hasil"
+                : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} dari ${filtered.length} hasil`}
+            </span>
+            <Pagination page={page} total={totalPages} onChange={setPage} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -491,8 +592,6 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
           <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
-          <ActionBtn icon={<Copy size={12} />}    label="Duplikat" hoverBg="#F5F3FF" hoverColor="#7C3AED" onClick={onDuplicate} title="Duplikat order" />
-          <ActionBtn icon={<Printer size={12} />} label="Cetak"    hoverBg="#F8FAFC" hoverColor="#475569" onClick={onPrint}     title="Cetak SO" />
         </div>
       </td>
     </tr>

@@ -16,11 +16,12 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus } from "../data/mockData";
-import type { Page } from "../layout/erp-layout";
+import { PurchasingRequest } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
+import { mergeSalesOrderInvoice } from "./invoice-sync";
 
 interface SODashboardProps {
-  onNavigate: (page: Page, data?: unknown) => void;
+  onNavigate: (page: string, data?: unknown) => void;
 }
 
 const S = {
@@ -55,29 +56,30 @@ function StatusBadge({ status }: { status: SOStatus }) {
 
 export function SODashboard({ onNavigate }: SODashboardProps) {
   const { salesOrders, customers } = useApp();
-  const { invoices } = useFinanceData();
+  const { invoices, payments } = useFinanceData();
+  const mergedSalesOrders = React.useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
-  const total = salesOrders.length;
-  const waitingFinance = salesOrders.filter((o) => o.status === "Menunggu Invoice DP" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
-  const inProduction = salesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
-  const completed = salesOrders.filter((o) => o.status === "Completed").length;
+  const total = mergedSalesOrders.length;
+  const waitingFinance = mergedSalesOrders.filter((o) => o.status === "Menunggu Invoice DP" || o.status === "Waiting Payment" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
+  const inProduction = mergedSalesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
+  const completed = mergedSalesOrders.filter((o) => o.status === "Completed").length;
 
-  const recentOrders = [...salesOrders]
+  const recentOrders = [...mergedSalesOrders]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
 
   const workflowStats = [
     { label: "Menunggu Invoice DP", count: salesOrders.filter(o => o.status === "Menunggu Invoice DP").length, color: "#F59E0B" },
-    { label: "Pending Design",      count: salesOrders.filter(o => o.status === "Pending Design").length,      color: "#94A3B8" },
-    { label: "Waiting Approval",    count: salesOrders.filter(o => o.status === "Waiting Approval").length,    color: "#F59E0B" },
-    { label: "Revision Required",   count: salesOrders.filter(o => o.status === "Revision Required").length,   color: "#EF4444" },
-    { label: "In Production",       count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
-    { label: "QC",                  count: salesOrders.filter(o => o.status === "QC").length,                  color: "#3B82F6" },
-    { label: "Completed",           count: salesOrders.filter(o => o.status === "Completed").length,           color: "#22C55E" },
+    { label: "Pending Design", count: salesOrders.filter(o => o.status === "Pending Design").length, color: "#94A3B8" },
+    { label: "Waiting Approval", count: salesOrders.filter(o => o.status === "Waiting Approval").length, color: "#F59E0B" },
+    { label: "Revision Required", count: salesOrders.filter(o => o.status === "Revision Required").length, color: "#EF4444" },
+    { label: "In Production", count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
+    { label: "QC", count: salesOrders.filter(o => o.status === "QC").length, color: "#3B82F6" },
+    { label: "Completed", count: salesOrders.filter(o => o.status === "Completed").length, color: "#22C55E" },
   ];
 
-  const allActivities = salesOrders
+  const allActivities = mergedSalesOrders
     .flatMap((o) => (o.activities || []).map((a) => ({ ...a, soNumber: o.id, orderId: o.id })))
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, 7);
@@ -133,7 +135,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
           style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "8px 16px", borderRadius: 6, border: "none",
-            background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
+            background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
             color: "#fff", cursor: "pointer",
             fontSize: "13px", fontWeight: 600, fontFamily: S.font, whiteSpace: "nowrap",
             boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
@@ -155,14 +157,14 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         {summaryCards.map((card) => (
-          <button 
-            key={card.label} 
+          <button
+            key={card.label}
             onClick={() => onNavigate("so-list", { filter: card.label })}
-            style={{ 
-              background: S.white, 
-              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", 
-              border: `1px solid ${S.cardBorder}`, 
-              borderRadius: 6, 
+            style={{
+              background: S.white,
+              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)",
+              border: `1px solid ${S.cardBorder}`,
+              borderRadius: 6,
               padding: "16px 18px",
               textAlign: "left",
               cursor: "pointer",
@@ -410,9 +412,9 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { label: "Buat SO", icon: <Plus size={13} />, page: "so-create" as Page, primary: true },
-                { label: "Lihat Semua Order", icon: <List size={13} />, page: "so-list" as Page, primary: false },
-                { label: "Data Pelanggan", icon: <Users size={13} />, page: "customer-list" as Page, primary: false },
+                { label: "Buat SO", icon: <Plus size={13} />, page: "so-create" as string, primary: true },
+                { label: "Lihat Semua Order", icon: <List size={13} />, page: "so-list" as string, primary: false },
+                { label: "Data Pelanggan", icon: <Users size={13} />, page: "customer-list" as string, primary: false },
               ].map((action) => (
                 <button
                   key={action.label}
@@ -451,8 +453,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               <Clock size={14} style={{ color: "#F59E0B" }} />
               <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>
             </div>
-            {salesOrders
-              .filter(o => !["completed", "cancelled"].includes(o.status))
+            {mergedSalesOrders
+              .filter(o => !["completed", "cancelled"].includes(o.status.toLowerCase()))
               .sort((a, b) => a.deadline.localeCompare(b.deadline))
               .slice(0, 4)
               .map((o) => (

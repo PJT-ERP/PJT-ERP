@@ -430,10 +430,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerCode: prefillCustomer?.code ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-    customerName: prefillCustomer?.name ?? "",
+    customerName: prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
-    email: prefillCustomer?.contact ?? "",
+    email: prefillCustomer?.email ?? (prefillCustomer?.contact && prefillCustomer?.contact.includes('@') ? prefillCustomer.contact : ""),
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",
@@ -504,7 +504,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const ensureCustomerId = async (input: {
     code: string;
-    name: string;
+    company: string;
+    customerName: string;
     email?: string;
     phone?: string;
     address?: string;
@@ -518,10 +519,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     const created = await salesApi.createCustomer({
       code,
-      name: input.name.trim() || code,
+      name: input.company.trim() || input.customerName.trim() || code,
       address: input.address || null,
-      contactPerson: input.name.trim() || null,
+      contactPerson: input.customerName.trim() || null,
       email: input.email || null,
+      phone: input.phone || null,
     });
     return created.id;
   };
@@ -596,7 +598,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     try {
       const customerId = await ensureCustomerId({
         code: customerForm.customerCode,
-        name: customerForm.company || customerForm.customerName,
+        company: customerForm.company,
+        customerName: customerForm.customerName,
         email: customerForm.email,
         phone: customerForm.phone,
         address: customerForm.address,
@@ -621,8 +624,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     try {
       const customerId = await ensureCustomerId({
         code: selectedCustomer.code,
-        name: selectedCustomer.name,
-        email: selectedCustomer.contact,
+        company: selectedCustomer.name,
+        customerName: selectedCustomer.contactPerson || selectedCustomer.name,
+        email: selectedCustomer.email || selectedCustomer.contact,
         phone: selectedCustomer.phone,
         address: selectedCustomer.address,
       });
@@ -760,12 +764,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 </div>
               </div>
               <div>
-                <Label text="Nama Pelanggan" required />
-                <Input icon={<User size={11} />} placeholder="Nama lengkap" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
+                <Label text="Nama Kontak (PIC)" required />
+                <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
               </div>
               <div>
-                <Label text="Perusahaan" required />
-                <Input icon={<Building2 size={11} />} placeholder="Nama perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required />
+                <Label text="Nama Perusahaan" required />
+                <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required />
               </div>
               <div>
                 <Label text="No. Telepon" required />

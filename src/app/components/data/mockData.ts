@@ -31,6 +31,8 @@ export interface Customer {
   contact: string;
   phone: string;
   address: string;
+  email?: string;
+  contactPerson?: string;
 }
 
 export interface SalesOrder {
@@ -74,6 +76,8 @@ export interface SalesOrder {
   designApprovedAt?: string;
   assignedTo?: string;
   assignedName?: string;
+  designAssignedTo?: string;
+  designAssignedName?: string;
   materialRequestStatus?: 'none' | 'requested' | 'approved';
   materialShortageDetected?: boolean;
   estimatedAmount?: number;
@@ -99,6 +103,34 @@ export const STATUS_STEPS: SOStatus[] = [
 ];
 
 export const REVISION_STATUSES: SOStatus[] = ['Pending Design', 'Revision Required'];
+
+export const invoiceStatusConfig: Record<string, { label: string; bgColor: string; textColor: string; dotColor: string; borderColor: string }> = {
+  paid: {
+    label: "Lunas",
+    bgColor: "#F0FDF4", textColor: "#166534",
+    dotColor: "#22C55E", borderColor: "#BBF7D0",
+  },
+  verified: {
+    label: "Terverifikasi",
+    bgColor: "#EFF6FF", textColor: "#1E40AF",
+    dotColor: "#3B82F6", borderColor: "#BFDBFE",
+  },
+  pending_verification: {
+    label: "Menunggu Verifikasi",
+    bgColor: "#FFFBEB", textColor: "#92400E",
+    dotColor: "#F59E0B", borderColor: "#FDE68A",
+  },
+  waiting: {
+    label: "Waiting",
+    bgColor: "#F8FAFC", textColor: "#475569",
+    dotColor: "#F59E0B", borderColor: "#E2E8F0",
+  },
+  not_created: {
+    label: "Belum Dibuat",
+    bgColor: "#F8FAFC", textColor: "#475569",
+    dotColor: "#CBD5E1", borderColor: "#E2E8F0",
+  },
+};
 
 export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string } {
   const map: Record<SOStatus, { bg: string; text: string; border: string }> = {
@@ -176,6 +208,12 @@ export type PurchasingUrgency = 'Normal' | 'Urgent' | 'Critical';
 export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak';
 
 export interface PurchasingItem {
+  itemId?: string;
+  materialRequirementId?: string | null;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  projectName?: string | null;
+  purchaseCategory?: 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | string | null;
   itemName: string;
   specification: string;
   quantity: number;

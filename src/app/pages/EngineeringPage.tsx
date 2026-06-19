@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { 
-  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield, 
-  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp, 
+import {
+  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield,
+  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp,
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
@@ -38,21 +38,29 @@ export function EngineeringPage() {
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
-    .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
+    .filter(so => {
+      if (isSpv) {
+        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
+        return engineeringStatuses.includes(so.status) && 
+               so.backendDesignStatus !== undefined &&
+               so.backendDesignStatus !== null;
+      }
+      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
+    })
     .map(so => ({ ...so, isQuotation: false } as any));
 
   const allDesignQueue = [...pendingSalesOrders];
 
   const designQueue = allDesignQueue.filter(item => {
     if (isSpv) return true;
-    return item.assignedTo === currentUser?.id;
+    return item.designAssignedTo === currentUser?.id || item.assignedTo === currentUser?.id;
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design').length;
-  const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval').length;
+  const pendingDesignCount = designQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
+  const designReviewCount = designQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
   // Production Stats
-  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Material Preparation').length;
+  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
   const qcCount = salesOrders.filter(so => so.status === 'QC').length;
 
   const summaryCards = [
@@ -62,7 +70,7 @@ export function EngineeringPage() {
       icon: <List size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: "Dari Tim Sales",
+      change: isSpv ? "Dari Tim Sales" : "Dari Supervisor",
     },
     {
       label: "Waiting Spv Approval",
@@ -83,15 +91,15 @@ export function EngineeringPage() {
   ];
 
   const workflowStats = [
-    { label: "Pending Design",    count: pendingDesignCount,    color: "#94A3B8" },
-    { label: "Waiting Spv",       count: designReviewCount,     color: "#8B5CF6" },
-    { label: "In Production",     count: inProductionCount,     color: "#3B82F6" },
-    { label: "QC",                count: qcCount,               color: "#C8102E" },
+    { label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" },
+    { label: "Waiting Spv", count: designReviewCount, color: "#8B5CF6" },
+    { label: "In Production", count: inProductionCount, color: "#3B82F6" },
+    { label: "QC", count: qcCount, color: "#C8102E" },
   ];
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
-      
+
       {/* Page header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
@@ -122,10 +130,10 @@ export function EngineeringPage() {
 
       {/* Main grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">
-        
+
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-          
+
           {/* Pre-Sales Design Queue Table */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
@@ -145,61 +153,61 @@ export function EngineeringPage() {
             {designQueue.length === 0 ? (
               <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                 <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
+                <p style={{ margin: 0 }}>{isSpv ? "Tidak ada antrean desain dari Sales." : "Tidak ada antrean desain dari Supervisor."}</p>
               </div>
             ) : (
               designQueue.slice(0, 10).map((so, idx) => {
-                const canOpen = isSpv ? so.status === 'Waiting Spv Approval' : so.assignedTo === currentUser?.id && so.status === 'Pending Design';
-                const assignedName = so.assignedName || users.find(u => u.id === so.assignedTo)?.name || 'Engineer';
+                const canOpen = isSpv ? so.status === 'Waiting Spv Approval' : so.designAssignedTo === currentUser?.id && so.status === 'Pending Design';
+                const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
 
                 return (
-                <div
-                  key={so.id}
-                  onClick={() => {
-                    if (canOpen) {
-                      navigate('/erp/engineer-tasks');
-                    }
-                  }}
-                  style={{
-                    display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", alignItems: "center",
-                    padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
-                    borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
-                  <div>
-                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
+                  <div
+                    key={so.id}
+                    onClick={() => {
+                      if (canOpen) {
+                        navigate('/erp/engineer-tasks');
+                      }
+                    }}
+                    style={{
+                      display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", alignItems: "center",
+                      padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
+                      borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
+                    <div>
+                      <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
+                    </div>
+                    <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
+                    <div>
+                      {so.designAssignedTo ? (
+                        <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
+                          {assignedName}
+                        </span>
+                      ) : isSpv && currentUser?.role !== 'Admin' ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
+                          style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
+                        >
+                          Tugaskan
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                      )}
+                    </div>
+                    <div>
+                      <StatusBadge status={so.status} />
+                    </div>
                   </div>
-                  <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
-                  <div>
-                    {so.assignedTo ? (
-                      <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                        {assignedName}
-                      </span>
-                    ) : isSpv ? (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
-                        style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
-                      >
-                        Tugaskan
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                    )}
-                  </div>
-                  <div>
-                    <StatusBadge status={so.status} />
-                  </div>
-                </div>
                 );
               })
             )}
-            
+
             {designQueue.length > 10 && (
-              <div 
+              <div
                 onClick={() => navigate('/erp/engineer-tasks')}
                 style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
@@ -213,7 +221,7 @@ export function EngineeringPage() {
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          
+
           {/* Pipeline stats */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>
@@ -240,6 +248,7 @@ export function EngineeringPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: true },
+                { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Quality Control", icon: <CheckSquare size={13} />, path: "/erp/engineer-qc", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: false },
               ].map((action) => (

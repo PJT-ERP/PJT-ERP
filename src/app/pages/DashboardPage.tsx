@@ -207,7 +207,7 @@ export function DashboardPage() {
           </h3>
           <div className="space-y-3">
             {customers
-              .map(c => ({ ...c, count: salesOrders.filter(so => so.customerId === c.code).length }))
+              .map(c => ({ ...c, count: salesOrders.filter(so => so.customerId === c.code && so.status === 'Completed').length }))
               .filter(c => c.count > 0)
               .sort((a, b) => b.count - a.count)
               .slice(0, 5)

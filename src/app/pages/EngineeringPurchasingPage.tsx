@@ -24,10 +24,10 @@ const URGENCY_COLORS: Record<PurchasingUrgency, string> = {
 };
 
 const PR_STATUS_COLORS: Record<PurchasingStatus, string> = {
-  Pending:  'bg-slate-600 text-white border-transparent shadow-sm',
+  Pending: 'bg-slate-600 text-white border-transparent shadow-sm',
   Diproses: 'bg-red-600 text-white border-transparent shadow-sm',
-  Selesai:  'bg-green-600 text-white border-transparent shadow-sm',
-  Ditolak:  'bg-red-600 text-white border-transparent shadow-sm',
+  Selesai: 'bg-green-600 text-white border-transparent shadow-sm',
+  Ditolak: 'bg-red-600 text-white border-transparent shadow-sm',
 };
 
 const UNITS = ['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'];
@@ -140,7 +140,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Admin')
+  const canEdit = (currentUser?.role === 'Engineering Worker')
     && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
 
   if (successAction) return (
@@ -153,8 +153,8 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
           {successAction === 'approve' ? 'Pengajuan Disetujui' : 'Pengajuan Ditolak'}
         </h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {successAction === 'approve' 
-            ? 'Pengajuan telah diteruskan ke tim Purchasing untuk diproses.' 
+          {successAction === 'approve'
+            ? 'Pengajuan telah diteruskan ke tim Purchasing untuk diproses.'
             : 'Pengajuan telah dikembalikan dengan status ditolak.'}
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
@@ -331,7 +331,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
           )}
 
           {/* Supervisor Action Buttons */}
-          {isSpv && pr.status === 'Pending' && !rejectMode && (
+          {isSpv && currentUser?.role !== 'Admin' && pr.status === 'Pending' && !rejectMode && (
             <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
               <button
                 onClick={() => setRejectMode(true)}
@@ -368,6 +368,12 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
 // ─── Form Modal ──────────────────────────────────────────────────────────────
 
 interface ItemDraft {
+  itemId?: string;
+  materialRequirementId?: string | null;
+  salesOrderId?: string | null;
+  salesOrderNumber?: string | null;
+  projectName?: string | null;
+  purchaseCategory?: string | null;
   itemName: string;
   specification: string;
   quantity: string;
@@ -388,6 +394,12 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 
     return sourceItems.length > 0
       ? sourceItems.map(item => ({
+          itemId: item.itemId,
+          materialRequirementId: item.materialRequirementId,
+          salesOrderId: item.salesOrderId,
+          salesOrderNumber: item.salesOrderNumber,
+          projectName: item.projectName,
+          purchaseCategory: item.purchaseCategory,
           itemName: item.itemName,
           specification: item.specification,
           quantity: String(item.quantity || ''),
@@ -417,6 +429,12 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
     if (!canSubmit || isSubmitting) return;
 
     const parsedItems: PurchasingItem[] = items.map(it => ({
+      itemId: it.itemId,
+      materialRequirementId: it.materialRequirementId,
+      salesOrderId: it.salesOrderId,
+      salesOrderNumber: it.salesOrderNumber,
+      projectName: it.projectName,
+      purchaseCategory: it.purchaseCategory,
       itemName: it.itemName.trim(),
       specification: it.specification.trim(),
       quantity: parseInt(it.quantity),
@@ -440,15 +458,16 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
         salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
         projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
         items: parsedItems.map(item => ({
-          salesOrderId: selectedSo?.backendId || null,
-          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
-          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
+          materialRequirementId: item.materialRequirementId || null,
+          salesOrderId: selectedSo?.backendId || item.salesOrderId || null,
+          salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || item.salesOrderNumber || null,
+          projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : item.projectName || "General Engineering Request",
           itemName: item.itemName,
           size: item.specification || null,
           qty: item.quantity,
           notes: notes || null,
           urgency,
-          purchaseCategory: selectedSo ? "Project" : "Consumable",
+          purchaseCategory: selectedSo ? "Project" : item.purchaseCategory || "Consumable",
         })),
       };
 
@@ -459,9 +478,13 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
       }
       await refreshBackendData();
       setDone(true);
-    } catch (error) {
-      console.warn("Failed to create backend purchase request.", error);
-      alert("Gagal membuat pengajuan di backend. Cek response API untuk detail.");
+    } catch (error: any) {
+      console.warn("Failed to submit backend purchase request.", error);
+      const message = error?.response?.data?.message
+        || error?.response?.data?.title
+        || error?.message
+        || "Cek response API untuk detail.";
+      alert(`Gagal ${editRequest ? "memperbarui" : "membuat"} pengajuan di backend: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -500,7 +523,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
           <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
-            
+
             {/* Header fields */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: "span 2" }}>
@@ -616,7 +639,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests, refreshBackendData } = useApp();
+  const { purchasingRequests, refreshBackendData, currentUser } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
@@ -636,15 +659,17 @@ export function EngineeringPurchasingPage() {
             Ajukan permintaan material dan pantau statusnya
           </p>
         </div>
-        <button onClick={() => { setEditRequest(null); setShowForm(true); }}
-          style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "7px 14px", borderRadius: 4, border: "none",
-            background: S.cyan, color: "#fff", cursor: "pointer",
-            fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-          }}>
-          <Plus size={14} /> Ajukan Baru
-        </button>
+        {currentUser?.role !== 'Admin' && (
+          <button onClick={() => { setEditRequest(null); setShowForm(true); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 14px", borderRadius: 4, border: "none",
+              background: S.cyan, color: "#fff", cursor: "pointer",
+              fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+            }}>
+            <Plus size={14} /> Ajukan Baru
+          </button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
@@ -653,7 +678,7 @@ export function EngineeringPurchasingPage() {
           if (s === 'Diproses') { accent = "#3B82F6"; bg = "rgba(59,130,246,0.08)"; }
           if (s === 'Selesai') { accent = "#22C55E"; bg = "rgba(34,197,94,0.08)"; }
           if (s === 'Ditolak') { accent = "#EF4444"; bg = "rgba(239,68,68,0.08)"; }
-          
+
           return (
             <div key={s} style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>

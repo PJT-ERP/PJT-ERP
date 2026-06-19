@@ -27,6 +27,7 @@ interface AppContextType {
   deleteUser: (id: string) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomer: (code: string, updates: Partial<Customer>) => void;
+  deleteCustomerMaster: (code: string) => void;
   addPurchasingRequest: (req: Omit<PurchasingRequest, 'id' | 'requestedAt' | 'requestedBy'>) => void;
   updatePurchasingStatus: (id: string, status: PurchasingStatus) => void;
   updatePurchasingRequest: (id: string, updates: Partial<PurchasingRequest>) => void;
@@ -38,12 +39,13 @@ const AUTH_TOKEN_KEY = "auth_token";
 const AUTH_PROFILE_KEY = "auth_user";
 const HAS_DEV_TOKEN = Boolean(import.meta.env.VITE_DEV_MASTER_TOKEN?.trim());
 
-type StoredAuthUser = {
+export interface StoredAuthUser {
   userId?: string;
   email?: string;
   name?: string;
   roles?: string[];
   department?: string;
+  status?: string;
 };
 
 function restoreStoredUser(): User | null {
@@ -113,15 +115,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const latestUser = users.find(user => user.username === currentUser.username && user.isActive);
+    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
+    const latestUser = users.find(user => user.id === currentUser.id && user.isActive);
     if (!latestUser) {
       logout();
       return;
     }
 
-    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
-    if (latestUser.id !== currentUser.id || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
+    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
       setCurrentUser(latestUser);
+      // Update local storage so on reload they still have the latest profile
+      localStorage.setItem(AUTH_USER_KEY, latestUser.username);
+      
+      const storedAuthUser = localStorage.getItem(AUTH_PROFILE_KEY);
+      if (storedAuthUser) {
+        try {
+          const parsed = JSON.parse(storedAuthUser);
+          parsed.email = latestUser.email;
+          parsed.name = latestUser.name;
+          parsed.roles = [latestUser.role]; // Simplified
+          localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(parsed));
+        } catch (e) {
+          console.error("Failed to update stored auth profile", e);
+        }
+      }
     }
   }, [currentUser, users]);
 
@@ -182,6 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: dto.name,
         roles: dto.roles,
         department: dto.department,
+        status: dto.status,
       })));
     } else {
       console.warn("Users list was not loaded.", usersResult.reason);
@@ -221,11 +239,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addUser = (user: Omit<User, 'id'>) => {
-    setUsers(prev => [...prev, { ...user, id: `u${Date.now()}` }]);
+    const tempId = `u${Date.now()}`;
+    setUsers(prev => [...prev, { ...user, id: tempId }]);
+    
+    // Simpan ke backend
+    authApi.createUser({
+      name: user.name,
+      email: user.email,
+      password: (user as any).password || "DefaultPass123!",
+      role: user.role,
+      isActive: user.isActive
+    }).then(created => {
+      if (created) {
+        setUsers(prev => prev.map(u => u.id === tempId ? { ...u, id: created.userId || tempId } : u));
+      }
+    });
   };
 
   const updateUser = (id: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+
+    // Update ke backend
+    if (!id.startsWith('u')) {
+      const currentUserData = users.find(u => u.id === id);
+      if (currentUserData) {
+        authApi.updateUser(id, {
+          name: updates.name ?? currentUserData.name,
+          email: updates.email ?? currentUserData.email,
+          role: updates.role ?? currentUserData.role,
+          isActive: updates.isActive ?? currentUserData.isActive,
+          password: (updates as any).password // if it exists
+        });
+      }
+    }
   };
 
   const deleteUser = (id: string) => {
@@ -235,23 +281,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addCustomer = (customer: Customer) => {
     pendingCustomersByCode.current[customer.code] = customer;
     setCustomers(prev => [...prev, customer]);
-    
+
     // Simpan ke backend agar tidak hilang saat refresh
     salesApi.createCustomer({
       code: customer.code,
       name: customer.name,
       address: customer.address,
-      contactPerson: customer.contact,
-      email: customer.contact,
+      contactPerson: customer.contactPerson || customer.contact,
+      email: customer.email,
+      phone: customer.phone,
     }).then(created => {
       setBackendCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
     }).catch(err => {
-      console.warn("Gagal menyimpan pelanggan ke backend", err);
+      console.warn("Gagal simpan pelanggan ke backend", err);
+      refreshBackendData();
     });
   };
 
   const updateCustomer = (code: string, updates: Partial<Customer>) => {
     setCustomers(prev => prev.map(c => c.code === code ? { ...c, ...updates } : c));
+    salesApi.updateCustomer(code, {
+      name: updates.name || "",
+      address: updates.address,
+      contactPerson: updates.contactPerson || updates.contact,
+      email: updates.email,
+      phone: updates.phone,
+      isActive: true
+    }).catch(err => {
+      console.warn("Gagal update pelanggan ke backend", err);
+      refreshBackendData();
+    });
+  };
+
+  const deleteCustomerMaster = (code: string) => {
+    setCustomers(prev => prev.filter(c => c.code !== code));
+    salesApi.deleteCustomer(code).catch(err => {
+      console.warn("Gagal menghapus pelanggan dari backend", err);
+      refreshBackendData();
+    });
   };
 
   const addPurchasingRequest = (data: Omit<PurchasingRequest, 'id' | 'requestedAt' | 'requestedBy'>) => {
@@ -290,7 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshBackendData,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
-      addCustomer, updateCustomer,
+      addCustomer, updateCustomer, deleteCustomerMaster,
       addPurchasingRequest, updatePurchasingStatus, updatePurchasingRequest,
     }}>
       {children}
@@ -315,7 +382,7 @@ function mapAuthProfileToUser(profile: StoredAuthUser): User {
     password: "",
     role,
     email,
-    isActive: true,
+    isActive: profile.status !== "Inactive",
   };
 }
 
@@ -349,9 +416,11 @@ function mapCustomerDto(customer: CustomerDto): Customer {
   return {
     code: customer.code,
     name: customer.name,
-    contact: customer.email || customer.contactPerson || "",
+    contact: customer.contactPerson || customer.email || "",
     phone: customer.phone || "",
     address: customer.address || "",
+    email: customer.email || "",
+    contactPerson: customer.contactPerson || "",
   };
 }
 
@@ -393,13 +462,15 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
+    designAssignedTo: order.designWorkerUserId || undefined,
+    designAssignedName: order.designWorkerName || undefined,
     notes: order.items.map(item => (item.notes && item.notes.startsWith('[')) ? null : item.notes).filter(Boolean).join("; ") || undefined,
-    materials: (function() {
+    materials: (function () {
       try {
         if (primaryItem?.notes?.startsWith('[')) {
           return JSON.parse(primaryItem.notes);
         }
-      } catch (e) {}
+      } catch (e) { }
       return undefined;
     })(),
     backendDesignStatus: order.designStatus,
@@ -433,6 +504,12 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
     quantity: firstItem?.qty || request.items.length,
     unit: "PCS",
     items: request.items.map(item => ({
+      itemId: item.id,
+      materialRequirementId: item.materialRequirementId || null,
+      salesOrderId: item.salesOrderId || request.salesOrderId || null,
+      salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
+      projectName: item.projectName || request.projectName || null,
+      purchaseCategory: item.purchaseCategory || null,
       itemName: item.itemName,
       specification: item.size || item.notes || "",
       quantity: item.qty,
@@ -453,8 +530,8 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
 }
 
 function mapPurchasingStatus(status: string): PurchasingStatus {
-  if (status === "Completed") return "Selesai";
-  if (status === "Processing" || status === "FinanceApproved" || status === "SupervisorApproved") return "Diproses";
+  if (status === "Completed" || status === "FinanceApproved") return "Selesai";
+  if (status === "Processing" || status === "SupervisorApproved") return "Diproses";
   if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
   return "Pending";
 }
@@ -573,8 +650,9 @@ async function syncCreateSalesOrder(
         code: customer.code,
         name: customer.name,
         address: customer.address,
-        contactPerson: customer.contact,
-        email: customer.contact,
+        contactPerson: customer.contactPerson || customer.contact,
+        email: customer.email || customer.contact,
+        phone: customer.phone,
       });
       customerId = created.id;
       setCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
@@ -618,31 +696,53 @@ async function syncUpdateSalesOrder(
       const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
       if (engineerId) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
-           productionWorker: {
-             userId: engineerId,
-             name: assignedUser?.name || updates.assignedName || "Worker",
-           }
+          productionWorker: {
+            userId: engineerId,
+            name: assignedUser?.name || updates.assignedName || "Worker",
+          }
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+      }
+    }
+
+    if (updates.designAssignedTo !== undefined) {
+      const assignedUser = allUsers.find(user => user.id === updates.designAssignedTo);
+      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.designAssignedTo) ? updates.designAssignedTo : null);
+      if (engineerId) {
+        const updated = await salesApi.assignSalesOrderEngineers(backendId, {
+          designWorker: {
+            userId: engineerId,
+            name: assignedUser?.name || updates.designAssignedName || "Worker",
+          }
         });
         setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
       }
     }
 
     if (updates.status === "In Production") {
-       const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
-       const updated = await productionApi.startProduction(backendId, {
-         workerUserId: workerId,
-         workerName: currentUser?.name || "Production Worker"
-       });
-       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated as any) : item));
+      const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+      const updated = await productionApi.startProduction(backendId, {
+        workerUserId: workerId,
+        workerName: currentUser?.name || "Production Worker"
+      });
+      setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+        ...item,
+        status: 'In Production',
+        startTime: updated.startedAtUtc?.split('T')?.[0] || item.startTime
+      } : item));
     }
 
     if (updates.status === "QC") {
-       const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
-       const updated = await productionApi.finishProduction(backendId, {
-         workerUserId: workerId,
-         workerName: currentUser?.name || "Production Worker"
-       });
-       setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated as any) : item));
+      const workerId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
+      const updated = await productionApi.finishProduction(backendId, {
+        workerUserId: workerId,
+        workerName: currentUser?.name || "Production Worker"
+      });
+      setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+        ...item,
+        status: 'QC',
+        endTime: updated.finishedAtUtc?.split('T')?.[0] || item.endTime
+      } : item));
     }
 
     if (updates.qcStatus === "Go" || updates.qcStatus === "NoGo") {
@@ -661,7 +761,7 @@ async function syncCreatePurchasingRequest(
 ) {
   try {
     const so = salesOrders.find(so => so.id === req.soId || so.soNumber === req.soId);
-    
+
     const createdReq = await purchasingApi.createPurchaseRequest({
       requestDate: req.requestedAt,
       requestedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
@@ -669,12 +769,12 @@ async function syncCreatePurchasingRequest(
       salesOrderId: so?.backendId || so?.id,
       salesOrderNumber: so?.soNumber || req.soId,
       projectName: req.notes,
-      items: req.items.map(item => ({
+      items: req.items?.map(item => ({
         itemName: item.itemName,
         size: item.specification,
         qty: item.quantity,
         urgency: req.urgency,
-      })),
+      })) || [],
     });
 
     setPurchasingRequests(prev => prev.map(item => item.id === req.id ? mapPurchaseRequestDto(createdReq) : item));
@@ -695,7 +795,7 @@ async function syncUpdatePurchasingStatus(
   try {
     const userId = toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID());
     const decision = status === "Ditolak" ? "Reject" : "Accept";
-    
+
     let updated;
     if (currentUser?.role === "Engineering Supervisor" || currentUser?.role === "Owner") {
       updated = await purchasingApi.supervisorReviewPurchaseRequest(backendId, {

@@ -118,7 +118,7 @@ export function CustomerAnalyticsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>('all');
 
   const validOrders = useMemo(() =>
-    salesOrders.filter(so => so.status !== 'Rejected'),
+    salesOrders.filter(so => so.status === 'Completed'),
     [salesOrders]
   );
 
@@ -320,68 +320,67 @@ export function CustomerAnalyticsPage() {
         <div className="p-5 overflow-x-auto">
           <table className="w-full text-xs min-w-[640px]">
             <thead>
-            <tr>
-              <th className="text-left text-slate-500 pb-2 pr-4 font-normal w-40">Customer</th>
-              {visibleMonths.map(m => (
-                <th key={m.key} className={`text-center pb-2 px-1 font-normal ${m.isFuture ? 'text-slate-300' : 'text-slate-500'}`}>
-                  {m.label}
-                  {m.isFuture && <span className="block text-[9px] text-slate-300">prediksi</span>}
-                </th>
-              ))}
-              <th className="text-center pb-2 px-2 font-normal text-slate-500">Total</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {customerStats.map(cs => (
-              <tr key={cs.customer.code} className="hover:bg-slate-50">
-                <td className="py-2 pr-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cs.color }} />
-                    <span className="text-slate-700 truncate max-w-[160px]" title={cs.customer.name}>
-                      {cs.customer.name}
-                    </span>
-                  </div>
-                </td>
-                {visibleMonths.map(m => {
-                  const count = cs.monthlyMap[m.key] ?? 0;
-                  const isPredicted = m.isFuture && getPredictedCell(cs, m.key);
-                  const intensity = count === 0 ? 0 : count === 1 ? 0.3 : count === 2 ? 0.6 : 0.9;
+              <tr>
+                <th className="text-left text-slate-500 pb-2 pr-4 font-normal w-40">Customer</th>
+                {visibleMonths.map(m => (
+                  <th key={m.key} className={`text-center pb-2 px-1 font-normal ${m.isFuture ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {m.label}
+                    {m.isFuture && <span className="block text-[9px] text-slate-300">prediksi</span>}
+                  </th>
+                ))}
+                <th className="text-center pb-2 px-2 font-normal text-slate-500">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {customerStats.map(cs => (
+                <tr key={cs.customer.code} className="hover:bg-slate-50">
+                  <td className="py-2 pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cs.color }} />
+                      <span className="text-slate-700 truncate max-w-[160px]" title={cs.customer.name}>
+                        {cs.customer.name}
+                      </span>
+                    </div>
+                  </td>
+                  {visibleMonths.map(m => {
+                    const count = cs.monthlyMap[m.key] ?? 0;
+                    const isPredicted = m.isFuture && getPredictedCell(cs, m.key);
+                    const intensity = count === 0 ? 0 : count === 1 ? 0.3 : count === 2 ? 0.6 : 0.9;
 
-                  if (m.isFuture) {
-                    return (
-                      <td key={m.key} className="px-1 py-2">
-                        <div className={`mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px] ${
-                          isPredicted
+                    if (m.isFuture) {
+                      return (
+                        <td key={m.key} className="px-1 py-2">
+                          <div className={`mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px] ${isPredicted
                             ? 'border-2 border-dashed border-[#C8102E] bg-red-50 text-[#C8102E]'
                             : 'bg-slate-50'
-                        }`}>
-                          {isPredicted ? '?' : ''}
+                            }`}>
+                            {isPredicted ? '?' : ''}
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={m.key} className="px-1 py-2">
+                        <div
+                          className="mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px]"
+                          style={{
+                            backgroundColor: count > 0 ? `${cs.color}${Math.round(intensity * 255).toString(16).padStart(2, '0')}` : '#F8FAFC',
+                            color: intensity > 0.5 ? 'white' : count > 0 ? cs.color : '#CBD5E1',
+                          }}
+                        >
+                          {count > 0 ? count : ''}
                         </div>
                       </td>
                     );
-                  }
-
-                  return (
-                    <td key={m.key} className="px-1 py-2">
-                      <div
-                        className="mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px]"
-                        style={{
-                          backgroundColor: count > 0 ? `${cs.color}${Math.round(intensity * 255).toString(16).padStart(2, '0')}` : '#F8FAFC',
-                          color: intensity > 0.5 ? 'white' : count > 0 ? cs.color : '#CBD5E1',
-                        }}
-                      >
-                        {count > 0 ? count : ''}
-                      </div>
-                    </td>
-                  );
-                })}
-                <td className="px-2 py-2 text-center">
-                  <span className="text-slate-700">{cs.totalOrders}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  })}
+                  <td className="px-2 py-2 text-center">
+                    <span className="text-slate-700">{cs.totalOrders}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -397,10 +396,10 @@ export function CustomerAnalyticsPage() {
             const predStatus = cs.avgInterval === null
               ? 'insufficient'
               : cs.isOverdue
-              ? 'overdue'
-              : cs.daysUntilNext! <= 30
-              ? 'upcoming'
-              : 'normal';
+                ? 'overdue'
+                : cs.daysUntilNext! <= 30
+                  ? 'upcoming'
+                  : 'normal';
 
             return (
               <div key={cs.customer.code}>
