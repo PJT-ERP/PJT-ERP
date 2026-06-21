@@ -32,6 +32,23 @@ const getDefaultPaymentAmount = (invoice: Invoice) => {
   return nextSchedule ? Math.min(nextSchedule.amount, remaining) : remaining;
 };
 
+const getPaymentTypeBadge = (notes?: string) => {
+  if (!notes) return null;
+  const upperNotes = notes.toUpperCase();
+  if (upperNotes.includes('DP') || upperNotes.includes('DOWN PAYMENT')) {
+    return <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">DP</span>;
+  }
+  if (upperNotes.includes('LUNAS') || upperNotes.includes('PELUNASAN') || upperNotes.includes('FULL')) {
+    return <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-teal-50 text-teal-700 border-teal-200">Pelunasan</span>;
+  }
+  if (upperNotes.includes('TERMIN')) {
+    const match = upperNotes.match(/TERMIN\s*\d+/);
+    const label = match ? match[0] : 'Termin';
+    return <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 capitalize">{label.toLowerCase()}</span>;
+  }
+  return null;
+};
+
 function RecordPaymentModal({ invoice, onClose, onRecorded }: {
   invoice: Invoice;
   onClose: () => void;
@@ -217,6 +234,7 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${STATUS_CONFIG[payment.status].color}`}>
               {STATUS_CONFIG[payment.status].label}
             </span>
+            {getPaymentTypeBadge(payment.notes)}
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={20} /></button>
           </div>
         </div>
@@ -771,6 +789,7 @@ export function PaymentVerification() {
                         <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${cfg.color}`}>
                           <Icon size={10} />{cfg.label}
                         </span>
+                        {getPaymentTypeBadge(payment.notes)}
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">{payment.invoiceNumber} · {payment.bankName} · {payment.bankRef}</p>
                       {payment.notes && <p className="text-xs text-slate-500 mt-1 italic">"{payment.notes}"</p>}

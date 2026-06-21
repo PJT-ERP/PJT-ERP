@@ -194,13 +194,33 @@ function InvoiceDetailModal({ invoice, onClose, payments, refresh }: { invoice: 
             </div>
           </div>
 
-          {/* Notes */}
-          {invoice.notes && (
+          {/* Payment Schedules */}
+          {invoice.paymentSchedules && invoice.paymentSchedules.length > 0 ? (
+            <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3">
+              <p className="text-xs font-semibold text-slate-700 mb-2">Jadwal Pembayaran</p>
+              <div className="space-y-2">
+                {invoice.paymentSchedules.map((schedule, idx) => (
+                  <div key={schedule.id || idx} className="flex items-center justify-between text-xs bg-white border border-slate-100 rounded-md p-2">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-slate-800">{schedule.label} ({schedule.percentage}%)</span>
+                      <span className="text-slate-500">Jatuh Tempo: {formatDate(schedule.dueDate)}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="font-bold text-slate-700">{formatIDR(schedule.amount)}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${schedule.isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {schedule.isPaid ? 'Lunas' : 'Belum Lunas'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : invoice.notes ? (
             <div className="bg-red-50 border border-red-100 rounded-lg p-3">
               <p className="text-xs font-semibold text-red-700 mb-1">Catatan</p>
               <p className="text-xs text-red-600">{invoice.notes}</p>
             </div>
-          )}
+          ) : null}
 
           {/* Actions */}
           <div className="flex gap-3 pt-3 border-t border-slate-200/60 relative z-10">

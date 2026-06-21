@@ -142,7 +142,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/engineering-drawing")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> UploadEngineeringDrawing(
         Guid id,
         UploadEngineeringDrawingRequest request,
@@ -160,7 +160,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPost("{id:guid}/material-requests")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> SubmitMaterialRequest(
         Guid id,
         SubmitProductionMaterialRequest request,
@@ -179,7 +179,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/production/start")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> StartProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -198,7 +198,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/production/finish")]
-    [Authorize(Roles = "Admin,Engineering Worker")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> FinishProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
