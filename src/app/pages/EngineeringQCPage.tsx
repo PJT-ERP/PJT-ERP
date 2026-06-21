@@ -160,7 +160,6 @@ function QCInspectionModal({
   const customer = customers.find(c => c.code === so.customerId);
 
   const [photos, setPhotos] = useState<{ name: string; url: string }[]>([]);
-  const [qcImageUrl, setQcImageUrl] = useState(inspection?.qcImageUrl || "");
   const [notes, setNotes] = useState('');
   const [result, setResult] = useState<'Go' | 'NoGo' | ''>('');
   const [done, setDone] = useState(false);
@@ -182,15 +181,18 @@ function QCInspectionModal({
   };
 
   const handleSubmit = async () => {
-    if (!result) return;
-
-    if (!inspection) {
-      alert("Data inspeksi QC belum tersedia dari backend. Refresh data setelah produksi selesai, lalu coba lagi.");
+    if (!result) {
+      alert("Pilih hasil QC (Go/NoGo) terlebih dahulu.");
       return;
     }
 
-    if (!/^https?:\/\//i.test(qcImageUrl.trim())) {
-      alert("Isi link foto/form QC valid sebelum submit ke backend.");
+    if (photos.length === 0) {
+      alert("Harap upload foto hasil produksi sebelum submit hasil QC.");
+      return;
+    }
+
+    if (!inspection) {
+      alert("Data inspeksi QC belum tersedia dari backend. Refresh data setelah produksi selesai, lalu coba lagi.");
       return;
     }
 
@@ -205,11 +207,15 @@ function QCInspectionModal({
       return;
     }
 
+    // We use a dummy URL for qcImageUrl since the backend type requires a string,
+    // but the user requested to remove the link input and only use file uploads.
+    const dummyUrl = `https://pjt-erp.local/uploads/${encodeURIComponent(photos[0].name)}`;
+
     try {
       const updatedInspection = await qcApi.uploadResult(inspection.id, {
         reviewerUserId,
         reviewerName: currentUser?.name || inspection.assignedReviewerName || "QC Reviewer",
-        qcImageUrl: qcImageUrl.trim(),
+        qcImageUrl: dummyUrl,
         notes: notes || null,
         decision: result,
       });
@@ -227,7 +233,7 @@ function QCInspectionModal({
         qcNotes: notes,
         qcAt: new Date().toISOString(),
         completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: qcImageUrl ? [qcImageUrl] : photos.map(p => p.name),
+        qcPhotos: photos.map(p => p.name),
       });
     } else {
       updateSalesOrder(so.id, {
@@ -235,7 +241,7 @@ function QCInspectionModal({
         qcStatus: 'NoGo',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
-        qcPhotos: qcImageUrl ? [qcImageUrl] : photos.map(p => p.name),
+        qcPhotos: photos.map(p => p.name),
         isRework: true,
       });
     }
@@ -304,12 +310,7 @@ function QCInspectionModal({
             )}
           </div>
 
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Link Foto / Form QC</label>
-            <input value={qcImageUrl} onChange={e => setQcImageUrl(e.target.value)}
-              placeholder="https://drive.google.com/..."
-              style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white, boxSizing: "border-box" }} />
-          </div>
+
 
           {/* Notes */}
           <div>
