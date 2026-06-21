@@ -2,12 +2,30 @@ name: Backend CI
 
 on:
   pull_request:
+    paths:
+      - 'src/Services/**'
+      - 'src/BuildingBlocks/**'
+      - 'tests/**'
+      - '*.slnx'
+      - '**/*.cs'
+      - '**/*.csproj'
   push:
     branches:
       - main
       - dev
       - "feature/**"
+    paths:
+      - 'src/Services/**'
+      - 'src/BuildingBlocks/**'
+      - 'tests/**'
+      - '*.slnx'
+      - '**/*.cs'
+      - '**/*.csproj'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: true
@@ -16,7 +34,7 @@ env:
 jobs:
   backend-build:
     name: Build backend solution
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout
@@ -35,7 +53,7 @@ jobs:
 
   backend-tests:
     name: Test ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: backend-build
     strategy:
       fail-fast: false

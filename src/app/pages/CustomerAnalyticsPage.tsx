@@ -118,7 +118,7 @@ export function CustomerAnalyticsPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>('all');
 
   const validOrders = useMemo(() =>
-    salesOrders.filter(so => so.status !== 'Rejected'),
+    salesOrders.filter(so => so.status === 'Completed'),
     [salesOrders]
   );
 

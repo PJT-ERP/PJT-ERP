@@ -27,6 +27,7 @@ interface AppContextType {
   deleteUser: (id: string) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomer: (code: string, updates: Partial<Customer>) => void;
+  deleteCustomerMaster: (code: string) => void;
   addPurchasingRequest: (req: Omit<PurchasingRequest, 'id' | 'requestedAt' | 'requestedBy'>) => void;
   updatePurchasingStatus: (id: string, status: PurchasingStatus) => void;
   updatePurchasingRequest: (id: string, updates: Partial<PurchasingRequest>) => void;
@@ -38,12 +39,13 @@ const AUTH_TOKEN_KEY = "auth_token";
 const AUTH_PROFILE_KEY = "auth_user";
 const HAS_DEV_TOKEN = Boolean(import.meta.env.VITE_DEV_MASTER_TOKEN?.trim());
 
-type StoredAuthUser = {
+export interface StoredAuthUser {
   userId?: string;
   email?: string;
   name?: string;
   roles?: string[];
   department?: string;
+  status?: string;
 };
 
 function restoreStoredUser(): User | null {
@@ -113,15 +115,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const latestUser = users.find(user => user.username === currentUser.username && user.isActive);
+    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
+    const latestUser = users.find(user => user.id === currentUser.id && user.isActive);
     if (!latestUser) {
       logout();
       return;
     }
 
-    // Use deep comparison to avoid infinite loops caused by new object references from backend fetch
-    if (latestUser.id !== currentUser.id || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
+    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
       setCurrentUser(latestUser);
+      // Update local storage so on reload they still have the latest profile
+      localStorage.setItem(AUTH_USER_KEY, latestUser.username);
+      
+      const storedAuthUser = localStorage.getItem(AUTH_PROFILE_KEY);
+      if (storedAuthUser) {
+        try {
+          const parsed = JSON.parse(storedAuthUser);
+          parsed.email = latestUser.email;
+          parsed.name = latestUser.name;
+          parsed.roles = [latestUser.role]; // Simplified
+          localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(parsed));
+        } catch (e) {
+          console.error("Failed to update stored auth profile", e);
+        }
+      }
     }
   }, [currentUser, users]);
 
@@ -192,6 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: dto.name,
         roles: dto.roles,
         department: dto.department,
+        status: dto.status,
       })));
     } else {
       console.warn("Users list was not loaded.", usersResult.reason);
@@ -231,11 +249,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addUser = (user: Omit<User, 'id'>) => {
-    setUsers(prev => [...prev, { ...user, id: `u${Date.now()}` }]);
+    const tempId = `u${Date.now()}`;
+    setUsers(prev => [...prev, { ...user, id: tempId }]);
+    
+    // Simpan ke backend
+    authApi.createUser({
+      name: user.name,
+      email: user.email,
+      password: (user as any).password || "DefaultPass123!",
+      role: user.role,
+      isActive: user.isActive
+    }).then(created => {
+      if (created) {
+        setUsers(prev => prev.map(u => u.id === tempId ? { ...u, id: created.userId || tempId } : u));
+      }
+    });
   };
 
   const updateUser = (id: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+
+    // Update ke backend
+    if (!id.startsWith('u')) {
+      const currentUserData = users.find(u => u.id === id);
+      if (currentUserData) {
+        authApi.updateUser(id, {
+          name: updates.name ?? currentUserData.name,
+          email: updates.email ?? currentUserData.email,
+          role: updates.role ?? currentUserData.role,
+          isActive: updates.isActive ?? currentUserData.isActive,
+          password: (updates as any).password // if it exists
+        });
+      }
+    }
   };
 
   const deleteUser = (id: string) => {
@@ -252,17 +298,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
       name: customer.name,
       address: customer.address,
       contactPerson: customer.contactPerson || customer.contact,
-      email: customer.email || customer.contact,
+      email: customer.email,
       phone: customer.phone,
     }).then(created => {
       setBackendCustomerIdsByCode(prev => ({ ...prev, [created.code]: created.id }));
     }).catch(err => {
-      console.warn("Gagal menyimpan pelanggan ke backend", err);
+      console.warn("Gagal simpan pelanggan ke backend", err);
+      refreshBackendData();
     });
   };
 
   const updateCustomer = (code: string, updates: Partial<Customer>) => {
     setCustomers(prev => prev.map(c => c.code === code ? { ...c, ...updates } : c));
+    salesApi.updateCustomer(code, {
+      name: updates.name || "",
+      address: updates.address,
+      contactPerson: updates.contactPerson || updates.contact,
+      email: updates.email,
+      phone: updates.phone,
+      isActive: true
+    }).catch(err => {
+      console.warn("Gagal update pelanggan ke backend", err);
+      refreshBackendData();
+    });
+  };
+
+  const deleteCustomerMaster = (code: string) => {
+    setCustomers(prev => prev.filter(c => c.code !== code));
+    salesApi.deleteCustomer(code).catch(err => {
+      console.warn("Gagal menghapus pelanggan dari backend", err);
+      refreshBackendData();
+    });
   };
 
   const addPurchasingRequest = (data: Omit<PurchasingRequest, 'id' | 'requestedAt' | 'requestedBy'>) => {
@@ -301,7 +367,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshBackendData,
       addSalesOrder, updateSalesOrder,
       addUser, updateUser, deleteUser,
-      addCustomer, updateCustomer,
+      addCustomer, updateCustomer, deleteCustomerMaster,
       addPurchasingRequest, updatePurchasingStatus, updatePurchasingRequest,
     }}>
       {children}
@@ -326,7 +392,7 @@ function mapAuthProfileToUser(profile: StoredAuthUser): User {
     password: "",
     role,
     email,
-    isActive: true,
+    isActive: profile.status !== "Inactive",
   };
 }
 

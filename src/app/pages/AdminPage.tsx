@@ -15,17 +15,17 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Owner', 'Admin', 'Finance', 'Purchasing'];
+const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Admin', 'Finance', 'Purchasing'];
 
 function getRoleColors(role: string) {
   switch (role) {
-    case 'Owner': return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' };
+    case 'Owner': return { bg: '#1E293B', text: '#F8FAFC', border: '#334155' };
     case 'Admin': return { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' };
     case 'Engineering Supervisor':
     case 'Engineering Worker': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
-    default: return { bg: '#DBEAFE', text: '#C8102E', border: '#BFDBFE' }; // Sales
+    default: return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' }; // Sales
   }
 }
 
@@ -58,14 +58,14 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalRole = (form.role === 'Engineering Worker' && form.isSupervisor) ? 'Engineering Supervisor' : form.role;
-    
+
     const submitData = {
-       name: form.name,
-       username: form.username,
-       password: form.password,
-       email: form.email,
-       role: finalRole as UserRole,
-       isActive: form.isActive
+      name: form.name,
+      username: form.email,
+      password: form.password,
+      email: form.email,
+      role: finalRole as UserRole,
+      isActive: form.isActive
     };
 
     if (user) {
@@ -89,18 +89,15 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
             <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Username *</label>
-              <input type="text" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email / Username *</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Password *</label>
-              <input type="text" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Password {user ? '' : '*'}</label>
+              <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={!user} placeholder={user ? "Kosongkan jika tidak diubah" : "Password baru"} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              {user && <span style={{ fontSize: "11px", color: S.secondary, marginTop: 4, display: "block" }}>Disembunyikan karena alasan keamanan.</span>}
             </div>
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email *</label>
-            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Role *</label>
@@ -136,6 +133,7 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
     code: customer?.code ?? '',
     name: customer?.name ?? '',
     contact: customer?.contact ?? '',
+    email: customer?.email ?? '',
     phone: customer?.phone ?? '',
     address: customer?.address ?? '',
   });
@@ -143,9 +141,9 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (customer) {
-      updateCustomer(customer.code, form);
+      updateCustomer(customer.code, { ...form, contactPerson: form.contact });
     } else {
-      addCustomer(form);
+      addCustomer({ ...form, contactPerson: form.contact });
     }
     onClose();
   };
@@ -167,20 +165,24 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
               <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Kontak PIC *</label>
               <input type="text" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
             </div>
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Perusahaan *</label>
-            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nomor Telepon</label>
-            <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Perusahaan *</label>
+              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nomor Telepon</label>
+              <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+            </div>
           </div>
           <div>
             <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Alamat</label>
-            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} rows={2} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", resize: "none" }} />
+            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", minHeight: 60, resize: "vertical" }} />
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Simpan</button>
           </div>
@@ -190,8 +192,24 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
   );
 }
 
+function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: { isOpen: boolean, title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{ fontFamily: S.font }}>
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", padding: 24, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+        <h3 style={{ margin: "0 0 8px", color: S.slate, fontSize: "18px", fontWeight: 600 }}>{title}</h3>
+        <p style={{ margin: "0 0 24px", color: S.secondary, fontSize: "14px", lineHeight: 1.5 }}>{message}</p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+          <button onClick={onCancel} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.white, color: S.slate, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+          <button onClick={onConfirm} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: S.cyan, color: S.white, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Hapus</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminPage() {
-  const { users, customers, deleteUser, currentUser } = useApp();
+  const { users, customers, deleteUser, currentUser, deleteCustomerMaster } = useApp();
   const [tab, setTab] = useState<'users' | 'customers'>('users');
   const [showUserForm, setShowUserForm] = useState(false);
   const [showCustForm, setShowCustForm] = useState(false);
@@ -199,6 +217,8 @@ export function AdminPage() {
   const [editCustomer, setEditCustomer] = useState<Customer | undefined>(undefined);
   const [userSearch, setUserSearch] = useState('');
   const [custSearch, setCustSearch] = useState('');
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
 
   const filteredUsers = users.filter(u => {
     const q = userSearch.toLowerCase();
@@ -210,9 +230,27 @@ export function AdminPage() {
     return !custSearch || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.contact.toLowerCase().includes(q);
   });
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUserClick = (id: string) => {
     if (id === currentUser?.id) return;
-    if (confirm('Yakin ingin menghapus user ini?')) deleteUser(id);
+    setUserToDelete(id);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteUser(userToDelete);
+      setUserToDelete(null);
+    }
+  };
+
+  const handleDeleteCustomerClick = (code: string) => {
+    setCustomerToDelete(code);
+  };
+
+  const confirmDeleteCustomer = () => {
+    if (customerToDelete) {
+      deleteCustomerMaster(customerToDelete);
+      setCustomerToDelete(null);
+    }
   };
 
   return (
@@ -298,7 +336,7 @@ export function AdminPage() {
                     <Edit2 size={14} />
                   </button>
                   {u.id !== currentUser?.id && (
-                    <button onClick={() => handleDeleteUser(u.id)} style={{ padding: 6, background: "none", border: "none", color: "#DC2626", cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <button onClick={() => handleDeleteUserClick(u.id)} style={{ padding: 6, background: "none", border: "none", color: "#DC2626", cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -342,9 +380,12 @@ export function AdminPage() {
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{c.contact}</span>
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{c.phone}</span>
                 <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{c.address}</span>
-                <div>
+                <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={() => { setEditCustomer(c); setShowCustForm(true); }} style={{ padding: 6, background: "none", border: "none", color: S.secondary, cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = S.bg} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => handleDeleteCustomerClick(c.code)} style={{ padding: 6, background: "none", border: "none", color: "#EF4444", cursor: "pointer", borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -355,6 +396,21 @@ export function AdminPage() {
 
       {showUserForm && <UserFormModal user={editUser} onClose={() => { setShowUserForm(false); setEditUser(undefined); }} />}
       {showCustForm && <CustomerFormModal customer={editCustomer} onClose={() => { setShowCustForm(false); setEditCustomer(undefined); }} />}
+
+      <ConfirmModal
+        isOpen={!!userToDelete}
+        title="Hapus User"
+        message="Yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan."
+        onConfirm={confirmDeleteUser}
+        onCancel={() => setUserToDelete(null)}
+      />
+      <ConfirmModal
+        isOpen={!!customerToDelete}
+        title="Hapus Customer"
+        message="Yakin ingin menghapus customer ini? Tindakan ini tidak dapat dibatalkan dan dapat memengaruhi data pesanan."
+        onConfirm={confirmDeleteCustomer}
+        onCancel={() => setCustomerToDelete(null)}
+      />
     </div>
   );
 }

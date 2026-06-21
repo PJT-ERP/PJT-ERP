@@ -996,10 +996,12 @@ export function ProductionPage() {
                   <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
                   <DrawingLinks so={so} />
                 </div>
-                <button onClick={() => setAssignModal(so)}
-                  style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
-                  Tugaskan Operator
-                </button>
+                {currentUser?.role !== 'Admin' && (
+                  <button onClick={() => setAssignModal(so)}
+                    style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
+                    Tugaskan Operator
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1043,19 +1045,19 @@ export function ProductionPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
-                    {isSupervisor && mrState === 'requested' && (
+                    {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
                       <button onClick={() => setReviewMrModal(so)}
                         style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
                         Review MR
                       </button>
                     )}
-                    {mrState === 'none' && !isSupervisor && (
+                    {mrState === 'none' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                       <button onClick={() => setReqModal(so)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
                       </button>
                     )}
-                    {!isSupervisor && (mrState === 'none' || mrState === 'completed') && (
+                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (mrState === 'none' || mrState === 'completed') && (
                       <button onClick={() => setStartModal(so)}
                         style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <PlayCircle size={14} /> Mulai Produksi
@@ -1100,7 +1102,7 @@ export function ProductionPage() {
                       <DrawingLinks so={so} />
                     </div>
                   </div>
-                  {!isSupervisor && (
+                  {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                     <button onClick={() => setCompleteModal(so)}
                       style={{ padding: "8px 16px", background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                       <CheckSquare size={14} /> Selesai Produksi

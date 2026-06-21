@@ -515,7 +515,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     customerName: prefillCustomer?.contactPerson ?? prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
-    email: prefillCustomer?.email ?? prefillCustomer?.contact ?? "",
+    email: prefillCustomer?.email ?? (prefillCustomer?.contact && prefillCustomer?.contact.includes('@') ? prefillCustomer.contact : ""),
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",
@@ -891,12 +891,21 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 </div>
               </div>
               <div>
+<<<<<<< HEAD
                 <Label text="Nama Pelanggan" required />
                 <Input icon={<User size={11} />} placeholder="Nama lengkap" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
               </div>
               <div>
                 <Label text="Perusahaan" required />
                 <Input icon={<Building2 size={11} />} placeholder="Nama perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
+=======
+                <Label text="Nama Kontak (PIC)" required />
+                <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
+              </div>
+              <div>
+                <Label text="Nama Perusahaan" required />
+                <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required />
+>>>>>>> b507608305577220ea6f2db7d2615c7d397746f9
               </div>
               <div>
                 <Label text="No. Telepon" required />

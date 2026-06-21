@@ -38,7 +38,15 @@ export function EngineeringPage() {
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
-    .filter(so => so.status === 'Pending Design' || so.status === 'Waiting Spv Approval')
+    .filter(so => {
+      if (isSpv) {
+        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
+        return engineeringStatuses.includes(so.status) && 
+               so.backendDesignStatus !== undefined &&
+               so.backendDesignStatus !== null;
+      }
+      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
+    })
     .map(so => ({ ...so, isQuotation: false } as any));
 
   const allDesignQueue = [...pendingSalesOrders];
@@ -48,8 +56,8 @@ export function EngineeringPage() {
     return item.designAssignedTo === currentUser?.id || item.assignedTo === currentUser?.id;
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const pendingDesignCount = allDesignQueue.filter(item => item.status === 'Pending Design').length;
-  const designReviewCount = allDesignQueue.filter(item => item.status === 'Waiting Spv Approval').length;
+  const pendingDesignCount = designQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
+  const designReviewCount = designQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
   // Production Stats
   const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
@@ -179,7 +187,7 @@ export function EngineeringPage() {
                         <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
                           {assignedName}
                         </span>
-                      ) : isSpv ? (
+                      ) : isSpv && currentUser?.role !== 'Admin' ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
                           style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
@@ -240,6 +248,7 @@ export function EngineeringPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: true },
+                { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Quality Control", icon: <CheckSquare size={13} />, path: "/erp/engineer-qc", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: false },
               ].map((action) => (

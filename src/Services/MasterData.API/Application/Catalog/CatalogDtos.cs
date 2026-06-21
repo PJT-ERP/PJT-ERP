@@ -7,6 +7,7 @@ public sealed record CustomerDto(
     string? Address,
     string? ContactPerson,
     string? Email,
+    string? Phone,
     bool IsActive);
 
 public sealed record CreateCustomerRequest(
@@ -14,7 +15,16 @@ public sealed record CreateCustomerRequest(
     string Name,
     string? Address,
     string? ContactPerson,
-    string? Email);
+    string? Email,
+    string? Phone);
+
+public sealed record UpdateCustomerRequest(
+    string Name,
+    string? Address,
+    string? ContactPerson,
+    string? Email,
+    string? Phone,
+    bool IsActive);
 
 public sealed record ProductDto(
     Guid Id,

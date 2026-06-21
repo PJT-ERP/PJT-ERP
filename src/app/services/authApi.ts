@@ -7,6 +7,7 @@ export interface LoginResponseDto {
   name: string;
   roles: string[];
   department: string;
+  status?: string;
 }
 
 export const authApi = {
@@ -28,6 +29,7 @@ export const authApi = {
           name: data.name,
           roles: data.roles,
           department: data.department,
+          status: data.status,
         })
       );
     }
@@ -59,6 +61,26 @@ export const authApi = {
       return response.data;
     } catch {
       return [];
+    }
+  },
+
+  async createUser(data: any): Promise<LoginResponseDto | null> {
+    try {
+      const response = await apiClient.post<LoginResponseDto>("/api/v1/auth/users", data);
+      return response.data;
+    } catch (e) {
+      console.error("Failed to create user", e);
+      return null;
+    }
+  },
+
+  async updateUser(id: string, data: any): Promise<LoginResponseDto | null> {
+    try {
+      const response = await apiClient.put<LoginResponseDto>(`/api/v1/auth/users/${id}`, data);
+      return response.data;
+    } catch (e) {
+      console.error("Failed to update user", e);
+      return null;
     }
   },
 
