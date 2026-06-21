@@ -17,11 +17,15 @@ public static class QcSchemaInitializer
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS qc_image_url character varying(1000);
+            ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS production_photos text[] DEFAULT '{}';
+            ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS qc_photos text[] DEFAULT '{}';
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS notes text;
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS decision character varying(40);
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS reviewed_by_user_id uuid;
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS reviewer_name character varying(160);
             ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS reviewed_at_utc timestamp with time zone;
+
+            UPDATE qc_inspections SET qc_photos = ARRAY[qc_image_url] WHERE qc_image_url IS NOT NULL AND qc_photos = '{}';
 
             DO $$
             BEGIN

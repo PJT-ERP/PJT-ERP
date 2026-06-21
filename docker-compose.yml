@@ -113,7 +113,7 @@ services:
       ReverseProxy__Clusters__purchasing__Destinations__purchasingApi__Address: "http://purchasing-api:8080/"
       ReverseProxy__Clusters__finance__Destinations__financeApi__Address: "http://finance-api:8080/"
     ports:
-      - "127.0.0.1:5000:8080"
+      - "5000:8080"
     depends_on:
       identity-api:
         condition: service_started
