@@ -57,6 +57,7 @@ export interface MR {
   supplierAssigned?: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
   isReadyForPo?: boolean;
+  hasUnorderedItems?: boolean;
   rejectionReason?: string;
 }
 
@@ -78,9 +79,10 @@ export const priorityCfg: Record<string, { bg: string; color: string }> = {
 
 export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
   const firstItem = request.items[0];
-  const status = mapRequestStatus(request);
   const activeItems = request.items.filter(item => item.purchaseStatus !== "Rejected");
   const isReadyForFinance = activeItems.length > 0 && activeItems.every(i => !!i.supplierName && ((i.totalPrice || 0) > 0 || (i.estimatedPrice || 0) > 0));
+  const hasUnorderedItems = activeItems.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received");
+  const status = mapRequestStatus(request, hasUnorderedItems);
 
   const priority: MR["priority"] = request.items.some(item => item.urgency === "Critical")
     ? "High"
@@ -109,6 +111,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
       : undefined,
     isReadyForPo: isReadyForFinance,
+    hasUnorderedItems,
     items: request.items.map(item => ({
       itemId: item.id,
       materialRequirementId: item.materialRequirementId || null,
@@ -128,12 +131,14 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
   };
 }
 
-function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
-  if (request.status === "Completed" || request.status === "FinanceApproved" || request.items.every(item => item.purchaseStatus === "Received")) {
+function mapRequestStatus(request: PurchaseRequestDto, hasUnorderedItems: boolean): MR["status"] {
+  const activeItems = request.items.filter(item => item.purchaseStatus !== "Rejected");
+  
+  if (request.status === "Completed" || (activeItems.length > 0 && activeItems.every(item => item.purchaseStatus === "Received"))) {
     return "Completed";
   }
 
-  if (request.status === "Processing" || request.items.some(item => item.purchaseStatus === "Ordered")) {
+  if (request.status === "Processing" || activeItems.some(item => item.purchaseStatus === "Ordered" || item.purchaseStatus === "Received")) {
     return "Processing";
   }
 
@@ -141,7 +146,7 @@ function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
     return "Rejected";
   }
 
-  if (request.status === "SupervisorApproved" || request.items.some(item => item.purchaseStatus === "Approved")) {
+  if (request.status === "FinanceApproved" || request.status === "SupervisorApproved" || activeItems.some(item => item.purchaseStatus === "Approved")) {
     return "Approved";
   }
 
@@ -393,7 +398,7 @@ export function MaterialRequestsPage() {
                       )}
                     </TD>
                     <TD>
-                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForPo ? (
+                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForPo && mr.hasUnorderedItems ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-amber-50"
                           style={{ fontSize: 11, color: "#d97706", borderColor: "#fde68a", background: "#fffbeb" }}
@@ -401,7 +406,7 @@ export function MaterialRequestsPage() {
                         >
                           <Edit size={12} /> Isi Harga
                         </button>
-                      ) : (mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved" ? (
+                      ) : ((mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved") && mr.hasUnorderedItems ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}
