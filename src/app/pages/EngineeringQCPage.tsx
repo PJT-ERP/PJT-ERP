@@ -156,25 +156,43 @@ function QCInspectionModal({
   onSaved: (inspection: QcInspectionDto) => Promise<void>;
 }) {
   const { updateSalesOrder, customers, currentUser } = useApp();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const productionFileInputRef = useRef<HTMLInputElement>(null);
+  const qcFileInputRef = useRef<HTMLInputElement>(null);
   const customer = customers.find(c => c.code === so.customerId);
 
-  const [photos, setPhotos] = useState<{ name: string; url: string }[]>([]);
+  const [productionPhotos, setProductionPhotos] = useState<{ name: string; url: string }[]>([]);
+  const [qcPhotos, setQcPhotos] = useState<{ name: string; url: string }[]>([]);
   const [notes, setNotes] = useState('');
   const [result, setResult] = useState<'Go' | 'NoGo' | ''>('');
   const [done, setDone] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     files.forEach(file => {
       const url = URL.createObjectURL(file);
-      setPhotos(prev => [...prev, { name: file.name, url }]);
+      setProductionPhotos(prev => [...prev, { name: file.name, url }]);
     });
     e.target.value = '';
   };
 
-  const removePhoto = (idx: number) => {
-    setPhotos(prev => {
+  const removeProductionPhoto = (idx: number) => {
+    setProductionPhotos(prev => {
+      URL.revokeObjectURL(prev[idx].url);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const handleQcFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    files.forEach(file => {
+      const url = URL.createObjectURL(file);
+      setQcPhotos(prev => [...prev, { name: file.name, url }]);
+    });
+    e.target.value = '';
+  };
+
+  const removeQcPhoto = (idx: number) => {
+    setQcPhotos(prev => {
       URL.revokeObjectURL(prev[idx].url);
       return prev.filter((_, i) => i !== idx);
     });
@@ -186,8 +204,13 @@ function QCInspectionModal({
       return;
     }
 
-    if (photos.length === 0) {
+    if (productionPhotos.length === 0) {
       alert("Harap upload foto hasil produksi sebelum submit hasil QC.");
+      return;
+    }
+
+    if (qcPhotos.length === 0) {
+      alert("Harap upload foto inspeksi QC sebelum submit hasil QC.");
       return;
     }
 
@@ -207,15 +230,12 @@ function QCInspectionModal({
       return;
     }
 
-    // We use a dummy URL for qcImageUrl since the backend type requires a string,
-    // but the user requested to remove the link input and only use file uploads.
-    const dummyUrl = `https://pjt-erp.local/uploads/${encodeURIComponent(photos[0].name)}`;
-
     try {
       const updatedInspection = await qcApi.uploadResult(inspection.id, {
         reviewerUserId,
         reviewerName: currentUser?.name || inspection.assignedReviewerName || "QC Reviewer",
-        qcImageUrl: dummyUrl,
+        productionPhotos: productionPhotos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.name),
         notes: notes || null,
         decision: result,
       });
@@ -233,7 +253,7 @@ function QCInspectionModal({
         qcNotes: notes,
         qcAt: new Date().toISOString(),
         completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: photos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.name),
       });
     } else {
       updateSalesOrder(so.id, {
@@ -241,7 +261,7 @@ function QCInspectionModal({
         qcStatus: 'NoGo',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
-        qcPhotos: photos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.name),
         isRework: true,
       });
     }
@@ -288,19 +308,47 @@ function QCInspectionModal({
               style={{ border: `2px dashed ${S.border}`, borderRadius: 8, padding: 16, textAlign: "center", cursor: "pointer", transition: "border 0.2s" }}
               onMouseEnter={e => e.currentTarget.style.borderColor = S.cyan}
               onMouseLeave={e => e.currentTarget.style.borderColor = S.border}
-              onClick={() => fileInputRef.current?.click()}>
+              onClick={() => productionFileInputRef.current?.click()}>
               <Upload size={24} style={{ color: S.secondary, margin: "0 auto 4px" }} />
-              <p style={{ fontSize: "13.5px", color: S.slate, margin: 0 }}>Klik untuk upload foto</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: 0 }}>Klik untuk upload foto hasil produksi</p>
               <p style={{ fontSize: "12px", color: S.secondary, margin: "2px 0 0" }}>JPG, PNG, WEBP — bisa multiple</p>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleFileChange} />
+              <input ref={productionFileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleProductionFileChange} />
             </div>
-            {photos.length > 0 && (
+            {productionPhotos.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 12 }}>
-                {photos.map((photo, idx) => (
+                {productionPhotos.map((photo, idx) => (
                   <div key={idx} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", background: S.bg }}>
                     <img src={photo.url} alt={photo.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     <div style={{ position: "absolute", top: 4, right: 4 }}>
-                      <button onClick={(e) => { e.stopPropagation(); removePhoto(idx); }} style={{ padding: 4, background: "#EF4444", color: "#fff", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex" }}>
+                      <button onClick={(e) => { e.stopPropagation(); removeProductionPhoto(idx); }} style={{ padding: 4, background: "#EF4444", color: "#fff", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex" }}>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Foto Inspeksi QC</p>
+            <div
+              style={{ border: `2px dashed ${S.border}`, borderRadius: 8, padding: 16, textAlign: "center", cursor: "pointer", transition: "border 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = S.cyan}
+              onMouseLeave={e => e.currentTarget.style.borderColor = S.border}
+              onClick={() => qcFileInputRef.current?.click()}>
+              <Upload size={24} style={{ color: S.secondary, margin: "0 auto 4px" }} />
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: 0 }}>Klik untuk upload foto QC</p>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "2px 0 0" }}>JPG, PNG, WEBP — bisa multiple</p>
+              <input ref={qcFileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleQcFileChange} />
+            </div>
+            {qcPhotos.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 12 }}>
+                {qcPhotos.map((photo, idx) => (
+                  <div key={idx} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", background: S.bg }}>
+                    <img src={photo.url} alt={photo.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <div style={{ position: "absolute", top: 4, right: 4 }}>
+                      <button onClick={(e) => { e.stopPropagation(); removeQcPhoto(idx); }} style={{ padding: 4, background: "#EF4444", color: "#fff", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex" }}>
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -675,7 +723,7 @@ function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: Sal
     qcStatus: isGo(decision) ? "Go" : isNoGo(decision) ? "NoGo" : existing?.qcStatus,
     qcNotes: inspection.notes || existing?.qcNotes,
     qcAt: inspection.reviewedAtUtc || existing?.qcAt,
-    qcPhotos: inspection.qcImageUrl ? [inspection.qcImageUrl] : existing?.qcPhotos,
+    qcPhotos: inspection.qcPhotos?.length ? inspection.qcPhotos : existing?.qcPhotos,
     customerDrawingUrl: inspection.customerDrawingUrl || existing?.customerDrawingUrl,
     designLink: inspection.customerDrawingUrl || existing?.designLink,
     backendDesignStatus: inspection.designReference || existing?.backendDesignStatus,
