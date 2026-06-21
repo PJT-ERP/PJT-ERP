@@ -36,6 +36,8 @@ export interface MRItem {
   currentStock: number;
   estimatedPrice?: number;
   supplierName?: string;
+  poNumber?: string | null;
+  purchaseStatus?: string;
 }
 
 export interface MR {
@@ -124,6 +126,8 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       currentStock: 0,
       estimatedPrice: item.estimatedPrice || undefined,
       supplierName: item.supplierName || undefined,
+      poNumber: item.poNumber || null,
+      purchaseStatus: item.purchaseStatus,
     })),
   };
 }
@@ -273,17 +277,19 @@ export function MaterialRequestsPage() {
             <button
               key={s}
               onClick={() => setFilterStatus(active ? "all" : s)}
-              className="flex items-center gap-2 rounded px-3 py-1.5 transition-colors"
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition-all cursor-pointer border ${
+                active ? "shadow-sm ring-1" : "shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-slate-50"
+              }`}
               style={{
-                fontSize: 12, fontWeight: 500,
+                fontSize: 12, fontWeight: 600,
                 background: active ? cfg.bg : "#fff",
-                color: active ? cfg.color : "#475569",
-                border: `1px solid ${active ? cfg.color + "40" : "#e2e8f0"}`,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                color: active ? cfg.color : "#64748b",
+                borderColor: active ? cfg.color + "50" : "#e2e8f0",
+                ...(active ? { ringColor: cfg.color + "50" } : {})
               }}
             >
               <span className="rounded-full" style={{ width: 6, height: 6, background: cfg.dot }} />
-              {s} <strong style={{ color: active ? cfg.color : "#1F1F1F" }}>{n}</strong>
+              {s} <strong className="ml-1" style={{ color: active ? cfg.color : "#1F1F1F", fontSize: 13 }}>{n}</strong>
             </button>
           );
         })}

@@ -230,7 +230,7 @@ export function InventoryPage() {
               Stok Kritis — Tindakan Segera
             </p>
           </div>
-          <div className="divide-y" style={{ divideColor: "#f1f5f9" }}>
+          <div className="divide-y" style={{ borderColor: "#f1f5f9" }}>
             {criticalItems.map((item) => (
               <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">

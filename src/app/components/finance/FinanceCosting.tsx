@@ -14,7 +14,8 @@ const S = {
 };
 import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { SalesOrder } from "../data/mockData";
+import { SalesOrder, SOStatus } from "../data/mockData";
+import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
 
 export function FinanceCosting() {
@@ -31,8 +32,18 @@ export function FinanceCosting() {
     isQuotation: false
   }));
 
+  const historyStatuses = [
+    'Menunggu Invoice DP',
+    'Waiting Payment',
+    'Waiting Client Approval',
+    'Ready for Production',
+    'In Production',
+    'QC',
+    'Completed'
+  ];
+
   const historySO = salesOrders.filter(so => 
-    so.items && so.items.some((item: any) => item.unitPrice && item.unitPrice > 0) && so.status !== "Waiting Pricing"
+    historyStatuses.includes(so.status)
   ).map(so => ({
     ...so,
     isQuotation: false
@@ -166,7 +177,7 @@ export function FinanceCosting() {
 
       {/* List / Table SO */}
       <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 120px 100px 150px", padding: "12px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "130px 1.2fr 1.3fr 110px 180px 120px", padding: "12px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
           {["No. SO", "Pelanggan", "Produk (Items)", "Deadline", "Status", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
@@ -182,7 +193,7 @@ export function FinanceCosting() {
               <div 
                 key={so.id}
                 style={{ 
-                  display: "grid", gridTemplateColumns: "130px 1.5fr 1.5fr 120px 100px 150px", alignItems: "center",
+                  display: "grid", gridTemplateColumns: "130px 1.2fr 1.3fr 110px 180px 120px", alignItems: "center",
                   padding: "12px 18px", 
                   borderBottom: idx < filteredList.length - 1 ? `1px solid ${S.border}` : "none"
                 }}
@@ -195,7 +206,7 @@ export function FinanceCosting() {
                 </div>
                 <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
                 <div style={{ alignSelf: "center" }}>
-                  <span style={{ fontSize: "11px", background: activeTab === 'queue' ? "#FEF3C7" : "#F1F5F9", color: activeTab === 'queue' ? "#D97706" : "#475569", padding: "4px 8px", borderRadius: 12, fontWeight: 500 }}>{so.status}</span>
+                  <StatusBadge status={so.status as SOStatus} />
                 </div>
                 <div>
                   <button 

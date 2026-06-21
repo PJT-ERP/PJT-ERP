@@ -173,10 +173,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSalesOrders(salesOrdersResult.value.map(dto => {
         const base = mapSalesOrderDto(dto);
         const updates = localUpdates[base.id];
-        if (updates && updates.materials) {
+        if (updates) {
           // Hanya me-restore field spesifik yang murni disimpan secara lokal (seperti materials BOM)
           // Jangan me-restore status karena bisa override progress dari backend
-          return { ...base, materials: updates.materials, designLink: updates.designLink || base.designLink };
+          const updatedItems = updates.items ? base.items?.map(item => {
+            const up = updates.items.find((i: any) => i.productId === item.productId || i.id === item.id);
+            return up ? { ...item, unitPrice: up.unitPrice || 0 } : item;
+          }) : base.items;
+
+          return { 
+            ...base, 
+            materials: updates.materials || base.materials, 
+            designLink: updates.designLink || base.designLink,
+            items: updatedItems || base.items
+          };
         }
         return base;
       }));

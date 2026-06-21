@@ -19,12 +19,12 @@ export default function PurchasingModule() {
   return (
     <Routes>
       <Route index element={<Navigate to="/erp/purchasing/dashboard" replace />} />
-      <Route path="dashboard" element={<DashboardPage onCreatePO={handleCreatePO} />} />
+      <Route path="dashboard" element={<DashboardPage />} />
       <Route path="inventory" element={<InventoryPage />} />
       <Route path="requests" element={<MaterialRequestsPage />} />
       <Route path="requests/create" element={<CreatePurchaseRequestPage />} />
       <Route path="requests/:id" element={<PurchaseRequestDetailPage />} />
-      <Route path="orders" element={<PurchaseOrdersPage onCreatePO={handleCreatePO} />} />
+      <Route path="orders" element={<PurchaseOrdersPage />} />
       <Route path="orders/:id" element={<PurchaseOrderDetailPage />} />
       <Route path="create" element={<CreatePurchaseOrderPage onNavigate={handleNavigate} />} />
       <Route path="suppliers" element={<SuppliersPage />} />

@@ -182,6 +182,88 @@ function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEle
   );
 }
 
+function SearchableCustomerSelect({ customers, value, onChange }: { customers: any[]; value: string; onChange: (val: string) => void }) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedCustomer = customers.find(c => c.code === value);
+  const displayValue = open ? search : (selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.code})` : "");
+
+  const filtered = customers.filter(c => 
+    c.name.toLowerCase().includes(search.toLowerCase()) || 
+    c.code.toLowerCase().includes(search.toLowerCase()) ||
+    (c.contactPerson && c.contactPerson.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  React.useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", width: "100%" }}>
+      <div style={{ position: "relative" }}>
+        <input
+          type="text"
+          placeholder="Cari nama, kode, atau PIC pelanggan..."
+          value={displayValue}
+          onChange={e => {
+            setSearch(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            setSearch("");
+            setOpen(true);
+          }}
+          style={{
+            width: "100%", boxSizing: "border-box",
+            background: open ? S.white : "#FAFAFA",
+            border: `1px solid ${open ? S.primary : S.border}`,
+            borderRadius: 4, padding: "7px 10px 7px 30px",
+            fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
+            boxShadow: open ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+            transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
+          }}
+        />
+        <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none" }} />
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 220, overflowY: "auto" }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: "12px", fontSize: "12px", color: S.secondary, textAlign: "center" }}>Pelanggan tidak ditemukan</div>
+          ) : (
+            filtered.map(c => (
+              <div
+                key={c.code}
+                onClick={() => {
+                  onChange(c.code);
+                  setSearch("");
+                  setOpen(false);
+                }}
+                style={{ padding: "8px 12px", fontSize: "12.5px", color: S.slate, cursor: "pointer", borderBottom: `1px solid ${S.bg}` }}
+                onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <div style={{ fontWeight: 500, color: S.slate }}>{c.name}</div>
+                <div style={{ fontSize: "11px", color: S.secondary, display: "flex", gap: 8, marginTop: 2 }}>
+                  <span style={{ color: S.primary, fontWeight: 500 }}>{c.code}</span>
+                  {c.contactPerson && <span>· PIC: {c.contactPerson}</span>}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionCard({ title, icon, children, action }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
 }) {
@@ -430,7 +512,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
     customerCode: prefillCustomer?.code ?? `CUST-${Math.floor(1000 + Math.random() * 9000)}`,
-    customerName: prefillCustomer?.contact ?? "",
+    customerName: prefillCustomer?.contactPerson ?? prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
     email: prefillCustomer?.email ?? (prefillCustomer?.contact && prefillCustomer?.contact.includes('@') ? prefillCustomer.contact : ""),
@@ -455,6 +537,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [submitted, setSubmitted] = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExistingCustomer, setIsExistingCustomer] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -755,6 +838,50 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
 
           <SectionCard title="Informasi Pelanggan" icon={<User size={14} />}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExistingCustomer(false);
+                  setCustomerForm({ ...customerForm, customerCode: `CUST-${Math.floor(1000 + Math.random() * 9000)}`, customerName: "", company: "", phone: "", email: "", address: "" });
+                }}
+                style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: !isExistingCustomer ? 600 : 400, background: !isExistingCustomer ? S.primary : S.white, color: !isExistingCustomer ? S.white : S.secondary, border: `1px solid ${!isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
+              >
+                Pelanggan Baru
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsExistingCustomer(true)}
+                style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: isExistingCustomer ? 600 : 400, background: isExistingCustomer ? S.primary : S.white, color: isExistingCustomer ? S.white : S.secondary, border: `1px solid ${isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
+              >
+                Pelanggan Terdaftar
+              </button>
+            </div>
+            
+            {isExistingCustomer && (
+              <div style={{ marginBottom: 16 }}>
+                <Label text="Pilih Pelanggan Existing" required />
+                <SearchableCustomerSelect
+                  customers={customers}
+                  value={customerForm.customerCode}
+                  onChange={val => {
+                    const c = customers.find(cust => cust.code === val);
+                    if (c) {
+                      setCustomerForm({
+                        ...customerForm,
+                        customerCode: c.code,
+                        customerName: c.contactPerson || c.name,
+                        company: c.name,
+                        phone: c.phone || "",
+                        email: c.email || c.contact || "",
+                        address: c.address || "",
+                      });
+                    }
+                  }}
+                />
+              </div>
+            )}
+
             <Grid2>
               <div>
                 <Label text="Kode Pelanggan (Auto)" required />
@@ -765,23 +892,23 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               </div>
               <div>
                 <Label text="Nama Kontak (PIC)" required />
-                <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required />
+                <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
               </div>
               <div>
                 <Label text="Nama Perusahaan" required />
-                <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required />
+                <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
               </div>
               <div>
                 <Label text="No. Telepon" required />
-                <Input icon={<Phone size={11} />} type="tel" placeholder="08xxxxxxxxxx" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} required />
+                <Input icon={<Phone size={11} />} type="tel" placeholder="08xxxxxxxxxx" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
               </div>
               <div>
                 <Label text="Email" required />
-                <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} required />
+                <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Alamat Pengiriman" required />
-                <Textarea placeholder="Alamat lengkap tujuan pengiriman" value={customerForm.address} onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })} required />
+                <Textarea placeholder="Alamat lengkap tujuan pengiriman" value={customerForm.address} onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
               </div>
             </Grid2>
           </SectionCard>
@@ -849,12 +976,14 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           <SectionCard title="Pilih Pelanggan" icon={<Search size={14} />}>
             <div style={{ marginBottom: selectedCustomer ? 14 : 0 }}>
               <Label text="Pelanggan" required />
-              <Select value={repeatForm.customerId} onChange={e => { setRepeatForm({ ...repeatForm, customerId: e.target.value, previousSoId: "" }); setRepeatProducts([]); }} required>
-                <option value="">— Pilih pelanggan existing —</option>
-                {customers.map(c => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
-              </Select>
+              <SearchableCustomerSelect
+                customers={customers}
+                value={repeatForm.customerId}
+                onChange={val => {
+                  setRepeatForm({ ...repeatForm, customerId: val, previousSoId: "" });
+                  setRepeatProducts([]);
+                }}
+              />
             </div>
             {selectedCustomer && (
               <div style={{ marginBottom: 14 }}>

@@ -116,7 +116,7 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 }
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
-  const { salesOrders, customers, updateSalesOrder } = useApp();
+  const { salesOrders, customers, updateSalesOrder, updateCustomer } = useApp();
   const { invoices, payments } = useFinanceData();
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
@@ -136,10 +136,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   });
 
   const [editForm, setEditForm] = useState({
-    customerName: customer?.name || "",
+    customerName: customer?.contactPerson || customer?.contact || "",
     company: customer?.name || "",
     phone: customer?.phone || "",
-    contact: customer?.contact || "",
+    contact: customer?.email || "",
     address: customer?.address || "",
     description: order?.description || "",
     quantity: String(order?.quantity || ""),
@@ -184,6 +184,14 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       deadline: editForm.deadline,
       notes: editForm.notes,
     });
+    if (customer) {
+      updateCustomer(customer.code, {
+        name: editForm.company || editForm.customerName,
+        phone: editForm.phone,
+        contact: editForm.contact,
+        address: editForm.address,
+      });
+    }
     setIsEditMode(false);
   };
 
@@ -248,8 +256,19 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
             {WORKFLOW_STEPS.map((step, idx) => {
               const tStep = order.timeline?.find(t => t.step === step.key);
-              const isDone = tStep?.completed && !tStep?.current;
-              const isCurrent = tStep?.current;
+              
+              const getWorkflowProgress = (status: string) => {
+                if (status === 'Completed') return 5;
+                if (status === 'QC') return 4;
+                if (['Ready for Production', 'In Production'].includes(status)) return 3;
+                if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
+                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Menunggu Invoice DP'].includes(status)) return 1;
+                return 0;
+              };
+              
+              const currentIdx = getWorkflowProgress(order.status);
+              const isDone = idx < currentIdx;
+              const isCurrent = idx === currentIdx;
 
               return (
                 <React.Fragment key={step.key}>
@@ -301,10 +320,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           {/* Customer info */}
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
+              <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.contactPerson || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
               <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, company: v }))} />
               <InfoRow icon={<Phone size={11} />} label="Telepon" value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, phone: v }))} />
-              <InfoRow icon={<Mail size={11} />} label="Kontak" value={isEditMode ? editForm.contact : (customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
+              <InfoRow icon={<Mail size={11} />} label="Email" value={isEditMode ? editForm.contact : (customer?.email || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
               <div style={{ gridColumn: "1 / -1" }}>
                 <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, address: v }))} />
               </div>
@@ -615,26 +634,46 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>End-to-End History</p>
             </div>
             <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
-              {[
-                { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
-                { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
-                { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
-                { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate },
-                { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
-              ].map((step, idx, arr) => (
-                <div key={idx} style={{ display: "flex", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ width: 14, height: 14, borderRadius: "50%", background: step.active ? S.cyan : "#F1F5F9", border: `2px solid ${step.active ? S.cyan : "#CBD5E1"}`, zIndex: 1 }} />
-                    {idx < arr.length - 1 && (
-                      <div style={{ width: 2, flex: 1, background: step.active ? "#A5F3FC" : "#F1F5F9", marginTop: -2, marginBottom: -4 }} />
-                    )}
+              {(() => {
+                const historySteps: { label: string; date?: string; active: boolean; isRejection?: boolean; reason?: string }[] = [
+                  { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
+                  { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
+                  { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
+                  { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
+                ];
+                
+                if (order.invoice?.rejectedPayments) {
+                  order.invoice.rejectedPayments.forEach(rp => {
+                    historySteps.push({
+                      label: 'Pembayaran Ditolak',
+                      date: rp.date,
+                      active: true,
+                      isRejection: true,
+                      reason: rp.reason
+                    });
+                  });
+                }
+                
+                historySteps.push(
+                  { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
+                );
+
+                return historySteps.map((step, idx, arr) => (
+                  <div key={idx} style={{ display: "flex", gap: 10 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div style={{ width: 14, height: 14, borderRadius: "50%", background: step.isRejection ? "#FEF2F2" : (step.active ? S.cyan : "#F1F5F9"), border: `2px solid ${step.isRejection ? "#EF4444" : (step.active ? S.cyan : "#CBD5E1")}`, zIndex: 1 }} />
+                      {idx < arr.length - 1 && (
+                        <div style={{ width: 2, flex: 1, background: step.active ? (step.isRejection ? "#F1F5F9" : "#A5F3FC") : "#F1F5F9", marginTop: -2, marginBottom: -4 }} />
+                      )}
+                    </div>
+                    <div style={{ paddingTop: -1, paddingBottom: 4 }}>
+                      <p style={{ margin: 0, fontSize: "12px", fontWeight: step.active ? 600 : 400, color: step.isRejection ? "#DC2626" : (step.active ? S.slate : "#94A3B8") }}>{step.label}</p>
+                      {step.date && <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>{step.date}</p>}
+                      {step.reason && <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#EF4444", fontStyle: "italic" }}>Alasan: {step.reason}</p>}
+                    </div>
                   </div>
-                  <div style={{ paddingTop: -1, paddingBottom: 4 }}>
-                    <p style={{ margin: 0, fontSize: "12px", fontWeight: step.active ? 600 : 400, color: step.active ? S.slate : "#94A3B8" }}>{step.label}</p>
-                    {step.date && <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>{step.date}</p>}
-                  </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </div>
 
