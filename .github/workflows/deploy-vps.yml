@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload package
         run: |
-          scp -4 -P "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new /tmp/pjt-erp.tar.gz "$VPS_USER@$VPS_HOST:/tmp/pjt-erp.tar.gz"
+          scp -4 -P "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new /tmp/pjt-erp.tar.gz "$VPS_USER@$VPS_HOST:~/pjt-erp.tar.gz"
 
       - name: Deploy with Docker Compose
         run: |
@@ -102,7 +102,7 @@ jobs:
 
           rm -rf "$APP_DIR.release"
           mkdir -p "$APP_DIR.release"
-          tar -xzf /tmp/pjt-erp.tar.gz -C "$APP_DIR.release"
+          tar -xzf ~/pjt-erp.tar.gz -C "$APP_DIR.release"
           cp "$APP_DIR/.env" "$APP_DIR.release/.env"
 
           rm -rf "$APP_DIR.previous"
