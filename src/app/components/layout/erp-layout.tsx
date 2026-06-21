@@ -27,9 +27,9 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
     { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
-    { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/engineer-qc" },
     { label: "Req. Pembelian", icon: <Package size={15} />, path: "/erp/engineer-purchasing" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
+    { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/engineer-qc" },
   ],
   Owner: [
     { label: "MENU UTAMA", isHeader: true },
@@ -62,7 +62,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   Purchasing: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/purchasing/dashboard" },
-    { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
+    // { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
     { label: "Req. Material", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
     { label: "Daftar PO", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
     { label: "Buat PO", icon: <Plus size={15} />, path: "/erp/purchasing/create" },

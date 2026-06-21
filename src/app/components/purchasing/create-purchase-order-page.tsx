@@ -55,7 +55,7 @@ function FieldLabel({ children }: FieldLabelProps) {
 }
 
 function inputClass(extra: string = "") {
-  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-blue-100 ${extra}`;
+  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 ${extra}`;
 }
 
 function SupplierCombobox({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; }) {
@@ -235,7 +235,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <button
             onClick={submitPO}
             disabled={isSubmitting}
-            className="flex items-center gap-2 rounded bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex items-center gap-2 rounded bg-[#C8102E] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CheckCircle2 size={15} />
             {isSubmitting ? "Menyimpan..." : "Buat PO"}
@@ -364,8 +364,8 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           ))}
         </div>
 
-        <div className="flex flex-col gap-2 bg-[#0f1e35] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm font-semibold text-slate-300">Total Nilai PO</span>
+        <div className="flex flex-col gap-2 bg-[#C8102E] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-semibold text-red-100">Total Nilai PO</span>
           <span className="text-xl font-bold text-white">{formatRp(total)}</span>
         </div>
       </section>

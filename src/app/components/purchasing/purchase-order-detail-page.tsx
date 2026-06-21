@@ -85,8 +85,7 @@ export function PurchaseOrderDetailPage() {
   if (!detail) {
     return (
       <div className="p-10 text-center">
-        <h2 className="text-xl font-bold text-slate-800">Purchase Order tidak ditemukan</h2>
-        <button onClick={() => navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+        <button onClick={() => navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">
           Kembali ke Daftar PO
         </button>
       </div>
@@ -118,10 +117,10 @@ export function PurchaseOrderDetailPage() {
 
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
         {/* Header Visual */}
-        <div className="px-6 py-6 bg-slate-900 text-white">
+        <div className="px-6 py-6 bg-[#C8102E] text-white">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-1">Purchase Order</p>
+              <p className="text-xs font-bold text-red-200 uppercase tracking-widest mb-1">Purchase Order</p>
               <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-2xl font-bold m-0">{detail.id}</h2>
                 <span
@@ -150,7 +149,7 @@ export function PurchaseOrderDetailPage() {
                 <TabsTrigger
                   key={t}
                   value={t}
-                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-medium text-slate-500 hover:text-slate-900 data-[state=active]:border-blue-600 data-[state=active]:text-blue-700 data-[state=active]:shadow-none"
+                  className="relative h-12 rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-medium text-slate-500 hover:text-slate-900 data-[state=active]:border-[#C8102E] data-[state=active]:text-[#C8102E] data-[state=active]:shadow-none"
                 >
                   {t === "overview" ? "Informasi PO" : "Daftar Item & Terima Barang"}
                 </TabsTrigger>
@@ -240,7 +239,7 @@ export function PurchaseOrderDetailPage() {
                               onClick={() => setReceiveItemState(item)}
                               disabled={!canReceive}
                               title={canReceive ? "Terima material" : "Menunggu approval Finance"}
-                              className="rounded border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:bg-transparent"
+                              className="rounded border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:bg-transparent"
                             >
                               Terima
                             </button>
@@ -262,7 +261,7 @@ export function PurchaseOrderDetailPage() {
 
             {/* Receive Item Form Section (Inline) */}
             {receiveItemState && (
-              <div className="p-6 border-t border-slate-200 bg-blue-50/50">
+              <div className="p-6 border-t border-slate-200 bg-red-50/50">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold text-slate-900">Form Penerimaan Barang</h3>
                   <button onClick={() => setReceiveItemState(null)} className="p-1 hover:bg-slate-200 rounded">
@@ -289,7 +288,7 @@ export function PurchaseOrderDetailPage() {
                         type="number"
                         name="qty"
                         required
-                        className="flex-1 border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500"
+                        className="flex-1 border border-slate-300 rounded px-3 py-2 outline-none focus:border-red-500"
                         defaultValue={receiveItemState.qty}
                         max={receiveItemState.qty}
                         min={1}
@@ -301,7 +300,7 @@ export function PurchaseOrderDetailPage() {
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Catatan Penerimaan</label>
                     <textarea
                       name="notes"
-                      className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-blue-500"
+                      className="w-full border border-slate-300 rounded px-3 py-2 outline-none focus:border-red-500"
                       placeholder="Contoh: Kondisi baik, sesuai surat jalan..."
                       rows={2}
                     />
@@ -317,7 +316,7 @@ export function PurchaseOrderDetailPage() {
                     <button
                       type="submit"
                       disabled={isReceiving}
-                      className="flex items-center gap-2 px-6 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition disabled:opacity-50"
+                      className="flex items-center gap-2 px-6 py-2 font-medium text-white bg-red-600 hover:bg-red-700 rounded transition disabled:opacity-50"
                     >
                       <CheckCircle2 size={16} /> {isReceiving ? "Memproses..." : "Konfirmasi Terima"}
                     </button>

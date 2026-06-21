@@ -293,7 +293,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <button
             onClick={() => navigate("/erp/purchasing/create")}
             className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 13, fontWeight: 600, background: "#1e3a5f" }}
+            style={{ fontSize: 13, fontWeight: 600, background: "#C8102E" }}
           >
             <Plus size={16} /> Buat PO Manual
           </button>
@@ -340,7 +340,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari No. PO, supplier, No. MR, SO, kategori..."
-            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
+            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
@@ -451,7 +451,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       <TD>
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-red-50"
-                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
+                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#fecaca" }}
                           onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/orders/${po.id}`); }}
                         >
                           <Eye size={12} /> Detail
