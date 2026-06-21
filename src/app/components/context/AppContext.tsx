@@ -197,7 +197,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!shouldLoadPurchaseRequests) {
       setPurchasingRequests([]);
     } else if (purchaseRequestsResult.status === "fulfilled") {
-      setPurchasingRequests(purchaseRequestsResult.value.map(mapPurchaseRequestDto));
+      let mappedUsers: User[] = [];
+      if (usersResult.status === "fulfilled") {
+        mappedUsers = usersResult.value.map(dto => mapAuthProfileToUser({
+          userId: dto.userId,
+          email: dto.email,
+          name: dto.name,
+          roles: dto.roles,
+          department: dto.department,
+          status: dto.status,
+        }));
+      }
+      setPurchasingRequests(purchaseRequestsResult.value.map(req => mapPurchaseRequestDto(req, mappedUsers)));
     } else {
       console.warn("Purchasing seed data was not loaded.", purchaseRequestsResult.reason);
     }
@@ -495,13 +506,21 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
   };
 }
 
-function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
+function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[]): PurchasingRequest {
   const firstItem = request.items[0];
   const urgency: PurchasingRequest["urgency"] = request.items.some(item => item.urgency === "Critical")
     ? "Critical"
     : request.items.some(item => item.urgency === "Urgent")
       ? "Urgent"
       : "Normal";
+
+  let requestedByStr = request.requesterName || request.requestedByUserId;
+  if (users && request.requestedByUserId && !request.requesterName) {
+    const user = findLocalUserByBackendAssignment(request.requestedByUserId, null, users);
+    if (user) {
+      requestedByStr = user.name;
+    }
+  }
 
   return {
     id: request.prNumber,
@@ -527,7 +546,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto): PurchasingRequest {
     })),
     urgency,
     notes: request.projectName || "",
-    requestedBy: request.requestedByUserId,
+    requestedBy: requestedByStr,
     requestedAt: request.requestDate,
     status: mapPurchasingStatus(request.status),
     supplier: request.items.map(item => item.supplierName).find(Boolean) || undefined,
@@ -787,7 +806,7 @@ async function syncCreatePurchasingRequest(
       })) || [],
     });
 
-    setPurchasingRequests(prev => prev.map(item => item.id === req.id ? mapPurchaseRequestDto(createdReq) : item));
+    setPurchasingRequests(prev => prev.map(item => item.id === req.id ? mapPurchaseRequestDto(createdReq, users) : item));
   } catch (error) {
     console.warn("Failed to sync purchasing request to backend.", error);
   }
@@ -827,7 +846,7 @@ async function syncUpdatePurchasingStatus(
       });
     }
 
-    setPurchasingRequests(prev => prev.map(item => item.backendId === backendId || item.id === req.id ? mapPurchaseRequestDto(updated) : item));
+    setPurchasingRequests(prev => prev.map(item => item.backendId === backendId || item.id === req.id ? mapPurchaseRequestDto(updated, users) : item));
   } catch (error) {
     console.warn("Failed to sync purchasing status to backend.", error);
   }
