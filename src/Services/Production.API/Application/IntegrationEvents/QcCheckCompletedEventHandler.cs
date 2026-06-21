@@ -25,8 +25,13 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db, IEventPub
         productionOrder.QcDecision = decision;
         productionOrder.Status = isGo
             ? ProductionOrderStatuses.Closed
-            : productionOrder.Status;
+            : ProductionOrderStatuses.Waiting;
         productionOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
+
+        if (!isGo)
+        {
+            productionOrder.FinishedAtUtc = null;
+        }
 
         if (productionOrder.SalesOrder is not null)
         {

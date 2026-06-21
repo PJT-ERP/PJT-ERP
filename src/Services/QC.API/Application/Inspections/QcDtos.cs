@@ -14,7 +14,8 @@ public sealed record QcInspectionDto(
     DateTime? ProductionFinishedAtUtc,
     Guid? AssignedReviewerUserId,
     string? AssignedReviewerName,
-    string? QcImageUrl,
+    List<string> ProductionPhotos,
+    List<string> QcPhotos,
     string? Notes,
     string Status,
     string? Decision,
@@ -26,6 +27,7 @@ public sealed record QcInspectionDto(
 public sealed record UploadQcResultRequest(
     Guid ReviewerUserId,
     string ReviewerName,
-    string QcImageUrl,
+    List<string> ProductionPhotos,
+    List<string> QcPhotos,
     string? Notes,
     string Decision);

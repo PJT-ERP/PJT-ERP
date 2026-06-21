@@ -18,7 +18,8 @@ public sealed class QcInspection
     public DateTime? ProductionFinishedAtUtc { get; set; }
     public Guid? AssignedReviewerUserId { get; set; }
     public string? AssignedReviewerName { get; set; }
-    public string? QcImageUrl { get; set; }
+    public List<string> ProductionPhotos { get; set; } = new();
+    public List<string> QcPhotos { get; set; } = new();
     public string? Notes { get; set; }
     public string Status { get; set; } = QcInspectionStatuses.WaitingProduction;
     public string? Decision { get; set; }
