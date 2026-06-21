@@ -14,7 +14,8 @@ export interface QcInspectionDto {
   productionFinishedAtUtc?: string | null;
   assignedReviewerUserId?: string | null;
   assignedReviewerName?: string | null;
-  qcImageUrl?: string | null;
+  productionPhotos?: string[] | null;
+  qcPhotos?: string[] | null;
   notes?: string | null;
   status: string;
   decision?: string | null;
@@ -27,7 +28,8 @@ export interface QcInspectionDto {
 export interface UploadQcResultPayload {
   reviewerUserId: string;
   reviewerName: string;
-  qcImageUrl: string;
+  productionPhotos: string[];
+  qcPhotos: string[];
   notes?: string | null;
   decision: 'Go' | 'NoGo';
 }

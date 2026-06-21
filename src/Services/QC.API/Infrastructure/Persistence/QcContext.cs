@@ -33,7 +33,8 @@ public sealed class QcContext(DbContextOptions<QcContext> options) : DbContext(o
             builder.Property(inspection => inspection.ProductionFinishedAtUtc).HasColumnName("production_finished_at_utc");
             builder.Property(inspection => inspection.AssignedReviewerUserId).HasColumnName("assigned_reviewer_user_id");
             builder.Property(inspection => inspection.AssignedReviewerName).HasMaxLength(160).HasColumnName("assigned_reviewer_name");
-            builder.Property(inspection => inspection.QcImageUrl).HasMaxLength(1000).HasColumnName("qc_image_url");
+            builder.Property(inspection => inspection.ProductionPhotos).HasColumnName("production_photos");
+            builder.Property(inspection => inspection.QcPhotos).HasColumnName("qc_photos");
             builder.Property(inspection => inspection.Notes).HasColumnName("notes");
             builder.Property(inspection => inspection.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(inspection => inspection.Decision).HasMaxLength(40).HasColumnName("decision");
