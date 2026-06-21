@@ -128,9 +128,12 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
 }
 
 function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose: () => void }) {
-  const { addCustomer, updateCustomer } = useApp();
+  const { customers, addCustomer, updateCustomer } = useApp();
+  
+  const nextCode = customer?.code || `CUST-${String(customers.length + 1).padStart(3, "0")}`;
+
   const [form, setForm] = useState({
-    code: customer?.code ?? '',
+    code: nextCode,
     name: customer?.name ?? '',
     contact: customer?.contact ?? '',
     email: customer?.email ?? '',
@@ -148,43 +151,76 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
     onClose();
   };
 
+  const labelStyle = { display: "block", fontSize: "11.5px", fontWeight: 500, color: "#475569", marginBottom: 4, fontFamily: S.font };
+  const inputStyle = { width: "100%", boxSizing: "border-box" as const, background: "#FAFAFA", border: `1px solid ${S.border}`, borderRadius: 4, padding: "7px 10px", fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none", transition: "border-color 0.12s, background 0.12s" };
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{ fontFamily: S.font }}>
-      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 450, display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
-          <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>{customer ? 'Edit Customer' : 'Tambah Customer'}</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.55)", backdropFilter: "blur(2px)" }} onClick={onClose} />
+
+      <div style={{ position: "relative", zIndex: 1, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", borderRadius: 8, border: `1px solid ${S.border}`, width: "100%", maxWidth: 520, margin: "0 16px", fontFamily: S.font }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${S.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(200,16,46,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Users size={14} style={{ color: S.cyan }} />
+            </div>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.slate }}>
+              {customer ? "Edit Pelanggan" : "Tambah Pelanggan"}
+            </p>
+          </div>
+          <button onClick={onClose}
+            style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", transition: "all 0.1s" }}
+            onMouseEnter={e => { (e.currentTarget).style.background = "#FEF2F2"; (e.currentTarget).style.color = "#EF4444"; (e.currentTarget).style.borderColor = "#FCA5A5"; }}
+            onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; (e.currentTarget).style.borderColor = S.border; }}
+          >
+            <XCircle size={13} />
+          </button>
         </div>
-        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Kode *</label>
-              <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} disabled={!!customer} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", background: customer ? S.bg : S.white }} />
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Kode</label>
+                <input style={{...inputStyle, background: S.bg, cursor: "not-allowed", color: S.secondary}} type="text" value={form.code} disabled={true} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>Perusahaan <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+                <input style={inputStyle} type="text" placeholder="PT / CV ..." value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+              </div>
+              <div>
+                <label style={labelStyle}>Nama Pelanggan / PIC <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+                <input style={inputStyle} type="text" placeholder="Nama kontak" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+              </div>
+              <div>
+                <label style={labelStyle}>No. Telepon</label>
+                <input style={inputStyle} type="text" placeholder="08xxxxxxxxxx" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+              </div>
+              <div>
+                <label style={labelStyle}>Email</label>
+                <input style={inputStyle} type="email" placeholder="email@perusahaan.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+              </div>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Kontak PIC *</label>
-              <input type="text" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Perusahaan *</label>
-              <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nomor Telepon</label>
-              <input type="text" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email</label>
-              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              <label style={labelStyle}>Alamat Lengkap</label>
+              <input style={inputStyle} type="text" placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
             </div>
           </div>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Alamat</label>
-            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", minHeight: 60, resize: "vertical" }} />
-          </div>
-          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Simpan</button>
+
+          <div style={{ display: "flex", gap: 8, padding: "12px 20px", borderTop: `1px solid ${S.border}`, justifyContent: "flex-end" }}>
+            <button type="button" onClick={onClose}
+              style={{ padding: "7px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, transition: "background 0.1s" }}
+              onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
+              onMouseLeave={e => (e.currentTarget.style.background = S.white)}
+            >Batal</button>
+            <button type="submit"
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 18px", borderRadius: 4, border: "none", background: S.cyan, color: "#fff", fontSize: "12.5px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "opacity 0.1s" }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              <CheckCircle size={13} />
+              {customer ? "Simpan Perubahan" : "Simpan Pelanggan"}
+            </button>
           </div>
         </form>
       </div>

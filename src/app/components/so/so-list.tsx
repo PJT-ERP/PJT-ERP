@@ -242,13 +242,7 @@ export function SOList({ onNavigate }: SOListProps) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
-          <HoverBtn
-            icon={<Download size={12} />}
-            label="Export"
-            onClick={exportOrders}
-            style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, color: S.secondary }}
-            hoverStyle={{ background: S.bg, color: S.slate }}
-          />
+
           <HoverBtn
             icon={<Plus size={12} />}
             label="Buat SO"

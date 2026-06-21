@@ -308,7 +308,21 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               </div>
               <button
                 onClick={() => onNavigate("so-list")}
-                style={{ display: "flex", alignItems: "center", gap: 4, color: S.cyan, fontSize: "12px", background: "none", border: "none", cursor: "pointer", fontFamily: S.font }}
+                style={{ 
+                  display: "flex", alignItems: "center", gap: 6, 
+                  color: S.cyan, fontSize: "12px", fontWeight: 600, 
+                  background: "rgba(200,16,46,0.06)", border: "none", borderRadius: 6,
+                  padding: "6px 12px", cursor: "pointer", fontFamily: S.font,
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(200,16,46,0.12)";
+                  e.currentTarget.style.transform = "translateX(3px)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "rgba(200,16,46,0.06)";
+                  e.currentTarget.style.transform = "translateX(0)";
+                }}
               >
                 Lihat semua <ArrowRight size={12} />
               </button>

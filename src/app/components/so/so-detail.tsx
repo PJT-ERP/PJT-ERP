@@ -405,33 +405,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           {/* Invoice Information — read-only for SO staff */}
           <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} />
 
-          {/* Activity log */}
-          {!isEditMode && (
-            <InfoCard title="Log Aktivitas" icon={<Activity size={13} />}>
-              <div>
-                {(order.activities || []).map((act, idx) => (
-                  <div key={act.id} style={{ display: "flex", gap: 12, paddingBottom: idx < (order.activities?.length || 0) - 1 ? 14 : 4 }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(200,16,46,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Activity size={11} style={{ color: S.cyan }} />
-                      </div>
-                      {idx < (order.activities?.length || 0) - 1 && (
-                        <div style={{ width: 1, flex: 1, background: "#F1F5F9", margin: "4px 0" }} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1, paddingTop: 2 }}>
-                      <p style={{ margin: 0, fontSize: "12.5px", color: S.slate }}>{act.action}</p>
-                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>
-                        <span style={{ fontWeight: 500, color: S.secondary }}>{act.user}</span>
-                        {" · "}<span style={{ color: S.cyan }}>{act.role}</span>
-                        {" · "}{act.timestamp}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </InfoCard>
-          )}
+
 
           {/* Edit Actions */}
           {isEditMode && (
@@ -756,7 +730,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
 
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
-                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf`, '_blank')} />
+                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf?inline=true`, '_blank')} />
                 <InvoiceBtn icon={<Download size={12} />} label="Download PDF" onClick={() => {
                   const link = document.createElement('a');
                   link.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf`;
