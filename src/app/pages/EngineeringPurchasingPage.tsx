@@ -17,17 +17,17 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const URGENCY_COLORS: Record<PurchasingUrgency, string> = {
-  Normal: 'bg-slate-600 text-white border-transparent shadow-sm border-gray-300',
-  Urgent: 'bg-amber-500 text-white border-transparent shadow-sm border-amber-300',
-  Critical: 'bg-red-600 text-white border-transparent shadow-sm border-red-300',
+const URGENCY_COLORS: Record<PurchasingUrgency, { bg: string, text: string, border: string, dot: string }> = {
+  Normal: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-300', dot: 'bg-slate-400' },
+  Urgent: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300', dot: 'bg-amber-500' },
+  Critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300', dot: 'bg-red-500' },
 };
 
-const PR_STATUS_COLORS: Record<PurchasingStatus, string> = {
-  Pending: 'bg-slate-600 text-white border-transparent shadow-sm',
-  Diproses: 'bg-red-600 text-white border-transparent shadow-sm',
-  Selesai: 'bg-green-600 text-white border-transparent shadow-sm',
-  Ditolak: 'bg-red-600 text-white border-transparent shadow-sm',
+const PR_STATUS_COLORS: Record<PurchasingStatus, { bg: string, text: string, border: string, dot: string }> = {
+  Pending: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-300', dot: 'bg-slate-500' },
+  Diproses: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-300', dot: 'bg-blue-500' },
+  Selesai: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-300', dot: 'bg-green-500' },
+  Ditolak: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300', dot: 'bg-red-500' },
 };
 
 const UNITS = ['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'];
@@ -221,8 +221,14 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
         <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Status & Urgency */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span className={`text-xs px-2.5 py-1 rounded-full ${PR_STATUS_COLORS[pr.status]}`}>{pr.status}</span>
-            <span className={`text-xs px-2.5 py-0.5 rounded-full border ${URGENCY_COLORS[pr.urgency]}`}>{pr.urgency}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }} className={`px-2.5 py-1 rounded-md border ${PR_STATUS_COLORS[pr.status].bg} ${PR_STATUS_COLORS[pr.status].border} ${PR_STATUS_COLORS[pr.status].text}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[pr.status].dot}`} />
+              <span className="text-xs font-medium">{pr.status}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }} className={`px-2.5 py-1 rounded-md border ${URGENCY_COLORS[pr.urgency].bg} ${URGENCY_COLORS[pr.urgency].border} ${URGENCY_COLORS[pr.urgency].text}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[pr.urgency].dot}`} />
+              <span className="text-xs font-medium">{pr.urgency}</span>
+            </div>
           </div>
 
           {/* Items list */}
@@ -648,7 +654,13 @@ export function EngineeringPurchasingPage() {
     void refreshBackendData();
   }, [refreshBackendData]);
 
-  const statusCount = (s: PurchasingStatus) => purchasingRequests.filter(r => r.status === s).length;
+  const waitingSpvRequests = purchasingRequests.filter(r => r.backendStatus === 'Submitted');
+  const otherRequests = purchasingRequests.filter(r => r.backendStatus !== 'Submitted');
+
+  const statusCount = (s: string) => {
+    if (s === 'Menunggu SPV') return waitingSpvRequests.length;
+    return purchasingRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
+  };
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -673,8 +685,9 @@ export function EngineeringPurchasingPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        {(['Pending', 'Diproses', 'Selesai', 'Ditolak'] as PurchasingStatus[]).map(s => {
+        {(['Menunggu SPV', 'Pending', 'Diproses', 'Selesai', 'Ditolak'] as const).map(s => {
           let accent = "#94A3B8"; let bg = "rgba(148,163,184,0.08)";
+          if (s === 'Menunggu SPV') { accent = "#A855F7"; bg = "rgba(168,85,247,0.08)"; }
           if (s === 'Diproses') { accent = "#3B82F6"; bg = "rgba(59,130,246,0.08)"; }
           if (s === 'Selesai') { accent = "#22C55E"; bg = "rgba(34,197,94,0.08)"; }
           if (s === 'Ditolak') { accent = "#EF4444"; bg = "rgba(239,68,68,0.08)"; }
@@ -695,17 +708,54 @@ export function EngineeringPurchasingPage() {
         })}
       </div>
 
-      {purchasingRequests.length === 0 ? (
+      {waitingSpvRequests.length > 0 && (
+        <div style={{ marginBottom: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#A855F7" }} />
+            <h3 style={{ margin: 0, fontSize: "14px", color: S.slate }}>Menunggu Persetujuan Supervisor ({waitingSpvRequests.length})</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {waitingSpvRequests.map(req => {
+              const isMulti = req.items && req.items.length > 1;
+              const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
+              const displayQty = isMulti ? req.items!.map(it => it.itemName).join(', ') : `${req.quantity} ${req.unit}`;
+              return (
+                <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: S.white, border: `1px solid ${S.border}`, borderRadius: 8, padding: "16px 20px" }}>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(168,85,247,0.08)", color: "#A855F7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <ShoppingCart size={22} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: "13.5px", fontWeight: 700, color: S.slate }}>{req.id}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }} className={`px-2 py-0.5 rounded border ${URGENCY_COLORS[req.urgency].bg} ${URGENCY_COLORS[req.urgency].border} ${URGENCY_COLORS[req.urgency].text}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[req.urgency].dot}`} />
+                          <span style={{ fontSize: "10.5px", fontWeight: 600 }}>{req.urgency}</span>
+                        </div>
+                      </div>
+                      <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 500, color: S.slate, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</p>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{req.requestedBy || 'Engineering Worker'} &nbsp;&middot;&nbsp; {displayQty} &nbsp;&middot;&nbsp; {req.soId || '—'}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelected(req)} style={{ padding: "8px 16px", background: "#8B5CF6", color: "#fff", border: "none", borderRadius: 6, fontSize: "13px", fontWeight: 600, cursor: "pointer", flexShrink: 0, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#7C3AED"} onMouseLeave={e => e.currentTarget.style.background = "#8B5CF6"}>Tinjau Pengajuan</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {otherRequests.length === 0 && waitingSpvRequests.length === 0 ? (
         <div style={{ padding: "60px 20px", textAlign: "center", background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
           <ShoppingCart size={40} style={{ color: S.border, margin: "0 auto 12px" }} />
           <p style={{ color: S.secondary, margin: 0, fontSize: "13.5px" }}>Belum ada pengajuan purchasing</p>
         </div>
-      ) : (
+      ) : otherRequests.length > 0 ? (
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <ShoppingCart size={14} style={{ color: S.cyan }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pengajuan</span>
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pengajuan (Diproses / Riwayat)</span>
             </div>
           </div>
 
@@ -715,7 +765,7 @@ export function EngineeringPurchasingPage() {
             ))}
           </div>
 
-          {purchasingRequests.map((req, idx) => {
+          {otherRequests.map((req, idx) => {
             const isMulti = req.items && req.items.length > 1;
             const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
             const displayQty = isMulti ? null : `${req.quantity} ${req.unit}`;
@@ -726,7 +776,7 @@ export function EngineeringPurchasingPage() {
                 style={{
                   display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px",
                   padding: "10px 18px", cursor: "pointer",
-                  borderBottom: idx < purchasingRequests.length - 1 ? `1px solid ${S.border}` : "none",
+                  borderBottom: idx < otherRequests.length - 1 ? `1px solid ${S.border}` : "none",
                   transition: "background 0.1s",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
@@ -745,18 +795,24 @@ export function EngineeringPurchasingPage() {
                   )}
                 </div>
                 <div style={{ alignSelf: "center" }}>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${URGENCY_COLORS[req.urgency]}`} style={{ fontSize: "10.5px", fontWeight: 500 }}>{req.urgency}</span>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2 py-0.5 rounded border ${URGENCY_COLORS[req.urgency].bg} ${URGENCY_COLORS[req.urgency].border} ${URGENCY_COLORS[req.urgency].text}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[req.urgency].dot}`} />
+                    <span style={{ fontSize: "10.5px", fontWeight: 600 }}>{req.urgency}</span>
+                  </div>
                 </div>
                 <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center", fontFamily: "monospace" }}>{req.soId || '—'}</span>
                 <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{req.requestedAt}</span>
                 <div style={{ alignSelf: "center" }}>
-                  <span className={`text-xs px-2.5 py-1 rounded-full ${PR_STATUS_COLORS[req.status]}`} style={{ fontSize: "11px", fontWeight: 500 }}>{req.status}</span>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2.5 py-1 rounded border ${PR_STATUS_COLORS[req.status].bg} ${PR_STATUS_COLORS[req.status].border} ${PR_STATUS_COLORS[req.status].text}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[req.status].dot}`} />
+                    <span style={{ fontSize: "11px", fontWeight: 500 }}>{req.status}</span>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {showForm && (
         <PurchasingFormModal
