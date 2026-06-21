@@ -565,6 +565,11 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     return "Waiting Payment";
   }
 
+  // Engineering Rework overrides Production/QC status
+  if (order.designStatus === "RevisionRequired") {
+    return "Revision Required";
+  }
+
   if (order.productionStatus === "Finished") {
     return "QC";
   }

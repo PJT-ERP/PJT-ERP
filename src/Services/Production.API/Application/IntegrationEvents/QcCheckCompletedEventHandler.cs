@@ -35,6 +35,11 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db, IEventPub
                 : productionOrder.SalesOrder.Status;
             productionOrder.SalesOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
 
+            if (!isGo)
+            {
+                productionOrder.SalesOrder.DesignStatus = SalesOrderDesignStatuses.RevisionRequired;
+            }
+
             if (isGo)
             {
                 await eventPublisher.PublishAsync(

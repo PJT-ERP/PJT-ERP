@@ -257,7 +257,7 @@ function QCInspectionModal({
       });
     } else {
       updateSalesOrder(so.id, {
-        status: 'Ready for Production',
+        status: 'Revision Required',
         qcStatus: 'NoGo',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
@@ -719,7 +719,7 @@ function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: Sal
       ? "QC"
       : isGo(decision)
         ? "Completed"
-        : "Ready for Production",
+        : "Revision Required",
     qcStatus: isGo(decision) ? "Go" : isNoGo(decision) ? "NoGo" : existing?.qcStatus,
     qcNotes: inspection.notes || existing?.qcNotes,
     qcAt: inspection.reviewedAtUtc || existing?.qcAt,
