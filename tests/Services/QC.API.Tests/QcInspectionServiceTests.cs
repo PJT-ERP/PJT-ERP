@@ -27,7 +27,8 @@ public sealed class QcInspectionServiceTests
             new UploadQcResultRequest(
                 ReviewerUserId,
                 "Reviewer Engineer",
-                "https://drive.example/qc-image.jpg",
+                ["https://drive.example/production-image.jpg"],
+                ["https://drive.example/qc-image.jpg"],
                 "Visual condition is acceptable.",
                 "Go"),
             CancellationToken.None);
@@ -35,7 +36,8 @@ public sealed class QcInspectionServiceTests
         Assert.NotNull(result);
         Assert.Equal(QcInspectionStatuses.Go, result.Status);
         Assert.Equal(QcInspectionStatuses.Go, result.Decision);
-        Assert.Equal("https://drive.example/qc-image.jpg", result.QcImageUrl);
+        Assert.Contains("https://drive.example/production-image.jpg", result.ProductionPhotos);
+        Assert.Contains("https://drive.example/qc-image.jpg", result.QcPhotos);
         Assert.Equal("Visual condition is acceptable.", result.Notes);
         Assert.Equal(ReviewerUserId, result.ReviewedByUserId);
         Assert.Equal("Reviewer Engineer", result.ReviewerName);
@@ -62,7 +64,8 @@ public sealed class QcInspectionServiceTests
             new UploadQcResultRequest(
                 ReviewerUserId,
                 "Reviewer Engineer",
-                "https://drive.example/qc-image.jpg",
+                ["https://drive.example/production-image.jpg"],
+                ["https://drive.example/qc-image.jpg"],
                 "Diameter outside tolerance.",
                 "NoGo"),
             CancellationToken.None);
@@ -91,7 +94,8 @@ public sealed class QcInspectionServiceTests
                 new UploadQcResultRequest(
                     Guid.Parse("99999999-9999-9999-9999-999999999999"),
                     "Other Reviewer",
-                    "https://drive.example/qc-image.jpg",
+                    ["https://drive.example/production-image.jpg"],
+                    ["https://drive.example/qc-image.jpg"],
                     "Not assigned.",
                     "Go"),
                 CancellationToken.None));
@@ -116,7 +120,8 @@ public sealed class QcInspectionServiceTests
                 new UploadQcResultRequest(
                     ReviewerUserId,
                     "Reviewer Engineer",
-                    "https://drive.example/qc-image.jpg",
+                    ["https://drive.example/production-image.jpg"],
+                    ["https://drive.example/qc-image.jpg"],
                     null,
                     "Go"),
                 CancellationToken.None));

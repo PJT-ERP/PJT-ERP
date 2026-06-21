@@ -41,7 +41,8 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
 
         var decision = NormalizeDecision(request.Decision);
         var now = DateTime.UtcNow;
-        inspection.QcImageUrl = request.QcImageUrl.Trim();
+        inspection.ProductionPhotos = request.ProductionPhotos ?? new List<string>();
+        inspection.QcPhotos = request.QcPhotos ?? new List<string>();
         inspection.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
         inspection.Decision = decision;
         inspection.ReviewedByUserId = request.ReviewerUserId;
@@ -90,11 +91,9 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             throw new InvalidOperationException("Reviewer name is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.QcImageUrl)
-            || !Uri.TryCreate(request.QcImageUrl.Trim(), UriKind.Absolute, out var imageUri)
-            || imageUri.Scheme is not ("http" or "https"))
+        if (request.QcPhotos == null || request.QcPhotos.Count == 0)
         {
-            throw new InvalidOperationException("QC image URL must be a valid HTTP or HTTPS link.");
+            throw new InvalidOperationException("At least one QC photo must be provided.");
         }
     }
 
@@ -136,7 +135,8 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             inspection.ProductionFinishedAtUtc,
             inspection.AssignedReviewerUserId,
             inspection.AssignedReviewerName,
-            inspection.QcImageUrl,
+            inspection.ProductionPhotos,
+            inspection.QcPhotos,
             inspection.Notes,
             inspection.Status,
             inspection.Decision,
