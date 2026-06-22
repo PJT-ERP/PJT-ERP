@@ -1043,6 +1043,11 @@ export function ProductionPage() {
                       <span>Operator: <strong>{operator}</strong></span>
                       <DrawingLinks so={so} />
                     </div>
+                    {mrState === 'rejected' && getMaterialRequest(so)?.rejectionReason && (
+                      <p style={{ fontSize: "12.5px", color: "#B91C1C", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
+                        Catatan SPV: {getMaterialRequest(so)?.rejectionReason}
+                      </p>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
@@ -1055,6 +1060,12 @@ export function ProductionPage() {
                       <button onClick={() => setReqModal(so)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
+                      </button>
+                    )}
+                    {mrState === 'rejected' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                      <button onClick={() => setReqModal(so)}
+                        style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                        <FileWarning size={14} /> Re-ajukan MR
                       </button>
                     )}
                     {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (mrState === 'none' || mrState === 'completed') && (
