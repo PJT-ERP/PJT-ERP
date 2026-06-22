@@ -1,19 +1,20 @@
-INSERT INTO customers ("Id", code, name, address, contact_person, email, is_active, created_at_utc, updated_at_utc)
+INSERT INTO customers ("Id", code, name, address, contact_person, email, phone, is_active, created_at_utc, updated_at_utc)
 VALUES
-    ('11111111-1111-4111-8111-111111111001', '0001', 'PT. METAL FASTINDO ABADI', 'Jl. Industri Raya No. 15, Bekasi', 'Pak Agus', 'agus@metalfastindo.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111002', '0002', 'PT. SUMBER JAYA STEEL', 'Kawasan KIIC, Karawang', 'Ibu Lisa', 'lisa@sumberjayasteel.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111003', '0003', 'CV. TEKNIK MANDIRI', 'Jl. Raya Cikarang No. 88, Bekasi', 'Pak Budi', 'budi@teknikmandiri.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111004', '0004', 'PT. INDO PRESISI PART', 'MM2100 Industrial Town, Cikarang', 'Pak Harry', 'harry@indopresisi.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111005', '0005', 'PT. ANEKA KOMPONEN', 'Jl. Gatot Subroto Km.7, Jakarta', 'Ibu Rini', 'rini@anekakomponen.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111006', '0006', 'PT. GLOBAL ENGINEERING', 'Kawasan Lippo Cikarang', 'Pak David', 'david@globalengineering.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111007', '0007', 'CV. MAJU BERSAMA TEKNIK', 'Jl. Pahlawan No. 33, Tangerang', 'Pak Joni', 'joni@majubersamateknik.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111008', '0008', 'PT. PRIMA SOLUSI INDUSTRI', 'BSD City, Tangerang Selatan', 'Ibu Wati', 'wati@primasolusi.co.id', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('11111111-1111-4111-8111-111111111009', 'CUST-9012', 'PT. PRESISI BAUT NUSANTARA', 'Kawasan Industri Jababeka, Cikarang', 'Pak Raka', 'raka@presisibaut.co.id', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
+    ('11111111-1111-4111-8111-111111111001', '0001', 'PT. METAL FASTINDO ABADI', 'Jl. Industri Raya No. 15, Bekasi', 'Pak Agus', 'agus@metalfastindo.co.id', '081234567801', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111002', '0002', 'PT. SUMBER JAYA STEEL', 'Kawasan KIIC, Karawang', 'Ibu Lisa', 'lisa@sumberjayasteel.co.id', '081234567802', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111003', '0003', 'CV. TEKNIK MANDIRI', 'Jl. Raya Cikarang No. 88, Bekasi', 'Pak Budi', 'budi@teknikmandiri.co.id', '081234567803', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111004', '0004', 'PT. INDO PRESISI PART', 'MM2100 Industrial Town, Cikarang', 'Pak Harry', 'harry@indopresisi.co.id', '081234567804', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111005', '0005', 'PT. ANEKA KOMPONEN', 'Jl. Gatot Subroto Km.7, Jakarta', 'Ibu Rini', 'rini@anekakomponen.co.id', '081234567805', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111006', '0006', 'PT. GLOBAL ENGINEERING', 'Kawasan Lippo Cikarang', 'Pak David', 'david@globalengineering.co.id', '081234567806', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111007', '0007', 'CV. MAJU BERSAMA TEKNIK', 'Jl. Pahlawan No. 33, Tangerang', 'Pak Joni', 'joni@majubersamateknik.co.id', '081234567807', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111008', '0008', 'PT. PRIMA SOLUSI INDUSTRI', 'BSD City, Tangerang Selatan', 'Ibu Wati', 'wati@primasolusi.co.id', '081234567808', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('11111111-1111-4111-8111-111111111009', 'CUST-9012', 'PT. PRESISI BAUT NUSANTARA', 'Kawasan Industri Jababeka, Cikarang', 'Pak Raka', 'raka@presisibaut.co.id', '081234567809', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
 ON CONFLICT (code) DO UPDATE
 SET name = EXCLUDED.name,
     address = EXCLUDED.address,
     contact_person = EXCLUDED.contact_person,
     email = EXCLUDED.email,
+    phone = EXCLUDED.phone,
     is_active = EXCLUDED.is_active,
     updated_at_utc = EXCLUDED.updated_at_utc;
 
