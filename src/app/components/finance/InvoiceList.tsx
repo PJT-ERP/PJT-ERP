@@ -36,26 +36,10 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-function InvoiceDetailModal({ invoice, onClose, payments, refresh }: { invoice: Invoice; onClose: () => void; payments?: any[]; refresh?: () => void }) {
-  const [isVerifying, setIsVerifying] = useState(false);
+function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerification }: { invoice: Invoice; onClose: () => void; payments?: any[]; onNavigateToVerification: () => void }) {
   const pendingPayment = payments?.find(p => p.invoiceId === invoice.id && p.status === 'PENDING');
   
   const subtotal = invoice.items.reduce((s, i) => s + i.total, 0);
-
-  const handleVerify = async () => {
-    if (!pendingPayment || !refresh) return;
-    setIsVerifying(true);
-    try {
-      await financeApi.verifyPaymentProof(pendingPayment.id);
-      await refresh();
-      onClose();
-    } catch (err) {
-      console.error("Gagal memverifikasi:", err);
-      alert('Gagal memverifikasi pembayaran');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
   const exportInvoice = () => {
     downloadCsv(`${invoice.invoiceNumber}.csv`, [
       ['Invoice', 'SO', 'Customer', 'Amount', 'Status', 'Due Date'],
@@ -226,12 +210,14 @@ function InvoiceDetailModal({ invoice, onClose, payments, refresh }: { invoice: 
           <div className="flex gap-3 pt-3 border-t border-slate-200/60 relative z-10">
             {pendingPayment && (
               <button
-                onClick={handleVerify}
-                disabled={isVerifying}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                onClick={() => {
+                  onClose();
+                  onNavigateToVerification();
+                }}
+                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg shadow-amber-500/20"
               >
                 <CheckCircle2 size={16} />
-                {isVerifying ? "Memverifikasi..." : "Verifikasi Pembayaran"}
+                Verifikasi Pembayaran
               </button>
             )}
             <button
@@ -524,7 +510,12 @@ export function InvoiceList() {
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} payments={payments} refresh={refresh} />
+        <InvoiceDetailModal 
+          invoice={selectedInvoice} 
+          onClose={() => setSelectedInvoice(null)} 
+          payments={payments} 
+          onNavigateToVerification={() => navigate('/erp/finance/payment-verification')} 
+        />
       )}
     </div>
   );
