@@ -138,6 +138,7 @@ export function EngineeringTaskDetailPage() {
   const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
   const [rejectReason, setRejectReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completedAsSpv, setCompletedAsSpv] = useState(false);
 
   useEffect(() => {
     if (qut) {
@@ -222,6 +223,7 @@ export function EngineeringTaskDetailPage() {
       }
 
       if (isDoingSpvApproval) {
+        setCompletedAsSpv(true);
         const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
         localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
         localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
@@ -307,9 +309,9 @@ export function EngineeringTaskDetailPage() {
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
       <button 
         onClick={() => navigate('/erp/engineer-tasks')} 
-        style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "14px", fontWeight: 500, marginBottom: "20px", padding: 0 }}
-        onMouseEnter={e => e.currentTarget.style.color = S.slate}
-        onMouseLeave={e => e.currentTarget.style.color = S.secondary}
+        style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: S.white, border: `1px solid ${S.border}`, borderRadius: "8px", cursor: "pointer", color: S.slate, fontSize: "14px", fontWeight: 500, marginBottom: "20px", padding: "8px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", transition: "all 0.2s", alignSelf: "flex-start" }}
+        onMouseEnter={e => { e.currentTarget.style.background = S.bg; e.currentTarget.style.borderColor = "#CBD5E1"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = S.white; e.currentTarget.style.borderColor = S.border; }}
       >
         <ChevronLeft size={16} /> Kembali ke Daftar Tugas
       </button>
@@ -347,10 +349,10 @@ export function EngineeringTaskDetailPage() {
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-                {isDoingSpvApproval ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
+                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                {isDoingSpvApproval ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={() => navigate('/erp/engineer-tasks')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
             </div>
@@ -479,23 +481,15 @@ export function EngineeringTaskDetailPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {materials.map(m => (
                       <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 16, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-                        <MaterialAutocomplete
-                          value={m.name}
-                          onChange={val => updateMaterial(m.id, 'name', val)}
-                          onSelectProduct={product => {
-                            const newMaterials = materials.map(mat => mat.id === m.id ? {
-                              ...mat,
-                              name: product.description || product.partNumber,
-                              spec: product.materialSpec || mat.spec,
-                              unit: (product.unit || mat.unit).toLowerCase()
-                            } : mat);
-                            setMaterials(newMaterials);
-                          }}
-                          options={productCatalog}
-                          disabled={!canProcess}
+                        <input 
+                          placeholder="Nama Material (Ketik manual)..." 
+                          value={m.name} 
+                          onChange={e => updateMaterial(m.id, 'name', e.target.value)} 
+                          disabled={!canProcess} 
+                          style={{ flex: 2, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", minWidth: 0 }} 
                         />
                         <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "#F8FAFC" }} />
-                        <input type="number" min="0.1" step="0.1" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", textAlign: "right" }} />
+                        <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", textAlign: "right" }} />
                         <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} disabled={!canProcess} style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC" }}>
                           <option value="pcs">pcs</option>
                           <option value="kg">kg</option>

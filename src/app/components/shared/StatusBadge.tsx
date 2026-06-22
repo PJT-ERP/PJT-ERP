@@ -6,14 +6,15 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps) {
-  const colors = getStatusColor(status);
-  const sizeClass = size === 'sm' ? 'text-[11px] px-2.5 py-1' : 'text-xs px-3 py-1.5';
+  const colors = getStatusColor(status) as any;
+  const sizeClass = size === 'sm' ? 'text-[11px] px-[8px] py-[2px]' : 'text-[12.5px] px-3 py-1.5';
+  const dotClass = colors.dot || colors.text.replace('text-', 'bg-');
   
   return (
     <span 
-      className={`inline-flex items-center rounded-md font-bold shadow-sm tracking-wide ${sizeClass} ${colors.bg} ${colors.text} ${colors.border}`}
-      style={{ textTransform: 'uppercase' }}
+      className={`inline-flex items-center gap-[5px] rounded-[4px] font-medium border whitespace-nowrap ${sizeClass} ${colors.bg} ${colors.text} ${colors.border}`}
     >
+      <span className={`w-[5px] h-[5px] rounded-full shrink-0 ${dotClass}`} />
       {status}
     </span>
   );

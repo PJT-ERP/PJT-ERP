@@ -325,7 +325,19 @@ export function PurchaseRequestDetailPage() {
             </div>
           )}
 
-          {(detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.isReadyForPo) && (
+          {detail.items.some(i => !!i.poNumber) ? (
+            <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+              <div className="flex items-start gap-3 rounded p-4 bg-blue-50 border border-blue-200">
+                <CheckCircle2 size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-blue-800">Purchase Order Telah Dibuat</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    PR ini sudah diproses dan diterbitkan Purchase Order-nya.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.isReadyForPo) ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200">
                 <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
@@ -344,7 +356,7 @@ export function PurchaseRequestDetailPage() {
                 <Plus size={16} /> Buat PO Sekarang
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

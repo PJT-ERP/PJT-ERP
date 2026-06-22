@@ -191,15 +191,15 @@ function Pill({ bg, color, children }: { bg: string; color: string; children: Re
   );
 }
 
-function TH({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function TH({ children, className = "", right = false }: { children?: React.ReactNode; className?: string; right?: boolean }) {
   return (
-    <th className={className} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", padding: "9px 14px", textAlign: "left", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+    <th className={className} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", padding: "10px 14px", textAlign: right ? "right" : "left", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
       {children}
     </th>
   );
 }
 
-function TD({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function TD({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
   return (
     <td className={className} style={{ padding: "11px 14px", fontSize: 13, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle" }}>
       {children}
@@ -271,29 +271,6 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     ]);
   };
 
-  const receiveItem = async (item: POItem) => {
-    try {
-      await purchasingApi.receivePurchaseRequestItem(item.purchaseRequestId, item.purchaseRequestItemId, {
-        receivedDate: new Date().toISOString().split("T")[0],
-        purchaseNotes: "Barang diterima dari halaman PO.",
-      });
-      await loadPurchaseOrders();
-      setDetail(null);
-    } catch (error) {
-      console.warn("Failed to receive PO item.", error);
-      window.alert("Gagal update penerimaan barang di backend.");
-    }
-  };
-
-  const submitPO = () => {
-    if (!formSupplier || !formDue || formItems.some(item => !item.name || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0)) {
-      window.alert("Lengkapi supplier, jatuh tempo, qty, dan total harga semua item sebelum membuat PO.");
-      return;
-    }
-
-    setCreateOpen(false);
-    window.alert("PO harus dibuat dari MR backend yang sudah disetujui Supervisor melalui halaman Buat PO.");
-  };
 
   return (
     <div className="p-5 space-y-4">
@@ -316,7 +293,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <button
             onClick={() => navigate("/erp/purchasing/create")}
             className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 13, fontWeight: 600, background: "#1e3a5f" }}
+            style={{ fontSize: 13, fontWeight: 600, background: "#C8102E" }}
           >
             <Plus size={16} /> Buat PO Manual
           </button>
@@ -334,17 +311,19 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             <button
               key={s}
               onClick={() => setFilterStatus(active ? "all" : s)}
-              className="flex items-center gap-2 rounded px-3 py-1.5 transition-colors"
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition-all cursor-pointer border ${
+                active ? "shadow-sm ring-1" : "shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-slate-50"
+              }`}
               style={{
-                fontSize: 12, fontWeight: 500,
+                fontSize: 12, fontWeight: 600,
                 background: active ? cfg.bg : "#fff",
-                color: active ? cfg.color : "#475569",
-                border: `1px solid ${active ? cfg.color + "50" : "#e2e8f0"}`,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                color: active ? cfg.color : "#64748b",
+                borderColor: active ? cfg.color + "50" : "#e2e8f0",
+                ...(active ? { ringColor: cfg.color + "50" } : {})
               }}
             >
               <span className="rounded-full" style={{ width: 6, height: 6, background: cfg.dot }} />
-              {s} <strong style={{ color: active ? cfg.color : "#1F1F1F" }}>{n}</strong>
+              {s} <strong className="ml-1" style={{ color: active ? cfg.color : "#1F1F1F", fontSize: 13 }}>{n}</strong>
             </button>
           );
         })}
@@ -361,7 +340,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari No. PO, supplier, No. MR, SO, kategori..."
-            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
+            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
@@ -472,7 +451,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                       <TD>
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-red-50"
-                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
+                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#fecaca" }}
                           onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/orders/${po.id}`); }}
                         >
                           <Eye size={12} /> Detail

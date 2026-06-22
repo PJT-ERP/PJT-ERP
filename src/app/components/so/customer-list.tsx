@@ -29,7 +29,7 @@ const PAGE_SIZE = 8;
 
 // ─── empty form ───────────────────────────────────────────────────────────────
 const emptyForm = (): Partial<Customer> => ({
-  name: "", contact: "", phone: "", address: "",
+  name: "", contactPerson: "", contact: "", phone: "", address: "", email: ""
 });
 
 // ─── Form field helpers ────────────────────────────────────────────────────────
@@ -72,6 +72,7 @@ function CustomerModal({ state, onSave, onClose }: {
   onSave: (c: Partial<Customer>) => void;
   onClose: () => void;
 }) {
+  const { customers } = useApp();
   const [form, setForm] = useState<Partial<Customer>>(state.customer);
 
   const set = (key: keyof Customer, val: string) => setForm(f => ({ ...f, [key]: val }));
@@ -122,12 +123,25 @@ function CustomerModal({ state, onSave, onClose }: {
           <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
+                <ModalLabel text="Kode" />
+                <input
+                  type="text"
+                  value={form.code ?? state.customer.code ?? `CUST-${String(customers.length + 1).padStart(3, "0")}`}
+                  disabled={true}
+                  style={{
+                    width: "100%", boxSizing: "border-box", background: S.bg, cursor: "not-allowed",
+                    border: `1px solid ${S.border}`, borderRadius: 4, padding: "7px 10px",
+                    fontSize: "12.5px", color: S.secondary, fontFamily: S.font, outline: "none"
+                  }}
+                />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <ModalLabel text="Perusahaan" required />
                 <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
               </div>
               <div>
                 <ModalLabel text="Nama Pelanggan" required />
-                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? form.contact ?? ""} onChange={e => { set("contactPerson", e.target.value); set("contact", e.target.value); }} required />
+                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
@@ -135,7 +149,7 @@ function CustomerModal({ state, onSave, onClose }: {
               </div>
               <div>
                 <ModalLabel text="Email" />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? ""} onChange={e => set("email", e.target.value)} />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} />
               </div>
             </div>
             <div>
@@ -208,11 +222,13 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
   const handleSave = (data: Partial<Customer>) => {
     if (modal?.mode === "add") {
       const newCustomer: Customer = {
-        code: `C${String(customers.length + 1).padStart(3, "0")}`,
+        code: `CUST-${String(customers.length + 1).padStart(3, "0")}`,
         name: data.name ?? "",
+        contactPerson: data.contactPerson ?? "",
         contact: data.contact ?? "",
         phone: data.phone ?? "",
         address: data.address ?? "",
+        email: data.email ?? "",
       };
       addCustomer(newCustomer);
     } else if (modal?.mode === "edit" && data.code) {

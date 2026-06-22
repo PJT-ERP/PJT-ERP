@@ -1,11 +1,11 @@
-import { useMemo, useState, useEffect, type ChangeEvent, type ReactNode } from "react";
-import { CheckCircle2, Plus, Trash2 } from "lucide-react";
-import type { Page } from "./layout";
+import { useMemo, useState, useEffect, useRef, type ChangeEvent, type ReactNode } from "react";
+import { CheckCircle2, Plus, Trash2, ChevronDown } from "lucide-react";
+
 import { purchasingApi } from "../../services/purchasingApi";
 import { usePurchasingData } from "./usePurchasingData";
 
 interface CreatePurchaseOrderPageProps {
-  onNavigate: (page: Page) => void;
+  onNavigate?: (page: string) => void;
 }
 
 interface FormItem {
@@ -55,7 +55,53 @@ function FieldLabel({ children }: FieldLabelProps) {
 }
 
 function inputClass(extra: string = "") {
-  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-blue-100 ${extra}`;
+  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 ${extra}`;
+}
+
+function SupplierCombobox({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; }) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
+
+  const handleSelect = (v: string) => {
+    setQuery(v);
+    onChange(v);
+    setOpen(false);
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  };
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <div className="relative flex items-center w-full">
+        <input type="text" value={query} onChange={handleChange} onFocus={() => setOpen(true)} placeholder={placeholder} className={inputClass("pr-8")} />
+        <ChevronDown size={14} className="absolute right-3 text-slate-400 pointer-events-none" />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map(o => (
+            <div key={o} onMouseDown={e => { e.preventDefault(); handleSelect(o); }} className="px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700">
+              {o}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
@@ -160,7 +206,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         purchaseNotes: [terms, shippingAddress, notes].filter(Boolean).join(" | ") || null,
       })));
       await refresh();
-      onNavigate("orders");
+      onNavigate?.("orders");
     } catch (error) {
       console.warn("Failed to create backend PO.", error);
       window.alert("Gagal membuat PO di backend. Cek response API untuk detail.");
@@ -181,7 +227,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => onNavigate("orders")}
+            onClick={() => onNavigate?.("requests")}
             className="rounded border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50"
           >
             Batal
@@ -189,7 +235,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <button
             onClick={submitPO}
             disabled={isSubmitting}
-            className="flex items-center gap-2 rounded bg-[#1e3a5f] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex items-center gap-2 rounded bg-[#C8102E] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <CheckCircle2 size={15} />
             {isSubmitting ? "Menyimpan..." : "Buat PO"}
@@ -205,16 +251,12 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
           <div className="space-y-1.5 md:col-span-2">
             <FieldLabel>Supplier *</FieldLabel>
-            <input 
-              list="suppliers-list" 
-              value={supplier} 
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setSupplier(e.target.value)} 
-              className={inputClass()} 
+            <SupplierCombobox
+              value={supplier}
+              onChange={setSupplier}
+              options={SUPPLIERS}
               placeholder="Pilih atau tulis supplier"
             />
-            <datalist id="suppliers-list">
-              {SUPPLIERS.map(item => <option key={item} value={item} />)}
-            </datalist>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No Permintaan / PR *</FieldLabel>
@@ -238,7 +280,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             </select>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Jatuh Tempo *</FieldLabel>
+            <FieldLabel>Est. Kedatangan Barang *</FieldLabel>
             <input type="date" value={dueDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setDueDate(e.target.value)} className={inputClass()} />
           </div>
           <div className="space-y-1.5">
@@ -322,8 +364,8 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           ))}
         </div>
 
-        <div className="flex flex-col gap-2 bg-[#0f1e35] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm font-semibold text-slate-300">Total Nilai PO</span>
+        <div className="flex flex-col gap-2 bg-[#C8102E] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm font-semibold text-red-100">Total Nilai PO</span>
           <span className="text-xl font-bold text-white">{formatRp(total)}</span>
         </div>
       </section>

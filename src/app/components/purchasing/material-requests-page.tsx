@@ -36,6 +36,8 @@ export interface MRItem {
   currentStock: number;
   estimatedPrice?: number;
   supplierName?: string;
+  poNumber?: string | null;
+  purchaseStatus?: string;
 }
 
 export interface MR {
@@ -57,6 +59,7 @@ export interface MR {
   supplierAssigned?: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
   isReadyForPo?: boolean;
+  hasUnorderedItems?: boolean;
   rejectionReason?: string;
 }
 
@@ -78,9 +81,10 @@ export const priorityCfg: Record<string, { bg: string; color: string }> = {
 
 export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
   const firstItem = request.items[0];
-  const status = mapRequestStatus(request);
   const activeItems = request.items.filter(item => item.purchaseStatus !== "Rejected");
   const isReadyForFinance = activeItems.length > 0 && activeItems.every(i => !!i.supplierName && ((i.totalPrice || 0) > 0 || (i.estimatedPrice || 0) > 0));
+  const hasUnorderedItems = activeItems.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received");
+  const status = mapRequestStatus(request, hasUnorderedItems);
 
   const priority: MR["priority"] = request.items.some(item => item.urgency === "Critical")
     ? "High"
@@ -109,6 +113,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
       : undefined,
     isReadyForPo: isReadyForFinance,
+    hasUnorderedItems,
     items: request.items.map(item => ({
       itemId: item.id,
       materialRequirementId: item.materialRequirementId || null,
@@ -124,16 +129,20 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       currentStock: 0,
       estimatedPrice: item.estimatedPrice || undefined,
       supplierName: item.supplierName || undefined,
+      poNumber: item.poNumber || null,
+      purchaseStatus: item.purchaseStatus,
     })),
   };
 }
 
-function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
-  if (request.status === "Completed" || request.status === "FinanceApproved" || request.items.every(item => item.purchaseStatus === "Received")) {
+function mapRequestStatus(request: PurchaseRequestDto, hasUnorderedItems: boolean): MR["status"] {
+  const activeItems = request.items.filter(item => item.purchaseStatus !== "Rejected");
+  
+  if (request.status === "Completed" || (activeItems.length > 0 && activeItems.every(item => item.purchaseStatus === "Received"))) {
     return "Completed";
   }
 
-  if (request.status === "Processing" || request.items.some(item => item.purchaseStatus === "Ordered")) {
+  if (request.status === "Processing" || activeItems.some(item => item.purchaseStatus === "Ordered" || item.purchaseStatus === "Received")) {
     return "Processing";
   }
 
@@ -141,7 +150,7 @@ function mapRequestStatus(request: PurchaseRequestDto): MR["status"] {
     return "Rejected";
   }
 
-  if (request.status === "SupervisorApproved" || request.items.some(item => item.purchaseStatus === "Approved")) {
+  if (request.status === "FinanceApproved" || request.status === "SupervisorApproved" || activeItems.some(item => item.purchaseStatus === "Approved")) {
     return "Approved";
   }
 
@@ -273,17 +282,19 @@ export function MaterialRequestsPage() {
             <button
               key={s}
               onClick={() => setFilterStatus(active ? "all" : s)}
-              className="flex items-center gap-2 rounded px-3 py-1.5 transition-colors"
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 transition-all cursor-pointer border ${
+                active ? "shadow-sm ring-1" : "shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-slate-50"
+              }`}
               style={{
-                fontSize: 12, fontWeight: 500,
+                fontSize: 12, fontWeight: 600,
                 background: active ? cfg.bg : "#fff",
-                color: active ? cfg.color : "#475569",
-                border: `1px solid ${active ? cfg.color + "40" : "#e2e8f0"}`,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                color: active ? cfg.color : "#64748b",
+                borderColor: active ? cfg.color + "50" : "#e2e8f0",
+                ...(active ? { ringColor: cfg.color + "50" } : {})
               }}
             >
               <span className="rounded-full" style={{ width: 6, height: 6, background: cfg.dot }} />
-              {s} <strong style={{ color: active ? cfg.color : "#1F1F1F" }}>{n}</strong>
+              {s} <strong className="ml-1" style={{ color: active ? cfg.color : "#1F1F1F", fontSize: 13 }}>{n}</strong>
             </button>
           );
         })}
@@ -393,7 +404,7 @@ export function MaterialRequestsPage() {
                       )}
                     </TD>
                     <TD>
-                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForPo ? (
+                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForPo && mr.hasUnorderedItems ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-amber-50"
                           style={{ fontSize: 11, color: "#d97706", borderColor: "#fde68a", background: "#fffbeb" }}
@@ -401,7 +412,7 @@ export function MaterialRequestsPage() {
                         >
                           <Edit size={12} /> Isi Harga
                         </button>
-                      ) : (mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved" ? (
+                      ) : ((mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved") && mr.hasUnorderedItems ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}

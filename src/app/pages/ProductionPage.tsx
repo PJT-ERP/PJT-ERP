@@ -391,13 +391,6 @@ function MaterialRequestModal({
         tone: "success",
         title: "MR Diajukan ke Supervisor",
         message: `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
-        steps: [
-          "Supervisor membuka Persiapan Material dan approve MR.",
-          "Setelah approve, MR muncul di Purchasing untuk isi supplier dan harga.",
-          "Purchasing membuat PO dari MR yang sudah lengkap.",
-          "Finance melakukan approval/pembayaran MR.",
-          "Setelah Finance approve, status material menjadi lengkap dan produksi bisa dimulai.",
-        ],
       });
       onClose();
     } catch (error: unknown) {
@@ -786,6 +779,52 @@ function MaterialReviewModal({
   );
 }
 
+function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+  const materials = getMaterialOptions(so);
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, fontFamily: S.font, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
+        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Detail Pesanan & BOM</h2>
+            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
+        </div>
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
+          <div>
+            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deskripsi</p>
+            <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.description}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Link Desain / Gambar</p>
+            {getDrawingUrl(so) ? (
+              <a href={getDrawingUrl(so)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "14px", fontWeight: 500, textDecoration: "underline" }}>Lihat Gambar Desain</a>
+            ) : (
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Tidak ada link desain</p>
+            )}
+          </div>
+          <div>
+            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
+            {materials.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {materials.map((m, i) => (
+                  <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
+                    <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
+                    {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Belum ada data BOM.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProductionPage() {
   const { salesOrders, currentUser, users, purchasingRequests, customers, refreshBackendData } = useApp();
   const canReadFinanceData = currentUser?.role === "Finance"
@@ -803,6 +842,7 @@ export function ProductionPage() {
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
   const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
   const [reviewMrModal, setReviewMrModal] = useState<SalesOrder | null>(null);
+  const [detailModal, setDetailModal] = useState<SalesOrder | null>(null);
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
 
@@ -948,7 +988,7 @@ export function ProductionPage() {
           <div style={{ display: "flex", flexDirection: "column" }}>
             {pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).map((so, idx) => (
               <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                     <StatusBadge status={so.status} />
@@ -988,7 +1028,7 @@ export function ProductionPage() {
               const mrState = getMaterialRequestState(so);
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
@@ -1050,7 +1090,7 @@ export function ProductionPage() {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
@@ -1094,7 +1134,7 @@ export function ProductionPage() {
                 const customer = customers.find(c => c.code === so.customerId);
                 return (
                   <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 18px", borderBottom: idx < waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none", background: "#F8FAFC" }}>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                         <span style={{ fontFamily: "monospace", fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
@@ -1130,6 +1170,7 @@ export function ProductionPage() {
         />
       )}
       {systemMessage && <SystemMessageDialog message={systemMessage} onClose={() => setSystemMessage(null)} />}
+      {detailModal && <ProductionDetailModal so={detailModal} onClose={() => setDetailModal(null)} />}
     </div>
   );
 }
