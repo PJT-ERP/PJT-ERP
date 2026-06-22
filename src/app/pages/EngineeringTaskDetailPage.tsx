@@ -418,10 +418,10 @@ export function EngineeringTaskDetailPage() {
               <div style={{ background: "#FFFFFF", border: `1px solid ${S.border}`, borderRadius: 8, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
                 <p style={{ fontSize: "15px", color: S.slate, fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 6 }}>Instruksi / Referensi dari Sales</p>
                 {qut.customerDrawingUrl && (
-                  <div style={{ marginBottom: 20, padding: "10px 16px", background: "#F1F5F9", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "14px", color: S.slate, fontWeight: 500 }}>Referensi Desain Customer</span>
-                    <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "14px", display: "flex", alignItems: "center", gap: 6, fontWeight: 600, textDecoration: "none" }}>
-                      Buka Lampiran <ExternalLink size={16} />
+                  <div style={{ marginBottom: 20, padding: "10px 16px", background: "#F1F5F9", borderRadius: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: "12px", color: S.secondary }}>Referensi Desain Customer</span>
+                    <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
+                      {qut.customerDrawingUrl}
                     </a>
                   </div>
                 )}
