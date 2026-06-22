@@ -997,8 +997,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Sales Order Sebelumnya" required />
                 <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
                   <option value="">— Pilih SO untuk di-repeat —</option>
-                  {salesOrders.filter(so => so.customerId === selectedCustomer.code).map(so => (
-                    <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description}</option>
+                  {salesOrders.map(so => (
+                    <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description} (DB: {so.customerId})</option>
                   ))}
                 </Select>
               </div>
