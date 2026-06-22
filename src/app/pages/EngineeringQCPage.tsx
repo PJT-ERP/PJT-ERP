@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ExternalLink, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
-import { SalesOrder, getStatusColor } from "../components/data/mockData";
+import { SalesOrder, getStatusColor, calcProductionDuration } from "../components/data/mockData";
 import { qcApi } from "../services/qcApi";
 import type { QcInspectionDto } from "../services/qcApi";
 import { QCReadOnlyView } from "./QCReadOnlyView";
@@ -536,9 +536,7 @@ export function EngineeringQCPage() {
             {qcQueue.map((so, idx) => {
               const customer = customers.find(c => c.code === so.customerId);
               const inspection = findInspectionForSo(inspections, so);
-              const durationHours = so.startTime && so.endTime
-                ? Math.round((new Date(so.endTime).getTime() - new Date(so.startTime).getTime()) / (1000 * 60 * 60))
-                : null;
+              const durationHours = calcProductionDuration(so.startTime, so.endTime);
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < qcQueue.length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ width: 40, height: 40, background: "rgba(200,16,46,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
