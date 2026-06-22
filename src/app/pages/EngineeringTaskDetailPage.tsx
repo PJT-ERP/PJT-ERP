@@ -398,9 +398,11 @@ export function EngineeringTaskDetailPage() {
               <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, display: "flex", flexDirection: "column", gap: 16, fontSize: "14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Customer</span><span style={{ color: S.slate, fontWeight: 500 }}>{customer?.name}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Qty</span><span style={{ color: S.slate, fontWeight: 500 }}>{qut.quantity} {qut.unit}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={{ color: S.secondary }}>Link Desain</span>
-                  <a href={designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", display: "flex", alignItems: "center", gap: 6, fontWeight: 500, textDecoration: "none" }}>Buka Link <ExternalLink size={16} /></a>
+                  <a href={designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
+                    {designLink}
+                  </a>
                 </div>
               </div>
             </div>
