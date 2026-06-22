@@ -219,6 +219,11 @@ function QCInspectionModal({
       return;
     }
 
+    if (result === 'NoGo' && !notes.trim()) {
+      alert("Catatan hasil inspeksi wajib diisi untuk hasil NoGo agar tim produksi mengetahui bagian mana yang perlu diperbaiki.");
+      return;
+    }
+
     const reviewerUserId = isGuid(inspection.assignedReviewerUserId)
       ? inspection.assignedReviewerUserId
       : isGuid(currentUser?.id)
@@ -362,7 +367,9 @@ function QCInspectionModal({
 
           {/* Notes */}
           <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Catatan Hasil Inspeksi</label>
+            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>
+              Catatan Hasil Inspeksi {result === 'NoGo' ? <span style={{ color: "#EF4444" }}>* (Wajib)</span> : <span style={{ color: S.secondary, fontWeight: 400 }}>(Opsional)</span>}
+            </label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               rows={3} placeholder="Temuan defect, kondisi produk, rekomendasi, dll."
               style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white, resize: "none" }} />
