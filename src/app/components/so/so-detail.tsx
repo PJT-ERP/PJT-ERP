@@ -20,6 +20,7 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
   verified: { label: "Verified", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
+  pending_verification: { label: "Menunggu Verifikasi", textColor: "#C8102E", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#C8102E" },
 };
 
 interface SODetailProps {
@@ -458,6 +459,17 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   <div>
                     <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Catatan</p>
                     <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary, lineHeight: 1.5 }}>{order.notes}</p>
+                  </div>
+                </>
+              )}
+              {order.customerDrawingUrl && (
+                <>
+                  <div style={{ height: 1, background: "#F8FAFC" }} />
+                  <div>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
+                    <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                      {order.customerDrawingUrl}
+                    </a>
                   </div>
                 </>
               )}
