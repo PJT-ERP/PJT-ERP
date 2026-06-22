@@ -622,7 +622,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
               {(() => {
                 const historySteps: { label: string; date?: string; active: boolean; isRejection?: boolean; reason?: string }[] = [
-                  { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
                   { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
                   { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
                   { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
