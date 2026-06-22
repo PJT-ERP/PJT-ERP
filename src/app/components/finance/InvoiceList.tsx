@@ -235,7 +235,7 @@ function InvoiceDetailModal({ invoice, onClose, payments, refresh }: { invoice: 
               </button>
             )}
             <button
-              onClick={() => window.print()}
+              onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice.id}/pdf?inline=true`, '_blank')}
               className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg ${invoice.status === 'OVERDUE' ? 'bg-gradient-to-r from-red-600 to-rose-600 shadow-red-600/20 hover:from-red-700 hover:to-rose-700' : 'bg-gradient-to-r from-red-600 to-red-700 shadow-red-600/20 hover:from-red-700 hover:to-red-800'}`}
             >
               <Printer size={16} />
