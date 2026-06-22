@@ -705,7 +705,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
-            CalculateProgressPercent(productionOrder),
+            CalculateProgressPercent(order, productionOrder),
             productionOrder?.DrawingRef,
             productionOrder?.DrawingFileUrl,
             productionOrder?.DrawingUploadedByUserId,
@@ -748,7 +748,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
-            CalculateProgressPercent(productionOrder),
+            CalculateProgressPercent(order, productionOrder),
             productionOrder?.DrawingFileUrl,
             productionOrder?.StartedAtUtc,
             productionOrder?.FinishedAtUtc,
@@ -763,21 +763,20 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 .ToArray());
     }
 
-    private static decimal CalculateProgressPercent(ProductionOrder? order)
+    private static decimal CalculateProgressPercent(SalesOrder order, ProductionOrder? prodOrder)
     {
-        if (order is null)
-        {
-            return 0;
-        }
+        var soStatus = (order.Status ?? "").ToLowerInvariant();
+        var prodStatus = (prodOrder?.Status ?? "").ToLowerInvariant();
 
-        if (order.Status == ProductionOrderStatuses.Closed
-            || order.Status == ProductionOrderStatuses.Finished
-            || order.FinishedAtUtc.HasValue)
-        {
-            return 100;
-        }
+        if (soStatus == "completed" || prodStatus == "closed") return 100;
+        if (prodStatus == "finished") return 80;
+        if (prodStatus == "inprogress" || prodStatus == "in_progress" || soStatus == "inproduction" || soStatus == "in_production") return 60;
+        if (soStatus == "ready for production" || soStatus == "waiting pricing" || soStatus == "menunggu invoice dp" || prodStatus == "waiting") return 40;
+        if (soStatus == "confirmed") return 20;
+        if (soStatus == "waiting spv approval") return 10;
+        if (soStatus == "pending design" || soStatus == "revision required") return 5;
 
-        return order.Status == ProductionOrderStatuses.InProgress ? 50 : 0;
+        return 0;
     }
 
     private static long? CalculateDurationSeconds(ProductionOrder order)
