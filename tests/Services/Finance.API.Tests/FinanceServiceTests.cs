@@ -59,7 +59,7 @@ public sealed class FinanceServiceTests
             new CreateInvoiceRequest(
                 SalesOrderId,
                 new DateOnly(2026, 6, 8),
-                new DateOnly(2026, 6, 22),
+                new DateOnly(2030, 1, 1),
                 11,
                 [
                     new CreateInvoiceItemPrice(FirstSalesOrderItemId, 100_000),
@@ -67,7 +67,7 @@ public sealed class FinanceServiceTests
                 ],
                 [
                     new CreatePaymentScheduleRequest("DP 50%", 50, new DateOnly(2026, 6, 12)),
-                    new CreatePaymentScheduleRequest("Pelunasan 50%", 50, new DateOnly(2026, 6, 22))
+                    new CreatePaymentScheduleRequest("Pelunasan 50%", 50, new DateOnly(2030, 1, 1))
                 ],
                 "BCA",
                 "PT PJT",
@@ -174,7 +174,7 @@ public sealed class FinanceServiceTests
             new CreateInvoiceRequest(
                 SalesOrderId,
                 new DateOnly(2026, 1, 1),
-                dueDate ?? new DateOnly(2026, 6, 22),
+                dueDate ?? new DateOnly(2030, 1, 1),
                 11,
                 [
                     new CreateInvoiceItemPrice(FirstSalesOrderItemId, 100_000),
@@ -182,7 +182,7 @@ public sealed class FinanceServiceTests
                 ],
                 [
                     new CreatePaymentScheduleRequest("DP 50%", 50, new DateOnly(2026, 1, 10)),
-                    new CreatePaymentScheduleRequest("Pelunasan 50%", 50, dueDate ?? new DateOnly(2026, 6, 22))
+                    new CreatePaymentScheduleRequest("Pelunasan 50%", 50, dueDate ?? new DateOnly(2030, 1, 1))
                 ],
                 null,
                 null,

@@ -22,4 +22,20 @@ public sealed class SuppliersController(ICatalogService catalogService) : Contro
         var supplier = await catalogService.CreateSupplierAsync(request, cancellationToken);
         return CreatedAtAction(nameof(List), new { id = supplier.Id }, supplier);
     }
+
+    [HttpPut("{code}")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<SupplierDto>> Update(string code, UpdateSupplierRequest request, CancellationToken cancellationToken)
+    {
+        var supplier = await catalogService.UpdateSupplierAsync(code, request, cancellationToken);
+        return supplier is null ? NotFound() : Ok(supplier);
+    }
+
+    [HttpDelete("{code}")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<IActionResult> Delete(string code, CancellationToken cancellationToken)
+    {
+        var deleted = await catalogService.DeleteSupplierAsync(code, cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
 }

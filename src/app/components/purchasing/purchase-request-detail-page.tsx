@@ -31,10 +31,12 @@ const formatRp = (val: string | number) => {
 export function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { refreshBackendData } = useApp();
+  const { currentUser, refreshBackendData } = useApp();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
   const [detail, setDetail] = useState<MR | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [actionError, setActionError] = useState("");
   
   const [pricingData, setPricingData] = useState<Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean }>>({});
   const [isSavingPricing, setIsSavingPricing] = useState(false);
@@ -78,6 +80,7 @@ export function PurchaseRequestDetailPage() {
   const handleSavePricing = async () => {
     if (!detail) return;
     setIsSavingPricing(true);
+    setActionError("");
     try {
       // Find the backend ID (since detail.id is like PR-123 but we might need the UUID)
       const data = await purchasingApi.listPurchaseRequests();
@@ -103,9 +106,9 @@ export function PurchaseRequestDetailPage() {
       if (refreshedReq) setDetail(mapPurchaseRequestToMr(refreshedReq));
       
       setShowSuccessDialog(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Gagal menyimpan harga. Silakan coba lagi.");
+      setActionError(err?.response?.data?.message || err?.message || "Gagal menyimpan harga. Silakan coba lagi.");
     } finally {
       setIsSavingPricing(false);
     }
@@ -302,6 +305,12 @@ export function PurchaseRequestDetailPage() {
             </div>
           )}
 
+          {actionError && (
+            <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {actionError}
+            </div>
+          )}
+
           {/* Actions */}
           {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForPo && (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
@@ -344,17 +353,19 @@ export function PurchaseRequestDetailPage() {
                 <div>
                   <p className="text-sm font-bold text-emerald-800">Siap Dibuatkan PO</p>
                   <p className="text-sm text-emerald-700 mt-1">
-                    Harga dan Toko sudah terisi. Anda bisa langsung lanjut membuat Purchase Order.
+                    Harga dan Toko sudah terisi. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
                   </p>
                 </div>
               </div>
-              <button
-                className="w-full flex items-center justify-center gap-2 rounded py-3 text-white transition-opacity hover:opacity-90"
-                style={{ fontSize: 14, fontWeight: 600, background: "#2563eb" }}
-                onClick={() => navigate(`/erp/purchasing/create?reqId=${detail.id}`)}
-              >
-                <Plus size={16} /> Buat PO Sekarang
-              </button>
+              {canCreatePo && (
+                <button
+                  className="w-full flex items-center justify-center gap-2 rounded py-3 text-white transition-opacity hover:opacity-90"
+                  style={{ fontSize: 14, fontWeight: 600, background: "#2563eb" }}
+                  onClick={() => navigate(`/erp/purchasing/create?reqId=${detail.id}`)}
+                >
+                  <Plus size={16} /> Buat PO Sekarang
+                </button>
+              )}
             </div>
           ) : null}
         </div>
@@ -368,7 +379,7 @@ export function PurchaseRequestDetailPage() {
               Berhasil Disimpan
             </DialogTitle>
             <DialogDescription className="pt-2 text-slate-600">
-              Harga dan detail supplier berhasil disimpan. Anda kini dapat melanjutkan untuk membuat dokumen Purchase Order (PO).
+              Harga dan detail supplier berhasil disimpan. {canCreatePo ? "Anda kini dapat melanjutkan untuk membuat dokumen Purchase Order (PO)." : "Dokumen ini kini menunggu tim Purchasing membuat Purchase Order (PO)."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3 mt-4">
@@ -381,15 +392,17 @@ export function PurchaseRequestDetailPage() {
             >
               Nanti Saja
             </button>
-            <button
-              onClick={() => {
-                setShowSuccessDialog(false);
-                navigate(`/erp/purchasing/create?reqId=${detail.id}`);
-              }}
-              className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
-            >
-              Buat PO Sekarang
-            </button>
+            {canCreatePo && (
+              <button
+                onClick={() => {
+                  setShowSuccessDialog(false);
+                  navigate(`/erp/purchasing/create?reqId=${detail.id}`);
+                }}
+                className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+              >
+                Buat PO Sekarang
+              </button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -28,6 +28,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MaterialRequirementDto } from "../../services/purchasingApi";
 import { usePurchasingData } from "./usePurchasingData";
+import { useApp } from "../context/AppContext";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -136,7 +137,9 @@ function mapRequirementToInventory(item: MaterialRequirementDto): InventoryItem 
 
 export function InventoryPage() {
   const navigate = useNavigate();
+  const { currentUser } = useApp();
   const { materialRequirements, refresh } = usePurchasingData();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -180,14 +183,16 @@ export function InventoryPage() {
           <button onClick={() => void refresh()} className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
             <RefreshCcw size={13} /> Refresh
           </button>
-          <button
-            onClick={() => navigate("/erp/purchasing/create")}
-            title="Buat PO untuk item reorder"
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 12, background: "#1e3a5f" }}
-          >
-            <Plus size={13} /> Buat PO Reorder
-          </button>
+          {canCreatePo && (
+            <button
+              onClick={() => navigate("/erp/purchasing/create")}
+              title="Buat PO untuk item reorder"
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
+              style={{ fontSize: 12, background: "#1e3a5f" }}
+            >
+              <Plus size={13} /> Buat PO Reorder
+            </button>
+          )}
         </div>
       </div>
 

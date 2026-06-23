@@ -48,6 +48,22 @@ export function DashboardPage() {
     color: s.color,
   }));
 
+  const workerTaskData = users
+    .filter(user => user.role === 'Engineering Worker')
+    .map((worker, index) => {
+      const assigned = salesOrders.filter(so => so.designAssignedTo === worker.id || so.assignedTo === worker.id);
+      const active = assigned.filter(so => !['Completed', 'Rejected'].includes(so.status)).length;
+      const completed = assigned.filter(so => so.status === 'Completed').length;
+      return {
+        name: worker.name,
+        active,
+        completed,
+        total: assigned.length,
+        color: ['#3B82F6', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444'][index % 5],
+      };
+    })
+    .filter(worker => worker.total > 0 || worker.active > 0);
+
   const completedSOs = salesOrders.filter(so => so.status === 'Completed' && so.startTime && so.endTime);
   const avgDuration = completedSOs.length > 0
     ? Math.round(completedSOs.reduce((acc, so) => acc + (calcProductionDuration(so.startTime, so.endTime) ?? 0), 0) / completedSOs.length)
@@ -148,6 +164,52 @@ export function DashboardPage() {
                 wrapperStyle={{ paddingTop: 8 }}
               />
             </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Supervisor worker load */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
+          <h3 className="text-slate-800 mb-1">Status Tugas Worker</h3>
+          <p className="text-xs text-slate-400 mb-4">Distribusi tugas aktif berdasarkan engineer</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={workerTaskData.length > 0 ? workerTaskData : [{ name: 'Belum ada tugas', active: 1, color: '#CBD5E1' }]}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={80}
+                dataKey="active"
+                label={({ value }) => `${value}`}
+                labelLine={false}
+              >
+                {(workerTaskData.length > 0 ? workerTaskData : [{ name: 'Belum ada tugas', color: '#CBD5E1' }]).map((entry, idx) => (
+                  <Cell key={`worker-pie-${entry.name}-${idx}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number, name: string, props: any) => [value, props.payload.name]}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="lg:col-span-2 bg-white rounded-md shadow-sm border border-slate-200 p-5">
+          <h3 className="text-slate-800 mb-1">Beban Kerja Engineer</h3>
+          <p className="text-xs text-slate-400 mb-4">Task aktif dan selesai per worker</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={workerTaskData} margin={{ top: 0, right: 10, left: -20, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6B7280' }} angle={-20} textAnchor="end" />
+              <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Legend formatter={(value) => <span style={{ fontSize: 11, color: '#6B7280' }}>{value}</span>} />
+              <Bar dataKey="active" name="Aktif" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="completed" name="Selesai" fill="#10B981" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>

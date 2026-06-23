@@ -16,10 +16,13 @@ import {
 } from "lucide-react";
 import { usePurchasingData } from "./usePurchasingData";
 import { PurchaseRequestDto } from "../../services/purchasingApi";
+import { useApp } from "../context/AppContext";
 
 export function DashboardPage() {
   const { purchaseRequests, isLoading, refresh } = usePurchasingData();
+  const { currentUser } = useApp();
   const navigate = useNavigate();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
   const calculateIsReadyForPo = (pr: PurchaseRequestDto) => {
     const activeItems = pr.items.filter(i => i.purchaseStatus !== 'Rejected');
@@ -61,13 +64,23 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate("/erp/purchasing/create")}
-            className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
-          >
-            <PackagePlus size={14} />
-            <span>Buat PO Baru</span>
-          </button>
+          {canCreatePo ? (
+            <button
+              onClick={() => navigate("/erp/purchasing/create")}
+              className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
+            >
+              <PackagePlus size={14} />
+              <span>Buat PO Baru</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("/erp/purchasing/orders")}
+              className="flex items-center gap-2 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
+            >
+              <Truck size={14} />
+              <span>Lihat Daftar PO</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -99,7 +112,7 @@ export function DashboardPage() {
           className="bg-white rounded-xl border border-blue-100 p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
         >
           <div className="flex items-start justify-between mb-3">
-            <p className="text-sm text-slate-500">Siap Buat PO</p>
+            <p className="text-sm text-slate-500">{canCreatePo ? "Siap Buat PO" : "Siap Diproses PO"}</p>
             <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
               <CheckSquare size={17} className="text-blue-600" />
             </div>
@@ -186,7 +199,7 @@ export function DashboardPage() {
                         color: '#FFFFFF' 
                       }}
                     >
-                      {isReady ? 'SIAP PO' : 'ISI HARGA'}
+                      {isReady ? (canCreatePo ? 'SIAP PO' : 'SIAP REVIEW') : 'ISI HARGA'}
                     </span>
                     <ArrowRight size={16} className="text-slate-400" />
                   </div>

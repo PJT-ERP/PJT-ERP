@@ -58,6 +58,11 @@ const parseCurrencyAmount = (value: string) => {
   return Math.round((Number(normalized) || 0) * 100) / 100;
 };
 
+const formatCurrency = (value?: number | null) => {
+  if (!value || value <= 0) return "-";
+  return `Rp ${value.toLocaleString("id-ID")}`;
+};
+
 const WORKFLOW_STEPS = [
   { key: "customer_request", label: "Customer Request", dept: "SO Team" },
   { key: "finance", label: "Finance", dept: "Finance Dept" },
@@ -212,6 +217,32 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   }
 
   const cfg = getStatusColor(order.status as SOStatus);
+  const productLines = (order.items && order.items.length > 0)
+    ? order.items.map((item, index) => {
+      const quantity = Number(item.quantity || item.qty || 0) || 0;
+      const unitPrice = Number(item.unitPrice || 0) || 0;
+      return {
+        id: item.id || `${order.id}-${index}`,
+        productCode: item.productPartNumber || item.partNumber || order.partNumber || "-",
+        productName: item.productName || item.productDescription || item.description || order.description,
+        quantity,
+        unit: item.unit || order.unit || "PCS",
+        unitPrice,
+        lineTotal: unitPrice > 0 ? unitPrice * quantity : 0,
+        notes: item.notes || "",
+      };
+    })
+    : [{
+      id: `${order.id}-legacy`,
+      productCode: order.partNumber || "-",
+      productName: order.description,
+      quantity: order.quantity,
+      unit: order.unit,
+      unitPrice: order.estimatedAmount && order.quantity ? order.estimatedAmount / order.quantity : 0,
+      lineTotal: order.estimatedAmount || order.invoice?.amount || 0,
+      notes: order.notes || "",
+    }];
+  const orderValue = order.invoice?.amount || order.estimatedAmount || productLines.reduce((sum, item) => sum + item.lineTotal, 0);
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -242,7 +273,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <HeaderBtn icon={<Printer size={13} />} label="Cetak" />
+          <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => window.print()} />
           <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
           <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
@@ -333,18 +364,41 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
           {/* Product info */}
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <InfoRow icon={<Hash size={11} />} label="Nomor Part" value={order.partNumber || "-"} isEdit={false} />
-                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, description: v }))} />
-              </div>
-              <InfoRow icon={<Hash size={11} />} label="Jumlah" value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({ ...prev, quantity: v }))} />
-              <InfoRow icon={<Hash size={11} />} label="Unit" value={isEditMode ? editForm.unit : order.unit} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, unit: v }))} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 14 }}>
+              <InfoRow icon={<Hash size={11} />} label="No. PO" value={order.soNumber || order.id} isEdit={false} />
               <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
+              <InfoRow icon={<Receipt size={11} />} label="Nilai SO" value={formatCurrency(orderValue)} isEdit={false} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
+                <InfoRow icon={<FileText size={11} />} label="Catatan Umum" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
               </div>
             </div>
+
+            <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", gap: 0, background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                {["No.", "Produk", "Qty", "Harga", "Subtotal"].map(label => (
+                  <div key={label} style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                ))}
+              </div>
+              {productLines.map((item, index) => (
+                <div key={item.id} style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", borderBottom: index === productLines.length - 1 ? "none" : "1px solid #F1F5F9", alignItems: "center" }}>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.secondary }}>{index + 1}</div>
+                  <div style={{ padding: "10px", minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.productName}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>Kode Produk: {item.productCode}</p>
+                    {item.notes && <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>}
+                  </div>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate, fontWeight: 600 }}>{formatCurrency(item.lineTotal)}</div>
+                </div>
+              ))}
+            </div>
+
+            {isEditMode && (
+              <p style={{ margin: "10px 0 0", fontSize: "11px", color: S.secondary }}>
+                Edit multi item SO masih mengikuti kontrak backend. Gunakan Duplikat untuk membuat SO baru dengan item tambahan.
+              </p>
+            )}
           </InfoCard>
 
           {/* Bill of Materials */}
