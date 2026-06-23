@@ -80,7 +80,19 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
   ];
 
   const allActivities = mergedSalesOrders
-    .flatMap((o) => (o.activities || []).map((a) => ({ ...a, soNumber: o.id, orderId: o.id })))
+    .flatMap((o) => {
+      if (o.activities && o.activities.length > 0) {
+        return o.activities.map((a) => ({ ...a, soNumber: o.id, orderId: o.id }));
+      }
+      const acts = [];
+      acts.push({ id: o.id + '-created', user: 'Sales Team', role: 'Sales', action: 'Membuat Sales Order', timestamp: o.createdAt });
+      if (o.designApprovedAt) acts.push({ id: o.id + '-design', user: o.designAssignedName || 'Engineering', role: 'Engineering', action: 'Menyetujui Desain', timestamp: o.designApprovedAt });
+      if (o.startTime) acts.push({ id: o.id + '-start', user: o.assignedName || 'Production', role: 'Production', action: 'Memulai Produksi', timestamp: o.startTime });
+      if (o.endTime) acts.push({ id: o.id + '-end', user: o.assignedName || 'Production', role: 'Production', action: 'Menyelesaikan Produksi', timestamp: o.endTime });
+      if (o.qcAt) acts.push({ id: o.id + '-qc', user: 'QC Team', role: 'Quality Control', action: `QC Check: ${o.qcStatus || 'Selesai'}`, timestamp: o.qcAt });
+      
+      return acts.map(a => ({ ...a, soNumber: o.soNumber || o.id, orderId: o.id }));
+    })
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, 7);
 

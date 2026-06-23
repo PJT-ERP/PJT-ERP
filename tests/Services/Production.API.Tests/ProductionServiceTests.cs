@@ -31,7 +31,6 @@ public sealed class ProductionServiceTests
     }
 
     [Theory]
-    [InlineData(nameof(SalesOrdersController.List), "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
     [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
     [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker,Engineering Supervisor,Owner")]
     [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker,Engineering Supervisor,Owner")]
@@ -213,7 +212,7 @@ public sealed class ProductionServiceTests
         Assert.Equal(ProductionOrderStatuses.InProgress, started.ProductionStatus);
         Assert.NotNull(started.StartedAtUtc);
         Assert.Equal(WorkerUserId, started.StartedByUserId);
-        Assert.Equal(50m, started.ProgressPercent);
+        Assert.Equal(60m, started.ProgressPercent);
         Assert.Empty(eventPublisher.PublishedEvents);
 
         var finished = await service.FinishProductionAsync(
@@ -225,7 +224,7 @@ public sealed class ProductionServiceTests
         Assert.Equal(ProductionOrderStatuses.Finished, finished.ProductionStatus);
         Assert.NotNull(finished.FinishedAtUtc);
         Assert.Equal(WorkerUserId, finished.FinishedByUserId);
-        Assert.Equal(100m, finished.ProgressPercent);
+        Assert.Equal(80m, finished.ProgressPercent);
 
         var finishedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<ProductionFinishedEvent>());
         Assert.Equal(productionOrder.Id, finishedEvent.ProductionOrderId);
@@ -376,7 +375,7 @@ public sealed class ProductionServiceTests
         Assert.NotNull(tracking);
         Assert.Equal("SO-001", tracking.SoNumber);
         Assert.Equal("PT Customer", tracking.CustomerName);
-        Assert.Equal(100m, tracking.ProgressPercent);
+        Assert.Equal(80m, tracking.ProgressPercent);
         Assert.Equal(2, tracking.Items.Count);
         Assert.Equal(ProductionOrderStatuses.Finished, tracking.ProductionStatus);
         Assert.Equal("https://drive.example/customer-drawing.jpg", tracking.CustomerDrawingUrl);

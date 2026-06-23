@@ -20,6 +20,7 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
   verified: { label: "Verified", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
+  pending_verification: { label: "Menunggu Verifikasi", textColor: "#C8102E", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#C8102E" },
 };
 
 interface SODetailProps {
@@ -120,7 +121,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const { invoices, payments } = useFinanceData();
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
-  const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices) : undefined;
+  const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
   const pendingPaymentProof = !!order?.invoice?.invoiceId
     && payments.some(payment => payment.invoiceId === order.invoice?.invoiceId && payment.status === "PENDING");
@@ -461,6 +462,17 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   </div>
                 </>
               )}
+              {order.customerDrawingUrl && (
+                <>
+                  <div style={{ height: 1, background: "#F8FAFC" }} />
+                  <div>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
+                    <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                      {order.customerDrawingUrl}
+                    </a>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -610,7 +622,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
               {(() => {
                 const historySteps: { label: string; date?: string; active: boolean; isRejection?: boolean; reason?: string }[] = [
-                  { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
                   { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
                   { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
                   { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
@@ -727,6 +738,20 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                   </div>
                 )}
               </div>
+
+              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>
+                  <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#B91C1C", display: "flex", alignItems: "center", gap: 6 }}>
+                    <AlertTriangle size={14} /> Laporan Pembayaran Terakhir Ditolak
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#991B1B" }}>
+                    Catatan Finance: <strong>{invoice.rejectedPayments[invoice.rejectedPayments.length - 1].reason}</strong>
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#DC2626" }}>
+                    Silakan unggah ulang bukti transfer yang valid.
+                  </p>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>

@@ -1112,15 +1112,18 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                 : purchaseRequest.RejectionReason;
             return;
         }
+        var activeItems = purchaseRequest.Items
+            .Where(item => item.PurchaseStatus != PurchaseItemStatuses.Rejected)
+            .ToArray();
 
-        if (purchaseRequest.Items.All(item => item.PurchaseStatus == PurchaseItemStatuses.Received))
+        if (activeItems.Length > 0 && activeItems.All(item => item.PurchaseStatus == PurchaseItemStatuses.Received))
         {
             purchaseRequest.Status = PurchaseRequestStatuses.Completed;
             purchaseRequest.RejectionReason = null;
             return;
         }
 
-        if (purchaseRequest.Items.Any(item => item.PurchaseStatus is PurchaseItemStatuses.Ordered
+        if (activeItems.Any(item => item.PurchaseStatus is PurchaseItemStatuses.Ordered
                 or PurchaseItemStatuses.Received))
         {
             purchaseRequest.Status = PurchaseRequestStatuses.Processing;
@@ -1128,7 +1131,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return;
         }
 
-        if (purchaseRequest.Items.Any(item => item.PurchaseStatus == PurchaseItemStatuses.Approved))
+        if (activeItems.Any(item => item.PurchaseStatus == PurchaseItemStatuses.Approved))
         {
             purchaseRequest.Status = PurchaseRequestStatuses.FinanceApproved;
             purchaseRequest.RejectionReason = null;

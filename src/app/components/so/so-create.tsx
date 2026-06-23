@@ -268,8 +268,8 @@ function SectionCard({ title, icon, children, action }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
 }) {
   return (
-    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg }}>
+    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg, borderTopLeftRadius: 5, borderTopRightRadius: 5 }}>
         <span style={{ color: S.primary }}>{icon}</span>
         <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate, fontFamily: S.font, flex: 1 }}>{title}</span>
         {action}
@@ -551,7 +551,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     ? customers.find(c => c.code === repeatForm.customerId)
     : null;
 
-  const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
+  const handleBack = () => {
+    if (orderType) {
+      handleReset();
+    } else {
+      onNavigate("so-list");
+    }
+  };
 
   const updateProduct = useCallback((id: string, updated: ProductRow, list: ProductRow[], setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => {
     setter(list.map(p => p.id === id ? updated : p));
@@ -562,8 +568,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
-    setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
-    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
+    setIsExistingCustomer(false);
+    setCustomerForm({ customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
+    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
 
@@ -952,7 +959,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </SectionCard>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setOrderType(null)}
+            <button type="button" onClick={handleReset}
               style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
@@ -990,7 +997,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Sales Order Sebelumnya" required />
                 <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
                   <option value="">— Pilih SO untuk di-repeat —</option>
-                  {salesOrders.filter(so => so.customerId === selectedCustomer.code).map(so => (
+                  {salesOrders.filter(so => selectedCustomer && so.customerId === selectedCustomer.code).map(so => (
                     <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description}</option>
                   ))}
                 </Select>
@@ -1054,7 +1061,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </SectionCard>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setOrderType(null)}
+            <button type="button" onClick={handleReset}
               style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
