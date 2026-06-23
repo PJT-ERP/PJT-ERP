@@ -72,6 +72,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             CustomerDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL"),
             DesignReference = NormalizeOptional(request.DesignReference),
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
+            Status = NormalizeDesignStatus(request.DesignStatus) == "Approved" ? "Waiting Pricing" : SalesOrderStatuses.Draft,
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
             DesignWorkerUserId = designWorker?.UserId,

@@ -130,40 +130,54 @@ function parseMaterialText(value?: string | null): MaterialOption[] {
 
 function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   const options: MaterialOption[] = [];
+  const seen = new Set<string>();
 
-  if (Array.isArray(so.materials)) {
-    so.materials.forEach((material: any, index: number) => {
+  const addOption = (item: string, spec: string) => {
+    const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
+    if (!seen.has(key) && item.trim()) {
+      seen.add(key);
+      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim() });
+    }
+  };
+
+  // 1. If Engineer explicitly defined materials, use them (but filter out obvious test data like "pppp")
+  if (Array.isArray(so.materials) && so.materials.length > 0) {
+    let hasValidEngineerMaterials = false;
+    so.materials.forEach((material: any) => {
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
-      if (itemName) {
-        options.push({ key: `material-${index}-${itemName}`, itemName, specification });
+      
+      // Ignore obvious dummy test inputs
+      if (itemName && itemName.toLowerCase() !== "pppp") {
+        addOption(itemName, specification);
+        hasValidEngineerMaterials = true;
       }
     });
+    
+    // If engineer provided a valid BOM, we shouldn't mix it with raw SO descriptions
+    if (hasValidEngineerMaterials) {
+      return options;
+    }
   }
 
-  options.push(...parseMaterialText(so.material));
-  options.push(...parseMaterialText(so.notes));
-
+  // 2. Fallback to parsing initial materials from SO creation
+  parseMaterialText(so.material).forEach(m => addOption(m.itemName, m.specification));
+  
   if (Array.isArray(so.items)) {
-    so.items.forEach((item: any, index: number) => {
+    so.items.forEach((item: any) => {
       const itemName = String(item?.productName || item?.productDescription || item?.partNumber || "").trim();
       if (itemName) {
-        options.push({ key: `product-${index}-${itemName}`, itemName, specification: "" });
+        addOption(itemName, "");
       }
     });
   }
 
-  if (so.description) {
-    options.push({ key: "so-description", itemName: so.description, specification: so.spec || "" });
+  // Only use description if we still have absolutely nothing
+  if (options.length === 0 && so.description) {
+    addOption(so.description, so.spec || "");
   }
 
-  const seen = new Set<string>();
-  return options.filter(option => {
-    const key = `${option.itemName.toLowerCase()}|${option.specification.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return options;
 }
 
 function DrawingLinks({ so }: { so: SalesOrder }) {

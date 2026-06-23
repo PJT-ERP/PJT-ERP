@@ -36,21 +36,21 @@ export function OrganizationSection() {
           
           {/* Top Stats Row */}
           <div className="grid grid-cols-2 md:grid-cols-4 bg-slate-50 border-b border-slate-200">
-            <div className="p-6 border-r border-b md:border-b-0 border-slate-200 flex flex-col items-center md:items-start text-center md:text-left">
-              <div className="text-4xl font-black text-[#C8102E] mb-1">42</div>
-              <div className="text-xs text-slate-500 font-bold uppercase tracking-widest">Total Workforce</div>
+            <div className="p-4 sm:p-6 border-r border-b md:border-b-0 border-slate-200 flex flex-col items-center md:items-start text-center md:text-left">
+              <div className="text-3xl sm:text-4xl font-black text-[#C8102E] mb-1">42</div>
+              <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-widest">Total Workforce</div>
             </div>
-            <div className="p-6 border-r border-b md:border-b-0 border-slate-200 flex flex-col items-center md:items-start text-center md:text-left">
-              <div className="text-4xl font-black text-slate-800 mb-1">4</div>
-              <div className="text-xs text-slate-500 font-bold uppercase tracking-widest">Management Staff</div>
+            <div className="p-4 sm:p-6 border-r border-b md:border-b-0 border-slate-200 flex flex-col items-center md:items-start text-center md:text-left">
+              <div className="text-3xl sm:text-4xl font-black text-slate-800 mb-1">4</div>
+              <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-widest">Management Staff</div>
             </div>
-            <div className="p-6 border-r border-slate-200 flex flex-col items-center md:items-start text-center md:text-left">
-              <div className="text-4xl font-black text-slate-800 mb-1">8</div>
-              <div className="text-xs text-slate-500 font-bold uppercase tracking-widest">Engineers</div>
+            <div className="p-4 sm:p-6 border-r border-slate-200 flex flex-col items-center md:items-start text-center md:text-left">
+              <div className="text-3xl sm:text-4xl font-black text-slate-800 mb-1">8</div>
+              <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-widest">Engineers</div>
             </div>
-            <div className="p-6 flex flex-col items-center md:items-start text-center md:text-left">
-              <div className="text-4xl font-black text-slate-800 mb-1">30</div>
-              <div className="text-xs text-slate-500 font-bold uppercase tracking-widest">Production Operators</div>
+            <div className="p-4 sm:p-6 flex flex-col items-center md:items-start text-center md:text-left">
+              <div className="text-3xl sm:text-4xl font-black text-slate-800 mb-1">30</div>
+              <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-widest">Production Operators</div>
             </div>
           </div>
 
@@ -88,26 +88,26 @@ export function OrganizationSection() {
                   </div>
 
                   {/* Info Cards (2 Cols) */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {/* Info Card 1 */}
-                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                      <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-4">
-                        <MapPin size={20} strokeWidth={2.5} />
+                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 sm:p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-3 sm:mb-4 shrink-0">
+                        <MapPin size={18} className="sm:w-5 sm:h-5" strokeWidth={2.5} />
                       </div>
                       <div>
-                        <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Office Location</div>
-                        <div className="text-xl font-black text-slate-800">Headquarters</div>
+                        <div className="text-[9px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1 line-clamp-1">Office Location</div>
+                        <div className="text-sm sm:text-xl font-black text-slate-800 break-words">Headquarters</div>
                       </div>
                     </div>
 
                     {/* Info Card 2 */}
-                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                      <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-4">
-                        <Briefcase size={20} strokeWidth={2.5} />
+                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 sm:p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-3 sm:mb-4 shrink-0">
+                        <Briefcase size={18} className="sm:w-5 sm:h-5" strokeWidth={2.5} />
                       </div>
                       <div>
-                        <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Department Type</div>
-                        <div className="text-lg font-bold text-slate-700">Management & Admin</div>
+                        <div className="text-[9px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1 line-clamp-1">Department Type</div>
+                        <div className="text-sm sm:text-lg font-bold text-slate-700 break-words">Management & Admin</div>
                       </div>
                     </div>
                   </div>
@@ -124,9 +124,9 @@ export function OrganizationSection() {
                 <div className="flex flex-col gap-4">
                   {/* Main Card (Horizontal Layout) */}
                   <div className="bg-white rounded-xl border border-slate-200 p-5 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#2563EB]"></div>
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#C8102E]"></div>
                     <div>
-                      <div className="text-4xl font-black text-[#2563EB] mb-1">8</div>
+                      <div className="text-4xl font-black text-[#C8102E] mb-1">8</div>
                       <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Engineers</div>
                     </div>
                     
@@ -143,26 +143,26 @@ export function OrganizationSection() {
                   </div>
 
                   {/* Info Cards (2 Cols) */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {/* Info Card 1 */}
-                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#2563EB] mb-4">
-                        <Wrench size={20} strokeWidth={2.5} />
+                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 sm:p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-3 sm:mb-4 shrink-0">
+                        <Wrench size={18} className="sm:w-5 sm:h-5" strokeWidth={2.5} />
                       </div>
                       <div>
-                        <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Core Expertise</div>
-                        <div className="text-xl font-black text-slate-800">Precision Machining</div>
+                        <div className="text-[9px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1 line-clamp-1">Core Expertise</div>
+                        <div className="text-sm sm:text-xl font-black text-slate-800 break-words">Precision Machining</div>
                       </div>
                     </div>
 
                     {/* Info Card 2 */}
-                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-[#2563EB] mb-4">
-                        <Settings size={20} strokeWidth={2.5} />
+                    <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 sm:p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-red-100 flex items-center justify-center text-[#C8102E] mb-3 sm:mb-4 shrink-0">
+                        <Settings size={18} className="sm:w-5 sm:h-5" strokeWidth={2.5} />
                       </div>
                       <div>
-                        <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">Technical Role</div>
-                        <div className="text-lg font-bold text-slate-700">Design & Execution</div>
+                        <div className="text-[9px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1 line-clamp-1">Technical Role</div>
+                        <div className="text-sm sm:text-lg font-bold text-slate-700 break-words">Design & Execution</div>
                       </div>
                     </div>
                   </div>
@@ -181,28 +181,28 @@ export function OrganizationSection() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Tangerang Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#16A34A]"></div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-2">
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#C8102E]"></div>
                   <div>
-                    <div className="text-4xl font-black text-[#16A34A] mb-1">12</div>
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Production Operators</div>
+                    <div className="text-3xl sm:text-4xl font-black text-[#C8102E] mb-1">12</div>
+                    <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Production Operators</div>
                   </div>
-                  <div className="flex flex-col items-end gap-1 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
-                    <MapPin size={16} className="text-green-600" />
-                    <span className="text-[11px] font-bold text-green-700 uppercase tracking-wider">Tangerang</span>
+                  <div className="flex flex-col items-end gap-1 bg-red-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-red-100 shrink-0">
+                    <MapPin size={14} className="sm:w-4 sm:h-4 text-[#C8102E]" />
+                    <span className="text-[9px] sm:text-[11px] font-bold text-[#C8102E] uppercase tracking-wider">Tangerang</span>
                   </div>
                 </div>
 
                 {/* Surabaya Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-5 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#F59E0B]"></div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-2">
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#1F1F1F]"></div>
                   <div>
-                    <div className="text-4xl font-black text-[#F59E0B] mb-1">18</div>
-                    <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Production Operators</div>
+                    <div className="text-3xl sm:text-4xl font-black text-[#1F1F1F] mb-1">18</div>
+                    <div className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Production Operators</div>
                   </div>
-                  <div className="flex flex-col items-end gap-1 bg-orange-50 px-3 py-2 rounded-lg border border-orange-100">
-                    <MapPin size={16} className="text-orange-600" />
-                    <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wider">Surabaya</span>
+                  <div className="flex flex-col items-end gap-1 bg-slate-100 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-slate-200 shrink-0">
+                    <MapPin size={14} className="sm:w-4 sm:h-4 text-[#1F1F1F]" />
+                    <span className="text-[9px] sm:text-[11px] font-bold text-[#1F1F1F] uppercase tracking-wider">Surabaya</span>
                   </div>
                 </div>
 
@@ -213,16 +213,16 @@ export function OrganizationSection() {
                     <span>Total: 30 Operators</span>
                   </div>
                   <div className="h-8 w-full flex rounded-lg overflow-hidden shadow-inner mb-3">
-                    <div className="bg-[#16A34A] flex items-center justify-center text-xs text-white font-bold transition-all hover:brightness-110 cursor-help" title="Tangerang: 12 Operators" style={{ width: '40%' }}>
+                    <div className="bg-[#C8102E] flex items-center justify-center text-xs text-white font-bold transition-all hover:brightness-110 cursor-help" title="Tangerang: 12 Operators" style={{ width: '40%' }}>
                       40%
                     </div>
-                    <div className="bg-[#F59E0B] flex items-center justify-center text-xs text-white font-bold transition-all hover:brightness-110 cursor-help" title="Surabaya: 18 Operators" style={{ width: '60%' }}>
+                    <div className="bg-[#1F1F1F] flex items-center justify-center text-xs text-white font-bold transition-all hover:brightness-110 cursor-help" title="Surabaya: 18 Operators" style={{ width: '60%' }}>
                       60%
                     </div>
                   </div>
                   <div className="flex justify-between text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#16A34A]"></div> Tangerang (12)</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#F59E0B]"></div> Surabaya (18)</div>
+                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#C8102E]"></div> Tangerang (12)</div>
+                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#1F1F1F]"></div> Surabaya (18)</div>
                   </div>
                 </div>
 

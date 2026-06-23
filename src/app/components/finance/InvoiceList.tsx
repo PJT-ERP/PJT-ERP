@@ -36,8 +36,12 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerification }: { invoice: Invoice; onClose: () => void; payments?: any[]; onNavigateToVerification: () => void }) {
+function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerification, onRefresh }: { invoice: Invoice; onClose: () => void; payments?: any[]; onNavigateToVerification: () => void; onRefresh?: () => Promise<void> }) {
   const pendingPayment = payments?.find(p => p.invoiceId === invoice.id && p.status === 'PENDING');
+  const verifiedPayments = payments?.filter(p => p.invoiceId === invoice.id && p.status === 'VERIFIED') || [];
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'verify' | 'reject' | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
   
   const subtotal = invoice.items.reduce((s, i) => s + i.total, 0);
   const exportInvoice = () => {
@@ -206,20 +210,127 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
             </div>
           ) : null}
 
+          {/* Inline Payment Verification */}
+          {pendingPayment && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 shadow-sm relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Clock size={16} className="text-amber-600" />
+                  <p className="text-sm font-bold text-amber-900">Menunggu Verifikasi</p>
+                </div>
+                <span className="text-xs bg-amber-200 text-amber-900 px-2.5 py-1 rounded-md font-bold">{formatIDR(pendingPayment.amount)}</span>
+              </div>
+              
+              {pendingPayment.proofFileUrl || pendingPayment.proofFileName ? (
+                <div className="mb-4 border border-amber-200/60 rounded-lg overflow-hidden bg-white/50">
+                  {pendingPayment.proofFileUrl ? (
+                     <div className="p-4 flex flex-col items-center justify-center gap-3 bg-slate-50 border-b border-slate-100">
+                        <FilePlus size={32} className="text-amber-500" />
+                        <p className="text-sm font-medium text-slate-700 text-center">{pendingPayment.proofFileName || 'File Bukti Transfer'}</p>
+                        <button 
+                          onClick={() => {
+                            let baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+                            if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+                            let proofPath = pendingPayment.proofFileUrl!;
+                            if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
+                            
+                            const fullUrl = pendingPayment.proofFileUrl!.startsWith('http') ? pendingPayment.proofFileUrl! : `${baseUrl}${proofPath}`;
+                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-700 shadow-sm transition-colors flex items-center gap-2"
+                        >
+                          <Eye size={14} /> Lihat Bukti Lengkap (Buka Tab Baru)
+                        </button>
+                     </div>
+                  ) : (
+                     <div className="p-4 flex items-center justify-center gap-2 text-sm text-slate-600 font-medium">
+                        <FilePlus size={16} className="text-slate-400" />
+                        {pendingPayment.proofFileName}
+                     </div>
+                  )}
+                </div>
+              ) : (
+                <div className="mb-4 text-xs text-amber-800 italic text-center p-3 bg-amber-100/50 rounded-lg border border-amber-200/50">
+                  Tidak ada file bukti transfer terlampir.
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmAction('verify')}
+                  disabled={isVerifying}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <CheckCircle2 size={16} />
+                  Terima Pembayaran
+                </button>
+                <button
+                  onClick={() => {
+                    setRejectReason('');
+                    setConfirmAction('reject');
+                  }}
+                  disabled={isVerifying}
+                  className="flex-1 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 hover:border-rose-300 text-sm font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  Tolak
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Verified Payments Proofs */}
+          {verifiedPayments.length > 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-4 shadow-sm relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                <p className="text-sm font-bold text-emerald-900">Riwayat Pembayaran Lunas</p>
+              </div>
+              <div className="space-y-3">
+                {verifiedPayments.map(vp => (
+                  <div key={vp.id} className="border border-emerald-200/60 rounded-lg overflow-hidden bg-white/50">
+                    <div className="flex items-center justify-between p-3 border-b border-emerald-100 bg-emerald-100/30">
+                      <div>
+                        <p className="text-xs font-semibold text-emerald-800">{vp.bankName || vp.paymentMethod} - {formatIDR(vp.amount)}</p>
+                        <p className="text-[10px] text-emerald-600 mt-0.5">{formatDate(vp.paymentDate)}</p>
+                      </div>
+                      <span className="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded font-medium shadow-sm">LUNAS</span>
+                    </div>
+                    {vp.proofFileUrl || vp.proofFileName ? (
+                      <div className="p-3 flex items-center justify-between gap-3 bg-slate-50">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FilePlus size={18} className="text-emerald-500 flex-shrink-0" />
+                          <p className="text-xs font-medium text-slate-700 truncate">{vp.proofFileName || 'File Bukti Transfer'}</p>
+                        </div>
+                        {vp.proofFileUrl && (
+                          <button 
+                            onClick={() => {
+                              let baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+                              if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+                              let proofPath = vp.proofFileUrl!;
+                              if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
+                              
+                              const fullUrl = vp.proofFileUrl!.startsWith('http') ? vp.proofFileUrl! : `${baseUrl}${proofPath}`;
+                              window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-md text-[11px] font-semibold text-slate-700 shadow-sm transition-colors flex items-center gap-1.5 flex-shrink-0"
+                          >
+                            <Eye size={12} /> Lihat
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-3 text-xs text-slate-500 italic text-center">
+                        Tidak ada lampiran file.
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 pt-3 border-t border-slate-200/60 relative z-10">
-            {pendingPayment && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onNavigateToVerification();
-                }}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg shadow-amber-500/20"
-              >
-                <CheckCircle2 size={16} />
-                Verifikasi Pembayaran
-              </button>
-            )}
             <button
               onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice.id}/pdf?inline=true`, '_blank')}
               className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg ${invoice.status === 'OVERDUE' ? 'bg-gradient-to-r from-red-600 to-rose-600 shadow-red-600/20 hover:from-red-700 hover:to-rose-700' : 'bg-gradient-to-r from-red-600 to-red-700 shadow-red-600/20 hover:from-red-700 hover:to-red-800'}`}
@@ -237,6 +348,88 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal - Outside the relative scrollable container to prevent cutoff */}
+      {confirmAction && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[4px]" onClick={() => !isVerifying && setConfirmAction(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-sm p-6 transform transition-all animate-in zoom-in-95 fade-in duration-200">
+            {confirmAction === 'verify' ? (
+              <>
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mb-4 mx-auto shadow-inner">
+                  <CheckCircle2 size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-center text-slate-800 mb-2">Verifikasi Pembayaran?</h3>
+                <p className="text-sm text-center text-slate-500 mb-6">Tindakan ini akan mensahkan pembayaran dan mengupdate status invoice.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmAction(null)} disabled={isVerifying} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
+                    Batal
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      setIsVerifying(true);
+                      try {
+                        await financeApi.verifyPaymentProof(pendingPayment!.id);
+                        await onRefresh?.();
+                        onClose();
+                      } catch (e) {
+                        alert('Gagal verifikasi pembayaran');
+                      } finally {
+                        setIsVerifying(false);
+                        setConfirmAction(null);
+                      }
+                    }}
+                    disabled={isVerifying} 
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-emerald-600/20 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {isVerifying ? 'Memproses...' : 'Ya, Verifikasi'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-rose-100 text-rose-600 mb-4 mx-auto shadow-inner">
+                  <X size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-center text-slate-800 mb-2">Tolak Pembayaran</h3>
+                <p className="text-sm text-center text-slate-500 mb-4">Silakan masukkan alasan penolakan pembayaran ini.</p>
+                <textarea
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="Contoh: Jumlah transfer tidak sesuai..."
+                  className="w-full text-sm rounded-xl border border-slate-200 p-3 mb-6 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none resize-none shadow-sm"
+                  rows={3}
+                />
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmAction(null)} disabled={isVerifying} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
+                    Batal
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (!rejectReason.trim()) return alert('Alasan penolakan wajib diisi');
+                      setIsVerifying(true);
+                      try {
+                        await financeApi.rejectPaymentProof(pendingPayment!.id, { reason: rejectReason });
+                        await onRefresh?.();
+                        onClose();
+                      } catch (e) {
+                        alert('Gagal menolak pembayaran');
+                      } finally {
+                        setIsVerifying(false);
+                        setConfirmAction(null);
+                      }
+                    }}
+                    disabled={isVerifying || !rejectReason.trim()} 
+                    className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-rose-600/20 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {isVerifying ? 'Memproses...' : 'Tolak'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -299,13 +492,6 @@ export function InvoiceList() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={refresh}
-            disabled={isLoading}
-            className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm disabled:opacity-60"
-          >
-            Refresh
-          </button>
-          <button
             onClick={() => navigate('/erp/finance/create-invoice')}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors shadow-sm"
           >
@@ -364,13 +550,6 @@ export function InvoiceList() {
               >
                 <Download size={14} />
                 <span>Export</span>
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center justify-center gap-1.5 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 hover:bg-slate-50 transition-colors"
-              >
-                <Printer size={14} />
-                <span>Print</span>
               </button>
             </div>
           </div>
@@ -510,11 +689,12 @@ export function InvoiceList() {
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <InvoiceDetailModal 
-          invoice={selectedInvoice} 
-          onClose={() => setSelectedInvoice(null)} 
-          payments={payments} 
-          onNavigateToVerification={() => navigate('/erp/finance/payment-verification')} 
+        <InvoiceDetailModal
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          payments={payments}
+          onNavigateToVerification={() => navigate('/erp/finance/payment-verification')}
+          onRefresh={refresh}
         />
       )}
     </div>
