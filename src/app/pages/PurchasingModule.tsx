@@ -8,10 +8,12 @@ import { SuppliersPage } from "../components/purchasing/suppliers-page";
 import { CreatePurchaseRequestPage } from "../components/purchasing/create-purchase-request-page";
 import { PurchaseRequestDetailPage } from "../components/purchasing/purchase-request-detail-page";
 import { PurchaseOrderDetailPage } from "../components/purchasing/purchase-order-detail-page";
+import { useApp } from "../components/context/AppContext";
 
 export default function PurchasingModule() {
   const navigate = useNavigate();
-  const handleCreatePO = () => navigate("/erp/purchasing/create");
+  const { currentUser } = useApp();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const handleNavigate = (page: string) => {
     navigate(page === "purchase-order-create" ? "/erp/purchasing/create" : (page === "dashboard" ? "/erp/purchasing/dashboard" : `/erp/purchasing/${page}`));
   };
@@ -26,7 +28,7 @@ export default function PurchasingModule() {
       <Route path="requests/:id" element={<PurchaseRequestDetailPage />} />
       <Route path="orders" element={<PurchaseOrdersPage />} />
       <Route path="orders/:id" element={<PurchaseOrderDetailPage />} />
-      <Route path="create" element={<CreatePurchaseOrderPage onNavigate={handleNavigate} />} />
+      <Route path="create" element={canCreatePo ? <CreatePurchaseOrderPage onNavigate={handleNavigate} /> : <Navigate to="/erp/purchasing/orders" replace />} />
       <Route path="suppliers" element={<SuppliersPage />} />
     </Routes>
   );

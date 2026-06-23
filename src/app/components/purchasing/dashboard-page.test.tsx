@@ -8,6 +8,10 @@ vi.mock('./usePurchasingData', () => ({
   usePurchasingData: vi.fn(),
 }));
 
+vi.mock('../context/AppContext', () => ({
+  useApp: vi.fn(() => ({ currentUser: { role: 'Purchasing', name: 'Test User' } })),
+}));
+
 describe('Purchasing DashboardPage Component', () => {
   it('renders procurement overview and headers correctly', () => {
     vi.mocked(usePurchasingData).mockReturnValue({

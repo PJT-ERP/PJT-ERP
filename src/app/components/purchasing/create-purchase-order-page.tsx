@@ -117,6 +117,12 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
+  const updateField = (setter: (value: string) => void) => (value: string) => {
+    setMessage(null);
+    setter(value);
+  };
 
   const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
     ["SupervisorApproved", "FinanceApproved", "Approved", "Processing"].includes(request.status) &&
@@ -140,12 +146,14 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   };
 
   const updateItem = (index: number, field: keyof FormItem, value: string) => {
+    setMessage(null);
     setItems(prev => prev.map((item, itemIndex) => (
       itemIndex === index ? { ...item, [field]: value } : item
     )));
   };
 
   const applySelectedRequest = (requestId: string) => {
+    setMessage(null);
     setSelectedRequestId(requestId);
     const request = eligibleRequests.find(item => item.id === requestId);
     if (!request) {
@@ -201,9 +209,13 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const submitPO = async () => {
     const request = eligibleRequests.find(item => item.id === selectedRequestId);
     const hasInvalidItem = items.some(item => !item.requestItemId || !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
+    setMessage(null);
 
     if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
-      window.alert("Pilih PR yang sudah disetujui Supervisor, lengkapi supplier, tanggal jatuh tempo, kode item, nama material, qty, dan total harga sebelum membuat PO.");
+      setMessage({
+        type: "error",
+        text: "Pilih PR yang sudah disetujui Supervisor, lalu lengkapi supplier, estimasi kedatangan, kode item, nama material, qty, dan total harga sebelum membuat PO.",
+      });
       return;
     }
 
@@ -221,10 +233,14 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         purchaseNotes: [terms, shippingAddress, notes].filter(Boolean).join(" | ") || null,
       })));
       await refresh();
+      setMessage({ type: "success", text: `PO ${poNumber} berhasil dibuat dan tersimpan di backend.` });
       onNavigate?.("orders");
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to create backend PO.", error);
-      window.alert("Gagal membuat PO di backend. Cek response API untuk detail.");
+      setMessage({
+        type: "error",
+        text: error?.response?.data?.message || error?.response?.data?.title || error?.message || "Gagal membuat PO di backend. Cek status PR, item, supplier, dan koneksi API.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -258,6 +274,19 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         </div>
       </div>
 
+      {message && (
+        <div
+          className="rounded border px-4 py-3 text-sm"
+          style={{
+            background: message.type === "success" ? "#f0fdf4" : "#fef2f2",
+            borderColor: message.type === "success" ? "#bbf7d0" : "#fecaca",
+            color: message.type === "success" ? "#166534" : "#991b1b",
+          }}
+        >
+          {message.text}
+        </div>
+      )}
+
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.05em] text-slate-900">Informasi PO</h2>
@@ -268,7 +297,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <FieldLabel>Supplier *</FieldLabel>
             <SupplierCombobox
               value={supplier}
-              onChange={setSupplier}
+              onChange={updateField(setSupplier)}
               options={SUPPLIERS}
               placeholder="Pilih atau tulis supplier"
             />
@@ -290,23 +319,23 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Kategori PO</FieldLabel>
-            <select value={poCategory} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPoCategory(e.target.value)} className={inputClass()}>
+            <select value={poCategory} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateField(setPoCategory)(e.target.value)} className={inputClass()}>
               {PO_CATEGORIES.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Est. Kedatangan Barang *</FieldLabel>
-            <input type="date" value={dueDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setDueDate(e.target.value)} className={inputClass()} />
+            <input type="date" value={dueDate} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setDueDate)(e.target.value)} className={inputClass()} />
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Terms</FieldLabel>
-            <select value={terms} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTerms(e.target.value)} className={inputClass()}>
+            <select value={terms} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateField(setTerms)(e.target.value)} className={inputClass()}>
               {TERMS.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5 md:col-span-1">
             <FieldLabel>Alamat Pengiriman</FieldLabel>
-            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => setShippingAddress(e.target.value)} className={inputClass()} />
+            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} />
           </div>
         </div>
       </section>
@@ -390,7 +419,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           <FieldLabel>Catatan Pengiriman</FieldLabel>
           <textarea
             value={notes}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => updateField(setNotes)(e.target.value)}
             rows={4}
             placeholder="Instruksi khusus, kontak pengiriman, dokumen yang harus disertakan, dll."
             className={inputClass("resize-none")}
