@@ -11,6 +11,10 @@ vi.mock('../../services/purchasingApi', () => ({
   }
 }));
 
+vi.mock('../context/AppContext', () => ({
+  useApp: vi.fn(() => ({ currentUser: { role: 'Purchasing', name: 'Test User' } })),
+}));
+
 describe('PurchaseOrdersPage', () => {
   it('renders purchase orders derived from MR API data', async () => {
     vi.mocked(purchasingApi.listPurchaseRequests).mockResolvedValue([
