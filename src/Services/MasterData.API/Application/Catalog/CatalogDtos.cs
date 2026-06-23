@@ -91,3 +91,20 @@ public sealed record CreateSupplierContactRequest(
     string? Phone,
     string? Email,
     bool IsPrimary);
+
+public sealed record UpdateSupplierRequest(
+    string Name,
+    string Type,
+    string Category,
+    string? City,
+    string? Province,
+    string? Address,
+    string Status,
+    string? BankName,
+    string? BankAccount,
+    string? BankBranch,
+    string? Npwp,
+    string? PaymentTerms,
+    string? Since,
+    double Rating,
+    List<CreateSupplierContactRequest> Contacts);

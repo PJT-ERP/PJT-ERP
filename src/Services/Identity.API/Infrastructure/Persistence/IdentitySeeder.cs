@@ -90,9 +90,21 @@ public static class IdentitySeeder
         foreach (var existingUser in existingUsers)
         {
             var seedUser = seedUsers.FirstOrDefault(u => u.Email == existingUser.Email);
-            if (seedUser != null && existingUser.Role != seedUser.Role)
+            if (seedUser is null)
+            {
+                continue;
+            }
+
+            if (existingUser.Role != seedUser.Role)
             {
                 existingUser.Role = seedUser.Role;
+                anyUpdated = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(existingUser.PasswordHash)
+                || !BCrypt.Net.BCrypt.Verify("Dev123!", existingUser.PasswordHash))
+            {
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!");
                 anyUpdated = true;
             }
         }

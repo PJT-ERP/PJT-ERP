@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useNavigate } from "react-router";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { useApp } from "../context/AppContext";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -219,6 +220,8 @@ interface PurchaseOrdersPageProps {
 
 export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
+  const { currentUser } = useApp();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -290,13 +293,15 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           >
             <Download size={16} /> Unduh Data
           </button>
-          <button
-            onClick={() => navigate("/erp/purchasing/create")}
-            className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 13, fontWeight: 600, background: "#C8102E" }}
-          >
-            <Plus size={16} /> Buat PO Manual
-          </button>
+          {canCreatePo && (
+            <button
+              onClick={() => navigate("/erp/purchasing/create")}
+              className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
+              style={{ fontSize: 13, fontWeight: 600, background: "#C8102E" }}
+            >
+              <Plus size={16} /> Buat PO Manual
+            </button>
+          )}
         </div>
       </div>
 

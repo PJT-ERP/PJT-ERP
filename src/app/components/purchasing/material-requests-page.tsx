@@ -210,6 +210,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 export function MaterialRequestsPage() {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
   const navigate = useNavigate();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [requests, setRequests] = useState<MR[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -412,7 +413,7 @@ export function MaterialRequestsPage() {
                         >
                           <Edit size={12} /> Isi Harga
                         </button>
-                      ) : ((mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved") && mr.hasUnorderedItems ? (
+                      ) : ((mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved") && mr.hasUnorderedItems && canCreatePo ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}

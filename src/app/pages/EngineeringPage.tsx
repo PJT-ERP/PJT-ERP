@@ -7,6 +7,18 @@ import {
 import { useApp } from "../components/context/AppContext";
 import { getStatusColor } from "../components/data/mockData";
 import { useNavigate } from "react-router";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const S = {
   font: "Inter, sans-serif",
@@ -97,6 +109,25 @@ export function EngineeringPage() {
     { label: "QC", count: qcCount, color: "#C8102E" },
   ];
 
+  const workerTaskData = users
+    .filter(user => user.role === "Engineering Worker" && user.isActive)
+    .map(worker => {
+      const assignedOrders = salesOrders.filter(so => so.designAssignedTo === worker.id || so.assignedTo === worker.id);
+      return {
+        name: worker.name.split(" ")[0],
+        active: assignedOrders.filter(so => !["Completed", "Rejected"].includes(so.status)).length,
+        review: assignedOrders.filter(so => so.status === "Waiting Spv Approval").length,
+        done: assignedOrders.filter(so => so.status === "Completed").length,
+      };
+    })
+    .filter(worker => worker.active > 0 || worker.review > 0 || worker.done > 0);
+
+  const workerPieData = [
+    { name: "Aktif", value: workerTaskData.reduce((sum, worker) => sum + worker.active, 0), color: "#3B82F6" },
+    { name: "Review", value: workerTaskData.reduce((sum, worker) => sum + worker.review, 0), color: "#8B5CF6" },
+    { name: "Selesai", value: workerTaskData.reduce((sum, worker) => sum + worker.done, 0), color: "#16A34A" },
+  ].filter(item => item.value > 0);
+
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
 
@@ -127,6 +158,56 @@ export function EngineeringPage() {
           </div>
         ))}
       </div>
+
+      {isSpv && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px", minHeight: 260 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <LayoutDashboard size={14} style={{ color: S.cyan }} />
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Status Tugas Worker</span>
+            </div>
+            {workerPieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={workerPieData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={78} paddingAngle={3}>
+                    {workerPieData.map(item => (
+                      <Cell key={item.name} fill={item.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: S.secondary, fontSize: 13 }}>
+                Belum ada tugas worker aktif.
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px", minHeight: 260 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <Users size={14} style={{ color: S.cyan }} />
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Beban Kerja Engineer</span>
+            </div>
+            {workerTaskData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={workerTaskData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="active" name="Aktif" fill="#3B82F6" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="review" name="Review" fill="#8B5CF6" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: S.secondary, fontSize: 13 }}>
+                Belum ada assignment aktif.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">

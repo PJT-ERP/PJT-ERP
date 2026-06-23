@@ -79,8 +79,8 @@ export function FinancePurchasingApproval() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Daftar Tagihan & Pembayaran (AP)</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Approval pelunasan tagihan untuk Purchase Order yang barangnya telah diterima.</p>
+          <h1 className="text-xl font-bold text-slate-900">Tagihan Supplier & Pembayaran (AP)</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Daftar tagihan supplier dari Purchase Order yang barangnya telah diterima, lengkap dengan termin dan jatuh tempo.</p>
         </div>
         <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold border border-amber-200">
           <AlertCircle size={16} />

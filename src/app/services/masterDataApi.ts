@@ -50,6 +50,8 @@ export interface CreateSupplierRequest {
     contacts: CreateSupplierContactRequest[];
 }
 
+export type UpdateSupplierRequest = Omit<CreateSupplierRequest, "code">;
+
 export interface CreateSupplierContactRequest {
     name: string;
     role?: string;
@@ -66,5 +68,12 @@ export const masterDataApi = {
     createSupplier: async (request: CreateSupplierRequest): Promise<SupplierDto> => {
         const response = await apiClient.post<SupplierDto>("/api/v1/master-data/suppliers", request);
         return response.data;
+    },
+    updateSupplier: async (code: string, request: UpdateSupplierRequest): Promise<SupplierDto> => {
+        const response = await apiClient.put<SupplierDto>(`/api/v1/master-data/suppliers/${code}`, request);
+        return response.data;
+    },
+    deleteSupplier: async (code: string): Promise<void> => {
+        await apiClient.delete(`/api/v1/master-data/suppliers/${code}`);
     }
 };

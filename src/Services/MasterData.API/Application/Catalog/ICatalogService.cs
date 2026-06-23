@@ -10,4 +10,6 @@ public interface ICatalogService
     Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<SupplierDto>> ListSuppliersAsync(CancellationToken cancellationToken);
     Task<SupplierDto> CreateSupplierAsync(CreateSupplierRequest request, CancellationToken cancellationToken);
+    Task<SupplierDto?> UpdateSupplierAsync(string code, UpdateSupplierRequest request, CancellationToken cancellationToken);
+    Task<bool> DeleteSupplierAsync(string code, CancellationToken cancellationToken);
 }

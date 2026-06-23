@@ -17,6 +17,8 @@ import {
   ChevronRight,
   ArrowUpRight,
   ArrowDownRight,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import {
   BarChart,
@@ -31,8 +33,9 @@ import {
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { usePurchasingData } from "./usePurchasingData";
-import { SupplierDto } from "../../services/masterDataApi";
+import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { AddSupplierModal } from "./add-supplier-modal";
+import { useApp } from "../context/AppContext";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -152,7 +155,19 @@ function Stars({ r }: { r: number }) {
 
 /* ── Detail view ───────────────────────────────────────────── */
 
-function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () => void }) {
+function SupplierDetail({
+  supplier,
+  onBack,
+  onEdit,
+  onDelete,
+  canCreatePo,
+}: {
+  supplier: Supplier;
+  onBack: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  canCreatePo: boolean;
+}) {
   const sc = statusCfg[supplier.status];
 
   return (
@@ -189,12 +204,30 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
               </div>
             </div>
           </div>
-          <button
-            className="flex items-center gap-1.5 rounded px-3 py-2 text-white hover:opacity-90 transition-opacity shrink-0"
-            style={{ fontSize: 12, background: "#C8102E" }}
-          >
-            <ShoppingCart size={13} /> Buat PO
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-1.5 rounded px-3 py-2 border border-white/20 text-white hover:bg-white/10 transition-colors"
+              style={{ fontSize: 12 }}
+            >
+              <Edit2 size={13} /> Edit
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex items-center gap-1.5 rounded px-3 py-2 border border-red-300/40 text-red-100 hover:bg-red-500/20 transition-colors"
+              style={{ fontSize: 12 }}
+            >
+              <Trash2 size={13} /> Hapus
+            </button>
+            {canCreatePo && (
+              <button
+                className="flex items-center gap-1.5 rounded px-3 py-2 text-white hover:opacity-90 transition-opacity"
+                style={{ fontSize: 12, background: "#C8102E" }}
+              >
+                <ShoppingCart size={13} /> Buat PO
+              </button>
+            )}
+          </div>
         </div>
 
         {/* KPI row */}
@@ -394,10 +427,15 @@ function SupplierDetail({ supplier, onBack }: { supplier: Supplier; onBack: () =
 /* ── Main list view ────────────────────────────────────────── */
 
 export function SuppliersPage() {
+  const { currentUser } = useApp();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<SupplierDto | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
   const { suppliers, isLoading, refresh } = usePurchasingData();
 
@@ -437,7 +475,73 @@ export function SuppliersPage() {
     return <div className="p-5 flex justify-center text-slate-500">Loading suppliers...</div>;
   }
 
-  if (selectedSupplier) return <SupplierDetail supplier={selectedSupplier} onBack={() => setSelectedSupplier(null)} />;
+  const openEdit = (supplier: Supplier | SupplierDto) => {
+    setStatusMessage(null);
+    setEditingSupplier(supplier as SupplierDto);
+    setIsAddModalOpen(true);
+  };
+
+  const handleDeleteSupplier = async (supplier: Supplier | SupplierDto) => {
+    if (!window.confirm(`Hapus supplier ${supplier.name}? Data supplier akan dihapus dari master data.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setStatusMessage(null);
+    try {
+      await masterDataApi.deleteSupplier(supplier.code);
+      setSelectedSupplier(null);
+      await refresh();
+      setStatusMessage({ type: "success", text: `Supplier ${supplier.name} berhasil dihapus.` });
+    } catch (error: any) {
+      console.warn("Failed to delete supplier.", error);
+      setStatusMessage({
+        type: "error",
+        text: error?.response?.data?.message || "Gagal menghapus supplier. Cek apakah supplier masih dipakai di dokumen PO/MR.",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (selectedSupplier) {
+    return (
+      <>
+        {statusMessage && (
+          <div
+            className="m-5 mb-0 rounded border px-4 py-3 text-sm"
+            style={{
+              background: statusMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
+              borderColor: statusMessage.type === "success" ? "#bbf7d0" : "#fecaca",
+              color: statusMessage.type === "success" ? "#166534" : "#991b1b",
+            }}
+          >
+            {statusMessage.text}
+          </div>
+        )}
+        <SupplierDetail
+          supplier={selectedSupplier}
+          onBack={() => setSelectedSupplier(null)}
+          onEdit={() => openEdit(selectedSupplier)}
+          onDelete={() => handleDeleteSupplier(selectedSupplier)}
+          canCreatePo={canCreatePo}
+        />
+        <AddSupplierModal
+          open={isAddModalOpen}
+          onOpenChange={(open) => {
+            setIsAddModalOpen(open);
+            if (!open) setEditingSupplier(null);
+          }}
+          supplier={editingSupplier}
+          onSuccess={async () => {
+            await refresh();
+            setSelectedSupplier(null);
+            setStatusMessage({ type: "success", text: "Supplier berhasil diperbarui." });
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="p-5 space-y-4">
@@ -454,7 +558,10 @@ export function SuppliersPage() {
             <Download size={13} /> Export
           </button>
           <button 
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setEditingSupplier(null);
+              setIsAddModalOpen(true);
+            }}
             className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
             style={{ fontSize: 12, background: "#1e3a5f" }}
           >
@@ -462,6 +569,19 @@ export function SuppliersPage() {
           </button>
         </div>
       </div>
+
+      {statusMessage && (
+        <div
+          className="rounded border px-4 py-3 text-sm"
+          style={{
+            background: statusMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
+            borderColor: statusMessage.type === "success" ? "#bbf7d0" : "#fecaca",
+            color: statusMessage.type === "success" ? "#166534" : "#991b1b",
+          }}
+        >
+          {statusMessage.text}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 p-3 rounded-lg" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
@@ -573,6 +693,23 @@ export function SuppliersPage() {
                         >
                           <Eye size={12} /> Detail
                         </button>
+                        <button
+                          className="rounded p-1.5 hover:bg-amber-50 transition-colors"
+                          style={{ color: "#d97706" }}
+                          title="Edit supplier"
+                          onClick={() => openEdit(s)}
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          className="rounded p-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          style={{ color: "#dc2626" }}
+                          title="Hapus supplier"
+                          disabled={isDeleting}
+                          onClick={() => handleDeleteSupplier(s)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </TD>
                   </tr>
@@ -591,10 +728,15 @@ export function SuppliersPage() {
       
       <AddSupplierModal 
         open={isAddModalOpen} 
-        onOpenChange={setIsAddModalOpen} 
-        onSuccess={() => {
-          refresh();
-        }} 
+        onOpenChange={(open) => {
+          setIsAddModalOpen(open);
+          if (!open) setEditingSupplier(null);
+        }}
+        supplier={editingSupplier}
+          onSuccess={() => {
+            refresh();
+            setStatusMessage({ type: "success", text: editingSupplier ? "Supplier berhasil diperbarui." : "Supplier baru berhasil ditambahkan." });
+          }}
       />
     </div>
   );

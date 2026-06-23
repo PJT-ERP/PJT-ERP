@@ -959,7 +959,7 @@ export function ProductionPage() {
       setSystemMessage({
         tone: "error",
         title: "Gagal Approve MR",
-        message: axiosError?.response?.data?.message || "Approval MR gagal dikirim ke backend. Cek koneksi API atau status MR.",
+        message: axiosError?.response?.data?.message || "Review MR gagal dikirim ke backend. Cek koneksi API atau status MR.",
       });
       return false;
     }
