@@ -277,46 +277,59 @@ export function FinanceCosting() {
                   </p>
                 </div>
               )}
-              {/* Info Dokumen Desain */}
-              <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
-                  <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
-                  {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
-                    <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
-                      Lihat Dokumen <ExternalLink size={12} />
-                    </a>
-                  ) : (
-                    <span style={{ color: S.slate }}>Tidak tersedia</span>
+              
+              {/* Cek apakah ini produk standar yang melompati fase desain */}
+              {selectedItem.backendDesignStatus === "Approved" && !selectedItem.designApprovedAt ? (
+                <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13.5px", fontWeight: 600, color: "#1D4ED8", margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
+                    🏷️ Pemrosesan Produk Standar
+                  </h3>
+                  <p style={{ color: "#1E3A8A", margin: 0, fontSize: "12.5px", lineHeight: "1.5" }}>
+                    Pesanan ini menggunakan produk standar perusahaan. Anda dapat langsung menentukan Harga Jual tanpa perlu menunggu rincian HPP / BOM dari tim Engineering.
+                  </p>
+                </div>
+              ) : (
+                /* Info Dokumen Desain untuk Produk Custom */
+                <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
+                    <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
+                    {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
+                      <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                        Lihat Dokumen <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span style={{ color: S.slate }}>Tidak tersedia</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
+                    Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
+                  </p>
+                  {selectedItem.materials && selectedItem.materials.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
+                        <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
+                          <tr>
+                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
+                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
+                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedItem.materials.map((m: any, i: number) => (
+                            <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
+                              <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
+                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
-                <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
-                  Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
-                </p>
-                {selectedItem.materials && selectedItem.materials.length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
-                      <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
-                        <tr>
-                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
-                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
-                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedItem.materials.map((m: any, i: number) => (
-                          <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
-                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
-                            <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
-                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Rincian Items */}
               <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Rincian Item SO</h3>

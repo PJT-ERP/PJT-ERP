@@ -195,8 +195,12 @@ function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 
   const getFullProofUrl = () => {
     if (!payment.proofFileUrl) return '';
-    const baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
-    return payment.proofFileUrl.startsWith('http') ? payment.proofFileUrl : `${baseUrl}${payment.proofFileUrl}`;
+    let baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
+    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+    let proofPath = payment.proofFileUrl;
+    if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
+    
+    return payment.proofFileUrl.startsWith('http') ? payment.proofFileUrl : `${baseUrl}${proofPath}`;
   };
 
   const openProof = () => {

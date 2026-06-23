@@ -117,7 +117,7 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 }
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
-  const { salesOrders, customers, updateSalesOrder, updateCustomer } = useApp();
+  const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
   const { invoices, payments } = useFinanceData();
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
@@ -129,6 +129,23 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const currentUser = useApp().currentUser;
+
+  const isCustomBackend = order?.backendDesignStatus === "PendingDesign" || order?.backendDesignStatus === "RevisionRequired" || order?.partNumber?.startsWith("FG-");
+  const isStandard = !isCustomBackend;
+
+  let displayMaterials = order?.materials || [];
+  if (isStandard && productCatalog && order) {
+    const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
+    if (matchedProduct && matchedProduct.materialSpec) {
+      displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
+        id: matchedProduct.id + "-mat-" + idx,
+        name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+        spec: specPart.trim(),
+        quantity: "1",
+        unit: matchedProduct.unit.toLowerCase(),
+      }));
+    }
+  }
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
@@ -349,7 +366,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
           {/* Bill of Materials */}
           <InfoCard title="Bill of Materials (Kebutuhan Bahan)" icon={<Box size={13} />}>
-            {(order.materials && order.materials.length > 0) ? (
+            {(displayMaterials && displayMaterials.length > 0) ? (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: S.font }}>
                   <thead>
@@ -360,7 +377,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     </tr>
                   </thead>
                   <tbody>
-                    {order.materials.map((mat: any) => (
+                    {displayMaterials.map((mat: any) => (
                       <tr key={mat.id} style={{ borderBottom: `1px solid ${S.border}` }}>
                         <td style={{ padding: "8px 12px", color: S.slate }}>{mat.name || "-"}</td>
                         <td style={{ padding: "8px 12px", color: S.slate }}>{mat.spec || "-"}</td>
@@ -894,10 +911,29 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
 
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Upload Bukti Transfer</label>
-              <div style={{ position: "relative", border: "1px dashed #CBD5E1", borderRadius: 8, padding: 24, textAlign: "center", background: "#F8FAFC" }}>
-                <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
-                <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFile?.name || "Max ukuran file 5MB"}</p>
+              <div style={{ 
+                position: "relative", 
+                border: proofFile ? "1px solid #10B981" : "1px dashed #CBD5E1", 
+                borderRadius: 8, 
+                padding: 24, 
+                textAlign: "center", 
+                background: proofFile ? "#ECFDF5" : "#F8FAFC",
+                transition: "all 0.2s ease"
+              }}>
+                {proofFile ? (
+                  <>
+                    <CheckCircle2 size={28} style={{ color: "#10B981", margin: "0 auto 8px" }} />
+                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#065F46" }}>File Berhasil Dipilih</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#047857" }}>{proofFile.name}</p>
+                    <p style={{ margin: "8px 0 0", fontSize: "10px", color: "#10B981", fontStyle: "italic" }}>Klik untuk mengubah file</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>Max ukuran file 5MB</p>
+                  </>
+                )}
                 <input required type="file" accept=".pdf,image/*" onChange={handleProofFileChange} style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
               </div>
             </div>

@@ -190,8 +190,8 @@ function SearchableCustomerSelect({ customers, value, onChange }: { customers: a
   const selectedCustomer = customers.find(c => c.code === value);
   const displayValue = open ? search : (selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.code})` : "");
 
-  const filtered = customers.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = customers.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.code.toLowerCase().includes(search.toLowerCase()) ||
     (c.contactPerson && c.contactPerson.toLowerCase().includes(search.toLowerCase()))
   );
@@ -362,13 +362,15 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 productName: pName,
                 designId: "",
                 unit: selected?.unit.toLowerCase() || row.unit,
-                materials: selected?.materialSpec ? [{
-                  id: selected.id,
-                  name: selected.partNumber,
-                  specification: selected.materialSpec,
-                  quantity: "1",
-                  unit: selected.unit.toLowerCase(),
-                }] : [],
+                materials: selected?.materialSpec ? [
+                  ...selected.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
+                    id: selected.id + "-mat-" + idx,
+                    name: `MAT-${String(parseInt(selected.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+                    specification: specPart.trim(),
+                    quantity: "1",
+                    unit: selected.unit.toLowerCase(),
+                  }))
+                ] : [],
               });
             }} required>
               <option value="">— Pilih produk —</option>
@@ -632,7 +634,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       .replace(/^-|-$/g, "")
       .slice(0, 18) || "CUSTOM";
     const created = await salesApi.createProduct({
-      partNumber: `PJT-${compact}-${Date.now().toString().slice(-5)}`,
+      partNumber: `FG-${compact.slice(0, 5)}-${Date.now().toString().slice(-4)}`,
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -658,7 +660,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       targetDate,
       customerDrawingUrl: customerDrawingUrl || null,
       designReference: null,
-      designStatus: "PendingDesign",
+      designStatus: rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved",
       items,
     };
 
@@ -739,6 +741,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const totalItems = orderType === "repeat"
       ? repeatProducts.length
       : products.length;
+    const isCustomSubmit = orderType === "repeat"
+      ? repeatProducts.some(r => r.type === "custom")
+      : products.some(r => r.type === "custom");
+
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
@@ -755,7 +761,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
               {" "}
-              Desain dan BOM (Bill of Materials) sedang diajukan ke tim Engineering. SO akan berstatus Pending Design.
+              {isCustomSubmit
+                ? "Desain dan BOM (Bill of Materials) sedang diajukan ke tim Engineering. SO akan berstatus Pending Design."
+                : "Pesanan otomatis masuk ke antrean tim Finance untuk penetapan Harga (Costing) dan pembuatan Invoice DP."}
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -864,7 +872,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 Pelanggan Terdaftar
               </button>
             </div>
-            
+
             {isExistingCustomer && (
               <div style={{ marginBottom: 16 }}>
                 <Label text="Pilih Pelanggan Existing" required />

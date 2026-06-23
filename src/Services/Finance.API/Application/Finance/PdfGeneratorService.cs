@@ -132,6 +132,19 @@ public static class PdfGeneratorService
                     }
                 });
             });
+
+            // Area Tanda Tangan / Stamp
+            column.Item().PaddingTop(40).Row(row =>
+            {
+                row.RelativeItem(); // Spacer supaya signature di kanan
+                row.ConstantItem(200).Column(c =>
+                {
+                    c.Item().AlignCenter().Text("Hormat Kami,").FontSize(11).FontColor(Colors.Grey.Darken2);
+                    c.Item().Height(70); // Space for signature & stamp
+                    c.Item().AlignCenter().Text("PT PRATAMA JAYA").FontSize(11).Bold().FontColor(Colors.Grey.Darken4);
+                    c.Item().AlignCenter().Text("Finance Department").FontSize(10).FontColor(Colors.Grey.Medium);
+                });
+            });
         });
     }
 

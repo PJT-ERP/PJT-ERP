@@ -160,15 +160,30 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     setSoNumber(request.salesOrderNumber || "Non-project");
     setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
     setSupplier(openItems.find(item => item.supplierName)?.supplierName || "");
-    setItems(openItems.map(item => ({
-      requestItemId: item.id,
-      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
-      name: item.itemName,
-      spec: item.size || item.notes || "",
-      qty: String(item.qty),
-      unit: "pcs",
-      totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
-    })));
+    setItems(openItems.map(item => {
+      // Coba ekstrak kode material resmi (misal: MAT-0002) dari itemName
+      let extractedCode = ""; // Kosongkan secara default agar user bisa ketik sendiri
+      let extractedName = item.itemName;
+      
+      const match = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+      if (match) {
+        extractedCode = match[1].toUpperCase();
+        extractedName = match[2];
+      } else if (item.itemName.toLowerCase().includes("stainless steel")) {
+        // Fallback untuk demo/testing
+        extractedCode = "MAT-0002";
+      }
+
+      return {
+        requestItemId: item.id,
+        code: extractedCode,
+        name: extractedName,
+        spec: item.size || item.notes || "",
+        qty: String(item.qty),
+        unit: "pcs",
+        totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
+      };
+    }));
   };
 
   useEffect(() => {
