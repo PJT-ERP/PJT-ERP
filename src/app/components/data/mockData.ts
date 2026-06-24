@@ -87,6 +87,7 @@ export interface SalesOrder {
   designId?: string;
   productName?: string;
   isQuotation?: boolean;
+  designRevisions?: { version: number, url: string, changedAt: string, changedBy: string }[];
 }
 
 export const ENGINEERING_DESIGNS: any[] = [];

@@ -159,17 +159,37 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   });
 
   const [editForm, setEditForm] = useState({
-    customerName: customer?.contactPerson || customer?.contact || "",
-    company: customer?.name || "",
-    phone: customer?.phone || "",
-    contact: customer?.email || "",
-    address: customer?.address || "",
-    description: order?.description || "",
-    quantity: String(order?.quantity || ""),
-    unit: order?.unit || "",
-    deadline: order?.deadline || "",
-    notes: order?.notes || "",
+    customerName: "",
+    company: "",
+    phone: "",
+    contact: "",
+    address: "",
+    description: "",
+    quantity: "",
+    unit: "",
+    deadline: "",
+    notes: "",
+    customerDrawingUrl: "",
   });
+
+  React.useEffect(() => {
+    if (isEditMode) {
+      setEditForm({
+        customerName: customer?.contactPerson || customer?.contact || "",
+        company: customer?.name || "",
+        phone: customer?.phone || "",
+        contact: customer?.email || "",
+        address: customer?.address || "",
+        description: order?.description || "",
+        quantity: String(order?.quantity || ""),
+        unit: order?.unit || "",
+        deadline: order?.deadline || "",
+        notes: order?.notes || "",
+        customerDrawingUrl: order?.customerDrawingUrl || order?.designLink || "",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
 
   const handleAction = async (action: string) => {
     if (!order) return;
@@ -177,7 +197,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        updateSalesOrder(orderId, { status: 'Menunggu Invoice DP' });
+        const nextStatus = (order.customerDrawingUrl || order.designLink) ? 'Ready for Production' : 'Pending Design';
+        updateSalesOrder(orderId, { status: nextStatus });
       } else if (action === 'reject') {
         updateSalesOrder(orderId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
@@ -200,13 +221,51 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   const handleSave = () => {
     if (!order) return;
-    updateSalesOrder(orderId, {
-      description: editForm.description,
-      quantity: Number(editForm.quantity),
-      unit: editForm.unit,
-      deadline: editForm.deadline,
-      notes: editForm.notes,
-    });
+
+    const isDesignChanged = editForm.customerDrawingUrl !== order.customerDrawingUrl;
+    let newRevisions = order.designRevisions || [];
+
+    if (isDesignChanged) {
+      const isProductionStage = ['Ready for Production', 'In Production', 'QC', 'Completed'].includes(order.status);
+      if (isProductionStage) {
+        window.alert("Engineering sudah dalam tahap produksi. Desain tidak dapat diubah lagi.");
+        return;
+      }
+      
+      let finalUrl = editForm.customerDrawingUrl.trim();
+      if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
+        finalUrl = 'https://' + finalUrl;
+      }
+      
+      newRevisions = [
+        ...newRevisions,
+        {
+          version: newRevisions.length + 1,
+          url: finalUrl,
+          changedAt: new Date().toISOString(),
+          changedBy: currentUser?.name || "Unknown"
+        }
+      ];
+
+      updateSalesOrder(orderId, {
+        description: editForm.description,
+        quantity: Number(editForm.quantity),
+        unit: editForm.unit,
+        deadline: editForm.deadline,
+        notes: editForm.notes,
+        customerDrawingUrl: finalUrl,
+        designRevisions: newRevisions,
+      });
+    } else {
+      updateSalesOrder(orderId, {
+        description: editForm.description,
+        quantity: Number(editForm.quantity),
+        unit: editForm.unit,
+        deadline: editForm.deadline,
+        notes: editForm.notes,
+        customerDrawingUrl: editForm.customerDrawingUrl,
+      });
+    }
     if (customer) {
       updateCustomer(customer.code, {
         name: editForm.company || editForm.customerName,
@@ -292,7 +351,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => window.print()} />
           <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
-          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
+          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Batal Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
       </div>
 
@@ -533,17 +592,51 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   </div>
                 </>
               )}
-              {order.customerDrawingUrl && (
-                <>
-                  <div style={{ height: 1, background: "#F8FAFC" }} />
-                  <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
-                    <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                      {order.customerDrawingUrl}
+              <>
+                <div style={{ height: 1, background: "#F8FAFC" }} />
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      placeholder="https://... (Opsional)"
+                      value={editForm.customerDrawingUrl}
+                      onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
+                      style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none" }}
+                    />
+                  ) : !order.customerDrawingUrl ? (
+                    <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.amber, fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                  ) : order.customerDrawingUrl || order.designLink ? (
+                    <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                      {order.customerDrawingUrl || order.designLink}
                     </a>
+                  ) : (
+                    <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
+                  )}
+                </div>
+
+                {order.designRevisions && order.designRevisions.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <p style={{ margin: "0 0 8px", fontSize: "10.5px", color: "#94A3B8" }}>Riwayat Revisi Desain</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
+                      {order.designRevisions.map(rev => (
+                        <div key={rev.version} style={{ position: "relative" }}>
+                          <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
+                          <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
+                            <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
+                          </p>
+                          <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "10px", color: S.secondary, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
+                            {rev.url || "(URL Dihapus)"}
+                          </a>
+                          <p style={{ margin: "2px 0 0", fontSize: "9px", color: "#94A3B8" }}>
+                            {new Date(rev.changedAt).toLocaleString("id-ID")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </>
-              )}
+                )}
+              </>
             </div>
           </div>
 

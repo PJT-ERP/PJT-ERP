@@ -4,7 +4,7 @@ import {
   User, Building2, Phone, Mail, MapPin,
   Package, Hash, Calendar, FileText, Search,
   ChevronRight, Trash2, GripVertical,
-  Layers, Link as LinkIcon
+  Layers, Link as LinkIcon, DollarSign
 } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
@@ -49,6 +49,8 @@ interface ProductRow {
   quantity: string;
   unit: string;
   notes: string;
+  customerDesignUrl?: string;
+  unitPrice?: number;
 }
 
 interface ProductOption {
@@ -69,6 +71,7 @@ const emptyProduct = (): ProductRow => ({
   quantity: "",
   unit: "pcs",
   notes: "",
+  unitPrice: 0,
 });
 
 function addDaysIso(date: Date, days: number) {
@@ -87,7 +90,6 @@ interface CustomerForm {
   address: string;
   deadline: string;
   generalNotes: string;
-  customerImageUrl: string;
   estimatedAmount?: number;
 }
 
@@ -96,7 +98,6 @@ interface RepeatForm {
   previousSoId: string;
   deadline: string;
   generalNotes: string;
-  customerImageUrl: string;
   estimatedAmount?: number;
 }
 
@@ -132,6 +133,57 @@ function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> &
         }}
         onFocus={e => { setFocused(true); props.onFocus?.(e); }}
         onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      />
+    </div>
+  );
+}
+
+function CurrencyInput({ value, onChange, icon, ...props }: any) {
+  const [focused, setFocused] = useState(false);
+  
+  const formatNumber = (val: number | undefined) => {
+    if (val === undefined || val === null || isNaN(val) || val === 0) return "";
+    return val.toLocaleString("id-ID");
+  };
+
+  const [displayValue, setDisplayValue] = useState(formatNumber(value));
+
+  React.useEffect(() => {
+    if (!focused) {
+      setDisplayValue(formatNumber(value));
+    }
+  }, [value, focused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value.replace(/[^0-9]/g, '');
+    setDisplayValue(rawVal ? Number(rawVal).toLocaleString("id-ID") : "");
+    onChange(Number(rawVal));
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      {icon && (
+        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none", display: "flex" }}>
+          {icon}
+        </span>
+      )}
+      <input
+        {...props}
+        type="text"
+        value={displayValue}
+        onChange={handleChange}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: focused ? S.white : "#FAFAFA",
+          border: `1px solid ${focused ? S.primary : S.border}`,
+          borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
+          fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
+          boxShadow: focused ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
+          ...props.style,
+        }}
+        onFocus={(e: any) => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={(e: any) => { setFocused(false); props.onBlur?.(e); }}
       />
     </div>
   );
@@ -383,12 +435,12 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
 
         {isCustom && (
           <div style={{ marginBottom: 10 }}>
-            <Label text="No Permintaan / ID Desain (Opsional)" />
+            <Label text="Sumber Desain / ID Desain" />
             <Select
               value={row.designId}
               onChange={e => {
                 const selectedDesignId = e.target.value;
-                if (selectedDesignId === "none" || selectedDesignId === "") {
+                if (selectedDesignId === "none" || selectedDesignId === "" || selectedDesignId === "customer") {
                   onChange({ ...row, designId: selectedDesignId, materials: [] });
                 } else {
                   const design = ENGINEERING_DESIGNS.find(d => d.id === selectedDesignId);
@@ -406,15 +458,25 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 }
               }}
             >
-              <option value="">— Pilih ID Desain —</option>
-              <option value="none">Belum ada ID Desain (Ajukan ke Engineer)</option>
+              <option value="">— Pilih Sumber Desain —</option>
+              <option value="none">Buatkan desain baru (oleh Tim Engineering)</option>
+              <option value="customer">Pelanggan memiliki referensi desain sendiri</option>
               {ENGINEERING_DESIGNS.filter(d => d.status === "Approved").map(d => (
-                <option key={d.id} value={d.id}>{d.id} - {d.name}</option>
+                <option key={d.id} value={d.id}>{d.id} - {d.name} (Desain Tersimpan)</option>
               ))}
             </Select>
-            <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-              *Jika dikosongkan, pesanan akan berstatus "Menunggu Engineering" untuk kelengkapan desain & material.
-            </p>
+            {row.designId === "customer" ? (
+              <div style={{ marginTop: 8 }}>
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="URL Gambar/Referensi (Opsional)" value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value })} />
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                  *Kosongkan jika pelanggan akan mengirimkan desain menyusul (Engineering akan menunggu).
+                </p>
+              </div>
+            ) : row.designId === "none" ? (
+              <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                *Tim Engineering akan merancang desain dari awal berdasarkan catatan/kebutuhan.
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -450,7 +512,7 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "120px 90px 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 90px 150px 1fr", gap: 10 }}>
           <div>
             <Label text="Jumlah (Qty)" required />
             <Input icon={<Hash size={11} />} type="number" min="1" placeholder="0" value={row.quantity} onChange={e => onChange({ ...row, quantity: e.target.value })} required />
@@ -462,6 +524,10 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 <option key={u} value={u}>{u}</option>
               ))}
             </Select>
+          </div>
+          <div>
+            <Label text="Harga Satuan (Rp)" />
+            <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 11 }}>Rp</span>} placeholder="0" value={row.unitPrice || 0} onChange={(val: number) => onChange({ ...row, unitPrice: val })} />
           </div>
           <div>
             <Label text="Catatan Produk" />
@@ -493,7 +559,7 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, productCatalog, salesOrders, refreshBackendData } = useApp();
+  const { customers, productCatalog, salesOrders, refreshBackendData, updateSalesOrder } = useApp();
   const catalogProductOptions = productCatalog.map(product => ({
     id: product.id,
     label: `${product.partNumber} - ${product.description}`,
@@ -521,7 +587,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",
-    customerImageUrl: existingAppSo?.customerDrawingUrl ?? "",
     estimatedAmount: 0,
   });
 
@@ -544,7 +609,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const [repeatForm, setRepeatForm] = useState<RepeatForm>({
-    customerId: initialData?.customerId || "", previousSoId: "", deadline: today, generalNotes: "", customerImageUrl: "", estimatedAmount: 0
+    customerId: initialData?.customerId || "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0
   });
 
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
@@ -552,6 +617,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const selectedCustomer = orderType === "repeat"
     ? customers.find(c => c.code === repeatForm.customerId)
     : null;
+
+  React.useEffect(() => {
+    if (orderType === "new") {
+      const total = products.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+      setCustomerForm(f => ({ ...f, estimatedAmount: total }));
+    }
+  }, [products, orderType]);
 
   const handleBack = () => {
     if (orderType) {
@@ -651,7 +723,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const items = await Promise.all(rows.map(async row => ({
       productId: await ensureProductId(row),
       qty: Number(row.quantity) || 1,
-      notes: row.notes || row.materials.map(material => `${material.name}: ${material.specification}`).filter(Boolean).join("; ") || null,
+      notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
     })));
 
     const payload = {
@@ -696,7 +768,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         phone: customerForm.phone,
         address: customerForm.address,
       });
-      const created = await createSalesOrderFromRows(customerId, customerForm.deadline, customerForm.customerImageUrl, products);
+      const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
+      const finalImageUrl = custProduct?.customerDesignUrl || "";
+      const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
+      if (customerForm.estimatedAmount) {
+        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
+      }
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -722,7 +799,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         phone: selectedCustomer.phone,
         address: selectedCustomer.address,
       });
-      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, repeatForm.customerImageUrl, repeatProducts);
+      const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
+      const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
+      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
+      if (repeatForm.estimatedAmount) {
+        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
+      }
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -762,8 +844,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
               {" "}
               {isCustomSubmit
-                ? "Desain dan BOM (Bill of Materials) sedang diajukan ke tim Engineering. SO akan berstatus Pending Design."
-                : "Pesanan otomatis masuk ke antrean tim Finance untuk penetapan Harga (Costing) dan pembuatan Invoice DP."}
+                ? "Pesanan telah disimpan. Anda dapat mengubah referensi desain dari Detail SO kapan saja sebelum tim Engineering memulai tahap produksi (In Production)."
+                : "Pesanan telah disimpan dan Harga telah ditetapkan. Pesanan akan diteruskan ke tim Finance untuk pembuatan Invoice DP."}
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -934,13 +1016,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Target Pengiriman (Project Deadline)" required />
                 <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
               </div>
-              <div>
-                <Label text="URL Design Referensi Customer (Opsional)" />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="Kosongkan jika tim engineering yang desain" value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} />
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Kosongkan jika pelanggan belum ada gambaran dan meminta tim Engineering yang mendesain.
-                </p>
-              </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
                 <Input placeholder="Instruksi umum, catatan pengiriman..." value={customerForm.generalNotes} onChange={e => setCustomerForm({ ...customerForm, generalNotes: e.target.value })} />
@@ -963,6 +1038,16 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                   onRemove={() => removeProduct(row.id, setProducts)}
                 />
               ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Penetapan Harga" icon={<DollarSign size={14} />}>
+            <div style={{ padding: 14, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6 }}>
+              <Label text="Harga Estimasi / Nilai Kesepakatan Awal (Opsional)" />
+              <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 12 }}>Rp</span>} placeholder="0" value={customerForm.estimatedAmount || 0} onChange={(val: number) => setCustomerForm({ ...customerForm, estimatedAmount: val })} />
+              <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.secondary }}>
+                *Jika Anda telah menyepakati harga dengan pelanggan, isikan total nilainya di sini. Pesanan akan otomatis melewati tahap "Waiting Pricing" dari Finance, sehingga Produksi bisa langsung dimulai. Jika dikosongkan, Finance yang akan menentukan harganya.
+              </p>
             </div>
           </SectionCard>
 
@@ -1034,16 +1119,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Target Pengiriman (Project Deadline)" required />
                 <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
               </div>
-              <div>
-                <Label text="URL Gambar Referensi Customer (Opsional)" />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="Kosongkan jika tim engineering yang desain" value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} />
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Kosongkan jika pelanggan belum ada gambaran dan meminta tim Engineering yang mendesain.
-                </p>
-              </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
-                <Input placeholder="Perubahan spesifikasi, catatan khusus..." value={repeatForm.generalNotes} onChange={e => setRepeatForm({ ...repeatForm, generalNotes: e.target.value })} />
+                <Input placeholder="Tambahan catatan khusus..." value={repeatForm.generalNotes} onChange={e => setRepeatForm({ ...repeatForm, generalNotes: e.target.value })} />
               </div>
             </Grid2>
           </SectionCard>
@@ -1066,6 +1144,16 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 Pilih Sales Order sebelumnya untuk memuat produk secara otomatis.
               </div>
             )}
+          </SectionCard>
+
+          <SectionCard title="Penetapan Harga" icon={<DollarSign size={14} />}>
+            <div style={{ padding: 14, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6 }}>
+              <Label text="Harga Estimasi / Nilai Kesepakatan Awal (Opsional)" />
+              <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 12 }}>Rp</span>} placeholder="0" value={repeatForm.estimatedAmount || 0} onChange={(val: number) => setRepeatForm({ ...repeatForm, estimatedAmount: val })} />
+              <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.secondary }}>
+                *Jika Anda telah menyepakati harga dengan pelanggan, isikan total nilainya di sini. Pesanan akan otomatis melewati tahap "Waiting Pricing" dari Finance, sehingga Produksi bisa langsung dimulai. Jika dikosongkan, Finance yang akan menentukan harganya.
+              </p>
+            </div>
           </SectionCard>
 
           <div style={{ display: "flex", gap: 10 }}>

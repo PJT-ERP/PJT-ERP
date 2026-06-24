@@ -419,12 +419,37 @@ export function EngineeringTaskDetailPage() {
               {/* Referensi Sales */}
               <div style={{ background: "#FFFFFF", border: `1px solid ${S.border}`, borderRadius: 8, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
                 <p style={{ fontSize: "15px", color: S.slate, fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 6 }}>Instruksi / Referensi dari Sales</p>
-                {qut.customerDrawingUrl && (
+                {qut.customerDrawingUrl ? (
                   <div style={{ marginBottom: 20, padding: "10px 16px", background: "#F1F5F9", borderRadius: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                     <span style={{ fontSize: "12px", color: S.secondary }}>Referensi Desain Customer</span>
                     <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
                       {qut.customerDrawingUrl}
                     </a>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 20, padding: "10px 16px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontSize: "12px", color: "#D97706", fontWeight: 600 }}>Menunggu Link Desain (URL) dari Sales...</span>
+                  </div>
+                )}
+                {qut.designRevisions && qut.designRevisions.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Riwayat Revisi Desain Customer:</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
+                      {qut.designRevisions.map(rev => (
+                        <div key={rev.version} style={{ position: "relative" }}>
+                          <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
+                          <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
+                            <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
+                          </p>
+                          <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11px", color: S.cyan, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
+                            {rev.url || "(URL Dihapus)"}
+                          </a>
+                          <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#94A3B8" }}>
+                            {new Date(rev.changedAt).toLocaleString("id-ID")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 32 }}>

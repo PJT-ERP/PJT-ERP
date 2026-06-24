@@ -187,6 +187,11 @@ export const salesApi = {
     return response.data;
   },
 
+  async updateCustomerDrawing(salesOrderId: string, request: { customerDrawingUrl: string, updatedByName: string }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/customer-drawing`, request);
+    return response.data;
+  },
+
   async confirmSalesOrder(salesOrderId: string, approvedByUserId: string) {
     const response = await apiClient.post(`/api/v1/production/sales-orders/${salesOrderId}/confirm`, {
       approvedByUserId,
