@@ -13,8 +13,8 @@ namespace Purchasing.API.Tests;
 public sealed class PurchaseRequestServiceTests
 {
     [Theory]
-    [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering Worker,Engineering Supervisor")]
-    [InlineData(nameof(PurchaseRequestsController.Update), "Admin,Engineering Worker,Engineering Supervisor")]
+    [InlineData(nameof(PurchaseRequestsController.Create), "Admin,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [InlineData(nameof(PurchaseRequestsController.Update), "Admin,Engineering Worker,Engineering Supervisor,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.SupervisorReview), "Admin,Engineering Supervisor")]
     [InlineData(nameof(PurchaseRequestsController.FinanceReview), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
@@ -352,7 +352,8 @@ public sealed class PurchaseRequestServiceTests
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
-        var service = CreateService(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = CreateService(db, eventPublisher);
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
         purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
@@ -386,6 +387,8 @@ public sealed class PurchaseRequestServiceTests
         var financeReviewed = await FinanceApprovePurchaseRequestAsync(service, processed!);
         Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
 
+        eventPublisher.PublishedEvents.Clear(); // Clear events before receiving
+
         var received = await service.ReceivePurchaseItemAsync(
             financeReviewed.Id,
             itemId,
@@ -399,6 +402,12 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal("PT. Krakatau Steel", receivedItem.SupplierName);
         Assert.Equal("PO-2026-041", receivedItem.PoNumber);
         Assert.Equal(MaterialRequirementStatuses.Received, (await db.MaterialRequirements.SingleAsync()).Status);
+        
+        var receivedEvent = Assert.Single(eventPublisher.PublishedEvents.OfType<PurchaseItemReceivedEvent>());
+        Assert.Equal(received.Id, receivedEvent.PurchaseRequestId);
+        Assert.Equal(receivedItem.Id, receivedEvent.PurchaseRequestItemId);
+        Assert.Equal(receivedItem.ItemName, receivedEvent.ItemName);
+        Assert.Equal(receivedItem.Qty, receivedEvent.QuantityReceived);
     }
 
     [Fact]

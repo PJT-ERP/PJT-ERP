@@ -22,14 +22,7 @@ interface FieldLabelProps {
   children: ReactNode;
 }
 
-const SUPPLIERS = [
-  "CV Bintang Logam",
-  "PT Sumber Teknik",
-  "UD Maju Jaya",
-  "PT Indo Steel",
-  "CV Tekno Prima",
-  "PT Karya Mandiri",
-];
+
 
 const UNITS = ["pcs", "batang", "lembar", "kg", "m", "box", "roll", "liter", "pasang", "kaleng"];
 const TERMS = ["Cash", "Net 7", "Net 14", "Net 30", "Net 45"];
@@ -105,7 +98,8 @@ function SupplierCombobox({ value, onChange, options, placeholder }: { value: st
 }
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
-  const { purchaseRequests, refresh } = usePurchasingData();
+  const { purchaseRequests, suppliers, inventoryItems, refresh } = usePurchasingData();
+  const supplierNames = useMemo(() => suppliers.map(s => s.name), [suppliers]);
   const [supplier, setSupplier] = useState("");
   const [requestRefs, setRequestRefs] = useState("");
   const [soNumber, setSoNumber] = useState("");
@@ -125,7 +119,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   };
 
   const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
-    ["SupervisorApproved", "FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    ["FinanceApproved", "Approved"].includes(request.status) &&
     request.items.some(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
   ), [purchaseRequests]);
 
@@ -169,17 +163,21 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
     setSupplier(openItems.find(item => item.supplierName)?.supplierName || "");
     setItems(openItems.map(item => {
-      // Coba ekstrak kode material resmi (misal: MAT-0002) dari itemName
-      let extractedCode = ""; // Kosongkan secara default agar user bisa ketik sendiri
+      let extractedCode = "";
       let extractedName = item.itemName;
       
-      const match = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
-      if (match) {
-        extractedCode = match[1].toUpperCase();
-        extractedName = match[2];
-      } else if (item.itemName.toLowerCase().includes("stainless steel")) {
-        // Fallback untuk demo/testing
-        extractedCode = "MAT-0002";
+      const invItem = inventoryItems?.find(inv => inv.name === item.itemName || (inv.code + " - " + inv.name) === item.itemName);
+      if (invItem) {
+        extractedCode = invItem.code;
+        extractedName = invItem.name;
+      } else {
+        const match = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        if (match) {
+          extractedCode = match[1].toUpperCase();
+          extractedName = match[2];
+        } else if (item.itemName.toLowerCase().includes("stainless steel")) {
+          extractedCode = "MAT-0002";
+        }
       }
 
       return {
@@ -208,13 +206,21 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
 
   const submitPO = async () => {
     const request = eligibleRequests.find(item => item.id === selectedRequestId);
-    const hasInvalidItem = items.some(item => !item.requestItemId || !item.name || !item.code || Number(item.qty) <= 0 || Number(item.totalPrice) <= 0);
+    const hasInvalidItem = items.some(item => !item.requestItemId || Number(item.totalPrice) <= 0);
     setMessage(null);
 
     if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
+      console.log("Validation Failed:", {
+        requestFound: !!request,
+        supplier,
+        dueDate,
+        hasInvalidItem,
+        items,
+        isSubmitting
+      });
       setMessage({
         type: "error",
-        text: "Pilih PR yang sudah disetujui Supervisor, lalu lengkapi supplier, estimasi kedatangan, kode item, nama material, qty, dan total harga sebelum membuat PO.",
+        text: `Validasi gagal! ${!request ? 'PR belum dipilih.' : ''} ${!supplier ? 'Supplier kosong.' : ''} ${!dueDate ? 'Tgl kosong.' : ''} ${hasInvalidItem ? 'Ada item yang tidak valid (pastikan kode, nama, qty > 0, total > 0, dan id request item ada).' : ''}`,
       });
       return;
     }
@@ -298,7 +304,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <SupplierCombobox
               value={supplier}
               onChange={updateField(setSupplier)}
-              options={SUPPLIERS}
+              options={supplierNames}
               placeholder="Pilih atau tulis supplier"
             />
           </div>

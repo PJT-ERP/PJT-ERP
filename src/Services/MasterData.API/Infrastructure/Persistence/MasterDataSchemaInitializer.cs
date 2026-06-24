@@ -49,6 +49,36 @@ public static class MasterDataSchemaInitializer
                 CONSTRAINT "PK_supplier_contacts" PRIMARY KEY ("Id"),
                 CONSTRAINT "FK_supplier_contacts_suppliers_supplier_id" FOREIGN KEY ("supplier_id") REFERENCES suppliers ("Id") ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS inventory_items (
+                "Id" uuid NOT NULL,
+                "code" character varying(80) NOT NULL,
+                "name" character varying(160) NOT NULL,
+                "category" character varying(80),
+                "unit" character varying(40),
+                "current_stock" numeric NOT NULL,
+                "min_stock" numeric NOT NULL,
+                "max_stock" numeric NOT NULL,
+                "reorder_point" numeric NOT NULL,
+                "location" character varying(120),
+                "supplier_name" character varying(160),
+                "unit_price" numeric NOT NULL,
+                "created_at_utc" timestamp with time zone NOT NULL,
+                "updated_at_utc" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_inventory_items" PRIMARY KEY ("Id")
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_inventory_items_code" ON inventory_items ("code");
+
+            CREATE TABLE IF NOT EXISTS product_bom_items (
+                "Id" uuid NOT NULL,
+                "product_id" uuid NOT NULL,
+                "inventory_item_id" uuid NOT NULL,
+                "quantity" numeric NOT NULL,
+                CONSTRAINT "PK_product_bom_items" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_product_bom_items_products_product_id" FOREIGN KEY ("product_id") REFERENCES products ("Id") ON DELETE CASCADE,
+                CONSTRAINT "FK_product_bom_items_inventory_items_inventory_item_id" FOREIGN KEY ("inventory_item_id") REFERENCES inventory_items ("Id") ON DELETE RESTRICT
+            );
             """,
             cancellationToken);
 

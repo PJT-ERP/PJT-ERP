@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
@@ -14,6 +14,7 @@ import {
   Download,
   Filter,
   ChevronDown,
+  X,
 } from "lucide-react";
 import {
   BarChart,
@@ -27,6 +28,7 @@ import {
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MaterialRequirementDto } from "../../services/purchasingApi";
+import { masterDataApi } from "../../services/masterDataApi";
 import { usePurchasingData } from "./usePurchasingData";
 import { useApp } from "../context/AppContext";
 
@@ -100,37 +102,127 @@ function TD({ children, className = "", right = false }: { children: React.React
 
 const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
 
-function mapRequirementToInventory(item: MaterialRequirementDto): InventoryItem {
-  const linkedPurchase = item.purchaseItems.find(purchase => purchase.purchaseStatus !== "Rejected") || item.purchaseItems[0];
-  const totalPrice = linkedPurchase?.totalPrice ?? linkedPurchase?.estimatedPrice ?? 0;
-  const unitPrice = linkedPurchase?.unitPrice ?? (item.requiredQty > 0 ? totalPrice / item.requiredQty : 0);
-  const maxStock = Math.max(item.requiredQty * 3, item.stockOnHand, 1);
-  const incoming = linkedPurchase && linkedPurchase.purchaseStatus !== "Received" && linkedPurchase.poNumber
-    ? {
-        po: linkedPurchase.poNumber,
-        supplier: linkedPurchase.supplierName || "Supplier belum ditentukan",
-        eta: linkedPurchase.expectedArrivalDate || "Belum dijadwalkan",
-        qty: item.requiredQty,
-        unit: "pcs",
-      }
-    : undefined;
+function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[] }) {
+  const [formData, setFormData] = useState({
+    code: "", name: "", category: "Project", unit: "pcs",
+    currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
+    location: "", supplierName: "", unitPrice: 0
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  return {
-    id: item.id,
-    code: item.productPartNumber,
-    name: item.materialSpec || item.productDescription,
-    category: linkedPurchase?.purchaseCategory || "Project",
-    unit: "pcs",
-    currentStock: item.stockOnHand,
-    minStock: item.requiredQty,
-    maxStock,
-    reorderPoint: item.requiredQty,
-    location: item.salesOrderNumber || "Non-project",
-    lastUpdated: item.stockUpdatedAtUtc || item.updatedAtUtc,
-    supplier: linkedPurchase?.supplierName || "Belum ditentukan",
-    unitPrice,
-    incoming,
+  useEffect(() => {
+    if (isOpen) {
+      let maxNum = 0;
+      inventoryItems.forEach(i => {
+        if (i.code.startsWith("MAT-")) {
+          const num = parseInt(i.code.replace("MAT-", ""), 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      });
+      const nextCode = `MAT-${String(maxNum + 1).padStart(3, "0")}`;
+      setFormData(prev => ({ ...prev, code: nextCode }));
+    } else {
+      // Reset form when closed
+      setFormData({
+        code: "", name: "", category: "Project", unit: "pcs",
+        currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
+        location: "", supplierName: "", unitPrice: 0
+      });
+    }
+  }, [isOpen, inventoryItems]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      await masterDataApi.createInventoryItem(formData);
+      onAdded();
+      onClose();
+    } catch (error) {
+      console.warn("Failed to create material", error);
+      alert("Gagal menambahkan material.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const inputClass = "w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#C8102E] focus:ring-1 focus:ring-[#C8102E]";
+  const labelClass = "block text-[11px] font-semibold text-slate-500 mb-1";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+          <h2 className="text-lg font-bold text-slate-800">Tambah Material Baru</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Kode Material</label>
+              <input required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className={inputClass} placeholder="Contoh: MAT-001" />
+            </div>
+            <div>
+              <label className={labelClass}>Nama Material</label>
+              <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} placeholder="Aluminium Plate..." />
+            </div>
+            <div>
+              <label className={labelClass}>Kategori</label>
+              <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className={inputClass}>
+                <option>Project</option>
+                <option>Consumable</option>
+                <option>Tools</option>
+                <option>Asset</option>
+                <option>Maintenance</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Satuan</label>
+              <input required value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className={inputClass} placeholder="pcs, kg, m, dll" />
+            </div>
+            <div>
+              <label className={labelClass}>Stok Awal</label>
+              <input type="number" required value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Reorder Point</label>
+              <input type="number" required value={formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Min Stock</label>
+              <input type="number" required value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Max Stock</label>
+              <input type="number" required value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Harga Satuan (Rp)</label>
+              <input type="number" required value={formData.unitPrice} onChange={e => setFormData({ ...formData, unitPrice: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Lokasi Penyimpanan</label>
+              <input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass}>Nama Supplier Default</label>
+              <input value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass} placeholder="PT Indo Steel" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Batal</button>
+            <button type="submit" disabled={submitting} className="rounded bg-[#C8102E] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+              {submitting ? "Menyimpan..." : "Simpan Material"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 /* ── Page ──────────────────────────────────────────────────── */
@@ -138,15 +230,31 @@ function mapRequirementToInventory(item: MaterialRequirementDto): InventoryItem 
 export function InventoryPage() {
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const { materialRequirements, refresh } = usePurchasingData();
+  const { inventoryItems, refresh } = usePurchasingData();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const inventory = useMemo(
-    () => materialRequirements.map(mapRequirementToInventory),
-    [materialRequirements],
+  const inventory: InventoryItem[] = useMemo(
+    () => inventoryItems.map(item => ({
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        currentStock: item.currentStock,
+        minStock: item.minStock,
+        maxStock: item.maxStock,
+        reorderPoint: item.reorderPoint,
+        location: item.location,
+        supplier: item.supplierName,
+        unitPrice: item.unitPrice,
+        lastUpdated: item.updatedAtUtc,
+        incoming: undefined
+    })),
+    [inventoryItems],
   );
 
   const categories = useMemo(() => Array.from(new Set(inventory.map((item) => item.category))), [inventory]);
@@ -180,6 +288,16 @@ export function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canCreatePo && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              title="Tambah Material / Stok Baru"
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
+              style={{ fontSize: 12, background: "#0e7490" }}
+            >
+              <Plus size={13} /> Tambah Material
+            </button>
+          )}
           <button onClick={() => void refresh()} className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
             <RefreshCcw size={13} /> Refresh
           </button>
@@ -226,7 +344,7 @@ export function InventoryPage() {
       </div>
 
       {/* Top row — alerts + chart + incoming */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Critical stock alert */}
         <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #fca5a5", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ background: "#fef2f2", borderBottom: "1px solid #fca5a5" }}>
@@ -499,6 +617,13 @@ export function InventoryPage() {
           </p>
         </div>
       </div>
+
+      <AddMaterialModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdded={() => void refresh()}
+        inventoryItems={inventory}
+      />
     </div>
   );
 }

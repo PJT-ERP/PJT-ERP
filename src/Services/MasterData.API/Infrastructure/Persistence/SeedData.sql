@@ -71,3 +71,37 @@ VALUES
     ('44444444-4444-4444-8444-444444444001', '33333333-3333-4333-8333-333333333001', 'Budi Santoso', 'Sales Manager', '0812-3456-7890', 'budi@indosteel.co.id', true),
     ('44444444-4444-4444-8444-444444444002', '33333333-3333-4333-8333-333333333002', 'Siti Aminah', 'Account Executive', '0813-4567-8901', 'siti@sumberteknik.co.id', true)
 ON CONFLICT DO NOTHING;
+
+INSERT INTO inventory_items ("Id", code, name, category, unit, current_stock, min_stock, max_stock, reorder_point, location, supplier_name, unit_price, created_at_utc, updated_at_utc)
+VALUES
+    ('55555555-5555-4555-8555-555555555001', 'MAT-001', 'Aluminium A356', 'Project', 'kg', 0, 8, 24, 8, 'SD-2026-085', 'CV Logam Jaya', 120000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555002', 'MAT-002', 'ST37 / SS304 sesuai drawing', 'Project', 'pcs', 0, 3, 9, 3, 'SD-2026-082', 'PT Indo Steel', 350000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555003', 'MAT-003', 'AISI 4130 CrMo', 'Project', 'pcs', 0, 4, 12, 4, 'SD-2026-081', 'PT Sumber Teknik', 450000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555004', 'MAT-004', 'FC250 cast iron', 'Project', 'kg', 0, 4, 12, 4, 'SD-2026-078', 'CV Tekno Prima', 280000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555005', 'MAT-005', 'Aluminium A356 (Housing)', 'Project', 'pcs', 0, 8, 24, 8, 'SD-2026-051', 'PT Karya Mandiri', 150000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555006', 'MAT-006', 'Aluminium Plate A6061 500x500x20mm', 'Project', 'pcs', 1, 5, 15, 5, 'SD-2026-045', 'CV Logam Jaya', 550000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555007', 'MAT-007', 'Stainless Steel Bar SS304 diameter 50mm', 'Project', 'pcs', 2, 10, 30, 10, 'SD-2026-038', 'PT Indo Steel', 320000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555008', 'MAT-008', 'Coolant bubut water soluble', 'Consumable', 'liter', 0, 20, 60, 20, 'SD-2028-038', 'UD Maju Jaya', 125000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555009', 'MAT-009', 'Besi Hollow 40x40x2mm', 'Project', 'batang', 10, 5, 50, 10, 'RAK-B01', 'PT Indo Steel', 150000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555010', 'MAT-010', 'Baut M10x50 HTB', 'Project', 'pcs', 100, 50, 500, 100, 'RAK-B02', 'PT Indo Steel', 2500, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('55555555-5555-4555-8555-555555555011', 'MAT-011', 'Cat Besi Nippon Paint Grey', 'Consumable', 'kaleng', 5, 2, 10, 3, 'RAK-C01', 'UD Maju Jaya', 185000, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z')
+ON CONFLICT ("Id") DO UPDATE
+SET code = EXCLUDED.code,
+    name = EXCLUDED.name,
+    category = EXCLUDED.category,
+    unit = EXCLUDED.unit,
+    current_stock = EXCLUDED.current_stock,
+    min_stock = EXCLUDED.min_stock,
+    max_stock = EXCLUDED.max_stock,
+    reorder_point = EXCLUDED.reorder_point,
+    location = EXCLUDED.location,
+    supplier_name = EXCLUDED.supplier_name,
+    unit_price = EXCLUDED.unit_price,
+    updated_at_utc = EXCLUDED.updated_at_utc;
+
+INSERT INTO product_bom_items ("Id", product_id, inventory_item_id, quantity)
+VALUES
+    ('66666666-6666-4666-8666-666666666001', '22222222-2222-4222-8222-222222222001', '55555555-5555-4555-8555-555555555002', 1),
+    ('66666666-6666-4666-8666-666666666002', '22222222-2222-4222-8222-222222222007', '55555555-5555-4555-8555-555555555001', 1.5)
+ON CONFLICT ("Id") DO UPDATE
+SET quantity = EXCLUDED.quantity;

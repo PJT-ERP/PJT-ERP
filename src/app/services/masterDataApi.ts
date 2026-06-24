@@ -1,5 +1,36 @@
 import apiClient from "./apiClient";
 
+export interface InventoryItemDto {
+    id: string;
+    code: string;
+    name: string;
+    category: string;
+    unit: string;
+    currentStock: number;
+    minStock: number;
+    maxStock: number;
+    reorderPoint: number;
+    location: string;
+    supplierName: string;
+    unitPrice: number;
+    createdAtUtc: string;
+    updatedAtUtc: string;
+}
+
+export interface CreateInventoryItemRequest {
+    code: string;
+    name: string;
+    category: string;
+    unit: string;
+    currentStock: number;
+    minStock: number;
+    maxStock: number;
+    reorderPoint: number;
+    location: string;
+    supplierName: string;
+    unitPrice: number;
+}
+
 export interface SupplierDto {
     id: string;
     code: string;
@@ -75,5 +106,13 @@ export const masterDataApi = {
     },
     deleteSupplier: async (code: string): Promise<void> => {
         await apiClient.delete(`/api/v1/master-data/suppliers/${code}`);
+    },
+    listInventory: async (): Promise<InventoryItemDto[]> => {
+        const response = await apiClient.get<InventoryItemDto[]>("/api/v1/master-data/inventory");
+        return response.data;
+    },
+    createInventoryItem: async (request: CreateInventoryItemRequest): Promise<InventoryItemDto> => {
+        const response = await apiClient.post<InventoryItemDto>("/api/v1/master-data/inventory", request);
+        return response.data;
     }
 };

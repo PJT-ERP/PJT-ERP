@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, Plus, X } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
@@ -6,6 +6,53 @@ import { useApp } from "../context/AppContext";
 import { toBackendUserId } from "../../services/backendIds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { MRItem } from "./material-requests-page"; // Will export this next
+import { usePurchasingData } from "./usePurchasingData";
+
+function InventoryCombobox({ value, onChange, options, placeholder }: { value: string; onChange: (v: string, item?: any) => void; options: any[]; placeholder?: string; }) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()) || o.code.toLowerCase().includes(query.toLowerCase()));
+
+  const handleSelect = (o: any) => {
+    setQuery(o.name);
+    onChange(o.name, o);
+    setOpen(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    onChange(e.target.value, undefined);
+    setOpen(true);
+  };
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <div className="relative flex items-center w-full">
+        <input type="text" value={query} onChange={handleChange} onFocus={() => setOpen(true)} placeholder={placeholder} className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto">
+          {filtered.map(o => (
+            <div key={o.id} onMouseDown={e => { e.preventDefault(); handleSelect(o); }} className="px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700 flex flex-col">
+              <span className="font-medium">{o.name}</span>
+              <span className="text-xs text-slate-400">{o.code} | Stok: {o.currentStock} {o.unit}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type ManualRequestItem = Partial<MRItem> & {
   category?: "Asset" | "Consumable" | "Tools" | "Project" | "Maintenance";
@@ -15,6 +62,7 @@ const PURCHASE_CATEGORIES: NonNullable<ManualRequestItem["category"]>[] = ["Proj
 
 export function CreatePurchaseRequestPage() {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
+  const { inventoryItems } = usePurchasingData();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formSoNumber, setFormSoNumber] = useState("");
@@ -170,7 +218,21 @@ export function CreatePurchaseRequestPage() {
                   </div>
                   <div className="md:col-span-5">
                     <label className="mb-1 block text-xs font-semibold text-slate-500">Nama Material *</label>
-                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.name} onChange={(e) => updateFormItem(i, "name", e.target.value)} placeholder="Contoh: Baut 10mm" />
+                    <InventoryCombobox
+                      value={item.name || ""}
+                      onChange={(val, selectedItem) => {
+                        const next = [...formItems];
+                        next[i] = { ...next[i], name: val };
+                        if (selectedItem) {
+                          next[i].code = selectedItem.code;
+                          next[i].unit = selectedItem.unit;
+                          next[i].category = selectedItem.category;
+                        }
+                        setFormItems(next);
+                      }}
+                      options={inventoryItems}
+                      placeholder="Pilih dari Master Data atau ketik manual"
+                    />
                   </div>
                   <div className="md:col-span-4">
                     <label className="mb-1 block text-xs font-semibold text-slate-500">Kategori</label>

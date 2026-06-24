@@ -9,6 +9,7 @@ import { salesApi } from "../services/salesApi";
 import { isGuid, toBackendUserId } from "../services/backendIds";
 import { useFinanceData } from "../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../components/so/invoice-sync";
+import { masterDataApi, InventoryItemDto } from "../services/masterDataApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -282,7 +283,350 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   );
 }
 
+function MaterialAutocomplete({
+  value,
+  onChange,
+  onSelectProduct,
+  options,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectProduct: (product: any) => void;
+  options: any[];
+  disabled: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
 
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 280) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
+
+  const filtered = options.filter(p => 
+    (p.code + ' ' + p.name).toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column" }}>
+      <input
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+        onBlur={() => setIsFocused(false)}
+        placeholder="Ketik atau pilih dari Master Data..."
+        disabled={disabled}
+        style={{
+          width: "100%", padding: "9px 10px", 
+          border: `1px solid ${isFocused ? S.cyan : S.border}`, 
+          borderRadius: 6, fontSize: "13px", outline: "none", 
+          boxSizing: "border-box", 
+          backgroundColor: disabled ? "#F8FAFC" : "#fff",
+          transition: "border 0.2s, box-shadow 0.2s",
+          boxShadow: isFocused ? `0 0 0 3px rgba(200, 16, 46, 0.1)` : "none"
+        }}
+      />
+      {isOpen && !disabled && filtered.length > 0 && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, zIndex: 50,
+          ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
+          background: "#fff", border: `1px solid ${S.border}`,
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          maxHeight: 280, overflowY: "auto", overflowX: "hidden"
+        }}>
+          {filtered.map(p => (
+            <div 
+              key={p.id}
+              onMouseDown={e => {
+                e.preventDefault();
+                onSelectProduct(p);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${S.bg}`,
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
+            >
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.name}</div>
+              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.code} | Stok: {p.currentStock} {p.unit}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MaterialRequestModal({
+  so,
+  onClose,
+  onSubmitted,
+  onMessage,
+}: {
+  so: SalesOrder;
+  onClose: () => void;
+  onSubmitted: () => void;
+  onMessage: (message: SystemMessage) => void;
+}) {
+  const { currentUser, refreshBackendData } = useApp();
+  const materialOptions = getMaterialOptions(so);
+  const firstMaterial = materialOptions[0];
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
+  }, []);
+  const [items, setItems] = useState([
+    {
+      materialKey: firstMaterial?.key || "",
+      itemName: firstMaterial?.itemName || "",
+      specification: firstMaterial?.specification || "",
+      quantity: "1",
+      unit: "PCS",
+      urgency: "Urgent" as PurchasingUrgency,
+      purchaseCategory: "Project",
+    },
+  ]);
+
+  const updateItem = (index: number, key: keyof typeof items[number], value: string) => {
+    setItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+  };
+
+  const addItem = () => {
+    setItems(prev => [...prev, {
+      materialKey: "",
+      itemName: "",
+      specification: "",
+      quantity: "1",
+      unit: "PCS",
+      urgency: "Normal",
+      purchaseCategory: "Project",
+    }]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const selectMaterial = (index: number, materialKey: string) => {
+    const selected = materialOptions.find(option => option.key === materialKey);
+    setItems(prev => prev.map((item, itemIndex) => itemIndex === index
+      ? {
+          ...item,
+          materialKey,
+          itemName: selected?.itemName || "",
+          specification: selected?.specification || "",
+        }
+      : item));
+  };
+
+  const parsedItems = items.map(item => ({
+    itemName: item.itemName.trim(),
+    specification: item.specification.trim(),
+    quantity: Number.parseInt(item.quantity, 10),
+    unit: item.unit.trim() || "PCS",
+    urgency: item.urgency,
+    purchaseCategory: item.purchaseCategory,
+  }));
+
+  const canSubmit = parsedItems.every(item => item.itemName && Number.isFinite(item.quantity) && item.quantity > 0);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+
+    if (isSubmitting) return;
+
+    // Priority order for requestedByUserId:
+    // 1. currentUser.id if it's a real GUID (user logged in via backend JWT)
+    // 2. productionWorkerUserId from the SO (the assigned backend worker's GUID)
+    // 3. local assignedTo if it's a GUID
+    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
+    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
+    const requesterId = currentUserGuid || assignedWorkerGuid || "";
+
+    const salesOrderId = getBackendSalesOrderId(so);
+    if (!isGuid(salesOrderId)) {
+      onMessage({
+        tone: "error",
+        title: "MR Tidak Bisa Diajukan",
+        message: "Data backend Sales Order belum lengkap. Refresh data atau pastikan SO sudah tersinkron ke backend.",
+      });
+      return;
+    }
+
+    if (!requesterId) {
+      onMessage({
+        tone: "error",
+        title: "Operator Tidak Ditemukan",
+        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering Worker yang ditugaskan.",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await productionApi.submitMaterialRequest(salesOrderId, {
+        requestedByUserId: requesterId,
+        requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
+        notes: notes || null,
+        items: parsedItems.map(item => ({
+          materialRequirementId: null,
+          salesOrderItemId: null,
+          itemName: item.itemName,
+          size: item.specification || null,
+          qty: item.quantity,
+          urgency: item.urgency,
+          suggestedSupplier: null,
+          notes: notes || null,
+          purchaseCategory: item.purchaseCategory,
+        })),
+      });
+      onSubmitted();
+      await refreshBackendData();
+      window.setTimeout(() => {
+        void refreshBackendData();
+      }, 1500);
+      onMessage({
+        tone: "success",
+        title: "MR Diajukan ke Supervisor",
+        message: `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
+      });
+      onClose();
+    } catch (error: unknown) {
+      console.warn("Failed to submit production material request to backend.", error);
+      // Try to extract backend error message
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const backendMsg = axiosError?.response?.data?.message;
+      onMessage({
+        tone: "error",
+        title: "Gagal Mengajukan MR",
+        message: backendMsg || "MR gagal dikirim ke backend. Cek koneksi API atau data operator.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 450, fontFamily: S.font, overflow: "hidden" }}>
+        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Permintaan Material</h2>
+            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: "13.5px", color: S.slate, margin: 0 }}>Isi daftar item untuk MR. Pengajuan ini memerlukan approval Supervisor sebelum diteruskan ke Purchasing.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {items.map((item, index) => (
+              <div key={index} style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "12px", color: S.secondary, fontWeight: 600 }}>Item #{index + 1}</span>
+                  {items.length > 1 && (
+                    <button type="button" onClick={() => removeItem(index)} style={{ border: "none", background: "transparent", color: S.secondary, cursor: "pointer", display: "flex" }}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                <MaterialAutocomplete
+                  value={item.itemName}
+                  onChange={(val) => updateItem(index, "itemName", val)}
+                  onSelectProduct={(p) => {
+                    updateItem(index, "materialKey", p.id);
+                    updateItem(index, "itemName", p.name);
+                    updateItem(index, "unit", p.unit);
+                    if (p.category) updateItem(index, "purchaseCategory", p.category);
+                  }}
+                  options={inventoryItems}
+                  disabled={false}
+                />
+                <textarea
+                  value={item.specification}
+                  onChange={e => updateItem(index, "specification", e.target.value)}
+                  placeholder="Spesifikasi / ukuran"
+                  rows={2}
+                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "none" }}
+                />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 110px", gap: 8 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={e => updateItem(index, "quantity", e.target.value)}
+                    placeholder="Qty"
+                    required
+                    style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
+                  />
+                  <input
+                    value={item.unit}
+                    onChange={e => updateItem(index, "unit", e.target.value)}
+                    placeholder="Unit"
+                    style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
+                  />
+                  <select
+                    value={item.urgency}
+                    onChange={e => updateItem(index, "urgency", e.target.value)}
+                    style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
+                  >
+                    <option>Normal</option>
+                    <option>Urgent</option>
+                    <option>Critical</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={addItem} style={{ padding: "10px", border: `1px dashed ${S.border}`, background: S.white, color: S.secondary, borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Plus size={14} /> Tambah Item
+            </button>
+          </div>
+          <textarea
+            value={notes}
+            onChange={event => setNotes(event.target.value)}
+            placeholder="Catatan MR"
+            rows={2}
+            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", resize: "none", boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+            <button type="submit" disabled={!canSubmit || isSubmitting} style={{ flex: 1, padding: "10px", background: "#EAB308", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
+              {isSubmitting ? "Mengajukan..." : "Ajukan MR"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { currentUser, refreshBackendData } = useApp();

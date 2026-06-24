@@ -160,3 +160,28 @@ public record FinanceDashboardDto(
     decimal OutstandingAmount,
     decimal OverdueAmount,
     decimal AveragePaymentPercent);
+
+public record SupplierPaymentDto(
+    Guid Id,
+    string PoNumber,
+    string SupplierName,
+    DateOnly PaymentDate,
+    decimal Amount,
+    string BankName,
+    string? BankReference,
+    string? ProofFileName,
+    string? ProofFileUrl,
+    string? Notes,
+    DateTime CreatedAtUtc);
+
+public class SubmitSupplierPaymentFormRequest
+{
+    public string PoNumber { get; set; } = "";
+    public string SupplierName { get; set; } = "";
+    public DateOnly PaymentDate { get; set; }
+    public decimal Amount { get; set; }
+    public string BankName { get; set; } = "";
+    public string? BankReference { get; set; }
+    public string? Notes { get; set; }
+    public IFormFile? ProofFile { get; set; }
+}

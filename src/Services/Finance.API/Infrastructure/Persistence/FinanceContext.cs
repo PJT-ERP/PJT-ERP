@@ -15,6 +15,7 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
     public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
     public DbSet<PaymentVerificationRequest> PaymentVerificationRequests => Set<PaymentVerificationRequest>();
     public DbSet<CollectionLetter> CollectionLetters => Set<CollectionLetter>();
+    public DbSet<SupplierPayment> SupplierPayments => Set<SupplierPayment>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -184,6 +185,24 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
             builder.Property(letter => letter.DueDate).HasColumnName("due_date");
             builder.Property(letter => letter.Notes).HasColumnName("notes");
             builder.Property(letter => letter.CreatedAtUtc).HasColumnName("created_at_utc");
+        });
+
+        modelBuilder.Entity<SupplierPayment>(builder =>
+        {
+            builder.ToTable("supplier_payments");
+            builder.HasKey(payment => payment.Id);
+            builder.HasIndex(payment => payment.PoNumber);
+            builder.Property(payment => payment.Id).HasColumnName("id");
+            builder.Property(payment => payment.PoNumber).HasMaxLength(100).HasColumnName("po_number");
+            builder.Property(payment => payment.SupplierName).HasMaxLength(255).HasColumnName("supplier_name");
+            builder.Property(payment => payment.PaymentDate).HasColumnName("payment_date");
+            builder.Property(payment => payment.Amount).HasColumnType("numeric(18,2)").HasColumnName("amount");
+            builder.Property(payment => payment.BankName).HasMaxLength(120).HasColumnName("bank_name");
+            builder.Property(payment => payment.BankReference).HasMaxLength(120).HasColumnName("bank_reference");
+            builder.Property(payment => payment.ProofFileName).HasMaxLength(255).HasColumnName("proof_file_name");
+            builder.Property(payment => payment.ProofFileUrl).HasColumnName("proof_file_url");
+            builder.Property(payment => payment.Notes).HasColumnName("notes");
+            builder.Property(payment => payment.CreatedAtUtc).HasColumnName("created_at_utc");
         });
 
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
