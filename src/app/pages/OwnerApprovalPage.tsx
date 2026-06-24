@@ -53,7 +53,7 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
       }
 
       updateSalesOrder(item.id, {
-        status: 'Menunggu Invoice DP',
+        status: 'Waiting Payment',
         approvedAt: new Date().toISOString(),
         approvedBy: currentUser?.id,
       });
@@ -222,7 +222,7 @@ export function OwnerApprovalPage() {
 
   const waitingApproval = [...pendingSalesOrders];
 
-  const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Menunggu Invoice DP', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so } as ApprovalItem)) : [];
+  const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Waiting Payment', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so } as ApprovalItem)) : [];
 
   const logItems = [...logSalesOrders]
     .filter(item => {
@@ -230,7 +230,7 @@ export function OwnerApprovalPage() {
       const customer = customers.find(c => c.code === item.customerId);
       const matchSearch = !logSearch || item.id.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || (customer?.name || '').toLowerCase().includes(q);
 
-      const isApproved = item.status === 'Menunggu Invoice DP';
+      const isApproved = item.status === 'Waiting Payment';
       const isRejected = item.status === 'Rejected';
       const isRevision = item.status === 'Revision Required';
 
@@ -244,7 +244,7 @@ export function OwnerApprovalPage() {
     });
 
   const logCounts = {
-    approved: logItems.filter(item => item.status === 'Menunggu Invoice DP').length,
+    approved: logItems.filter(item => item.status === 'Waiting Payment').length,
     rejected: logItems.filter(item => item.status === 'Rejected').length,
     revision: logItems.filter(item => item.status === 'Revision Required').length,
   };

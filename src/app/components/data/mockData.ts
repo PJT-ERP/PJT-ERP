@@ -1,7 +1,7 @@
 export type UserRole = 'Sales' | 'Engineering Worker' | 'Engineering Supervisor' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
-  | 'Menunggu Invoice DP'
+  | 'Waiting Payment'
   | 'Pending Design'
   | 'Waiting Spv Approval'
   | 'Waiting Pricing'
@@ -134,7 +134,7 @@ export const invoiceStatusConfig: Record<string, { label: string; bgColor: strin
 
 export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string; dot: string } {
   const map: Record<SOStatus, { bg: string; text: string; border: string; dot: string }> = {
-    'Menunggu Invoice DP': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-600' },
+    'Waiting Payment': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-600' },
     'Pending Design': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-700' },
     'Waiting Spv Approval': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-600' },
     'Waiting Pricing': { bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-800' },

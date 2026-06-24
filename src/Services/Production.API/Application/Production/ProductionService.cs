@@ -221,7 +221,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         if (salesOrder is null) return null;
 
-        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Menunggu Invoice DP")
+        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Waiting Payment")
         {
             throw new InvalidOperationException("Only sales orders waiting for pricing can be updated.");
         }
@@ -235,7 +235,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             }
         }
 
-        salesOrder.Status = "Menunggu Invoice DP";
+        salesOrder.Status = "Waiting Payment";
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         var integrationEvent = new SalesOrderReadyForInvoiceEvent(

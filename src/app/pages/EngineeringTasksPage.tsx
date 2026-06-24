@@ -86,15 +86,8 @@ export function EngineeringTasksPage() {
   
   const pendingSalesOrders = salesOrders
     .filter(so => {
-      if (isSpv) {
-        // Show all SOs that went through design phase (have a backendDesignStatus)
-        // and haven't moved to production yet
-        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
-        return engineeringStatuses.includes(so.status) && 
-               so.backendDesignStatus !== undefined &&
-               so.backendDesignStatus !== null;
-      }
-      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
+      const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Waiting Payment', 'Rejected'];
+      return engineeringStatuses.includes(so.status);
     });
 
   const allQueue = [...pendingSalesOrders];
@@ -191,11 +184,17 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.designAssignedName || users.find(user => user.id === qut.designAssignedTo)?.name || "-";
-            const canWork = qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+            const currentUserBackendId = toBackendUserId(currentUser);
+            const isAssignedToCurrentUser = 
+              qut.designAssignedTo === currentUser?.id || 
+              (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
+              qut.designAssignedTo === currentUser?.name ||
+              qut.designAssignedName === currentUser?.name;
+            const canWork = isAssignedToCurrentUser && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
             // Review button: only when design is waiting for supervisor approval
             const canReview = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet
-            const canAssign = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
+            const canAssign = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
 
             return (
             <div

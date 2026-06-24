@@ -29,6 +29,7 @@ import { OwnerApprovalPage } from "./pages/OwnerApprovalPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CustomerAnalyticsPage } from "./pages/CustomerAnalyticsPage";
 import { ProductionPage } from "./pages/ProductionPage";
+import { ProductionMaterialRequestPage } from "./pages/ProductionMaterialRequestPage";
 import { QCPage } from "./pages/QCPage";
 
 const financeRoutes = [
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
             <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
             <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
+            <Route path="production/mr/:id" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionMaterialRequestPage /></ProtectedRoute>} />
             <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><QCPage /></ProtectedRoute>} />
 
             {/* Owner & Engineering Supervisor Approval */}

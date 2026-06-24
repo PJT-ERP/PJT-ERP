@@ -240,7 +240,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...data,
       id: `SO-2026-${String(next).padStart(3, '0')}`,
       createdAt: new Date().toISOString().split('T')[0],
-      status: 'Menunggu Invoice DP',
+      status: 'Waiting Payment',
       createdBy: currentUser?.id ?? 'u1',
     };
     setSalesOrders(prev => [so, ...prev]);
@@ -590,7 +590,7 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     return "Waiting Pricing";
   }
 
-  if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
+  if (order.status === "WaitingPayment" || order.status === "Waiting Payment" || order.status === "Menunggu Pembayaran") {
     return "Waiting Payment";
   }
 
@@ -721,9 +721,9 @@ async function syncUpdateSalesOrder(
 
   try {
     if (updates.assignedTo !== undefined) {
-      const assignedUser = allUsers.find(user => user.id === updates.assignedTo);
-      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
-      if (engineerId) {
+      const engineerId = isGuid(updates.assignedTo) ? updates.assignedTo : BACKEND_USER_IDS_BY_LOCAL_ID[updates.assignedTo] || null;
+      const assignedUser = engineerId ? allUsers.find(user => user.id === engineerId) : null;
+      if (engineerId && isGuid(engineerId)) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
           productionWorker: {
             userId: engineerId,
@@ -735,9 +735,9 @@ async function syncUpdateSalesOrder(
     }
 
     if (updates.designAssignedTo !== undefined) {
-      const assignedUser = allUsers.find(user => user.id === updates.designAssignedTo);
-      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.designAssignedTo) ? updates.designAssignedTo : null);
-      if (engineerId) {
+      const engineerId = isGuid(updates.designAssignedTo) ? updates.designAssignedTo : BACKEND_USER_IDS_BY_LOCAL_ID[updates.designAssignedTo] || null;
+      const assignedUser = engineerId ? allUsers.find(user => user.id === engineerId) : null;
+      if (engineerId && isGuid(engineerId)) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
           designWorker: {
             userId: engineerId,

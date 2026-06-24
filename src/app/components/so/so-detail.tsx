@@ -177,7 +177,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        updateSalesOrder(orderId, { status: 'Menunggu Invoice DP' });
+        updateSalesOrder(orderId, { status: 'Waiting Payment' });
       } else if (action === 'reject') {
         updateSalesOrder(orderId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
@@ -189,7 +189,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       } else if (action === 'upload_design') {
         updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
       } else if (action === 'approve_design') {
-        updateSalesOrder(orderId, { status: 'Waiting Pricing' });
+        updateSalesOrder(orderId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
       } else if (action === 'reject_design') {
         updateSalesOrder(orderId, { status: 'Pending Design' });
       }
@@ -311,7 +311,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 if (status === 'QC') return 4;
                 if (['Ready for Production', 'In Production'].includes(status)) return 3;
                 if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
-                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Menunggu Invoice DP'].includes(status)) return 1;
+                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Waiting Payment'].includes(status)) return 1;
                 return 0;
               };
               

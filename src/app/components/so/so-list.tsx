@@ -46,7 +46,7 @@ function downloadCsv(filename: string, rows: string[][]) {
 
 const STATUS_OPTIONS = [
   { value: "all",                 label: "Semua Status"         },
-  { value: "Menunggu Invoice DP", label: "Menunggu Invoice DP"   },
+  { value: "Waiting Payment", label: "Waiting Payment"   },
   { value: "Pending Design",      label: "Pending Design"        },
   { value: "Waiting Approval",    label: "Waiting Approval"      },
   { value: "Ready for Production",label: "Ready for Production"  },

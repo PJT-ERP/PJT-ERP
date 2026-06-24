@@ -33,7 +33,7 @@ export function FinanceCosting() {
   }));
 
   const historyStatuses = [
-    'Menunggu Invoice DP',
+    'Waiting Payment',
     'Waiting Payment',
     'Waiting Client Approval',
     'Ready for Production',
@@ -97,14 +97,14 @@ export function FinanceCosting() {
         // Local state update for smooth UX
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Menunggu Invoice DP" 
+          status: "Waiting Payment" 
         });
       } catch (error) {
         console.error("Failed to update pricing to backend", error);
         alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Menunggu Invoice DP" 
+          status: "Waiting Payment" 
         });
       }
       
@@ -121,7 +121,7 @@ export function FinanceCosting() {
   };
 
   const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
-  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Menunggu Invoice DP";
+  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Waiting Payment";
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>

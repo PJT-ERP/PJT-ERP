@@ -9,8 +9,9 @@ VALUES
     ('11111111-1111-4111-8111-111111111007', '0007', 'CV. MAJU BERSAMA TEKNIK', 'Jl. Pahlawan No. 33, Tangerang', 'Pak Joni', 'joni@majubersamateknik.co.id', '081234567807', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('11111111-1111-4111-8111-111111111008', '0008', 'PT. PRIMA SOLUSI INDUSTRI', 'BSD City, Tangerang Selatan', 'Ibu Wati', 'wati@primasolusi.co.id', '081234567808', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('11111111-1111-4111-8111-111111111009', 'CUST-9012', 'PT. PRESISI BAUT NUSANTARA', 'Kawasan Industri Jababeka, Cikarang', 'Pak Raka', 'raka@presisibaut.co.id', '081234567809', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
-ON CONFLICT (code) DO UPDATE
-SET name = EXCLUDED.name,
+ON CONFLICT ("Id") DO UPDATE
+SET code = EXCLUDED.code,
+    name = EXCLUDED.name,
     address = EXCLUDED.address,
     contact_person = EXCLUDED.contact_person,
     email = EXCLUDED.email,
@@ -40,8 +41,9 @@ VALUES
     ('22222222-2222-4222-8222-222222222201', 'TLS-0001', 'Carbide Insert CNMG 120408', 'PCS', 'Tungsten Carbide, TiN coated', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('22222222-2222-4222-8222-222222222202', 'TLS-0002', 'End Mill HSS 10mm', 'PCS', 'High Speed Steel 4-Flute', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('22222222-2222-4222-8222-222222222203', 'TLS-0003', 'Tap M10x1.5', 'PCS', 'HSS-Co Spiral Flute', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
-ON CONFLICT (part_number) DO UPDATE
-SET description = EXCLUDED.description,
+ON CONFLICT ("Id") DO UPDATE
+SET part_number = EXCLUDED.part_number,
+    description = EXCLUDED.description,
     unit = EXCLUDED.unit,
     material_spec = EXCLUDED.material_spec,
     is_active = EXCLUDED.is_active,
@@ -54,8 +56,9 @@ VALUES
     ('33333333-3333-4333-8333-333333333003', 'SUP-012', 'CV Bintang Logam', 'CV', 'Besi & Aluminium', 'Bekasi Barat', 'Jawa Barat', 'Active', 4.2, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('33333333-3333-4333-8333-333333333004', 'SUP-015', 'CV Tekno Prima', 'CV', 'Alat Las & Consumable', 'Tangerang', 'Banten', 'Active', 4.0, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('33333333-3333-4333-8333-333333333005', 'SUP-021', 'UD Maju Jaya', 'UD', 'Cat & Bahan Kimia', 'Cikarang Selatan', 'Jawa Barat', 'On Hold', 3.5, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z')
-ON CONFLICT (code) DO UPDATE
-SET name = EXCLUDED.name,
+ON CONFLICT ("Id") DO UPDATE
+SET code = EXCLUDED.code,
+    name = EXCLUDED.name,
     type = EXCLUDED.type,
     category = EXCLUDED.category,
     city = EXCLUDED.city,

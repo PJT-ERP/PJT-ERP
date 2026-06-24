@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { PlayCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingRequest, PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
@@ -201,14 +202,12 @@ function DrawingLinks({ so }: { so: SalesOrder }) {
 
 function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { users, currentUser, refreshBackendData } = useApp();
-  const [operatorId, setOperatorId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const operators = users.filter(u => u.role === 'Engineering Worker' || u.role === 'Engineering Supervisor');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!operatorId || isSubmitting) return;
+  const handleAssign = async (operatorId: string) => {
+    if (isSubmitting) return;
     const operator = users.find(u => u.id === operatorId);
     const operatorBackendId = toBackendUserId(operator);
     const reviewer = users.find(user => user.role === "Engineering Supervisor") || currentUser || operator;
@@ -238,294 +237,52 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
     } catch (error) {
       console.warn("Failed to assign operator in backend.", error);
       alert("Gagal assign operator ke backend. Cek koneksi API atau data SO.");
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 400, fontFamily: S.font, overflow: "hidden" }}>
-        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Tugaskan Operator</h2>
-            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id} — {so.description}</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
-        </div>
-        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Pilih Operator <span style={{ color: "#EF4444" }}>*</span></label>
-            <select required value={operatorId} onChange={e => setOperatorId(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }}>
-              <option value="" disabled>Pilih Operator...</option>
-              {operators.map(op => <option key={op.id} value={op.id}>{op.name}</option>)}
-            </select>
-          </div>
-          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={!operatorId || isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: operatorId && !isSubmitting ? "pointer" : "not-allowed", opacity: operatorId && !isSubmitting ? 1 : 0.5 }}>
-              {isSubmitting ? "Menyimpan..." : "Konfirmasi"}
-            </button>
-          </div>
-        </form>
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 380, padding: 24, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+        <h2 style={{ color: S.slate, margin: "0 0 4px", fontSize: "18px" }}>Tugaskan Operator</h2>
+        <p style={{ color: S.secondary, margin: "0 0 16px", fontSize: "12.5px" }}>{so.id} - {so.description || so.productName}</p>
+        
+        {isSubmitting ? (
+          <div style={{ padding: "30px 0", textAlign: "center", color: S.secondary, fontSize: "14px", fontWeight: 500 }}>Menyimpan Penugasan...</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {operators.map(operator => (
+                <button
+                  key={operator.id}
+                  onClick={() => handleAssign(operator.id)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: 12,
+                    borderRadius: 8,
+                    border: `1px solid ${S.border}`,
+                    background: S.white,
+                    cursor: "pointer",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = S.bg}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = S.white}
+                >
+                  <p style={{ margin: 0, color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>{operator.name}</p>
+                  <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "12px" }}>{operator.email}</p>
+                </button>
+              ))}
+            </div>
+            <button onClick={onClose} style={{ width: "100%", marginTop: 14, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = S.bg} onMouseLeave={e => e.currentTarget.style.backgroundColor = S.white}>Batal</button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function MaterialRequestModal({
-  so,
-  onClose,
-  onSubmitted,
-  onMessage,
-}: {
-  so: SalesOrder;
-  onClose: () => void;
-  onSubmitted: () => void;
-  onMessage: (message: SystemMessage) => void;
-}) {
-  const { currentUser, refreshBackendData } = useApp();
-  const materialOptions = getMaterialOptions(so);
-  const firstMaterial = materialOptions[0];
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [items, setItems] = useState([
-    {
-      materialKey: firstMaterial?.key || "",
-      itemName: firstMaterial?.itemName || "",
-      specification: firstMaterial?.specification || "",
-      quantity: "1",
-      unit: "PCS",
-      urgency: "Urgent" as PurchasingUrgency,
-      purchaseCategory: "Project",
-    },
-  ]);
 
-  const updateItem = (index: number, key: keyof typeof items[number], value: string) => {
-    setItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
-  };
-
-  const addItem = () => {
-    setItems(prev => [...prev, {
-      materialKey: "",
-      itemName: "",
-      specification: "",
-      quantity: "1",
-      unit: "PCS",
-      urgency: "Normal",
-      purchaseCategory: "Project",
-    }]);
-  };
-
-  const removeItem = (index: number) => {
-    setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index));
-  };
-
-  const selectMaterial = (index: number, materialKey: string) => {
-    const selected = materialOptions.find(option => option.key === materialKey);
-    setItems(prev => prev.map((item, itemIndex) => itemIndex === index
-      ? {
-          ...item,
-          materialKey,
-          itemName: selected?.itemName || "",
-          specification: selected?.specification || "",
-        }
-      : item));
-  };
-
-  const parsedItems = items.map(item => ({
-    itemName: item.itemName.trim(),
-    specification: item.specification.trim(),
-    quantity: Number.parseInt(item.quantity, 10),
-    unit: item.unit.trim() || "PCS",
-    urgency: item.urgency,
-    purchaseCategory: item.purchaseCategory,
-  }));
-
-  const canSubmit = parsedItems.every(item => item.itemName && Number.isFinite(item.quantity) && item.quantity > 0);
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canSubmit) return;
-
-    if (isSubmitting) return;
-
-    // Priority order for requestedByUserId:
-    // 1. currentUser.id if it's a real GUID (user logged in via backend JWT)
-    // 2. productionWorkerUserId from the SO (the assigned backend worker's GUID)
-    // 3. local assignedTo if it's a GUID
-    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
-    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
-    const requesterId = currentUserGuid || assignedWorkerGuid || "";
-
-    const salesOrderId = getBackendSalesOrderId(so);
-    if (!isGuid(salesOrderId)) {
-      onMessage({
-        tone: "error",
-        title: "MR Tidak Bisa Diajukan",
-        message: "Data backend Sales Order belum lengkap. Refresh data atau pastikan SO sudah tersinkron ke backend.",
-      });
-      return;
-    }
-
-    if (!requesterId) {
-      onMessage({
-        tone: "error",
-        title: "Operator Tidak Ditemukan",
-        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering Worker yang ditugaskan.",
-      });
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      await productionApi.submitMaterialRequest(salesOrderId, {
-        requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
-        notes: notes || null,
-        items: parsedItems.map(item => ({
-          materialRequirementId: null,
-          salesOrderItemId: null,
-          itemName: item.itemName,
-          size: item.specification || null,
-          qty: item.quantity,
-          urgency: item.urgency,
-          suggestedSupplier: null,
-          notes: notes || null,
-          purchaseCategory: item.purchaseCategory,
-        })),
-      });
-      onSubmitted();
-      await refreshBackendData();
-      window.setTimeout(() => {
-        void refreshBackendData();
-      }, 1500);
-      onMessage({
-        tone: "success",
-        title: "MR Diajukan ke Supervisor",
-        message: `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
-      });
-      onClose();
-    } catch (error: unknown) {
-      console.warn("Failed to submit production material request to backend.", error);
-      // Try to extract backend error message
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      const backendMsg = axiosError?.response?.data?.message;
-      onMessage({
-        tone: "error",
-        title: "Gagal Mengajukan MR",
-        message: backendMsg || "MR gagal dikirim ke backend. Cek koneksi API atau data operator.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 450, fontFamily: S.font, overflow: "hidden" }}>
-        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Permintaan Material</h2>
-            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id}</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
-        </div>
-        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <p style={{ fontSize: "13.5px", color: S.slate, margin: 0 }}>Isi daftar item untuk MR. Pengajuan ini memerlukan approval Supervisor sebelum diteruskan ke Purchasing.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {items.map((item, index) => (
-              <div key={index} style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "12px", color: S.secondary, fontWeight: 600 }}>Item #{index + 1}</span>
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(index)} style={{ border: "none", background: "transparent", color: S.secondary, cursor: "pointer", display: "flex" }}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                <select
-                  value={item.materialKey}
-                  onChange={e => selectMaterial(index, e.target.value)}
-                  required
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                >
-                  <option value="" disabled>Pilih material / item...</option>
-                  {materialOptions.map(option => (
-                    <option key={option.key} value={option.key}>
-                      {option.itemName}{option.specification ? ` - ${option.specification}` : ""}
-                    </option>
-                  ))}
-                </select>
-                <textarea
-                  value={item.specification}
-                  onChange={e => updateItem(index, "specification", e.target.value)}
-                  placeholder="Spesifikasi / ukuran"
-                  rows={2}
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", resize: "none" }}
-                />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 110px", gap: 8 }}>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={e => updateItem(index, "quantity", e.target.value)}
-                    placeholder="Qty"
-                    required
-                    style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
-                  />
-                  <input
-                    value={item.unit}
-                    onChange={e => updateItem(index, "unit", e.target.value)}
-                    placeholder="Unit"
-                    style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none" }}
-                  />
-                  <select
-                    value={item.urgency}
-                    onChange={e => updateItem(index, "urgency", e.target.value)}
-                    style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                  >
-                    <option>Normal</option>
-                    <option>Urgent</option>
-                    <option>Critical</option>
-                  </select>
-                </div>
-                <select
-                  value={item.purchaseCategory}
-                  onChange={e => updateItem(index, "purchaseCategory", e.target.value)}
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                >
-                  <option>Project</option>
-                  <option>Consumable</option>
-                  <option>Tools</option>
-                  <option>Maintenance</option>
-                  <option>Asset</option>
-                </select>
-              </div>
-            ))}
-            <button type="button" onClick={addItem} style={{ padding: "10px", border: `1px dashed ${S.border}`, background: S.white, color: S.secondary, borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <Plus size={14} /> Tambah Item
-            </button>
-          </div>
-          <textarea
-            value={notes}
-            onChange={event => setNotes(event.target.value)}
-            placeholder="Catatan MR"
-            rows={2}
-            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", resize: "none", boxSizing: "border-box" }}
-          />
-          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={!canSubmit || isSubmitting} style={{ flex: 1, padding: "10px", background: "#EAB308", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
-              {isSubmitting ? "Mengajukan..." : "Ajukan MR"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
@@ -794,7 +551,9 @@ function MaterialReviewModal({
 }
 
 function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+  const { purchasingRequests } = useApp();
   const materials = getMaterialOptions(so);
+  const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, fontFamily: S.font, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
@@ -810,6 +569,12 @@ function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () =>
             <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deskripsi</p>
             <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.description}</p>
           </div>
+          { (request?.status === 'Ditolak' || request?.backendStatus === 'Rejected') && request?.rejectionReason && (
+            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8 }}>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#B91C1C" }}>MR Ditolak (Catatan SPV):</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#DC2626" }}>{request.rejectionReason}</p>
+            </div>
+          )}
           <div>
             <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Link Desain / Gambar</p>
             {getDrawingUrl(so) ? (
@@ -851,10 +616,10 @@ export function ProductionPage() {
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const currentBackendUserId = toBackendUserId(currentUser);
 
+  const navigate = useNavigate();
   const [assignModal, setAssignModal] = useState<SalesOrder | null>(null);
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
-  const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
   const [reviewMrModal, setReviewMrModal] = useState<SalesOrder | null>(null);
   const [detailModal, setDetailModal] = useState<SalesOrder | null>(null);
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
@@ -869,8 +634,15 @@ export function ProductionPage() {
 
   // Lists
   const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
-  const pendingAssignment = mergedSalesOrders.filter(so => so.status === 'Ready for Production' && !so.assignedTo);
-  const materialPrep = mergedSalesOrders.filter(so => so.status === 'Ready for Production' && !!so.assignedTo && isAssignedToCurrentUser(so));
+  
+  const isReadyForProd = (so: SalesOrder) => {
+    if (so.status === 'Ready for Production') return true;
+    if (so.backendDesignStatus === 'Approved' && ['Waiting Pricing', 'Waiting Payment', 'Pending Design', 'Waiting Approval'].includes(so.status)) return true;
+    return false;
+  };
+
+  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo);
+  const materialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so));
   const inProduction = mergedSalesOrders.filter(so => so.status === 'In Production' && isAssignedToCurrentUser(so));
   const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC');
 
@@ -1058,11 +830,7 @@ export function ProductionPage() {
                       <span>Operator: <strong>{operator}</strong></span>
                       <DrawingLinks so={so} />
                     </div>
-                    {mrState === 'rejected' && getMaterialRequest(so)?.rejectionReason && (
-                      <p style={{ fontSize: "12.5px", color: "#B91C1C", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
-                        Catatan SPV: {getMaterialRequest(so)?.rejectionReason}
-                      </p>
-                    )}
+
                     {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
                       <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
                         Catatan QC: {so.qcNotes}
@@ -1077,13 +845,13 @@ export function ProductionPage() {
                       </button>
                     )}
                     {mrState === 'none' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                      <button onClick={() => setReqModal(so)}
+                      <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
                       </button>
                     )}
                     {mrState === 'rejected' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                      <button onClick={() => setReqModal(so)}
+                      <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                         style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Re-ajukan MR
                       </button>
@@ -1188,14 +956,7 @@ export function ProductionPage() {
       </div>
 
       {assignModal && <AssignOperatorModal so={assignModal} onClose={() => setAssignModal(null)} />}
-      {reqModal && (
-        <MaterialRequestModal
-          so={reqModal}
-          onClose={() => setReqModal(null)}
-          onSubmitted={() => rememberMaterialRequest(reqModal)}
-          onMessage={setSystemMessage}
-        />
-      )}
+
       {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} />}
       {completeModal && <CompleteProductionModal so={completeModal} onClose={() => setCompleteModal(null)} />}
       {reviewMrModal && (

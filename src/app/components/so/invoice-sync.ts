@@ -42,9 +42,9 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
   
   const hasPendingPayment = invoice?.invoiceId && payments.some(p => p.invoiceId === invoice.invoiceId && p.status === "PENDING");
 
-  if ((invoice?.status === "paid" || invoice?.status === "verified") && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
+  if ((invoice?.status === "paid" || invoice?.status === "verified") && (status === "Waiting Payment" || status === "Waiting Payment")) {
     status = "Ready for Production";
-  } else if (hasPendingPayment && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
+  } else if (hasPendingPayment && (status === "Waiting Payment" || status === "Waiting Payment")) {
     status = "Waiting Approval"; // Using an existing SOStatus that implies waiting for an approval
   }
 

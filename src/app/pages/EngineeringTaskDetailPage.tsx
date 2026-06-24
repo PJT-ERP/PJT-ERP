@@ -161,16 +161,22 @@ export function EngineeringTaskDetailPage() {
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
   
-  const isDoingWorkerSubmission = qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+  const currentUserBackendId = toBackendUserId(currentUser);
+  const isAssignedToCurrentUser = 
+    qut.designAssignedTo === currentUser?.id || 
+    (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
+    qut.designAssignedTo === currentUser?.name ||
+    qut.designAssignedName === currentUser?.name;
+  const isDoingWorkerSubmission = isAssignedToCurrentUser && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
   const isDoingSpvApproval = isSpv && isPendingSpv;
 
   let canProcess = isDoingWorkerSubmission || isDoingSpvApproval;
   
   // Strictly prevent any processing if it has moved past the engineering phase
-  if (['Waiting Pricing', 'Menunggu Invoice DP', 'In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
+  if (['In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
     canProcess = false;
   }
-  if (qut.backendDesignStatus === 'Approved') {
+  if (qut.backendDesignStatus === 'Approved' && !isDoingWorkerSubmission) {
     canProcess = false;
   }
 
@@ -333,17 +339,7 @@ export function EngineeringTaskDetailPage() {
 
         {/* Content */}
         <div style={{ padding: "24px", flex: 1 }}>
-          {!canProcess && !(qut.designLink || qut.designId || qut.materials?.length) ? (
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <div style={{ width: 64, height: 64, background: "#FEF3C7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <UserPlus size={30} style={{ color: "#D97706" }} />
-              </div>
-              <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>Belum Bisa Dikerjakan</h3>
-              <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                SO ini harus ditugaskan oleh Engineering Supervisor sebelum Engineer bisa mengirim desain.
-              </p>
-            </div>
-          ) : step === 'done' ? (
+          {step === 'done' ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <div style={{ width: 64, height: 64, background: "#DCFCE7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
