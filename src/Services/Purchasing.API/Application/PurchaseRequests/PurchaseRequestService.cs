@@ -520,6 +520,16 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         RefreshPurchaseRequestStatus(purchaseRequest);
         UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Received, now);
 
+        await eventPublisher.PublishAsync(
+            new PurchaseItemReceivedEvent(
+                purchaseRequest.Id,
+                purchaseRequest.PrNumber,
+                purchaseItem.Id,
+                purchaseItem.ItemName,
+                purchaseItem.Qty,
+                request.ReceivedDate),
+            cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
     }

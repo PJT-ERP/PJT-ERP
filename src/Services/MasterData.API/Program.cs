@@ -6,6 +6,8 @@ using PJT_ERP.Shared.Infrastructure.Abstractions;
 using PJT_ERP.Shared.Infrastructure.Caching;
 using PJT_ERP.Shared.Infrastructure.Messaging;
 using PJT_ERP.Shared.Logging;
+using PJT_ERP.EventBus.Messages.Events;
+using PJT_ERP.MasterData.Api.Application.IntegrationEvents;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,12 +21,15 @@ builder.Services.AddDbContext<MasterDataContext>(options =>
 });
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<MasterDataContext>());
 builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<MasterDataContext>(builder.Configuration, options =>
 {
     options.QueueName = "pjt_masterdata_events";
-    options.FanOutQueues = ["pjt_production_events"];
-});
+    options.FanOutQueues = ["pjt_production_events", "pjt_purchasing_events"];
+})
+    .WithReceiver()
+    .AddSubscription<PurchaseItemReceivedEvent, PurchaseItemReceivedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();

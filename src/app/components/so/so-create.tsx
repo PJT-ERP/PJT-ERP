@@ -57,6 +57,7 @@ interface ProductOption {
   partNumber: string;
   unit: string;
   materialSpec?: string | null;
+  bomItems?: { inventoryItemId: string; inventoryItemCode: string; inventoryItemName: string; quantity: number; unit: string; }[];
 }
 
 const emptyProduct = (): ProductRow => ({
@@ -362,7 +363,13 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 productName: pName,
                 designId: "",
                 unit: selected?.unit.toLowerCase() || row.unit,
-                materials: selected?.materialSpec ? [
+                materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
+                  id: b.inventoryItemId,
+                  name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                  specification: "",
+                  quantity: String(b.quantity),
+                  unit: b.unit,
+                })) : selected?.materialSpec ? [
                   ...selected.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
                     id: selected.id + "-mat-" + idx,
                     name: `MAT-${String(parseInt(selected.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
@@ -500,6 +507,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     partNumber: product.partNumber,
     unit: product.unit || "pcs",
     materialSpec: product.materialSpec,
+    bomItems: product.bomItems,
   }));
 
   const isEdit = initialData?.mode === "edit";

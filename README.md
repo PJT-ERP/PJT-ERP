@@ -504,17 +504,6 @@ Output utama:
 - NoGo rate.
 - Gambaran performa pabrik.
 
-## Pembaruan & Fitur Terbaru
-
-Sistem secara aktif mendapatkan peningkatan fitur dan pembaruan UI/UX:
-
-- **Sales Order & Engineering**: Dukungan flow *repeat order* untuk pelanggan lama, filter customer terintegrasi, external link (seperti gambar referensi pelanggan) sekarang ditampilkan sebagai URL asli supaya mudah disalin (*copy-paste*), serta perbaikan navigasi dan *state management* di menu pembuatan SO.
-- **Production Tracking**: Kalkulasi presentase progress yang lebih akurat sesuai logic alur kerja (`Confirmed` = 20%, `Ready for Production` = 40%, `In Production` = 60%, `Finished` menunggu QC = 80%, `Completed` = 100%).
-- **Finance**: Fitur Cetak Invoice kini langsung diintegrasikan dengan generated PDF dari backend (tidak lagi sekadar print window browser), dan tombol *Verifikasi Pembayaran* memotong alur dengan navigasi pintar langsung ke tab verifikasi.
-- **Dashboard Terintegrasi**: Fitur "Aktivitas Terbaru" di dashboard kini di-generate secara dinamis. Alih-alih membuat duplikasi tabel audit trail di backend, timeline dibentuk dari kumpulan timestamp pesanan secara *on-the-fly* agar infrastruktur database tetap ramping dan efisien.
-- **Purchasing & BOM**: Perbaikan layout purchasing dan styling *Bill of Materials* yang lebih modern.
-- **QC Integration**: Skema Quality Control ditingkatkan dengan dukungan penyimpanan multi-foto (QcPhotos) secara persisten untuk bukti review supervisor.
-
 ## Cara Menjalankan
 
 Jalankan semua service:

@@ -58,7 +58,7 @@ export interface MR {
   approvedAt?: string;
   supplierAssigned?: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
-  isReadyForPo?: boolean;
+  isReadyForFinance?: boolean;
   hasUnorderedItems?: boolean;
   rejectionReason?: string;
 }
@@ -112,7 +112,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
       : undefined,
-    isReadyForPo: isReadyForFinance,
+    isReadyForFinance: isReadyForFinance,
     hasUnorderedItems,
     items: request.items.map(item => ({
       itemId: item.id,
@@ -405,7 +405,7 @@ export function MaterialRequestsPage() {
                       )}
                     </TD>
                     <TD>
-                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForPo && mr.hasUnorderedItems ? (
+                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForFinance && mr.hasUnorderedItems ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-amber-50"
                           style={{ fontSize: 11, color: "#d97706", borderColor: "#fde68a", background: "#fffbeb" }}
@@ -413,7 +413,15 @@ export function MaterialRequestsPage() {
                         >
                           <Edit size={12} /> Isi Harga
                         </button>
-                      ) : ((mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved") && mr.hasUnorderedItems && canCreatePo ? (
+                      ) : mr.backendStatus === "SupervisorApproved" && mr.isReadyForFinance ? (
+                        <button
+                          className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-slate-50"
+                          style={{ fontSize: 11, color: "#64748b", borderColor: "#e2e8f0", background: "#f8fafc" }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/requests/${mr.id}`); }}
+                        >
+                          <Clock size={12} /> Tunggu Finance
+                        </button>
+                      ) : mr.backendStatus === "FinanceApproved" && mr.hasUnorderedItems && canCreatePo ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}

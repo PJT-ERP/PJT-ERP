@@ -5,6 +5,7 @@ import { PurchaseOrdersPage } from "../components/purchasing/purchase-orders-pag
 import { CreatePurchaseOrderPage } from "../components/purchasing/create-purchase-order-page";
 import { InventoryPage } from "../components/purchasing/inventory-page";
 import { SuppliersPage } from "../components/purchasing/suppliers-page";
+import { ProductsPage } from "../components/purchasing/products-page";
 import { CreatePurchaseRequestPage } from "../components/purchasing/create-purchase-request-page";
 import { PurchaseRequestDetailPage } from "../components/purchasing/purchase-request-detail-page";
 import { PurchaseOrderDetailPage } from "../components/purchasing/purchase-order-detail-page";
@@ -29,6 +30,7 @@ export default function PurchasingModule() {
       <Route path="orders" element={<PurchaseOrdersPage />} />
       <Route path="orders/:id" element={<PurchaseOrderDetailPage />} />
       <Route path="create" element={canCreatePo ? <CreatePurchaseOrderPage onNavigate={handleNavigate} /> : <Navigate to="/erp/purchasing/orders" replace />} />
+      <Route path="products" element={<ProductsPage />} />
       <Route path="suppliers" element={<SuppliersPage />} />
     </Routes>
   );

@@ -419,6 +419,65 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
             invoices.Count == 0 ? 0 : decimal.Round(invoices.Average(invoice => invoice.PaymentPercent), 2));
     }
 
+    public async Task<IReadOnlyCollection<SupplierPaymentDto>> ListSupplierPaymentsAsync(CancellationToken cancellationToken)
+    {
+        var payments = await db.SupplierPayments
+            .AsNoTracking()
+            .OrderByDescending(payment => payment.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return payments.Select(ToDto).ToArray();
+    }
+
+    public async Task<SupplierPaymentDto?> SubmitSupplierPaymentAsync(SubmitSupplierPaymentFormRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Amount <= 0)
+        {
+            throw new InvalidOperationException("Payment amount must be greater than zero.");
+        }
+
+        var paymentAmount = RoundMoney(request.Amount);
+        var bankName = NormalizeOptional(request.BankName) ?? "Bank Transfer";
+        var bankReference = NormalizeOptional(request.BankReference) ?? $"PAY-{Guid.NewGuid():N}"[..12].ToUpperInvariant();
+        var notes = NormalizeOptional(request.Notes);
+
+        var payment = new SupplierPayment
+        {
+            PoNumber = request.PoNumber,
+            SupplierName = request.SupplierName,
+            PaymentDate = request.PaymentDate,
+            Amount = paymentAmount,
+            BankName = bankName,
+            BankReference = bankReference,
+            Notes = notes,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        if (request.ProofFile is not null && request.ProofFile.Length > 0)
+        {
+            var originalFileName = request.ProofFile.FileName;
+            var extension = Path.GetExtension(originalFileName);
+            var safePoNumber = request.PoNumber.Replace("/", "-");
+            var uniqueFileName = $"bukti-{safePoNumber}-{Guid.NewGuid():N}{extension}";
+            var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "proofs");
+            Directory.CreateDirectory(uploadsFolder);
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+            
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await request.ProofFile.CopyToAsync(stream, cancellationToken);
+            }
+            
+            payment.ProofFileName = originalFileName;
+            payment.ProofFileUrl = $"/proofs/{uniqueFileName}";
+        }
+
+        await db.SupplierPayments.AddAsync(payment, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ToDto(payment);
+    }
+
     private static IQueryable<Invoice> IncludeInvoice(IQueryable<Invoice> query)
     {
         return query
@@ -686,6 +745,22 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
             proofRequest.VerifiedAtUtc,
             proofRequest.RejectionReason,
             proofRequest.RejectedAtUtc);
+    }
+
+    private static SupplierPaymentDto ToDto(SupplierPayment payment)
+    {
+        return new SupplierPaymentDto(
+            payment.Id,
+            payment.PoNumber,
+            payment.SupplierName,
+            payment.PaymentDate,
+            payment.Amount,
+            payment.BankName,
+            payment.BankReference,
+            payment.ProofFileName,
+            payment.ProofFileUrl,
+            payment.Notes,
+            payment.CreatedAtUtc);
     }
 
     private static PaymentScheduleDto[] BuildPaymentScheduleDtos(Invoice invoice)

@@ -11,6 +11,8 @@ public sealed class MasterDataContext(DbContextOptions<MasterDataContext> option
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierContact> SupplierContacts => Set<SupplierContact>();
+    public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<ProductBomItem> ProductBomItems => Set<ProductBomItem>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -43,6 +45,25 @@ public sealed class MasterDataContext(DbContextOptions<MasterDataContext> option
             builder.Property(product => product.IsActive).HasColumnName("is_active");
             builder.Property(product => product.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(product => product.UpdatedAtUtc).HasColumnName("updated_at_utc");
+            
+            builder.HasMany(p => p.BomItems)
+                   .WithOne(b => b.Product)
+                   .HasForeignKey(b => b.ProductId)
+                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductBomItem>(builder =>
+        {
+            builder.ToTable("product_bom_items");
+            builder.HasKey(b => b.Id);
+            builder.Property(b => b.ProductId).HasColumnName("product_id");
+            builder.Property(b => b.InventoryItemId).HasColumnName("inventory_item_id");
+            builder.Property(b => b.Quantity).HasColumnName("quantity");
+            
+            builder.HasOne(b => b.InventoryItem)
+                   .WithMany()
+                   .HasForeignKey(b => b.InventoryItemId)
+                   .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Supplier>(builder =>
@@ -84,6 +105,26 @@ public sealed class MasterDataContext(DbContextOptions<MasterDataContext> option
             builder.Property(contact => contact.Phone).HasMaxLength(40).HasColumnName("phone");
             builder.Property(contact => contact.Email).HasMaxLength(160).HasColumnName("email");
             builder.Property(contact => contact.IsPrimary).HasColumnName("is_primary");
+        });
+
+        modelBuilder.Entity<InventoryItem>(b =>
+        {
+            b.ToTable("inventory_items");
+            b.HasKey(x => x.Id);
+            b.HasIndex(x => x.Code).IsUnique();
+            b.Property(x => x.Code).HasColumnName("code").IsRequired().HasMaxLength(80);
+            b.Property(x => x.Name).HasColumnName("name").IsRequired().HasMaxLength(160);
+            b.Property(x => x.Category).HasColumnName("category").HasMaxLength(80);
+            b.Property(x => x.Unit).HasColumnName("unit").HasMaxLength(40);
+            b.Property(x => x.CurrentStock).HasColumnName("current_stock");
+            b.Property(x => x.MinStock).HasColumnName("min_stock");
+            b.Property(x => x.MaxStock).HasColumnName("max_stock");
+            b.Property(x => x.ReorderPoint).HasColumnName("reorder_point");
+            b.Property(x => x.Location).HasColumnName("location").HasMaxLength(120);
+            b.Property(x => x.SupplierName).HasColumnName("supplier_name").HasMaxLength(160);
+            b.Property(x => x.UnitPrice).HasColumnName("unit_price");
+            b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+            b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());

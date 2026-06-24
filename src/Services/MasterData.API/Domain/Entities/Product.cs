@@ -10,4 +10,6 @@ public sealed class Product
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    
+    public List<ProductBomItem> BomItems { get; set; } = new();
 }

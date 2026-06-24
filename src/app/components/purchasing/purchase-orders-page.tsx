@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useNavigate } from "react-router";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { SupplierPaymentDto } from "../../services/financeApi";
 import { useApp } from "../context/AppContext";
 
 /* ── Types & Data ──────────────────────────────────────────── */
@@ -83,7 +84,7 @@ export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / 
 export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = []): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -128,7 +129,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[]): PO[] {
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
           deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
-          paymentStatus: request.financeReviewedAtUtc ? "Paid" : "Unpaid",
+          paymentStatus: payments.some(p => p.poNumber === poNumber) ? "Paid" : "Unpaid",
           paymentTerms: "Net 14",
           requestRefs: [request.prNumber],
           soRefs: item.salesOrderNumber ? [item.salesOrderNumber] : [],
@@ -229,8 +230,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
 
   const loadPurchaseOrders = useCallback(async () => {
     try {
-      const requests = await purchasingApi.listPurchaseRequests();
-      setPurchaseOrders(mapPurchaseRequestsToPos(requests));
+      // In this component, we can use usePurchasingData or fetch them directly if not available.
+      // Since it's self-contained loading for now:
+      const [requests, paymentsRes] = await Promise.all([
+        purchasingApi.listPurchaseRequests(),
+        import("../../services/financeApi").then(m => m.financeApi.listSupplierPayments())
+      ]);
+      setPurchaseOrders(mapPurchaseRequestsToPos(requests, paymentsRes));
     } catch (error) {
       console.warn("Purchasing API unavailable; purchase order seed data was not loaded.", error);
       setPurchaseOrders([]);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle2, AlertTriangle, X, Plus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, X, Plus, Clock } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
 import {
@@ -202,7 +202,7 @@ export function PurchaseRequestDetailPage() {
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Kode</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Material</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Qty</th>
-                    {(detail.backendStatus === "SupervisorApproved" || detail.backendStatus === "FinanceApproved" || detail.isReadyForPo) && (
+                    {(detail.backendStatus === "SupervisorApproved" || detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance) && (
                       <>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Supplier (Toko)</th>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Perkiraan</th>
@@ -216,7 +216,7 @@ export function PurchaseRequestDetailPage() {
                       <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
                       <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
                       <td className="p-3 text-sm font-semibold text-slate-900">{item.qty} {item.unit}</td>
-                      {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForPo ? (
+                      {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForFinance ? (
                         <>
                           <td className="p-2">
                             {pricingData[item.itemId]?.isCustomSupplier ? (
@@ -275,7 +275,7 @@ export function PurchaseRequestDetailPage() {
                             </div>
                           </td>
                         </>
-                      ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForPo) ? (
+                      ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance) ? (
                         <>
                           <td className="p-3 text-sm text-slate-900">{item.supplierName || "-"}</td>
                           <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
@@ -312,14 +312,14 @@ export function PurchaseRequestDetailPage() {
           )}
 
           {/* Actions */}
-          {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForPo && (
+          {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForFinance && (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-amber-50 border border-amber-200">
                 <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-bold text-amber-800">Tugas: Pengecekan Harga & Toko</p>
                   <p className="text-sm text-amber-700 mt-1">
-                    Isi tabel harga dan toko di atas, lalu klik Simpan Harga untuk melanjutkan ke tahap pembuatan PO.
+                    Isi tabel harga dan toko di atas, lalu klik Simpan Harga. Setelah itu, dokumen ini akan dikirim ke Finance untuk approval budget sebelum Anda bisa membuat PO.
                   </p>
                 </div>
               </div>
@@ -329,7 +329,7 @@ export function PurchaseRequestDetailPage() {
                 onClick={handleSavePricing}
                 disabled={isSavingPricing}
               >
-                <CheckCircle2 size={16} /> {isSavingPricing ? "Menyimpan..." : "Simpan Harga & Lanjut Buat PO"}
+                <CheckCircle2 size={16} /> {isSavingPricing ? "Menyimpan..." : "Simpan Harga & Minta Approval Finance"}
               </button>
             </div>
           )}
@@ -346,14 +346,26 @@ export function PurchaseRequestDetailPage() {
                 </div>
               </div>
             </div>
-          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.isReadyForPo) ? (
+          ) : detail.backendStatus === "SupervisorApproved" && detail.isReadyForFinance ? (
+            <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+              <div className="flex items-start gap-3 rounded p-4 bg-blue-50 border border-blue-200">
+                <Clock size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-blue-800">Menunggu Approval Finance</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Harga dan Toko sudah terisi. Dokumen ini sedang menunggu tim Finance menyetujui anggaran sebelum PO bisa diterbitkan.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200">
                 <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-bold text-emerald-800">Siap Dibuatkan PO</p>
                   <p className="text-sm text-emerald-700 mt-1">
-                    Harga dan Toko sudah terisi. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
+                    Anggaran telah disetujui Finance. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
                   </p>
                 </div>
               </div>
@@ -379,7 +391,7 @@ export function PurchaseRequestDetailPage() {
               Berhasil Disimpan
             </DialogTitle>
             <DialogDescription className="pt-2 text-slate-600">
-              Harga dan detail supplier berhasil disimpan. {canCreatePo ? "Anda kini dapat melanjutkan untuk membuat dokumen Purchase Order (PO)." : "Dokumen ini kini menunggu tim Purchasing membuat Purchase Order (PO)."}
+              Harga dan detail supplier berhasil disimpan. Dokumen ini kini dikirim ke tim Finance untuk mendapatkan approval anggaran.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3 mt-4">
@@ -388,21 +400,10 @@ export function PurchaseRequestDetailPage() {
                 setShowSuccessDialog(false);
                 navigate("/erp/purchasing/requests");
               }}
-              className="rounded border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
             >
-              Nanti Saja
+              Tutup & Kembali
             </button>
-            {canCreatePo && (
-              <button
-                onClick={() => {
-                  setShowSuccessDialog(false);
-                  navigate(`/erp/purchasing/create?reqId=${detail.id}`);
-                }}
-                className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
-              >
-                Buat PO Sekarang
-              </button>
-            )}
           </div>
         </DialogContent>
       </Dialog>
