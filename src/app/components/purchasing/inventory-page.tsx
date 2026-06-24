@@ -399,8 +399,8 @@ export function InventoryPage() {
               Nilai Stok per Kategori (Juta Rp)
             </p>
           </div>
-          <div className="px-2 py-4">
-            <ResponsiveContainer width="100%" height={180}>
+          <div className="px-2 py-4 flex-1 min-h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
