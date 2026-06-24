@@ -26,7 +26,7 @@ concurrency:
 jobs:
   trivy-scan:
     name: Trivy Vulnerability Scanner
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - name: Checkout code
