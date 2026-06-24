@@ -2,21 +2,11 @@ name: Trivy Security Scan
 
 on:
   pull_request:
-    paths:
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - '**/*.csproj'
   push:
     branches:
       - main
       - dev
       - "feature/**"
-    paths:
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - '**/*.csproj'
   workflow_dispatch:
 
 concurrency:
