@@ -8,6 +8,7 @@ import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi"
 import { authApi } from "../../services/authApi";
 import { productionApi } from "../../services/productionApi";
 import { qcApi } from "../../services/qcApi";
+import { financeApi } from "../../services/financeApi";
 import { BACKEND_USER_IDS_BY_LOCAL_ID, isGuid, toBackendUserId } from "../../services/backendIds";
 
 interface AppContextType {
@@ -144,12 +145,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshBackendData = useCallback(async () => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
-    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult] = await Promise.allSettled([
+    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
       salesApi.listSalesOrders(),
       shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
       authApi.getUsers(),
+      financeApi.listInvoices().catch(() => [])
     ]);
 
     if (customersResult.status === "fulfilled") {
@@ -168,11 +170,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.warn("Product seed data was not loaded.", productsResult.reason);
     }
 
+    let invoices: any[] = [];
+    if (invoicesResult && invoicesResult.status === "fulfilled" && Array.isArray(invoicesResult.value)) {
+      invoices = invoicesResult.value;
+    }
+
     if (salesOrdersResult.status === "fulfilled") {
       const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
       
       setSalesOrders(salesOrdersResult.value.map(dto => {
-        const base = mapSalesOrderDto(dto);
+        const base = mapSalesOrderDto(dto, invoices);
         const updates = localUpdates[base.id];
         if (updates) {
           // Hanya me-restore field spesifik yang murni disimpan secara lokal (seperti materials BOM)
@@ -464,7 +471,7 @@ function canLoadPurchaseRequests(role?: UserRole | null) {
     || role === "Owner";
 }
 
-function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
+function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrder {
   const primaryItem = order.items[0];
 
   return {
@@ -481,14 +488,15 @@ function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     unit: "PCS",
     material: primaryItem?.notes || undefined,
     deadline: order.targetDate || order.soDate,
-    status: mapSalesOrderStatus(order),
+    status: mapSalesOrderStatus(order, invoices),
     createdBy: "backend",
     createdAt: order.soDate,
-    designLink: order.drawingFileUrl || order.designReference || order.customerDrawingUrl || undefined,
+    designLink: order.drawingFileUrl || order.designReference || undefined,
     startTime: order.startedAtUtc || undefined,
     endTime: order.finishedAtUtc || undefined,
     qcStatus: mapQcDecision(order.qcDecision),
     qcAt: order.finishedAtUtc || undefined,
+    designRevisions: order.designRevisions,
     completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
@@ -579,8 +587,12 @@ function mapPurchasingStatus(status: string): PurchasingStatus {
   return "Pending";
 }
 
-function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
+function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesOrder["status"] {
   if (order.status === "Completed") {
+    const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
+    if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
+      return "Waiting Payment";
+    }
     return "Completed";
   }
 

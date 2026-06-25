@@ -368,7 +368,7 @@ export function FinancePurchasingApproval() {
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
               {/* Info Box */}
               <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between items-start text-sm">

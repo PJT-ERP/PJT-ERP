@@ -72,7 +72,7 @@ export function CreateInvoice() {
   // Auto-fill items when SO is selected
   useEffect(() => {
     if (activeCandidate) {
-      const localSO = salesOrders.find(o => o.id === activeCandidate.salesOrderId);
+      const localSO = salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId);
       
       setItems(activeCandidate.items.map(item => {
         const localItem = localSO?.items?.find(li => li.productId === item.productId || li.id === item.salesOrderItemId);
@@ -376,10 +376,10 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-            {activeCandidate && salesOrders.find(o => o.id === activeCandidate.salesOrderId)?.estimatedAmount ? (
+            {activeCandidate && salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId)?.estimatedAmount ? (
               <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  <span className="font-semibold">Info dari Sales:</span> Estimasi nilai SO yang telah disepakati adalah <strong>Rp {salesOrders.find(o => o.id === activeCandidate.salesOrderId)?.estimatedAmount?.toLocaleString('id-ID')}</strong>.
+                  <span className="font-semibold">Info dari Sales:</span> Estimasi nilai SO yang telah disepakati adalah <strong>Rp {salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId)?.estimatedAmount?.toLocaleString('id-ID')}</strong>.
                 </p>
               </div>
             ) : null}

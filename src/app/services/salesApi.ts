@@ -86,6 +86,12 @@ export interface SalesOrderDto {
   finishedAtUtc?: string | null;
   qcDecision?: string | null;
   drawingFileUrl?: string | null;
+  designRevisions?: Array<{
+    version: number;
+    url: string;
+    changedBy: string;
+    changedAtUtc: string;
+  }>;
   items: Array<{
     id: string;
     productId: string;

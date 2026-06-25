@@ -383,7 +383,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Qty *</FieldLabel>
-                <input value={item.qty} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
+                <input value={item.qty} readOnly title="Qty telah disetujui dan tidak dapat diubah" onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" placeholder="0" className={inputClass("text-right cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
@@ -398,7 +398,21 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                     <span className="text-[10px] text-slate-400">Harga satuan otomatis: {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
                   )}
                 </div>
-                <input value={item.totalPrice} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "totalPrice", e.target.value)} type="number" placeholder="0" className={inputClass("text-right")} />
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-slate-400 text-sm">Rp</span>
+                  <input
+                    type="text"
+                    readOnly
+                    value={item.totalPrice ? Number(item.totalPrice).toLocaleString("id-ID") : ""}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                      const rawVal = e.target.value.replace(/\D/g, "");
+                      updateItem(index, "totalPrice", rawVal);
+                    }}
+                    placeholder="0"
+                    title="Total harga telah disetujui Finance dan tidak dapat diubah"
+                    className={inputClass("text-right pl-8 cursor-not-allowed opacity-80")}
+                  />
+                </div>
               </div>
               <div className="flex items-end md:col-span-1">
                 <button

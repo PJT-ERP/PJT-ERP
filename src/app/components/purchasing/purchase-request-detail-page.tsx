@@ -41,6 +41,9 @@ export function PurchaseRequestDetailPage() {
   const [pricingData, setPricingData] = useState<Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean }>>({});
   const [isSavingPricing, setIsSavingPricing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+
+  const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
 
   useEffect(() => {
     const loadData = async () => {
@@ -114,6 +117,29 @@ export function PurchaseRequestDetailPage() {
     }
   };
 
+  const handleReviewPr = async (decision: 'Accept' | 'Reject') => {
+    if (!detail || !currentUser) return;
+    setIsApproving(true);
+    try {
+      await purchasingApi.reviewPurchaseRequest(detail.backendId, {
+        reviewedByUserId: currentUser.id,
+        decision,
+        reviewStage: 'Finance',
+        rejectionReason: decision === 'Reject' ? window.prompt("Alasan Penolakan:") || "Ditolak oleh Finance" : undefined
+      });
+      await refreshBackendData();
+      
+      const refreshedData = await purchasingApi.listPurchaseRequests();
+      const refreshedReq = refreshedData.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
+      if (refreshedReq) setDetail(mapPurchaseRequestToMr(refreshedReq));
+    } catch (error) {
+      console.warn('Failed to review PR.', error);
+      window.alert('Gagal memproses review PR.');
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="p-10 text-center text-slate-500">Memuat data PR...</div>;
   }
@@ -136,7 +162,7 @@ export function PurchaseRequestDetailPage() {
     <div className="p-5 max-w-5xl mx-auto space-y-6">
       {/* Header Back Button */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate("/erp/purchasing/requests")} className="rounded p-2 hover:bg-slate-200 transition">
+        <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/requests")} className="rounded p-2 hover:bg-slate-200 transition">
           <ArrowLeft size={20} className="text-slate-600" />
         </button>
         <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Purchase Request</h1>
@@ -357,6 +383,24 @@ export function PurchaseRequestDetailPage() {
                   </p>
                 </div>
               </div>
+              {canApproveFinance && (
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    disabled={isApproving}
+                    onClick={() => handleReviewPr('Reject')}
+                    className="flex-1 py-3 rounded text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
+                  >
+                    Tolak Anggaran
+                  </button>
+                  <button
+                    disabled={isApproving}
+                    onClick={() => handleReviewPr('Accept')}
+                    className="flex-1 py-3 rounded text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={16} /> {isApproving ? "Menyimpan..." : "Setujui Anggaran"}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
