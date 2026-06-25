@@ -22,7 +22,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Req. Pembelian", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
-    { label: "Pantau QC", icon: <CheckSquare size={15} />, path: "/erp/qc" },
+    { label: "Pantau QC", icon: <CheckSquare size={15} />, path: "/erp/engineer-qc" },
   ],
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
