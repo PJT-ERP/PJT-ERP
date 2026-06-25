@@ -29,8 +29,11 @@ export function PurchaseOrderDetailPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const requests = await purchasingApi.listPurchaseRequests();
-      const pos = mapPurchaseRequestsToPos(requests);
+      const [requests, payments] = await Promise.all([
+        purchasingApi.listPurchaseRequests(),
+        import("../../services/financeApi").then(m => m.financeApi.listSupplierPayments())
+      ]);
+      const pos = mapPurchaseRequestsToPos(requests, payments);
       // Backend sets PR-123 as PO if poNumber wasn't explicitly generated in the mock or mapping. 
       // Our mapped POS have id matching the PO Number.
       const po = pos.find(p => p.id === id);
@@ -85,8 +88,8 @@ export function PurchaseOrderDetailPage() {
   if (!detail) {
     return (
       <div className="p-10 text-center">
-        <button onClick={() => navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">
-          Kembali ke Daftar PO
+        <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">
+          Kembali
         </button>
       </div>
     );
@@ -100,7 +103,7 @@ export function PurchaseOrderDetailPage() {
       {/* Header Back Button */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/erp/purchasing/orders")} className="rounded p-2 hover:bg-slate-200 transition">
+          <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/orders")} className="rounded p-2 hover:bg-slate-200 transition">
             <ArrowLeft size={20} className="text-slate-600" />
           </button>
           <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Purchase Order</h1>

@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Clock,
   Activity, Printer, Edit, Copy,
   AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye, Upload, X, Box,
+  Receipt, Download, Eye, Upload, X, Box, Plus
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
@@ -178,7 +178,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         customerName: customer?.contactPerson || customer?.contact || "",
         company: customer?.name || "",
         phone: customer?.phone || "",
-        contact: customer?.email || "",
+        contact: customer?.email || order?.customerEmail || "",
         address: customer?.address || "",
         description: order?.description || "",
         quantity: String(order?.quantity || ""),
@@ -231,12 +231,12 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         window.alert("Engineering sudah dalam tahap produksi. Desain tidak dapat diubah lagi.");
         return;
       }
-      
+
       let finalUrl = editForm.customerDrawingUrl.trim();
       if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
         finalUrl = 'https://' + finalUrl;
       }
-      
+
       newRevisions = [
         ...newRevisions,
         {
@@ -271,6 +271,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         name: editForm.company || editForm.customerName,
         phone: editForm.phone,
         contact: editForm.contact,
+        email: editForm.contact,
         address: editForm.address,
       });
     }
@@ -364,34 +365,40 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
             {WORKFLOW_STEPS.map((step, idx) => {
               const tStep = order.timeline?.find(t => t.step === step.key);
-              
+
               const getWorkflowProgress = (status: string) => {
-                if (status === 'Completed') return 5;
+                if (status === 'Completed' || order.completedAt) return 5;
                 if (status === 'QC') return 4;
                 if (['Ready for Production', 'In Production'].includes(status)) return 3;
                 if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
                 if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Menunggu Invoice DP'].includes(status)) return 1;
                 return 0;
               };
-              
+
               const currentIdx = getWorkflowProgress(order.status);
               const isDone = idx < currentIdx;
               const isCurrent = idx === currentIdx;
+              const isUnpaidCompleted = isCurrent && idx === 5 && order.status === 'Waiting Payment';
 
               return (
                 <React.Fragment key={step.key}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 90, flex: "0 0 auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 90, flex: "0 0 auto", position: "relative" }}>
                     <div style={{
                       width: 32, height: 32, borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isDone ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
-                      border: `2px solid ${isDone ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
-                      color: isDone ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
-                      boxShadow: isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
+                      background: isUnpaidCompleted ? "#FEF3C7" : isDone ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
+                      border: `2px solid ${isUnpaidCompleted ? "#F59E0B" : isDone ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
+                      color: isUnpaidCompleted ? "#D97706" : isDone ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
+                      boxShadow: isUnpaidCompleted ? "0 0 0 3px rgba(245, 158, 11, 0.15)" : isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
                       flexShrink: 0,
                     }}>
-                      {isDone ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
+                      {isUnpaidCompleted ? <AlertTriangle size={14} /> : isDone ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
                     </div>
+                    {isUnpaidCompleted && (
+                      <div style={{ position: "absolute", top: -25, background: "#F59E0B", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: 4, fontWeight: "bold", whiteSpace: "nowrap" }}>
+                        Unpaid
+                      </div>
+                    )}
                     <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : isDone ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>
                       {step.label}
                     </p>
@@ -431,7 +438,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.contactPerson || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
               <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, company: v }))} />
               <InfoRow icon={<Phone size={11} />} label="Telepon" value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, phone: v }))} />
-              <InfoRow icon={<Mail size={11} />} label="Email" value={isEditMode ? editForm.contact : (customer?.email || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
+              <InfoRow icon={<Mail size={11} />} label="Email" value={isEditMode ? editForm.contact : (customer?.email || order?.customerEmail || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
               <div style={{ gridColumn: "1 / -1" }}>
                 <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, address: v }))} />
               </div>
@@ -605,7 +612,14 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                       style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none" }}
                     />
                   ) : !order.customerDrawingUrl ? (
-                    <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.amber, fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                      <p style={{ margin: 0, fontSize: "11.5px", color: S.amber, fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                      {currentUser?.role !== 'Engineering Worker' && (
+                        <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
+                          <Plus size={10} /> Link Desain
+                        </button>
+                      )}
+                    </div>
                   ) : order.customerDrawingUrl || order.designLink ? (
                     <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
                       {order.customerDrawingUrl || order.designLink}
@@ -790,7 +804,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
                   { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
                 ];
-                
+
                 if (order.invoice?.rejectedPayments) {
                   order.invoice.rejectedPayments.forEach(rp => {
                     historySteps.push({
@@ -802,7 +816,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     });
                   });
                 }
-                
+
                 historySteps.push(
                   { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
                 );
@@ -1058,12 +1072,12 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
 
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Upload Bukti Transfer</label>
-              <div style={{ 
-                position: "relative", 
-                border: proofFile ? "1px solid #10B981" : "1px dashed #CBD5E1", 
-                borderRadius: 8, 
-                padding: 24, 
-                textAlign: "center", 
+              <div style={{
+                position: "relative",
+                border: proofFile ? "1px solid #10B981" : "1px dashed #CBD5E1",
+                borderRadius: 8,
+                padding: 24,
+                textAlign: "center",
                 background: proofFile ? "#ECFDF5" : "#F8FAFC",
                 transition: "all 0.2s ease"
               }}>
