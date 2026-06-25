@@ -86,6 +86,12 @@ export interface SalesOrderDto {
   finishedAtUtc?: string | null;
   qcDecision?: string | null;
   drawingFileUrl?: string | null;
+  designRevisions?: Array<{
+    version: number;
+    url: string;
+    changedBy: string;
+    changedAtUtc: string;
+  }>;
   items: Array<{
     id: string;
     productId: string;
@@ -208,6 +214,11 @@ export const salesApi = {
 
   async updateSalesOrderItems(salesOrderId: string, request: { items: any[] }) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/items`, request);
+    return response.data;
+  },
+
+  async updateCustomerDrawing(salesOrderId: string, request: { customerDrawingUrl: string, updatedByName: string }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/customer-drawing`, request);
     return response.data;
   },
 

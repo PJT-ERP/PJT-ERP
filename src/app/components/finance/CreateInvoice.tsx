@@ -72,7 +72,7 @@ export function CreateInvoice() {
   // Auto-fill items when SO is selected
   useEffect(() => {
     if (activeCandidate) {
-      const localSO = salesOrders.find(o => o.id === activeCandidate.salesOrderId);
+      const localSO = salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId);
       
       setItems(activeCandidate.items.map(item => {
         const localItem = localSO?.items?.find(li => li.productId === item.productId || li.id === item.salesOrderItemId);
@@ -81,7 +81,7 @@ export function CreateInvoice() {
           description: item.productDescription,
           quantity: item.qty,
           unit: 'Pcs',
-          unitPrice: item.unitPrice || localItem?.unitPrice || 0,
+          unitPrice: item.unitPrice || localItem?.unitPrice || (activeCandidate.items.length === 1 && localSO?.estimatedAmount ? localSO.estimatedAmount / item.qty : 0),
         };
       }));
       if (activeCandidate.targetDate && !dueDate) {
@@ -260,10 +260,8 @@ export function CreateInvoice() {
 
             {/* Document Header */}
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12">
-              <div className="flex gap-4">
-                <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
-                  <Building2 size={32} className="text-white" />
-                </div>
+              <div className="flex gap-6 items-center">
+                <img src="/pjt-logo-new.png" alt="PT. Pratama Jaya Logo" className="h-20 w-auto object-contain flex-shrink-0" />
                 <div>
                   <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA</h2>
                   <p className="text-sm text-slate-500 mt-1 leading-relaxed">Kawasan Industri MM2100<br/>Cikarang Barat, Bekasi 17530<br/>finance@pratamajaya.co.id</p>
@@ -378,7 +376,15 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-              {!activeCandidate && (
+            {activeCandidate && salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId)?.estimatedAmount ? (
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <span className="font-semibold">Info dari Sales:</span> Estimasi nilai SO yang telah disepakati adalah <strong>Rp {salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId)?.estimatedAmount?.toLocaleString('id-ID')}</strong>.
+                </p>
+              </div>
+            ) : null}
+
+            {!activeCandidate && (
                 <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
                   <Plus size={16} /> Tambah Baris
                 </button>

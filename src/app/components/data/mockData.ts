@@ -88,6 +88,7 @@ export interface SalesOrder {
   designId?: string;
   productName?: string;
   isQuotation?: boolean;
+  designRevisions?: { version: number, url: string, changedAt: string, changedBy: string }[];
 }
 
 export const ENGINEERING_DESIGNS: any[] = [];
@@ -219,6 +220,10 @@ export interface PurchasingItem {
   specification: string;
   quantity: number;
   unit: string;
+  supplierName?: string;
+  estimatedPrice?: number;
+  totalPrice?: number;
+  purchaseStatus?: string;
 }
 
 export interface PurchasingRequest {
