@@ -147,10 +147,6 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         salesOrder.DesignReference = request.DesignReference;
-        if (!string.IsNullOrWhiteSpace(request.DrawingFileUrl))
-        {
-            salesOrder.CustomerDrawingUrl = request.DrawingFileUrl;
-        }
         
         salesOrder.DesignStatus = SalesOrderDesignStatuses.WaitingApproval;
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
@@ -228,7 +224,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         if (salesOrder is null) return null;
 
-        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Menunggu Invoice DP")
+        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Waiting Payment")
         {
             throw new InvalidOperationException("Only sales orders waiting for pricing can be updated.");
         }
@@ -242,7 +238,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             }
         }
 
-        salesOrder.Status = "Menunggu Invoice DP";
+        salesOrder.Status = "Waiting Payment";
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         var integrationEvent = new SalesOrderReadyForInvoiceEvent(
@@ -648,6 +644,54 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
     }
 
+    public async Task<SalesOrderProductionProgressDto?> PauseProductionAsync(
+        Guid salesOrderId,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before production can be paused.");
+
+        ValidateWorkerRequest(request);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+
+        PauseProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
+        
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
+    public async Task<SalesOrderProductionProgressDto?> ResumeProductionAsync(
+        Guid salesOrderId,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before production can be resumed.");
+
+        ValidateWorkerRequest(request);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+
+        ResumeProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
+        
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
     public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
     {
         var orders = await db.ProductionOrders.AsNoTracking().ToListAsync(cancellationToken);
@@ -718,6 +762,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.FinishedAtUtc,
             productionOrder?.QcDecision,
             productionOrder?.DrawingFileUrl,
+            productionOrder?.PauseReason,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
             order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
@@ -780,6 +825,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.FinishedByName,
             productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
             productionOrder?.QcDecision,
+            productionOrder?.PauseReason,
             updatedAtUtc,
             order.Items
                 .OrderBy(item => item.ProductPartNumber)
@@ -830,7 +876,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         if (soStatus == "completed" || prodStatus == "closed") return 100;
         if (prodStatus == "finished") return 80;
-        if (prodStatus == "inprogress" || prodStatus == "in_progress" || soStatus == "inproduction" || soStatus == "in_production") return 60;
+        if (prodStatus == "inprogress" || prodStatus == "in_progress" || prodStatus == "paused" || soStatus == "inproduction" || soStatus == "in_production") return 60;
         if (soStatus == "ready for production" || soStatus == "waiting pricing" || soStatus == "menunggu invoice dp" || prodStatus == "waiting") return 40;
         if (soStatus == "confirmed") return 20;
         if (soStatus == "waiting spv approval") return 10;
@@ -1078,6 +1124,35 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         productionOrder.FinishedAtUtc ??= timestampUtc;
         productionOrder.FinishedByUserId ??= request.WorkerUserId;
         productionOrder.FinishedByName ??= request.WorkerName.Trim();
+        productionOrder.UpdatedAtUtc = timestampUtc;
+    }
+
+    private static void PauseProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    {
+        if (productionOrder.Status == ProductionOrderStatuses.Closed || productionOrder.Status == ProductionOrderStatuses.Finished)
+        {
+            throw new InvalidOperationException("Closed or finished sales order production cannot be paused.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new InvalidOperationException("Pause reason must be provided.");
+        }
+
+        productionOrder.Status = ProductionOrderStatuses.Paused;
+        productionOrder.PauseReason = request.Reason.Trim();
+        productionOrder.UpdatedAtUtc = timestampUtc;
+    }
+
+    private static void ResumeProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    {
+        if (productionOrder.Status != ProductionOrderStatuses.Paused)
+        {
+            throw new InvalidOperationException("Only paused production can be resumed.");
+        }
+
+        productionOrder.Status = ProductionOrderStatuses.InProgress;
+        productionOrder.PauseReason = null;
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 

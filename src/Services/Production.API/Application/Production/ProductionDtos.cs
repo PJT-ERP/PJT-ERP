@@ -68,6 +68,7 @@ public sealed record SalesOrderDto(
     DateTime? FinishedAtUtc,
     string? QcDecision,
     string? DrawingFileUrl,
+    string? PauseReason,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
@@ -125,6 +126,7 @@ public sealed record SalesOrderProductionProgressDto(
     string? FinishedByName,
     long? DurationSeconds,
     string? QcDecision,
+    string? PauseReason,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
 
@@ -159,7 +161,7 @@ public sealed record PublicProductionTrackingItemDto(
 
 public sealed record LookupSalesOrderTrackingRequest(string TrackingCode);
 
-public sealed record ProductionStatusUpdateRequest(Guid WorkerUserId, string WorkerName);
+public sealed record ProductionStatusUpdateRequest(Guid WorkerUserId, string WorkerName, string? Reason = null);
 
 public sealed record UploadEngineeringDrawingRequest(
     string DrawingFileUrl,

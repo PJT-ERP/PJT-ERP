@@ -253,13 +253,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addSalesOrder = (data: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>): SalesOrder => {
     const next = soCounter + 1;
     setSoCounter(next);
+    const newId = `SO-2026-${String(next).padStart(3, '0')}`;
+
     const so: SalesOrder = {
       ...data,
-      id: `SO-2026-${String(next).padStart(3, '0')}`,
+      id: newId,
       createdAt: new Date().toISOString().split('T')[0],
       status: 'Pending Design',
       createdBy: currentUser?.id ?? 'u1',
     };
+
+    // Clear any previous local storage state for this specific ID
+    // so it doesn't bleed into the newly created task if the counter has reset.
+    const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+    if (currentLocal[newId]) {
+      delete currentLocal[newId];
+      localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
+    }
+
     setSalesOrders(prev => [so, ...prev]);
     void syncCreateSalesOrder(so, customers, pendingCustomersByCode.current, backendCustomerIdsByCode, setBackendCustomerIdsByCode, setSalesOrders);
     return so;
@@ -498,6 +509,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     qcAt: order.finishedAtUtc || undefined,
     designRevisions: order.designRevisions,
     completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
+    pauseReason: order.pauseReason || undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
@@ -600,8 +612,8 @@ function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesO
     return "Rejected";
   }
 
-  // Pre-Sales/Design Phase overrides Draft status
-  if (order.status === "Draft" && order.designStatus !== "Approved") {
+  // Pre-Sales/Design Phase overrides Draft/Waiting Pricing status
+  if ((order.status === "Draft" || order.status === "Waiting Pricing") && order.designStatus !== "Approved") {
     switch (order.designStatus) {
       case "WaitingApproval":
         return "Waiting Spv Approval";
@@ -627,6 +639,10 @@ function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesO
 
   if (order.productionStatus === "InProgress") {
     return "In Production";
+  }
+
+  if (order.productionStatus === "Paused") {
+    return "Paused";
   }
 
   if (order.status === "InProduction" || order.status === "Confirmed") {
@@ -727,7 +743,7 @@ async function syncCreateSalesOrder(
       ],
       customerDrawingUrl: so.designLink,
       designReference: so.designLink,
-      designStatus: "Approved",
+      designStatus: "PendingDesign",
     });
 
     setSalesOrders(prev => prev.map(item => item.id === so.id ? mapSalesOrderDto(createdSo) : item));
@@ -748,9 +764,9 @@ async function syncUpdateSalesOrder(
 
   try {
     if (updates.assignedTo !== undefined) {
-      const assignedUser = allUsers.find(user => user.id === updates.assignedTo);
-      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.assignedTo) ? updates.assignedTo : null);
-      if (engineerId) {
+      const engineerId = isGuid(updates.assignedTo) ? updates.assignedTo : BACKEND_USER_IDS_BY_LOCAL_ID[updates.assignedTo] || null;
+      const assignedUser = engineerId ? allUsers.find(user => user.id === engineerId) : null;
+      if (engineerId && isGuid(engineerId)) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
           productionWorker: {
             userId: engineerId,
@@ -762,9 +778,9 @@ async function syncUpdateSalesOrder(
     }
 
     if (updates.designAssignedTo !== undefined) {
-      const assignedUser = allUsers.find(user => user.id === updates.designAssignedTo);
-      const engineerId = toBackendUserId(assignedUser) || (isGuid(updates.designAssignedTo) ? updates.designAssignedTo : null);
-      if (engineerId) {
+      const engineerId = isGuid(updates.designAssignedTo) ? updates.designAssignedTo : BACKEND_USER_IDS_BY_LOCAL_ID[updates.designAssignedTo] || null;
+      const assignedUser = engineerId ? allUsers.find(user => user.id === engineerId) : null;
+      if (engineerId && isGuid(engineerId)) {
         const updated = await salesApi.assignSalesOrderEngineers(backendId, {
           designWorker: {
             userId: engineerId,

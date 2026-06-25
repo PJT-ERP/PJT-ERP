@@ -9,13 +9,13 @@ import { SOStatus, calcProductionDuration } from "../components/data/mockData";
 import { analyticsApi, OwnerDashboardDto } from "../services/analyticsApi";
 
 const STATUS_ORDER: SOStatus[] = [
-  'Menunggu Invoice DP',
+  'Waiting Payment',
   'Pending Design', 'Waiting Approval',
   'Ready for Production', 'In Production', 'QC', 'Completed', 'Rejected',
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  'Menunggu Invoice DP': '#F59E0B',
+  'Waiting Payment': '#F59E0B',
   'Pending Design': '#94A3B8',
   'Waiting Approval': '#FCD34D',
   'Ready for Production': '#A78BFA',

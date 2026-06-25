@@ -779,9 +779,19 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
+      
+      // Clear any previous local storage state for this specific ID or soNumber
+      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
+        delete currentLocal[created.id];
+        if (created.soNumber) delete currentLocal[created.soNumber];
+        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
+      }
+
       if (customerForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
       }
+      
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -810,9 +820,19 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
+      
+      // Clear any previous local storage state for this specific ID or soNumber
+      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
+        delete currentLocal[created.id];
+        if (created.soNumber) delete currentLocal[created.soNumber];
+        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
+      }
+
       if (repeatForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
       }
+      
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);

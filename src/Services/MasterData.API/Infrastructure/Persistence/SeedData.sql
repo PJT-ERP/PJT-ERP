@@ -32,7 +32,15 @@ VALUES
     ('22222222-2222-4222-8222-222222222009', 'FG-0009', 'Sprocket Chain 40T Duplex Grade A', 'PCS', 'SCM440 hardened steel', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('22222222-2222-4222-8222-222222222010', 'FG-0010', 'Camshaft Bearing Seat 70mm CrMo', 'PCS', 'AISI 4130 CrMo', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
     ('22222222-2222-4222-8222-222222222011', 'FG-0011', 'Hydraulic Cylinder Rod End SS316L', 'PCS', 'SS316L rod stock', true, '2026-01-01T00:00:00Z', '2026-06-01T00:00:00Z'),
-    ('22222222-2222-4222-8222-222222222012', 'FG-0012', 'Baut Custom 0.05mm', 'PCS', 'High precision steel wire and coolant process', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
+    ('22222222-2222-4222-8222-222222222012', 'FG-0012', 'Baut Custom 0.05mm', 'PCS', 'High precision steel wire and coolant process', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222101', 'MAT-0001', 'Baja Karbon ST37 (Round Bar 50mm)', 'KG', 'Carbon Steel ST37', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222102', 'MAT-0002', 'Stainless Steel 304 (Sheet 10mm)', 'KG', 'SS304 Plate', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222103', 'MAT-0003', 'Aluminium Alloy A6061 (Block)', 'KG', 'Aluminium A6061-T6', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222104', 'MAT-0004', 'Besi Cor FC250 (Casting)', 'KG', 'Cast Iron FC250', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222105', 'MAT-0005', 'AISI 4130 CrMo (Alloy Steel)', 'KG', 'AISI 4130 Chromium Molybdenum', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222201', 'TLS-0001', 'Carbide Insert CNMG 120408', 'PCS', 'Tungsten Carbide, TiN coated', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222202', 'TLS-0002', 'End Mill HSS 10mm', 'PCS', 'High Speed Steel 4-Flute', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+    ('22222222-2222-4222-8222-222222222203', 'TLS-0003', 'Tap M10x1.5', 'PCS', 'HSS-Co Spiral Flute', true, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
 ON CONFLICT ("Id") DO UPDATE
 SET part_number = EXCLUDED.part_number,
     description = EXCLUDED.description,
