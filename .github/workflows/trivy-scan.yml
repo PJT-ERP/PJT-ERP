@@ -2,21 +2,11 @@ name: Trivy Security Scan
 
 on:
   pull_request:
-    paths:
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - '**/*.csproj'
   push:
     branches:
       - main
       - dev
       - "feature/**"
-    paths:
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - '**/*.csproj'
   workflow_dispatch:
 
 concurrency:
@@ -26,7 +16,7 @@ concurrency:
 jobs:
   trivy-scan:
     name: Trivy Vulnerability Scanner
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - name: Checkout code

@@ -28,7 +28,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult<PurchaseRequestDto>> Create(CreatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try
@@ -43,7 +43,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult<PurchaseRequestDto>> Update(Guid id, UpdatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try

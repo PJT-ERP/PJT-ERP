@@ -8,6 +8,7 @@ import { salesApi } from "../services/salesApi";
 import { isGuid, toBackendUserId } from "../services/backendIds";
 import { useFinanceData } from "../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../components/so/invoice-sync";
+import { masterDataApi, InventoryItemDto } from "../services/masterDataApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -274,6 +275,105 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   );
 }
 
+function MaterialAutocomplete({
+  value,
+  onChange,
+  onSelectProduct,
+  options,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectProduct: (product: any) => void;
+  options: any[];
+  disabled: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 280) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
+
+  const filtered = options.filter(p => 
+    (p.code + ' ' + p.name).toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column" }}>
+      <input
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+        onBlur={() => setIsFocused(false)}
+        placeholder="Ketik atau pilih dari Master Data..."
+        disabled={disabled}
+        style={{
+          width: "100%", padding: "9px 10px", 
+          border: `1px solid ${isFocused ? S.cyan : S.border}`, 
+          borderRadius: 6, fontSize: "13px", outline: "none", 
+          boxSizing: "border-box", 
+          backgroundColor: disabled ? "#F8FAFC" : "#fff",
+          transition: "border 0.2s, box-shadow 0.2s",
+          boxShadow: isFocused ? `0 0 0 3px rgba(200, 16, 46, 0.1)` : "none"
+        }}
+      />
+      {isOpen && !disabled && filtered.length > 0 && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, zIndex: 50,
+          ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
+          background: "#fff", border: `1px solid ${S.border}`,
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          maxHeight: 280, overflowY: "auto", overflowX: "hidden"
+        }}>
+          {filtered.map(p => (
+            <div 
+              key={p.id}
+              onMouseDown={e => {
+                e.preventDefault();
+                onSelectProduct(p);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${S.bg}`,
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
+            >
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.name}</div>
+              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.code} | Stok: {p.currentStock} {p.unit}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MaterialRequestModal({
   so,
   onClose,
@@ -288,8 +388,13 @@ function MaterialRequestModal({
   const { currentUser, refreshBackendData } = useApp();
   const materialOptions = getMaterialOptions(so);
   const firstMaterial = materialOptions[0];
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
+  }, []);
   const [items, setItems] = useState([
     {
       materialKey: firstMaterial?.key || "",
@@ -445,19 +550,18 @@ function MaterialRequestModal({
                     </button>
                   )}
                 </div>
-                <select
-                  value={item.materialKey}
-                  onChange={e => selectMaterial(index, e.target.value)}
-                  required
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                >
-                  <option value="" disabled>Pilih material / item...</option>
-                  {materialOptions.map(option => (
-                    <option key={option.key} value={option.key}>
-                      {option.itemName}{option.specification ? ` - ${option.specification}` : ""}
-                    </option>
-                  ))}
-                </select>
+                <MaterialAutocomplete
+                  value={item.itemName}
+                  onChange={(val) => updateItem(index, "itemName", val)}
+                  onSelectProduct={(p) => {
+                    updateItem(index, "materialKey", p.id);
+                    updateItem(index, "itemName", p.name);
+                    updateItem(index, "unit", p.unit);
+                    if (p.category) updateItem(index, "purchaseCategory", p.category);
+                  }}
+                  options={inventoryItems}
+                  disabled={false}
+                />
                 <textarea
                   value={item.specification}
                   onChange={e => updateItem(index, "specification", e.target.value)}
@@ -491,17 +595,6 @@ function MaterialRequestModal({
                     <option>Critical</option>
                   </select>
                 </div>
-                <select
-                  value={item.purchaseCategory}
-                  onChange={e => updateItem(index, "purchaseCategory", e.target.value)}
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                >
-                  <option>Project</option>
-                  <option>Consumable</option>
-                  <option>Tools</option>
-                  <option>Maintenance</option>
-                  <option>Asset</option>
-                </select>
               </div>
             ))}
             <button type="button" onClick={addItem} style={{ padding: "10px", border: `1px dashed ${S.border}`, background: S.white, color: S.secondary, borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>

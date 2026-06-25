@@ -29,6 +29,15 @@ export interface UpdateCustomerRequest {
   isActive?: boolean;
 }
 
+export interface ProductBomItemDto {
+  id: string;
+  inventoryItemId: string;
+  inventoryItemCode: string;
+  inventoryItemName: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface ProductDto {
   id: string;
   partNumber: string;
@@ -36,6 +45,12 @@ export interface ProductDto {
   unit: string;
   materialSpec?: string | null;
   isActive?: boolean;
+  bomItems?: ProductBomItemDto[];
+}
+
+export interface CreateProductBomItemRequest {
+  inventoryItemId: string;
+  quantity: number;
 }
 
 export interface CreateProductRequest {
@@ -43,6 +58,7 @@ export interface CreateProductRequest {
   description: string;
   unit: string;
   materialSpec?: string | null;
+  bomItems?: CreateProductBomItemRequest[];
 }
 
 export interface SalesOrderDto {
@@ -145,6 +161,14 @@ export const salesApi = {
   async createProduct(request: CreateProductRequest) {
     const response = await apiClient.post<ProductDto>('/api/v1/master-data/products', request);
     return response.data;
+  },
+
+  async updateProductBom(productId: string, request: { bomItems: CreateProductBomItemRequest[] }) {
+    await apiClient.put(`/api/v1/master-data/products/${productId}/bom`, request);
+  },
+
+  async deleteProduct(productId: string) {
+    await apiClient.delete(`/api/v1/master-data/products/${productId}`);
   },
 
   async listSalesOrders() {

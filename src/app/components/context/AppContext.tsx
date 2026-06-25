@@ -362,14 +362,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       requestedBy: currentUser?.id ?? 'u2',
     };
     setPurchasingRequests(prev => [req, ...prev]);
-    void syncCreatePurchasingRequest(req, currentUser, salesOrders, setPurchasingRequests);
+    void syncCreatePurchasingRequest(req, currentUser, salesOrders, users, setPurchasingRequests);
   };
 
   const updatePurchasingStatus = (id: string, status: PurchasingStatus) => {
     setPurchasingRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     const current = purchasingRequests.find(pr => pr.id === id);
     if (current) {
-      void syncUpdatePurchasingStatus(current, status, currentUser, setPurchasingRequests);
+      void syncUpdatePurchasingStatus(current, status, currentUser, users, setPurchasingRequests);
     }
   };
 
@@ -812,6 +812,7 @@ async function syncCreatePurchasingRequest(
   req: PurchasingRequest,
   currentUser: User | null,
   salesOrders: SalesOrder[],
+  users: User[],
   setPurchasingRequests: Dispatch<SetStateAction<PurchasingRequest[]>>,
 ) {
   try {
@@ -842,6 +843,7 @@ async function syncUpdatePurchasingStatus(
   req: PurchasingRequest,
   status: PurchasingStatus,
   currentUser: User | null,
+  users: User[],
   setPurchasingRequests: Dispatch<SetStateAction<PurchasingRequest[]>>,
 ) {
   const backendId = req.backendId || req.id;

@@ -53,8 +53,8 @@ export default function App() {
           <Route path="/erp" element={<ERPLayout />}>
             <Route index element={<Navigate to="/login" replace />} />
             
-            {/* Purchasing: Purchasing, Admin, Owner */}
-            <Route path="purchasing/*" element={<ProtectedRoute allowedRoles={['Purchasing', 'Admin', 'Owner']}><PurchasingModule /></ProtectedRoute>} />
+            {/* Purchasing: Purchasing, Admin, Owner, Finance (read-only) */}
+            <Route path="purchasing/*" element={<ProtectedRoute allowedRoles={['Purchasing', 'Admin', 'Owner', 'Finance']}><PurchasingModule /></ProtectedRoute>} />
             
             {/* SO: Sales, Admin, Owner */}
             <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Admin', 'Owner']}><SalesOrderModule /></ProtectedRoute>} />

@@ -1,0 +1,36 @@
+namespace PJT_ERP.MasterData.Api.Application.Catalog;
+
+public record InventoryItemDto(
+    Guid Id,
+    string Code,
+    string Name,
+    string Category,
+    string Unit,
+    decimal CurrentStock,
+    decimal MinStock,
+    decimal MaxStock,
+    decimal ReorderPoint,
+    string Location,
+    string SupplierName,
+    decimal UnitPrice,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);
+
+public record CreateInventoryItemRequest(
+    string Code,
+    string Name,
+    string Category,
+    string Unit,
+    decimal CurrentStock,
+    decimal MinStock,
+    decimal MaxStock,
+    decimal ReorderPoint,
+    string Location,
+    string SupplierName,
+    decimal UnitPrice);
+
+public interface IInventoryService
+{
+    Task<IReadOnlyCollection<InventoryItemDto>> ListInventoryAsync(CancellationToken cancellationToken);
+    Task<InventoryItemDto> CreateInventoryItemAsync(CreateInventoryItemRequest request, CancellationToken cancellationToken);
+}

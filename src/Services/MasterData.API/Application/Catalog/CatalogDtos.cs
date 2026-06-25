@@ -26,6 +26,14 @@ public sealed record UpdateCustomerRequest(
     string? Phone,
     bool IsActive);
 
+public sealed record ProductBomItemDto(
+    Guid Id,
+    Guid InventoryItemId,
+    string InventoryItemCode,
+    string InventoryItemName,
+    decimal Quantity,
+    string Unit);
+
 public sealed record ProductDto(
     Guid Id,
     string PartNumber,
@@ -33,10 +41,14 @@ public sealed record ProductDto(
     string Unit,
     string? MaterialSpec,
     bool IsActive,
+    List<ProductBomItemDto> BomItems,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
-public sealed record CreateProductRequest(string PartNumber, string Description, string Unit, string? MaterialSpec);
+public sealed record UpdateProductBomRequest(List<CreateProductBomItemRequest> BomItems);
+public sealed record CreateProductBomItemRequest(Guid InventoryItemId, decimal Quantity);
+
+public sealed record CreateProductRequest(string PartNumber, string Description, string Unit, string? MaterialSpec, List<CreateProductBomItemRequest>? BomItems);
 
 public sealed record SupplierDto(
     Guid Id,

@@ -28,7 +28,7 @@ concurrency:
 jobs:
   frontend-ci:
     name: Build & Test Frontend
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - name: Checkout

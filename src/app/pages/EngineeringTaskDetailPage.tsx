@@ -4,6 +4,7 @@ import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft } 
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { salesApi } from "../services/salesApi";
+import { masterDataApi, InventoryItemDto } from "../services/masterDataApi";
 import { toBackendUserId, isGuid } from "../services/backendIds";
 
 const S = {
@@ -69,7 +70,7 @@ function MaterialAutocomplete({
   }, [isOpen]);
 
   const filtered = options.filter(p => 
-    (p.partNumber + ' ' + p.description).toLowerCase().includes((value || '').toLowerCase())
+    (p.code + ' ' + p.name).toLowerCase().includes((value || '').toLowerCase())
   );
 
   return (
@@ -82,7 +83,7 @@ function MaterialAutocomplete({
         }}
         onFocus={() => { setIsFocused(true); setIsOpen(true); }}
         onBlur={() => setIsFocused(false)}
-        placeholder="Nama material (pilih atau ketik sendiri)..."
+        placeholder="Pilih dari Master Data atau ketik manual..."
         disabled={disabled}
         style={{
           width: "100%", padding: "10px 14px", 
@@ -105,7 +106,8 @@ function MaterialAutocomplete({
           {filtered.map(p => (
             <div 
               key={p.id}
-              onClick={() => {
+              onMouseDown={e => {
+                e.preventDefault(); // Prevent blur
                 onSelectProduct(p);
                 setIsOpen(false);
               }}
@@ -116,8 +118,8 @@ function MaterialAutocomplete({
               onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
             >
-              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.description}</div>
-              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.partNumber}</div>
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.name}</div>
+              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.code} | Stok: {p.currentStock} {p.unit}</div>
             </div>
           ))}
         </div>
@@ -139,6 +141,11 @@ export function EngineeringTaskDetailPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedAsSpv, setCompletedAsSpv] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
+
+  useEffect(() => {
+    masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (qut) {
@@ -176,7 +183,7 @@ export function EngineeringTaskDetailPage() {
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
-  const updateMaterial = (mId: string, field: string, value: any) => setMaterials(materials.map(m => m.id === mId ? { ...m, [field]: value } : m));
+  const updateMaterial = (mId: string, field: string, value: any) => setMaterials(prev => prev.map(m => m.id === mId ? { ...m, [field]: value } : m));
 
   const handleForward = async () => {
     if (!canProcess) return;
@@ -508,12 +515,15 @@ export function EngineeringTaskDetailPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {materials.map(m => (
                       <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 16, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-                        <input 
-                          placeholder="Nama Material (Ketik manual)..." 
+                        <MaterialAutocomplete 
                           value={m.name} 
-                          onChange={e => updateMaterial(m.id, 'name', e.target.value)} 
+                          onChange={val => updateMaterial(m.id, 'name', val)}
+                          onSelectProduct={p => {
+                            updateMaterial(m.id, 'name', p.name);
+                            updateMaterial(m.id, 'unit', p.unit);
+                          }}
+                          options={inventoryItems}
                           disabled={!canProcess} 
-                          style={{ flex: 2, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", minWidth: 0 }} 
                         />
                         <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "#F8FAFC" }} />
                         <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", textAlign: "right" }} />
