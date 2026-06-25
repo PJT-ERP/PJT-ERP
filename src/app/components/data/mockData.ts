@@ -219,6 +219,10 @@ export interface PurchasingItem {
   specification: string;
   quantity: number;
   unit: string;
+  supplierName?: string;
+  estimatedPrice?: number;
+  totalPrice?: number;
+  purchaseStatus?: string;
 }
 
 export interface PurchasingRequest {

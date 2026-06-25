@@ -212,8 +212,16 @@ export function ERPLayout() {
         });
       }
     } else if (role === 'Purchasing') {
-      purchasingRequests.filter(pr => pr.status === 'Selesai').forEach(pr => {
-        notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: '/erp/purchasing/create' });
+      purchasingRequests.forEach(pr => {
+        const activeItems = pr.items?.filter(item => item.purchaseStatus !== "Rejected") || [];
+        const isReadyForFinance = activeItems.length > 0 && activeItems.every(i => !!i.supplierName && ((i.totalPrice || 0) > 0 || (i.estimatedPrice || 0) > 0));
+        const hasUnorderedItems = activeItems.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received");
+
+        if (pr.backendStatus === 'SupervisorApproved' && !isReadyForFinance && hasUnorderedItems) {
+          notifs.push({ id: pr.id, type: 'warning', title: 'Isi Harga MR', desc: `MR ${pr.id} telah disetujui Supervisor. Harap isi estimasi harga dan pilih supplier.`, targetPath: `/erp/purchasing/requests/${pr.id}` });
+        } else if (pr.backendStatus === 'FinanceApproved' && hasUnorderedItems) {
+          notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui Finance', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: `/erp/purchasing/create?reqId=${pr.id}` });
+        }
       });
     } else if (role === 'Finance') {
       salesOrders.filter(so => so.status === 'Waiting Pricing').forEach(so => {

@@ -72,10 +72,10 @@ function getStatus(item: InventoryItem): StockStatus {
 }
 
 const statusCfg: Record<StockStatus, { label: string; bg: string; color: string; dot: string; barColor: string }> = {
-  critical: { label: "Kritis",   bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
-  low:      { label: "Rendah",   bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
-  normal:   { label: "Normal",   bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
-  excess:   { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
+  critical: { label: "Kritis", bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
+  low: { label: "Rendah", bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
+  normal: { label: "Normal", bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
+  excess: { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
 };
 
 const formatRp = (n: number) => {
@@ -256,20 +256,20 @@ export function InventoryPage() {
     });
 
     return inventoryItems.map(item => ({
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        category: item.category,
-        unit: item.unit,
-        currentStock: item.currentStock,
-        minStock: item.minStock,
-        maxStock: item.maxStock,
-        reorderPoint: item.reorderPoint,
-        location: item.location,
-        supplier: item.supplierName,
-        unitPrice: item.unitPrice,
-        lastUpdated: item.updatedAtUtc,
-        incoming: incomingByName.get(item.name.toLowerCase())
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      currentStock: item.currentStock,
+      minStock: item.minStock,
+      maxStock: item.maxStock,
+      reorderPoint: item.reorderPoint,
+      location: item.location,
+      supplier: item.supplierName,
+      unitPrice: item.unitPrice,
+      lastUpdated: item.updatedAtUtc,
+      incoming: incomingByName.get(item.name.toLowerCase())
     }));
   }, [inventoryItems, purchaseRequests]);
 
@@ -289,9 +289,9 @@ export function InventoryPage() {
   });
 
   const criticalItems = inventory.filter((i) => getStatus(i) === "critical");
-  const lowItems      = inventory.filter((i) => getStatus(i) === "low");
+  const lowItems = inventory.filter((i) => getStatus(i) === "low");
   const incomingItems = inventory.filter((i) => !!i.incoming);
-  const totalValue    = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
+  const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
 
   return (
     <div className="p-5 space-y-5">
