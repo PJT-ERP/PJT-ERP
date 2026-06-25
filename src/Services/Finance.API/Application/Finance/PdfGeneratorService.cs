@@ -35,12 +35,30 @@ public static class PdfGeneratorService
     {
         container.Row(row =>
         {
-            row.RelativeItem().Column(column =>
+            row.RelativeItem().Row(r =>
             {
-                column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
-                column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
-                column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
-                column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                var imagePath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Assets", "pjt-logo.png");
+                if (System.IO.File.Exists(imagePath))
+                {
+                    r.ConstantItem(80).Image(imagePath);
+                    r.RelativeItem().PaddingLeft(10).Column(column =>
+                    {
+                        column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
+                        column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                    });
+                }
+                else
+                {
+                    r.RelativeItem().Column(column =>
+                    {
+                        column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
+                        column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                    });
+                }
             });
 
             row.ConstantItem(200).Column(column =>

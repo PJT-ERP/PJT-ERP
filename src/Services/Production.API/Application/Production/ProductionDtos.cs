@@ -14,7 +14,7 @@ public sealed record CreateSalesOrderRequest(
     string? DesignReference = null,
     string? DesignStatus = null);
 
-public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, string? Notes);
+public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes);
 
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? DesignWorker,
@@ -34,6 +34,10 @@ public sealed record UpdateSalesOrderDesignStatusRequest(
     string? ReviewerName,
     string? DesignReference = null,
     string? CustomerDrawingUrl = null);
+
+public sealed record UpdateCustomerDrawingUrlRequest(
+    string? CustomerDrawingUrl,
+    string UpdatedByName);
 
 public sealed record ConfirmSalesOrderRequest(Guid ApprovedByUserId);
 
@@ -66,7 +70,14 @@ public sealed record SalesOrderDto(
     string? DrawingFileUrl,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items);
+
+public sealed record SalesOrderDesignRevisionDto(
+    int Version,
+    string Url,
+    string ChangedBy,
+    DateTime ChangedAtUtc);
 
 public sealed record SalesOrderItemDto(
     Guid Id,

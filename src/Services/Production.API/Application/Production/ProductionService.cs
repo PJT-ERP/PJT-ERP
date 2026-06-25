@@ -14,6 +14,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             .AsNoTracking()
             .Include(order => order.Items)
             .Include(order => order.ProductionOrders)
+            .Include(order => order.DesignRevisions)
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
@@ -91,6 +92,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     ProductDescription = product.Description,
                     ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
+                    UnitPrice = item.UnitPrice,
                     Notes = NormalizeOptional(item.Notes)
                 };
             }).ToList()
@@ -108,6 +110,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null)
@@ -133,6 +136,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null) return null;
@@ -162,6 +166,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null) return null;
@@ -201,6 +206,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             ProductPartNumber = products[item.ProductId].PartNumber,
             ProductDescription = products[item.ProductId].Description,
             Qty = item.Qty,
+            UnitPrice = item.UnitPrice,
             Notes = item.Notes
         }).ToList();
 
@@ -217,6 +223,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null) return null;
@@ -263,6 +270,41 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return ToDto(salesOrder);
     }
 
+    public async Task<SalesOrderDto?> UpdateCustomerDrawingUrlAsync(
+        Guid salesOrderId,
+        UpdateCustomerDrawingUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        var newDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL");
+        
+        if (newDrawingUrl != salesOrder.CustomerDrawingUrl)
+        {
+            var rev = new SalesOrderDesignRevision
+            {
+                SalesOrderId = salesOrder.Id,
+                Version = salesOrder.DesignRevisions.Count + 1,
+                Url = newDrawingUrl ?? "",
+                ChangedBy = string.IsNullOrWhiteSpace(request.UpdatedByName) ? "System" : request.UpdatedByName.Trim(),
+                ChangedAtUtc = DateTime.UtcNow
+            };
+            salesOrder.DesignRevisions.Add(rev);
+            db.Entry(rev).State = EntityState.Added;
+            
+            salesOrder.CustomerDrawingUrl = newDrawingUrl;
+            salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return ToDto(salesOrder);
+    }
+
     public async Task<SalesOrderDto?> UpdateSalesOrderDesignStatusAsync(
         Guid salesOrderId,
         UpdateSalesOrderDesignStatusRequest request,
@@ -270,6 +312,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null)
@@ -315,9 +358,24 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         salesOrder.DesignReference = request.DesignReference is null
             ? salesOrder.DesignReference
             : NormalizeOptional(request.DesignReference);
-        salesOrder.CustomerDrawingUrl = request.CustomerDrawingUrl is null
+
+        var newDrawingUrl = request.CustomerDrawingUrl is null
             ? salesOrder.CustomerDrawingUrl
             : NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL");
+
+        if (newDrawingUrl != salesOrder.CustomerDrawingUrl && !string.IsNullOrWhiteSpace(salesOrder.CustomerDrawingUrl))
+        {
+            salesOrder.DesignRevisions.Add(new SalesOrderDesignRevision
+            {
+                SalesOrderId = salesOrder.Id,
+                Version = salesOrder.DesignRevisions.Count + 1,
+                Url = salesOrder.CustomerDrawingUrl,
+                ChangedBy = request.ReviewerName?.Trim() ?? "Sales",
+                ChangedAtUtc = DateTime.UtcNow
+            });
+        }
+        
+        salesOrder.CustomerDrawingUrl = newDrawingUrl;
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -337,7 +395,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         EnsureEngineersAssigned(salesOrder);
         EnsureDesignApproved(salesOrder);
-        ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.Notes)).ToArray());
+        ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.UnitPrice, item.Notes)).ToArray());
 
         var now = DateTime.UtcNow;
         salesOrder.Status = SalesOrderStatuses.InProduction;
@@ -662,6 +720,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.DrawingFileUrl,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
+            order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray());
     }
 

@@ -29,6 +29,7 @@
     <Content Include="Infrastructure\Persistence\SeedData.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest">
       <TargetPath>SeedData.sql</TargetPath>
     </Content>
+    <None Include="Assets\pjt-logo.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

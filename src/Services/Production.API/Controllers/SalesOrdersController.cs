@@ -36,6 +36,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
         catch (InvalidOperationException ex)
         {
+            Console.WriteLine($"[DEBUG] InvalidOperationException: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -65,6 +66,24 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var order = await productionService.UpdateSalesOrderDesignStatusAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/customer-drawing")]
+    [Authorize(Roles = "Admin,Sales,Engineering Supervisor,Engineering Worker,Engineering")]
+    public async Task<ActionResult<SalesOrderDto>> UpdateCustomerDrawing(
+        Guid id,
+        UpdateCustomerDrawingUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.UpdateCustomerDrawingUrlAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)

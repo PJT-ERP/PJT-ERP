@@ -170,6 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (salesOrdersResult.status === "fulfilled") {
       const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      
       setSalesOrders(salesOrdersResult.value.map(dto => {
         const base = mapSalesOrderDto(dto);
         const updates = localUpdates[base.id];
@@ -181,10 +182,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
             return up ? { ...item, unitPrice: up.unitPrice || 0 } : item;
           }) : base.items;
 
+          let finalStatus = base.status;
+          const finalEstimatedAmount = updates.estimatedAmount || base.estimatedAmount;
+          
+          if (finalStatus === "Waiting Pricing" && finalEstimatedAmount > 0) {
+            finalStatus = "Ready for Production";
+          }
+
           return { 
             ...base, 
-            materials: updates.materials || base.materials, 
-            designLink: updates.designLink || base.designLink,
+            status: finalStatus,
+            materials: base.materials || updates.materials, 
+            designLink: base.designLink || updates.designLink,
+            estimatedAmount: finalEstimatedAmount,
             items: updatedItems || base.items
           };
         }
@@ -240,7 +250,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...data,
       id: `SO-2026-${String(next).padStart(3, '0')}`,
       createdAt: new Date().toISOString().split('T')[0],
-      status: 'Menunggu Invoice DP',
+      status: 'Pending Design',
       createdBy: currentUser?.id ?? 'u1',
     };
     setSalesOrders(prev => [so, ...prev]);
@@ -590,9 +600,10 @@ function mapSalesOrderStatus(order: SalesOrderDto): SalesOrder["status"] {
     return "Waiting Pricing";
   }
 
-  if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
-    return "Waiting Payment";
-  }
+  // Allow production to run in parallel with payment
+  // if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
+  //   return "Waiting Payment";
+  // }
 
   if (order.productionStatus === "Finished") {
     return "QC";
@@ -776,6 +787,21 @@ async function syncUpdateSalesOrder(
 
     if (updates.qcStatus === "Go" || updates.qcStatus === "NoGo") {
       // Missing qcApi integration due to missing inspectionId logic
+    }
+
+    if (updates.customerDrawingUrl !== undefined) {
+      try {
+        const updated = await salesApi.updateCustomerDrawing(backendId, {
+          customerDrawingUrl: updates.customerDrawingUrl,
+          updatedByName: currentUser?.name || "System"
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+      } catch (err) {
+        console.warn("Failed to update customer drawing URL in backend.", err);
+        window.alert("Gagal menyimpan Referensi Desain ke sistem. Pastikan URL valid (awali dengan http/https).");
+        // Revert local changes for customer drawing URL
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? { ...item, customerDrawingUrl: so.customerDrawingUrl } : item));
+      }
     }
   } catch (error) {
     console.warn("Failed to sync sales order update to backend.", error);
