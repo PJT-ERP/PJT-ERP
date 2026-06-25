@@ -765,12 +765,18 @@ export function EngineeringPurchasingPage() {
     void refreshBackendData();
   }, [refreshBackendData]);
 
-  const waitingSpvRequests = purchasingRequests.filter(r => r.backendStatus === 'Submitted');
-  const otherRequests = purchasingRequests.filter(r => r.backendStatus !== 'Submitted');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  
+  const relevantRequests = isSpv
+    ? purchasingRequests
+    : purchasingRequests.filter(r => r.requestedBy === currentUser?.name || r.requestedBy === currentUser?.id);
+
+  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted');
+  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted');
 
   const statusCount = (s: string) => {
     if (s === 'Menunggu SPV') return waitingSpvRequests.length;
-    return purchasingRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
+    return relevantRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
   };
 
   return (
