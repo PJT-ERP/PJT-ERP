@@ -75,6 +75,16 @@ export function ERPLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedNotifIds') || '[]'); } catch { return []; }
+  });
+  const dismissNotif = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newDismissed = [...dismissedNotifIds, id];
+    setDismissedNotifIds(newDismissed);
+    localStorage.setItem('dismissedNotifIds', JSON.stringify(newDismissed));
+  };
+
   const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
   const canReadFinanceData = currentUser?.role === "Finance"
     || currentUser?.role === "Admin"
@@ -185,7 +195,7 @@ export function ERPLayout() {
 
   const notifications = React.useMemo(() => {
     if (!currentUser) return [];
-    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string }[] = [];
+    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string, isDismissible?: boolean }[] = [];
     const role = currentUser.role;
 
     if (role === 'Owner') {
@@ -236,6 +246,22 @@ export function ERPLayout() {
         if (!isSpv) return;
         notifs.push({ id: so.id, type: 'alert', title: 'Menunggu QC', desc: `SO ${so.id} menunggu proses Quality Control.`, targetPath: '/erp/engineer-qc' });
       });
+
+      purchasingRequests.forEach(pr => {
+        if (pr.status === 'Selesai' && pr.requestedBy === currentUser.name) {
+          const notifId = `pr-received-${pr.id}`;
+          if (!dismissedNotifIds.includes(notifId)) {
+            notifs.push({ 
+              id: notifId, 
+              type: 'success', 
+              title: 'Material Diterima', 
+              desc: `Material untuk ${pr.id} telah diterima oleh gudang.`, 
+              targetPath: '/erp/engineer-purchasing',
+              isDismissible: true
+            });
+          }
+        }
+      });
     } else if (role === 'Purchasing') {
       purchasingRequests.forEach(pr => {
         const activeItems = pr.items?.filter(item => item.purchaseStatus !== "Rejected") || [];
@@ -261,7 +287,8 @@ export function ERPLayout() {
       });
     }
     return notifs;
-  }, [currentUser, salesOrders, purchasingRequests, readyInvoices]);
+    return notifs;
+  }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds]);
 
   const hasNotif = notifications.length > 0;
 
@@ -303,21 +330,21 @@ export function ERPLayout() {
               }[n.type];
 
               return (
-                <div
-                  key={i}
-                  onClick={() => {
-                    if (n.targetPath) {
-                      navigate(n.targetPath);
-                      setIsNotifOpen(false);
-                    }
-                  }}
-                  style={{ padding: "12px", borderRadius: 6, border: `1px solid ${colors.border}`, background: colors.bg, cursor: n.targetPath ? "pointer" : "default" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    {colors.icon}
-                    <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: colors.text }}>{n.title}</h4>
+                <div key={n.id} onClick={() => { if(n.targetPath) { setIsNotifOpen(false); navigate(n.targetPath); } }} style={{ display: "flex", gap: "12px", padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", cursor: "pointer", position: "relative" }}>
+                  <div style={{ marginTop: 2 }}>{colors.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 600, color: colors.text }}>{n.title}</h4>
+                    <p style={{ margin: 0, fontSize: "12px", color: "#475569", lineHeight: 1.4 }}>{n.desc}</p>
                   </div>
-                  <p style={{ margin: 0, fontSize: "11px", color: "#4B5563", lineHeight: 1.4 }}>{n.desc}</p>
+                  {n.isDismissible && (
+                    <button 
+                      onClick={(e) => dismissNotif(n.id, e)} 
+                      style={{ position: 'absolute', top: '8px', right: '8px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', opacity: 0.5 }}
+                      title="Tutup Notifikasi"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               );
             })
