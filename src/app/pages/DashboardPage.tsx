@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -5,6 +6,7 @@ import {
 import { Package, Clock, CheckCircle, AlertTriangle, TrendingUp, Users } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SOStatus, calcProductionDuration } from "../components/data/mockData";
+import { analyticsApi, OwnerDashboardDto } from "../services/analyticsApi";
 
 const STATUS_ORDER: SOStatus[] = [
   'Menunggu Invoice DP',
@@ -23,17 +25,14 @@ const STATUS_COLORS: Record<string, string> = {
   'Rejected': '#F87171',
 };
 
-const WEEKLY_DATA = [
-  { week: 'W1 Apr', completed: 3, rejected: 0, avgHours: 320 },
-  { week: 'W2 Apr', completed: 5, rejected: 1, avgHours: 290 },
-  { week: 'W3 Apr', completed: 4, rejected: 0, avgHours: 350 },
-  { week: 'W4 Apr', completed: 6, rejected: 1, avgHours: 270 },
-  { week: 'W1 Mei', completed: 4, rejected: 0, avgHours: 310 },
-  { week: 'W2 Mei', completed: 2, rejected: 1, avgHours: 380 },
-];
 
 export function DashboardPage() {
   const { salesOrders, customers, users } = useApp();
+  const [dashboardData, setDashboardData] = useState<OwnerDashboardDto | null>(null);
+
+  useEffect(() => {
+    analyticsApi.getOwnerDashboard().then(setDashboardData).catch(console.error);
+  }, []);
 
   const statusCounts = STATUS_ORDER.map(status => ({
     status: status.length > 12 ? status.slice(0, 12) + '…' : status,
@@ -219,7 +218,7 @@ export function DashboardPage() {
         <h3 className="text-slate-800 mb-1">Performa Mingguan</h3>
         <p className="text-xs text-slate-400 mb-4">Jumlah SO selesai & rata-rata durasi produksi (jam)</p>
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={WEEKLY_DATA} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+          <LineChart data={dashboardData?.weeklyPerformance || []} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
             <CartesianGrid key="line-grid" strokeDasharray="3 3" stroke="#E2E8F0" />
             <XAxis key="line-xaxis" dataKey="week" tick={{ fontSize: 11, fill: '#6B7280' }} />
             <YAxis key="line-yaxis-left" yAxisId="left" tick={{ fontSize: 11, fill: '#6B7280' }} />
