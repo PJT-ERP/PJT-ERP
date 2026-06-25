@@ -22,7 +22,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Req. Pembelian", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
-    { label: "Pantau QC", icon: <CheckSquare size={15} />, path: "/erp/qc" },
+    { label: "Pantau QC", icon: <CheckSquare size={15} />, path: "/erp/engineer-qc" },
   ],
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
@@ -75,6 +75,16 @@ export function ERPLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedNotifIds') || '[]'); } catch { return []; }
+  });
+  const dismissNotif = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newDismissed = [...dismissedNotifIds, id];
+    setDismissedNotifIds(newDismissed);
+    localStorage.setItem('dismissedNotifIds', JSON.stringify(newDismissed));
+  };
+
   const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
   const canReadFinanceData = currentUser?.role === "Finance"
     || currentUser?.role === "Admin"
@@ -185,7 +195,7 @@ export function ERPLayout() {
 
   const notifications = React.useMemo(() => {
     if (!currentUser) return [];
-    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string }[] = [];
+    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string, isDismissible?: boolean }[] = [];
     const role = currentUser.role;
 
     if (role === 'Owner') {
@@ -203,17 +213,66 @@ export function ERPLayout() {
         notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
       });
     } else if (role === 'Engineering Worker' || role === 'Engineering Supervisor') {
+      const isSpv = role === 'Engineering Supervisor' || currentUser.username === 'eng_spv';
+      
+      const isRelevant = (assignedToId: string | null | undefined) => {
+        if (isSpv) return !assignedToId || assignedToId === currentUser.id;
+        return assignedToId === currentUser.id;
+      };
+
       salesOrders.filter(so => so.status === 'Pending Design' || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired').forEach(so => {
-        notifs.push({ id: so.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `SO ${so.id} menunggu desain dan BOM.`, targetPath: '/erp/engineer-tasks' });
+        if (!isRelevant(so.designAssignedTo)) return;
+        const isUnassigned = !so.designAssignedTo;
+        const title = isUnassigned && isSpv ? 'Butuh Penugasan Desain' : 'Desain Baru Dibutuhkan';
+        const desc = isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke engineer.` : `SO ${so.id} menunggu desain dan BOM.`;
+        notifs.push({ id: so.id, type: 'warning', title, desc, targetPath: '/erp/engineer-tasks' });
       });
-      if (role === 'Engineering Supervisor') {
+      
+      if (isSpv) {
         salesOrders.filter(so => so.backendDesignStatus === 'WaitingApproval').forEach(so => {
           notifs.push({ id: so.id, type: 'warning', title: 'Desain Butuh Review', desc: `SO ${so.id} menunggu approval Engineering Supervisor.`, targetPath: '/erp/engineer-tasks' });
         });
       }
+
+      salesOrders.filter(so => so.status === 'Ready for Production').forEach(so => {
+        if (!isRelevant(so.assignedTo)) return;
+        const isUnassigned = !so.assignedTo;
+        const title = isUnassigned && isSpv ? 'Butuh Penugasan Produksi' : 'Siap Diproduksi';
+        const desc = isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke pekerja.` : `SO ${so.id} siap untuk mulai diproduksi.`;
+        notifs.push({ id: so.id, type: 'info', title, desc, targetPath: '/erp/production' });
+      });
+
+      salesOrders.filter(so => so.status === 'QC').forEach(so => {
+        if (!isSpv) return;
+        notifs.push({ id: so.id, type: 'alert', title: 'Menunggu QC', desc: `SO ${so.id} menunggu proses Quality Control.`, targetPath: '/erp/engineer-qc' });
+      });
+
+      purchasingRequests.forEach(pr => {
+        if (pr.status === 'Selesai' && pr.requestedBy === currentUser.name) {
+          const notifId = `pr-received-${pr.id}`;
+          if (!dismissedNotifIds.includes(notifId)) {
+            notifs.push({ 
+              id: notifId, 
+              type: 'success', 
+              title: 'Material Diterima', 
+              desc: `Material untuk ${pr.id} telah diterima oleh gudang.`, 
+              targetPath: '/erp/engineer-purchasing',
+              isDismissible: true
+            });
+          }
+        }
+      });
     } else if (role === 'Purchasing') {
-      purchasingRequests.filter(pr => pr.status === 'Selesai').forEach(pr => {
-        notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: '/erp/purchasing/create' });
+      purchasingRequests.forEach(pr => {
+        const activeItems = pr.items?.filter(item => item.purchaseStatus !== "Rejected") || [];
+        const isReadyForFinance = activeItems.length > 0 && activeItems.every(i => !!i.supplierName && ((i.totalPrice || 0) > 0 || (i.estimatedPrice || 0) > 0));
+        const hasUnorderedItems = activeItems.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received");
+
+        if (pr.backendStatus === 'SupervisorApproved' && !isReadyForFinance && hasUnorderedItems) {
+          notifs.push({ id: pr.id, type: 'warning', title: 'Isi Harga MR', desc: `MR ${pr.id} telah disetujui Supervisor. Harap isi estimasi harga dan pilih supplier.`, targetPath: `/erp/purchasing/requests/${pr.id}` });
+        } else if (pr.backendStatus === 'FinanceApproved' && hasUnorderedItems) {
+          notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui Finance', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: `/erp/purchasing/create?reqId=${pr.id}` });
+        }
       });
     } else if (role === 'Finance') {
       salesOrders.filter(so => so.status === 'Waiting Pricing').forEach(so => {
@@ -228,7 +287,8 @@ export function ERPLayout() {
       });
     }
     return notifs;
-  }, [currentUser, salesOrders, purchasingRequests, readyInvoices]);
+    return notifs;
+  }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds]);
 
   const hasNotif = notifications.length > 0;
 
@@ -270,21 +330,21 @@ export function ERPLayout() {
               }[n.type];
 
               return (
-                <div
-                  key={i}
-                  onClick={() => {
-                    if (n.targetPath) {
-                      navigate(n.targetPath);
-                      setIsNotifOpen(false);
-                    }
-                  }}
-                  style={{ padding: "12px", borderRadius: 6, border: `1px solid ${colors.border}`, background: colors.bg, cursor: n.targetPath ? "pointer" : "default" }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    {colors.icon}
-                    <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: colors.text }}>{n.title}</h4>
+                <div key={n.id} onClick={() => { if(n.targetPath) { setIsNotifOpen(false); navigate(n.targetPath); } }} style={{ display: "flex", gap: "12px", padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", cursor: "pointer", position: "relative" }}>
+                  <div style={{ marginTop: 2 }}>{colors.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 600, color: colors.text }}>{n.title}</h4>
+                    <p style={{ margin: 0, fontSize: "12px", color: "#475569", lineHeight: 1.4 }}>{n.desc}</p>
                   </div>
-                  <p style={{ margin: 0, fontSize: "11px", color: "#4B5563", lineHeight: 1.4 }}>{n.desc}</p>
+                  {n.isDismissible && (
+                    <button 
+                      onClick={(e) => dismissNotif(n.id, e)} 
+                      style={{ position: 'absolute', top: '8px', right: '8px', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', opacity: 0.5 }}
+                      title="Tutup Notifikasi"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               );
             })

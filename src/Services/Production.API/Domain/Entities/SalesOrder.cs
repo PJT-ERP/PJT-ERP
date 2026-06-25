@@ -29,6 +29,7 @@ public sealed class SalesOrder
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<SalesOrderItem> Items { get; set; } = [];
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
+    public List<SalesOrderDesignRevision> DesignRevisions { get; set; } = [];
 }
 
 public static class SalesOrderStatuses

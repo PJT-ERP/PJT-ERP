@@ -72,10 +72,10 @@ function getStatus(item: InventoryItem): StockStatus {
 }
 
 const statusCfg: Record<StockStatus, { label: string; bg: string; color: string; dot: string; barColor: string }> = {
-  critical: { label: "Kritis",   bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
-  low:      { label: "Rendah",   bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
-  normal:   { label: "Normal",   bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
-  excess:   { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
+  critical: { label: "Kritis", bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
+  low: { label: "Rendah", bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
+  normal: { label: "Normal", bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
+  excess: { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
 };
 
 const formatRp = (n: number) => {
@@ -230,32 +230,48 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen
 export function InventoryPage() {
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const { inventoryItems, refresh } = usePurchasingData();
+  const { inventoryItems, purchaseRequests, refresh } = usePurchasingData();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const inventory: InventoryItem[] = useMemo(
-    () => inventoryItems.map(item => ({
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        category: item.category,
-        unit: item.unit,
-        currentStock: item.currentStock,
-        minStock: item.minStock,
-        maxStock: item.maxStock,
-        reorderPoint: item.reorderPoint,
-        location: item.location,
-        supplier: item.supplierName,
-        unitPrice: item.unitPrice,
-        lastUpdated: item.updatedAtUtc,
-        incoming: undefined
-    })),
-    [inventoryItems],
-  );
+  const inventory: InventoryItem[] = useMemo(() => {
+    const incomingByName = new Map<string, IncomingShipment>();
+    purchaseRequests.forEach(pr => {
+      pr.items.forEach(item => {
+        if (item.purchaseStatus === "Ordered" || item.purchaseStatus === "Approved") {
+          const poNumber = item.poNumber || pr.prNumber;
+          const eta = item.expectedArrivalDate ? new Date(item.expectedArrivalDate).toLocaleDateString("id-ID") : "Hari ini";
+          incomingByName.set(item.itemName.toLowerCase(), {
+            po: poNumber,
+            supplier: item.supplierName || item.suggestedSupplier || "Supplier",
+            eta,
+            qty: item.qty,
+            unit: "pcs"
+          });
+        }
+      });
+    });
+
+    return inventoryItems.map(item => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      currentStock: item.currentStock,
+      minStock: item.minStock,
+      maxStock: item.maxStock,
+      reorderPoint: item.reorderPoint,
+      location: item.location,
+      supplier: item.supplierName,
+      unitPrice: item.unitPrice,
+      lastUpdated: item.updatedAtUtc,
+      incoming: incomingByName.get(item.name.toLowerCase())
+    }));
+  }, [inventoryItems, purchaseRequests]);
 
   const categories = useMemo(() => Array.from(new Set(inventory.map((item) => item.category))), [inventory]);
   const chartData = useMemo(() => categories.map((cat) => ({
@@ -273,9 +289,9 @@ export function InventoryPage() {
   });
 
   const criticalItems = inventory.filter((i) => getStatus(i) === "critical");
-  const lowItems      = inventory.filter((i) => getStatus(i) === "low");
+  const lowItems = inventory.filter((i) => getStatus(i) === "low");
   const incomingItems = inventory.filter((i) => !!i.incoming);
-  const totalValue    = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
+  const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
 
   return (
     <div className="p-5 space-y-5">
@@ -344,9 +360,9 @@ export function InventoryPage() {
       </div>
 
       {/* Top row — alerts + chart + incoming */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Critical stock alert */}
-        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #fca5a5", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #fca5a5", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ background: "#fef2f2", borderBottom: "1px solid #fca5a5" }}>
             <AlertTriangle size={14} style={{ color: "#dc2626" }} />
             <p style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -377,14 +393,14 @@ export function InventoryPage() {
         </div>
 
         {/* Category chart */}
-        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Nilai Stok per Kategori (Juta Rp)
             </p>
           </div>
-          <div className="px-2 py-4">
-            <ResponsiveContainer width="100%" height={180}>
+          <div className="px-2 py-4 flex-1 min-h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
@@ -401,7 +417,7 @@ export function InventoryPage() {
         </div>
 
         {/* Incoming shipments */}
-        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <Truck size={14} style={{ color: "#0891b2" }} />
             <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>

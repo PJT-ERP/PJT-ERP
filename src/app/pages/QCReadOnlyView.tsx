@@ -101,7 +101,10 @@ export function QCReadOnlyView() {
   const isRegularEngineer = currentUser?.role === 'Engineering Worker' && !isSupervisor && currentUser?.username !== 'admin';
   const currentBackendUserId = toBackendUserId(currentUser);
   const baseOrders = isRegularEngineer 
-    ? salesOrders.filter(so => so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId)
+    ? salesOrders.filter(so => 
+        (currentUser?.id && so.designAssignedTo === currentUser.id) || 
+        (currentBackendUserId && so.designAssignedTo === currentBackendUserId)
+      )
     : salesOrders;
 
   const completed = baseOrders.filter(so => so.status === 'Completed');

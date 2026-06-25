@@ -193,6 +193,8 @@ export function EngineeringTaskDetailPage() {
     canProcess = false;
   }
 
+  const isWaitingCustomerDesign = !qut.customerDrawingUrl;
+
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
   const updateMaterial = (mId: string, field: string, value: any) => setMaterials(prev => prev.map(m => m.id === mId ? { ...m, [field]: value } : m));
@@ -430,12 +432,37 @@ export function EngineeringTaskDetailPage() {
               {/* Referensi Sales */}
               <div style={{ background: "#FFFFFF", border: `1px solid ${S.border}`, borderRadius: 8, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
                 <p style={{ fontSize: "15px", color: S.slate, fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 6 }}>Instruksi / Referensi dari Sales</p>
-                {qut.customerDrawingUrl && (
+                {qut.customerDrawingUrl ? (
                   <div style={{ marginBottom: 20, padding: "10px 16px", background: "#F1F5F9", borderRadius: 6, display: "flex", flexDirection: "column", gap: 4 }}>
                     <span style={{ fontSize: "12px", color: S.secondary }}>Referensi Desain Customer</span>
                     <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
                       {qut.customerDrawingUrl}
                     </a>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 20, padding: "10px 16px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontSize: "12px", color: "#D97706", fontWeight: 600 }}>Menunggu Link Desain (URL) dari Sales...</span>
+                  </div>
+                )}
+                {qut.designRevisions && qut.designRevisions.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Riwayat Revisi Desain Customer:</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
+                      {qut.designRevisions.map(rev => (
+                        <div key={rev.version} style={{ position: "relative" }}>
+                          <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
+                          <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
+                            <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
+                          </p>
+                          <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11px", color: S.cyan, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
+                            {rev.url || "(URL Dihapus)"}
+                          </a>
+                          <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#94A3B8" }}>
+                            {new Date(rev.changedAt).toLocaleString("id-ID")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 32 }}>
@@ -468,26 +495,32 @@ export function EngineeringTaskDetailPage() {
 
               {/* Action Area */}
               {canProcess && (
-                <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: "16px 20px" }}>
-                  <p style={{ fontSize: "14px", color: "#1D4ED8", margin: 0, fontWeight: 500 }}>💡 Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
-                </div>
+                isWaitingCustomerDesign ? (
+                  <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
+                    <p style={{ fontSize: "14px", color: "#DC2626", margin: 0, fontWeight: 500 }}>⚠️ Tidak dapat memproses: Menunggu Link Desain (URL) dari Sales.</p>
+                  </div>
+                ) : (
+                  <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
+                    <p style={{ fontSize: "14px", color: "#1D4ED8", margin: 0, fontWeight: 500 }}>💡 Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
+                  </div>
+                )
               )}
 
               <div>
                 <label style={{ display: "block", fontSize: "14px", color: S.slate, fontWeight: 600, marginBottom: 8 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
                 <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
-                  disabled={!canProcess || isDoingSpvApproval}
-                  style={{ width: "100%", padding: "14px 16px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: (!canProcess || isDoingSpvApproval) ? "#F8FAFC" : "#fff", transition: "border 0.2s" }}
+                  disabled={!canProcess || isDoingSpvApproval || isWaitingCustomerDesign}
+                  style={{ width: "100%", padding: "14px 16px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: (!canProcess || isDoingSpvApproval || isWaitingCustomerDesign) ? "#F8FAFC" : "#fff", transition: "border 0.2s" }}
                   onFocus={e => e.currentTarget.style.borderColor = S.cyan}
                   onBlur={e => e.currentTarget.style.borderColor = S.border}
                 />
               </div>
               
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, marginTop: 24 }}>
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Bill of Materials (BOM) <span style={{ color: "#EF4444" }}>*</span></label>
-                  {canProcess && !isDoingSpvApproval && (
+                  {canProcess && !isDoingSpvApproval && !isWaitingCustomerDesign && (
                     <button onClick={addMaterial} style={{ padding: "8px 16px", background: "rgba(200,16,46,0.05)", color: S.cyan, border: `1px solid rgba(200,16,46,0.1)`, borderRadius: 6, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(200,16,46,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(200,16,46,0.05)"}>
                       <Plus size={16} /> Tambah Material
                     </button>
@@ -509,18 +542,18 @@ export function EngineeringTaskDetailPage() {
                             updateMaterial(m.id, 'unit', p.unit);
                           }}
                           options={inventoryItems}
-                          disabled={!canProcess} 
+                          disabled={!canProcess || isWaitingCustomerDesign} 
                         />
-                        <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canProcess ? "#fff" : "#F8FAFC" }} />
-                        <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC", textAlign: "right" }} />
-                        <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} disabled={!canProcess} style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canProcess ? "#fff" : "#F8FAFC" }}>
+                        <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC" }} />
+                        <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || isWaitingCustomerDesign} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
+                        <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign} style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC" }}>
                           <option value="pcs">pcs</option>
                           <option value="kg">kg</option>
                           <option value="meter">meter</option>
                           <option value="lembar">lembar</option>
                           <option value="batang">batang</option>
                         </select>
-                        {canProcess && (
+                        {canProcess && !isWaitingCustomerDesign && (
                           <button onClick={() => removeMaterial(m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                             <Trash2 size={18} />
                           </button>
@@ -559,8 +592,8 @@ export function EngineeringTaskDetailPage() {
                   </button>
                 )}
                 {canProcess && (
-                  <button onClick={() => setStep('confirm')} disabled={(!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)) || isSubmitting}
-                    style={{ flex: 2, padding: "14px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s, transform 0.1s", opacity: ((designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) && !isSubmitting) ? 1 : 0.5 }}
+                  <button onClick={() => setStep('confirm')} disabled={(!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)) || isSubmitting || isWaitingCustomerDesign}
+                    style={{ flex: 2, padding: "14px", background: isWaitingCustomerDesign ? "#FCA5A5" : S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: isWaitingCustomerDesign ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s, transform 0.1s", opacity: ((designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) && !isSubmitting && !isWaitingCustomerDesign) ? 1 : 0.5 }}
                     onMouseDown={e => { if(!e.currentTarget.disabled) e.currentTarget.style.transform = "scale(0.98)" }}
                     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}

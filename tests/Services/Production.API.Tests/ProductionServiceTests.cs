@@ -88,8 +88,8 @@ public sealed class ProductionServiceTests
                 DateOnly.FromDateTime(DateTime.UtcNow),
                 DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)),
                 [
-                    new CreateSalesOrderItemRequest(products[0].Id, 10, "Urgent"),
-                    new CreateSalesOrderItemRequest(products[1].Id, 4, null)
+                    new CreateSalesOrderItemRequest(products[0].Id, 10, 0m, "Urgent"),
+                    new CreateSalesOrderItemRequest(products[1].Id, 4, 0m, null)
                 ],
                 null,
                 new EngineerAssignment(WorkerUserId, "Worker Engineer"),
