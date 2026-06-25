@@ -218,7 +218,7 @@ export function DashboardPage() {
         <h3 className="text-slate-800 mb-1">Performa Mingguan</h3>
         <p className="text-xs text-slate-400 mb-4">Jumlah SO selesai & rata-rata durasi produksi (jam)</p>
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={dashboardData?.weeklyPerformance || []} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+          <LineChart data={dashboardData?.weeklyPerformance || []} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
             <CartesianGrid key="line-grid" strokeDasharray="3 3" stroke="#E2E8F0" />
             <XAxis key="line-xaxis" dataKey="week" tick={{ fontSize: 11, fill: '#6B7280' }} />
             <YAxis key="line-yaxis-left" yAxisId="left" tick={{ fontSize: 11, fill: '#6B7280' }} />
