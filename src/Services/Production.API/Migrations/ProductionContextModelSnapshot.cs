@@ -342,6 +342,43 @@ namespace PJT_ERP.Production.Api.Migrations
                     b.ToTable("sales_orders", (string)null);
                 });
 
+            modelBuilder.Entity("PJT_ERP.Production.Api.Domain.Entities.SalesOrderDesignRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at_utc");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("changed_by");
+
+                    b.Property<Guid>("SalesOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sales_order_id");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("url");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalesOrderId");
+
+                    b.ToTable("sales_order_design_revisions", (string)null);
+                });
+
             modelBuilder.Entity("PJT_ERP.Production.Api.Domain.Entities.SalesOrderItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -384,7 +421,8 @@ namespace PJT_ERP.Production.Api.Migrations
                         .HasColumnName("sales_order_id");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasColumnType("numeric");
+                        .HasColumnType("numeric")
+                        .HasColumnName("unit_price");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -456,6 +494,17 @@ namespace PJT_ERP.Production.Api.Migrations
                     b.Navigation("SalesOrderItem");
                 });
 
+            modelBuilder.Entity("PJT_ERP.Production.Api.Domain.Entities.SalesOrderDesignRevision", b =>
+                {
+                    b.HasOne("PJT_ERP.Production.Api.Domain.Entities.SalesOrder", "SalesOrder")
+                        .WithMany("DesignRevisions")
+                        .HasForeignKey("SalesOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SalesOrder");
+                });
+
             modelBuilder.Entity("PJT_ERP.Production.Api.Domain.Entities.SalesOrderItem", b =>
                 {
                     b.HasOne("PJT_ERP.Production.Api.Domain.Entities.SalesOrder", "SalesOrder")
@@ -469,6 +518,8 @@ namespace PJT_ERP.Production.Api.Migrations
 
             modelBuilder.Entity("PJT_ERP.Production.Api.Domain.Entities.SalesOrder", b =>
                 {
+                    b.Navigation("DesignRevisions");
+
                     b.Navigation("Items");
 
                     b.Navigation("ProductionOrders");

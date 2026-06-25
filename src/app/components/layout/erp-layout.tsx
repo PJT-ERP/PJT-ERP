@@ -203,14 +203,39 @@ export function ERPLayout() {
         notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
       });
     } else if (role === 'Engineering Worker' || role === 'Engineering Supervisor') {
+      const isSpv = role === 'Engineering Supervisor' || currentUser.username === 'eng_spv';
+      
+      const isRelevant = (assignedToId: string | null | undefined) => {
+        if (isSpv) return !assignedToId || assignedToId === currentUser.id;
+        return assignedToId === currentUser.id;
+      };
+
       salesOrders.filter(so => so.status === 'Pending Design' || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired').forEach(so => {
-        notifs.push({ id: so.id, type: 'warning', title: 'Desain Baru Dibutuhkan', desc: `SO ${so.id} menunggu desain dan BOM.`, targetPath: '/erp/engineer-tasks' });
+        if (!isRelevant(so.designAssignedTo)) return;
+        const isUnassigned = !so.designAssignedTo;
+        const title = isUnassigned && isSpv ? 'Butuh Penugasan Desain' : 'Desain Baru Dibutuhkan';
+        const desc = isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke engineer.` : `SO ${so.id} menunggu desain dan BOM.`;
+        notifs.push({ id: so.id, type: 'warning', title, desc, targetPath: '/erp/engineer-tasks' });
       });
-      if (role === 'Engineering Supervisor') {
+      
+      if (isSpv) {
         salesOrders.filter(so => so.backendDesignStatus === 'WaitingApproval').forEach(so => {
           notifs.push({ id: so.id, type: 'warning', title: 'Desain Butuh Review', desc: `SO ${so.id} menunggu approval Engineering Supervisor.`, targetPath: '/erp/engineer-tasks' });
         });
       }
+
+      salesOrders.filter(so => so.status === 'Ready for Production').forEach(so => {
+        if (!isRelevant(so.assignedTo)) return;
+        const isUnassigned = !so.assignedTo;
+        const title = isUnassigned && isSpv ? 'Butuh Penugasan Produksi' : 'Siap Diproduksi';
+        const desc = isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke pekerja.` : `SO ${so.id} siap untuk mulai diproduksi.`;
+        notifs.push({ id: so.id, type: 'info', title, desc, targetPath: '/erp/production' });
+      });
+
+      salesOrders.filter(so => so.status === 'QC').forEach(so => {
+        if (!isSpv) return;
+        notifs.push({ id: so.id, type: 'alert', title: 'Menunggu QC', desc: `SO ${so.id} menunggu proses Quality Control.`, targetPath: '/erp/engineer-qc' });
+      });
     } else if (role === 'Purchasing') {
       purchasingRequests.forEach(pr => {
         const activeItems = pr.items?.filter(item => item.purchaseStatus !== "Rejected") || [];
