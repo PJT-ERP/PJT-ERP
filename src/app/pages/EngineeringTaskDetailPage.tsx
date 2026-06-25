@@ -147,10 +147,16 @@ export function EngineeringTaskDetailPage() {
     masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
   }, []);
 
+  const [localRejectionReason, setLocalRejectionReason] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (qut) {
-      setDesignLink(qut.designLink ?? qut.designId ?? '');
-      setMaterials(qut.materials || []);
+      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      const qutLocal = localUpdates[qut.id] || {};
+      
+      setDesignLink(qutLocal.designLink ?? qut.designLink ?? qut.designId ?? '');
+      setMaterials(qutLocal.materials ?? qut.materials ?? []);
+      setLocalRejectionReason(qutLocal.rejectionReason ?? qut.rejectionReason);
     }
   }, [qut]);
 
@@ -296,17 +302,19 @@ export function EngineeringTaskDetailPage() {
         }
       }
 
+      // Save BOM and rejection reason locally so it's not lost
+      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      localUpdates[qut.id] = { ...localUpdates[qut.id], materials, designLink, rejectionReason: rejectReason };
+      localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
+
       updateSalesOrder(qut.id, {
         status: 'Revision Required',
         backendDesignStatus: 'RevisionRequired',
         notes: rejectReason,
+        rejectionReason: rejectReason,
         materials: materials, // Ensure local context keeps the materials
       });
       if (isDoingSpvApproval) {
-        const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-        // Do not delete localUpdates[qut.id] entirely, just update it so the BOM is preserved locally as fallback
-        localUpdates[qut.id] = { ...localUpdates[qut.id], materials, designLink };
-        localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
         await refreshBackendData();
       }
       setStep('rejected');
@@ -450,6 +458,13 @@ export function EngineeringTaskDetailPage() {
                   </div>
                 </div>
               </div>
+              {/* Rejection Banner */}
+              {!!localRejectionReason && ['Revision Required', 'Rejected', 'Waiting Pricing', 'Pending Design'].includes(qut.status) && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <p style={{ fontSize: "14px", color: "#B91C1C", margin: 0, fontWeight: 700 }}>⚠️ Desain Ditolak / Perlu Revisi</p>
+                  <p style={{ fontSize: "13.5px", color: "#991B1B", margin: 0 }}>Catatan Supervisor: {localRejectionReason}</p>
+                </div>
+              )}
 
               {/* Action Area */}
               {canProcess && (

@@ -81,27 +81,25 @@ export function EngineeringTasksPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
   
-  const pendingSalesOrders = salesOrders
-    .filter(so => {
-      const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Waiting Payment', 'Rejected'];
-      return engineeringStatuses.includes(so.status);
-    });
+  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Waiting Payment', 'Rejected'];
+  
+  const pendingSalesOrders = salesOrders.filter(so => engineeringStatuses.includes(so.status) || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired' || so.backendDesignStatus === 'WaitingApproval');
+  const completedSalesOrders = salesOrders.filter(so => !engineeringStatuses.includes(so.status) && so.backendDesignStatus === 'Approved');
 
-  const allQueue = [...pendingSalesOrders];
+  const allQueue = activeTab === 'pending' ? pendingSalesOrders : completedSalesOrders;
   
   const queue = allQueue
     .filter(q => {
-      if (isSpv) {
-        return true;
-      }
-      return q.designAssignedTo === currentUser?.id;
+      if (isSpv) return true;
+      return q.designAssignedTo === currentUser?.id || q.designAssignedTo === currentUser?.name || q.designAssignedName === currentUser?.name;
     })
     .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const waitingReview = allQueue.filter(item => isSpv && (item.backendDesignStatus === 'WaitingApproval' || item.status === 'Waiting Spv Approval'));
+  const waitingReview = pendingSalesOrders.filter(item => isSpv && (item.backendDesignStatus === 'WaitingApproval' || item.status === 'Waiting Spv Approval'));
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -114,7 +112,32 @@ export function EngineeringTasksPage() {
         </div>
       </div>
 
-      {isSpv && (
+      <div style={{ display: "flex", gap: 24, borderBottom: `1px solid ${S.border}`, marginTop: 8 }}>
+        <button
+          onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
+          style={{
+            background: "none", border: "none", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: activeTab === 'pending' ? S.cyan : S.secondary,
+            borderBottom: activeTab === 'pending' ? `2px solid ${S.cyan}` : "2px solid transparent",
+            padding: "0 4px 12px", marginBottom: "-1px", transition: "all 0.2s"
+          }}
+        >
+          Sedang Berjalan
+        </button>
+        <button
+          onClick={() => { setActiveTab('completed'); setCurrentPage(1); }}
+          style={{
+            background: "none", border: "none", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: activeTab === 'completed' ? S.cyan : S.secondary,
+            borderBottom: activeTab === 'completed' ? `2px solid ${S.cyan}` : "2px solid transparent",
+            padding: "0 4px 12px", marginBottom: "-1px", transition: "all 0.2s"
+          }}
+        >
+          Riwayat Selesai
+        </button>
+      </div>
+
+      {isSpv && activeTab === 'pending' && (
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -250,6 +273,17 @@ export function EngineeringTasksPage() {
                     style={{ fontSize: "11px", background: canWork ? S.white : "#C8102E", color: canWork ? S.slate : "#fff", border: canWork ? `1px solid ${S.border}` : "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
+                  </button>
+                )}
+                {!canWork && !canAssign && !canReview && (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/erp/engineer-tasks/${qut.id}`);
+                    }}
+                    style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Lihat
                   </button>
                 )}
                 {!canWork && !canAssign && canReview && (

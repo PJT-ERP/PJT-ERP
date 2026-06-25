@@ -215,4 +215,42 @@ public sealed class SalesOrdersController(IProductionService productionService) 
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPut("{id:guid}/production/pause")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> PauseProduction(
+        Guid id,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.PauseProductionAsync(id, request, cancellationToken, isPrivileged);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/production/resume")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> ResumeProduction(
+        Guid id,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.ResumeProductionAsync(id, request, cancellationToken, isPrivileged);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
