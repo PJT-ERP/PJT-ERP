@@ -12,6 +12,12 @@ vi.mock('../../services/purchasingApi', () => ({
   }
 }));
 
+vi.mock('../../services/financeApi', () => ({
+  financeApi: {
+    listSupplierPayments: vi.fn().mockResolvedValue([]),
+  }
+}));
+
 const mockRefreshBackendData = vi.fn();
 
 vi.mock('../context/AppContext', () => ({
