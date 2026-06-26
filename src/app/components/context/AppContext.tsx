@@ -191,10 +191,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
           let finalStatus = base.status;
           const finalEstimatedAmount = updates.estimatedAmount || base.estimatedAmount;
-          
-          if (finalStatus === "Waiting Pricing" && finalEstimatedAmount > 0) {
-            finalStatus = "Ready for Production";
-          }
 
           return { 
             ...base, 
@@ -202,6 +198,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             materials: base.materials || updates.materials, 
             designLink: base.designLink || updates.designLink,
             estimatedAmount: finalEstimatedAmount,
+            deadline: updates.deadline || base.deadline,
             items: updatedItems || base.items
           };
         }

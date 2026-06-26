@@ -99,6 +99,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - pjt_finance_proofs:/app/wwwroot/proofs
 
   web-gateway:
     build:
@@ -143,3 +145,4 @@ services:
 
 volumes:
   pjt_db:
+  pjt_finance_proofs:

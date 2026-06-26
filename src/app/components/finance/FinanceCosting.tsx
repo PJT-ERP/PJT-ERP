@@ -189,6 +189,7 @@ export function FinanceCosting() {
         ) : (
           filteredList.map((so, idx) => {
             const itemCount = so.items?.length || 0;
+            const isPricedBySales = (so.estimatedAmount || 0) > 0 && activeTab === 'queue';
             return (
               <div 
                 key={so.id}
@@ -205,15 +206,20 @@ export function FinanceCosting() {
                   <span style={{ color: S.secondary, fontSize: "11px" }}>{itemCount} items</span>
                 </div>
                 <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
-                <div style={{ alignSelf: "center" }}>
+                <div style={{ alignSelf: "center", display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                   <StatusBadge status={so.status as SOStatus} />
+                  {isPricedBySales && (
+                    <span style={{ fontSize: "10px", padding: "2px 6px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>
+                      Notif: Harga by Sales
+                    </span>
+                  )}
                 </div>
                 <div>
                   <button 
                     onClick={() => setSelectedItem(so)}
                     style={{ fontSize: "11px", background: activeTab === 'queue' ? S.cyan : S.white, color: activeTab === 'queue' ? "#fff" : S.slate, border: activeTab === 'queue' ? "none" : `1px solid ${S.border}`, padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
-                    {activeTab === 'queue' ? "Set Harga" : "Detail / Revisi"}
+                    {activeTab === 'queue' ? (isPricedBySales ? "Review Harga" : "Set Harga") : "Detail / Revisi"}
                   </button>
                 </div>
               </div>
@@ -278,6 +284,17 @@ export function FinanceCosting() {
                 </div>
               )}
               
+              {selectedItem.estimatedAmount > 0 && activeTab === 'queue' && (
+                <div style={{ background: "#FEF9C3", border: "1px solid #FEF08A", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13.5px", fontWeight: 600, color: "#A16207", margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
+                    💰 Notifikasi Harga dari Sales
+                  </h3>
+                  <p style={{ color: "#713F12", margin: 0, fontSize: "12.5px", lineHeight: "1.5" }}>
+                    Harga untuk pesanan ini telah ditentukan oleh tim Sales sebesar <strong>Rp {selectedItem.estimatedAmount.toLocaleString("id-ID")}</strong>. Anda dapat menyimpan langsung atau menyesuaikan kembali harga per item jika diperlukan.
+                  </p>
+                </div>
+              )}
+
               {/* Cek apakah ini produk standar yang melompati fase desain */}
               {selectedItem.backendDesignStatus === "Approved" && !selectedItem.designApprovedAt ? (
                 <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 16, marginBottom: 20 }}>
