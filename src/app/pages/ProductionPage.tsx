@@ -776,6 +776,11 @@ function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
               style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
             />
           </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "-6px" }}>
+            <button type="button" onClick={() => setPauseReason("Material Kurang")} style={{ padding: "4px 10px", fontSize: "11.5px", background: "#F1F5F9", border: `1px solid ${S.border}`, borderRadius: 12, cursor: "pointer", color: S.slate }}>Material Kurang</button>
+            <button type="button" onClick={() => setPauseReason("Mesin Rusak")} style={{ padding: "4px 10px", fontSize: "11.5px", background: "#F1F5F9", border: `1px solid ${S.border}`, borderRadius: 12, cursor: "pointer", color: S.slate }}>Mesin Rusak</button>
+            <button type="button" onClick={() => setPauseReason("Kapasitas Penuh")} style={{ padding: "4px 10px", fontSize: "11.5px", background: "#F1F5F9", border: `1px solid ${S.border}`, borderRadius: 12, cursor: "pointer", color: S.slate }}>Kapasitas Penuh</button>
+          </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" disabled={isSubmitting || !pauseReason.trim()} style={{ flex: 1, padding: "10px", background: "#EA580C", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: (isSubmitting || !pauseReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: (isSubmitting || !pauseReason.trim()) ? 0.65 : 1 }}>
@@ -842,7 +847,6 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
       await productionApi.finishProduction(salesOrderId, {
         workerUserId,
         workerName: currentUser?.name || so.assignedName || "Engineering Worker",
-        lateReason: isLate ? lateReason : undefined,
       });
       await refreshBackendData();
       onClose();
@@ -1344,7 +1348,7 @@ export function ProductionPage() {
       await purchasingApi.supervisorReviewPurchaseRequest(request.backendId, {
         reviewedByUserId: reviewerId,
         decision: 'Reject',
-        reason: reason,
+        rejectionReason: reason,
       });
       await refreshBackendData();
       setSystemMessage({
@@ -1546,10 +1550,18 @@ export function ProductionPage() {
                   {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                     <div style={{ display: "flex", gap: 8 }}>
                       {so.status === 'Paused' ? (
-                        <button onClick={() => handleResume(so)}
-                          style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                          <PlayCircle size={14} /> Lanjutkan Produksi
-                        </button>
+                        <>
+                          <button onClick={() => handleResume(so)}
+                            style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                            <PlayCircle size={14} /> Lanjutkan Produksi
+                          </button>
+                          {so.pauseReason?.toLowerCase().includes("material") && (
+                            <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                              style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              <Package size={14} /> Req. Material Kurang
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <button onClick={() => setPauseModal(so)}
                           style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>

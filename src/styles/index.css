@@ -29,3 +29,22 @@ div[class*="bg-white"][class*="rounded"],
 section[class*="bg-white"][class*="rounded"] {
   box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.12), 0 8px 16px -6px rgba(0, 0, 0, 0.08) !important;
 }
+@media print {
+  body {
+    background-color: white !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+  /* Hide typical layout elements like sidebar */
+  aside, nav, header {
+    display: none !important;
+  }
+  /* Remove shadows and borders for cleaner print */
+  [class*="shadow"] {
+    box-shadow: none !important;
+  }
+  .border, .border-slate-200 {
+    border-color: #ddd !important;
+  }
+}

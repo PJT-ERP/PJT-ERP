@@ -66,8 +66,17 @@ export function FinanceCosting() {
   React.useEffect(() => {
     if (selectedItem) {
       const initialPrices: Record<string, number> = {};
+      const hasEstimated = (selectedItem.estimatedAmount || 0) > 0;
+      const isSingleItem = selectedItem.items?.length === 1;
+
       selectedItem.items?.forEach((item: any) => {
-        initialPrices[item.productId] = item.unitPrice || 0;
+        if (item.unitPrice && item.unitPrice > 0) {
+          initialPrices[item.productId] = item.unitPrice;
+        } else if (hasEstimated && isSingleItem && item.quantity > 0) {
+          initialPrices[item.productId] = selectedItem.estimatedAmount / item.quantity;
+        } else {
+          initialPrices[item.productId] = 0;
+        }
       });
       setItemPrices(initialPrices);
       setCostingNotes(selectedItem.material || selectedItem.notes || "");
@@ -372,11 +381,10 @@ export function FinanceCosting() {
                             <div style={{ position: "relative" }}>
                               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>
                               <input 
-                                type="number"
-                                min="0"
-                                value={price || ""}
+                                type="text"
+                                value={price ? price.toLocaleString("id-ID") : ""}
                                 disabled={isReadOnly}
-                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value) })}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value.replace(/\D/g, "")) })}
                                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                               />
                             </div>

@@ -70,14 +70,20 @@ export function CreateInvoice() {
       customerEmail: so.customerEmail || '',
       status: so.status,
       targetDate: so.deadline,
-      items: so.items?.map(item => ({
-        salesOrderItemId: item.id,
-        productId: item.productId,
-        productDescription: item.productName || item.description,
-        qty: item.quantity,
-        unitPrice: item.unitPrice || 0,
-        lineTotal: (item.unitPrice || 0) * item.quantity
-      })) || []
+      items: so.items?.map(item => {
+        let unitPrice = item.unitPrice || 0;
+        if (unitPrice === 0 && so.items?.length === 1 && so.estimatedAmount && so.estimatedAmount > 0 && item.quantity > 0) {
+          unitPrice = so.estimatedAmount / item.quantity;
+        }
+        return {
+          salesOrderItemId: item.id,
+          productId: item.productId,
+          productDescription: item.productName || item.description,
+          qty: item.quantity,
+          unitPrice: unitPrice,
+          lineTotal: unitPrice * item.quantity
+        };
+      }) || []
     }));
 
   // Merge unique candidates

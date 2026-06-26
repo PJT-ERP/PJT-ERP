@@ -61,7 +61,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
   const total = mergedSalesOrders.length;
-  const waitingFinance = mergedSalesOrders.filter((o) => o.status === "Waiting Payment" || o.status === "Waiting Payment" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
+  const waitingFinance = mergedSalesOrders.filter((o) => (o.status as any) === "Waiting Payment" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
   const inProduction = mergedSalesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
   const completed = mergedSalesOrders.filter((o) => o.status === "Completed").length;
 
@@ -70,7 +70,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
     .slice(0, 6);
 
   const workflowStats = [
-    { label: "Waiting Payment", count: salesOrders.filter(o => o.status === "Waiting Payment").length, color: "#F59E0B" },
+    { label: "Waiting Payment", count: salesOrders.filter(o => (o.status as any) === "Waiting Payment").length, color: "#F59E0B" },
     { label: "Pending Design", count: salesOrders.filter(o => o.status === "Pending Design").length, color: "#94A3B8" },
     { label: "Waiting Approval", count: salesOrders.filter(o => o.status === "Waiting Approval").length, color: "#F59E0B" },
     { label: "Revision Required", count: salesOrders.filter(o => o.status === "Revision Required").length, color: "#EF4444" },

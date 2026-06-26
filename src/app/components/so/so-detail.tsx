@@ -297,7 +297,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const productLines = (order.items && order.items.length > 0)
     ? order.items.map((item, index) => {
       const quantity = Number(item.quantity || item.qty || 0) || 0;
-      const unitPrice = Number(item.unitPrice || 0) || 0;
+      let unitPrice = Number(item.unitPrice || 0) || 0;
+      if (unitPrice === 0 && order.items!.length === 1 && (order.estimatedAmount || 0) > 0 && quantity > 0) {
+        unitPrice = (order.estimatedAmount || 0) / quantity;
+      }
       return {
         id: item.id || `${order.id}-${index}`,
         productCode: item.productPartNumber || item.partNumber || order.partNumber || "-",
@@ -319,7 +322,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       lineTotal: order.estimatedAmount || order.invoice?.amount || 0,
       notes: order.notes || "",
     }];
-  const orderValue = order.invoice?.amount || order.estimatedAmount || productLines.reduce((sum, item) => sum + item.lineTotal, 0);
+  const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
+  const orderValue = order.invoice?.amount || (hasUnitPrice ? productLines.reduce((sum, item) => sum + item.lineTotal, 0) : order.estimatedAmount) || 0;
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -369,7 +373,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               const getWorkflowProgress = (status: string) => {
                 if (status === 'Completed' || order.completedAt) return 5;
                 if (status === 'QC') return 4;
-                if (['Ready for Production', 'In Production'].includes(status)) return 3;
+                if (['Ready for Production', 'In Production', 'Paused'].includes(status)) return 3;
                 if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
                 if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Waiting Payment'].includes(status)) return 1;
                 return 0;
@@ -613,7 +617,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     />
                   ) : !order.customerDrawingUrl ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
-                      <p style={{ margin: 0, fontSize: "11.5px", color: S.amber, fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                      <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
                       {currentUser?.role !== 'Engineering Worker' && (
                         <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
                           <Plus size={10} /> Link Desain
