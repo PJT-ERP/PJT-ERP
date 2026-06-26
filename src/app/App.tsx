@@ -17,6 +17,8 @@ import { PaymentVerification } from "./components/finance/PaymentVerification";
 import { TransactionHistory } from "./components/finance/TransactionHistory";
 import { FinanceReports } from "./components/finance/FinanceReports";
 import { FinancePurchasingApproval } from "./components/finance/FinancePurchasingApproval";
+import { FinancePrDetail } from "./components/finance/FinancePrDetail";
+import { FinancePoDetail } from "./components/finance/FinancePoDetail";
 
 // Migrated Pages from Folder B
 import { AdminPage } from "./pages/AdminPage";
@@ -40,6 +42,8 @@ const financeRoutes = [
   { path: "payment-verification", element: <PaymentVerification /> },
   { path: "transactions", element: <TransactionHistory /> },
   { path: "approval-po", element: <FinancePurchasingApproval /> },
+  { path: "pr/:id", element: <FinancePrDetail /> },
+  { path: "po/:id", element: <FinancePoDetail /> },
   { path: "reports", element: <FinanceReports /> },
 ];
 

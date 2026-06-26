@@ -651,8 +651,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
     setIsExistingCustomer(false);
-    setCustomerForm({ customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
-    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
+    setCustomerForm({ customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
+    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
 
