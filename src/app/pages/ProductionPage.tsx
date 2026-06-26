@@ -1128,7 +1128,9 @@ function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () =>
             {getDrawingUrl(so) ? (
               <a href={getDrawingUrl(so)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "14px", fontWeight: 500, textDecoration: "underline" }}>Lihat Gambar Desain</a>
             ) : (
-              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Tidak ada link desain</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>
+                {so.backendDesignStatus === 'Approved' && !so.designApprovedAt ? "Ini produk terdaftar, jadi tidak butuh desain" : "Tidak ada link desain"}
+              </p>
             )}
           </div>
           <div>

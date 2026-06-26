@@ -103,7 +103,7 @@ public static class PdfGeneratorService
             
             column.Item().PaddingTop(10).Row(row =>
             {
-                row.RelativeItem(3).Column(c =>
+                row.RelativeItem(1).Column(c =>
                 {
                     // Payment Instructions
                     c.Item().Text("Informasi Pembayaran").Bold().FontSize(12).FontColor(Colors.Grey.Darken4);
@@ -115,7 +115,7 @@ public static class PdfGeneratorService
                     });
                 });
 
-                row.RelativeItem(2).PaddingLeft(20).Column(c =>
+                row.RelativeItem(1).PaddingLeft(20).Column(c =>
                 {
                     c.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5).Row(r =>
                     {
@@ -217,6 +217,6 @@ public static class PdfGeneratorService
 
     private static string FormatCurrency(decimal amount)
     {
-        return $"Rp {amount:N0}";
+        return $"Rp\u00A0{amount:N0}";
     }
 }
