@@ -29,6 +29,8 @@ export function resolveSalesOrderInvoice(order: SalesOrder, invoices: Invoice[])
     invoiceDate: financeInvoice.issueDate,
     dueDate: financeInvoice.dueDate,
     amount: financeInvoice.amount,
+    paidAmount: financeInvoice.paidAmount,
+    paymentSchedules: financeInvoice.paymentSchedules,
     status: mapFinanceInvoiceStatus(financeInvoice),
     paymentDate: financeInvoice.paymentDate || "",
   };

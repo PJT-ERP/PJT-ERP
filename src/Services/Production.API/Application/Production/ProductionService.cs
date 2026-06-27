@@ -224,9 +224,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         if (salesOrder is null) return null;
 
-        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Waiting Payment")
+        var allowedStatuses = new[] { "Draft", "Waiting Pricing", "Waiting Payment", "Confirmed", "Ready for Production", "InProduction", "QC", "Completed" };
+        if (!allowedStatuses.Contains(salesOrder.Status))
         {
-            throw new InvalidOperationException("Only sales orders waiting for pricing can be updated.");
+            throw new InvalidOperationException($"Sales order status '{salesOrder.Status}' does not allow pricing updates.");
         }
 
         foreach (var itemRequest in request.Items)
@@ -238,7 +239,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             }
         }
 
-        salesOrder.Status = "Waiting Payment";
+        if (salesOrder.Status == "Waiting Pricing")
+        {
+            salesOrder.Status = "Waiting Payment";
+        }
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         var integrationEvent = new SalesOrderReadyForInvoiceEvent(

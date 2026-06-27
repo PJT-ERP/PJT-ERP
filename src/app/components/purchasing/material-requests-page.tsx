@@ -266,10 +266,9 @@ export function MaterialRequestsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/erp/purchasing/requests/create")}
-            className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 13, fontWeight: 600, background: "#2563eb" }}
+            className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
           >
-            <Plus size={16} /> Buat PR Manual
+            <Plus size={14} /> Buat PR Manual
           </button>
         </div>
       </div>

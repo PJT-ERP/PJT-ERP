@@ -308,23 +308,21 @@ export function InventoryPage() {
             <button
               onClick={() => setIsAddModalOpen(true)}
               title="Tambah Material / Stok Baru"
-              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
-              style={{ fontSize: 12, background: "#0e7490" }}
+              className="flex items-center gap-2 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
             >
-              <Plus size={13} /> Tambah Material
+              <Plus size={14} /> Tambah Material
             </button>
           )}
-          <button onClick={() => void refresh()} className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
-            <RefreshCcw size={13} /> Refresh
+          <button onClick={() => void refresh()} className="flex items-center gap-2 text-sm border hover:bg-slate-50 transition-colors rounded-md px-4 py-1.5 font-medium shadow-sm" style={{ color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
+            <RefreshCcw size={14} /> Refresh
           </button>
           {canCreatePo && (
             <button
               onClick={() => navigate("/erp/purchasing/create")}
               title="Buat PO untuk item reorder"
-              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
-              style={{ fontSize: 12, background: "#1e3a5f" }}
+              className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
             >
-              <Plus size={13} /> Buat PO Reorder
+              <Plus size={14} /> Buat PO Reorder
             </button>
           )}
         </div>

@@ -72,7 +72,7 @@ export interface SalesOrder {
   notes?: string;
   timeline?: { id: string; step: string; label: string; date: string; completed: boolean; current?: boolean; assignedTo?: string }[];
   activities?: { id: string; user: string; role: string; action: string; timestamp: string }[];
-  invoice?: { invoiceId?: string; invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; status: string; paymentDate: string; rejectedPayments?: { date: string; reason: string }[] };
+  invoice?: { invoiceId?: string; invoiceNumber: string; invoiceDate: string; dueDate: string; amount: number; paidAmount?: number; paymentSchedules?: { label: string; percentage: number; amount: number; dueDate: string }[]; status: string; paymentDate: string; rejectedPayments?: { date: string; reason: string }[] };
   quotationDate?: string;
   designApprovedAt?: string;
   assignedTo?: string;
