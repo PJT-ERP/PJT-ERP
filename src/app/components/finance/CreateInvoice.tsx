@@ -56,10 +56,11 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  // Combine backend candidates with local SOs that bypassed costing (Sales already set price)
+  // Combine backend candidates with local SOs that bypassed costing or were priced during production
   const localBypassedCandidates = salesOrders
     .filter(so => 
-      ((so.status === 'Waiting Pricing' || so.status === 'Ready for Production' || so.status === 'Waiting Client Approval') && so.estimatedAmount && so.estimatedAmount > 0)
+      (['Waiting Pricing', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'QC', 'Completed'].includes(so.status)) && 
+      (so.items?.some((i: any) => i.unitPrice && i.unitPrice > 0) || (so.estimatedAmount && so.estimatedAmount > 0))
     )
     .map(so => ({
       salesOrderId: so.backendId || so.id,

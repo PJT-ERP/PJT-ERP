@@ -66,7 +66,6 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
     { label: "Req. Material", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
     { label: "Daftar PO", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
-    { label: "Buat PO", icon: <Plus size={15} />, path: "/erp/purchasing/create" },
     { label: "Daftar Supplier", icon: <Users size={15} />, path: "/erp/purchasing/suppliers" },
   ]
 };

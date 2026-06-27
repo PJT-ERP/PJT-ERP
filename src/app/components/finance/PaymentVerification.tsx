@@ -414,9 +414,10 @@ function InvoiceVerificationDetailModal({ invoice, onClose, onVerify, onReject }
   const handleVerify = async () => {
     try {
       setIsSaving(true);
+      const verifyAmount = nextSchedule ? Math.min(nextSchedule.amount, remainingAmount) : remainingAmount;
       await financeApi.recordPayment(invoice.id, {
         paymentDate: todayInputValue(),
-        amount: remainingAmount,
+        amount: verifyAmount,
         notes: "Diverifikasi otomatis",
       });
       await onVerify();

@@ -90,7 +90,7 @@ export function FinancePrDetail() {
   const sc = statusCfg[detail.status] || { bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" };
   const pc = priorityCfg[detail.priority] || { bg: "#f1f5f9", color: "#64748b" };
   
-  const totalAnggaran = detail.items.reduce((sum, item) => sum + ((item.estimatedPrice || 0) * item.qty), 0);
+  const totalAnggaran = detail.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
 
   return (
     <div className="p-5 max-w-5xl mx-auto space-y-6">
@@ -164,8 +164,8 @@ export function FinancePrDetail() {
                       <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
                       <td className="p-3 text-sm font-semibold text-slate-900 text-right">{item.qty} {item.unit}</td>
                       <td className="p-3 text-sm text-slate-600">{item.supplierName || "-"}</td>
-                      <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
-                      <td className="p-3 text-sm text-slate-900 text-right font-bold">{item.estimatedPrice ? formatRp(item.estimatedPrice * item.qty) : "-"}</td>
+                      <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice / (item.qty || 1)) : "-"}</td>
+                      <td className="p-3 text-sm text-slate-900 text-right font-bold">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
                     </tr>
                   ))}
                 </tbody>

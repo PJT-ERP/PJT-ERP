@@ -178,7 +178,7 @@ export function FinancePurchasingApproval() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredMrs.map(mr => {
-                    const totalEst = mr.items.reduce((sum, item) => sum + ((item.estimatedPrice || 0) * item.qty), 0);
+                    const totalEst = mr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
                     return (
                       <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
                         <td className="px-5 py-4 text-slate-600">{mr.date}</td>
@@ -307,7 +307,7 @@ export function FinancePurchasingApproval() {
                 <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm mt-2">
                   <span className="text-sm font-bold text-slate-700">Estimasi Total Anggaran</span>
                   <span className="text-lg font-black text-blue-700 flex items-center gap-1">
-                    {formatIDR(selectedMr.items.reduce((sum, item) => sum + ((item.estimatedPrice || 0) * item.qty), 0))}
+                    {formatIDR(selectedMr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0))}
                   </span>
                 </div>
               </div>
@@ -329,8 +329,8 @@ export function FinancePurchasingApproval() {
                         <td className="px-4 py-3">{item.name}</td>
                         <td className="px-4 py-3">{item.qty} {item.unit}</td>
                         <td className="px-4 py-3 text-slate-600">{item.supplierName || '-'}</td>
-                        <td className="px-4 py-3 text-right">{formatIDR(item.estimatedPrice || 0)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatIDR((item.estimatedPrice || 0) * item.qty)}</td>
+                        <td className="px-4 py-3 text-right">{formatIDR((item.estimatedPrice || 0) / (item.qty || 1))}</td>
+                        <td className="px-4 py-3 text-right font-medium">{formatIDR(item.estimatedPrice || 0)}</td>
                       </tr>
                     ))}
                   </tbody>

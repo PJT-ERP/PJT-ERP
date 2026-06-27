@@ -26,14 +26,7 @@ export function FinanceCosting() {
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
 
-  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingSO = salesOrders.filter(so => so.status === "Waiting Pricing").map(so => ({
-    ...so,
-    isQuotation: false
-  }));
-
   const historyStatuses = [
-    'Waiting Payment',
     'Waiting Payment',
     'Waiting Client Approval',
     'Ready for Production',
@@ -42,8 +35,18 @@ export function FinanceCosting() {
     'Completed'
   ];
 
+  const isUnpriced = (so: any) => !so.items || so.items.length === 0 || so.items.some((item: any) => !item.unitPrice || item.unitPrice === 0);
+
+  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
+  const waitingPricingSO = salesOrders.filter(so => 
+    so.status === "Waiting Pricing" || (historyStatuses.includes(so.status) && isUnpriced(so))
+  ).map(so => ({
+    ...so,
+    isQuotation: false
+  }));
+
   const historySO = salesOrders.filter(so => 
-    historyStatuses.includes(so.status)
+    historyStatuses.includes(so.status) && !isUnpriced(so)
   ).map(so => ({
     ...so,
     isQuotation: false
