@@ -330,7 +330,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const orderValue = order.invoice?.amount || (hasUnitPrice ? productLines.reduce((sum, item) => sum + item.lineTotal, 0) : order.estimatedAmount) || 0;
 
   return (
-    <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+    <>
+      <div className="print-hide" style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -359,7 +361,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => window.print()} />
-          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
+          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
           <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Batal Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
       </div>
@@ -375,11 +377,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               const tStep = order.timeline?.find(t => t.step === step.key);
 
               const getWorkflowProgress = (status: string) => {
-                if (status === 'Completed' || order.completedAt) return 5;
+                if (status === 'Completed' || order.completedAt || isGo(order.qcStatus)) return 5;
                 if (status === 'QC') return 4;
                 if (['Ready for Production', 'In Production', 'Paused'].includes(status)) return 3;
                 if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
-                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Waiting Payment'].includes(status)) return 1;
+                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval'].includes(status)) return 1;
                 return 0;
               };
 
@@ -387,6 +389,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               const isDone = idx < currentIdx;
               const isCurrent = idx === currentIdx;
               const isUnpaidCompleted = isCurrent && idx === 5 && order.status === 'Waiting Payment';
+              const isFinancePending = idx === 1 && !order.invoice?.invoiceId && currentIdx > 1;
 
               return (
                 <React.Fragment key={step.key}>
@@ -394,20 +397,20 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     <div style={{
                       width: 32, height: 32, borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isUnpaidCompleted ? "#FEF3C7" : isDone ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
-                      border: `2px solid ${isUnpaidCompleted ? "#F59E0B" : isDone ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
-                      color: isUnpaidCompleted ? "#D97706" : isDone ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
-                      boxShadow: isUnpaidCompleted ? "0 0 0 3px rgba(245, 158, 11, 0.15)" : isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
+                      background: isUnpaidCompleted || isFinancePending ? "#FEF3C7" : (isDone && !isFinancePending) ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
+                      border: `2px solid ${isUnpaidCompleted || isFinancePending ? "#F59E0B" : (isDone && !isFinancePending) ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
+                      color: isUnpaidCompleted || isFinancePending ? "#D97706" : (isDone && !isFinancePending) ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
+                      boxShadow: isUnpaidCompleted || isFinancePending ? "0 0 0 3px rgba(245, 158, 11, 0.15)" : isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
                       flexShrink: 0,
                     }}>
-                      {isUnpaidCompleted ? <AlertTriangle size={14} /> : isDone ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
+                      {isUnpaidCompleted ? <AlertTriangle size={14} /> : isFinancePending ? <Clock size={13} /> : (isDone && !isFinancePending) ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
                     </div>
-                    {isUnpaidCompleted && (
+                    {(isUnpaidCompleted || isFinancePending) && (
                       <div style={{ position: "absolute", top: -25, background: "#F59E0B", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: 4, fontWeight: "bold", whiteSpace: "nowrap" }}>
-                        Unpaid
+                        {isFinancePending ? "Pending Invoice" : "Unpaid"}
                       </div>
                     )}
-                    <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : isDone ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>
+                    <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : (isDone && !isFinancePending) ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>
                       {step.label}
                     </p>
                     {step.dept && (
@@ -528,11 +531,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
                     <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Mulai Mesin</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.startTime?.replace('T', ' ') || '-'}</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.startTime ? new Date(order.startTime).toLocaleString("id-ID") : '-'}</p>
                   </div>
                   <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
                     <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Selesai Produksi</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.endTime?.replace('T', ' ') || '-'}</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.endTime ? new Date(order.endTime).toLocaleString("id-ID") : '-'}</p>
                   </div>
                 </div>
                 {order.lateReason && (
@@ -677,7 +680,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 {order.qcAt && (
                   <div>
                     <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Inspeksi</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{order.qcAt}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{new Date(order.qcAt).toLocaleString("id-ID")}</p>
                   </div>
                 )}
                 {order.qcNotes && (
@@ -852,7 +855,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
         </div>
       </div>
-    </div>
+      </div>
+      <SOPrintView order={order} customer={customer} displayMaterials={displayMaterials} currentUser={currentUser} />
+    </>
   );
 }
 
@@ -919,9 +924,21 @@ function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { inv
                     Rp {invoice!.amount.toLocaleString("id-ID")}
                   </p>
                 </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Telah Dibayar</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#059669", fontWeight: 600 }}>
+                    Rp {(invoice!.paidAmount || 0).toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Sisa Tagihan</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#DC2626", fontWeight: 600 }}>
+                    Rp {Math.max((invoice!.amount || 0) - (invoice!.paidAmount || 0), 0).toLocaleString("id-ID")}
+                  </p>
+                </div>
                 {invoice!.paymentDate && (
                   <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar</p>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar (Terakhir)</p>
                     <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#22C55E" }}>{invoice!.paymentDate}</p>
                   </div>
                 )}
@@ -1248,5 +1265,131 @@ function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; l
     >
       {icon} {label}
     </button>
+  );
+}
+
+// ─── SOPrintView ──────────────────────────────────────────────────────────────
+function SOPrintView({ order, customer, displayMaterials, currentUser }: { order: any, customer: any, displayMaterials: any[], currentUser: any }) {
+  if (!order) return null;
+  const createdBy = order.createdBy === "backend" ? (currentUser?.name || "Sales Staff") : (order.createdBy || "Sales Staff");
+
+  return (
+    <div className="hidden print:block print:w-full print:border-none print:shadow-none print:m-0 print:bg-white print:text-slate-900 bg-white">
+      {/* Professional Sales Order Header */}
+      <div className="px-6 pt-10 pb-6 border-b-2 border-slate-800">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">PT PJT JAYA</h1>
+            <p className="text-sm text-slate-600 font-medium">Kawasan Industri Margomulyo Permai</p>
+            <p className="text-sm text-slate-600">Surabaya, Jawa Timur 60186</p>
+          </div>
+          <div className="text-right">
+            <h2 className="text-4xl font-black text-slate-200 tracking-widest uppercase mb-2">SALES ORDER</h2>
+            <p className="text-sm font-bold text-slate-800">SO No: {order.id}</p>
+            <p className="text-sm text-slate-600">Tgl. Cetak: {new Date().toLocaleDateString('id-ID')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Ditujukan Kepada / Detail Order */}
+      <div className="flex px-6 py-8 justify-between">
+        <div className="w-1/2 pr-4">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ditujukan Kepada:</h3>
+          <p className="font-bold text-slate-900 text-lg">{customer?.company || customer?.name}</p>
+          <p className="text-sm text-slate-600 mt-1">Up. {customer?.name}</p>
+          <p className="text-sm text-slate-600">{customer?.address || "-"}</p>
+          <p className="text-sm text-slate-600">Telp: {customer?.phone || "-"}</p>
+        </div>
+        <div className="w-1/3 border-l-2 border-slate-100 pl-6">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Detail Order:</h3>
+          <p className="text-sm text-slate-600 mb-1">Status: <strong className="text-slate-900">{order.status}</strong></p>
+          <p className="text-sm text-slate-600 mb-1">Tgl. SO: <strong className="text-slate-900">{order.createdAt}</strong></p>
+          <p className="text-sm text-slate-600 mb-1">Deadline: <strong className="text-slate-900">{order.deadline}</strong></p>
+        </div>
+      </div>
+
+      {/* Items table */}
+      <div className="px-6 py-2">
+        <p className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+          Daftar Pesanan
+        </p>
+        <div className="rounded border border-slate-200 overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-12">No</th>
+                <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Produk / Material</th>
+                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Qty</th>
+                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Harga Satuan</th>
+                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Harga</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items?.length > 0 ? (
+                order.items.map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-xs text-slate-500 font-mono">{idx + 1}</td>
+                    <td className="p-3 text-sm font-medium text-slate-900">
+                      <div>{item.productDescription || order.description}</div>
+                      <div className="text-xs text-slate-500 font-normal mt-0.5">Part No: {item.productPartNumber || order.partNumber}</div>
+                    </td>
+                    <td className="p-3 text-sm font-semibold text-right text-slate-900">{item.qty || order.quantity} {item.unit || order.unit}</td>
+                    <td className="p-3 text-sm text-right text-slate-700">Rp {((item.totalPrice || order.estimatedAmount || 0) / (item.qty || order.quantity || 1)).toLocaleString('id-ID')}</td>
+                    <td className="p-3 text-sm text-right font-bold text-slate-900">Rp {(item.totalPrice || order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td className="p-3 text-xs text-slate-500 font-mono">1</td>
+                  <td className="p-3 text-sm font-medium text-slate-900">
+                    <div>{order.description}</div>
+                    <div className="text-xs text-slate-500 font-normal mt-0.5">Part No: {order.partNumber}</div>
+                  </td>
+                  <td className="p-3 text-sm font-semibold text-right text-slate-900">{order.quantity} {order.unit}</td>
+                  <td className="p-3 text-sm text-right text-slate-700">Rp {((order.estimatedAmount || 0) / (order.quantity || 1)).toLocaleString('id-ID')}</td>
+                  <td className="p-3 text-sm text-right font-bold text-slate-900">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-50 border-t border-slate-200">
+                <td colSpan={4} className="p-3 text-right text-sm font-bold text-slate-700 uppercase tracking-wider">GRAND TOTAL</td>
+                <td className="p-3 text-right text-base font-black text-blue-700">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div className="px-6 py-4 space-y-6">
+        {displayMaterials && displayMaterials.length > 0 && (
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spesifikasi Material:</h4>
+            <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
+              {displayMaterials.map((mat: any, i: number) => (
+                <li key={i}>{mat.name} - {mat.spec} ({mat.quantity} {mat.unit})</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {order.notes && (
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Catatan:</h4>
+            <div className="text-sm text-slate-600 bg-slate-50 p-3 border border-slate-200 rounded whitespace-pre-wrap">{order.notes}</div>
+          </div>
+        )}
+      </div>
+
+      {/* PRINT ONLY: Signatures */}
+      <div className="flex mt-16 justify-end px-10 pb-10">
+        <div className="text-center">
+          <p className="text-sm font-medium text-slate-800 mb-20">Dibuat Oleh,</p>
+          <div className="w-48 border-b border-slate-400 mx-auto"></div>
+          <p className="text-sm font-bold text-slate-900 mt-2">{createdBy}</p>
+          <p className="text-xs text-slate-500">Sales Department</p>
+        </div>
+      </div>
+    </div>
   );
 }

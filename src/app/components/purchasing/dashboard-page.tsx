@@ -12,7 +12,11 @@ import {
   AlertTriangle,
   Search,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Package,
+  Users,
+  Store,
+  Plus,
 } from "lucide-react";
 import { usePurchasingData } from "./usePurchasingData";
 import { PurchaseRequestDto } from "../../services/purchasingApi";
@@ -215,6 +219,68 @@ export function DashboardPage() {
                 <p className="text-xs text-slate-500">Semua material request sudah diproses.</p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Tindakan Cepat */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h3 className="text-slate-800 text-sm font-semibold">Tindakan Cepat</h3>
+          </div>
+          <div className="p-4 flex flex-col gap-3">
+            {canCreatePo && (
+              <button 
+                onClick={() => navigate("/erp/purchasing/create")}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-red-200 hover:bg-red-50 text-slate-700 hover:text-red-700 transition-colors text-left"
+              >
+                <div className="w-8 h-8 rounded-md bg-red-100 flex items-center justify-center shrink-0">
+                  <PackagePlus size={16} className="text-red-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold">Buat PO Baru</h4>
+                  <p className="text-xs opacity-70">Buat Purchase Order</p>
+                </div>
+              </button>
+            )}
+            
+            <button 
+              onClick={() => navigate("/erp/purchasing/orders")}
+              className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-blue-200 hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-md bg-blue-100 flex items-center justify-center shrink-0">
+                <Truck size={16} className="text-blue-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">Daftar PO</h4>
+                <p className="text-xs opacity-70">Lihat semua pesanan</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => navigate("/erp/purchasing/inventory")}
+              className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-md bg-emerald-100 flex items-center justify-center shrink-0">
+                <Package size={16} className="text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">Stok Gudang</h4>
+                <p className="text-xs opacity-70">Manajemen inventory</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => navigate("/erp/purchasing/suppliers")}
+              className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-purple-200 hover:bg-purple-50 text-slate-700 hover:text-purple-700 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-md bg-purple-100 flex items-center justify-center shrink-0">
+                <Users size={16} className="text-purple-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold">Daftar Supplier</h4>
+                <p className="text-xs opacity-70">Kelola data supplier</p>
+              </div>
+            </button>
           </div>
         </div>
       </div>

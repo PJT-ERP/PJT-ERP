@@ -192,10 +192,11 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
     });
 }
 
-export function useFinanceData(enabled = true) {
+export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
   const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
   const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
   const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
+  const [supplierPayments, setSupplierPayments] = useState<any[]>([]);
   const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
   const [isUsingBackend, setIsUsingBackend] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -203,15 +204,23 @@ export function useFinanceData(enabled = true) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [invoices, candidates, paymentVerifications] = await Promise.all([
+      const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult] = await Promise.allSettled([
         financeApi.listInvoices(),
         financeApi.listInvoiceCandidates(),
         financeApi.listPaymentVerifications(),
+        fetchSupplierPayments ? financeApi.listSupplierPayments() : Promise.resolve([]),
       ]);
+
+      const invoices = invoicesResult.status === 'fulfilled' ? invoicesResult.value : [];
+      const candidates = candidatesResult.status === 'fulfilled' ? candidatesResult.value : [];
+      const paymentVerifications = paymentVerificationsResult.status === 'fulfilled' ? paymentVerificationsResult.value : [];
+      const supplierPaymentsList = supplierPaymentsResult.status === 'fulfilled' ? supplierPaymentsResult.value : [];
+
       setBackendInvoices(invoices.map(mapInvoice));
       setBackendPayments(mapPayments(invoices, paymentVerifications));
       setBackendTransactions(buildTransactionsFromInvoices(invoices));
       setInvoiceCandidates(candidates);
+      setSupplierPayments(supplierPaymentsList);
       setIsUsingBackend(true);
     } catch (error) {
       console.warn('Finance API unavailable; finance seed data was not loaded.', error);
@@ -219,6 +228,7 @@ export function useFinanceData(enabled = true) {
       setBackendPayments([]);
       setBackendTransactions([]);
       setInvoiceCandidates([]);
+      setSupplierPayments([]);
       setIsUsingBackend(false);
     } finally {
       setIsLoading(false);
@@ -242,10 +252,11 @@ export function useFinanceData(enabled = true) {
     payments,
     transactions,
     invoiceCandidates,
+    supplierPayments,
     isLoading,
     isUsingBackend,
     refresh,
     monthlyRevenueData: buildMonthlyData(invoices),
     invoiceStatusData: buildStatusData(invoices),
-  }), [invoices, payments, transactions, invoiceCandidates, isLoading, isUsingBackend, refresh]);
+  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, isLoading, isUsingBackend, refresh]);
 }
