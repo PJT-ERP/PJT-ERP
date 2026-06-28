@@ -7,9 +7,18 @@ import {
   type Transaction,
 } from './mockData';
 
-function mapStatus(status: string, paidAmount: number, totalAmount: number): InvoiceStatus {
+function mapStatus(status: string, paidAmount: number, totalAmount: number, dueDate?: string): InvoiceStatus {
   const normalized = status.toLowerCase();
   if (normalized === 'paid' || paidAmount >= totalAmount) return 'PAID';
+  
+  if (dueDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    if (due < today) return 'OVERDUE';
+  }
+
   if (normalized === 'partiallypaid') return 'PARTIAL';
   if (normalized === 'overdue') return 'OVERDUE';
   return 'PENDING';
@@ -27,7 +36,7 @@ function mapInvoice(invoice: InvoiceDto): Invoice {
     paymentDate: invoice.payments[0]?.paymentDate,
     dueDate: invoice.dueDate,
     issueDate: invoice.invoiceDate,
-    status: mapStatus(invoice.status, invoice.paidAmount, invoice.totalAmount),
+    status: mapStatus(invoice.status, invoice.paidAmount, invoice.totalAmount, invoice.dueDate),
     notes: invoice.paymentSchedules.map(schedule => `${schedule.label}: ${schedule.percentage}%`).join(', '),
     ppn: invoice.taxAmount,
     paymentSchedules: invoice.paymentSchedules,

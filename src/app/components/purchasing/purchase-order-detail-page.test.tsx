@@ -71,7 +71,7 @@ describe('PurchaseOrderDetailPage', () => {
     await userEvent.click(itemsTab);
 
     // Wait for the items tab content
-    await screen.findByText('Steel Pipe');
+    await screen.findAllByText('Steel Pipe');
 
     // Click the "Terima" button for the item
     // The accessible name is "Terima" (text content)
@@ -89,7 +89,7 @@ describe('PurchaseOrderDetailPage', () => {
 
     // Submit the form (Konfirmasi Terima)
     const confirmButton = screen.getByRole('button', { name: /Konfirmasi Terima/i });
-    fireEvent.click(confirmButton);
+    fireEvent.submit(confirmButton.closest('form')!);
 
     // Assert that the API was called with the correct IDs
     await waitFor(() => {

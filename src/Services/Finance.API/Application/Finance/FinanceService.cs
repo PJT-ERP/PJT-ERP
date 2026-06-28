@@ -81,8 +81,40 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
 
         var candidate = await db.InvoiceCandidates
             .Include(candidate => candidate.Items)
-            .FirstOrDefaultAsync(candidate => candidate.SalesOrderId == request.SalesOrderId, cancellationToken)
-            ?? throw new InvalidOperationException("Sales order is not ready for invoice yet.");
+            .FirstOrDefaultAsync(candidate => candidate.SalesOrderId == request.SalesOrderId, cancellationToken);
+
+        if (candidate is null)
+        {
+            if (request.FallbackCandidate is not null)
+            {
+                candidate = new InvoiceCandidate
+                {
+                    SalesOrderId = request.SalesOrderId,
+                    SalesOrderNumber = request.FallbackCandidate.SalesOrderNumber,
+                    CustomerId = request.FallbackCandidate.CustomerId,
+                    CustomerCode = request.FallbackCandidate.CustomerCode,
+                    CustomerName = request.FallbackCandidate.CustomerName,
+                    CustomerEmail = request.FallbackCandidate.CustomerEmail,
+                    TargetDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                    CompletedAtUtc = DateTime.UtcNow,
+                    Status = InvoiceCandidateStatuses.ReadyForInvoice,
+                    Items = request.FallbackCandidate.Items.Select(i => new InvoiceCandidateItem
+                    {
+                        SalesOrderItemId = i.SalesOrderItemId,
+                        ProductId = i.ProductId,
+                        ProductPartNumber = i.ProductPartNumber,
+                        ProductDescription = i.ProductDescription,
+                        Qty = i.Qty,
+                        UnitPrice = 0
+                    }).ToList()
+                };
+                await db.InvoiceCandidates.AddAsync(candidate, cancellationToken);
+            }
+            else
+            {
+                throw new InvalidOperationException("Sales order is not ready for invoice yet.");
+            }
+        }
 
         if (candidate.Status == InvoiceCandidateStatuses.Invoiced
             || await db.Invoices.AnyAsync(invoice => invoice.SalesOrderId == request.SalesOrderId, cancellationToken))
@@ -121,7 +153,7 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
         var paymentSchedules = BuildPaymentSchedules(request, totalAmount);
         var invoice = new Invoice
         {
-            InvoiceNumber = GenerateNumber("INV"),
+            InvoiceNumber = await GenerateInvoiceNumberAsync(cancellationToken),
             SalesOrderId = candidate.SalesOrderId,
             SalesOrderNumber = candidate.SalesOrderNumber,
             CustomerId = candidate.CustomerId,
@@ -376,14 +408,15 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
             throw new InvalidOperationException("Collection letters can only be issued after the invoice due date.");
         }
 
-        await db.CollectionLetters.AddAsync(new CollectionLetter
+        var letter = new CollectionLetter
         {
             InvoiceId = invoice.Id,
-            LetterNumber = GenerateNumber("COL"),
+            LetterNumber = await GenerateCollectionLetterNumberAsync(cancellationToken),
             IssuedDate = request.IssuedDate,
             DueDate = request.DueDate,
             Notes = NormalizeOptional(request.Notes)
-        }, cancellationToken);
+        };
+        await db.CollectionLetters.AddAsync(letter, cancellationToken);
         invoice.Status = InvoiceStatuses.Overdue;
         invoice.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -826,8 +859,41 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
         return string.IsNullOrWhiteSpace(notes) ? null : notes;
     }
 
-    private static string GenerateNumber(string prefix)
+    private async Task<string> GenerateInvoiceNumberAsync(CancellationToken cancellationToken)
     {
-        return $"{prefix}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..(prefix.Length + 24)].ToUpperInvariant();
+        var prefix = $"INV-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.Invoices
+            .AsNoTracking()
+            .Where(x => x.InvoiceNumber.StartsWith(prefix))
+            .Select(x => x.InvoiceNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):0000}";
+    }
+
+    private async Task<string> GenerateCollectionLetterNumberAsync(CancellationToken cancellationToken)
+    {
+        var prefix = $"COL-{DateTime.UtcNow:yyyy}-";
+        var existingNumbers = await db.CollectionLetters
+            .AsNoTracking()
+            .Where(x => x.LetterNumber.StartsWith(prefix))
+            .Select(x => x.LetterNumber)
+            .ToListAsync(cancellationToken);
+
+        return $"{prefix}{NextSequence(existingNumbers, prefix):0000}";
+    }
+
+    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
+    {
+        var max = 0;
+        foreach (var number in existingNumbers)
+        {
+            if (number.Length <= prefix.Length) continue;
+            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
+            {
+                max = value;
+            }
+        }
+        return max + 1;
     }
 }

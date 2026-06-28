@@ -1,11 +1,15 @@
 import type { SalesOrder } from "../data/mockData";
 import type { Invoice, Payment } from "../finance/mockData";
 
-export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created" | "pending_verification";
+export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created" | "pending_verification" | "overdue";
 
 function mapFinanceInvoiceStatus(invoice: Invoice): SalesInvoiceStatus {
   if (invoice.status === "PAID") {
     return "paid";
+  }
+
+  if (invoice.status === "OVERDUE") {
+    return "overdue";
   }
 
   if (invoice.status === "PARTIAL" || invoice.paidAmount > 0 || invoice.paymentDate) {

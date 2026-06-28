@@ -310,7 +310,7 @@ export function ERPLayout() {
   const hasNotif = notifications.length > 0;
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif", background: "#F8FAFC" }}>
+    <div className="flex h-screen print:h-auto overflow-hidden print:overflow-visible" style={{ fontFamily: "Inter, sans-serif", background: "#F8FAFC" }}>
       {(sidebarOpen || isNotifOpen) && (
         <div className="fixed inset-0 z-40 lg:hidden" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => { setSidebarOpen(false); setIsNotifOpen(false); }} />
       )}
@@ -383,7 +383,7 @@ export function ERPLayout() {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative print:overflow-visible">
         {/* Topbar */}
         <header style={{
           height: 46, background: "#fff", borderBottom: "1px solid #E2E8F0",
@@ -443,7 +443,7 @@ export function ERPLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto relative">
+        <main className="flex-1 overflow-y-auto relative print:overflow-visible">
           <Outlet />
         </main>
       </div>

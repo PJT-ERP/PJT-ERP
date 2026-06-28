@@ -131,7 +131,7 @@ export function CreateInvoice() {
       setItems([newItem()]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSO]);
+  }, [selectedSO, invoiceCandidates, salesOrders]);
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
@@ -172,11 +172,8 @@ export function CreateInvoice() {
             unitPrice: item.unitPrice,
           }))
         });
-        // Tunggu event bus propagate dari Production API ke Finance API (RabbitMQ delay)
-        await new Promise(r => setTimeout(r, 2500));
       } catch (pricingError: any) {
         console.warn('Failed to pre-update pricing. Continuing to create invoice anyway...', pricingError);
-        throw new Error(`Gagal update harga di backend: ${pricingError?.response?.data?.message || pricingError?.message || 'Unknown error'}`);
       }
 
       const invoice = await financeApi.createInvoice({
@@ -211,6 +208,22 @@ export function CreateInvoice() {
         bankName: 'BCA',
         bankAccountName: 'PT Pratama Jaya',
         bankAccountNumber: '1234567890',
+        fallbackCandidate: {
+          salesOrderNumber: activeCandidate!.salesOrderNumber,
+          customerId: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeCandidate!.customerId) 
+            ? activeCandidate!.customerId 
+            : '00000000-0000-0000-0000-000000000000',
+          customerCode: activeCandidate!.customerCode,
+          customerName: activeCandidate!.customerName,
+          customerEmail: activeCandidate!.customerEmail,
+          items: items.map(item => ({
+            salesOrderItemId: item.id,
+            productId: activeCandidate!.items.find(i => i.salesOrderItemId === item.id)?.productId || '00000000-0000-0000-0000-000000000000',
+            productPartNumber: '-',
+            productDescription: item.description,
+            qty: item.quantity,
+          })),
+        }
       });
       setCreatedInvoice(invoice);
       await refresh();
@@ -246,7 +259,11 @@ export function CreateInvoice() {
             <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
               Lihat Invoice
             </button>
-            <button onClick={() => window.print()} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
+            <button onClick={() => {
+              if (createdInvoice) {
+                window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${createdInvoice.id}/pdf?inline=true`, '_blank');
+              }
+            }} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
               <Printer size={16} /> Cetak Invoice
             </button>
             <button onClick={() => { setSubmitted(false); setCreatedInvoice(null); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
@@ -370,7 +387,7 @@ export function CreateInvoice() {
             <div className="mb-12">
               {activeCandidate && !hasLockedBackendPrices && (
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
-                  Harga hasil nego belum tersedia di candidate ini. Buat invoice dari SO hasil Convert QUT terbaru agar harga otomatis terkunci dari pricing Finance.
+                  Harga hasil nego dari sistem QUT belum tersedia untuk SO ini. Anda dapat memasukkan harga secara manual di bawah, atau memproses Costing & Pricing terlebih dahulu jika diperlukan.
                 </div>
               )}
               <div className="w-full overflow-x-auto">
@@ -419,8 +436,24 @@ export function CreateInvoice() {
                           </div>
                         </td>
                         <td className="py-3 px-2 align-top text-right">
-                          <span className="font-semibold text-slate-800">{formatIDR(item.unitPrice)}</span>
-                          <p className="mt-0.5 text-[10px] font-medium text-slate-400">Locked dari SO/QUT</p>
+                          {hasLockedBackendPrices ? (
+                            <>
+                              <span className="font-semibold text-slate-800">{formatIDR(item.unitPrice)}</span>
+                              <p className="mt-0.5 text-[10px] font-medium text-slate-400">Locked dari SO/QUT</p>
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-end">
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.unitPrice || ""}
+                                onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
+                                placeholder="0"
+                                className="w-32 bg-transparent border-b border-slate-300 text-right p-0 focus:outline-none text-slate-800 hover:border-slate-400 focus:border-red-500 transition-colors"
+                              />
+                              <p className="mt-0.5 text-[10px] font-medium text-amber-600">Input Manual</p>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-2 align-top text-right font-bold text-slate-800">
                           {formatIDR(item.quantity * item.unitPrice)}

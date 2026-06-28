@@ -186,9 +186,9 @@ export function FinancePoDetail() {
         <div className="hidden print:flex px-6 py-8 justify-between">
           <div className="w-1/2 pr-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ditagihkan Kepada:</h3>
-            <p className="font-bold text-slate-900 text-lg">PT PJT JAYA</p>
-            <p className="text-sm text-slate-600 mt-1">Kawasan Industri Margomulyo Permai</p>
-            <p className="text-sm text-slate-600">Surabaya, Jawa Timur 60186</p>
+            <p className="font-bold text-slate-900 text-lg">PT. PRATAMA JAYA</p>
+            <p className="text-sm text-slate-600 mt-1">Kawasan Industri MM2100</p>
+            <p className="text-sm text-slate-600">Cikarang Barat, Bekasi 17530</p>
           </div>
           <div className="w-1/3 border-l-2 border-slate-100 pl-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informasi Pembayaran:</h3>
@@ -219,10 +219,10 @@ export function FinancePoDetail() {
           </div>
         </div>
 
-        <div className="px-6 py-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="px-6 py-6 print:py-2 space-y-6 print:space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:gap-4">
             {/* Info Rekening */}
-            <div className="rounded-lg p-5 bg-blue-50 border border-blue-100">
+            <div className="rounded-lg p-5 print:p-2 bg-blue-50 print:bg-transparent border border-blue-100 print:border-none">
               <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <DollarSign size={14} /> Informasi Rekening Pembayaran
               </p>
@@ -243,7 +243,7 @@ export function FinancePoDetail() {
             </div>
 
             {/* Info Tagihan */}
-            <div className="rounded-lg p-5 bg-slate-50 border border-slate-200">
+            <div className="rounded-lg p-5 print:p-2 bg-slate-50 print:bg-transparent border border-slate-200 print:border-none">
               <div className="grid grid-cols-2 gap-4">
                  <div>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jatuh Tempo</p>
@@ -294,14 +294,14 @@ export function FinancePoDetail() {
           </div>
 
           {/* PRINT ONLY: Signatures */}
-          <div className="hidden print:flex mt-16 justify-between px-10">
+          <div className="hidden print:flex mt-8 justify-between px-10">
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-800 mb-20">Diterima Oleh,</p>
+              <p className="text-sm font-medium text-slate-800 mb-12">Diterima Oleh,</p>
               <div className="w-40 border-b border-slate-400 mx-auto"></div>
               <p className="text-xs text-slate-500 mt-2">PT PJT JAYA (Finance)</p>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-800 mb-20">Hormat Kami,</p>
+              <p className="text-sm font-medium text-slate-800 mb-12">Hormat Kami,</p>
               <div className="w-40 border-b border-slate-400 mx-auto"></div>
               <p className="text-xs text-slate-500 mt-2">{detail.supplier}</p>
             </div>
@@ -309,7 +309,7 @@ export function FinancePoDetail() {
 
           {/* Payment Form (Only if Unpaid) */}
           {detail.paymentStatus !== "Paid" && canPayFinance ? (
-            <div className="pt-6 border-t border-slate-100">
+            <div className="pt-6 border-t border-slate-100 print:hidden">
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                  Konfirmasi Pembayaran Tagihan
               </h3>
@@ -376,7 +376,7 @@ export function FinancePoDetail() {
               </div>
             </div>
           ) : detail.paymentStatus === "Paid" ? (
-             <div className="pt-6 border-t border-slate-100">
+             <div className="pt-6 border-t border-slate-100 print:hidden">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl p-6 bg-emerald-50 border border-emerald-200">
                   <div className="flex items-start gap-4">
                     <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 shrink-0">
