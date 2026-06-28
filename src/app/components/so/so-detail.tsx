@@ -130,6 +130,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const customer = customers.find(c => c.code === order?.customerId);
   const pendingPaymentProof = !!order?.invoice?.invoiceId
     && payments.some(payment => payment.invoiceId === order.invoice?.invoiceId && payment.status === "PENDING");
+  const invoicePayments = order?.invoice?.invoiceId
+    ? payments.filter(payment => payment.invoiceId === order.invoice?.invoiceId)
+    : [];
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
@@ -297,7 +300,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const productLines = (order.items && order.items.length > 0)
     ? order.items.map((item, index) => {
       const quantity = Number(item.quantity || item.qty || 0) || 0;
-      const unitPrice = Number(item.unitPrice || 0) || 0;
+      let unitPrice = Number(item.unitPrice || 0) || 0;
+      if (unitPrice === 0 && order.items!.length === 1 && (order.estimatedAmount || 0) > 0 && quantity > 0) {
+        unitPrice = (order.estimatedAmount || 0) / quantity;
+      }
       return {
         id: item.id || `${order.id}-${index}`,
         productCode: item.productPartNumber || item.partNumber || order.partNumber || "-",
@@ -319,7 +325,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       lineTotal: order.estimatedAmount || order.invoice?.amount || 0,
       notes: order.notes || "",
     }];
-  const orderValue = order.invoice?.amount || order.estimatedAmount || productLines.reduce((sum, item) => sum + item.lineTotal, 0);
+  const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
+  const orderValue = order.invoice?.amount || (hasUnitPrice ? productLines.reduce((sum, item) => sum + item.lineTotal, 0) : order.estimatedAmount) || 0;
 
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -369,7 +376,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               const getWorkflowProgress = (status: string) => {
                 if (status === 'Completed' || order.completedAt) return 5;
                 if (status === 'QC') return 4;
-                if (['Ready for Production', 'In Production'].includes(status)) return 3;
+                if (['Ready for Production', 'In Production', 'Paused'].includes(status)) return 3;
                 if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
                 if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Waiting Payment'].includes(status)) return 1;
                 return 0;
@@ -541,7 +548,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
 
           {/* Invoice Information — read-only for SO staff */}
-          <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} />
+          <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} invoicePayments={invoicePayments} />
 
 
 
@@ -613,7 +620,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     />
                   ) : !order.customerDrawingUrl ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
-                      <p style={{ margin: 0, fontSize: "11.5px", color: S.amber, fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                      <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
                       {currentUser?.role !== 'Engineering Worker' && (
                         <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
                           <Plus size={10} /> Link Desain
@@ -847,7 +854,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 }
 
 // ─── InvoiceSection ───────────────────────────────────────────────────────────
-function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder["invoice"]; pendingPaymentProof: boolean }) {
+function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { invoice?: SalesOrder["invoice"]; pendingPaymentProof: boolean; invoicePayments: any[] }) {
   const status = (invoice?.status ?? "not_created") as SalesInvoiceStatus;
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
@@ -931,6 +938,28 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                 </div>
               )}
 
+              {/* Payment History */}
+              {invoicePayments.length > 0 && (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${S.border}`, paddingBottom: 4 }}>
+                  <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: S.slate }}>Riwayat Pembayaran</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {invoicePayments.map(payment => (
+                      <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: S.bg, borderRadius: 6, border: `1px solid ${S.border}` }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate }}>{formatCurrency(payment.amount)}</p>
+                          <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>{payment.paymentDate} • {payment.bankName}</p>
+                        </div>
+                        <div>
+                          {payment.status === "VERIFIED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#DCFCE7", color: "#16A34A" }}>Verified</span>}
+                          {payment.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEF3C7", color: "#D97706" }}>Pending</span>}
+                          {payment.status === "REJECTED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626" }}>Ditolak</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
                 <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf?inline=true`, '_blank')} />
@@ -940,7 +969,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                   link.download = `Invoice-${invoice!.invoiceNumber}.pdf`;
                   link.click();
                 }} />
-                {status === "waiting" && !invoice?.paymentDate && !hasPendingPaymentProof && (
+                {(status === "waiting" || status === "verified") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn
                       icon={<Upload size={12} />}
@@ -956,18 +985,32 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
         </div>
       </div>
 
-      {showUploadModal && (
-        <ReportPaymentModal
-          invoiceId={invoice?.invoiceId}
-          invoiceNumber={invoice?.invoiceNumber || ""}
-          amount={invoice?.amount || 0}
-          onClose={() => setShowUploadModal(false)}
-          onSubmit={() => {
-            setPaymentReported(true);
-            setShowUploadModal(false);
-          }}
-        />
-      )}
+      {showUploadModal && (() => {
+        let defaultAmount = invoice?.amount || 0;
+        if (invoice?.paymentSchedules && invoice.paymentSchedules.length > 0) {
+          const remaining = Math.max((invoice.amount || 0) - (invoice.paidAmount || 0), 0);
+          let runningTotal = 0;
+          for (const schedule of invoice.paymentSchedules) {
+            runningTotal += schedule.amount;
+            if (runningTotal > (invoice.paidAmount || 0)) {
+              defaultAmount = Math.min(runningTotal - (invoice.paidAmount || 0), remaining);
+              break;
+            }
+          }
+        }
+        return (
+          <ReportPaymentModal
+            invoiceId={invoice?.invoiceId}
+            invoiceNumber={invoice?.invoiceNumber || ""}
+            amount={defaultAmount}
+            onClose={() => setShowUploadModal(false)}
+            onSubmit={() => {
+              setPaymentReported(true);
+              setShowUploadModal(false);
+            }}
+          />
+        );
+      })()}
     </>
   );
 }
@@ -975,7 +1018,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
 function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
   const [isUploading, setIsUploading] = useState(false);
   const [bankName, setBankName] = useState("");
-  const [amountText, setAmountText] = useState(`Rp ${amount.toLocaleString('id-ID')}`);
+  const [amountText, setAmountText] = useState(amount > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : "");
   const [paymentDate, setPaymentDate] = useState(todayInputValue());
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");

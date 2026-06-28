@@ -9,6 +9,7 @@ import {
   Clock,
   XCircle,
   Package,
+  PackagePlus,
   ChevronDown,
   ChevronUp,
   Printer,
@@ -302,10 +303,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           {canCreatePo && (
             <button
               onClick={() => navigate("/erp/purchasing/create")}
-              className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
-              style={{ fontSize: 13, fontWeight: 600, background: "#C8102E" }}
+              className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
             >
-              <Plus size={16} /> Buat PO Manual
+              <PackagePlus size={14} /> Buat PO Baru
             </button>
           )}
         </div>

@@ -29,6 +29,8 @@ export function resolveSalesOrderInvoice(order: SalesOrder, invoices: Invoice[])
     invoiceDate: financeInvoice.issueDate,
     dueDate: financeInvoice.dueDate,
     amount: financeInvoice.amount,
+    paidAmount: financeInvoice.paidAmount,
+    paymentSchedules: financeInvoice.paymentSchedules,
     status: mapFinanceInvoiceStatus(financeInvoice),
     paymentDate: financeInvoice.paymentDate || "",
   };
@@ -42,9 +44,9 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
   
   const hasPendingPayment = invoice?.invoiceId && payments.some(p => p.invoiceId === invoice.invoiceId && p.status === "PENDING");
 
-  if ((invoice?.status === "paid" || invoice?.status === "verified") && (status === "Waiting Payment" || status === "Waiting Payment")) {
-    status = "Ready for Production";
-  } else if (hasPendingPayment && (status === "Waiting Payment" || status === "Waiting Payment")) {
+  if ((invoice?.status === "paid" || invoice?.status === "verified") && ((status as any) === "Waiting Payment" || (status as any) === "Waiting Payment")) {
+    status = "Ready for Production" as any;
+  } else if (hasPendingPayment && ((status as any) === "Waiting Payment" || (status as any) === "Waiting Payment")) {
     status = "Waiting Approval"; // Using an existing SOStatus that implies waiting for an approval
   }
 

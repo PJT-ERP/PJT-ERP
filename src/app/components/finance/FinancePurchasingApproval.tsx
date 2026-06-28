@@ -178,9 +178,9 @@ export function FinancePurchasingApproval() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredMrs.map(mr => {
-                    const totalEst = mr.items.reduce((sum, item) => sum + ((item.estimatedPrice || 0) * item.qty), 0);
+                    const totalEst = mr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
                     return (
-                      <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/purchasing/requests/${mr.id}`)}>
+                      <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
                         <td className="px-5 py-4 text-slate-600">{mr.date}</td>
                         <td className="px-5 py-4 font-medium text-slate-800">{mr.id}</td>
                         <td className="px-5 py-4 text-slate-600">{mr.department}</td>
@@ -196,7 +196,7 @@ export function FinancePurchasingApproval() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           {mr.backendStatus === "SupervisorApproved" ? (
-                            <button onClick={(e) => { e.stopPropagation(); setSelectedMr(mr); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
                               <CheckCircle2 size={14} /> Review
                             </button>
                           ) : (
@@ -246,7 +246,7 @@ export function FinancePurchasingApproval() {
                   {filteredPos.map(po => {
                     const totalAmount = calcTotal(po.items);
                     return (
-                      <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/purchasing/orders/${po.id}`)}>
+                      <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/po/${po.id}`)}>
                         <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
                         <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
                         <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
@@ -260,8 +260,8 @@ export function FinancePurchasingApproval() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           {po.paymentStatus !== 'Paid' ? (
-                            <button onClick={(e) => { e.stopPropagation(); setSelectedPo(po); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
-                              <DollarSign size={14} /> Bayar
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
+                              <DollarSign size={14} /> Bayar Tagihan
                             </button>
                           ) : (
                             <span className="text-slate-400 text-xs flex items-center justify-center gap-1"><CheckCircle2 size={14} /> Selesai</span>
@@ -307,7 +307,7 @@ export function FinancePurchasingApproval() {
                 <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm mt-2">
                   <span className="text-sm font-bold text-slate-700">Estimasi Total Anggaran</span>
                   <span className="text-lg font-black text-blue-700 flex items-center gap-1">
-                    {formatIDR(selectedMr.items.reduce((sum, item) => sum + ((item.estimatedPrice || 0) * item.qty), 0))}
+                    {formatIDR(selectedMr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0))}
                   </span>
                 </div>
               </div>
@@ -329,8 +329,8 @@ export function FinancePurchasingApproval() {
                         <td className="px-4 py-3">{item.name}</td>
                         <td className="px-4 py-3">{item.qty} {item.unit}</td>
                         <td className="px-4 py-3 text-slate-600">{item.supplierName || '-'}</td>
-                        <td className="px-4 py-3 text-right">{formatIDR(item.estimatedPrice || 0)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatIDR((item.estimatedPrice || 0) * item.qty)}</td>
+                        <td className="px-4 py-3 text-right">{formatIDR((item.estimatedPrice || 0) / (item.qty || 1))}</td>
+                        <td className="px-4 py-3 text-right font-medium">{formatIDR(item.estimatedPrice || 0)}</td>
                       </tr>
                     ))}
                   </tbody>

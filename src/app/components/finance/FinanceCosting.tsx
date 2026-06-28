@@ -26,14 +26,7 @@ export function FinanceCosting() {
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
 
-  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingSO = salesOrders.filter(so => so.status === "Waiting Pricing").map(so => ({
-    ...so,
-    isQuotation: false
-  }));
-
   const historyStatuses = [
-    'Waiting Payment',
     'Waiting Payment',
     'Waiting Client Approval',
     'Ready for Production',
@@ -42,8 +35,18 @@ export function FinanceCosting() {
     'Completed'
   ];
 
+  const isUnpriced = (so: any) => !so.items || so.items.length === 0 || so.items.some((item: any) => !item.unitPrice || item.unitPrice === 0);
+
+  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
+  const waitingPricingSO = salesOrders.filter(so => 
+    so.status === "Waiting Pricing" || (historyStatuses.includes(so.status) && isUnpriced(so))
+  ).map(so => ({
+    ...so,
+    isQuotation: false
+  }));
+
   const historySO = salesOrders.filter(so => 
-    historyStatuses.includes(so.status)
+    historyStatuses.includes(so.status) && !isUnpriced(so)
   ).map(so => ({
     ...so,
     isQuotation: false
@@ -66,8 +69,17 @@ export function FinanceCosting() {
   React.useEffect(() => {
     if (selectedItem) {
       const initialPrices: Record<string, number> = {};
+      const hasEstimated = (selectedItem.estimatedAmount || 0) > 0;
+      const isSingleItem = selectedItem.items?.length === 1;
+
       selectedItem.items?.forEach((item: any) => {
-        initialPrices[item.productId] = item.unitPrice || 0;
+        if (item.unitPrice && item.unitPrice > 0) {
+          initialPrices[item.productId] = item.unitPrice;
+        } else if (hasEstimated && isSingleItem && item.quantity > 0) {
+          initialPrices[item.productId] = selectedItem.estimatedAmount / item.quantity;
+        } else {
+          initialPrices[item.productId] = 0;
+        }
       });
       setItemPrices(initialPrices);
       setCostingNotes(selectedItem.material || selectedItem.notes || "");
@@ -189,6 +201,7 @@ export function FinanceCosting() {
         ) : (
           filteredList.map((so, idx) => {
             const itemCount = so.items?.length || 0;
+            const isPricedBySales = (so.estimatedAmount || 0) > 0 && activeTab === 'queue';
             return (
               <div 
                 key={so.id}
@@ -205,15 +218,20 @@ export function FinanceCosting() {
                   <span style={{ color: S.secondary, fontSize: "11px" }}>{itemCount} items</span>
                 </div>
                 <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
-                <div style={{ alignSelf: "center" }}>
+                <div style={{ alignSelf: "center", display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                   <StatusBadge status={so.status as SOStatus} />
+                  {isPricedBySales && (
+                    <span style={{ fontSize: "10px", padding: "2px 6px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>
+                      Notif: Harga by Sales
+                    </span>
+                  )}
                 </div>
                 <div>
                   <button 
                     onClick={() => setSelectedItem(so)}
                     style={{ fontSize: "11px", background: activeTab === 'queue' ? S.cyan : S.white, color: activeTab === 'queue' ? "#fff" : S.slate, border: activeTab === 'queue' ? "none" : `1px solid ${S.border}`, padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
-                    {activeTab === 'queue' ? "Set Harga" : "Detail / Revisi"}
+                    {activeTab === 'queue' ? (isPricedBySales ? "Review Harga" : "Set Harga") : "Detail / Revisi"}
                   </button>
                 </div>
               </div>
@@ -278,6 +296,17 @@ export function FinanceCosting() {
                 </div>
               )}
               
+              {selectedItem.estimatedAmount > 0 && activeTab === 'queue' && (
+                <div style={{ background: "#FEF9C3", border: "1px solid #FEF08A", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13.5px", fontWeight: 600, color: "#A16207", margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
+                    💰 Notifikasi Harga dari Sales
+                  </h3>
+                  <p style={{ color: "#713F12", margin: 0, fontSize: "12.5px", lineHeight: "1.5" }}>
+                    Harga untuk pesanan ini telah ditentukan oleh tim Sales sebesar <strong>Rp {selectedItem.estimatedAmount.toLocaleString("id-ID")}</strong>. Anda dapat menyimpan langsung atau menyesuaikan kembali harga per item jika diperlukan.
+                  </p>
+                </div>
+              )}
+
               {/* Cek apakah ini produk standar yang melompati fase desain */}
               {selectedItem.backendDesignStatus === "Approved" && !selectedItem.designApprovedAt ? (
                 <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 16, marginBottom: 20 }}>
@@ -355,11 +384,10 @@ export function FinanceCosting() {
                             <div style={{ position: "relative" }}>
                               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>
                               <input 
-                                type="number"
-                                min="0"
-                                value={price || ""}
+                                type="text"
+                                value={price ? price.toLocaleString("id-ID") : ""}
                                 disabled={isReadOnly}
-                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value) })}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value.replace(/\D/g, "")) })}
                                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                               />
                             </div>

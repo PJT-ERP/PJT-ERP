@@ -191,10 +191,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
           let finalStatus = base.status;
           const finalEstimatedAmount = updates.estimatedAmount || base.estimatedAmount;
-          
-          if (finalStatus === "Waiting Pricing" && finalEstimatedAmount > 0) {
-            finalStatus = "Ready for Production";
-          }
 
           return { 
             ...base, 
@@ -202,6 +198,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             materials: base.materials || updates.materials, 
             designLink: base.designLink || updates.designLink,
             estimatedAmount: finalEstimatedAmount,
+            deadline: updates.deadline || base.deadline,
             items: updatedItems || base.items
           };
         }
@@ -497,7 +494,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     description: primaryItem?.productDescription || order.soNumber,
     quantity: order.items.reduce((sum, item) => sum + item.qty, 0),
     unit: "PCS",
-    material: primaryItem?.notes || undefined,
+    material: (primaryItem?.notes?.startsWith('[')) ? undefined : (primaryItem?.notes || undefined),
     deadline: order.targetDate || order.soDate,
     status: mapSalesOrderStatus(order, invoices),
     createdBy: "backend",
@@ -507,9 +504,14 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     endTime: order.finishedAtUtc || undefined,
     qcStatus: mapQcDecision(order.qcDecision),
     qcAt: order.finishedAtUtc || undefined,
-    designRevisions: order.designRevisions,
+    designRevisions: order.designRevisions?.map((r: any) => ({
+      version: r.version,
+      url: r.url,
+      changedBy: r.changedBy,
+      changedAt: r.changedAtUtc
+    })),
     completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
-    pauseReason: order.pauseReason || undefined,
+    pauseReason: (order as any).pauseReason || undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
@@ -530,7 +532,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
       productId: item.productId,
       productName: item.productDescription,
       quantity: item.qty,
-      unitPrice: 0,
+      unitPrice: (item as any).unitPrice || 0,
       unit: "PCS"
     }))
   };

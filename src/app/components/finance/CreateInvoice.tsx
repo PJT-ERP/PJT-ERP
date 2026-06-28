@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { formatIDR } from './mockData';
 import { financeApi, type InvoiceDto } from '../../services/financeApi';
+import { salesApi } from '../../services/salesApi';
 import { useFinanceData } from './useFinanceData';
 import { useApp } from '../context/AppContext';
 
@@ -55,7 +56,46 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  const activeCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
+  // Combine backend candidates with local SOs that bypassed costing or were priced during production
+  const localBypassedCandidates = salesOrders
+    .filter(so => 
+      (['Waiting Pricing', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'QC', 'Completed'].includes(so.status)) && 
+      (so.items?.some((i: any) => i.unitPrice && i.unitPrice > 0) || (so.estimatedAmount && so.estimatedAmount > 0))
+    )
+    .map(so => ({
+      salesOrderId: so.backendId || so.id,
+      salesOrderNumber: so.soNumber || so.id,
+      customerId: so.customerId,
+      customerCode: so.customerId,
+      customerName: so.customerName || so.customerId,
+      customerEmail: so.customerEmail || '',
+      status: so.status,
+      targetDate: so.deadline,
+      items: so.items?.map(item => {
+        let unitPrice = item.unitPrice || 0;
+        if (unitPrice === 0 && so.items?.length === 1 && so.estimatedAmount && so.estimatedAmount > 0 && item.quantity > 0) {
+          unitPrice = so.estimatedAmount / item.quantity;
+        }
+        return {
+          salesOrderItemId: item.id,
+          productId: item.productId,
+          productDescription: item.productName || item.description,
+          qty: item.quantity,
+          unitPrice: unitPrice,
+          lineTotal: unitPrice * item.quantity
+        };
+      }) || []
+    }));
+
+  // Merge unique candidates
+  const allCandidates = [...invoiceCandidates];
+  localBypassedCandidates.forEach(local => {
+    if (!allCandidates.find(c => c.salesOrderId === local.salesOrderId)) {
+      allCandidates.push(local as any);
+    }
+  });
+
+  const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
   
   // Unified data for display
   const displayCustomer = activeCandidate ? {
@@ -90,7 +130,8 @@ export function CreateInvoice() {
     } else {
       setItems([newItem()]);
     }
-  }, [activeCandidate, salesOrders, dueDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSO]);
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
@@ -123,6 +164,21 @@ export function CreateInvoice() {
     setIsSaving(true);
 
     try {
+      // Pastikan harga sudah diset di backend agar status backend SO bisa di-invoice
+      try {
+        await salesApi.updateSalesOrderPricing(activeCandidate!.salesOrderId, {
+          items: items.map(item => ({
+            salesOrderItemId: item.id,
+            unitPrice: item.unitPrice,
+          }))
+        });
+        // Tunggu event bus propagate dari Production API ke Finance API (RabbitMQ delay)
+        await new Promise(r => setTimeout(r, 2500));
+      } catch (pricingError: any) {
+        console.warn('Failed to pre-update pricing. Continuing to create invoice anyway...', pricingError);
+        throw new Error(`Gagal update harga di backend: ${pricingError?.response?.data?.message || pricingError?.message || 'Unknown error'}`);
+      }
+
       const invoice = await financeApi.createInvoice({
         salesOrderId: activeCandidate!.salesOrderId,
         invoiceDate: issueDate,
@@ -159,9 +215,14 @@ export function CreateInvoice() {
       setCreatedInvoice(invoice);
       await refresh();
       setSubmitted(true);
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Failed to create invoice.', error);
-      setSubmitError('Gagal membuat invoice. Pastikan SO belum pernah dibuatkan invoice dan harga sudah tersedia.');
+      if (error.response && error.response.data) {
+        console.warn('Backend error data:', error.response.data);
+        setSubmitError(`Gagal membuat invoice: ${JSON.stringify(error.response.data)}`);
+      } else {
+        setSubmitError('Gagal membuat invoice. Pastikan SO belum pernah dibuatkan invoice dan harga sudah tersedia.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -248,9 +309,9 @@ export function CreateInvoice() {
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
                 >
                   <option value="">Pilih SO...</option>
-                  {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
-                    <option key={candidate.salesOrderId} value={candidate.salesOrderId}>
-                      {candidate.salesOrderNumber} - {candidate.customerName}
+                  {allCandidates.map(c => (
+                    <option key={c.salesOrderId} value={c.salesOrderId}>
+                      {c.salesOrderNumber} - {c.customerName}
                     </option>
                   ))}
                 </select>
