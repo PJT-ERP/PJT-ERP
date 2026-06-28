@@ -89,7 +89,7 @@ describe('PurchaseOrderDetailPage', () => {
 
     // Submit the form (Konfirmasi Terima)
     const confirmButton = screen.getByRole('button', { name: /Konfirmasi Terima/i });
-    fireEvent.click(confirmButton);
+    fireEvent.submit(confirmButton.closest('form')!);
 
     // Assert that the API was called with the correct IDs
     await waitFor(() => {
