@@ -88,8 +88,11 @@ export function EngineeringTasksPage() {
   const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Waiting Payment', 'Rejected'];
   
   const pendingSalesOrders = salesOrders.filter(so => engineeringStatuses.includes(so.status) || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired' || so.backendDesignStatus === 'WaitingApproval');
-  const completedSalesOrders = salesOrders.filter(so => !engineeringStatuses.includes(so.status) && so.backendDesignStatus === 'Approved');
-
+  const completedSalesOrders = salesOrders.filter(so => 
+    !engineeringStatuses.includes(so.status) && 
+    so.backendDesignStatus === 'Approved' &&
+    (so.designAssignedTo || so.designLink || (so.designRevisions && so.designRevisions.length > 0))
+  );
   const allQueue = activeTab === 'pending' ? pendingSalesOrders : completedSalesOrders;
   
   const queue = allQueue

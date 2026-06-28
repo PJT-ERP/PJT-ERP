@@ -626,9 +626,10 @@ function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesO
     }
   }
 
-  if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
-    return "Waiting Pricing";
-  }
+  // Allow production to run in parallel with pricing
+  // if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
+  //   return "Waiting Pricing";
+  // }
 
   // Allow production to run in parallel with payment
   // if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
