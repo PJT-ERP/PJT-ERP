@@ -21,6 +21,7 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
   pending_verification: { label: "Menunggu Verifikasi", textColor: "#C8102E", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#C8102E" },
+  overdue: { label: "Overdue", textColor: "#B91C1C", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#DC2626" },
 };
 
 interface SODetailProps {
@@ -606,58 +607,60 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   </div>
                 </>
               )}
-              <>
-                <div style={{ height: 1, background: "#F8FAFC" }} />
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
-                  {isEditMode ? (
-                    <input
-                      type="text"
-                      placeholder="https://... (Opsional)"
-                      value={editForm.customerDrawingUrl}
-                      onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
-                      style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none" }}
-                    />
-                  ) : !order.customerDrawingUrl ? (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
-                      <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
-                      {currentUser?.role !== 'Engineering Worker' && (
-                        <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
-                          <Plus size={10} /> Link Desain
-                        </button>
-                      )}
-                    </div>
-                  ) : order.customerDrawingUrl || order.designLink ? (
-                    <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                      {order.customerDrawingUrl || order.designLink}
-                    </a>
-                  ) : (
-                    <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
-                  )}
-                </div>
-
-                {order.designRevisions && order.designRevisions.length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <p style={{ margin: "0 0 8px", fontSize: "10.5px", color: "#94A3B8" }}>Riwayat Revisi Desain</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
-                      {order.designRevisions.map(rev => (
-                        <div key={rev.version} style={{ position: "relative" }}>
-                          <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
-                          <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
-                            <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
-                          </p>
-                          <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "10px", color: S.secondary, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
-                            {rev.url || "(URL Dihapus)"}
-                          </a>
-                          <p style={{ margin: "2px 0 0", fontSize: "9px", color: "#94A3B8" }}>
-                            {new Date(rev.changedAt).toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+              {(!order.designId || order.designId === "none" || order.designId === "customer") && (
+                <>
+                  <div style={{ height: 1, background: "#F8FAFC" }} />
+                  <div>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
+                    {isEditMode ? (
+                      <input
+                        type="text"
+                        placeholder="https://... (Opsional)"
+                        value={editForm.customerDrawingUrl}
+                        onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
+                        style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none" }}
+                      />
+                    ) : !order.customerDrawingUrl ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                        <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                        {currentUser?.role !== 'Engineering Worker' && (
+                          <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
+                            <Plus size={10} /> Link Desain
+                          </button>
+                        )}
+                      </div>
+                    ) : order.customerDrawingUrl || order.designLink ? (
+                      <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                        {order.customerDrawingUrl || order.designLink}
+                      </a>
+                    ) : (
+                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
+                    )}
                   </div>
-                )}
-              </>
+
+                  {order.designRevisions && order.designRevisions.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ margin: "0 0 8px", fontSize: "10.5px", color: "#94A3B8" }}>Riwayat Revisi Desain</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
+                        {order.designRevisions.map(rev => (
+                          <div key={rev.version} style={{ position: "relative" }}>
+                            <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
+                            <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
+                              <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
+                            </p>
+                            <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "10px", color: S.secondary, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
+                              {rev.url || "(URL Dihapus)"}
+                            </a>
+                            <p style={{ margin: "2px 0 0", fontSize: "9px", color: "#94A3B8" }}>
+                              {new Date(rev.changedAt).toLocaleString("id-ID")}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
@@ -911,7 +914,7 @@ function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { inv
                   <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.dueDate}</p>
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jumlah Tagihan</p>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Total Keseluruhan</p>
                   <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate, fontWeight: 600 }}>
                     Rp {invoice!.amount.toLocaleString("id-ID")}
                   </p>
@@ -923,6 +926,26 @@ function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { inv
                   </div>
                 )}
               </div>
+
+              {invoice?.paymentSchedules && invoice.paymentSchedules.length > 1 && (
+                <div style={{ marginTop: 6, marginBottom: 16, paddingTop: 16, borderTop: `1px dashed ${S.border}` }}>
+                  <p style={{ margin: "0 0 10px", fontSize: "11px", fontWeight: 600, color: S.slate, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Jadwal / Tahapan Penagihan</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {invoice.paymentSchedules.map((schedule: any, idx: number) => {
+                      const amt = Math.round((invoice!.amount * schedule.percentage) / 100);
+                      return (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", background: "#F1F5F9", padding: "8px 12px", borderRadius: "6px" }}>
+                          <div>
+                            <span style={{ fontWeight: 600, color: S.slate }}>{schedule.label}</span>
+                            <span style={{ color: "#64748B", marginLeft: 8 }}>• Jatuh tempo: {schedule.dueDate}</span>
+                          </div>
+                          <span style={{ fontWeight: 700, color: S.cyan }}>Rp {amt.toLocaleString("id-ID")}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && (
                 <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>

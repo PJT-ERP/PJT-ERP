@@ -39,6 +39,20 @@ export interface CreateInvoiceRequest {
   bankName?: string | null;
   bankAccountName?: string | null;
   bankAccountNumber?: string | null;
+  fallbackCandidate?: {
+    salesOrderNumber: string;
+    customerId: string;
+    customerCode: string;
+    customerName: string;
+    customerEmail?: string | null;
+    items: Array<{
+      salesOrderItemId: string;
+      productId: string;
+      productPartNumber: string;
+      productDescription: string;
+      qty: number;
+    }>;
+  } | null;
 }
 
 export interface InvoiceDto {

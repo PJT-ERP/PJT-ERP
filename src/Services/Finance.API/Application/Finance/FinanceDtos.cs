@@ -30,7 +30,23 @@ public record CreateInvoiceRequest(
     IReadOnlyCollection<CreatePaymentScheduleRequest> PaymentSchedules,
     string? BankName,
     string? BankAccountName,
-    string? BankAccountNumber);
+    string? BankAccountNumber,
+    FallbackCandidateDto? FallbackCandidate = null);
+
+public record FallbackCandidateDto(
+    string SalesOrderNumber,
+    Guid CustomerId,
+    string CustomerCode,
+    string CustomerName,
+    string? CustomerEmail,
+    IReadOnlyCollection<FallbackCandidateItemDto> Items);
+
+public record FallbackCandidateItemDto(
+    Guid SalesOrderItemId,
+    Guid ProductId,
+    string ProductPartNumber,
+    string ProductDescription,
+    int Qty);
 
 public record CreateInvoiceItemPrice(Guid SalesOrderItemId, decimal UnitPrice);
 
