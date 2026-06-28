@@ -145,13 +145,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshBackendData = useCallback(async () => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
+    const shouldLoadInvoices = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner" || currentUser?.role === "Sales";
     const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
       salesApi.listSalesOrders(),
       shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
       authApi.getUsers(),
-      financeApi.listInvoices().catch(() => [])
+      shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([])
     ]);
 
     if (customersResult.status === "fulfilled") {
@@ -602,7 +603,8 @@ function mapPurchasingStatus(status: string): PurchasingStatus {
 }
 
 function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesOrder["status"] {
-  if (order.status === "Completed") {
+  const qcDecisionLower = order.qcDecision?.toLowerCase()?.trim();
+  if (order.status === "Completed" || qcDecisionLower === "pass" || qcDecisionLower === "go") {
     const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
     if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
       return "Waiting Payment";

@@ -15,6 +15,8 @@ import {
   Filter,
   ChevronDown,
   X,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import {
   BarChart,
@@ -102,7 +104,7 @@ function TD({ children, className = "", right = false }: { children: React.React
 
 const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
 
-function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[] }) {
+function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[], editItem?: InventoryItem | null }) {
   const [formData, setFormData] = useState({
     code: "", name: "", category: "Project", unit: "pcs",
     currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
@@ -112,14 +114,29 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen
 
   useEffect(() => {
     if (isOpen) {
+      if (editItem) {
+        setFormData({
+          code: editItem.code, name: editItem.name, category: editItem.category, unit: editItem.unit,
+          currentStock: editItem.currentStock, minStock: editItem.minStock, maxStock: editItem.maxStock, reorderPoint: editItem.reorderPoint,
+          location: editItem.location, supplierName: editItem.supplier, unitPrice: editItem.unitPrice
+        });
+        return;
+      }
+
+      let prefix = "MAT-";
+      if (formData.category === "Consumable") prefix = "CON-";
+      else if (formData.category === "Tools") prefix = "TLS-";
+      else if (formData.category === "Asset") prefix = "AST-";
+      else if (formData.category === "Maintenance") prefix = "MNT-";
+
       let maxNum = 0;
       inventoryItems.forEach(i => {
-        if (i.code.startsWith("MAT-")) {
-          const num = parseInt(i.code.replace("MAT-", ""), 10);
+        if (i.code.startsWith(prefix)) {
+          const num = parseInt(i.code.replace(prefix, ""), 10);
           if (!isNaN(num) && num > maxNum) maxNum = num;
         }
       });
-      const nextCode = `MAT-${String(maxNum + 1).padStart(3, "0")}`;
+      const nextCode = `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
       setFormData(prev => ({ ...prev, code: nextCode }));
     } else {
       // Reset form when closed
@@ -129,7 +146,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen
         location: "", supplierName: "", unitPrice: 0
       });
     }
-  }, [isOpen, inventoryItems]);
+  }, [isOpen, formData.category, inventoryItems, editItem]);
 
   if (!isOpen) return null;
 
@@ -137,12 +154,16 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen
     e.preventDefault();
     try {
       setSubmitting(true);
-      await masterDataApi.createInventoryItem(formData);
+      if (editItem) {
+        await masterDataApi.updateInventoryItem(editItem.id, formData);
+      } else {
+        await masterDataApi.createInventoryItem(formData);
+      }
       onAdded();
       onClose();
     } catch (error) {
-      console.warn("Failed to create material", error);
-      alert("Gagal menambahkan material.");
+      console.warn("Failed to save material", error);
+      alert("Gagal menyimpan material.");
     } finally {
       setSubmitting(false);
     }
@@ -155,7 +176,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-lg bg-white shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
-          <h2 className="text-lg font-bold text-slate-800">Tambah Material Baru</h2>
+          <h2 className="text-lg font-bold text-slate-800">{editItem ? "Edit Material" : "Tambah Material Baru"}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X size={20} />
           </button>
@@ -164,7 +185,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems }: { isOpen
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Kode Material</label>
-              <input required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className={inputClass} placeholder="Contoh: MAT-001" />
+              <input required readOnly value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className={`${inputClass} bg-slate-100 cursor-not-allowed`} placeholder="Contoh: MAT-001" />
             </div>
             <div>
               <label className={labelClass}>Nama Material</label>
@@ -236,6 +257,28 @@ export function InventoryPage() {
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null);
+
+  const handleEdit = (item: InventoryItem) => {
+    setEditItem(item);
+    setIsAddModalOpen(true);
+  };
+
+  const handleDelete = (item: InventoryItem) => {
+    setDeleteItem(item);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return;
+    try {
+      await masterDataApi.deleteInventoryItem(deleteItem.id);
+      refresh();
+      setDeleteItem(null);
+    } catch (e) {
+      alert("Gagal menghapus item.");
+    }
+  };
 
   const inventory: InventoryItem[] = useMemo(() => {
     const incomingByName = new Map<string, IncomingShipment>();
@@ -526,6 +569,7 @@ export function InventoryPage() {
                 <TH className="hidden md:table-cell">Material Masuk</TH>
                 <TH className="hidden xl:table-cell">Lokasi</TH>
                 <TH className="hidden sm:table-cell" right>Nilai Stok</TH>
+                <TH right>Aksi</TH>
               </tr>
             </thead>
             <tbody>
@@ -615,6 +659,16 @@ export function InventoryPage() {
                         {formatRp(item.currentStock * item.unitPrice)}
                       </span>
                     </TD>
+                    <TD right>
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-blue-600 transition" title="Edit">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(item)} className="text-slate-400 hover:text-red-600 transition" title="Hapus">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </TD>
                   </tr>
                 );
               })}
@@ -634,10 +688,36 @@ export function InventoryPage() {
 
       <AddMaterialModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditItem(null);
+        }}
         onAdded={() => void refresh()}
         inventoryItems={inventory}
+        editItem={editItem}
       />
+
+      {deleteItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="text-red-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Hapus Material</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Yakin ingin menghapus <strong>{deleteItem.name}</strong>?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setDeleteItem(null)} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Batal</button>
+              <button onClick={confirmDelete} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

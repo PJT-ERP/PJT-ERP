@@ -44,10 +44,11 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
   
   const hasPendingPayment = invoice?.invoiceId && payments.some(p => p.invoiceId === invoice.invoiceId && p.status === "PENDING");
 
-  if ((invoice?.status === "paid" || invoice?.status === "verified") && ((status as any) === "Waiting Payment" || (status as any) === "Waiting Payment")) {
-    status = "Ready for Production" as any;
-  } else if (hasPendingPayment && ((status as any) === "Waiting Payment" || (status as any) === "Waiting Payment")) {
-    status = "Waiting Approval"; // Using an existing SOStatus that implies waiting for an approval
+  if ((invoice?.status === "paid" || invoice?.status === "verified") && status === "Waiting Payment") {
+    // If QC has already passed, payment means it is fully Completed. Otherwise it's DP payment -> Ready for Production
+    status = (order.qcStatus === "Go" || order.qcStatus === "Pass") ? "Completed" as any : "Ready for Production" as any;
+  } else if (hasPendingPayment && status === "Waiting Payment") {
+    status = "Waiting Approval" as any; // Using an existing SOStatus that implies waiting for an approval
   }
 
   // Also enhance the invoice status string for badge display if there is a pending payment

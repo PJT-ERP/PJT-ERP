@@ -78,7 +78,7 @@ const statusColors: Record<string, string> = {
   PAID: '#16A34A',
   PENDING: '#F59E0B',
   OVERDUE: '#DC2626',
-  PARTIAL: '#DC2626',
+  PARTIAL: '#3B82F6',
 };
 const statusLabel: Record<string, string> = {
   PAID: 'Lunas', PENDING: 'Menunggu', OVERDUE: 'Jatuh Tempo', PARTIAL: 'Sebagian',
@@ -437,8 +437,8 @@ export function FinanceDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-blue-800">Tugas Estimasi Harga</p>
                     <p className="text-xs text-blue-600 mt-0.5">{pendingPricingOrders.length} Sales Order menunggu estimasi harga</p>
-                    <button onClick={() => navigate('/erp/sales/orders')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
-                      Lihat Daftar SO →
+                    <button onClick={() => navigate('/erp/finance/costing')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
+                      Buka Costing & Pricing →
                     </button>
                   </div>
                 </div>

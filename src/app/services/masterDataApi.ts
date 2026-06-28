@@ -114,5 +114,12 @@ export const masterDataApi = {
     createInventoryItem: async (request: CreateInventoryItemRequest): Promise<InventoryItemDto> => {
         const response = await apiClient.post<InventoryItemDto>("/api/v1/master-data/inventory", request);
         return response.data;
+    },
+    updateInventoryItem: async (id: string, request: CreateInventoryItemRequest): Promise<InventoryItemDto> => {
+        const response = await apiClient.put<InventoryItemDto>(`/api/v1/master-data/inventory/${id}`, request);
+        return response.data;
+    },
+    deleteInventoryItem: async (id: string): Promise<void> => {
+        await apiClient.delete(`/api/v1/master-data/inventory/${id}`);
     }
 };
