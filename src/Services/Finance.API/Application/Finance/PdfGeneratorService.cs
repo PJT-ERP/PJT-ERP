@@ -25,6 +25,16 @@ public static class PdfGeneratorService
                 page.Header().Element(header => ComposeHeader(header, invoice));
                 page.Content().Element(content => ComposeContent(content, invoice));
                 page.Footer().Element(footer => ComposeFooter(footer));
+
+                var isOverdue = invoice.Status.Equals("OVERDUE", StringComparison.OrdinalIgnoreCase) || 
+                               (invoice.DueDate < DateOnly.FromDateTime(DateTime.UtcNow) && 
+                                !invoice.Status.Equals("PAID", StringComparison.OrdinalIgnoreCase));
+                                
+                if (isOverdue)
+                {
+                    page.Background().AlignCenter().AlignMiddle().Rotate(-45).Text("OVERDUE")
+                        .FontSize(120).FontColor(Colors.Red.Lighten4).SemiBold();
+                }
             });
         });
 

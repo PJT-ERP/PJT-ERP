@@ -6,6 +6,8 @@ import {
 import { cn } from "../ui/utils";
 import { useApp } from "../context/AppContext";
 import { useFinanceData } from "../finance/useFinanceData";
+import { mapPurchaseRequestsToPos, calcTotal } from "../purchasing/purchase-orders-page";
+import { usePurchasingData } from "../purchasing/usePurchasingData";
 import { Outlet, useLocation, useNavigate, Navigate } from "react-router";
 import { UserRole } from "../data/mockData";
 
@@ -85,11 +87,13 @@ export function ERPLayout() {
   };
 
   const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
-  const canReadFinanceData = currentUser?.role === "Finance"
+  const canReadFinanceData = currentUser?.role === "Finance" 
     || currentUser?.role === "Admin"
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
-  const { invoices } = useFinanceData(canReadFinanceData);
+  const canReadSupplierPayments = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments);
+  const { purchaseRequests: backendPurchaseRequests } = usePurchasingData(currentUser?.role === 'Finance');
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
 
   const location = useLocation();
@@ -203,9 +207,15 @@ export function ERPLayout() {
     } else if (role === 'Sales') {
       salesOrders.filter(so => so.status === 'Waiting Payment' || so.status === 'Waiting Pricing').forEach(so => {
         if (so.status === 'Waiting Pricing') {
-          notifs.push({ id: so.id, type: 'info', title: 'Harga Sedang Dihitung', desc: `SO ${so.id} sedang dihitung harganya oleh Finance.`, targetPath: `/erp/so/detail/${so.id}` });
+          notifs.push({ id: so.id, type: 'warning', title: 'Harga Sedang Dihitung', desc: `SO ${so.id} sedang dihitung harganya oleh Finance.`, targetPath: `/erp/so/detail/${so.id}` });
         } else {
-          notifs.push({ id: so.id, type: 'info', title: 'Tagihan Siap', desc: `Invoice untuk SO ${so.id} siap dibayar oleh pelanggan.`, targetPath: `/erp/so/detail/${so.id}` });
+          // Check if a payment has already been reported
+          const invoice = invoices.find(inv => inv.salesOrderId === so.id || inv.salesOrderNumber === so.soNumber);
+          const hasReportedPayment = invoice && payments.some(p => p.invoiceId === invoice.id && (p.status === "PENDING" || p.status === "VERIFIED"));
+          
+          if (!hasReportedPayment) {
+            notifs.push({ id: so.id, type: 'success', title: 'Tagihan Siap', desc: `Invoice untuk SO ${so.id} siap dibayar oleh pelanggan.`, targetPath: `/erp/so/detail/${so.id}` });
+          }
         }
       });
       salesOrders.filter(so => so.status === 'Rejected').forEach(so => {
@@ -277,8 +287,16 @@ export function ERPLayout() {
       salesOrders.filter(so => so.status === 'Waiting Pricing').forEach(so => {
         notifs.push({ id: so.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS & buat Invoice untuk SO ${so.id}.`, targetPath: '/erp/finance/costing' });
       });
-      readyInvoices.forEach(inv => {
-        notifs.push({ id: inv.id, type: 'info', title: 'Tagihan Menunggu Pembayaran', desc: `Invoice ${inv.invoiceNumber} menunggu verifikasi pembayaran.`, targetPath: '/erp/finance/invoices' });
+      payments.filter(p => p.status === 'PENDING').forEach(payment => {
+        notifs.push({ id: payment.id, type: 'info', title: 'Verifikasi Pembayaran', desc: `Pembayaran untuk Invoice ${payment.invoiceNumber} menunggu verifikasi.`, targetPath: '/erp/finance/payment-verification' });
+      });
+      purchasingRequests.filter(pr => pr.backendStatus === 'SupervisorApproved').forEach(pr => {
+        notifs.push({ id: pr.id, type: 'alert', title: 'Persetujuan Anggaran', desc: `Purchase Request ${pr.id} menunggu persetujuan anggaran.`, targetPath: '/erp/finance/approval-po' });
+      });
+      const allPos = mapPurchaseRequestsToPos(backendPurchaseRequests, supplierPayments || []);
+      const paymentPos = allPos.filter(po => po.items.length > 0 && calcTotal(po.items) > 0);
+      paymentPos.filter(p => p.paymentStatus !== 'Paid').forEach(po => {
+        notifs.push({ id: po.id, type: 'warning', title: 'Tagihan Supplier (AP)', desc: `Tagihan ${po.id} dari ${po.supplier} menunggu pembayaran.`, targetPath: '/erp/finance/approval-po' });
       });
     } else if (role === 'Admin') {
       purchasingRequests.filter(pr => pr.status === 'Pending').forEach(pr => {
@@ -287,12 +305,12 @@ export function ERPLayout() {
     }
     return notifs;
     return notifs;
-  }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds]);
+  }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds, invoices, payments]);
 
   const hasNotif = notifications.length > 0;
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ fontFamily: "Inter, sans-serif", background: "#F8FAFC" }}>
+    <div className="flex h-screen print:h-auto overflow-hidden print:overflow-visible" style={{ fontFamily: "Inter, sans-serif", background: "#F8FAFC" }}>
       {(sidebarOpen || isNotifOpen) && (
         <div className="fixed inset-0 z-40 lg:hidden" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => { setSidebarOpen(false); setIsNotifOpen(false); }} />
       )}
@@ -365,7 +383,7 @@ export function ERPLayout() {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative print:overflow-visible">
         {/* Topbar */}
         <header style={{
           height: 46, background: "#fff", borderBottom: "1px solid #E2E8F0",
@@ -425,7 +443,7 @@ export function ERPLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto relative">
+        <main className="flex-1 overflow-y-auto relative print:overflow-visible">
           <Outlet />
         </main>
       </div>

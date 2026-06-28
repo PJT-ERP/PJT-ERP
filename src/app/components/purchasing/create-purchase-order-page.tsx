@@ -161,8 +161,13 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     setRequestRefs(request.prNumber.replace(/^MR-/, "PR-"));
     setSoNumber(request.salesOrderNumber || "Non-project");
     setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
-    setSupplier(openItems.find(item => item.supplierName)?.supplierName || "");
-    setItems(openItems.map(item => {
+    
+    const firstSupplier = openItems.find(item => item.supplierName)?.supplierName || "";
+    setSupplier(firstSupplier);
+    
+    const supplierItems = openItems.filter(item => !firstSupplier || item.supplierName === firstSupplier);
+    
+    setItems(supplierItems.map(item => {
       let extractedCode = "";
       let extractedName = item.itemName;
       

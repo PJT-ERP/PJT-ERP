@@ -7,8 +7,8 @@ import {
 import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { financeApi, SupplierPaymentDto } from "../../services/financeApi";
 
-export function usePurchasingData() {
-    const [materialRequirements, setMaterialRequirements] = useState<MaterialRequirementDto[]>([]);
+export function usePurchasingData(enabled = true) {
+  const [materialRequirements, setMaterialRequirements] = useState<MaterialRequirementDto[]>([]);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestDto[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [supplierPayments, setSupplierPayments] = useState<SupplierPaymentDto[]>([]);
@@ -46,8 +46,12 @@ export function usePurchasingData() {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (enabled) {
+      void refresh();
+    } else {
+      setIsLoading(false);
+    }
+  }, [enabled, refresh]);
 
   return useMemo(() => ({
     materialRequirements,
@@ -57,6 +61,6 @@ export function usePurchasingData() {
     inventoryItems,
     isLoading,
     isUsingBackend,
-    refresh,
+    refresh
   }), [materialRequirements, purchaseRequests, suppliers, supplierPayments, inventoryItems, isLoading, isUsingBackend, refresh]);
 }

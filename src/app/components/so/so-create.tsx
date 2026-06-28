@@ -141,7 +141,7 @@ function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> &
 
 function CurrencyInput({ value, onChange, icon, ...props }: any) {
   const [focused, setFocused] = useState(false);
-  
+
   const formatNumber = (val: number | undefined) => {
     if (val === undefined || val === null || isNaN(val) || val === 0) return "";
     return val.toLocaleString("id-ID");
@@ -617,7 +617,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const [repeatForm, setRepeatForm] = useState<RepeatForm>({
-    customerId: initialData?.customerId || "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0
+    customerId: initialData?.customerId || "", previousSoId: initialData?.soId || "", deadline: today, generalNotes: "", estimatedAmount: 0
   });
 
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
@@ -625,6 +625,50 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const selectedCustomer = orderType === "repeat"
     ? customers.find(c => c.code === repeatForm.customerId)
     : null;
+
+  React.useEffect(() => {
+    if (orderType === "repeat" && repeatForm.previousSoId && repeatProducts.length === 0 && salesOrders.length > 0) {
+      const selectedSo = salesOrders.find(so => so.id === repeatForm.previousSoId || so.soNumber === repeatForm.previousSoId);
+      if (selectedSo) {
+        setRepeatForm(prev => ({
+          ...prev,
+          estimatedAmount: selectedSo.estimatedAmount || 0,
+          generalNotes: selectedSo.notes || "",
+        }));
+
+        const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+        let materials: any[] = [];
+        if (matchedProduct) {
+          materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+            id: b.inventoryItemId,
+            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+            specification: "",
+            quantity: String(b.quantity),
+            unit: b.unit,
+          })) : matchedProduct.materialSpec ? [
+            ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
+              id: matchedProduct.id + "-mat-" + idx,
+              name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+              specification: specPart.trim(),
+              quantity: "1",
+              unit: matchedProduct.unit.toLowerCase(),
+            }))
+          ] : [];
+        }
+
+        setRepeatProducts([{
+          ...emptyProduct(),
+          type: matchedProduct ? "existing" : "custom",
+          productName: matchedProduct ? matchedProduct.label : selectedSo.description,
+          customName: selectedSo.description,
+          quantity: String(selectedSo.quantity),
+          unit: selectedSo.unit,
+          unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+          materials,
+        }]);
+      }
+    }
+  }, [orderType, repeatForm.previousSoId, salesOrders, repeatProducts.length, catalogProductOptions]);
 
   React.useEffect(() => {
     if (orderType === "new") {
@@ -657,15 +701,43 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   };
 
   const handleRepeatSoSelect = (soId: string) => {
-    setRepeatForm({ ...repeatForm, previousSoId: soId });
     const selectedSo = salesOrders.find(so => so.id === soId || so.soNumber === soId);
+    setRepeatForm({
+      ...repeatForm,
+      previousSoId: soId,
+      estimatedAmount: selectedSo?.estimatedAmount || 0,
+      generalNotes: selectedSo?.notes || "",
+    });
     if (selectedSo) {
+      const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+      let materials: any[] = [];
+      if (matchedProduct) {
+        materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+          id: b.inventoryItemId,
+          name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+          specification: "",
+          quantity: String(b.quantity),
+          unit: b.unit,
+        })) : matchedProduct.materialSpec ? [
+          ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
+            id: matchedProduct.id + "-mat-" + idx,
+            name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+            specification: specPart.trim(),
+            quantity: "1",
+            unit: matchedProduct.unit.toLowerCase(),
+          }))
+        ] : [];
+      }
+
       setRepeatProducts([{
         ...emptyProduct(),
-        productName: selectedSo.description,
+        type: matchedProduct ? "existing" : "custom",
+        productName: matchedProduct ? matchedProduct.label : selectedSo.description,
         customName: selectedSo.description,
         quantity: String(selectedSo.quantity),
         unit: selectedSo.unit,
+        unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+        materials,
       }]);
     } else {
       setRepeatProducts([]);
@@ -779,7 +851,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
-      
+
       // Clear any previous local storage state for this specific ID or soNumber
       const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
       if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
@@ -791,7 +863,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       if (customerForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
       }
-      
+
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -820,7 +892,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
-      
+
       // Clear any previous local storage state for this specific ID or soNumber
       const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
       if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
@@ -832,7 +904,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       if (repeatForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
       }
-      
+
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -1158,16 +1230,20 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </SectionCard>
 
           <SectionCard
-            title={`Produk Repeat Order`}
+            title={`Produk Repeat Order (${repeatProducts.length} item)`}
             icon={<Layers size={14} />}
+            action={<AddProductBtn onClick={() => addProduct(setRepeatProducts)} />}
           >
             {repeatForm.previousSoId ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {repeatProducts.map((row, idx) => (
-                  <div key={row.id} style={{ border: `1px solid ${S.border}`, borderRadius: 6, padding: 14, background: "#F8FAFC" }}>
-                    <div style={{ fontWeight: 600, fontSize: "13px", color: S.slate, marginBottom: 4 }}>{row.productName}</div>
-                    <div style={{ fontSize: "12px", color: S.secondary }}>Jumlah: {row.quantity} {row.unit}</div>
-                  </div>
+                  <ProductLineItem
+                    key={row.id}
+                    row={row} index={idx} total={repeatProducts.length}
+                    productOptions={catalogProductOptions}
+                    onChange={updated => updateProduct(row.id, updated, repeatProducts, setRepeatProducts)}
+                    onRemove={() => removeProduct(row.id, setRepeatProducts)}
+                  />
                 ))}
               </div>
             ) : (

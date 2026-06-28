@@ -122,6 +122,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.FinishedByUserId).HasColumnName("finished_by_user_id");
             builder.Property(order => order.FinishedByName).HasMaxLength(160).HasColumnName("finished_by_name");
             builder.Property(order => order.QcDecision).HasMaxLength(40).HasColumnName("qc_decision");
+            builder.Property(order => order.PauseReason).HasColumnName("pause_reason");
             builder.Property(order => order.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(order => order.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.HasOne(order => order.SalesOrder)
