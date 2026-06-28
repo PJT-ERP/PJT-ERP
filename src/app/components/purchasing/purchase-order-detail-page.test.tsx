@@ -71,7 +71,7 @@ describe('PurchaseOrderDetailPage', () => {
     await userEvent.click(itemsTab);
 
     // Wait for the items tab content
-    await screen.findByText('Steel Pipe');
+    await screen.findAllByText('Steel Pipe');
 
     // Click the "Terima" button for the item
     // The accessible name is "Terima" (text content)
