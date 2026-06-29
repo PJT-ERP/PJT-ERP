@@ -433,6 +433,29 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             </div>
           </div>
 
+          {/* Deadline reminder */}
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <Clock size={14} style={{ color: "#F59E0B" }} />
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>
+            </div>
+            {mergedSalesOrders
+              .filter(o => !["completed", "cancelled"].includes(o.status.toLowerCase()))
+              .sort((a, b) => a.deadline.localeCompare(b.deadline))
+              .slice(0, 4)
+              .map((o) => (
+                <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9, paddingBottom: 9, borderBottom: `1px solid #F8FAFC` }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, fontWeight: 500 }}>{o.id}</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{customers.find(c => c.code === o.customerId)?.name || "-"}</p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 500 }}>{o.deadline}</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+
           {/* Quick actions */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
@@ -471,29 +494,6 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Deadline reminder */}
-          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Clock size={14} style={{ color: "#F59E0B" }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>
-            </div>
-            {mergedSalesOrders
-              .filter(o => !["completed", "cancelled"].includes(o.status.toLowerCase()))
-              .sort((a, b) => a.deadline.localeCompare(b.deadline))
-              .slice(0, 4)
-              .map((o) => (
-                <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9, paddingBottom: 9, borderBottom: `1px solid #F8FAFC` }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, fontWeight: 500 }}>{o.id}</p>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{customers.find(c => c.code === o.customerId)?.name || "-"}</p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 500 }}>{o.deadline}</p>
-                  </div>
-                </div>
-              ))}
           </div>
         </div>
       </div>
