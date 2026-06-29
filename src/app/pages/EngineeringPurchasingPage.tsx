@@ -240,7 +240,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const canEdit = (currentUser?.role === 'Engineering Worker')
-    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
+    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || (pr.status === 'Pending' && pr.backendStatus !== 'FinanceRejected'));
 
   if (successAction) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

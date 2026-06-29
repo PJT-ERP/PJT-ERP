@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle2, AlertTriangle, X, Plus, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, X, Plus, Clock, AlertCircle } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
 import {
@@ -42,6 +42,8 @@ export function PurchaseRequestDetailPage() {
   const [isSavingPricing, setIsSavingPricing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
+
 
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
 
@@ -55,7 +57,7 @@ export function PurchaseRequestDetailPage() {
         const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
         if (req) {
           const mr = mapPurchaseRequestToMr(req);
-          if (mr.backendStatus === "SupervisorApproved") {
+          if (mr.backendStatus === "SupervisorApproved" || mr.backendStatus === "FinanceRejected" || mr.status === "Rejected") {
             const initData: Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean }> = {};
             mr.items.forEach(item => {
               const isCustom = item.supplierName ? !SUPPLIERS.includes(item.supplierName) : false;
@@ -82,6 +84,18 @@ export function PurchaseRequestDetailPage() {
 
   const handleSavePricing = async () => {
     if (!detail) return;
+    const missingSupplierOrPrice = detail.items.some(item => {
+      const p = pricingData[item.itemId] || { supplierName: item.supplierName, estimatedPrice: item.estimatedPrice };
+      const sup = p.supplierName || item.supplierName;
+      const price = Number(p.estimatedPrice !== undefined ? p.estimatedPrice : item.estimatedPrice);
+      return !sup || !String(sup).trim() || !price || price <= 0;
+    });
+
+    if (missingSupplierOrPrice) {
+      setDialogMsg({ title: "Peringatan", message: "Pilih supplier dan estimasi harga terlebih dahulu untuk semua item sebelum mengajukan persetujuan ke Finance!" });
+      return;
+    }
+
     setIsSavingPricing(true);
     setActionError("");
     try {
@@ -100,6 +114,14 @@ export function PurchaseRequestDetailPage() {
         });
       });
       await Promise.all(promises);
+
+      if (detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" || detail.backendStatus === "SupervisorRejected") {
+        await purchasingApi.supervisorReviewPurchaseRequest(backendReq.id, {
+          reviewedByUserId: currentUser?.id || "purchasing",
+          decision: "Accept",
+          rejectionReason: null as any
+        });
+      }
 
       await refreshBackendData();
       
@@ -134,7 +156,7 @@ export function PurchaseRequestDetailPage() {
       if (refreshedReq) setDetail(mapPurchaseRequestToMr(refreshedReq));
     } catch (error) {
       console.warn('Failed to review PR.', error);
-      window.alert('Gagal memproses review PR.');
+      setDialogMsg({ title: "Gagal Memproses", message: "Gagal memproses review PR. Cek koneksi API." });
     } finally {
       setIsApproving(false);
     }
@@ -338,24 +360,28 @@ export function PurchaseRequestDetailPage() {
           )}
 
           {/* Actions */}
-          {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForFinance && (
+          {((detail.backendStatus === "SupervisorApproved" && !detail.isReadyForFinance) || detail.backendStatus === "FinanceRejected" || detail.status === "Rejected") && (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
-              <div className="flex items-start gap-3 rounded p-4 bg-amber-50 border border-amber-200">
-                <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className={`flex items-start gap-3 rounded p-4 border ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+                <AlertTriangle size={18} className={`${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-600" : "text-amber-600"} shrink-0 mt-0.5`} />
                 <div>
-                  <p className="text-sm font-bold text-amber-800">Tugas: Pengecekan Harga & Toko</p>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Isi tabel harga dan toko di atas, lalu klik Simpan Harga. Setelah itu, dokumen ini akan dikirim ke Finance untuk approval budget sebelum Anda bisa membuat PO.
+                  <p className={`text-sm font-bold ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-800" : "text-amber-800"}`}>
+                    {detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "Revisi Anggaran & Toko (Ditolak Finance)" : "Tugas: Pengecekan Harga & Toko"}
+                  </p>
+                  <p className={`text-sm ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-700" : "text-amber-700"} mt-1`}>
+                    {detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" 
+                      ? "Silakan perbaiki pilihan supplier dan estimasi harga yang ditolak di tabel atas, lalu klik tombol di bawah untuk mengajukan ulang ke Finance."
+                      : "Isi tabel harga dan toko di atas, lalu klik Simpan Harga. Setelah itu, dokumen ini akan dikirim ke Finance untuk approval budget sebelum Anda bisa membuat PO."}
                   </p>
                 </div>
               </div>
               <button
                 className="w-full flex items-center justify-center gap-2 rounded py-3 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ fontSize: 14, fontWeight: 600, background: "#16a34a" }}
+                style={{ fontSize: 14, fontWeight: 600, background: detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "#2563eb" : "#16a34a" }}
                 onClick={handleSavePricing}
                 disabled={isSavingPricing}
               >
-                <CheckCircle2 size={16} /> {isSavingPricing ? "Menyimpan..." : "Simpan Harga & Minta Approval Finance"}
+                <CheckCircle2 size={16} /> {isSavingPricing ? "Menyimpan..." : (detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "Simpan Revisi & Ajukan Ulang ke Finance" : "Simpan Harga & Minta Approval Finance")}
               </button>
             </div>
           )}
@@ -451,6 +477,25 @@ export function PurchaseRequestDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {dialogMsg && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertCircle size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{dialogMsg.title}</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">{dialogMsg.message}</p>
+            <button
+              type="button"
+              onClick={() => setDialogMsg(null)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              Mengerti
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
