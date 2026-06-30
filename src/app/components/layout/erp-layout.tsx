@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   LayoutDashboard, Users, Plus, List, ChevronRight, Menu, X, Bell, Search, LogOut, Building2,
-  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2, AlertTriangle
+  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2, AlertTriangle, LayoutTemplate
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { useApp } from "../context/AppContext";
@@ -45,6 +45,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
     { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
+    { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
   ],
   Admin: [
     { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
@@ -54,6 +55,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/engineer-qc", activePrefix: "/erp/engineer-qc" },
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
+    { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },

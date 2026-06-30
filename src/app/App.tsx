@@ -20,8 +20,8 @@ import { FinancePurchasingApproval } from "./components/finance/FinancePurchasin
 import { FinancePrDetail } from "./components/finance/FinancePrDetail";
 import { FinancePoDetail } from "./components/finance/FinancePoDetail";
 
-// Migrated Pages from Folder B
 import { AdminPage } from "./pages/AdminPage";
+import { LandingPageEditor } from "./pages/LandingPageEditor";
 import { EngineeringTasksPage } from "./pages/EngineeringTasksPage";
 import { EngineeringTaskDetailPage } from "./pages/EngineeringTaskDetailPage";
 import { EngineeringPage } from "./pages/EngineeringPage";
@@ -81,6 +81,7 @@ export default function App() {
             
             {/* Admin: Admin & Owner */}
             <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />
+            <Route path="landing-page" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><LandingPageEditor /></ProtectedRoute>} />
 
             {/* Finance: Finance, Admin, Owner */}
             <Route path="finance">
