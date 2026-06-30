@@ -139,6 +139,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const currentUser = useApp().currentUser;
 
+  const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");
   const isCustomBackend = order?.backendDesignStatus === "PendingDesign" || order?.backendDesignStatus === "RevisionRequired" || order?.partNumber?.startsWith("FG-");
   const isStandard = !isCustomBackend;
 
@@ -616,13 +617,21 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   <div>
                     <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
                     {isEditMode ? (
-                      <input
-                        type="text"
-                        placeholder="https://... (Opsional)"
-                        value={editForm.customerDrawingUrl}
-                        onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
-                        style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none" }}
-                      />
+                      <>
+                        <input
+                          type="text"
+                          placeholder="https://... (Opsional)"
+                          value={editForm.customerDrawingUrl}
+                          onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
+                          disabled={isDesignLocked}
+                          style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", backgroundColor: isDesignLocked ? "#F1F5F9" : "white", cursor: isDesignLocked ? "not-allowed" : "text" }}
+                        />
+                        {isDesignLocked && (
+                          <p style={{ margin: "4px 0 0", fontSize: "10px", color: "#EF4444" }}>
+                            Desain tidak dapat diubah karena pesanan sudah masuk tahap produksi.
+                          </p>
+                        )}
+                      </>
                     ) : !order.customerDrawingUrl ? (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
                         <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
