@@ -239,7 +239,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const canEdit = (currentUser?.role === 'Engineering' || currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Engineering Supervisor')
+  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Engineering Supervisor')
     && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
 
   if (successAction) return (
