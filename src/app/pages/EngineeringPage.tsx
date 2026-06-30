@@ -46,7 +46,7 @@ export function EngineeringPage() {
   const navigate = useNavigate();
   const { salesOrders, customers, currentUser, users } = useApp();
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders

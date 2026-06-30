@@ -54,6 +54,8 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production", activePrefix: "/erp/production" },
     { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/engineer-qc", activePrefix: "/erp/engineer-qc" },
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
+    { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
+    { label: "Master Produk", icon: <Package size={15} />, path: "/erp/admin/products" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
   ],
@@ -150,7 +152,7 @@ export function ERPLayout() {
             );
           }
           const active = item.path ? (
-            item.activePrefix ? location.pathname.startsWith(item.activePrefix) :
+            item.activePrefix ? (location.pathname.startsWith(item.activePrefix) && !navItems.some(other => other.path && other.path !== item.path && (location.pathname === other.path || location.pathname.startsWith(other.path + "/")))) :
               (location.pathname === item.path ||
                 (location.pathname.startsWith(item.path + "/") && !navItems.some(other => other.path && other.path !== item.path && other.path.length > item.path!.length && location.pathname.startsWith(other.path))))
           ) : false;

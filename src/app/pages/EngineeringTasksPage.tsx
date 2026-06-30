@@ -83,7 +83,7 @@ export function EngineeringTasksPage() {
   const itemsPerPage = 8;
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
   
   const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Rejected'];
   
