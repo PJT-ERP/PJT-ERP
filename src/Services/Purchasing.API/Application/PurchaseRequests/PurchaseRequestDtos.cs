@@ -62,7 +62,9 @@ public sealed record UpdatePurchaseItemInfoRequest(
     string? PoNumber = null,
     decimal? EstimatedPrice = null,
     decimal? TotalPrice = null,
-    string? PurchaseCategory = null);
+    string? PurchaseCategory = null,
+    int? Qty = null,
+    string? ItemName = null);
 
 public sealed record ProcessPurchaseItemRequest(
     string SupplierName,

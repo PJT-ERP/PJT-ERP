@@ -200,6 +200,8 @@ export const purchasingApi = {
     estimatedPrice?: number | null;
     totalPrice?: number | null;
     purchaseCategory?: string | null;
+    qty?: number | null;
+    itemName?: string | null;
   }) {
     const response = await apiClient.put<PurchaseRequestDto>(
       `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/items/${itemId}/purchase-info`,

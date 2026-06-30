@@ -239,8 +239,8 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const canEdit = (currentUser?.role === 'Engineering Worker')
-    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || (pr.status === 'Pending' && pr.backendStatus !== 'FinanceRejected'));
+  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Engineering Supervisor')
+    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Pending');
 
   if (successAction) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -436,7 +436,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
           )}
 
           {/* Supervisor Action Buttons */}
-          {isSpv && currentUser?.role !== 'Admin' && pr.status === 'Pending' && !rejectMode && (
+          {isSpv && currentUser?.role !== 'Admin' && (pr.status === 'Pending' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.backendStatus === 'Submitted') && !rejectMode && (
             <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
               <button
                 onClick={() => setRejectMode(true)}
@@ -771,12 +771,12 @@ export function EngineeringPurchasingPage() {
     ? purchasingRequests
     : purchasingRequests.filter(r => r.requestedBy === currentUser?.name || r.requestedBy === currentUser?.id);
 
-  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted');
-  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted');
+  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted' || r.backendStatus === 'FinanceRejected');
+  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted' && r.backendStatus !== 'FinanceRejected');
 
   const statusCount = (s: string) => {
     if (s === 'Menunggu SPV') return waitingSpvRequests.length;
-    return relevantRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
+    return relevantRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted' && r.backendStatus !== 'FinanceRejected').length;
   };
 
   return (
