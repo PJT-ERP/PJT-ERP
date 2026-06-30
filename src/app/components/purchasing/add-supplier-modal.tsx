@@ -43,7 +43,10 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
     setErrorMessage("");
 
     if (!supplier) {
-      setFormData(emptyForm);
+      setFormData({
+        ...emptyForm,
+        code: `SUP-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
+      });
       return;
     }
 
@@ -143,7 +146,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Kode Supplier *</Label>
-              <Input id="code" name="code" value={formData.code} onChange={handleChange} required disabled={isEditMode} placeholder="Contoh: SUP-030" />
+              <Input id="code" name="code" value={formData.code} onChange={handleChange} required disabled placeholder="Auto-generated" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">Nama Perusahaan *</Label>
