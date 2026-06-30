@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle2, AlertTriangle, FileText, Clock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, FileText, Clock, AlertCircle } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
 import {
@@ -26,6 +26,10 @@ export function FinancePrDetail() {
   const [detail, setDetail] = useState<MR | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReasonInput, setRejectReasonInput] = useState("");
+  const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
+
 
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
 
@@ -49,16 +53,22 @@ export function FinancePrDetail() {
     if (id) void loadData();
   }, [id]);
 
-  const handleReviewPr = async (decision: 'Accept' | 'Reject') => {
+  const handleReviewPr = async (decision: 'Accept' | 'Reject', reason?: string) => {
     if (!detail || !currentUser) return;
+    if (decision === 'Reject' && (!reason || !reason.trim())) {
+      setDialogMsg({ title: "Peringatan", message: "Alasan penolakan anggaran wajib diisi agar tim Purchasing tahu apa yang harus direvisi!" });
+      return;
+    }
     setIsApproving(true);
     try {
       await purchasingApi.reviewPurchaseRequest(detail.backendId, {
         reviewedByUserId: currentUser.id,
         decision,
         reviewStage: 'Finance',
-        rejectionReason: decision === 'Reject' ? window.prompt("Alasan Penolakan Anggaran:") || "Ditolak oleh Finance" : undefined
+        rejectionReason: decision === 'Reject' ? reason : undefined
       });
+      setShowRejectModal(false);
+      setRejectReasonInput("");
       await refreshBackendData();
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
@@ -66,7 +76,7 @@ export function FinancePrDetail() {
       if (refreshedReq) setDetail(mapPurchaseRequestToMr(refreshedReq));
     } catch (error) {
       console.warn('Failed to review PR.', error);
-      window.alert('Gagal memproses review PR.');
+      setDialogMsg({ title: "Gagal Memproses", message: "Gagal memproses review PR. Cek koneksi API." });
     } finally {
       setIsApproving(false);
     }
@@ -189,7 +199,7 @@ export function FinancePrDetail() {
               <div className="flex items-center gap-3">
                 <button
                   disabled={isApproving}
-                  onClick={() => handleReviewPr('Reject')}
+                  onClick={() => setShowRejectModal(true)}
                   className="flex-1 py-3 rounded-lg text-sm font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
                 >
                   Tolak Anggaran
@@ -218,6 +228,60 @@ export function FinancePrDetail() {
           )}
         </div>
       </div>
+
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Tolak Persetujuan Anggaran</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Silakan berikan alasan penolakan anggaran ini agar tim Purchasing dapat melakukan revisi harga atau memilih supplier lain.
+            </p>
+            <textarea
+              className="w-full rounded border border-slate-300 p-3 text-sm outline-none focus:border-red-500 min-h-[100px] mb-4"
+              placeholder="Contoh: Harga dari supplier X terlalu mahal melebihi standar HPS proyek. Mohon cari supplier alternatif."
+              value={rejectReasonInput}
+              onChange={(e) => setRejectReasonInput(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowRejectModal(false); setRejectReasonInput(""); }}
+                className="px-4 py-2 rounded text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                disabled={isApproving}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReviewPr('Reject', rejectReasonInput)}
+                className="px-4 py-2 rounded text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                disabled={isApproving || !rejectReasonInput.trim()}
+              >
+                {isApproving ? "Memproses..." : "Konfirmasi Tolak"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dialogMsg && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertCircle size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{dialogMsg.title}</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">{dialogMsg.message}</p>
+            <button
+              type="button"
+              onClick={() => setDialogMsg(null)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              Mengerti
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

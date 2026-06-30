@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle2, Plus, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Plus, X, AlertCircle } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
 import { toBackendUserId } from "../../services/backendIds";
@@ -65,6 +65,7 @@ export function CreatePurchaseRequestPage() {
   const { inventoryItems } = usePurchasingData();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
   const [formSoNumber, setFormSoNumber] = useState("");
   const [formItems, setFormItems] = useState<ManualRequestItem[]>([{ code: "", name: "", spec: "", qty: 1, unit: "PCS", category: "Consumable" }]);
   const [formPriority, setFormPriority] = useState("Medium");
@@ -81,15 +82,19 @@ export function CreatePurchaseRequestPage() {
 
   const submitManualRequest = async () => {
     if (isSubmitting) return;
-    const validItems = formItems.filter(item => item.name && Number(item.qty) > 0);
+    const validItems = formItems.filter(item => (item.code || item.name) && Number(item.qty) > 0);
     if (validItems.length === 0) {
-      alert("Isi minimal satu item material.");
+      setDialogMsg({ title: "Peringatan", message: "Isi minimal satu item material dengan spesifikasi yang benar." });
+      return;
+    }
+    if (validItems.some(item => !item.code || !item.code.trim())) {
+      setDialogMsg({ title: "Peringatan", message: "Kode Material (SKU) wajib diisi untuk standar ERP agar spesifikasi akurat!" });
       return;
     }
 
     const requesterId = toBackendUserId(currentUser);
     if (!requesterId) {
-      alert("User lokal belum punya mapping backend untuk membuat PR.");
+      setDialogMsg({ title: "Gagal Mengajukan", message: "User lokal belum punya mapping backend untuk membuat PR." });
       return;
     }
 
@@ -111,7 +116,7 @@ export function CreatePurchaseRequestPage() {
           salesOrderId: selectedSo?.backendId || null,
           salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
           projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "Manual Purchase Request",
-          itemName: item.name || item.code || "Material",
+          itemName: item.code ? (item.name ? `[${item.code}] ${item.name}` : item.code) : (item.name || "Material"),
           size: item.spec || null,
           qty: Number(item.qty) || 1,
           notes: [formUrgency, formNotes].filter(Boolean).join(" - ") || null,
@@ -123,7 +128,7 @@ export function CreatePurchaseRequestPage() {
       navigate("/erp/purchasing/requests");
     } catch (error) {
       console.error("Failed to create manual purchase request.", error);
-      alert("Gagal membuat PR di backend. Cek response API untuk detail.");
+      setDialogMsg({ title: "Gagal Membuat PR", message: "Gagal membuat PR di backend. Cek response API untuk detail." });
     } finally {
       setIsSubmitting(false);
     }
@@ -212,12 +217,12 @@ export function CreatePurchaseRequestPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
-                  <div className="md:col-span-3">
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kode</label>
-                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.code} onChange={(e) => updateFormItem(i, "code", e.target.value)} placeholder="Opsional" />
+                  <div className="md:col-span-4">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kode Material (SKU) *</label>
+                    <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-mono uppercase outline-none focus:border-blue-500" value={item.code} onChange={(e) => updateFormItem(i, "code", e.target.value.toUpperCase())} placeholder="RAW-STL-001" />
                   </div>
-                  <div className="md:col-span-5">
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Nama Material *</label>
+                  <div className="md:col-span-4">
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Pilih dari Master / Nama *</label>
                     <InventoryCombobox
                       value={item.name || ""}
                       onChange={(val, selectedItem) => {
@@ -231,7 +236,7 @@ export function CreatePurchaseRequestPage() {
                         setFormItems(next);
                       }}
                       options={inventoryItems}
-                      placeholder="Pilih dari Master Data atau ketik manual"
+                      placeholder="Pilih Master Data / Ketik deskripsi"
                     />
                   </div>
                   <div className="md:col-span-4">
@@ -293,6 +298,25 @@ export function CreatePurchaseRequestPage() {
           </button>
         </div>
       </div>
+
+      {dialogMsg && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertCircle size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">{dialogMsg.title}</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">{dialogMsg.message}</p>
+            <button
+              type="button"
+              onClick={() => setDialogMsg(null)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              Mengerti
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
