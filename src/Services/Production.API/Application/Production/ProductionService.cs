@@ -282,6 +282,14 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         if (salesOrder is null) return null;
 
+        if (salesOrder.Status == SalesOrderStatuses.InProduction ||
+            salesOrder.Status == SalesOrderStatuses.QC ||
+            salesOrder.Status == SalesOrderStatuses.Completed ||
+            salesOrder.Status == SalesOrderStatuses.Cancelled)
+        {
+            throw new InvalidOperationException($"Cannot update design because the order is already in '{salesOrder.Status}' status.");
+        }
+
         var newDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL");
         
         if (newDrawingUrl != salesOrder.CustomerDrawingUrl)

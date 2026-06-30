@@ -299,19 +299,12 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             return null;
         }
 
-        if (IsRejectedRequest(purchaseRequest.Status))
-        {
-            throw new InvalidOperationException("Rejected purchase requests cannot receive purchase information.");
-        }
-
-        EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "receive purchase information");
-
         var purchaseItem = purchaseRequest.Items.FirstOrDefault(item => item.Id == itemId)
             ?? throw new InvalidOperationException("Purchase request item was not found.");
         var purchaseStatus = string.IsNullOrWhiteSpace(request.PurchaseStatus)
             && !request.PurchaseDate.HasValue
             && !request.ReceivedDate.HasValue
-                ? purchaseItem.PurchaseStatus
+                ? (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Rejected ? PurchaseItemStatuses.Requested : purchaseItem.PurchaseStatus)
                 : NormalizePurchaseStatus(request.PurchaseStatus, request.PurchaseDate, request.ReceivedDate);
         ValidateEstimatedPrice(request.EstimatedPrice);
         var requestedTotalPrice = NormalizePrice(request.TotalPrice ?? request.EstimatedPrice, "Total price");
@@ -335,6 +328,15 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         if (purchaseStatus == PurchaseItemStatuses.Received)
         {
             EnsurePurchaseRequestFinanceApprovedForReceiving(purchaseRequest);
+        }
+
+        if (request.Qty.HasValue && request.Qty.Value > 0)
+        {
+            purchaseItem.Qty = request.Qty.Value;
+        }
+        if (!string.IsNullOrWhiteSpace(request.ItemName))
+        {
+            purchaseItem.ItemName = request.ItemName.Trim();
         }
 
         purchaseItem.SupplierName = requestedSupplier ?? purchaseItem.SupplierName;
@@ -366,6 +368,16 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
                 _ => MaterialRequirementStatuses.PurchaseRequested
             };
             purchaseItem.MaterialRequirement.UpdatedAtUtc = purchaseItem.UpdatedAtUtc;
+        }
+
+        if (purchaseRequest.Status is PurchaseRequestStatuses.Rejected
+            or PurchaseRequestStatuses.FinanceRejected
+            or PurchaseRequestStatuses.SupervisorRejected)
+        {
+            purchaseRequest.SupervisorReviewedAtUtc = null;
+            purchaseRequest.SupervisorReviewedByUserId = null;
+            purchaseRequest.FinanceReviewedAtUtc = null;
+            purchaseRequest.FinanceReviewedByUserId = null;
         }
 
         RefreshPurchaseRequestStatus(purchaseRequest);
@@ -822,9 +834,11 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
         string decision,
         DateTime now)
     {
-        if (purchaseRequest.Status != PurchaseRequestStatuses.Submitted)
+        if (purchaseRequest.Status is not PurchaseRequestStatuses.Submitted
+            and not PurchaseRequestStatuses.FinanceRejected
+            and not PurchaseRequestStatuses.Rejected)
         {
-            throw new InvalidOperationException("Only submitted purchase requests can receive supervisor approval.");
+            throw new InvalidOperationException("Only submitted or rejected purchase requests can receive supervisor approval.");
         }
 
         purchaseRequest.SupervisorReviewedByUserId = request.ReviewedByUserId;
@@ -889,9 +903,17 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             ? NormalizeOptional(request.RejectionReason)
             : null;
         purchaseRequest.RejectionReason = purchaseRequest.FinanceRejectionReason;
-        purchaseRequest.Status = decision == PurchaseRequestStatuses.Approved
-            ? PurchaseRequestStatuses.FinanceApproved
-            : PurchaseRequestStatuses.FinanceRejected;
+
+        if (decision == PurchaseRequestStatuses.Rejected)
+        {
+            purchaseRequest.SupervisorReviewedAtUtc = null;
+            purchaseRequest.SupervisorReviewedByUserId = null;
+            purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+        }
+        else
+        {
+            purchaseRequest.Status = PurchaseRequestStatuses.FinanceApproved;
+        }
 
         foreach (var item in purchaseRequest.Items)
         {

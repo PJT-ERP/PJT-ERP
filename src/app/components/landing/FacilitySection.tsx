@@ -2,28 +2,28 @@ import React, { useState } from 'react';
 import { MapPin, Settings2, ShieldCheck, Wrench, ImageIcon, Box } from 'lucide-react';
 
 const tangerangMachines = [
-  { no: 1, desc: "CNC Milling Hurco 2014", unit: 1, img: null },
-  { no: 2, desc: "CNC Milling Twinhorn 2021", unit: 1, img: null },
-  { no: 3, desc: "CNC Milling YCM 2022", unit: 1, img: "/CNC MILLING YCM E5.png" },
-  { no: 4, desc: "CNC Milling Akira Seiki 2015", unit: 1, img: null },
-  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 3, img: "/CNC Turning.png" },
-  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/CNC Turning.png" },
-  { no: 7, desc: "CNC LATHE M/C Microcut 6 inch 2016", unit: 1, img: "/CNC Turning.png" },
-  { no: 8, desc: "Lathe Machine", unit: 1, img: "/BUBUT MANUAL.webp" },
-  { no: 9, desc: "Surface Grinding PROTH 2012", unit: 1, img: "/SURFACE GRINDING.png" },
-  { no: 10, desc: "Milling Machine STD SM5", unit: 1, img: "/MILLING MANUAL.jpeg" },
-  { no: 11, desc: "Milling Machine STD SM4", unit: 1, img: "/MILLING MANUAL.jpeg" },
+  { no: 1, desc: "CNC Milling Hurco 2014", unit: 1, img: "/tangerang/CNC Milling Hurco 2014.jpeg" },
+  { no: 2, desc: "CNC Milling Twinhorn 2021", unit: 1, img: "/tangerang/CNC Milling Twinhorn 2021.jpg" },
+  { no: 3, desc: "CNC Milling YCM 2022", unit: 1, img: "/tangerang/CNC Milling YCM 2022.jpg" },
+  { no: 4, desc: "CNC Milling Akira Seiki 2015", unit: 1, img: "/tangerang/CNC Milling Akira Seiki 2015.jpg" },
+  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 3, img: "/tangerang/CNC Lathe MC MAZAK 8 inch 2016.jpg" },
+  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/tangerang/CNC LATHE MC Goodway 8 inch 2016.jpg" },
+  { no: 7, desc: "CNC LATHE M/C Microcut 6 inch 2016", unit: 1, img: "/tangerang/CNC LATHE MC Microcut 6 inch 2016.jpg" },
+  { no: 8, desc: "Lathe Machine", unit: 1, img: "/tangerang/Lathe Machine.jpg" },
+  { no: 9, desc: "Surface Grinding PROTH 2012", unit: 1, img: "/tangerang/Surface Grinding PROTH 2012.jpg" },
+  { no: 10, desc: "Milling Machine STD SM5", unit: 1, img: "/tangerang/Milling Machine STD SM5.jpg" },
+  { no: 11, desc: "Milling Machine STD SM4", unit: 1, img: "/tangerang/Milling Machine STD SM4.jpeg" },
 ];
 
 const surabayaMachines = [
-  { no: 1, desc: "CNC Milling YCM 2015", unit: 3, img: "/CNC MILLING YCM E5.png" },
-  { no: 2, desc: "CNC Milling YCM 2015", unit: 1, img: "/CNC MILLING YCM E5.png" },
-  { no: 3, desc: "CNC Milling VICTOR 2018", unit: 1, img: null },
-  { no: 4, desc: "CNC Milling First 2017", unit: 1, img: null },
-  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 2, img: "/CNC Turning.png" },
-  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/CNC Turning.png" },
-  { no: 7, desc: "CNC LATHE M/C Goodway 10 inch 2016", unit: 1, img: "/CNC Turning.png" },
-  { no: 8, desc: "HORIZONTAL MILLING", unit: 1, img: null },
+  { no: 1, desc: "CNC Milling YCM 2015", unit: 3, img: "/surabaya/CNC Milling YCM 2015 NSV 106AM.jpg" },
+  { no: 2, desc: "CNC Milling YCM 2015", unit: 1, img: "/surabaya/CNC Milling YCM 2015 NSV 106AM.jpg" },
+  { no: 3, desc: "CNC Milling VICTOR 2018", unit: 1, img: "/surabaya/CNC Milling VICTOR 2018.jpg" },
+  { no: 4, desc: "CNC Milling First 2017", unit: 1, img: "/surabaya/CNC Milling First 2017.jpg" },
+  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 2, img: "/surabaya/CNC Lathe MC MAZAK 8 inch 2016.jpg" },
+  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/surabaya/CNC LATHE MC Goodway 8 inch 2016.webp" },
+  { no: 7, desc: "CNC LATHE M/C Goodway 10 inch 2016", unit: 1, img: "/surabaya/CNC LATHE MC Goodway 10 inch 2016.jpg" },
+  { no: 8, desc: "HORIZONTAL MILLING", unit: 1, img: "/surabaya/HORIZONTAL MILLING.jpg" },
 ];
 
 export function FacilitySection() {

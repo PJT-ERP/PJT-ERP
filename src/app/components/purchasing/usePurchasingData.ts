@@ -19,19 +19,29 @@ export function usePurchasingData(enabled = true) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [requirements, requests, suppliersList, inventoryList, payments] = await Promise.all([
+      const [reqRes, prRes, supRes, invRes, payRes] = await Promise.allSettled([
         purchasingApi.listMaterialRequirements(),
         purchasingApi.listPurchaseRequests(),
         masterDataApi.listSuppliers(),
         masterDataApi.listInventory(),
         financeApi.listSupplierPayments(),
       ]);
-      setMaterialRequirements(requirements);
-      setPurchaseRequests(requests);
-      setSuppliers(suppliersList);
-      setInventoryItems(inventoryList);
-      setSupplierPayments(payments);
-      setIsUsingBackend(true);
+      if (reqRes.status === "fulfilled") setMaterialRequirements(reqRes.value);
+      else setMaterialRequirements([]);
+
+      if (prRes.status === "fulfilled") setPurchaseRequests(prRes.value);
+      else setPurchaseRequests([]);
+
+      if (supRes.status === "fulfilled") setSuppliers(supRes.value);
+      else setSuppliers([]);
+
+      if (invRes.status === "fulfilled") setInventoryItems(invRes.value);
+      else setInventoryItems([]);
+
+      if (payRes.status === "fulfilled") setSupplierPayments(payRes.value);
+      else setSupplierPayments([]);
+
+      setIsUsingBackend(prRes.status === "fulfilled");
     } catch (error) {
       console.warn("Purchasing API unavailable; purchasing data was not loaded.", error);
       setMaterialRequirements([]);
