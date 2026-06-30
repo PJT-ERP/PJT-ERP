@@ -10,6 +10,7 @@ import { isGuid, toBackendUserId } from "../services/backendIds";
 import { useFinanceData } from "../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../components/so/invoice-sync";
 import { masterDataApi, InventoryItemDto } from "../services/masterDataApi";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
 
 const S = {
   font: "Inter, sans-serif",
@@ -205,7 +206,7 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
   const { users, currentUser, refreshBackendData } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const operators = users.filter(u => u.role === 'Engineering Worker' || u.role === 'Engineering Supervisor');
+  const operators = users.filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor');
 
   const handleAssign = async (operatorId: string) => {
     if (isSubmitting) return;
@@ -486,7 +487,7 @@ function MaterialRequestModal({
       onMessage({
         tone: "error",
         title: "Operator Tidak Ditemukan",
-        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering Worker yang ditugaskan.",
+        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering yang ditugaskan.",
       });
       return;
     }
@@ -495,7 +496,7 @@ function MaterialRequestModal({
       setIsSubmitting(true);
       await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
+        requesterName: currentUser?.name || so.assignedName || "Engineering",
         notes: notes || null,
         items: parsedItems.map(item => ({
           materialRequirementId: null,
@@ -650,7 +651,7 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
       setIsSubmitting(true);
       await productionApi.startProduction(salesOrderId, {
         workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+        workerName: currentUser?.name || so.assignedName || "Engineering",
       });
       await refreshBackendData();
       onClose();
@@ -682,7 +683,7 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 450, fontFamily: S.font, overflow: "hidden" }}>
         <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Mulai Produksi</h2>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>{so.status === 'Paused' ? 'Lanjutkan Produksi' : 'Mulai Produksi'}</h2>
             <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id}</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
@@ -699,14 +700,24 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
           )}
           <div>
             <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, lineHeight: "1.5" }}>
-              Apakah Anda yakin ingin mulai mengerjakan produksi untuk pesanan ini? <br />
-              <strong>Waktu mulai akan tercatat otomatis sesuai waktu saat ini.</strong>
+              {so.status === 'Paused' && so.pauseReason === 'Mesin Rusak' ? (
+                <>Produksi sebelumnya dihentikan karena <strong>Mesin Rusak</strong>. Apakah mesin sudah diperbaiki dan Anda yakin ingin melanjutkan produksi?</>
+              ) : so.status === 'Paused' && so.pauseReason === 'Kapasitas Penuh' ? (
+                <>Produksi sebelumnya dihentikan karena <strong>Kapasitas Penuh</strong>. Apakah kapasitas mesin sudah tersedia dan Anda yakin ingin melanjutkan produksi?</>
+              ) : so.status === 'Paused' && so.pauseReason === 'Material Kurang' ? (
+                <>Produksi sebelumnya dihentikan karena <strong>Material Kurang</strong>. Apakah material sudah tersedia lengkap dan Anda yakin ingin melanjutkan produksi?</>
+              ) : so.status === 'Paused' && so.pauseReason ? (
+                <>Produksi sebelumnya dihentikan karena <strong>{so.pauseReason}</strong>. Apakah kendala sudah teratasi dan Anda yakin ingin melanjutkan produksi?</>
+              ) : (
+                <>Apakah Anda yakin ingin mulai mengerjakan produksi untuk pesanan ini? <br />
+                <strong>Waktu mulai akan tercatat otomatis sesuai waktu saat ini.</strong></>
+              )}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.65 : 1 }}>
-              <PlayCircle size={16} /> {isSubmitting ? "Menyimpan..." : "Konfirmasi Mulai"}
+              <PlayCircle size={16} /> {isSubmitting ? "Menyimpan..." : (so.status === 'Paused' ? "Lanjutkan Produksi" : "Konfirmasi Mulai")}
             </button>
           </div>
         </form>
@@ -737,7 +748,7 @@ function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
       setIsSubmitting(true);
       await productionApi.pauseProduction(salesOrderId, {
         workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+        workerName: currentUser?.name || so.assignedName || "Engineering",
         reason: pauseReason.trim(),
       });
       await refreshBackendData();
@@ -846,7 +857,7 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
       setIsSubmitting(true);
       await productionApi.finishProduction(salesOrderId, {
         workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+        workerName: currentUser?.name || so.assignedName || "Engineering",
       });
       await refreshBackendData();
       onClose();
@@ -905,12 +916,18 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
             </div>
           )}
           
-          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={isSubmitting || !canFinish || (isLate && !lateReason.trim())} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting || !canFinish || (isLate && !lateReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting || !canFinish || (isLate && !lateReason.trim()) ? 0.65 : 1 }}>
-              <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
-            </button>
-          </div>
+          {!canFinish ? (
+            <div style={{ display: "flex", paddingTop: 8 }}>
+              <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Mengerti</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+              <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+              <button type="submit" disabled={isSubmitting || (isLate && !lateReason.trim())} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting || (isLate && !lateReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting || (isLate && !lateReason.trim()) ? 0.65 : 1 }}>
+                <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
@@ -1015,7 +1032,7 @@ function MaterialReviewModal({
             </div>
             <div>
               <p style={{ margin: 0, color: S.secondary, fontSize: 12, fontWeight: 600 }}>Diajukan Oleh</p>
-              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5 }}>{request?.requestedBy || so.assignedName || "Engineering Worker"}</p>
+              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5 }}>{request?.requestedBy || so.assignedName || "Engineering"}</p>
             </div>
           </div>
 
@@ -1111,9 +1128,23 @@ function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () =>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
         </div>
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
-          <div>
-            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deskripsi</p>
-            <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.description}</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: -4 }}>
+            <StatusBadge status={so.status} />
+            {(so as any).productionStatus && (so as any).productionStatus !== so.status && <StatusBadge status={(so as any).productionStatus} />}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Pelanggan</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.customerName || so.customerId}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deadline</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.deadline}</p>
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deskripsi Produk</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.description}</p>
+            </div>
           </div>
           { (request?.status === 'Ditolak' || request?.backendStatus === 'Rejected') && request?.rejectionReason && (
             <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8 }}>
@@ -1192,7 +1223,7 @@ export function ProductionPage() {
     try {
       await productionApi.resumeProduction(salesOrderId, {
         workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+        workerName: currentUser?.name || so.assignedName || "Engineering",
       });
       await refreshBackendData();
     } catch (error: unknown) {
@@ -1217,6 +1248,8 @@ export function ProductionPage() {
   
   const isReadyForProd = (so: SalesOrder) => {
     if (so.status === 'Ready for Production') return true;
+    // Exclude if it's already started production or reached QC
+    if (so.startTime || so.qcDecision) return false;
     if (so.backendDesignStatus === 'Approved' && ['Waiting Pricing', 'Waiting Payment', 'Pending Design', 'Waiting Approval'].includes(so.status)) return true;
     return false;
   };
@@ -1551,7 +1584,7 @@ export function ProductionPage() {
                     <div style={{ display: "flex", gap: 8 }}>
                       {so.status === 'Paused' ? (
                         <>
-                          <button onClick={() => handleResume(so)}
+                          <button onClick={() => setStartModal(so)}
                             style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                             <PlayCircle size={14} /> Lanjutkan Produksi
                           </button>
@@ -1570,15 +1603,10 @@ export function ProductionPage() {
                       )}
                       <button 
                         onClick={() => {
-                          if (!canFinish) {
-                            alert("Tombol baru dapat diklik mulai H-3 Deadline.");
-                            return;
-                          }
+                          if (so.status === 'Paused') return;
                           setCompleteModal(so);
                         }} 
-                        disabled={so.status === 'Paused'}
-                        title={!canFinish ? "Tombol baru dapat diklik mulai H-3 Deadline" : ""}
-                        style={{ padding: "8px 16px", background: !canFinish ? "#D1D5DB" : "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: (so.status === 'Paused' || !canFinish) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
+                        style={{ padding: "8px 16px", background: !canFinish ? "#D1D5DB" : "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
                         <CheckSquare size={14} /> Selesai Produksi
                       </button>
                     </div>

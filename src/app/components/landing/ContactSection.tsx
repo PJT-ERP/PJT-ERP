@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { MapPin, Send, CheckCircle } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 export function ContactSection() {
+  const { landingPageContent } = useApp();
+  const { contactTitle, contactSubtitle, contactLocations } = landingPageContent;
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "", message: "" });
 
@@ -45,7 +48,7 @@ export function ContactSection() {
           <span
             style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
-            Don't Know Where to Start?
+            {contactTitle}
           </span>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-12">
@@ -59,7 +62,7 @@ export function ContactSection() {
               letterSpacing: "-0.02em",
             }}
           >
-            Get Solutions for All Your Engineering Needs
+            {contactSubtitle}
           </h2>
           <p
             style={{
@@ -77,28 +80,11 @@ export function ContactSection() {
           {/* Left: Contact Info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Info cards */}
-            {[
-              {
-                icon: MapPin,
-                label: "Head Office",
-                lines: ["Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya, Kec.", "Ps. Kemis, Kabupaten Tangerang, Banten 15560"],
-              },
-              {
-                icon: MapPin,
-                label: "Branch Office",
-                lines: ["Kawasan 3 bisnis centre,Ruko Shapire No 51 Jl. Lingkar", "Tanjungpura, Tanjungpura, kec. Karawang Barat, Jawa Barat 41361"],
-              },
-
-              {
-                icon: MapPin,
-                label: "Workshop 2",
-                lines: ["Pergudangan centre point Blok B5, Krian, Sidoarjo,"],
-              },
-            ].map((item) => {
-              const Icon = item.icon;
+            {contactLocations?.map((item) => {
+              const Icon = MapPin;
               return (
                 <div
-                  key={item.label}
+                  key={item.id}
                   className="flex gap-4 p-4 rounded-xl"
                   style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}
                 >
@@ -114,9 +100,9 @@ export function ContactSection() {
                     >
                       {item.label.toUpperCase()}
                     </div>
-                    {item.lines.map((line) => (
+                    {item.address.split("\n").map((line, i) => (
                       <div
-                        key={line}
+                        key={i}
                         style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "14px", fontWeight: 500, lineHeight: 1.6 }}
                       >
                         {line}
@@ -183,6 +169,7 @@ export function ContactSection() {
                     </div>
                     <div>
                       <input
+                        required
                         type="tel"
                         name="phone"
                         value={form.phone}
@@ -210,6 +197,7 @@ export function ContactSection() {
                     </div>
                     <div>
                       <input
+                        required
                         type="text"
                         name="company"
                         value={form.company}

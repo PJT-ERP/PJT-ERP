@@ -1,4 +1,5 @@
 import { CheckCircle } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 const capabilities = [
   "Precision components & custom spare parts",
@@ -10,6 +11,7 @@ const capabilities = [
 ];
 
 export function CompanyIntro() {
+  const { landingPageContent } = useApp();
   return (
     <section id="about" style={{ backgroundColor: "#F8FAFC" }} className="py-20 lg:py-28">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -19,7 +21,7 @@ export function CompanyIntro() {
           <span
             style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em" }}
           >
-            ABOUT COMPANY
+            {landingPageContent.companyIntroTitle}
           </span>
         </div>
 
@@ -37,7 +39,7 @@ export function CompanyIntro() {
               }}
               className="mb-5"
             >
-              Delivering Speed, Accuracy, and Innovation for the Future of Industry
+              {landingPageContent.companyIntroSubtitle}
             </h2>
             <p
               style={{
@@ -48,7 +50,7 @@ export function CompanyIntro() {
               }}
               className="mb-6"
             >
-              Established in 2016 as a 100% local manufacturing company, PT Pratama Jaya Tekindo is here to answer the high industrial demand for reliable mechanical & engineering services. We focus on providing precision components and end-to-to-end engineering solutions to support the smooth operation of large-scale factories and production lines.
+              {landingPageContent.companyIntroText1}
             </p>
             <p
               style={{
@@ -59,7 +61,7 @@ export function CompanyIntro() {
               }}
               className="mb-8"
             >
-              Upholding the work philosophy of Speed (fast processes with high quality) and Snipe (sharp level of accuracy and precision), we combine the expertise of professional workforce with modern CNC machining. From the automotive industry to food and beverage, we are committed to being a trusted partner capable of creating more effective, efficient, and competitive production systems.
+              {landingPageContent.companyIntroText2}
             </p>
 
             <div className="grid sm:grid-cols-2 gap-3">

@@ -98,7 +98,7 @@ export function QCReadOnlyView() {
   const itemsPerPage = 10;
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const isRegularEngineer = currentUser?.role === 'Engineering Worker' && !isSupervisor && currentUser?.username !== 'admin';
+  const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
   const currentBackendUserId = toBackendUserId(currentUser);
   const baseOrders = isRegularEngineer 
     ? salesOrders.filter(so => 

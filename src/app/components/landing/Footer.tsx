@@ -1,4 +1,5 @@
 import { Cog, Mail, Phone, MapPin, Linkedin, Twitter, Youtube } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 const navGroups = [
   {
@@ -31,6 +32,9 @@ const navGroups = [
 ];
 
 export function Footer() {
+  const { landingPageContent } = useApp();
+  const { footerDescription, footerAddress, footerPhone, footerEmail, footerLinkedin, footerTwitter, footerYoutube } = landingPageContent;
+
   const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith("#")) {
       e.preventDefault();
@@ -67,15 +71,15 @@ export function Footer() {
               style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "14px", lineHeight: 1.75, maxWidth: "280px" }}
               className="mb-6"
             >
-              Leading mechanical manufacturing and precision engineering company providing components, moulds, and industrial automation systems.
+              {footerDescription}
             </p>
 
             {/* Contact brief */}
             <div className="space-y-2.5">
               {[
-                { icon: MapPin, text: "Sunrise Bizpark Blok D3, Tangerang" },
-                { icon: Phone, text: "0821-2485-1442" },
-                { icon: Mail, text: "marketing.innovation-pratama.co.id" },
+                { icon: MapPin, text: footerAddress },
+                { icon: Phone, text: footerPhone },
+                { icon: Mail, text: footerEmail },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
@@ -128,9 +132,9 @@ export function Footer() {
         </p>
         <div className="flex items-center gap-3">
           {[
-            { icon: Linkedin, href: "#" },
-            { icon: Twitter, href: "#" },
-            { icon: Youtube, href: "#" },
+            { icon: Linkedin, href: footerLinkedin },
+            { icon: Twitter, href: footerTwitter },
+            { icon: Youtube, href: footerYoutube },
           ].map(({ icon: Icon, href }, i) => (
             <a
               key={i}

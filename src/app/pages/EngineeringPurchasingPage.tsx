@@ -240,7 +240,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Engineering Supervisor')
-    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Pending');
+    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
 
   if (successAction) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -566,7 +566,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
       const payload = {
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || editRequest?.requestedBy || "Engineering Worker",
+        requesterName: currentUser?.name || editRequest?.requestedBy || "Engineering",
         salesOrderId: selectedSo?.backendId || null,
         salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
         projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
@@ -851,7 +851,7 @@ export function EngineeringPurchasingPage() {
                         </div>
                       </div>
                       <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 500, color: S.slate, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</p>
-                      <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{req.requestedBy || 'Engineering Worker'} &nbsp;&middot;&nbsp; {displayQty} &nbsp;&middot;&nbsp; {req.soId || '—'}</p>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{req.requestedBy || 'Engineering'} &nbsp;&middot;&nbsp; {displayQty} &nbsp;&middot;&nbsp; {req.soId || '—'}</p>
                     </div>
                   </div>
                   <button onClick={() => setSelected(req)} style={{ padding: "8px 16px", background: "#8B5CF6", color: "#fff", border: "none", borderRadius: 6, fontSize: "13px", fontWeight: 600, cursor: "pointer", flexShrink: 0, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#7C3AED"} onMouseLeave={e => e.currentTarget.style.background = "#8B5CF6"}>Tinjau Pengajuan</button>

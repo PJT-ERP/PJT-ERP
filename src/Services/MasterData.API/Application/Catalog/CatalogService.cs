@@ -141,10 +141,14 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
 
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken cancellationToken)
     {
+        var partNumber = string.IsNullOrWhiteSpace(request.PartNumber) 
+            ? $"PRD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpperInvariant()}" 
+            : request.PartNumber.Trim().ToUpperInvariant();
+
         var product = new Product
         {
-            PartNumber = request.PartNumber.Trim().ToUpperInvariant(),
-            Description = request.Description.Trim(),
+            PartNumber = partNumber,
+            Description = request.Description?.Trim() ?? "",
             Unit = string.IsNullOrWhiteSpace(request.Unit) ? "pcs" : request.Unit.Trim(),
             MaterialSpec = request.MaterialSpec
         };
