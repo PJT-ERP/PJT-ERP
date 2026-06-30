@@ -12,6 +12,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
+    public DbSet<SalesOrderDesignRevision> SalesOrderDesignRevisions => Set<SalesOrderDesignRevision>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +75,10 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
                 .WithOne(item => item.SalesOrder)
                 .HasForeignKey(item => item.SalesOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(order => order.DesignRevisions)
+                .WithOne(rev => rev.SalesOrder)
+                .HasForeignKey(rev => rev.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SalesOrderItem>(builder =>
@@ -117,6 +122,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.FinishedByUserId).HasColumnName("finished_by_user_id");
             builder.Property(order => order.FinishedByName).HasMaxLength(160).HasColumnName("finished_by_name");
             builder.Property(order => order.QcDecision).HasMaxLength(40).HasColumnName("qc_decision");
+            builder.Property(order => order.PauseReason).HasColumnName("pause_reason");
             builder.Property(order => order.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(order => order.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.HasOne(order => order.SalesOrder)
@@ -130,5 +136,16 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
         });
 
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+        
+        modelBuilder.Entity<SalesOrderDesignRevision>(builder =>
+        {
+            builder.ToTable("sales_order_design_revisions");
+            builder.HasKey(rev => rev.Id);
+            builder.Property(rev => rev.SalesOrderId).HasColumnName("sales_order_id");
+            builder.Property(rev => rev.Version).HasColumnName("version");
+            builder.Property(rev => rev.Url).HasMaxLength(1000).HasColumnName("url");
+            builder.Property(rev => rev.ChangedBy).HasMaxLength(160).HasColumnName("changed_by");
+            builder.Property(rev => rev.ChangedAtUtc).HasColumnName("changed_at_utc");
+        });
     }
 }

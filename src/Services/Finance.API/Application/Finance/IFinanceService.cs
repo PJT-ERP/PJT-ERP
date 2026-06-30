@@ -19,4 +19,7 @@ public interface IFinanceService
     Task<PaymentVerificationRequestDto?> RejectPaymentProofAsync(Guid requestId, RejectPaymentVerificationRequest request, CancellationToken cancellationToken);
     Task<InvoiceDto?> CreateCollectionLetterAsync(Guid invoiceId, CreateCollectionLetterRequest request, CancellationToken cancellationToken);
     Task<FinanceDashboardDto> GetDashboardAsync(Guid? customerId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyCollection<SupplierPaymentDto>> ListSupplierPaymentsAsync(CancellationToken cancellationToken);
+    Task<SupplierPaymentDto?> SubmitSupplierPaymentAsync(SubmitSupplierPaymentFormRequest request, CancellationToken cancellationToken);
 }

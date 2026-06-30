@@ -26,14 +26,7 @@ export function FinanceCosting() {
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
 
-  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingSO = salesOrders.filter(so => so.status === "Waiting Pricing").map(so => ({
-    ...so,
-    isQuotation: false
-  }));
-
   const historyStatuses = [
-    'Menunggu Invoice DP',
     'Waiting Payment',
     'Waiting Client Approval',
     'Ready for Production',
@@ -42,8 +35,18 @@ export function FinanceCosting() {
     'Completed'
   ];
 
+  const isUnpriced = (so: any) => !so.items || so.items.length === 0 || so.items.some((item: any) => !item.unitPrice || item.unitPrice === 0);
+
+  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
+  const waitingPricingSO = salesOrders.filter(so => 
+    so.status === "Waiting Pricing" || (historyStatuses.includes(so.status) && isUnpriced(so))
+  ).map(so => ({
+    ...so,
+    isQuotation: false
+  }));
+
   const historySO = salesOrders.filter(so => 
-    historyStatuses.includes(so.status)
+    historyStatuses.includes(so.status) && !isUnpriced(so)
   ).map(so => ({
     ...so,
     isQuotation: false
@@ -66,8 +69,17 @@ export function FinanceCosting() {
   React.useEffect(() => {
     if (selectedItem) {
       const initialPrices: Record<string, number> = {};
+      const hasEstimated = (selectedItem.estimatedAmount || 0) > 0;
+      const isSingleItem = selectedItem.items?.length === 1;
+
       selectedItem.items?.forEach((item: any) => {
-        initialPrices[item.productId] = item.unitPrice || 0;
+        if (item.unitPrice && item.unitPrice > 0) {
+          initialPrices[item.productId] = item.unitPrice;
+        } else if (hasEstimated && isSingleItem && item.quantity > 0) {
+          initialPrices[item.productId] = selectedItem.estimatedAmount / item.quantity;
+        } else {
+          initialPrices[item.productId] = 0;
+        }
       });
       setItemPrices(initialPrices);
       setCostingNotes(selectedItem.material || selectedItem.notes || "");
@@ -97,14 +109,14 @@ export function FinanceCosting() {
         // Local state update for smooth UX
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Menunggu Invoice DP" 
+          status: "Waiting Payment" 
         });
       } catch (error) {
         console.error("Failed to update pricing to backend", error);
         alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Menunggu Invoice DP" 
+          status: "Waiting Payment" 
         });
       }
       
@@ -121,7 +133,7 @@ export function FinanceCosting() {
   };
 
   const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
-  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Menunggu Invoice DP";
+  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Waiting Payment";
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -189,6 +201,7 @@ export function FinanceCosting() {
         ) : (
           filteredList.map((so, idx) => {
             const itemCount = so.items?.length || 0;
+            const isPricedBySales = (so.estimatedAmount || 0) > 0 && activeTab === 'queue';
             return (
               <div 
                 key={so.id}
@@ -205,15 +218,20 @@ export function FinanceCosting() {
                   <span style={{ color: S.secondary, fontSize: "11px" }}>{itemCount} items</span>
                 </div>
                 <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
-                <div style={{ alignSelf: "center" }}>
+                <div style={{ alignSelf: "center", display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                   <StatusBadge status={so.status as SOStatus} />
+                  {isPricedBySales && (
+                    <span style={{ fontSize: "10px", padding: "2px 6px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>
+                      Notif: Harga by Sales
+                    </span>
+                  )}
                 </div>
                 <div>
                   <button 
                     onClick={() => setSelectedItem(so)}
                     style={{ fontSize: "11px", background: activeTab === 'queue' ? S.cyan : S.white, color: activeTab === 'queue' ? "#fff" : S.slate, border: activeTab === 'queue' ? "none" : `1px solid ${S.border}`, padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
-                    {activeTab === 'queue' ? "Set Harga" : "Detail / Revisi"}
+                    {activeTab === 'queue' ? (isPricedBySales ? "Review Harga" : "Set Harga") : "Detail / Revisi"}
                   </button>
                 </div>
               </div>
@@ -277,46 +295,70 @@ export function FinanceCosting() {
                   </p>
                 </div>
               )}
-              {/* Info Dokumen Desain */}
-              <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
-                  <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
-                  {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
-                    <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
-                      Lihat Dokumen <ExternalLink size={12} />
-                    </a>
-                  ) : (
-                    <span style={{ color: S.slate }}>Tidak tersedia</span>
+              
+              {selectedItem.estimatedAmount > 0 && activeTab === 'queue' && (
+                <div style={{ background: "#FEF9C3", border: "1px solid #FEF08A", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13.5px", fontWeight: 600, color: "#A16207", margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
+                    💰 Notifikasi Harga dari Sales
+                  </h3>
+                  <p style={{ color: "#713F12", margin: 0, fontSize: "12.5px", lineHeight: "1.5" }}>
+                    Harga untuk pesanan ini telah ditentukan oleh tim Sales sebesar <strong>Rp {selectedItem.estimatedAmount.toLocaleString("id-ID")}</strong>. Anda dapat menyimpan langsung atau menyesuaikan kembali harga per item jika diperlukan.
+                  </p>
+                </div>
+              )}
+
+              {/* Cek apakah ini produk standar yang melompati fase desain */}
+              {selectedItem.backendDesignStatus === "Approved" && !selectedItem.designApprovedAt ? (
+                <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13.5px", fontWeight: 600, color: "#1D4ED8", margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}>
+                    🏷️ Pemrosesan Produk Standar
+                  </h3>
+                  <p style={{ color: "#1E3A8A", margin: 0, fontSize: "12.5px", lineHeight: "1.5" }}>
+                    Pesanan ini menggunakan produk standar perusahaan. Anda dapat langsung menentukan Harga Jual tanpa perlu menunggu rincian HPP / BOM dari tim Engineering.
+                  </p>
+                </div>
+              ) : (
+                /* Info Dokumen Desain untuk Produk Custom */
+                <div style={{ background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Dokumen Desain & BOM</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
+                    <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
+                    {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
+                      <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                        Lihat Dokumen <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span style={{ color: S.slate }}>Tidak tersedia</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
+                    Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
+                  </p>
+                  {selectedItem.materials && selectedItem.materials.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
+                        <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
+                          <tr>
+                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
+                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
+                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedItem.materials.map((m: any, i: number) => (
+                            <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
+                              <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
+                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
-                <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
-                  Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
-                </p>
-                {selectedItem.materials && selectedItem.materials.length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
-                      <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
-                        <tr>
-                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
-                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
-                          <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedItem.materials.map((m: any, i: number) => (
-                          <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
-                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
-                            <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
-                            <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Rincian Items */}
               <h3 style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}><List size={14} /> Rincian Item SO</h3>
@@ -342,11 +384,10 @@ export function FinanceCosting() {
                             <div style={{ position: "relative" }}>
                               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>
                               <input 
-                                type="number"
-                                min="0"
-                                value={price || ""}
+                                type="text"
+                                value={price ? price.toLocaleString("id-ID") : ""}
                                 disabled={isReadOnly}
-                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value) })}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value.replace(/\D/g, "")) })}
                                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                               />
                             </div>

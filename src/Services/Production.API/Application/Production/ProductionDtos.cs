@@ -14,7 +14,7 @@ public sealed record CreateSalesOrderRequest(
     string? DesignReference = null,
     string? DesignStatus = null);
 
-public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, string? Notes);
+public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes);
 
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? DesignWorker,
@@ -34,6 +34,10 @@ public sealed record UpdateSalesOrderDesignStatusRequest(
     string? ReviewerName,
     string? DesignReference = null,
     string? CustomerDrawingUrl = null);
+
+public sealed record UpdateCustomerDrawingUrlRequest(
+    string? CustomerDrawingUrl,
+    string UpdatedByName);
 
 public sealed record ConfirmSalesOrderRequest(Guid ApprovedByUserId);
 
@@ -64,9 +68,17 @@ public sealed record SalesOrderDto(
     DateTime? FinishedAtUtc,
     string? QcDecision,
     string? DrawingFileUrl,
+    string? PauseReason,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items);
+
+public sealed record SalesOrderDesignRevisionDto(
+    int Version,
+    string Url,
+    string ChangedBy,
+    DateTime ChangedAtUtc);
 
 public sealed record SalesOrderItemDto(
     Guid Id,
@@ -114,6 +126,7 @@ public sealed record SalesOrderProductionProgressDto(
     string? FinishedByName,
     long? DurationSeconds,
     string? QcDecision,
+    string? PauseReason,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
 
@@ -148,7 +161,7 @@ public sealed record PublicProductionTrackingItemDto(
 
 public sealed record LookupSalesOrderTrackingRequest(string TrackingCode);
 
-public sealed record ProductionStatusUpdateRequest(Guid WorkerUserId, string WorkerName);
+public sealed record ProductionStatusUpdateRequest(Guid WorkerUserId, string WorkerName, string? Reason = null);
 
 public sealed record UploadEngineeringDrawingRequest(
     string DrawingFileUrl,

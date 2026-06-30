@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Clock,
   Activity, Printer, Edit, Copy,
   AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye, Upload, X, Box,
+  Receipt, Download, Eye, Upload, X, Box, Plus
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
@@ -20,6 +20,8 @@ const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor
   verified: { label: "Verified", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
   waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
   not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
+  pending_verification: { label: "Menunggu Verifikasi", textColor: "#C8102E", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#C8102E" },
+  overdue: { label: "Overdue", textColor: "#B91C1C", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#DC2626" },
 };
 
 interface SODetailProps {
@@ -55,6 +57,11 @@ const parseCurrencyAmount = (value: string) => {
     .replace(/\./g, "")       // Remove dots (assuming they are thousand separators)
     .replace(",", ".");       // Convert comma to dot for decimal
   return Math.round((Number(normalized) || 0) * 100) / 100;
+};
+
+const formatCurrency = (value?: number | null) => {
+  if (!value || value <= 0) return "-";
+  return `Rp ${value.toLocaleString("id-ID")}`;
 };
 
 const WORKFLOW_STEPS = [
@@ -116,18 +123,39 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 }
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
-  const { salesOrders, customers, updateSalesOrder, updateCustomer } = useApp();
+  const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
   const { invoices, payments } = useFinanceData();
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
-  const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices) : undefined;
+  const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
   const pendingPaymentProof = !!order?.invoice?.invoiceId
     && payments.some(payment => payment.invoiceId === order.invoice?.invoiceId && payment.status === "PENDING");
+  const invoicePayments = order?.invoice?.invoiceId
+    ? payments.filter(payment => payment.invoiceId === order.invoice?.invoiceId)
+    : [];
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const currentUser = useApp().currentUser;
+
+  const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");
+  const isCustomBackend = order?.backendDesignStatus === "PendingDesign" || order?.backendDesignStatus === "RevisionRequired" || order?.partNumber?.startsWith("FG-");
+  const isStandard = !isCustomBackend;
+
+  let displayMaterials = order?.materials || [];
+  if (isStandard && productCatalog && order) {
+    const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
+    if (matchedProduct && matchedProduct.materialSpec) {
+      displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
+        id: matchedProduct.id + "-mat-" + idx,
+        name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+        spec: specPart.trim(),
+        quantity: "1",
+        unit: matchedProduct.unit.toLowerCase(),
+      }));
+    }
+  }
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
@@ -136,17 +164,37 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   });
 
   const [editForm, setEditForm] = useState({
-    customerName: customer?.contactPerson || customer?.contact || "",
-    company: customer?.name || "",
-    phone: customer?.phone || "",
-    contact: customer?.email || "",
-    address: customer?.address || "",
-    description: order?.description || "",
-    quantity: String(order?.quantity || ""),
-    unit: order?.unit || "",
-    deadline: order?.deadline || "",
-    notes: order?.notes || "",
+    customerName: "",
+    company: "",
+    phone: "",
+    contact: "",
+    address: "",
+    description: "",
+    quantity: "",
+    unit: "",
+    deadline: "",
+    notes: "",
+    customerDrawingUrl: "",
   });
+
+  React.useEffect(() => {
+    if (isEditMode) {
+      setEditForm({
+        customerName: customer?.contactPerson || customer?.contact || "",
+        company: customer?.name || "",
+        phone: customer?.phone || "",
+        contact: customer?.email || order?.customerEmail || "",
+        address: customer?.address || "",
+        description: order?.description || "",
+        quantity: String(order?.quantity || ""),
+        unit: order?.unit || "",
+        deadline: order?.deadline || "",
+        notes: order?.notes || "",
+        customerDrawingUrl: order?.customerDrawingUrl || order?.designLink || "",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
 
   const handleAction = async (action: string) => {
     if (!order) return;
@@ -154,7 +202,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        updateSalesOrder(orderId, { status: 'Menunggu Invoice DP' });
+        const nextStatus = (order.customerDrawingUrl || order.designLink) ? 'Ready for Production' : 'Pending Design';
+        updateSalesOrder(orderId, { status: nextStatus });
       } else if (action === 'reject') {
         updateSalesOrder(orderId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
@@ -166,7 +215,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       } else if (action === 'upload_design') {
         updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
       } else if (action === 'approve_design') {
-        updateSalesOrder(orderId, { status: 'Waiting Pricing' });
+        updateSalesOrder(orderId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
       } else if (action === 'reject_design') {
         updateSalesOrder(orderId, { status: 'Pending Design' });
       }
@@ -177,18 +226,57 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   const handleSave = () => {
     if (!order) return;
-    updateSalesOrder(orderId, {
-      description: editForm.description,
-      quantity: Number(editForm.quantity),
-      unit: editForm.unit,
-      deadline: editForm.deadline,
-      notes: editForm.notes,
-    });
+
+    const isDesignChanged = editForm.customerDrawingUrl !== order.customerDrawingUrl;
+    let newRevisions = order.designRevisions || [];
+
+    if (isDesignChanged) {
+      const isProductionStage = ['Ready for Production', 'In Production', 'QC', 'Completed'].includes(order.status);
+      if (isProductionStage) {
+        window.alert("Engineering sudah dalam tahap produksi. Desain tidak dapat diubah lagi.");
+        return;
+      }
+
+      let finalUrl = editForm.customerDrawingUrl.trim();
+      if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
+        finalUrl = 'https://' + finalUrl;
+      }
+
+      newRevisions = [
+        ...newRevisions,
+        {
+          version: newRevisions.length + 1,
+          url: finalUrl,
+          changedAt: new Date().toISOString(),
+          changedBy: currentUser?.name || "Unknown"
+        }
+      ];
+
+      updateSalesOrder(orderId, {
+        description: editForm.description,
+        quantity: Number(editForm.quantity),
+        unit: editForm.unit,
+        deadline: editForm.deadline,
+        notes: editForm.notes,
+        customerDrawingUrl: finalUrl,
+        designRevisions: newRevisions,
+      });
+    } else {
+      updateSalesOrder(orderId, {
+        description: editForm.description,
+        quantity: Number(editForm.quantity),
+        unit: editForm.unit,
+        deadline: editForm.deadline,
+        notes: editForm.notes,
+        customerDrawingUrl: editForm.customerDrawingUrl,
+      });
+    }
     if (customer) {
       updateCustomer(customer.code, {
         name: editForm.company || editForm.customerName,
         phone: editForm.phone,
         contact: editForm.contact,
+        email: editForm.contact,
         address: editForm.address,
       });
     }
@@ -211,9 +299,41 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   }
 
   const cfg = getStatusColor(order.status as SOStatus);
+  const productLines = (order.items && order.items.length > 0)
+    ? order.items.map((item, index) => {
+      const quantity = Number(item.quantity || item.qty || 0) || 0;
+      let unitPrice = Number(item.unitPrice || 0) || 0;
+      if (unitPrice === 0 && order.items!.length === 1 && (order.estimatedAmount || 0) > 0 && quantity > 0) {
+        unitPrice = (order.estimatedAmount || 0) / quantity;
+      }
+      return {
+        id: item.id || `${order.id}-${index}`,
+        productCode: item.productPartNumber || item.partNumber || order.partNumber || "-",
+        productName: item.productName || item.productDescription || item.description || order.description,
+        quantity,
+        unit: item.unit || order.unit || "PCS",
+        unitPrice,
+        lineTotal: unitPrice > 0 ? unitPrice * quantity : 0,
+        notes: item.notes || "",
+      };
+    })
+    : [{
+      id: `${order.id}-legacy`,
+      productCode: order.partNumber || "-",
+      productName: order.description,
+      quantity: order.quantity,
+      unit: order.unit,
+      unitPrice: order.estimatedAmount && order.quantity ? order.estimatedAmount / order.quantity : 0,
+      lineTotal: order.estimatedAmount || order.invoice?.amount || 0,
+      notes: order.notes || "",
+    }];
+  const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
+  const orderValue = order.invoice?.amount || (hasUnitPrice ? productLines.reduce((sum, item) => sum + item.lineTotal, 0) : order.estimatedAmount) || 0;
 
   return (
-    <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+    <>
+      <div className="print-hide" style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -241,9 +361,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <HeaderBtn icon={<Printer size={13} />} label="Cetak" />
-          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat" })} />
-          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Tutup Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
+          <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => window.print()} />
+          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
+          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Batal Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>
       </div>
 
@@ -256,35 +376,42 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
             {WORKFLOW_STEPS.map((step, idx) => {
               const tStep = order.timeline?.find(t => t.step === step.key);
-              
+
               const getWorkflowProgress = (status: string) => {
-                if (status === 'Completed') return 5;
+                if (status === 'Completed' || order.completedAt || isGo(order.qcStatus)) return 5;
                 if (status === 'QC') return 4;
-                if (['Ready for Production', 'In Production'].includes(status)) return 3;
+                if (['Ready for Production', 'In Production', 'Paused'].includes(status)) return 3;
                 if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
-                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval', 'Menunggu Invoice DP'].includes(status)) return 1;
+                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval'].includes(status)) return 1;
                 return 0;
               };
-              
+
               const currentIdx = getWorkflowProgress(order.status);
               const isDone = idx < currentIdx;
               const isCurrent = idx === currentIdx;
+              const isUnpaidCompleted = isCurrent && idx === 5 && order.status === 'Waiting Payment';
+              const isFinancePending = idx === 1 && !order.invoice?.invoiceId && currentIdx > 1;
 
               return (
                 <React.Fragment key={step.key}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 90, flex: "0 0 auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 90, flex: "0 0 auto", position: "relative" }}>
                     <div style={{
                       width: 32, height: 32, borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isDone ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
-                      border: `2px solid ${isDone ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
-                      color: isDone ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
-                      boxShadow: isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
+                      background: isUnpaidCompleted || isFinancePending ? "#FEF3C7" : (isDone && !isFinancePending) ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
+                      border: `2px solid ${isUnpaidCompleted || isFinancePending ? "#F59E0B" : (isDone && !isFinancePending) ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
+                      color: isUnpaidCompleted || isFinancePending ? "#D97706" : (isDone && !isFinancePending) ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
+                      boxShadow: isUnpaidCompleted || isFinancePending ? "0 0 0 3px rgba(245, 158, 11, 0.15)" : isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
                       flexShrink: 0,
                     }}>
-                      {isDone ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
+                      {isUnpaidCompleted ? <AlertTriangle size={14} /> : isFinancePending ? <Clock size={13} /> : (isDone && !isFinancePending) ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
                     </div>
-                    <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : isDone ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>
+                    {(isUnpaidCompleted || isFinancePending) && (
+                      <div style={{ position: "absolute", top: -25, background: "#F59E0B", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: 4, fontWeight: "bold", whiteSpace: "nowrap" }}>
+                        {isFinancePending ? "Pending Invoice" : "Unpaid"}
+                      </div>
+                    )}
+                    <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : (isDone && !isFinancePending) ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>
                       {step.label}
                     </p>
                     {step.dept && (
@@ -323,7 +450,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.contactPerson || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
               <InfoRow icon={<Building2 size={11} />} label="Perusahaan" value={isEditMode ? editForm.company : (customer?.name || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, company: v }))} />
               <InfoRow icon={<Phone size={11} />} label="Telepon" value={isEditMode ? editForm.phone : (customer?.phone || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, phone: v }))} />
-              <InfoRow icon={<Mail size={11} />} label="Email" value={isEditMode ? editForm.contact : (customer?.email || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
+              <InfoRow icon={<Mail size={11} />} label="Email" value={isEditMode ? editForm.contact : (customer?.email || order?.customerEmail || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, contact: v }))} />
               <div style={{ gridColumn: "1 / -1" }}>
                 <InfoRow icon={<MapPin size={11} />} label="Alamat" value={isEditMode ? editForm.address : (customer?.address || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, address: v }))} />
               </div>
@@ -332,23 +459,46 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
           {/* Product info */}
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-              <div style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <InfoRow icon={<Hash size={11} />} label="Nomor Part" value={order.partNumber || "-"} isEdit={false} />
-                <InfoRow icon={<Package size={11} />} label="Nama Produk" value={isEditMode ? editForm.description : order.description} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, description: v }))} />
-              </div>
-              <InfoRow icon={<Hash size={11} />} label="Jumlah" value={isEditMode ? editForm.quantity : order.quantity.toString()} isEdit={isEditMode} type="number" onChange={v => setEditForm(prev => ({ ...prev, quantity: v }))} />
-              <InfoRow icon={<Hash size={11} />} label="Unit" value={isEditMode ? editForm.unit : order.unit} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, unit: v }))} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 14 }}>
+              <InfoRow icon={<Hash size={11} />} label="No. PO" value={order.soNumber || order.id} isEdit={false} />
               <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
+              <InfoRow icon={<Receipt size={11} />} label="Nilai SO" value={formatCurrency(orderValue)} isEdit={false} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<FileText size={11} />} label="Catatan" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
+                <InfoRow icon={<FileText size={11} />} label="Catatan Umum" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
               </div>
             </div>
+
+            <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", gap: 0, background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                {["No.", "Produk", "Qty", "Harga", "Subtotal"].map(label => (
+                  <div key={label} style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                ))}
+              </div>
+              {productLines.map((item, index) => (
+                <div key={item.id} style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", borderBottom: index === productLines.length - 1 ? "none" : "1px solid #F1F5F9", alignItems: "center" }}>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.secondary }}>{index + 1}</div>
+                  <div style={{ padding: "10px", minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.productName}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>Kode Produk: {item.productCode}</p>
+                    {item.notes && <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>}
+                  </div>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>
+                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate, fontWeight: 600 }}>{formatCurrency(item.lineTotal)}</div>
+                </div>
+              ))}
+            </div>
+
+            {isEditMode && (
+              <p style={{ margin: "10px 0 0", fontSize: "11px", color: S.secondary }}>
+                Edit multi item SO masih mengikuti kontrak backend. Gunakan Duplikat untuk membuat SO baru dengan item tambahan.
+              </p>
+            )}
           </InfoCard>
 
           {/* Bill of Materials */}
           <InfoCard title="Bill of Materials (Kebutuhan Bahan)" icon={<Box size={13} />}>
-            {(order.materials && order.materials.length > 0) ? (
+            {(displayMaterials && displayMaterials.length > 0) ? (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: S.font }}>
                   <thead>
@@ -359,7 +509,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     </tr>
                   </thead>
                   <tbody>
-                    {order.materials.map((mat: any) => (
+                    {displayMaterials.map((mat: any) => (
                       <tr key={mat.id} style={{ borderBottom: `1px solid ${S.border}` }}>
                         <td style={{ padding: "8px 12px", color: S.slate }}>{mat.name || "-"}</td>
                         <td style={{ padding: "8px 12px", color: S.slate }}>{mat.spec || "-"}</td>
@@ -382,11 +532,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
                     <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Mulai Mesin</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.startTime?.replace('T', ' ') || '-'}</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.startTime ? new Date(order.startTime).toLocaleString("id-ID") : '-'}</p>
                   </div>
                   <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
                     <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Selesai Produksi</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.endTime?.replace('T', ' ') || '-'}</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.endTime ? new Date(order.endTime).toLocaleString("id-ID") : '-'}</p>
                   </div>
                 </div>
                 {order.lateReason && (
@@ -403,7 +553,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
 
           {/* Invoice Information — read-only for SO staff */}
-          <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} />
+          <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} invoicePayments={invoicePayments} />
 
 
 
@@ -461,6 +611,68 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   </div>
                 </>
               )}
+              {(!order.designId || order.designId === "none" || order.designId === "customer") && (
+                <>
+                  <div style={{ height: 1, background: "#F8FAFC" }} />
+                  <div>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
+                    {isEditMode ? (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="https://... (Opsional)"
+                          value={editForm.customerDrawingUrl}
+                          onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
+                          disabled={isDesignLocked}
+                          style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", backgroundColor: isDesignLocked ? "#F1F5F9" : "white", cursor: isDesignLocked ? "not-allowed" : "text" }}
+                        />
+                        {isDesignLocked && (
+                          <p style={{ margin: "4px 0 0", fontSize: "10px", color: "#EF4444" }}>
+                            Desain tidak dapat diubah karena pesanan sudah masuk tahap produksi.
+                          </p>
+                        )}
+                      </>
+                    ) : !order.customerDrawingUrl ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                        <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                        {currentUser?.role !== 'Engineering' && (
+                          <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
+                            <Plus size={10} /> Link Desain
+                          </button>
+                        )}
+                      </div>
+                    ) : order.customerDrawingUrl || order.designLink ? (
+                      <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                        {order.customerDrawingUrl || order.designLink}
+                      </a>
+                    ) : (
+                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
+                    )}
+                  </div>
+
+                  {order.designRevisions && order.designRevisions.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ margin: "0 0 8px", fontSize: "10.5px", color: "#94A3B8" }}>Riwayat Revisi Desain</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
+                        {order.designRevisions.map(rev => (
+                          <div key={rev.version} style={{ position: "relative" }}>
+                            <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
+                            <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
+                              <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
+                            </p>
+                            <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "10px", color: S.secondary, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
+                              {rev.url || "(URL Dihapus)"}
+                            </a>
+                            <p style={{ margin: "2px 0 0", fontSize: "9px", color: "#94A3B8" }}>
+                              {new Date(rev.changedAt).toLocaleString("id-ID")}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
@@ -477,7 +689,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 {order.qcAt && (
                   <div>
                     <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Inspeksi</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{order.qcAt}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{new Date(order.qcAt).toLocaleString("id-ID")}</p>
                   </div>
                 )}
                 {order.qcNotes && (
@@ -583,7 +795,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
 
           {/* ── Action Panel (Engineer Upload) ── */}
-          {(currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering Worker') && (
+          {(currentUser?.role === 'Engineering' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering') && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
                 <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Engineering: Upload Desain</p>
@@ -610,12 +822,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
               {(() => {
                 const historySteps: { label: string; date?: string; active: boolean; isRejection?: boolean; reason?: string }[] = [
-                  { label: 'Quotation Awal', date: order.quotationDate, active: !!order.quotationDate },
                   { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
                   { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
                   { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
                 ];
-                
+
                 if (order.invoice?.rejectedPayments) {
                   order.invoice.rejectedPayments.forEach(rp => {
                     historySteps.push({
@@ -627,7 +838,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     });
                   });
                 }
-                
+
                 historySteps.push(
                   { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
                 );
@@ -653,12 +864,14 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
         </div>
       </div>
-    </div>
+      </div>
+      <SOPrintView order={order} customer={customer} displayMaterials={displayMaterials} currentUser={currentUser} />
+    </>
   );
 }
 
 // ─── InvoiceSection ───────────────────────────────────────────────────────────
-function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder["invoice"]; pendingPaymentProof: boolean }) {
+function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { invoice?: SalesOrder["invoice"]; pendingPaymentProof: boolean; invoicePayments: any[] }) {
   const status = (invoice?.status ?? "not_created") as SalesInvoiceStatus;
   const cfg = invoiceStatusConfig[status];
   const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
@@ -715,18 +928,86 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                   <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.dueDate}</p>
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jumlah Tagihan</p>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Total Keseluruhan</p>
                   <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate, fontWeight: 600 }}>
                     Rp {invoice!.amount.toLocaleString("id-ID")}
                   </p>
                 </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Telah Dibayar</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#059669", fontWeight: 600 }}>
+                    Rp {(invoice!.paidAmount || 0).toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Sisa Tagihan</p>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#DC2626", fontWeight: 600 }}>
+                    Rp {Math.max((invoice!.amount || 0) - (invoice!.paidAmount || 0), 0).toLocaleString("id-ID")}
+                  </p>
+                </div>
                 {invoice!.paymentDate && (
                   <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar</p>
+                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar (Terakhir)</p>
                     <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#22C55E" }}>{invoice!.paymentDate}</p>
                   </div>
                 )}
               </div>
+
+              {invoice?.paymentSchedules && invoice.paymentSchedules.length > 1 && (
+                <div style={{ marginTop: 6, marginBottom: 16, paddingTop: 16, borderTop: `1px dashed ${S.border}` }}>
+                  <p style={{ margin: "0 0 10px", fontSize: "11px", fontWeight: 600, color: S.slate, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Jadwal / Tahapan Penagihan</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {invoice.paymentSchedules.map((schedule: any, idx: number) => {
+                      const amt = Math.round((invoice!.amount * schedule.percentage) / 100);
+                      return (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", background: "#F1F5F9", padding: "8px 12px", borderRadius: "6px" }}>
+                          <div>
+                            <span style={{ fontWeight: 600, color: S.slate }}>{schedule.label}</span>
+                            <span style={{ color: "#64748B", marginLeft: 8 }}>• Jatuh tempo: {schedule.dueDate}</span>
+                          </div>
+                          <span style={{ fontWeight: 700, color: S.cyan }}>Rp {amt.toLocaleString("id-ID")}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>
+                  <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#B91C1C", display: "flex", alignItems: "center", gap: 6 }}>
+                    <AlertTriangle size={14} /> Laporan Pembayaran Terakhir Ditolak
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#991B1B" }}>
+                    Catatan Finance: <strong>{invoice.rejectedPayments[invoice.rejectedPayments.length - 1].reason}</strong>
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#DC2626" }}>
+                    Silakan unggah ulang bukti transfer yang valid.
+                  </p>
+                </div>
+              )}
+
+              {/* Payment History */}
+              {invoicePayments.length > 0 && (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${S.border}`, paddingBottom: 4 }}>
+                  <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: S.slate }}>Riwayat Pembayaran</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {invoicePayments.map(payment => (
+                      <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: S.bg, borderRadius: 6, border: `1px solid ${S.border}` }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate }}>{formatCurrency(payment.amount)}</p>
+                          <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>{payment.paymentDate} • {payment.bankName}</p>
+                        </div>
+                        <div>
+                          {payment.status === "VERIFIED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#DCFCE7", color: "#16A34A" }}>Verified</span>}
+                          {payment.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEF3C7", color: "#D97706" }}>Pending</span>}
+                          {payment.status === "REJECTED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626" }}>Ditolak</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
@@ -737,7 +1018,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
                   link.download = `Invoice-${invoice!.invoiceNumber}.pdf`;
                   link.click();
                 }} />
-                {status === "waiting" && !invoice?.paymentDate && !hasPendingPaymentProof && (
+                {(status === "waiting" || status === "verified") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn
                       icon={<Upload size={12} />}
@@ -753,18 +1034,32 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
         </div>
       </div>
 
-      {showUploadModal && (
-        <ReportPaymentModal
-          invoiceId={invoice?.invoiceId}
-          invoiceNumber={invoice?.invoiceNumber || ""}
-          amount={invoice?.amount || 0}
-          onClose={() => setShowUploadModal(false)}
-          onSubmit={() => {
-            setPaymentReported(true);
-            setShowUploadModal(false);
-          }}
-        />
-      )}
+      {showUploadModal && (() => {
+        let defaultAmount = invoice?.amount || 0;
+        if (invoice?.paymentSchedules && invoice.paymentSchedules.length > 0) {
+          const remaining = Math.max((invoice.amount || 0) - (invoice.paidAmount || 0), 0);
+          let runningTotal = 0;
+          for (const schedule of invoice.paymentSchedules) {
+            runningTotal += schedule.amount;
+            if (runningTotal > (invoice.paidAmount || 0)) {
+              defaultAmount = Math.min(runningTotal - (invoice.paidAmount || 0), remaining);
+              break;
+            }
+          }
+        }
+        return (
+          <ReportPaymentModal
+            invoiceId={invoice?.invoiceId}
+            invoiceNumber={invoice?.invoiceNumber || ""}
+            amount={defaultAmount}
+            onClose={() => setShowUploadModal(false)}
+            onSubmit={() => {
+              setPaymentReported(true);
+              setShowUploadModal(false);
+            }}
+          />
+        );
+      })()}
     </>
   );
 }
@@ -772,7 +1067,7 @@ function InvoiceSection({ invoice, pendingPaymentProof }: { invoice?: SalesOrder
 function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
   const [isUploading, setIsUploading] = useState(false);
   const [bankName, setBankName] = useState("");
-  const [amountText, setAmountText] = useState(`Rp ${amount.toLocaleString('id-ID')}`);
+  const [amountText, setAmountText] = useState(amount > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : "");
   const [paymentDate, setPaymentDate] = useState(todayInputValue());
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
@@ -869,10 +1164,29 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
 
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Upload Bukti Transfer</label>
-              <div style={{ position: "relative", border: "1px dashed #CBD5E1", borderRadius: 8, padding: 24, textAlign: "center", background: "#F8FAFC" }}>
-                <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
-                <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>{proofFile?.name || "Max ukuran file 5MB"}</p>
+              <div style={{
+                position: "relative",
+                border: proofFile ? "1px solid #10B981" : "1px dashed #CBD5E1",
+                borderRadius: 8,
+                padding: 24,
+                textAlign: "center",
+                background: proofFile ? "#ECFDF5" : "#F8FAFC",
+                transition: "all 0.2s ease"
+              }}>
+                {proofFile ? (
+                  <>
+                    <CheckCircle2 size={28} style={{ color: "#10B981", margin: "0 auto 8px" }} />
+                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#065F46" }}>File Berhasil Dipilih</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#047857" }}>{proofFile.name}</p>
+                    <p style={{ margin: "8px 0 0", fontSize: "10px", color: "#10B981", fontStyle: "italic" }}>Klik untuk mengubah file</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
+                    <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>Max ukuran file 5MB</p>
+                  </>
+                )}
                 <input required type="file" accept=".pdf,image/*" onChange={handleProofFileChange} style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
               </div>
             </div>
@@ -960,5 +1274,131 @@ function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; l
     >
       {icon} {label}
     </button>
+  );
+}
+
+// ─── SOPrintView ──────────────────────────────────────────────────────────────
+function SOPrintView({ order, customer, displayMaterials, currentUser }: { order: any, customer: any, displayMaterials: any[], currentUser: any }) {
+  if (!order) return null;
+  const createdBy = order.createdBy === "backend" ? (currentUser?.name || "Sales Staff") : (order.createdBy || "Sales Staff");
+
+  return (
+    <div className="hidden print:block print:w-full print:border-none print:shadow-none print:m-0 print:bg-white print:text-slate-900 bg-white">
+      {/* Professional Sales Order Header */}
+      <div className="px-6 pt-10 pb-6 border-b-2 border-slate-800">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">PT PJT JAYA</h1>
+            <p className="text-sm text-slate-600 font-medium">Kawasan Industri Margomulyo Permai</p>
+            <p className="text-sm text-slate-600">Surabaya, Jawa Timur 60186</p>
+          </div>
+          <div className="text-right">
+            <h2 className="text-4xl font-black text-slate-200 tracking-widest uppercase mb-2">SALES ORDER</h2>
+            <p className="text-sm font-bold text-slate-800">SO No: {order.id}</p>
+            <p className="text-sm text-slate-600">Tgl. Cetak: {new Date().toLocaleDateString('id-ID')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Ditujukan Kepada / Detail Order */}
+      <div className="flex px-6 py-8 justify-between">
+        <div className="w-1/2 pr-4">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ditujukan Kepada:</h3>
+          <p className="font-bold text-slate-900 text-lg">{customer?.company || customer?.name}</p>
+          <p className="text-sm text-slate-600 mt-1">Up. {customer?.name}</p>
+          <p className="text-sm text-slate-600">{customer?.address || "-"}</p>
+          <p className="text-sm text-slate-600">Telp: {customer?.phone || "-"}</p>
+        </div>
+        <div className="w-1/3 border-l-2 border-slate-100 pl-6">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Detail Order:</h3>
+          <p className="text-sm text-slate-600 mb-1">Status: <strong className="text-slate-900">{order.status}</strong></p>
+          <p className="text-sm text-slate-600 mb-1">Tgl. SO: <strong className="text-slate-900">{order.createdAt}</strong></p>
+          <p className="text-sm text-slate-600 mb-1">Deadline: <strong className="text-slate-900">{order.deadline}</strong></p>
+        </div>
+      </div>
+
+      {/* Items table */}
+      <div className="px-6 py-2">
+        <p className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+          Daftar Pesanan
+        </p>
+        <div className="rounded border border-slate-200 overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-12">No</th>
+                <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Produk / Material</th>
+                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Qty</th>
+                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Harga Satuan</th>
+                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Harga</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items?.length > 0 ? (
+                order.items.map((item: any, idx: number) => (
+                  <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-xs text-slate-500 font-mono">{idx + 1}</td>
+                    <td className="p-3 text-sm font-medium text-slate-900">
+                      <div>{item.productDescription || order.description}</div>
+                      <div className="text-xs text-slate-500 font-normal mt-0.5">Part No: {item.productPartNumber || order.partNumber}</div>
+                    </td>
+                    <td className="p-3 text-sm font-semibold text-right text-slate-900">{item.qty || order.quantity} {item.unit || order.unit}</td>
+                    <td className="p-3 text-sm text-right text-slate-700">Rp {((item.totalPrice || order.estimatedAmount || 0) / (item.qty || order.quantity || 1)).toLocaleString('id-ID')}</td>
+                    <td className="p-3 text-sm text-right font-bold text-slate-900">Rp {(item.totalPrice || order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td className="p-3 text-xs text-slate-500 font-mono">1</td>
+                  <td className="p-3 text-sm font-medium text-slate-900">
+                    <div>{order.description}</div>
+                    <div className="text-xs text-slate-500 font-normal mt-0.5">Part No: {order.partNumber}</div>
+                  </td>
+                  <td className="p-3 text-sm font-semibold text-right text-slate-900">{order.quantity} {order.unit}</td>
+                  <td className="p-3 text-sm text-right text-slate-700">Rp {((order.estimatedAmount || 0) / (order.quantity || 1)).toLocaleString('id-ID')}</td>
+                  <td className="p-3 text-sm text-right font-bold text-slate-900">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-50 border-t border-slate-200">
+                <td colSpan={4} className="p-3 text-right text-sm font-bold text-slate-700 uppercase tracking-wider">GRAND TOTAL</td>
+                <td className="p-3 text-right text-base font-black text-blue-700">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div className="px-6 py-4 space-y-6">
+        {displayMaterials && displayMaterials.length > 0 && (
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spesifikasi Material:</h4>
+            <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
+              {displayMaterials.map((mat: any, i: number) => (
+                <li key={i}>{mat.name} - {mat.spec} ({mat.quantity} {mat.unit})</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {order.notes && (
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Catatan:</h4>
+            <div className="text-sm text-slate-600 bg-slate-50 p-3 border border-slate-200 rounded whitespace-pre-wrap">{order.notes}</div>
+          </div>
+        )}
+      </div>
+
+      {/* PRINT ONLY: Signatures */}
+      <div className="flex mt-16 justify-end px-10 pb-10">
+        <div className="text-center">
+          <p className="text-sm font-medium text-slate-800 mb-20">Dibuat Oleh,</p>
+          <div className="w-48 border-b border-slate-400 mx-auto"></div>
+          <p className="text-sm font-bold text-slate-900 mt-2">{createdBy}</p>
+          <p className="text-xs text-slate-500">Sales Department</p>
+        </div>
+      </div>
+    </div>
   );
 }

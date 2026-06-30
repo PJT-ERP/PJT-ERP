@@ -61,7 +61,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
   const total = mergedSalesOrders.length;
-  const waitingFinance = mergedSalesOrders.filter((o) => o.status === "Menunggu Invoice DP" || o.status === "Waiting Payment" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
+  const waitingFinance = mergedSalesOrders.filter((o) => (o.status as any) === "Waiting Payment" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
   const inProduction = mergedSalesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
   const completed = mergedSalesOrders.filter((o) => o.status === "Completed").length;
 
@@ -70,7 +70,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
     .slice(0, 6);
 
   const workflowStats = [
-    { label: "Menunggu Invoice DP", count: salesOrders.filter(o => o.status === "Menunggu Invoice DP").length, color: "#F59E0B" },
+    { label: "Waiting Payment", count: salesOrders.filter(o => (o.status as any) === "Waiting Payment").length, color: "#F59E0B" },
     { label: "Pending Design", count: salesOrders.filter(o => o.status === "Pending Design").length, color: "#94A3B8" },
     { label: "Waiting Approval", count: salesOrders.filter(o => o.status === "Waiting Approval").length, color: "#F59E0B" },
     { label: "Revision Required", count: salesOrders.filter(o => o.status === "Revision Required").length, color: "#EF4444" },
@@ -80,7 +80,19 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
   ];
 
   const allActivities = mergedSalesOrders
-    .flatMap((o) => (o.activities || []).map((a) => ({ ...a, soNumber: o.id, orderId: o.id })))
+    .flatMap((o) => {
+      if (o.activities && o.activities.length > 0) {
+        return o.activities.map((a) => ({ ...a, soNumber: o.id, orderId: o.id }));
+      }
+      const acts = [];
+      acts.push({ id: o.id + '-created', user: 'Sales Team', role: 'Sales', action: 'Membuat Sales Order', timestamp: o.createdAt });
+      if (o.designApprovedAt) acts.push({ id: o.id + '-design', user: o.designAssignedName || 'Engineering', role: 'Engineering', action: 'Menyetujui Desain', timestamp: o.designApprovedAt });
+      if (o.startTime) acts.push({ id: o.id + '-start', user: o.assignedName || 'Production', role: 'Production', action: 'Memulai Produksi', timestamp: o.startTime });
+      if (o.endTime) acts.push({ id: o.id + '-end', user: o.assignedName || 'Production', role: 'Production', action: 'Menyelesaikan Produksi', timestamp: o.endTime });
+      if (o.qcAt) acts.push({ id: o.id + '-qc', user: 'QC Team', role: 'Quality Control', action: `QC Check: ${o.qcStatus || 'Selesai'}`, timestamp: o.qcAt });
+      
+      return acts.map(a => ({ ...a, soNumber: o.soNumber || o.id, orderId: o.id }));
+    })
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, 7);
 
@@ -421,6 +433,29 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             </div>
           </div>
 
+          {/* Deadline reminder */}
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <Clock size={14} style={{ color: "#F59E0B" }} />
+              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>
+            </div>
+            {mergedSalesOrders
+              .filter(o => !["completed", "cancelled"].includes(o.status.toLowerCase()))
+              .sort((a, b) => a.deadline.localeCompare(b.deadline))
+              .slice(0, 4)
+              .map((o) => (
+                <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9, paddingBottom: 9, borderBottom: `1px solid #F8FAFC` }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, fontWeight: 500 }}>{o.id}</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{customers.find(c => c.code === o.customerId)?.name || "-"}</p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 500 }}>{o.deadline}</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+
           {/* Quick actions */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
@@ -459,29 +494,6 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Deadline reminder */}
-          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Clock size={14} style={{ color: "#F59E0B" }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Deadline Mendekati</span>
-            </div>
-            {mergedSalesOrders
-              .filter(o => !["completed", "cancelled"].includes(o.status.toLowerCase()))
-              .sort((a, b) => a.deadline.localeCompare(b.deadline))
-              .slice(0, 4)
-              .map((o) => (
-                <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9, paddingBottom: 9, borderBottom: `1px solid #F8FAFC` }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, fontWeight: 500 }}>{o.id}</p>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>{customers.find(c => c.code === o.customerId)?.name || "-"}</p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 500 }}>{o.deadline}</p>
-                  </div>
-                </div>
-              ))}
           </div>
         </div>
       </div>

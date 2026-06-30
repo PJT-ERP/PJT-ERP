@@ -52,7 +52,7 @@ describe('EngineeringTasksPage', () => {
           designAssignedTo: 'eng-1'
         }
       ],
-      currentUser: { id: 'eng-1', role: 'Engineering Worker' },
+      currentUser: { id: 'eng-1', role: 'Engineering' },
       updateQuotation: vi.fn(),
     } as any);
 

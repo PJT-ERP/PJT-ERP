@@ -25,6 +25,16 @@ public static class PdfGeneratorService
                 page.Header().Element(header => ComposeHeader(header, invoice));
                 page.Content().Element(content => ComposeContent(content, invoice));
                 page.Footer().Element(footer => ComposeFooter(footer));
+
+                var isOverdue = invoice.Status.Equals("OVERDUE", StringComparison.OrdinalIgnoreCase) || 
+                               (invoice.DueDate < DateOnly.FromDateTime(DateTime.UtcNow) && 
+                                !invoice.Status.Equals("PAID", StringComparison.OrdinalIgnoreCase));
+                                
+                if (isOverdue)
+                {
+                    page.Background().AlignCenter().AlignMiddle().Rotate(-45).Text("OVERDUE")
+                        .FontSize(120).FontColor(Colors.Red.Lighten4).SemiBold();
+                }
             });
         });
 
@@ -35,12 +45,30 @@ public static class PdfGeneratorService
     {
         container.Row(row =>
         {
-            row.RelativeItem().Column(column =>
+            row.RelativeItem().Row(r =>
             {
-                column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
-                column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
-                column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
-                column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                var imagePath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Assets", "pjt-logo.png");
+                if (System.IO.File.Exists(imagePath))
+                {
+                    r.ConstantItem(80).Image(imagePath);
+                    r.RelativeItem().PaddingLeft(10).Column(column =>
+                    {
+                        column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
+                        column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                    });
+                }
+                else
+                {
+                    r.RelativeItem().Column(column =>
+                    {
+                        column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
+                        column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                    });
+                }
             });
 
             row.ConstantItem(200).Column(column =>
@@ -85,7 +113,7 @@ public static class PdfGeneratorService
             
             column.Item().PaddingTop(10).Row(row =>
             {
-                row.RelativeItem(3).Column(c =>
+                row.RelativeItem(1).Column(c =>
                 {
                     // Payment Instructions
                     c.Item().Text("Informasi Pembayaran").Bold().FontSize(12).FontColor(Colors.Grey.Darken4);
@@ -97,7 +125,7 @@ public static class PdfGeneratorService
                     });
                 });
 
-                row.RelativeItem(2).PaddingLeft(20).Column(c =>
+                row.RelativeItem(1).PaddingLeft(20).Column(c =>
                 {
                     c.Item().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingBottom(5).Row(r =>
                     {
@@ -130,6 +158,19 @@ public static class PdfGeneratorService
                             r.RelativeItem().Text(FormatCurrency(firstSchedule.Amount)).Bold().FontSize(14).FontColor(Colors.Red.Darken3).AlignRight();
                         });
                     }
+                });
+            });
+
+            // Area Tanda Tangan / Stamp
+            column.Item().PaddingTop(40).Row(row =>
+            {
+                row.RelativeItem(); // Spacer supaya signature di kanan
+                row.ConstantItem(200).Column(c =>
+                {
+                    c.Item().AlignCenter().Text("Hormat Kami,").FontSize(11).FontColor(Colors.Grey.Darken2);
+                    c.Item().Height(70); // Space for signature & stamp
+                    c.Item().AlignCenter().Text("PT PRATAMA JAYA").FontSize(11).Bold().FontColor(Colors.Grey.Darken4);
+                    c.Item().AlignCenter().Text("Finance Department").FontSize(10).FontColor(Colors.Grey.Medium);
                 });
             });
         });
@@ -186,6 +227,6 @@ public static class PdfGeneratorService
 
     private static string FormatCurrency(decimal amount)
     {
-        return $"Rp {amount:N0}";
+        return $"Rp\u00A0{amount:N0}";
     }
 }

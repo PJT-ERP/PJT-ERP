@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
@@ -14,6 +14,9 @@ import {
   Download,
   Filter,
   ChevronDown,
+  X,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import {
   BarChart,
@@ -27,7 +30,9 @@ import {
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MaterialRequirementDto } from "../../services/purchasingApi";
+import { masterDataApi } from "../../services/masterDataApi";
 import { usePurchasingData } from "./usePurchasingData";
+import { useApp } from "../context/AppContext";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -69,10 +74,10 @@ function getStatus(item: InventoryItem): StockStatus {
 }
 
 const statusCfg: Record<StockStatus, { label: string; bg: string; color: string; dot: string; barColor: string }> = {
-  critical: { label: "Kritis",   bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
-  low:      { label: "Rendah",   bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
-  normal:   { label: "Normal",   bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
-  excess:   { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
+  critical: { label: "Kritis", bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", barColor: "#dc2626" },
+  low: { label: "Rendah", bg: "#fef9c3", color: "#92400e", dot: "#f59e0b", barColor: "#f59e0b" },
+  normal: { label: "Normal", bg: "#dcfce7", color: "#166534", dot: "#16a34a", barColor: "#16a34a" },
+  excess: { label: "Berlebih", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", barColor: "#3b82f6" },
 };
 
 const formatRp = (n: number) => {
@@ -99,52 +104,217 @@ function TD({ children, className = "", right = false }: { children: React.React
 
 const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
 
-function mapRequirementToInventory(item: MaterialRequirementDto): InventoryItem {
-  const linkedPurchase = item.purchaseItems.find(purchase => purchase.purchaseStatus !== "Rejected") || item.purchaseItems[0];
-  const totalPrice = linkedPurchase?.totalPrice ?? linkedPurchase?.estimatedPrice ?? 0;
-  const unitPrice = linkedPurchase?.unitPrice ?? (item.requiredQty > 0 ? totalPrice / item.requiredQty : 0);
-  const maxStock = Math.max(item.requiredQty * 3, item.stockOnHand, 1);
-  const incoming = linkedPurchase && linkedPurchase.purchaseStatus !== "Received" && linkedPurchase.poNumber
-    ? {
-        po: linkedPurchase.poNumber,
-        supplier: linkedPurchase.supplierName || "Supplier belum ditentukan",
-        eta: linkedPurchase.expectedArrivalDate || "Belum dijadwalkan",
-        qty: item.requiredQty,
-        unit: "pcs",
-      }
-    : undefined;
+function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[], editItem?: InventoryItem | null }) {
+  const [formData, setFormData] = useState({
+    code: "", name: "", category: "Project", unit: "pcs",
+    currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
+    location: "", supplierName: "", unitPrice: 0
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  return {
-    id: item.id,
-    code: item.productPartNumber,
-    name: item.materialSpec || item.productDescription,
-    category: linkedPurchase?.purchaseCategory || "Project",
-    unit: "pcs",
-    currentStock: item.stockOnHand,
-    minStock: item.requiredQty,
-    maxStock,
-    reorderPoint: item.requiredQty,
-    location: item.salesOrderNumber || "Non-project",
-    lastUpdated: item.stockUpdatedAtUtc || item.updatedAtUtc,
-    supplier: linkedPurchase?.supplierName || "Belum ditentukan",
-    unitPrice,
-    incoming,
+  useEffect(() => {
+    if (isOpen) {
+      if (editItem) {
+        setFormData({
+          code: editItem.code, name: editItem.name, category: editItem.category, unit: editItem.unit,
+          currentStock: editItem.currentStock, minStock: editItem.minStock, maxStock: editItem.maxStock, reorderPoint: editItem.reorderPoint,
+          location: editItem.location, supplierName: editItem.supplier, unitPrice: editItem.unitPrice
+        });
+        return;
+      }
+
+      let prefix = "MAT-";
+      if (formData.category === "Consumable") prefix = "CON-";
+      else if (formData.category === "Tools") prefix = "TLS-";
+      else if (formData.category === "Asset") prefix = "AST-";
+      else if (formData.category === "Maintenance") prefix = "MNT-";
+
+      let maxNum = 0;
+      inventoryItems.forEach(i => {
+        if (i.code.startsWith(prefix)) {
+          const num = parseInt(i.code.replace(prefix, ""), 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      });
+      const nextCode = `${prefix}${String(maxNum + 1).padStart(3, "0")}`;
+      setFormData(prev => ({ ...prev, code: nextCode }));
+    } else {
+      // Reset form when closed
+      setFormData({
+        code: "", name: "", category: "Project", unit: "pcs",
+        currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
+        location: "", supplierName: "", unitPrice: 0
+      });
+    }
+  }, [isOpen, formData.category, inventoryItems, editItem]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      if (editItem) {
+        await masterDataApi.updateInventoryItem(editItem.id, formData);
+      } else {
+        await masterDataApi.createInventoryItem(formData);
+      }
+      onAdded();
+      onClose();
+    } catch (error) {
+      console.warn("Failed to save material", error);
+      alert("Gagal menyimpan material.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const inputClass = "w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#C8102E] focus:ring-1 focus:ring-[#C8102E]";
+  const labelClass = "block text-[11px] font-semibold text-slate-500 mb-1";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+          <h2 className="text-lg font-bold text-slate-800">{editItem ? "Edit Material" : "Tambah Material Baru"}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Kode Material</label>
+              <input required readOnly value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className={`${inputClass} bg-slate-100 cursor-not-allowed`} placeholder="Contoh: MAT-001" />
+            </div>
+            <div>
+              <label className={labelClass}>Nama Material</label>
+              <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} placeholder="Aluminium Plate..." />
+            </div>
+            <div>
+              <label className={labelClass}>Kategori</label>
+              <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className={inputClass}>
+                <option>Project</option>
+                <option>Consumable</option>
+                <option>Tools</option>
+                <option>Asset</option>
+                <option>Maintenance</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Satuan</label>
+              <input required value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className={inputClass} placeholder="pcs, kg, m, dll" />
+            </div>
+            <div>
+              <label className={labelClass}>Stok Awal</label>
+              <input type="number" required value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Reorder Point</label>
+              <input type="number" required value={formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Min Stock</label>
+              <input type="number" required value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Max Stock</label>
+              <input type="number" required value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Harga Satuan (Rp)</label>
+              <input type="number" required value={formData.unitPrice} onChange={e => setFormData({ ...formData, unitPrice: Number(e.target.value) })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Lokasi Penyimpanan</label>
+              <input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass}>Nama Supplier Default</label>
+              <input value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass} placeholder="PT Indo Steel" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Batal</button>
+            <button type="submit" disabled={submitting} className="rounded bg-[#C8102E] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+              {submitting ? "Menyimpan..." : "Simpan Material"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 /* ── Page ──────────────────────────────────────────────────── */
 
 export function InventoryPage() {
   const navigate = useNavigate();
-  const { materialRequirements, refresh } = usePurchasingData();
+  const { currentUser } = useApp();
+  const { inventoryItems, purchaseRequests, refresh } = usePurchasingData();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null);
 
-  const inventory = useMemo(
-    () => materialRequirements.map(mapRequirementToInventory),
-    [materialRequirements],
-  );
+  const handleEdit = (item: InventoryItem) => {
+    setEditItem(item);
+    setIsAddModalOpen(true);
+  };
+
+  const handleDelete = (item: InventoryItem) => {
+    setDeleteItem(item);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return;
+    try {
+      await masterDataApi.deleteInventoryItem(deleteItem.id);
+      refresh();
+      setDeleteItem(null);
+    } catch (e) {
+      alert("Gagal menghapus item.");
+    }
+  };
+
+  const inventory: InventoryItem[] = useMemo(() => {
+    const incomingByName = new Map<string, IncomingShipment>();
+    purchaseRequests.forEach(pr => {
+      pr.items.forEach(item => {
+        if (item.purchaseStatus === "Ordered" || item.purchaseStatus === "Approved") {
+          const poNumber = item.poNumber || pr.prNumber;
+          const eta = item.expectedArrivalDate ? new Date(item.expectedArrivalDate).toLocaleDateString("id-ID") : "Hari ini";
+          incomingByName.set(item.itemName.toLowerCase(), {
+            po: poNumber,
+            supplier: item.supplierName || item.suggestedSupplier || "Supplier",
+            eta,
+            qty: item.qty,
+            unit: "pcs"
+          });
+        }
+      });
+    });
+
+    return inventoryItems.map(item => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      currentStock: item.currentStock,
+      minStock: item.minStock,
+      maxStock: item.maxStock,
+      reorderPoint: item.reorderPoint,
+      location: item.location,
+      supplier: item.supplierName,
+      unitPrice: item.unitPrice,
+      lastUpdated: item.updatedAtUtc,
+      incoming: incomingByName.get(item.name.toLowerCase())
+    }));
+  }, [inventoryItems, purchaseRequests]);
 
   const categories = useMemo(() => Array.from(new Set(inventory.map((item) => item.category))), [inventory]);
   const chartData = useMemo(() => categories.map((cat) => ({
@@ -162,9 +332,9 @@ export function InventoryPage() {
   });
 
   const criticalItems = inventory.filter((i) => getStatus(i) === "critical");
-  const lowItems      = inventory.filter((i) => getStatus(i) === "low");
+  const lowItems = inventory.filter((i) => getStatus(i) === "low");
   const incomingItems = inventory.filter((i) => !!i.incoming);
-  const totalValue    = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
+  const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
 
   return (
     <div className="p-5 space-y-5">
@@ -177,17 +347,27 @@ export function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => void refresh()} className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
-            <RefreshCcw size={13} /> Refresh
+          {canCreatePo && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              title="Tambah Material / Stok Baru"
+              className="flex items-center gap-2 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
+            >
+              <Plus size={14} /> Tambah Material
+            </button>
+          )}
+          <button onClick={() => void refresh()} className="flex items-center gap-2 text-sm border hover:bg-slate-50 transition-colors rounded-md px-4 py-1.5 font-medium shadow-sm" style={{ color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
+            <RefreshCcw size={14} /> Refresh
           </button>
-          <button
-            onClick={() => navigate("/erp/purchasing/create")}
-            title="Buat PO untuk item reorder"
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 12, background: "#1e3a5f" }}
-          >
-            <Plus size={13} /> Buat PO Reorder
-          </button>
+          {canCreatePo && (
+            <button
+              onClick={() => navigate("/erp/purchasing/create")}
+              title="Buat PO untuk item reorder"
+              className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
+            >
+              <Plus size={14} /> Buat PO Reorder
+            </button>
+          )}
         </div>
       </div>
 
@@ -221,9 +401,9 @@ export function InventoryPage() {
       </div>
 
       {/* Top row — alerts + chart + incoming */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Critical stock alert */}
-        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #fca5a5", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #fca5a5", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ background: "#fef2f2", borderBottom: "1px solid #fca5a5" }}>
             <AlertTriangle size={14} style={{ color: "#dc2626" }} />
             <p style={{ fontSize: 11, fontWeight: 700, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -254,14 +434,14 @@ export function InventoryPage() {
         </div>
 
         {/* Category chart */}
-        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Nilai Stok per Kategori (Juta Rp)
             </p>
           </div>
-          <div className="px-2 py-4">
-            <ResponsiveContainer width="100%" height={180}>
+          <div className="px-2 py-4 flex-1 min-h-[180px]">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
@@ -278,7 +458,7 @@ export function InventoryPage() {
         </div>
 
         {/* Incoming shipments */}
-        <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <Truck size={14} style={{ color: "#0891b2" }} />
             <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -389,6 +569,7 @@ export function InventoryPage() {
                 <TH className="hidden md:table-cell">Material Masuk</TH>
                 <TH className="hidden xl:table-cell">Lokasi</TH>
                 <TH className="hidden sm:table-cell" right>Nilai Stok</TH>
+                <TH right>Aksi</TH>
               </tr>
             </thead>
             <tbody>
@@ -478,6 +659,16 @@ export function InventoryPage() {
                         {formatRp(item.currentStock * item.unitPrice)}
                       </span>
                     </TD>
+                    <TD right>
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-blue-600 transition" title="Edit">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(item)} className="text-slate-400 hover:text-red-600 transition" title="Hapus">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </TD>
                   </tr>
                 );
               })}
@@ -494,6 +685,39 @@ export function InventoryPage() {
           </p>
         </div>
       </div>
+
+      <AddMaterialModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditItem(null);
+        }}
+        onAdded={() => void refresh()}
+        inventoryItems={inventory}
+        editItem={editItem}
+      />
+
+      {deleteItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="text-red-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Hapus Material</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Yakin ingin menghapus <strong>{deleteItem.name}</strong>?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setDeleteItem(null)} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Batal</button>
+              <button onClick={confirmDelete} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,8 +29,11 @@ export function PurchaseOrderDetailPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const requests = await purchasingApi.listPurchaseRequests();
-      const pos = mapPurchaseRequestsToPos(requests);
+      const [requests, payments] = await Promise.all([
+        purchasingApi.listPurchaseRequests(),
+        import("../../services/financeApi").then(m => m.financeApi.listSupplierPayments())
+      ]);
+      const pos = mapPurchaseRequestsToPos(requests, payments);
       // Backend sets PR-123 as PO if poNumber wasn't explicitly generated in the mock or mapping. 
       // Our mapped POS have id matching the PO Number.
       const po = pos.find(p => p.id === id);
@@ -85,8 +88,8 @@ export function PurchaseOrderDetailPage() {
   if (!detail) {
     return (
       <div className="p-10 text-center">
-        <button onClick={() => navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">
-          Kembali ke Daftar PO
+        <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">
+          Kembali
         </button>
       </div>
     );
@@ -98,9 +101,9 @@ export function PurchaseOrderDetailPage() {
   return (
     <div className="p-5 max-w-5xl mx-auto space-y-6">
       {/* Header Back Button */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4 print-hide">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate("/erp/purchasing/orders")} className="rounded p-2 hover:bg-slate-200 transition">
+          <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/orders")} className="rounded p-2 hover:bg-slate-200 transition">
             <ArrowLeft size={20} className="text-slate-600" />
           </button>
           <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Purchase Order</h1>
@@ -115,9 +118,98 @@ export function PurchaseOrderDetailPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm print:border-none print:shadow-none">
+        {/* PRINT ONLY: Professional PO Header */}
+        <div className="hidden print:block px-6 pt-10 pb-6 border-b-2 border-slate-800">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4">
+              <img src="/pjt-logo-new.png" alt="Logo PT Pratama Jaya" className="w-20 h-20 object-contain" />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">PT. PRATAMA JAYA</h1>
+                <p className="text-sm text-slate-500">Kawasan Industri MM2100</p>
+                <p className="text-sm text-slate-500">Cikarang Barat, Bekasi 17530</p>
+                <p className="text-sm text-slate-500">finance@pratamajaya.co.id</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <h2 className="text-4xl font-black text-slate-200 tracking-widest uppercase mb-2">PURCHASE ORDER</h2>
+              <p className="text-sm font-bold text-slate-800">PO Number: {detail.id}</p>
+              <p className="text-sm text-slate-600">Tanggal PO: {detail.orderDate}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* PRINT ONLY: Vendor Info */}
+        <div className="hidden print:flex px-6 py-8 justify-between">
+          <div className="w-1/2 pr-4">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Pemesanan Kepada (Vendor):</h3>
+            <p className="font-bold text-slate-900 text-lg">{detail.supplier}</p>
+            <p className="text-sm text-slate-600 mt-1">Attn: {detail.contact || "-"}</p>
+            <p className="text-sm text-slate-600">Telp: {detail.contactPhone || "-"}</p>
+          </div>
+          <div className="w-1/3 border-l-2 border-slate-100 pl-6">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informasi Pesanan:</h3>
+            <p className="text-sm text-slate-600 mb-1">Termin: <strong className="text-slate-900">{detail.paymentTerms}</strong></p>
+            <p className="text-sm text-slate-600 mb-1">Jatuh Tempo: <strong className="text-slate-900">{detail.dueDate}</strong></p>
+            <p className="text-sm text-slate-600">Referensi PR: <strong className="text-slate-900">{detail.requestRefs.join(", ")}</strong></p>
+          </div>
+        </div>
+
+        {/* PRINT ONLY: Items Table */}
+        <div className="hidden print:block px-6 py-2 space-y-4">
+          <p className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+            Daftar Barang Pesanan
+            <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full">{detail.items.length} item</span>
+          </p>
+          <div className="rounded border border-slate-200 overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Kode</th>
+                  <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Material / Barang</th>
+                  <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Kuantitas</th>
+                  <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Harga/Satuan</th>
+                  <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Subtotal Tagihan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.items.map((item, i) => (
+                  <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-xs text-slate-500 font-mono">{item.code}</td>
+                    <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
+                    <td className="p-3 text-sm font-semibold text-right text-slate-900">{item.qty} {item.unit}</td>
+                    <td className="p-3 text-sm text-right text-slate-700">{formatRp(calcUnitPrice(item))}</td>
+                    <td className="p-3 text-sm text-right font-bold text-slate-900">{formatRp(item.totalPrice)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="flex justify-end pt-4">
+            <div className="bg-white px-5 py-3 rounded-lg border border-slate-200 shadow-sm text-right min-w-[200px]">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total PO</p>
+              <p className="text-xl font-bold text-blue-700 m-0">Rp {formatRp(calcTotal(detail.items))}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* PRINT ONLY: Signatures */}
+        <div className="hidden print:flex mt-8 justify-between px-10 pb-10">
+          <div className="text-center">
+            <p className="text-sm font-medium text-slate-800 mb-12">Disetujui Oleh,</p>
+            <div className="w-40 border-b border-slate-400 mx-auto"></div>
+            <p className="text-xs text-slate-500 mt-2">PT PJT JAYA (Purchasing)</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-slate-800 mb-12">Diterima Oleh,</p>
+            <div className="w-40 border-b border-slate-400 mx-auto"></div>
+            <p className="text-xs text-slate-500 mt-2">{detail.supplier}</p>
+          </div>
+        </div>
+
         {/* Header Visual */}
-        <div className="px-6 py-6 bg-[#C8102E] text-white">
+        <div className="px-6 py-6 bg-[#C8102E] text-white print:hidden">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-bold text-red-200 uppercase tracking-widest mb-1">Purchase Order</p>
@@ -142,7 +234,7 @@ export function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="overview" className="w-full print:hidden">
           <div className="border-b border-slate-200 px-6 bg-slate-50">
             <TabsList className="h-12 w-full justify-start rounded-none bg-transparent p-0">
               {["overview", "items"].map((t) => (

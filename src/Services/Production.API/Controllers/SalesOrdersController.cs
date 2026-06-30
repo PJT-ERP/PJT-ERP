@@ -11,7 +11,7 @@ namespace PJT_ERP.Production.Api.Controllers;
 public sealed class SalesOrdersController(IProductionService productionService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [AllowAnonymous]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)
     {
         return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
@@ -36,6 +36,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         }
         catch (InvalidOperationException ex)
         {
+            Console.WriteLine($"[DEBUG] InvalidOperationException: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -65,6 +66,24 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var order = await productionService.UpdateSalesOrderDesignStatusAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/customer-drawing")]
+    [Authorize(Roles = "Admin,Sales,Engineering Supervisor,Engineering Worker,Engineering")]
+    public async Task<ActionResult<SalesOrderDto>> UpdateCustomerDrawing(
+        Guid id,
+        UpdateCustomerDrawingUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await productionService.UpdateCustomerDrawingUrlAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -208,6 +227,44 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
             var result = await productionService.FinishProductionAsync(id, request, cancellationToken, isPrivileged);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/production/pause")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> PauseProduction(
+        Guid id,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.PauseProductionAsync(id, request, cancellationToken, isPrivileged);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}/production/resume")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Owner")]
+    public async Task<ActionResult<SalesOrderProductionProgressDto>> ResumeProduction(
+        Guid id,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.ResumeProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)

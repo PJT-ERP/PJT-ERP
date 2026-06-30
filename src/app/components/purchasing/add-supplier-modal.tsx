@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { masterDataApi } from "../../services/masterDataApi";
+import { useEffect, useState } from "react";
+import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -9,70 +9,156 @@ interface AddSupplierModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  supplier?: SupplierDto | null;
 }
 
-export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierModalProps) {
+const emptyForm = {
+  code: "",
+  name: "",
+  type: "PT",
+  category: "",
+  city: "",
+  province: "",
+  address: "",
+  status: "Active",
+  bankName: "",
+  bankAccount: "",
+  bankBranch: "",
+  npwp: "",
+  paymentTerms: "",
+  contactName: "",
+  contactRole: "",
+  contactPhone: "",
+  contactEmail: "",
+};
+
+export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: AddSupplierModalProps) {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    code: "",
-    name: "",
-    type: "PT",
-    category: "",
-    city: "",
-    province: "",
-    address: "",
-    bankName: "",
-    bankAccount: "",
-    bankBranch: "",
-    npwp: "",
-    paymentTerms: "",
-    contactName: "",
-    contactPhone: "",
-    contactEmail: "",
-  });
+  const [errorMessage, setErrorMessage] = useState("");
+  const [formData, setFormData] = useState(emptyForm);
+  const isEditMode = Boolean(supplier);
+
+  useEffect(() => {
+    if (!open) return;
+    setErrorMessage("");
+
+    if (!supplier) {
+      const fetchAndSetCode = async () => {
+        try {
+          const suppliers = await masterDataApi.listSuppliers();
+          let maxSeq = 0;
+          for (const s of suppliers) {
+            if (s.code && s.code.startsWith("SUP-")) {
+              const seq = parseInt(s.code.substring(4), 10);
+              if (!isNaN(seq) && seq > maxSeq) {
+                maxSeq = seq;
+              }
+            }
+          }
+          const nextSeq = maxSeq + 1;
+          setFormData({
+            ...emptyForm,
+            code: `SUP-${nextSeq.toString().padStart(4, '0')}`
+          });
+        } catch (error) {
+          console.error("Failed to fetch suppliers for code generation", error);
+          setFormData({
+            ...emptyForm,
+            code: `SUP-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}` // Fallback
+          });
+        }
+      };
+      
+      // Initialize with temporary loading or default code
+      setFormData({
+        ...emptyForm,
+        code: "SUP-..."
+      });
+      fetchAndSetCode();
+      return;
+    }
+
+    const primaryContact = supplier.contacts?.find(contact => contact.isPrimary) || supplier.contacts?.[0];
+    setFormData({
+      code: supplier.code || "",
+      name: supplier.name || "",
+      type: supplier.type || "PT",
+      category: supplier.category || "",
+      city: supplier.city || "",
+      province: supplier.province || "",
+      address: supplier.address || "",
+      status: supplier.status || "Active",
+      bankName: supplier.bankName || "",
+      bankAccount: supplier.bankAccount || "",
+      bankBranch: supplier.bankBranch || "",
+      npwp: supplier.npwp || "",
+      paymentTerms: supplier.paymentTerms || "",
+      contactName: primaryContact?.name || "",
+      contactRole: primaryContact?.role || "",
+      contactPhone: primaryContact?.phone || "",
+      contactEmail: primaryContact?.email || "",
+    });
+  }, [open, supplier]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    setErrorMessage("");
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage("");
     try {
-      await masterDataApi.createSupplier({
-        code: formData.code,
+      const payload = {
         name: formData.name,
         type: formData.type,
         category: formData.category,
         city: formData.city,
         province: formData.province,
         address: formData.address,
-        status: "Active",
+        status: formData.status,
         bankName: formData.bankName,
         bankAccount: formData.bankAccount,
         bankBranch: formData.bankBranch,
         npwp: formData.npwp,
         paymentTerms: formData.paymentTerms,
-        since: new Date().getFullYear().toString(),
-        rating: 4.0,
+        since: supplier?.since || new Date().getFullYear().toString(),
+        rating: supplier?.rating ?? 4.0,
         contacts: formData.contactName ? [{
           name: formData.contactName,
+          role: formData.contactRole,
           phone: formData.contactPhone,
           email: formData.contactEmail,
           isPrimary: true
         }] : []
-      });
+      };
+
+      if (isEditMode && supplier) {
+        await masterDataApi.updateSupplier(supplier.code, payload);
+      } else {
+        await masterDataApi.createSupplier({
+          code: formData.code,
+          ...payload,
+        });
+      }
       onSuccess();
       onOpenChange(false);
-      setFormData({
-        code: "", name: "", type: "PT", category: "", city: "", province: "", address: "",
-        bankName: "", bankAccount: "", bankBranch: "", npwp: "", paymentTerms: "",
-        contactName: "", contactPhone: "", contactEmail: ""
-      });
-    } catch (err) {
+      setFormData(emptyForm);
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to create supplier");
+      const status = err?.response?.status;
+      const backendMessage = err?.response?.data?.message || err?.response?.data?.title || err?.message;
+      if (status === 404 || status === 405) {
+        setErrorMessage("Endpoint edit supplier belum aktif di backend yang sedang berjalan. Rebuild/restart MasterData API lalu coba lagi.");
+      } else if (status === 409) {
+        setErrorMessage("Kode atau data supplier bentrok dengan data yang sudah ada.");
+      } else if (status >= 500) {
+        setErrorMessage("Server gagal menyimpan supplier. Cek log MasterData API untuk detail error.");
+      } else {
+        setErrorMessage(backendMessage || (isEditMode ? "Gagal mengubah supplier. Periksa data lalu coba lagi." : "Gagal membuat supplier. Periksa data lalu coba lagi."));
+      }
     } finally {
       setLoading(false);
     }
@@ -82,13 +168,13 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Tambah Supplier Baru</DialogTitle>
+          <DialogTitle>{isEditMode ? "Edit Supplier" : "Tambah Supplier Baru"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Kode Supplier *</Label>
-              <Input id="code" name="code" value={formData.code} onChange={handleChange} required placeholder="Contoh: SUP-030" />
+              <Input id="code" name="code" value={formData.code} onChange={handleChange} required disabled placeholder="Auto-generated" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">Nama Perusahaan *</Label>
@@ -109,6 +195,18 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
             <div className="space-y-2">
               <Label htmlFor="category">Kategori *</Label>
               <Input id="category" name="category" value={formData.category} onChange={handleChange} required placeholder="Contoh: Besi & Baja" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status" name="status" value={formData.status} onChange={handleChange}
+                className="w-full rounded border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100" style={{ borderColor: "#e2e8f0", fontSize: 13 }}
+              >
+                <option value="Active">Active</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Blacklisted">Blacklisted</option>
+              </select>
             </div>
           </div>
           
@@ -158,6 +256,10 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
                 <Input id="contactName" name="contactName" value={formData.contactName} onChange={handleChange} />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="contactRole">Jabatan</Label>
+                <Input id="contactRole" name="contactRole" value={formData.contactRole} onChange={handleChange} />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="contactPhone">No. HP / Telepon</Label>
                 <Input id="contactPhone" name="contactPhone" value={formData.contactPhone} onChange={handleChange} />
               </div>
@@ -168,12 +270,18 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess }: AddSupplierM
             </div>
           </div>
 
+          {errorMessage && (
+            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Batal
             </Button>
             <Button type="submit" disabled={loading} className="bg-[#1e3a5f] hover:opacity-90 text-white">
-              {loading ? "Menyimpan..." : "Simpan Supplier"}
+              {loading ? "Menyimpan..." : isEditMode ? "Simpan Perubahan" : "Simpan Supplier"}
             </Button>
           </DialogFooter>
         </form>

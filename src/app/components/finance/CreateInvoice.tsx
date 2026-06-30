@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { formatIDR } from './mockData';
 import { financeApi, type InvoiceDto } from '../../services/financeApi';
+import { salesApi } from '../../services/salesApi';
 import { useFinanceData } from './useFinanceData';
 import { useApp } from '../context/AppContext';
 
@@ -47,6 +48,7 @@ export function CreateInvoice() {
   const [createdInvoice, setCreatedInvoice] = useState<InvoiceDto | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   
   // New Finance features
   const [invoiceType, setInvoiceType] = useState('Full Payment');
@@ -54,7 +56,46 @@ export function CreateInvoice() {
   const [customDp, setCustomDp] = useState('');
   const [dpDeadline, setDpDeadline] = useState('');
 
-  const activeCandidate = invoiceCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
+  // Combine backend candidates with local SOs that bypassed costing or were priced during production
+  const localBypassedCandidates = salesOrders
+    .filter(so => 
+      (['Waiting Pricing', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'QC', 'Completed'].includes(so.status)) && 
+      (so.items?.some((i: any) => i.unitPrice && i.unitPrice > 0) || (so.estimatedAmount && so.estimatedAmount > 0))
+    )
+    .map(so => ({
+      salesOrderId: so.backendId || so.id,
+      salesOrderNumber: so.soNumber || so.id,
+      customerId: so.customerId,
+      customerCode: so.customerId,
+      customerName: so.customerName || so.customerId,
+      customerEmail: so.customerEmail || '',
+      status: so.status,
+      targetDate: so.deadline,
+      items: so.items?.map(item => {
+        let unitPrice = item.unitPrice || 0;
+        if (unitPrice === 0 && so.items?.length === 1 && so.estimatedAmount && so.estimatedAmount > 0 && item.quantity > 0) {
+          unitPrice = so.estimatedAmount / item.quantity;
+        }
+        return {
+          salesOrderItemId: item.id,
+          productId: item.productId,
+          productDescription: item.productName || item.description,
+          qty: item.quantity,
+          unitPrice: unitPrice,
+          lineTotal: unitPrice * item.quantity
+        };
+      }) || []
+    }));
+
+  // Merge unique candidates
+  const allCandidates = [...invoiceCandidates];
+  localBypassedCandidates.forEach(local => {
+    if (!allCandidates.find(c => c.salesOrderId === local.salesOrderId)) {
+      allCandidates.push(local as any);
+    }
+  });
+
+  const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
   
   // Unified data for display
   const displayCustomer = activeCandidate ? {
@@ -71,7 +112,7 @@ export function CreateInvoice() {
   // Auto-fill items when SO is selected
   useEffect(() => {
     if (activeCandidate) {
-      const localSO = salesOrders.find(o => o.id === activeCandidate.salesOrderId);
+      const localSO = salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId);
       
       setItems(activeCandidate.items.map(item => {
         const localItem = localSO?.items?.find(li => li.productId === item.productId || li.id === item.salesOrderItemId);
@@ -80,7 +121,7 @@ export function CreateInvoice() {
           description: item.productDescription,
           quantity: item.qty,
           unit: 'Pcs',
-          unitPrice: item.unitPrice || localItem?.unitPrice || 0,
+          unitPrice: item.unitPrice || localItem?.unitPrice || (activeCandidate.items.length === 1 && localSO?.estimatedAmount ? localSO.estimatedAmount / item.qty : 0),
         };
       }));
       if (activeCandidate.targetDate && !dueDate) {
@@ -89,7 +130,8 @@ export function CreateInvoice() {
     } else {
       setItems([newItem()]);
     }
-  }, [activeCandidate, salesOrders, dueDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSO, invoiceCandidates, salesOrders]);
 
   const updateItem = (id: string, field: keyof LineItem, value: any) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
@@ -122,6 +164,18 @@ export function CreateInvoice() {
     setIsSaving(true);
 
     try {
+      // Pastikan harga sudah diset di backend agar status backend SO bisa di-invoice
+      try {
+        await salesApi.updateSalesOrderPricing(activeCandidate!.salesOrderId, {
+          items: items.map(item => ({
+            salesOrderItemId: item.id,
+            unitPrice: item.unitPrice,
+          }))
+        });
+      } catch (pricingError: any) {
+        console.warn('Failed to pre-update pricing. Continuing to create invoice anyway...', pricingError);
+      }
+
       const invoice = await financeApi.createInvoice({
         salesOrderId: activeCandidate!.salesOrderId,
         invoiceDate: issueDate,
@@ -154,30 +208,41 @@ export function CreateInvoice() {
         bankName: 'BCA',
         bankAccountName: 'PT Pratama Jaya',
         bankAccountNumber: '1234567890',
+        fallbackCandidate: {
+          salesOrderNumber: activeCandidate!.salesOrderNumber,
+          customerId: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeCandidate!.customerId) 
+            ? activeCandidate!.customerId 
+            : '00000000-0000-0000-0000-000000000000',
+          customerCode: activeCandidate!.customerCode,
+          customerName: activeCandidate!.customerName,
+          customerEmail: activeCandidate!.customerEmail,
+          items: items.map(item => ({
+            salesOrderItemId: item.id,
+            productId: activeCandidate!.items.find(i => i.salesOrderItemId === item.id)?.productId || '00000000-0000-0000-0000-000000000000',
+            productPartNumber: '-',
+            productDescription: item.description,
+            qty: item.quantity,
+          })),
+        }
       });
       setCreatedInvoice(invoice);
       await refresh();
       setSubmitted(true);
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Failed to create invoice.', error);
-      setSubmitError('Gagal membuat invoice. Pastikan SO belum pernah dibuatkan invoice dan harga sudah tersedia.');
+      if (error.response && error.response.data) {
+        console.warn('Backend error data:', error.response.data);
+        setSubmitError(`Gagal membuat invoice: ${JSON.stringify(error.response.data)}`);
+      } else {
+        setSubmitError('Gagal membuat invoice. Pastikan SO belum pernah dibuatkan invoice dan harga sudah tersedia.');
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
   const handlePreview = () => {
-    const customer = displayCustomerName || 'Belum dipilih';
-    window.alert(
-      [
-        'Preview Draft Invoice',
-        `Pelanggan: ${customer}`,
-        `Subtotal: ${formatIDR(subtotal)}`,
-        `PPN: ${formatIDR(ppn)}`,
-        `Grand Total: ${formatIDR(grandTotal)}`,
-        isDP ? `Tagihan DP (${pct}%): ${formatIDR(invoiceTotal)}` : `Total Tagihan: ${formatIDR(invoiceTotal)}`,
-      ].join('\n')
-    );
+    setShowPreview(true);
   };
 
   if (submitted) {
@@ -194,7 +259,11 @@ export function CreateInvoice() {
             <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
               Lihat Invoice
             </button>
-            <button onClick={() => window.print()} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
+            <button onClick={() => {
+              if (createdInvoice) {
+                window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${createdInvoice.id}/pdf?inline=true`, '_blank');
+              }
+            }} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
               <Printer size={16} /> Cetak Invoice
             </button>
             <button onClick={() => { setSubmitted(false); setCreatedInvoice(null); setSelectedSO(''); setItems([newItem()]); setInvoiceType('Full Payment'); }} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
@@ -257,9 +326,9 @@ export function CreateInvoice() {
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
                 >
                   <option value="">Pilih SO...</option>
-                  {invoiceCandidates.filter(candidate => candidate.status !== 'Invoiced').map(candidate => (
-                    <option key={candidate.salesOrderId} value={candidate.salesOrderId}>
-                      {candidate.salesOrderNumber} - {candidate.customerName}
+                  {allCandidates.map(c => (
+                    <option key={c.salesOrderId} value={c.salesOrderId}>
+                      {c.salesOrderNumber} - {c.customerName}
                     </option>
                   ))}
                 </select>
@@ -269,10 +338,8 @@ export function CreateInvoice() {
 
             {/* Document Header */}
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12">
-              <div className="flex gap-4">
-                <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md">
-                  <Building2 size={32} className="text-white" />
-                </div>
+              <div className="flex gap-6 items-center">
+                <img src="/pjt-logo-new.png" alt="PT. Pratama Jaya Logo" className="h-20 w-auto object-contain flex-shrink-0" />
                 <div>
                   <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA</h2>
                   <p className="text-sm text-slate-500 mt-1 leading-relaxed">Kawasan Industri MM2100<br/>Cikarang Barat, Bekasi 17530<br/>finance@pratamajaya.co.id</p>
@@ -320,7 +387,7 @@ export function CreateInvoice() {
             <div className="mb-12">
               {activeCandidate && !hasLockedBackendPrices && (
                 <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
-                  Harga hasil nego belum tersedia di candidate ini. Buat invoice dari SO hasil Convert QUT terbaru agar harga otomatis terkunci dari pricing Finance.
+                  Harga hasil nego dari sistem QUT belum tersedia untuk SO ini. Anda dapat memasukkan harga secara manual di bawah, atau memproses Costing & Pricing terlebih dahulu jika diperlukan.
                 </div>
               )}
               <div className="w-full overflow-x-auto">
@@ -369,8 +436,24 @@ export function CreateInvoice() {
                           </div>
                         </td>
                         <td className="py-3 px-2 align-top text-right">
-                          <span className="font-semibold text-slate-800">{formatIDR(item.unitPrice)}</span>
-                          <p className="mt-0.5 text-[10px] font-medium text-slate-400">Locked dari SO/QUT</p>
+                          {hasLockedBackendPrices ? (
+                            <>
+                              <span className="font-semibold text-slate-800">{formatIDR(item.unitPrice)}</span>
+                              <p className="mt-0.5 text-[10px] font-medium text-slate-400">Locked dari SO/QUT</p>
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-end">
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.unitPrice || ""}
+                                onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
+                                placeholder="0"
+                                className="w-32 bg-transparent border-b border-slate-300 text-right p-0 focus:outline-none text-slate-800 hover:border-slate-400 focus:border-red-500 transition-colors"
+                              />
+                              <p className="mt-0.5 text-[10px] font-medium text-amber-600">Input Manual</p>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-2 align-top text-right font-bold text-slate-800">
                           {formatIDR(item.quantity * item.unitPrice)}
@@ -387,7 +470,15 @@ export function CreateInvoice() {
                   </tbody>
                 </table>
               </div>
-              {!activeCandidate && (
+            {activeCandidate && salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId)?.estimatedAmount ? (
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <span className="font-semibold">Info dari Sales:</span> Estimasi nilai SO yang telah disepakati adalah <strong>Rp {salesOrders.find(o => o.backendId === activeCandidate.salesOrderId || o.id === activeCandidate.salesOrderNumber || o.id === activeCandidate.salesOrderId)?.estimatedAmount?.toLocaleString('id-ID')}</strong>.
+                </p>
+              </div>
+            ) : null}
+
+            {!activeCandidate && (
                 <button onClick={addItem} className="mt-4 flex items-center gap-2 text-[13px] font-bold text-red-600 hover:text-red-800 transition-colors px-2 py-1 rounded hover:bg-red-50">
                   <Plus size={16} /> Tambah Baris
                 </button>
@@ -510,6 +601,59 @@ export function CreateInvoice() {
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Eye size={18} className="text-red-600"/> Preview Tagihan Draft</h2>
+              <button onClick={() => setShowPreview(false)} className="text-slate-400 hover:text-slate-700 font-bold text-xl">&times;</button>
+            </div>
+            <div className="p-6 overflow-y-auto bg-white">
+              <div className="text-center mb-6">
+                <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-1">Ditagihkan Kepada</p>
+                <p className="text-xl font-bold text-slate-900">{displayCustomerName || 'Belum dipilih'}</p>
+                <p className="text-sm text-slate-500 mt-1">{invoiceNumber} • Jatuh Tempo: {isDP && dpDeadline ? dpDeadline : dueDate || '-'}</p>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-5 border border-slate-200 mb-6">
+                <div className="flex justify-between items-center mb-3 text-sm">
+                  <span className="text-slate-600">Subtotal</span>
+                  <span className="font-semibold text-slate-800">{formatIDR(subtotal)}</span>
+                </div>
+                {ppnEnabled && (
+                  <div className="flex justify-between items-center mb-3 text-sm">
+                    <span className="text-slate-600">PPN (11%)</span>
+                    <span className="font-semibold text-slate-800">{formatIDR(ppn)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-3 border-t border-slate-200">
+                  <span className="font-bold text-slate-800">Grand Total</span>
+                  <span className="font-bold text-slate-900">{formatIDR(grandTotal)}</span>
+                </div>
+              </div>
+
+              <div className={`p-5 rounded-lg border ${isDP ? 'bg-red-50 border-red-100' : 'bg-slate-100 border-slate-200'}`}>
+                <div className="flex justify-between items-center">
+                  <span className={`font-bold ${isDP ? 'text-red-900' : 'text-slate-800'}`}>
+                    {isDP ? `Total Ditagihkan (DP ${pct}%)` : 'Total Ditagihkan'}
+                  </span>
+                  <span className={`text-2xl font-black ${isDP ? 'text-red-700' : 'text-slate-900'}`}>
+                    {formatIDR(invoiceTotal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-200 bg-slate-50 flex justify-end">
+              <button onClick={() => setShowPreview(false)} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-5 py-2 rounded-lg text-sm font-semibold transition-colors">
+                Tutup Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

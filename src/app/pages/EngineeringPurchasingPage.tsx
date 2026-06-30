@@ -127,6 +127,105 @@ function SOCombobox({ value, onChange, options }: {
   );
 }
 
+function MaterialAutocomplete({
+  value,
+  onChange,
+  onSelectProduct,
+  options,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectProduct: (product: any) => void;
+  options: any[];
+  disabled: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 280) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
+
+  const filtered = options.filter(p => 
+    (p.code + ' ' + p.name).toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column" }}>
+      <input
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+        onBlur={() => setIsFocused(false)}
+        placeholder="Ketik atau pilih dari Master Data..."
+        disabled={disabled}
+        style={{
+          width: "100%", padding: "9px 10px", 
+          border: `1px solid ${isFocused ? S.cyan : S.border}`, 
+          borderRadius: 6, fontSize: "13px", outline: "none", 
+          boxSizing: "border-box", 
+          backgroundColor: disabled ? "#F8FAFC" : "#fff",
+          transition: "border 0.2s, box-shadow 0.2s",
+          boxShadow: isFocused ? `0 0 0 3px rgba(200, 16, 46, 0.1)` : "none"
+        }}
+      />
+      {isOpen && !disabled && filtered.length > 0 && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, zIndex: 50,
+          ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
+          background: "#fff", border: `1px solid ${S.border}`,
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          maxHeight: 280, overflowY: "auto", overflowX: "hidden"
+        }}>
+          {filtered.map(p => (
+            <div 
+              key={p.id}
+              onMouseDown={e => {
+                e.preventDefault();
+                onSelectProduct(p);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${S.bg}`,
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
+            >
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.name}</div>
+              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.code} | Stok: {p.currentStock} {p.unit}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Detail Modal ────────────────────────────────────────────────────────────
 
 function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose: () => void; onEdit: () => void }) {
@@ -140,8 +239,8 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const canEdit = (currentUser?.role === 'Engineering Worker')
-    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
+  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Engineering Supervisor')
+    && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
 
   if (successAction) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -337,7 +436,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
           )}
 
           {/* Supervisor Action Buttons */}
-          {isSpv && currentUser?.role !== 'Admin' && pr.status === 'Pending' && !rejectMode && (
+          {isSpv && currentUser?.role !== 'Admin' && (pr.status === 'Pending' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.backendStatus === 'Submitted') && !rejectMode && (
             <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
               <button
                 onClick={() => setRejectMode(true)}
@@ -391,6 +490,14 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
   const [soId, setSoId] = useState(editRequest?.soId || '');
   const [urgency, setUrgency] = useState<PurchasingUrgency>(editRequest?.urgency || 'Normal');
   const [notes, setNotes] = useState(editRequest?.notes || '');
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    import('../services/masterDataApi').then(({ masterDataApi }) => {
+      masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
+    });
+  }, []);
+
   const [items, setItems] = useState<ItemDraft[]>(() => {
     const sourceItems = editRequest?.items && editRequest.items.length > 0
       ? editRequest.items
@@ -459,7 +566,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
       const payload = {
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || editRequest?.requestedBy || "Engineering Worker",
+        requesterName: currentUser?.name || editRequest?.requestedBy || "Engineering",
         salesOrderId: selectedSo?.backendId || null,
         salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
         projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
@@ -576,13 +683,17 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
                       )}
                     </div>
 
-                    <input
-                      type="text"
-                      required
+                    <MaterialAutocomplete
                       value={item.itemName}
-                      onChange={e => updateItem(idx, 'itemName', e.target.value)}
-                      placeholder="Nama item / material *"
-                      style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
+                      onChange={(val) => updateItem(idx, 'itemName', val)}
+                      onSelectProduct={(p) => {
+                        updateItem(idx, 'itemId', p.id);
+                        updateItem(idx, 'itemName', p.name);
+                        updateItem(idx, 'unit', p.unit);
+                        if (p.category) updateItem(idx, 'purchaseCategory', p.category);
+                      }}
+                      options={inventoryItems}
+                      disabled={false}
                     />
 
                     <textarea
@@ -654,12 +765,18 @@ export function EngineeringPurchasingPage() {
     void refreshBackendData();
   }, [refreshBackendData]);
 
-  const waitingSpvRequests = purchasingRequests.filter(r => r.backendStatus === 'Submitted');
-  const otherRequests = purchasingRequests.filter(r => r.backendStatus !== 'Submitted');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  
+  const relevantRequests = isSpv
+    ? purchasingRequests
+    : purchasingRequests.filter(r => r.requestedBy === currentUser?.name || r.requestedBy === currentUser?.id);
+
+  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted' || r.backendStatus === 'FinanceRejected');
+  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted' && r.backendStatus !== 'FinanceRejected');
 
   const statusCount = (s: string) => {
     if (s === 'Menunggu SPV') return waitingSpvRequests.length;
-    return purchasingRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
+    return relevantRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted' && r.backendStatus !== 'FinanceRejected').length;
   };
 
   return (
@@ -734,7 +851,7 @@ export function EngineeringPurchasingPage() {
                         </div>
                       </div>
                       <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 500, color: S.slate, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</p>
-                      <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{req.requestedBy || 'Engineering Worker'} &nbsp;&middot;&nbsp; {displayQty} &nbsp;&middot;&nbsp; {req.soId || '—'}</p>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{req.requestedBy || 'Engineering'} &nbsp;&middot;&nbsp; {displayQty} &nbsp;&middot;&nbsp; {req.soId || '—'}</p>
                     </div>
                   </div>
                   <button onClick={() => setSelected(req)} style={{ padding: "8px 16px", background: "#8B5CF6", color: "#fff", border: "none", borderRadius: 6, fontSize: "13px", fontWeight: 600, cursor: "pointer", flexShrink: 0, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#7C3AED"} onMouseLeave={e => e.currentTarget.style.background = "#8B5CF6"}>Tinjau Pengajuan</button>

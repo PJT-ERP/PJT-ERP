@@ -69,7 +69,7 @@ const KPI_CARDS = [
 const QUICK_ACTIONS = [
   { label: 'Buat Invoice', icon: FilePlus, to: '/erp/finance/create-invoice', color: 'bg-red-600 hover:bg-red-700 text-white' },
   { label: 'Verifikasi Pembayaran', icon: ShieldCheck, to: '/erp/finance/payment-verification', color: 'bg-amber-500 hover:bg-amber-600 text-white', badge: '2' },
-  { label: 'Approval MR', icon: CheckSquare, to: '/erp/finance/approval-po', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
+  { label: 'Tagihan Supplier', icon: CheckSquare, to: '/erp/finance/approval-po', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
   { label: 'Lihat Laporan', icon: BarChart3, to: '/erp/finance/reports', color: 'bg-slate-700 hover:bg-slate-800 text-white' },
   { label: 'Daftar Invoice', icon: FileText, to: '/erp/finance/invoices', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200' },
 ];
@@ -78,7 +78,7 @@ const statusColors: Record<string, string> = {
   PAID: '#16A34A',
   PENDING: '#F59E0B',
   OVERDUE: '#DC2626',
-  PARTIAL: '#DC2626',
+  PARTIAL: '#3B82F6',
 };
 const statusLabel: Record<string, string> = {
   PAID: 'Lunas', PENDING: 'Menunggu', OVERDUE: 'Jatuh Tempo', PARTIAL: 'Sebagian',
@@ -120,7 +120,7 @@ export function FinanceDashboard() {
     monthlyRevenueData,
     invoiceStatusData,
   } = useFinanceData();
-  const { salesOrders } = useApp();
+  const { salesOrders, purchasingRequests } = useApp();
   const [activeTab, setActiveTab] = useState<'GLOBAL' | 'CUSTOMER'>('GLOBAL');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
 
@@ -156,16 +156,24 @@ export function FinanceDashboard() {
   const financeSummary = useMemo(() => {
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
     const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
+    const totalSupplierBills = purchasingRequests.reduce((sum, request) => sum + (request.estimatedPrice || 0), 0);
+    const paidSupplierBills = purchasingRequests
+      .filter(request => request.status === 'Selesai')
+      .reduce((sum, request) => sum + (request.estimatedPrice || 0), 0);
     const overdueAmount = invoices
       .filter(invoice => invoice.status === 'OVERDUE')
       .reduce((sum, invoice) => sum + Math.max(0, invoice.amount - invoice.paidAmount), 0);
+    const openingBalance = 250_000_000;
 
     return {
       outstandingAmount: Math.max(0, totalBilled - totalPaid),
       overdueAmount,
+      supplierPayable: Math.max(0, totalSupplierBills - paidSupplierBills),
+      currentBalance: openingBalance + totalPaid - paidSupplierBills,
+      openingBalance,
       collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
     };
-  }, [invoices]);
+  }, [invoices, purchasingRequests]);
 
   // Adjust KPIs dynamically based on tab and selected customer
   const displayKPIs = useMemo(() => {
@@ -271,6 +279,21 @@ export function FinanceDashboard() {
                 </span>
               )}
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {[
+          { label: 'Saldo Awal', value: financeSummary.openingBalance, sub: 'Baseline kas presentasi' },
+          { label: 'Saldo Saat Ini', value: financeSummary.currentBalance, sub: 'Saldo awal + masuk - keluar' },
+          { label: 'Hutang Supplier', value: financeSummary.supplierPayable, sub: 'Tagihan supplier belum lunas' },
+          { label: 'Piutang Aktif', value: financeSummary.outstandingAmount, sub: 'Invoice customer belum lunas' },
+        ].map((item) => (
+          <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <p className="text-xs text-slate-400">{item.label}</p>
+            <p className="text-lg font-semibold text-slate-900 mt-1">{formatIDR(item.value)}</p>
+            <p className="text-[11px] text-slate-400 mt-1">{item.sub}</p>
           </div>
         ))}
       </div>
@@ -414,8 +437,8 @@ export function FinanceDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-blue-800">Tugas Estimasi Harga</p>
                     <p className="text-xs text-blue-600 mt-0.5">{pendingPricingOrders.length} Sales Order menunggu estimasi harga</p>
-                    <button onClick={() => navigate('/erp/sales/orders')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
-                      Lihat Daftar SO →
+                    <button onClick={() => navigate('/erp/finance/costing')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
+                      Buka Costing & Pricing →
                     </button>
                   </div>
                 </div>

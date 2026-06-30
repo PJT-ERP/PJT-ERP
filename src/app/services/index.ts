@@ -6,3 +6,4 @@ export { purchasingApi } from './purchasingApi';
 export { qcApi } from './qcApi';
 
 export { salesApi } from './salesApi';
+export * from './analyticsApi';

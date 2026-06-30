@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -5,15 +6,16 @@ import {
 import { Package, Clock, CheckCircle, AlertTriangle, TrendingUp, Users } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SOStatus, calcProductionDuration } from "../components/data/mockData";
+import { analyticsApi, OwnerDashboardDto } from "../services/analyticsApi";
 
 const STATUS_ORDER: SOStatus[] = [
-  'Menunggu Invoice DP',
+  'Waiting Payment',
   'Pending Design', 'Waiting Approval',
   'Ready for Production', 'In Production', 'QC', 'Completed', 'Rejected',
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  'Menunggu Invoice DP': '#F59E0B',
+  'Waiting Payment': '#F59E0B',
   'Pending Design': '#94A3B8',
   'Waiting Approval': '#FCD34D',
   'Ready for Production': '#A78BFA',
@@ -23,17 +25,14 @@ const STATUS_COLORS: Record<string, string> = {
   'Rejected': '#F87171',
 };
 
-const WEEKLY_DATA = [
-  { week: 'W1 Apr', completed: 3, rejected: 0, avgHours: 320 },
-  { week: 'W2 Apr', completed: 5, rejected: 1, avgHours: 290 },
-  { week: 'W3 Apr', completed: 4, rejected: 0, avgHours: 350 },
-  { week: 'W4 Apr', completed: 6, rejected: 1, avgHours: 270 },
-  { week: 'W1 Mei', completed: 4, rejected: 0, avgHours: 310 },
-  { week: 'W2 Mei', completed: 2, rejected: 1, avgHours: 380 },
-];
 
 export function DashboardPage() {
   const { salesOrders, customers, users } = useApp();
+  const [dashboardData, setDashboardData] = useState<OwnerDashboardDto | null>(null);
+
+  useEffect(() => {
+    analyticsApi.getOwnerDashboard().then(setDashboardData).catch(console.error);
+  }, []);
 
   const statusCounts = STATUS_ORDER.map(status => ({
     status: status.length > 12 ? status.slice(0, 12) + '…' : status,
@@ -47,6 +46,22 @@ export function DashboardPage() {
     value: s.count,
     color: s.color,
   }));
+
+  const workerTaskData = users
+    .filter(user => user.role === 'Engineering')
+    .map((worker, index) => {
+      const assigned = salesOrders.filter(so => so.designAssignedTo === worker.id || so.assignedTo === worker.id);
+      const active = assigned.filter(so => !['Completed', 'Rejected'].includes(so.status)).length;
+      const completed = assigned.filter(so => so.status === 'Completed').length;
+      return {
+        name: worker.name,
+        active,
+        completed,
+        total: assigned.length,
+        color: ['#3B82F6', '#F59E0B', '#10B981', '#8B5CF6', '#EF4444'][index % 5],
+      };
+    })
+    .filter(worker => worker.total > 0 || worker.active > 0);
 
   const completedSOs = salesOrders.filter(so => so.status === 'Completed' && so.startTime && so.endTime);
   const avgDuration = completedSOs.length > 0
@@ -152,12 +167,58 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Supervisor worker load */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
+          <h3 className="text-slate-800 mb-1">Status Tugas Worker</h3>
+          <p className="text-xs text-slate-400 mb-4">Distribusi tugas aktif berdasarkan engineer</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={workerTaskData.length > 0 ? workerTaskData : [{ name: 'Belum ada tugas', active: 1, color: '#CBD5E1' }]}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={80}
+                dataKey="active"
+                label={({ value }) => `${value}`}
+                labelLine={false}
+              >
+                {(workerTaskData.length > 0 ? workerTaskData : [{ name: 'Belum ada tugas', color: '#CBD5E1' }]).map((entry, idx) => (
+                  <Cell key={`worker-pie-${entry.name}-${idx}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number, name: string, props: any) => [value, props.payload.name]}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="lg:col-span-2 bg-white rounded-md shadow-sm border border-slate-200 p-5">
+          <h3 className="text-slate-800 mb-1">Beban Kerja Engineer</h3>
+          <p className="text-xs text-slate-400 mb-4">Task aktif dan selesai per worker</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={workerTaskData} margin={{ top: 0, right: 10, left: -20, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6B7280' }} angle={-20} textAnchor="end" />
+              <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Legend formatter={(value) => <span style={{ fontSize: 11, color: '#6B7280' }}>{value}</span>} />
+              <Bar dataKey="active" name="Aktif" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="completed" name="Selesai" fill="#10B981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* Line Chart - Weekly Performance */}
       <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5 mb-6">
         <h3 className="text-slate-800 mb-1">Performa Mingguan</h3>
         <p className="text-xs text-slate-400 mb-4">Jumlah SO selesai & rata-rata durasi produksi (jam)</p>
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={WEEKLY_DATA} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+          <LineChart data={dashboardData?.weeklyPerformance || []} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
             <CartesianGrid key="line-grid" strokeDasharray="3 3" stroke="#E2E8F0" />
             <XAxis key="line-xaxis" dataKey="week" tick={{ fontSize: 11, fill: '#6B7280' }} />
             <YAxis key="line-yaxis-left" yAxisId="left" tick={{ fontSize: 11, fill: '#6B7280' }} />

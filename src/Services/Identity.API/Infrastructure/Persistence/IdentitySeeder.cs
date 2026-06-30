@@ -16,7 +16,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "owner@pjt.local",
-                Name = "Wildan Pratama",
+                Name = "Owner",
                 Department = "Executive",
                 Role = "Owner",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -32,7 +32,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "sales@pjt.local",
-                Name = "Budi Santoso",
+                Name = "Sales User",
                 Department = "Sales",
                 Role = "Sales",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -40,7 +40,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "engineering@pjt.local",
-                Name = "Reza Firmansyah",
+                Name = "Engineering User",
                 Department = "Engineering",
                 Role = "Engineering Worker",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -48,7 +48,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "engineering-worker@pjt.local",
-                Name = "Arief Worker",
+                Name = "Production Worker",
                 Department = "Engineering",
                 Role = "Engineering Worker",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -56,7 +56,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "engineering-supervisor@pjt.local",
-                Name = "Dimas Supervisor",
+                Name = "Engineering Supervisor",
                 Department = "Engineering",
                 Role = "Engineering Supervisor",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -64,7 +64,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "purchasing@pjt.local",
-                Name = "Ahmad Fauzi",
+                Name = "Purchasing User",
                 Department = "Purchasing",
                 Role = "Purchasing",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -72,7 +72,7 @@ public static class IdentitySeeder
             new UserAccount
             {
                 Email = "finance@pjt.local",
-                Name = "Dewi Kusuma",
+                Name = "Finance User",
                 Department = "Finance",
                 Role = "Finance",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
@@ -90,9 +90,21 @@ public static class IdentitySeeder
         foreach (var existingUser in existingUsers)
         {
             var seedUser = seedUsers.FirstOrDefault(u => u.Email == existingUser.Email);
-            if (seedUser != null && existingUser.Role != seedUser.Role)
+            if (seedUser is null)
+            {
+                continue;
+            }
+
+            if (existingUser.Role != seedUser.Role)
             {
                 existingUser.Role = seedUser.Role;
+                anyUpdated = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(existingUser.PasswordHash)
+                || !BCrypt.Net.BCrypt.Verify("Dev123!", existingUser.PasswordHash))
+            {
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!");
                 anyUpdated = true;
             }
         }

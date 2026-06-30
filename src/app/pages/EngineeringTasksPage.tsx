@@ -32,7 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
   const { updateSalesOrder, users } = useApp();
-  const engineers = users.filter(user => user.role === 'Engineering Worker' || user.role === 'Engineering Supervisor');
+  const engineers = users.filter(user => user.role === 'Engineering' || user.role === 'Engineering Supervisor');
 
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
@@ -81,34 +81,28 @@ export function EngineeringTasksPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
   
-  const pendingSalesOrders = salesOrders
-    .filter(so => {
-      if (isSpv) {
-        // Show all SOs that went through design phase (have a backendDesignStatus)
-        // and haven't moved to production yet
-        const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Menunggu Invoice DP', 'Rejected'];
-        return engineeringStatuses.includes(so.status) && 
-               so.backendDesignStatus !== undefined &&
-               so.backendDesignStatus !== null;
-      }
-      return ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'].includes(so.status);
-    });
-
-  const allQueue = [...pendingSalesOrders];
+  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Rejected'];
+  
+  const pendingSalesOrders = salesOrders.filter(so => engineeringStatuses.includes(so.status) || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired' || so.backendDesignStatus === 'WaitingApproval');
+  const completedSalesOrders = salesOrders.filter(so => 
+    !engineeringStatuses.includes(so.status) && 
+    so.backendDesignStatus === 'Approved' &&
+    (so.designAssignedTo || so.designLink || (so.designRevisions && so.designRevisions.length > 0))
+  );
+  const allQueue = activeTab === 'pending' ? pendingSalesOrders : completedSalesOrders;
   
   const queue = allQueue
     .filter(q => {
-      if (isSpv) {
-        return true;
-      }
-      return q.designAssignedTo === currentUser?.id;
+      if (isSpv) return true;
+      return q.designAssignedTo === currentUser?.id || q.designAssignedTo === currentUser?.name || q.designAssignedName === currentUser?.name;
     })
     .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const waitingReview = allQueue.filter(item => isSpv && (item.backendDesignStatus === 'WaitingApproval' || item.status === 'Waiting Spv Approval'));
+  const waitingReview = pendingSalesOrders.filter(item => isSpv && (item.backendDesignStatus === 'WaitingApproval' || item.status === 'Waiting Spv Approval'));
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -121,7 +115,32 @@ export function EngineeringTasksPage() {
         </div>
       </div>
 
-      {isSpv && (
+      <div style={{ display: "flex", gap: 24, borderBottom: `1px solid ${S.border}`, marginTop: 8 }}>
+        <button
+          onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
+          style={{
+            background: "none", border: "none", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: activeTab === 'pending' ? S.cyan : S.secondary,
+            borderBottom: activeTab === 'pending' ? `2px solid ${S.cyan}` : "2px solid transparent",
+            padding: "0 4px 12px", marginBottom: "-1px", transition: "all 0.2s"
+          }}
+        >
+          Sedang Berjalan
+        </button>
+        <button
+          onClick={() => { setActiveTab('completed'); setCurrentPage(1); }}
+          style={{
+            background: "none", border: "none", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+            color: activeTab === 'completed' ? S.cyan : S.secondary,
+            borderBottom: activeTab === 'completed' ? `2px solid ${S.cyan}` : "2px solid transparent",
+            padding: "0 4px 12px", marginBottom: "-1px", transition: "all 0.2s"
+          }}
+        >
+          Riwayat Selesai
+        </button>
+      </div>
+
+      {isSpv && activeTab === 'pending' && (
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -191,11 +210,19 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const assignedName = qut.designAssignedName || users.find(user => user.id === qut.designAssignedTo)?.name || "-";
-            const canWork = qut.designAssignedTo === currentUser?.id && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+            const currentUserBackendId = toBackendUserId(currentUser);
+            const isAssignedToCurrentUser = 
+              qut.designAssignedTo === currentUser?.id || 
+              (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
+              qut.designAssignedTo === currentUser?.name ||
+              qut.designAssignedName === currentUser?.name;
+            const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcDecision;
+            
+            const canWork = isPreProduction && isAssignedToCurrentUser && qut.backendDesignStatus !== 'Approved';
             // Review button: only when design is waiting for supervisor approval
-            const canReview = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
+            const canReview = isPreProduction && isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet
-            const canAssign = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design');
+            const canAssign = isPreProduction && isSpv && currentUser?.role !== 'Admin' && qut.backendDesignStatus !== 'Approved';
 
             return (
             <div
@@ -253,6 +280,7 @@ export function EngineeringTasksPage() {
                     {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
                   </button>
                 )}
+
                 {!canWork && !canAssign && canReview && (
                   <button
                     onClick={(event) => {

@@ -3,8 +3,8 @@ import { Users, TrendingUp, CalendarClock, AlertTriangle, ChevronDown, ChevronRi
 import { useApp } from "../components/context/AppContext";
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
-const TODAY = new Date('2026-06-07');
-const CURRENT_YEAR = 2026;
+const TODAY = new Date();
+const CURRENT_YEAR = TODAY.getFullYear();
 
 function monthKey(dateStr: string) {
   const d = new Date(dateStr);

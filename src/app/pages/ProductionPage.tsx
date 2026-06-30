@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { PlayCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlayCircle, PauseCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { useNavigate } from "react-router";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingRequest, PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
 import { productionApi } from "../services/productionApi";
@@ -8,6 +9,8 @@ import { salesApi } from "../services/salesApi";
 import { isGuid, toBackendUserId } from "../services/backendIds";
 import { useFinanceData } from "../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../components/so/invoice-sync";
+import { masterDataApi, InventoryItemDto } from "../services/masterDataApi";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
 
 const S = {
   font: "Inter, sans-serif",
@@ -130,40 +133,54 @@ function parseMaterialText(value?: string | null): MaterialOption[] {
 
 function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   const options: MaterialOption[] = [];
+  const seen = new Set<string>();
 
-  if (Array.isArray(so.materials)) {
-    so.materials.forEach((material: any, index: number) => {
+  const addOption = (item: string, spec: string) => {
+    const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
+    if (!seen.has(key) && item.trim()) {
+      seen.add(key);
+      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim() });
+    }
+  };
+
+  // 1. If Engineer explicitly defined materials, use them (but filter out obvious test data like "pppp")
+  if (Array.isArray(so.materials) && so.materials.length > 0) {
+    let hasValidEngineerMaterials = false;
+    so.materials.forEach((material: any) => {
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
-      if (itemName) {
-        options.push({ key: `material-${index}-${itemName}`, itemName, specification });
+      
+      // Ignore obvious dummy test inputs
+      if (itemName && itemName.toLowerCase() !== "pppp") {
+        addOption(itemName, specification);
+        hasValidEngineerMaterials = true;
       }
     });
+    
+    // If engineer provided a valid BOM, we shouldn't mix it with raw SO descriptions
+    if (hasValidEngineerMaterials) {
+      return options;
+    }
   }
 
-  options.push(...parseMaterialText(so.material));
-  options.push(...parseMaterialText(so.notes));
-
+  // 2. Fallback to parsing initial materials from SO creation
+  parseMaterialText(so.material).forEach(m => addOption(m.itemName, m.specification));
+  
   if (Array.isArray(so.items)) {
-    so.items.forEach((item: any, index: number) => {
+    so.items.forEach((item: any) => {
       const itemName = String(item?.productName || item?.productDescription || item?.partNumber || "").trim();
       if (itemName) {
-        options.push({ key: `product-${index}-${itemName}`, itemName, specification: "" });
+        addOption(itemName, "");
       }
     });
   }
 
-  if (so.description) {
-    options.push({ key: "so-description", itemName: so.description, specification: so.spec || "" });
+  // Only use description if we still have absolutely nothing
+  if (options.length === 0 && so.description) {
+    addOption(so.description, so.spec || "");
   }
 
-  const seen = new Set<string>();
-  return options.filter(option => {
-    const key = `${option.itemName.toLowerCase()}|${option.specification.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return options;
 }
 
 function DrawingLinks({ so }: { so: SalesOrder }) {
@@ -187,14 +204,12 @@ function DrawingLinks({ so }: { so: SalesOrder }) {
 
 function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { users, currentUser, refreshBackendData } = useApp();
-  const [operatorId, setOperatorId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const operators = users.filter(u => u.role === 'Engineering Worker' || u.role === 'Engineering Supervisor');
+  const operators = users.filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!operatorId || isSubmitting) return;
+  const handleAssign = async (operatorId: string) => {
+    if (isSubmitting) return;
     const operator = users.find(u => u.id === operatorId);
     const operatorBackendId = toBackendUserId(operator);
     const reviewer = users.find(user => user.role === "Engineering Supervisor") || currentUser || operator;
@@ -224,40 +239,148 @@ function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => v
     } catch (error) {
       console.warn("Failed to assign operator in backend.", error);
       alert("Gagal assign operator ke backend. Cek koneksi API atau data SO.");
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 400, fontFamily: S.font, overflow: "hidden" }}>
-        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Tugaskan Operator</h2>
-            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id} — {so.description}</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
-        </div>
-        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Pilih Operator <span style={{ color: "#EF4444" }}>*</span></label>
-            <select required value={operatorId} onChange={e => setOperatorId(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }}>
-              <option value="" disabled>Pilih Operator...</option>
-              {operators.map(op => <option key={op.id} value={op.id}>{op.name}</option>)}
-            </select>
-          </div>
-          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={!operatorId || isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: operatorId && !isSubmitting ? "pointer" : "not-allowed", opacity: operatorId && !isSubmitting ? 1 : 0.5 }}>
-              {isSubmitting ? "Menyimpan..." : "Konfirmasi"}
-            </button>
-          </div>
-        </form>
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 380, padding: 24, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+        <h2 style={{ color: S.slate, margin: "0 0 4px", fontSize: "18px" }}>Tugaskan Operator</h2>
+        <p style={{ color: S.secondary, margin: "0 0 16px", fontSize: "12.5px" }}>{so.id} - {so.description || so.productName}</p>
+        
+        {isSubmitting ? (
+          <div style={{ padding: "30px 0", textAlign: "center", color: S.secondary, fontSize: "14px", fontWeight: 500 }}>Menyimpan Penugasan...</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {operators.map(operator => (
+                <button
+                  key={operator.id}
+                  onClick={() => handleAssign(operator.id)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: 12,
+                    borderRadius: 8,
+                    border: `1px solid ${S.border}`,
+                    background: S.white,
+                    cursor: "pointer",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = S.bg}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = S.white}
+                >
+                  <p style={{ margin: 0, color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>{operator.name}</p>
+                  <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "12px" }}>{operator.email}</p>
+                </button>
+              ))}
+            </div>
+            <button onClick={onClose} style={{ width: "100%", marginTop: 14, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = S.bg} onMouseLeave={e => e.currentTarget.style.backgroundColor = S.white}>Batal</button>
+          </>
+        )}
       </div>
     </div>
   );
+}
+
+function MaterialAutocomplete({
+  value,
+  onChange,
+  onSelectProduct,
+  options,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectProduct: (product: any) => void;
+  options: any[];
+  disabled: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 280) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
+
+  const filtered = options.filter(p => 
+    (p.code + ' ' + p.name).toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column" }}>
+      <input
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+        onBlur={() => setIsFocused(false)}
+        placeholder="Ketik atau pilih dari Master Data..."
+        disabled={disabled}
+        style={{
+          width: "100%", padding: "9px 10px", 
+          border: `1px solid ${isFocused ? S.cyan : S.border}`, 
+          borderRadius: 6, fontSize: "13px", outline: "none", 
+          boxSizing: "border-box", 
+          backgroundColor: disabled ? "#F8FAFC" : "#fff",
+          transition: "border 0.2s, box-shadow 0.2s",
+          boxShadow: isFocused ? `0 0 0 3px rgba(200, 16, 46, 0.1)` : "none"
+        }}
+      />
+      {isOpen && !disabled && filtered.length > 0 && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, zIndex: 50,
+          ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
+          background: "#fff", border: `1px solid ${S.border}`,
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          maxHeight: 280, overflowY: "auto", overflowX: "hidden"
+        }}>
+          {filtered.map(p => (
+            <div 
+              key={p.id}
+              onMouseDown={e => {
+                e.preventDefault();
+                onSelectProduct(p);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${S.bg}`,
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
+            >
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.slate }}>{p.name}</div>
+              <div style={{ fontSize: "11.5px", color: S.secondary, marginTop: 4 }}>{p.code} | Stok: {p.currentStock} {p.unit}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function MaterialRequestModal({
@@ -274,8 +397,13 @@ function MaterialRequestModal({
   const { currentUser, refreshBackendData } = useApp();
   const materialOptions = getMaterialOptions(so);
   const firstMaterial = materialOptions[0];
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
+  }, []);
   const [items, setItems] = useState([
     {
       materialKey: firstMaterial?.key || "",
@@ -359,7 +487,7 @@ function MaterialRequestModal({
       onMessage({
         tone: "error",
         title: "Operator Tidak Ditemukan",
-        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering Worker yang ditugaskan.",
+        message: "ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering yang ditugaskan.",
       });
       return;
     }
@@ -368,7 +496,7 @@ function MaterialRequestModal({
       setIsSubmitting(true);
       await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
+        requesterName: currentUser?.name || so.assignedName || "Engineering",
         notes: notes || null,
         items: parsedItems.map(item => ({
           materialRequirementId: null,
@@ -431,19 +559,18 @@ function MaterialRequestModal({
                     </button>
                   )}
                 </div>
-                <select
-                  value={item.materialKey}
-                  onChange={e => selectMaterial(index, e.target.value)}
-                  required
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                >
-                  <option value="" disabled>Pilih material / item...</option>
-                  {materialOptions.map(option => (
-                    <option key={option.key} value={option.key}>
-                      {option.itemName}{option.specification ? ` - ${option.specification}` : ""}
-                    </option>
-                  ))}
-                </select>
+                <MaterialAutocomplete
+                  value={item.itemName}
+                  onChange={(val) => updateItem(index, "itemName", val)}
+                  onSelectProduct={(p) => {
+                    updateItem(index, "materialKey", p.id);
+                    updateItem(index, "itemName", p.name);
+                    updateItem(index, "unit", p.unit);
+                    if (p.category) updateItem(index, "purchaseCategory", p.category);
+                  }}
+                  options={inventoryItems}
+                  disabled={false}
+                />
                 <textarea
                   value={item.specification}
                   onChange={e => updateItem(index, "specification", e.target.value)}
@@ -477,17 +604,6 @@ function MaterialRequestModal({
                     <option>Critical</option>
                   </select>
                 </div>
-                <select
-                  value={item.purchaseCategory}
-                  onChange={e => updateItem(index, "purchaseCategory", e.target.value)}
-                  style={{ width: "100%", padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", background: S.white }}
-                >
-                  <option>Project</option>
-                  <option>Consumable</option>
-                  <option>Tools</option>
-                  <option>Maintenance</option>
-                  <option>Asset</option>
-                </select>
               </div>
             ))}
             <button type="button" onClick={addItem} style={{ padding: "10px", border: `1px dashed ${S.border}`, background: S.white, color: S.secondary, borderRadius: 8, fontSize: "13px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -515,20 +631,19 @@ function MaterialRequestModal({
 
 function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
-  const today = new Date().toISOString().slice(0, 16);
-  const [startDate, setStartDate] = useState(today);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
     const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
     const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
     const workerUserId = currentUserGuid || assignedWorkerGuid || "";
 
     const salesOrderId = getBackendSalesOrderId(so);
     if (!isGuid(salesOrderId) || !workerUserId) {
-      alert("Tidak bisa mulai produksi karena data backend SO/operator belum lengkap.");
+      alert("Gagal: SO ini belum sinkron dengan backend (ID tidak valid) atau user pekerja tidak valid.");
       return;
     }
 
@@ -536,7 +651,7 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
       setIsSubmitting(true);
       await productionApi.startProduction(salesOrderId, {
         workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+        workerName: currentUser?.name || so.assignedName || "Engineering",
       });
       await refreshBackendData();
       onClose();
@@ -550,26 +665,137 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
     }
   };
 
+  let isLate = false;
+  let daysLate = 0;
+  if (so.deadline) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const deadlineStr = so.deadline.split("T")[0];
+    const tDate = new Date(todayStr);
+    const dDate = new Date(deadlineStr);
+    if (tDate > dDate) {
+      isLate = true;
+      daysLate = Math.round((tDate.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 450, fontFamily: S.font, overflow: "hidden" }}>
         <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Mulai Produksi</h2>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>{so.status === 'Paused' ? 'Lanjutkan Produksi' : 'Mulai Produksi'}</h2>
             <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id}</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
         </div>
         <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {isLate && (
+            <div style={{ padding: "10px 12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#B91C1C", fontSize: "13px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <div style={{ marginTop: 2, flexShrink: 0 }}><AlertTriangle size={16} /></div>
+              <div>
+                <strong>Peringatan Keterlambatan</strong>
+                <p style={{ margin: "2px 0 0", fontSize: "13px" }}>Produksi ini telah melewati deadline selama <strong>{daysLate} hari</strong>.</p>
+              </div>
+            </div>
+          )}
           <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Tanggal & Waktu Mulai <span style={{ color: "#EF4444" }}>*</span></label>
-            <input type="datetime-local" required value={startDate} onChange={e => setStartDate(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+            <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, lineHeight: "1.5" }}>
+              {so.status === 'Paused' && so.pauseReason === 'Mesin Rusak' ? (
+                <>Produksi sebelumnya dihentikan karena <strong>Mesin Rusak</strong>. Apakah mesin sudah diperbaiki dan Anda yakin ingin melanjutkan produksi?</>
+              ) : so.status === 'Paused' && so.pauseReason === 'Kapasitas Penuh' ? (
+                <>Produksi sebelumnya dihentikan karena <strong>Kapasitas Penuh</strong>. Apakah kapasitas mesin sudah tersedia dan Anda yakin ingin melanjutkan produksi?</>
+              ) : so.status === 'Paused' && so.pauseReason === 'Material Kurang' ? (
+                <>Produksi sebelumnya dihentikan karena <strong>Material Kurang</strong>. Apakah material sudah tersedia lengkap dan Anda yakin ingin melanjutkan produksi?</>
+              ) : so.status === 'Paused' && so.pauseReason ? (
+                <>Produksi sebelumnya dihentikan karena <strong>{so.pauseReason}</strong>. Apakah kendala sudah teratasi dan Anda yakin ingin melanjutkan produksi?</>
+              ) : (
+                <>Apakah Anda yakin ingin mulai mengerjakan produksi untuk pesanan ini? <br />
+                <strong>Waktu mulai akan tercatat otomatis sesuai waktu saat ini.</strong></>
+              )}
+            </p>
           </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
             <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.65 : 1 }}>
-              <PlayCircle size={16} /> {isSubmitting ? "Menyimpan..." : "Konfirmasi Mulai"}
+              <PlayCircle size={16} /> {isSubmitting ? "Menyimpan..." : (so.status === 'Paused' ? "Lanjutkan Produksi" : "Konfirmasi Mulai")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+  const { currentUser, refreshBackendData } = useApp();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pauseReason, setPauseReason] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting || !pauseReason.trim()) return;
+
+    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
+    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
+    const workerUserId = currentUserGuid || assignedWorkerGuid || "";
+
+    const salesOrderId = getBackendSalesOrderId(so);
+    if (!isGuid(salesOrderId) || !workerUserId) {
+      alert("Gagal: SO ini belum sinkron dengan backend (ID tidak valid) atau user pekerja tidak valid.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await productionApi.pauseProduction(salesOrderId, {
+        workerUserId,
+        workerName: currentUser?.name || so.assignedName || "Engineering",
+        reason: pauseReason.trim(),
+      });
+      await refreshBackendData();
+      onClose();
+    } catch (error: unknown) {
+      console.warn("Failed to pause production in backend.", error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const backendMsg = axiosError?.response?.data?.message;
+      alert(backendMsg ? `Gagal pause produksi: ${backendMsg}` : "Gagal pause produksi di backend. Cek koneksi API atau data operator.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 450, fontFamily: S.font, overflow: "hidden" }}>
+        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Jeda Produksi</h2>
+            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.id}</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#991B1B", fontSize: "13.5px" }}>
+            <AlertTriangle size={14} style={{ display: 'inline', marginTop: -2 }} /> Peringatan: Menjeda produksi berarti menghentikan catatan waktu kerja. Pastikan hal ini dilakukan karena ada kendala di lapangan.
+          </div>
+          <div>
+            <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "12.5px", color: S.slate }}>Alasan Jeda/Kendala:</p>
+            <textarea
+              value={pauseReason}
+              onChange={e => setPauseReason(e.target.value)}
+              placeholder="Contoh: Mesin CNC rusak, bahan baku aluminium habis..."
+              rows={3}
+              style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "-6px" }}>
+            <button type="button" onClick={() => setPauseReason("Material Kurang")} style={{ padding: "4px 10px", fontSize: "11.5px", background: "#F1F5F9", border: `1px solid ${S.border}`, borderRadius: 12, cursor: "pointer", color: S.slate }}>Material Kurang</button>
+            <button type="button" onClick={() => setPauseReason("Mesin Rusak")} style={{ padding: "4px 10px", fontSize: "11.5px", background: "#F1F5F9", border: `1px solid ${S.border}`, borderRadius: 12, cursor: "pointer", color: S.slate }}>Mesin Rusak</button>
+            <button type="button" onClick={() => setPauseReason("Kapasitas Penuh")} style={{ padding: "4px 10px", fontSize: "11.5px", background: "#F1F5F9", border: `1px solid ${S.border}`, borderRadius: 12, cursor: "pointer", color: S.slate }}>Kapasitas Penuh</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+            <button type="submit" disabled={isSubmitting || !pauseReason.trim()} style={{ flex: 1, padding: "10px", background: "#EA580C", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: (isSubmitting || !pauseReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: (isSubmitting || !pauseReason.trim()) ? 0.65 : 1 }}>
+               {isSubmitting ? "Menyimpan..." : "Jeda Sekarang"}
             </button>
           </div>
         </form>
@@ -583,10 +809,40 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
   const today = new Date().toISOString().slice(0, 16);
   const [endDate, setEndDate] = useState(today);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lateReason, setLateReason] = useState("");
+
+  let canFinish = true;
+  let hMinus3Str = "";
+  if (so.deadline) {
+    const deadlineDate = new Date(so.deadline);
+    if (!isNaN(deadlineDate.getTime())) {
+      const hMinus3 = new Date(deadlineDate);
+      hMinus3.setDate(deadlineDate.getDate() - 3);
+      hMinus3.setHours(0, 0, 0, 0);
+      
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+      canFinish = todayDate >= hMinus3;
+      hMinus3Str = hMinus3.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+  }
+
+  let isLate = false;
+  let daysLate = 0;
+  if (so.deadline) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const deadlineStr = so.deadline.split("T")[0];
+    const tDate = new Date(todayStr);
+    const dDate = new Date(deadlineStr);
+    if (tDate > dDate) {
+      isLate = true;
+      daysLate = Math.round((tDate.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !canFinish || (isLate && !lateReason.trim())) return;
     const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
     const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
     const workerUserId = currentUserGuid || assignedWorkerGuid || "";
@@ -601,7 +857,7 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
       setIsSubmitting(true);
       await productionApi.finishProduction(salesOrderId, {
         workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering Worker",
+        workerName: currentUser?.name || so.assignedName || "Engineering",
       });
       await refreshBackendData();
       onClose();
@@ -626,17 +882,52 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
         </div>
         <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Tanggal & Waktu Selesai <span style={{ color: "#EF4444" }}>*</span></label>
-            <input type="datetime-local" required value={endDate} min={so.startTime ? so.startTime.slice(0, 16) : undefined} onChange={e => setEndDate(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, background: S.white, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
-          </div>
-          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.65 : 1 }}>
-              <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
-            </button>
-          </div>
+          {isLate && (
+            <>
+              <div style={{ padding: "10px 12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#B91C1C", fontSize: "13px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ marginTop: 2, flexShrink: 0 }}><AlertTriangle size={16} /></div>
+                <div>
+                  <strong>Peringatan Keterlambatan</strong>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px" }}>Produksi ini telah melewati deadline selama <strong>{daysLate} hari</strong>.</p>
+                </div>
+              </div>
+              <div>
+                <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "12.5px", color: S.slate }}>Alasan Keterlambatan:</p>
+                <textarea
+                  value={lateReason}
+                  onChange={e => setLateReason(e.target.value)}
+                  placeholder="Contoh: Material kurang, mesin rusak..."
+                  rows={2}
+                  style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
+                />
+              </div>
+            </>
+          )}
+          {!canFinish ? (
+            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#991B1B", fontSize: "13.5px" }}>
+              <AlertTriangle size={14} style={{ display: 'inline', marginTop: -2 }} /> Tombol baru dapat diklik mulai <strong>{hMinus3Str}</strong> (Minimal H-3 Deadline).
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, lineHeight: "1.5" }}>
+                Apakah Anda yakin ingin menyelesaikan produksi untuk pesanan ini? <br />
+                <strong>Waktu selesai akan tercatat otomatis sesuai waktu saat ini.</strong>
+              </p>
+            </div>
+          )}
+          
+          {!canFinish ? (
+            <div style={{ display: "flex", paddingTop: 8 }}>
+              <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Mengerti</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+              <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+              <button type="submit" disabled={isSubmitting || (isLate && !lateReason.trim())} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting || (isLate && !lateReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting || (isLate && !lateReason.trim()) ? 0.65 : 1 }}>
+                <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
@@ -694,13 +985,17 @@ function MaterialReviewModal({
   request,
   onClose,
   onApprove,
+  onReject,
 }: {
   so: SalesOrder;
   request?: PurchasingRequest;
   onClose: () => void;
   onApprove: () => Promise<boolean>;
+  onReject: (reason: string) => Promise<boolean>;
 }) {
   const [isApproving, setIsApproving] = useState(false);
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const items = request?.items && request.items.length > 0
     ? request.items
     : [{
@@ -737,7 +1032,7 @@ function MaterialReviewModal({
             </div>
             <div>
               <p style={{ margin: 0, color: S.secondary, fontSize: 12, fontWeight: 600 }}>Diajukan Oleh</p>
-              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5 }}>{request?.requestedBy || so.assignedName || "Engineering Worker"}</p>
+              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5 }}>{request?.requestedBy || so.assignedName || "Engineering"}</p>
             </div>
           </div>
 
@@ -764,23 +1059,64 @@ function MaterialReviewModal({
               <p style={{ margin: 0, color: S.slate, fontSize: 13 }}>{request.notes}</p>
             </div>
           )}
+
+          {rejectMode && (
+            <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 12 }}>
+              <p style={{ fontSize: "12px", color: "#991B1B", margin: "0 0 8px", fontWeight: 700 }}>Catatan Penolakan Supervisor</p>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="Contoh: qty terlalu banyak, spesifikasi belum lengkap..."
+                style={{ width: "100%", padding: "10px 12px", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", resize: "none", boxSizing: "border-box" }}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => { setRejectMode(false); setRejectReason(''); }}
+                  disabled={isApproving}
+                  style={{ flex: 1, padding: "9px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: isApproving ? "not-allowed" : "pointer" }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (isApproving) return;
+                    setIsApproving(true);
+                    const ok = await onReject(rejectReason);
+                    setIsApproving(false);
+                    if (ok) onClose();
+                  }}
+                  disabled={isApproving || !rejectReason.trim()}
+                  style={{ flex: 1, padding: "9px", background: "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: isApproving || !rejectReason.trim() ? "not-allowed" : "pointer", opacity: isApproving || !rejectReason.trim() ? 0.55 : 1 }}
+                >
+                  {isApproving ? "Menolak..." : "Konfirmasi Tolak"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div style={{ padding: "14px 22px", borderTop: `1px solid ${S.border}`, display: "flex", gap: 10 }}>
-          <button type="button" onClick={onClose} disabled={isApproving} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: isApproving ? "not-allowed" : "pointer" }}>
-            Batal
-          </button>
-          <button type="button" onClick={handleApprove} disabled={isApproving} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: isApproving ? "not-allowed" : "pointer", opacity: isApproving ? 0.65 : 1 }}>
-            {isApproving ? "Menyetujui..." : "Approve ke Purchasing"}
-          </button>
-        </div>
+        {!rejectMode && (
+          <div style={{ padding: "14px 22px", borderTop: `1px solid ${S.border}`, display: "flex", gap: 10 }}>
+            <button type="button" onClick={() => setRejectMode(true)} disabled={isApproving} style={{ flex: 1, padding: "10px", background: S.white, border: "1px solid #FECACA", color: "#EF4444", borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: isApproving ? "not-allowed" : "pointer" }}>
+              Tolak
+            </button>
+            <button type="button" onClick={handleApprove} disabled={isApproving} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: isApproving ? "not-allowed" : "pointer", opacity: isApproving ? 0.65 : 1 }}>
+              {isApproving ? "Menyetujui..." : "Approve ke Purchasing"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+  const { purchasingRequests } = useApp();
   const materials = getMaterialOptions(so);
+  const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, fontFamily: S.font, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
@@ -792,16 +1128,44 @@ function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () =>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
         </div>
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
-          <div>
-            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deskripsi</p>
-            <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.description}</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: -4 }}>
+            <StatusBadge status={so.status} />
+            {(so as any).productionStatus && (so as any).productionStatus !== so.status && <StatusBadge status={(so as any).productionStatus} />}
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Pelanggan</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.customerName || so.customerId}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deadline</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.deadline}</p>
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Deskripsi Produk</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>{so.description}</p>
+            </div>
+          </div>
+          { (request?.status === 'Ditolak' || request?.backendStatus === 'Rejected') && request?.rejectionReason && (
+            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8 }}>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#B91C1C" }}>MR Ditolak (Catatan SPV):</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#DC2626" }}>{request.rejectionReason}</p>
+            </div>
+          )}
+          { so.status === 'Paused' && so.pauseReason && (
+            <div style={{ padding: "12px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8 }}>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#9A3412" }}>Alasan Produksi Dihentikan Sementara:</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#C2410C" }}>{so.pauseReason}</p>
+            </div>
+          )}
           <div>
             <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 4px", fontWeight: 600 }}>Link Desain / Gambar</p>
             {getDrawingUrl(so) ? (
               <a href={getDrawingUrl(so)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "14px", fontWeight: 500, textDecoration: "underline" }}>Lihat Gambar Desain</a>
             ) : (
-              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Tidak ada link desain</p>
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>
+                {so.backendDesignStatus === 'Approved' && !so.designApprovedAt ? "Ini produk terdaftar, jadi tidak butuh desain" : "Tidak ada link desain"}
+              </p>
             )}
           </div>
           <div>
@@ -837,13 +1201,39 @@ export function ProductionPage() {
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const currentBackendUserId = toBackendUserId(currentUser);
 
+  const navigate = useNavigate();
   const [assignModal, setAssignModal] = useState<SalesOrder | null>(null);
-  const [startModal, setStartModal] = useState<SalesOrder | null>(null);
-  const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
-  const [reqModal, setReqModal] = useState<SalesOrder | null>(null);
+  const [startModal, setStartModal] = useState<SalesOrder | null>(null);  const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
+  const [pauseModal, setPauseModal] = useState<SalesOrder | null>(null);
   const [reviewMrModal, setReviewMrModal] = useState<SalesOrder | null>(null);
   const [detailModal, setDetailModal] = useState<SalesOrder | null>(null);
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
+
+  const handleResume = async (so: SalesOrder) => {
+    const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
+    const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
+    const workerUserId = currentUserGuid || assignedWorkerGuid || "";
+
+    const salesOrderId = getBackendSalesOrderId(so);
+    if (!isGuid(salesOrderId) || !workerUserId) {
+      alert("Gagal: SO ini belum sinkron dengan backend (ID tidak valid) atau user pekerja tidak valid.");
+      return;
+    }
+
+    try {
+      await productionApi.resumeProduction(salesOrderId, {
+        workerUserId,
+        workerName: currentUser?.name || so.assignedName || "Engineering",
+      });
+      await refreshBackendData();
+    } catch (error: unknown) {
+      console.warn("Failed to resume production in backend.", error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const backendMsg = axiosError?.response?.data?.message;
+      alert(backendMsg ? `Gagal resume produksi: ${backendMsg}` : "Gagal resume produksi di backend.");
+    }
+  };
+
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
 
   // Pagination states
@@ -855,9 +1245,18 @@ export function ProductionPage() {
 
   // Lists
   const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
-  const pendingAssignment = mergedSalesOrders.filter(so => so.status === 'Ready for Production' && !so.assignedTo);
-  const materialPrep = mergedSalesOrders.filter(so => so.status === 'Ready for Production' && !!so.assignedTo && isAssignedToCurrentUser(so));
-  const inProduction = mergedSalesOrders.filter(so => so.status === 'In Production' && isAssignedToCurrentUser(so));
+  
+  const isReadyForProd = (so: SalesOrder) => {
+    if (so.status === 'Ready for Production') return true;
+    // Exclude if it's already started production or reached QC
+    if (so.startTime || so.qcDecision) return false;
+    if (so.backendDesignStatus === 'Approved' && ['Waiting Pricing', 'Waiting Payment', 'Pending Design', 'Waiting Approval'].includes(so.status)) return true;
+    return false;
+  };
+
+  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo);
+  const materialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so));
+  const inProduction = mergedSalesOrders.filter(so => (so.status === 'In Production' || so.status === 'Paused') && isAssignedToCurrentUser(so));
   const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC');
 
   const getMaterialRequest = (so: SalesOrder) => {
@@ -959,7 +1358,45 @@ export function ProductionPage() {
       setSystemMessage({
         tone: "error",
         title: "Gagal Approve MR",
-        message: axiosError?.response?.data?.message || "Approval MR gagal dikirim ke backend. Cek koneksi API atau status MR.",
+        message: axiosError?.response?.data?.message || "Review MR gagal dikirim ke backend. Cek koneksi API atau status MR.",
+      });
+      return false;
+    }
+  };
+
+  const rejectMaterialRequest = async (so: SalesOrder, reason: string) => {
+    const request = getMaterialRequest(so);
+    const reviewerId = toBackendUserId(currentUser);
+
+    if (!request?.backendId || !reviewerId) {
+      setSystemMessage({
+        tone: "error",
+        title: "MR Belum Lengkap",
+        message: "MR belum punya data backend lengkap untuk penolakan.",
+      });
+      return false;
+    }
+
+    try {
+      await purchasingApi.supervisorReviewPurchaseRequest(request.backendId, {
+        reviewedByUserId: reviewerId,
+        decision: 'Reject',
+        rejectionReason: reason,
+      });
+      await refreshBackendData();
+      setSystemMessage({
+        tone: "success",
+        title: "MR Ditolak",
+        message: "Permintaan material telah ditolak dan dikembalikan ke Engineer Worker untuk direvisi.",
+      });
+      return true;
+    } catch (error) {
+      console.warn("Failed to reject MR in backend.", error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      setSystemMessage({
+        tone: "error",
+        title: "Gagal Menolak MR",
+        message: axiosError?.response?.data?.message || "Penolakan MR gagal dikirim ke backend.",
       });
       return false;
     }
@@ -1037,12 +1474,19 @@ export function ProductionPage() {
                       {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
                       {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                       {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
+                      {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
                     </div>
                     <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
                       <span>Operator: <strong>{operator}</strong></span>
                       <DrawingLinks so={so} />
                     </div>
+
+                    {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
+                      <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
+                        Catatan QC: {so.qcNotes}
+                      </p>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
@@ -1052,9 +1496,15 @@ export function ProductionPage() {
                       </button>
                     )}
                     {mrState === 'none' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                      <button onClick={() => setReqModal(so)}
+                      <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
+                      </button>
+                    )}
+                    {mrState === 'rejected' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                      <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                        style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                        <FileWarning size={14} /> Ajukan Ulang MR
                       </button>
                     )}
                     {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (mrState === 'none' || mrState === 'completed') && (
@@ -1088,12 +1538,35 @@ export function ProductionPage() {
           <div style={{ display: "flex", flexDirection: "column" }}>
             {inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).map((so, idx) => {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
+              let isLate = false;
+              let daysLate = 0;
+              let canFinish = true;
+              if (so.deadline) {
+                const todayStr = new Date().toISOString().split("T")[0];
+                const deadlineStr = so.deadline.split("T")[0];
+                const tDate = new Date(todayStr);
+                const dDate = new Date(deadlineStr);
+                if (tDate > dDate) {
+                  isLate = true;
+                  daysLate = Math.round((tDate.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24));
+                }
+
+                const hMinus3 = new Date(dDate);
+                hMinus3.setDate(dDate.getDate() - 3);
+                hMinus3.setHours(0, 0, 0, 0);
+                const todayDate = new Date();
+                todayDate.setHours(0, 0, 0, 0);
+                canFinish = todayDate >= hMinus3;
+              }
+
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
+                      {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
+                      {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
                     </div>
                     <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
@@ -1101,12 +1574,42 @@ export function ProductionPage() {
                       {so.startTime && <span>· Mulai: {new Date(so.startTime).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</span>}
                       <DrawingLinks so={so} />
                     </div>
+                    {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
+                      <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
+                        Catatan QC: {so.qcNotes}
+                      </p>
+                    )}
                   </div>
                   {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                    <button onClick={() => setCompleteModal(so)}
-                      style={{ padding: "8px 16px", background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                      <CheckSquare size={14} /> Selesai Produksi
-                    </button>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {so.status === 'Paused' ? (
+                        <>
+                          <button onClick={() => setStartModal(so)}
+                            style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                            <PlayCircle size={14} /> Lanjutkan Produksi
+                          </button>
+                          {so.pauseReason?.toLowerCase().includes("material") && (
+                            <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                              style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              <Package size={14} /> Req. Material Kurang
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <button onClick={() => setPauseModal(so)}
+                          style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                          <PauseCircle size={14} /> Jeda Produksi
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => {
+                          if (so.status === 'Paused') return;
+                          setCompleteModal(so);
+                        }} 
+                        style={{ padding: "8px 16px", background: !canFinish ? "#D1D5DB" : "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
+                        <CheckSquare size={14} /> Selesai Produksi
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -1151,22 +1654,17 @@ export function ProductionPage() {
       </div>
 
       {assignModal && <AssignOperatorModal so={assignModal} onClose={() => setAssignModal(null)} />}
-      {reqModal && (
-        <MaterialRequestModal
-          so={reqModal}
-          onClose={() => setReqModal(null)}
-          onSubmitted={() => rememberMaterialRequest(reqModal)}
-          onMessage={setSystemMessage}
-        />
-      )}
+
       {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} />}
       {completeModal && <CompleteProductionModal so={completeModal} onClose={() => setCompleteModal(null)} />}
+      {pauseModal && <PauseProductionModal so={pauseModal} onClose={() => setPauseModal(null)} />}
       {reviewMrModal && (
         <MaterialReviewModal
           so={reviewMrModal}
           request={getMaterialRequest(reviewMrModal)}
           onClose={() => setReviewMrModal(null)}
           onApprove={() => approveMaterialRequest(reviewMrModal)}
+          onReject={(reason) => rejectMaterialRequest(reviewMrModal, reason)}
         />
       )}
       {systemMessage && <SystemMessageDialog message={systemMessage} onClose={() => setSystemMessage(null)} />}

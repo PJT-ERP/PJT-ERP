@@ -7,9 +7,18 @@ import {
   type Transaction,
 } from './mockData';
 
-function mapStatus(status: string, paidAmount: number, totalAmount: number): InvoiceStatus {
+function mapStatus(status: string, paidAmount: number, totalAmount: number, dueDate?: string): InvoiceStatus {
   const normalized = status.toLowerCase();
   if (normalized === 'paid' || paidAmount >= totalAmount) return 'PAID';
+  
+  if (dueDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    if (due < today) return 'OVERDUE';
+  }
+
   if (normalized === 'partiallypaid') return 'PARTIAL';
   if (normalized === 'overdue') return 'OVERDUE';
   return 'PENDING';
@@ -27,7 +36,7 @@ function mapInvoice(invoice: InvoiceDto): Invoice {
     paymentDate: invoice.payments[0]?.paymentDate,
     dueDate: invoice.dueDate,
     issueDate: invoice.invoiceDate,
-    status: mapStatus(invoice.status, invoice.paidAmount, invoice.totalAmount),
+    status: mapStatus(invoice.status, invoice.paidAmount, invoice.totalAmount, invoice.dueDate),
     notes: invoice.paymentSchedules.map(schedule => `${schedule.label}: ${schedule.percentage}%`).join(', '),
     ppn: invoice.taxAmount,
     paymentSchedules: invoice.paymentSchedules,
@@ -183,10 +192,11 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
     });
 }
 
-export function useFinanceData(enabled = true) {
+export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
   const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
   const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
   const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
+  const [supplierPayments, setSupplierPayments] = useState<any[]>([]);
   const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
   const [isUsingBackend, setIsUsingBackend] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -194,15 +204,23 @@ export function useFinanceData(enabled = true) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [invoices, candidates, paymentVerifications] = await Promise.all([
+      const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult] = await Promise.allSettled([
         financeApi.listInvoices(),
         financeApi.listInvoiceCandidates(),
         financeApi.listPaymentVerifications(),
+        fetchSupplierPayments ? financeApi.listSupplierPayments() : Promise.resolve([]),
       ]);
+
+      const invoices = invoicesResult.status === 'fulfilled' ? invoicesResult.value : [];
+      const candidates = candidatesResult.status === 'fulfilled' ? candidatesResult.value : [];
+      const paymentVerifications = paymentVerificationsResult.status === 'fulfilled' ? paymentVerificationsResult.value : [];
+      const supplierPaymentsList = supplierPaymentsResult.status === 'fulfilled' ? supplierPaymentsResult.value : [];
+
       setBackendInvoices(invoices.map(mapInvoice));
       setBackendPayments(mapPayments(invoices, paymentVerifications));
       setBackendTransactions(buildTransactionsFromInvoices(invoices));
       setInvoiceCandidates(candidates);
+      setSupplierPayments(supplierPaymentsList);
       setIsUsingBackend(true);
     } catch (error) {
       console.warn('Finance API unavailable; finance seed data was not loaded.', error);
@@ -210,6 +228,7 @@ export function useFinanceData(enabled = true) {
       setBackendPayments([]);
       setBackendTransactions([]);
       setInvoiceCandidates([]);
+      setSupplierPayments([]);
       setIsUsingBackend(false);
     } finally {
       setIsLoading(false);
@@ -233,10 +252,11 @@ export function useFinanceData(enabled = true) {
     payments,
     transactions,
     invoiceCandidates,
+    supplierPayments,
     isLoading,
     isUsingBackend,
     refresh,
     monthlyRevenueData: buildMonthlyData(invoices),
     invoiceStatusData: buildStatusData(invoices),
-  }), [invoices, payments, transactions, invoiceCandidates, isLoading, isUsingBackend, refresh]);
+  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, isLoading, isUsingBackend, refresh]);
 }

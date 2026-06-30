@@ -1,6 +1,7 @@
-
+import { useApp } from "../context/AppContext";
 
 export function HeroSection() {
+  const { landingPageContent } = useApp();
   const handleContactClick = (e: React.MouseEvent) => {
     e.preventDefault();
     document.querySelector("#contact")?.scrollIntoView({ behavior: "smooth" });
@@ -52,7 +53,7 @@ export function HeroSection() {
             <span
               style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em" }}
             >
-              INTEGRATED MANUFACTURING SOLUTIONS
+              {landingPageContent.heroBadgeText}
             </span>
           </div>
 
@@ -68,9 +69,9 @@ export function HeroSection() {
             }}
             className="mb-6"
           >
-            We are Mechanical
+            {landingPageContent.heroHeadlineLine1}
             <br />
-            <span style={{ color: "#FFFFFF" }}>Engineering Experts!</span>
+            <span style={{ color: "#FFFFFF" }}>{landingPageContent.heroHeadlineLine2}</span>
           </h1>
 
           {/* Tagline */}
@@ -84,7 +85,7 @@ export function HeroSection() {
             }}
             className="mb-10 max-w-xl"
           >
-            Need Precision Components or Special Purpose Machines?
+            {landingPageContent.heroTagline}
           </p>
 
           {/* CTA Buttons */}

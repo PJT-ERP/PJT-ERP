@@ -23,6 +23,7 @@ public sealed class ProductionOrder
     public Guid? FinishedByUserId { get; set; }
     public string? FinishedByName { get; set; }
     public string? QcDecision { get; set; }
+    public string? PauseReason { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
@@ -31,6 +32,7 @@ public static class ProductionOrderStatuses
 {
     public const string Waiting = "Waiting";
     public const string InProgress = "InProgress";
+    public const string Paused = "Paused";
     public const string Finished = "Finished";
     public const string Closed = "Closed";
 }

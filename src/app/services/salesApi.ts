@@ -29,6 +29,15 @@ export interface UpdateCustomerRequest {
   isActive?: boolean;
 }
 
+export interface ProductBomItemDto {
+  id: string;
+  inventoryItemId: string;
+  inventoryItemCode: string;
+  inventoryItemName: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface ProductDto {
   id: string;
   partNumber: string;
@@ -36,6 +45,12 @@ export interface ProductDto {
   unit: string;
   materialSpec?: string | null;
   isActive?: boolean;
+  bomItems?: ProductBomItemDto[];
+}
+
+export interface CreateProductBomItemRequest {
+  inventoryItemId: string;
+  quantity: number;
 }
 
 export interface CreateProductRequest {
@@ -43,6 +58,7 @@ export interface CreateProductRequest {
   description: string;
   unit: string;
   materialSpec?: string | null;
+  bomItems?: CreateProductBomItemRequest[];
 }
 
 export interface SalesOrderDto {
@@ -70,6 +86,12 @@ export interface SalesOrderDto {
   finishedAtUtc?: string | null;
   qcDecision?: string | null;
   drawingFileUrl?: string | null;
+  designRevisions?: Array<{
+    version: number;
+    url: string;
+    changedBy: string;
+    changedAtUtc: string;
+  }>;
   items: Array<{
     id: string;
     productId: string;
@@ -147,6 +169,14 @@ export const salesApi = {
     return response.data;
   },
 
+  async updateProductBom(productId: string, request: { bomItems: CreateProductBomItemRequest[] }) {
+    await apiClient.put(`/api/v1/master-data/products/${productId}/bom`, request);
+  },
+
+  async deleteProduct(productId: string) {
+    await apiClient.delete(`/api/v1/master-data/products/${productId}`);
+  },
+
   async listSalesOrders() {
     const response = await apiClient.get<SalesOrderDto[]>('/api/v1/production/sales-orders');
     return response.data;
@@ -184,6 +214,11 @@ export const salesApi = {
 
   async updateSalesOrderItems(salesOrderId: string, request: { items: any[] }) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/items`, request);
+    return response.data;
+  },
+
+  async updateCustomerDrawing(salesOrderId: string, request: { customerDrawingUrl: string, updatedByName: string }) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/customer-drawing`, request);
     return response.data;
   },
 

@@ -133,6 +133,29 @@ export const productionApi = {
     return response.data;
   },
 
+  async pauseProduction(salesOrderId: string, request: {
+    workerUserId: string;
+    workerName: string;
+    reason: string;
+  }) {
+    const response = await apiClient.put<SalesOrderProductionProgressDto>(
+      `/api/v1/production/sales-orders/${salesOrderId}/production/pause`,
+      request,
+    );
+    return response.data;
+  },
+
+  async resumeProduction(salesOrderId: string, request: {
+    workerUserId: string;
+    workerName: string;
+  }) {
+    const response = await apiClient.put<SalesOrderProductionProgressDto>(
+      `/api/v1/production/sales-orders/${salesOrderId}/production/resume`,
+      request,
+    );
+    return response.data;
+  },
+
   async updateSalesOrderDesignStatus(salesOrderId: string, request: {
     designStatus: string;
     reviewedByUserId?: string | null;

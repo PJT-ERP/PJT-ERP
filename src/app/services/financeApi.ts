@@ -39,6 +39,20 @@ export interface CreateInvoiceRequest {
   bankName?: string | null;
   bankAccountName?: string | null;
   bankAccountNumber?: string | null;
+  fallbackCandidate?: {
+    salesOrderNumber: string;
+    customerId: string;
+    customerCode: string;
+    customerName: string;
+    customerEmail?: string | null;
+    items: Array<{
+      salesOrderItemId: string;
+      productId: string;
+      productPartNumber: string;
+      productDescription: string;
+      qty: number;
+    }>;
+  } | null;
 }
 
 export interface InvoiceDto {
@@ -140,6 +154,31 @@ export interface FinanceDashboardDto {
   averagePaymentPercent: number;
 }
 
+export interface SupplierPaymentDto {
+  id: string;
+  poNumber: string;
+  supplierName: string;
+  paymentDate: string;
+  amount: number;
+  bankName: string;
+  bankReference?: string | null;
+  proofFileName?: string | null;
+  proofFileUrl?: string | null;
+  notes?: string | null;
+  createdAtUtc: string;
+}
+
+export interface SubmitSupplierPaymentRequest {
+  poNumber: string;
+  supplierName: string;
+  paymentDate: string;
+  amount: number;
+  bankName: string;
+  bankReference?: string | null;
+  notes?: string | null;
+  proofFile?: File;
+}
+
 export const financeApi = {
   async listInvoiceCandidates(customerId?: string) {
     const response = await apiClient.get<InvoiceCandidateDto[]>('/api/v1/finance/invoice-candidates', {
@@ -211,6 +250,30 @@ export const financeApi = {
   async getDashboard(customerId?: string) {
     const response = await apiClient.get<FinanceDashboardDto>('/api/v1/finance/dashboard', {
       params: { customerId },
+    });
+    return response.data;
+  },
+
+  async listSupplierPayments() {
+    const response = await apiClient.get<SupplierPaymentDto[]>('/api/v1/finance/supplier-payments');
+    return response.data;
+  },
+
+  async submitSupplierPayment(request: SubmitSupplierPaymentRequest) {
+    const formData = new FormData();
+    formData.append('poNumber', request.poNumber);
+    formData.append('supplierName', request.supplierName);
+    formData.append('paymentDate', request.paymentDate);
+    formData.append('amount', request.amount.toString());
+    formData.append('bankName', request.bankName);
+    if (request.bankReference) formData.append('bankReference', request.bankReference);
+    if (request.notes) formData.append('notes', request.notes);
+    if (request.proofFile) formData.append('proofFile', request.proofFile);
+
+    const response = await apiClient.post<SupplierPaymentDto>('/api/v1/finance/supplier-payments', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   },

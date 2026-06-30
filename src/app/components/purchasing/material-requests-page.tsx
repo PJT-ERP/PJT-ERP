@@ -58,7 +58,7 @@ export interface MR {
   approvedAt?: string;
   supplierAssigned?: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
-  isReadyForPo?: boolean;
+  isReadyForFinance?: boolean;
   hasUnorderedItems?: boolean;
   rejectionReason?: string;
 }
@@ -112,26 +112,43 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
       : undefined,
-    isReadyForPo: isReadyForFinance,
+    isReadyForFinance: isReadyForFinance,
     hasUnorderedItems,
-    items: request.items.map(item => ({
-      itemId: item.id,
-      materialRequirementId: item.materialRequirementId || null,
-      salesOrderId: item.salesOrderId || request.salesOrderId || null,
-      salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
-      projectName: item.projectName || request.projectName || null,
-      purchaseCategory: item.purchaseCategory || null,
-      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
-      name: item.itemName,
-      spec: item.size || item.notes || "-",
-      qty: item.qty,
-      unit: "pcs",
-      currentStock: 0,
-      estimatedPrice: item.estimatedPrice || undefined,
-      supplierName: item.supplierName || undefined,
-      poNumber: item.poNumber || null,
-      purchaseStatus: item.purchaseStatus,
-    })),
+    items: request.items.map(item => {
+      let extCode = item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase();
+      let extName = item.itemName;
+
+      const bracketMatch = item.itemName.match(/^\[(.*?)\]\s*(.*)/);
+      if (bracketMatch) {
+        extCode = bracketMatch[1];
+        extName = bracketMatch[2];
+      } else {
+        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        if (dashMatch) {
+          extCode = dashMatch[1].toUpperCase();
+          extName = dashMatch[2];
+        }
+      }
+
+      return {
+        itemId: item.id,
+        materialRequirementId: item.materialRequirementId || null,
+        salesOrderId: item.salesOrderId || request.salesOrderId || null,
+        salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
+        projectName: item.projectName || request.projectName || null,
+        purchaseCategory: item.purchaseCategory || null,
+        code: extCode,
+        name: extName,
+        spec: item.size || item.notes || "-",
+        qty: item.qty,
+        unit: "pcs",
+        currentStock: 0,
+        estimatedPrice: item.estimatedPrice || undefined,
+        supplierName: item.supplierName || undefined,
+        poNumber: item.poNumber || null,
+        purchaseStatus: item.purchaseStatus,
+      };
+    }),
   };
 }
 
@@ -163,6 +180,10 @@ export function formatDisplayDate(value: string) {
 
 export function formatDisplayDateTime(value: string) {
   return new Date(value).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatIDR(val: number) {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 }
 
 /* ── Components ────────────────────────────────────────────── */
@@ -210,6 +231,7 @@ function TD({ children, className = "" }: { children: React.ReactNode; className
 export function MaterialRequestsPage() {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
   const navigate = useNavigate();
+  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [requests, setRequests] = useState<MR[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -252,6 +274,8 @@ export function MaterialRequestsPage() {
     Rejected: requests.filter((m) => m.status === "Rejected").length,
   };
 
+  const rejectedByFinanceMrs = requests.filter(r => r.backendStatus === "FinanceRejected" || r.status === "Rejected");
+
   return (
     <div className="p-5 space-y-4">
       {/* Header */}
@@ -265,13 +289,43 @@ export function MaterialRequestsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate("/erp/purchasing/requests/create")}
-            className="flex items-center gap-2 rounded px-4 py-2 text-white transition-opacity hover:opacity-90"
-            style={{ fontSize: 13, fontWeight: 600, background: "#2563eb" }}
+            className="flex items-center gap-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
           >
-            <Plus size={16} /> Buat PR Manual
+            <Plus size={14} /> Buat PR Manual
           </button>
         </div>
       </div>
+
+      {rejectedByFinanceMrs.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-red-800">Perhatian: {rejectedByFinanceMrs.length} Purchase Request Ditolak Anggarannya oleh Finance</h3>
+              <p className="text-xs text-red-700 mt-1 mb-3">
+                Dokumen berikut perlu revisi harga atau supplier karena ditolak oleh tim Finance:
+              </p>
+              <div className="space-y-2">
+                {rejectedByFinanceMrs.map(mr => (
+                  <div key={mr.id} className="flex items-center justify-between bg-white rounded border border-red-200 p-2.5 text-xs shadow-sm">
+                    <div>
+                      <span className="font-bold text-slate-800">{mr.id}</span>
+                      <span className="text-slate-500 mx-2">·</span>
+                      <span className="text-red-600 font-medium">Alasan: {mr.rejectionReason || "Harga melebihi standar budget"}</span>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/erp/purchasing/requests/${mr.id}`)}
+                      className="px-3 py-1.5 rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors shrink-0 flex items-center gap-1"
+                    >
+                      <Edit size={12} /> Revisi Sekarang
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary pills */}
       <div className="flex flex-wrap gap-2">
@@ -350,6 +404,7 @@ export function MaterialRequestsPage() {
                 <TH className="hidden sm:table-cell">Requestor / SO</TH>
                 <TH className="hidden md:table-cell">Tanggal</TH>
                 <TH className="hidden lg:table-cell">Item</TH>
+                <TH>Est. Harga</TH>
                 <TH>Kategori</TH>
                 <TH>Status</TH>
                 <TH>Appr. Finance</TH>
@@ -388,6 +443,11 @@ export function MaterialRequestsPage() {
                       <span style={{ color: "#475569" }}>{mr.items.length} item</span>
                     </TD>
                     <TD>
+                      <span style={{ fontWeight: 600, color: "#1e293b", fontSize: 12 }}>
+                        {formatIDR(mr.items.reduce((acc, it) => acc + (it.estimatedPrice || 0), 0))}
+                      </span>
+                    </TD>
+                    <TD>
                       <Pill cfg={pc} label={mr.category} />
                     </TD>
                     <TD>
@@ -404,7 +464,7 @@ export function MaterialRequestsPage() {
                       )}
                     </TD>
                     <TD>
-                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForPo && mr.hasUnorderedItems ? (
+                      {mr.backendStatus === "SupervisorApproved" && !mr.isReadyForFinance && mr.hasUnorderedItems ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-amber-50"
                           style={{ fontSize: 11, color: "#d97706", borderColor: "#fde68a", background: "#fffbeb" }}
@@ -412,13 +472,29 @@ export function MaterialRequestsPage() {
                         >
                           <Edit size={12} /> Isi Harga
                         </button>
-                      ) : ((mr.backendStatus === "SupervisorApproved" && mr.isReadyForPo) || mr.backendStatus === "FinanceApproved") && mr.hasUnorderedItems ? (
+                      ) : mr.backendStatus === "SupervisorApproved" && mr.isReadyForFinance ? (
+                        <button
+                          className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-slate-50"
+                          style={{ fontSize: 11, color: "#64748b", borderColor: "#e2e8f0", background: "#f8fafc" }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/requests/${mr.id}`); }}
+                        >
+                          <Clock size={12} /> Tunggu Finance
+                        </button>
+                      ) : mr.backendStatus === "FinanceApproved" && mr.hasUnorderedItems && canCreatePo ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}
                           onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/create?reqId=${mr.id}`); }}
                         >
                           <Plus size={12} /> Buat PO
+                        </button>
+                      ) : mr.backendStatus === "FinanceRejected" || mr.status === "Rejected" ? (
+                        <button
+                          className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-red-50"
+                          style={{ fontSize: 11, color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2", fontWeight: 600 }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/erp/purchasing/requests/${mr.id}`); }}
+                        >
+                          <AlertTriangle size={12} /> Revisi Harga
                         </button>
                       ) : (
                         <button
@@ -435,7 +511,7 @@ export function MaterialRequestsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={10} style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     Tidak ada permintaan ditemukan
                   </td>
                 </tr>

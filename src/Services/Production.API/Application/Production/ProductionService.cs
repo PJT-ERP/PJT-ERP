@@ -14,6 +14,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             .AsNoTracking()
             .Include(order => order.Items)
             .Include(order => order.ProductionOrders)
+            .Include(order => order.DesignRevisions)
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
@@ -72,6 +73,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             CustomerDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL"),
             DesignReference = NormalizeOptional(request.DesignReference),
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
+            Status = NormalizeDesignStatus(request.DesignStatus) == "Approved" ? "Waiting Pricing" : SalesOrderStatuses.Draft,
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
             DesignWorkerUserId = designWorker?.UserId,
@@ -90,6 +92,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     ProductDescription = product.Description,
                     ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
+                    UnitPrice = item.UnitPrice,
                     Notes = NormalizeOptional(item.Notes)
                 };
             }).ToList()
@@ -107,6 +110,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null)
@@ -132,6 +136,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null) return null;
@@ -142,10 +147,6 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         }
 
         salesOrder.DesignReference = request.DesignReference;
-        if (!string.IsNullOrWhiteSpace(request.DrawingFileUrl))
-        {
-            salesOrder.CustomerDrawingUrl = request.DrawingFileUrl;
-        }
         
         salesOrder.DesignStatus = SalesOrderDesignStatuses.WaitingApproval;
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
@@ -161,6 +162,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null) return null;
@@ -200,6 +202,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             ProductPartNumber = products[item.ProductId].PartNumber,
             ProductDescription = products[item.ProductId].Description,
             Qty = item.Qty,
+            UnitPrice = item.UnitPrice,
             Notes = item.Notes
         }).ToList();
 
@@ -216,13 +219,15 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null) return null;
 
-        if (salesOrder.Status != "Waiting Pricing" && salesOrder.Status != "Menunggu Invoice DP")
+        var allowedStatuses = new[] { "Draft", "Waiting Pricing", "Waiting Payment", "Confirmed", "Ready for Production", "InProduction", "QC", "Completed" };
+        if (!allowedStatuses.Contains(salesOrder.Status))
         {
-            throw new InvalidOperationException("Only sales orders waiting for pricing can be updated.");
+            throw new InvalidOperationException($"Sales order status '{salesOrder.Status}' does not allow pricing updates.");
         }
 
         foreach (var itemRequest in request.Items)
@@ -234,7 +239,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             }
         }
 
-        salesOrder.Status = "Menunggu Invoice DP";
+        if (salesOrder.Status == "Waiting Pricing")
+        {
+            salesOrder.Status = "Waiting Payment";
+        }
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         var integrationEvent = new SalesOrderReadyForInvoiceEvent(
@@ -262,6 +270,49 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return ToDto(salesOrder);
     }
 
+    public async Task<SalesOrderDto?> UpdateCustomerDrawingUrlAsync(
+        Guid salesOrderId,
+        UpdateCustomerDrawingUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        if (salesOrder.Status == SalesOrderStatuses.InProduction ||
+            salesOrder.Status == SalesOrderStatuses.QC ||
+            salesOrder.Status == SalesOrderStatuses.Completed ||
+            salesOrder.Status == SalesOrderStatuses.Cancelled)
+        {
+            throw new InvalidOperationException($"Cannot update design because the order is already in '{salesOrder.Status}' status.");
+        }
+
+        var newDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL");
+        
+        if (newDrawingUrl != salesOrder.CustomerDrawingUrl)
+        {
+            var rev = new SalesOrderDesignRevision
+            {
+                SalesOrderId = salesOrder.Id,
+                Version = salesOrder.DesignRevisions.Count + 1,
+                Url = newDrawingUrl ?? "",
+                ChangedBy = string.IsNullOrWhiteSpace(request.UpdatedByName) ? "System" : request.UpdatedByName.Trim(),
+                ChangedAtUtc = DateTime.UtcNow
+            };
+            salesOrder.DesignRevisions.Add(rev);
+            db.Entry(rev).State = EntityState.Added;
+            
+            salesOrder.CustomerDrawingUrl = newDrawingUrl;
+            salesOrder.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return ToDto(salesOrder);
+    }
+
     public async Task<SalesOrderDto?> UpdateSalesOrderDesignStatusAsync(
         Guid salesOrderId,
         UpdateSalesOrderDesignStatusRequest request,
@@ -269,6 +320,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
     {
         var salesOrder = await db.SalesOrders
             .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
         if (salesOrder is null)
@@ -314,9 +366,24 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         salesOrder.DesignReference = request.DesignReference is null
             ? salesOrder.DesignReference
             : NormalizeOptional(request.DesignReference);
-        salesOrder.CustomerDrawingUrl = request.CustomerDrawingUrl is null
+
+        var newDrawingUrl = request.CustomerDrawingUrl is null
             ? salesOrder.CustomerDrawingUrl
             : NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL");
+
+        if (newDrawingUrl != salesOrder.CustomerDrawingUrl && !string.IsNullOrWhiteSpace(salesOrder.CustomerDrawingUrl))
+        {
+            salesOrder.DesignRevisions.Add(new SalesOrderDesignRevision
+            {
+                SalesOrderId = salesOrder.Id,
+                Version = salesOrder.DesignRevisions.Count + 1,
+                Url = salesOrder.CustomerDrawingUrl,
+                ChangedBy = request.ReviewerName?.Trim() ?? "Sales",
+                ChangedAtUtc = DateTime.UtcNow
+            });
+        }
+        
+        salesOrder.CustomerDrawingUrl = newDrawingUrl;
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -336,7 +403,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         EnsureEngineersAssigned(salesOrder);
         EnsureDesignApproved(salesOrder);
-        ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.Notes)).ToArray());
+        ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.UnitPrice, item.Notes)).ToArray());
 
         var now = DateTime.UtcNow;
         salesOrder.Status = SalesOrderStatuses.InProduction;
@@ -589,6 +656,54 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
     }
 
+    public async Task<SalesOrderProductionProgressDto?> PauseProductionAsync(
+        Guid salesOrderId,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before production can be paused.");
+
+        ValidateWorkerRequest(request);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+
+        PauseProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
+        
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
+    public async Task<SalesOrderProductionProgressDto?> ResumeProductionAsync(
+        Guid salesOrderId,
+        ProductionStatusUpdateRequest request,
+        CancellationToken cancellationToken,
+        bool isPrivileged = false)
+    {
+        var salesOrder = await IncludeProduction(db.SalesOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return null;
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder)
+            ?? throw new InvalidOperationException("Sales order must be confirmed before production can be resumed.");
+
+        ValidateWorkerRequest(request);
+        EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+
+        ResumeProduction(productionOrder, request, DateTime.UtcNow);
+        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
+        
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
+    }
+
     public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
     {
         var orders = await db.ProductionOrders.AsNoTracking().ToListAsync(cancellationToken);
@@ -659,8 +774,10 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.FinishedAtUtc,
             productionOrder?.QcDecision,
             productionOrder?.DrawingFileUrl,
+            productionOrder?.PauseReason,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
+            order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray());
     }
 
@@ -705,7 +822,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
-            CalculateProgressPercent(productionOrder),
+            CalculateProgressPercent(order, productionOrder),
             productionOrder?.DrawingRef,
             productionOrder?.DrawingFileUrl,
             productionOrder?.DrawingUploadedByUserId,
@@ -720,6 +837,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.FinishedByName,
             productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
             productionOrder?.QcDecision,
+            productionOrder?.PauseReason,
             updatedAtUtc,
             order.Items
                 .OrderBy(item => item.ProductPartNumber)
@@ -748,7 +866,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
             productionOrder?.Status ?? ProductionOrderStatuses.Waiting,
             order.Items.Count,
             order.Items.Sum(item => item.Qty),
-            CalculateProgressPercent(productionOrder),
+            CalculateProgressPercent(order, productionOrder),
             productionOrder?.DrawingFileUrl,
             productionOrder?.StartedAtUtc,
             productionOrder?.FinishedAtUtc,
@@ -763,21 +881,20 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 .ToArray());
     }
 
-    private static decimal CalculateProgressPercent(ProductionOrder? order)
+    private static decimal CalculateProgressPercent(SalesOrder order, ProductionOrder? prodOrder)
     {
-        if (order is null)
-        {
-            return 0;
-        }
+        var soStatus = (order.Status ?? "").ToLowerInvariant();
+        var prodStatus = (prodOrder?.Status ?? "").ToLowerInvariant();
 
-        if (order.Status == ProductionOrderStatuses.Closed
-            || order.Status == ProductionOrderStatuses.Finished
-            || order.FinishedAtUtc.HasValue)
-        {
-            return 100;
-        }
+        if (soStatus == "completed" || prodStatus == "closed") return 100;
+        if (prodStatus == "finished") return 80;
+        if (prodStatus == "inprogress" || prodStatus == "in_progress" || prodStatus == "paused" || soStatus == "inproduction" || soStatus == "in_production") return 60;
+        if (soStatus == "ready for production" || soStatus == "waiting pricing" || soStatus == "menunggu invoice dp" || prodStatus == "waiting") return 40;
+        if (soStatus == "confirmed") return 20;
+        if (soStatus == "waiting spv approval") return 10;
+        if (soStatus == "pending design" || soStatus == "revision required") return 5;
 
-        return order.Status == ProductionOrderStatuses.InProgress ? 50 : 0;
+        return 0;
     }
 
     private static long? CalculateDurationSeconds(ProductionOrder order)
@@ -1019,6 +1136,35 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         productionOrder.FinishedAtUtc ??= timestampUtc;
         productionOrder.FinishedByUserId ??= request.WorkerUserId;
         productionOrder.FinishedByName ??= request.WorkerName.Trim();
+        productionOrder.UpdatedAtUtc = timestampUtc;
+    }
+
+    private static void PauseProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    {
+        if (productionOrder.Status == ProductionOrderStatuses.Closed || productionOrder.Status == ProductionOrderStatuses.Finished)
+        {
+            throw new InvalidOperationException("Closed or finished sales order production cannot be paused.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new InvalidOperationException("Pause reason must be provided.");
+        }
+
+        productionOrder.Status = ProductionOrderStatuses.Paused;
+        productionOrder.PauseReason = request.Reason.Trim();
+        productionOrder.UpdatedAtUtc = timestampUtc;
+    }
+
+    private static void ResumeProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    {
+        if (productionOrder.Status != ProductionOrderStatuses.Paused)
+        {
+            throw new InvalidOperationException("Only paused production can be resumed.");
+        }
+
+        productionOrder.Status = ProductionOrderStatuses.InProgress;
+        productionOrder.PauseReason = null;
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 

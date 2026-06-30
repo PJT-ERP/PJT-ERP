@@ -4,7 +4,7 @@ import {
   User, Building2, Phone, Mail, MapPin,
   Package, Hash, Calendar, FileText, Search,
   ChevronRight, Trash2, GripVertical,
-  Layers, Link as LinkIcon
+  Layers, Link as LinkIcon, DollarSign
 } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
@@ -49,6 +49,8 @@ interface ProductRow {
   quantity: string;
   unit: string;
   notes: string;
+  customerDesignUrl?: string;
+  unitPrice?: number;
 }
 
 interface ProductOption {
@@ -57,6 +59,7 @@ interface ProductOption {
   partNumber: string;
   unit: string;
   materialSpec?: string | null;
+  bomItems?: { inventoryItemId: string; inventoryItemCode: string; inventoryItemName: string; quantity: number; unit: string; }[];
 }
 
 const emptyProduct = (): ProductRow => ({
@@ -69,6 +72,7 @@ const emptyProduct = (): ProductRow => ({
   quantity: "",
   unit: "pcs",
   notes: "",
+  unitPrice: 0,
 });
 
 function addDaysIso(date: Date, days: number) {
@@ -87,7 +91,6 @@ interface CustomerForm {
   address: string;
   deadline: string;
   generalNotes: string;
-  customerImageUrl: string;
   estimatedAmount?: number;
 }
 
@@ -96,7 +99,6 @@ interface RepeatForm {
   previousSoId: string;
   deadline: string;
   generalNotes: string;
-  customerImageUrl: string;
   estimatedAmount?: number;
 }
 
@@ -132,6 +134,57 @@ function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> &
         }}
         onFocus={e => { setFocused(true); props.onFocus?.(e); }}
         onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      />
+    </div>
+  );
+}
+
+function CurrencyInput({ value, onChange, icon, ...props }: any) {
+  const [focused, setFocused] = useState(false);
+
+  const formatNumber = (val: number | undefined) => {
+    if (val === undefined || val === null || isNaN(val) || val === 0) return "";
+    return val.toLocaleString("id-ID");
+  };
+
+  const [displayValue, setDisplayValue] = useState(formatNumber(value));
+
+  React.useEffect(() => {
+    if (!focused) {
+      setDisplayValue(formatNumber(value));
+    }
+  }, [value, focused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value.replace(/[^0-9]/g, '');
+    setDisplayValue(rawVal ? Number(rawVal).toLocaleString("id-ID") : "");
+    onChange(Number(rawVal));
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      {icon && (
+        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none", display: "flex" }}>
+          {icon}
+        </span>
+      )}
+      <input
+        {...props}
+        type="text"
+        value={displayValue}
+        onChange={handleChange}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: focused ? S.white : "#FAFAFA",
+          border: `1px solid ${focused ? S.primary : S.border}`,
+          borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
+          fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
+          boxShadow: focused ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
+          ...props.style,
+        }}
+        onFocus={(e: any) => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={(e: any) => { setFocused(false); props.onBlur?.(e); }}
       />
     </div>
   );
@@ -190,8 +243,8 @@ function SearchableCustomerSelect({ customers, value, onChange }: { customers: a
   const selectedCustomer = customers.find(c => c.code === value);
   const displayValue = open ? search : (selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.code})` : "");
 
-  const filtered = customers.filter(c => 
-    c.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = customers.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.code.toLowerCase().includes(search.toLowerCase()) ||
     (c.contactPerson && c.contactPerson.toLowerCase().includes(search.toLowerCase()))
   );
@@ -268,8 +321,8 @@ function SectionCard({ title, icon, children, action }: {
   title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
 }) {
   return (
-    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg }}>
+    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg, borderTopLeftRadius: 5, borderTopRightRadius: 5 }}>
         <span style={{ color: S.primary }}>{icon}</span>
         <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate, fontFamily: S.font, flex: 1 }}>{title}</span>
         {action}
@@ -362,13 +415,21 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 productName: pName,
                 designId: "",
                 unit: selected?.unit.toLowerCase() || row.unit,
-                materials: selected?.materialSpec ? [{
-                  id: selected.id,
-                  name: selected.partNumber,
-                  specification: selected.materialSpec,
-                  quantity: "1",
-                  unit: selected.unit.toLowerCase(),
-                }] : [],
+                materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
+                  id: b.inventoryItemId,
+                  name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                  specification: "",
+                  quantity: String(b.quantity),
+                  unit: b.unit,
+                })) : selected?.materialSpec ? [
+                  ...selected.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
+                    id: selected.id + "-mat-" + idx,
+                    name: `MAT-${String(parseInt(selected.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+                    specification: specPart.trim(),
+                    quantity: "1",
+                    unit: selected.unit.toLowerCase(),
+                  }))
+                ] : [],
               });
             }} required>
               <option value="">— Pilih produk —</option>
@@ -381,12 +442,12 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
 
         {isCustom && (
           <div style={{ marginBottom: 10 }}>
-            <Label text="No Permintaan / ID Desain (Opsional)" />
+            <Label text="Sumber Desain / ID Desain" />
             <Select
               value={row.designId}
               onChange={e => {
                 const selectedDesignId = e.target.value;
-                if (selectedDesignId === "none" || selectedDesignId === "") {
+                if (selectedDesignId === "none" || selectedDesignId === "" || selectedDesignId === "customer") {
                   onChange({ ...row, designId: selectedDesignId, materials: [] });
                 } else {
                   const design = ENGINEERING_DESIGNS.find(d => d.id === selectedDesignId);
@@ -404,15 +465,25 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 }
               }}
             >
-              <option value="">— Pilih ID Desain —</option>
-              <option value="none">Belum ada ID Desain (Ajukan ke Engineer)</option>
+              <option value="">— Pilih Sumber Desain —</option>
+              <option value="none">Buatkan desain baru (oleh Tim Engineering)</option>
+              <option value="customer">Pelanggan memiliki referensi desain sendiri</option>
               {ENGINEERING_DESIGNS.filter(d => d.status === "Approved").map(d => (
-                <option key={d.id} value={d.id}>{d.id} - {d.name}</option>
+                <option key={d.id} value={d.id}>{d.id} - {d.name} (Desain Tersimpan)</option>
               ))}
             </Select>
-            <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-              *Jika dikosongkan, pesanan akan berstatus "Menunggu Engineering" untuk kelengkapan desain & material.
-            </p>
+            {row.designId === "customer" ? (
+              <div style={{ marginTop: 8 }}>
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="URL Gambar/Referensi (Opsional)" value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value })} />
+                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                  *Kosongkan jika pelanggan akan mengirimkan desain menyusul (Engineering akan menunggu).
+                </p>
+              </div>
+            ) : row.designId === "none" ? (
+              <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                *Tim Engineering akan merancang desain dari awal berdasarkan catatan/kebutuhan.
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -448,7 +519,7 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "120px 90px 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "120px 90px 150px 1fr", gap: 10 }}>
           <div>
             <Label text="Jumlah (Qty)" required />
             <Input icon={<Hash size={11} />} type="number" min="1" placeholder="0" value={row.quantity} onChange={e => onChange({ ...row, quantity: e.target.value })} required />
@@ -460,6 +531,10 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 <option key={u} value={u}>{u}</option>
               ))}
             </Select>
+          </div>
+          <div>
+            <Label text="Harga Satuan (Rp)" />
+            <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 11 }}>Rp</span>} placeholder="0" value={row.unitPrice || 0} onChange={(val: number) => onChange({ ...row, unitPrice: val })} />
           </div>
           <div>
             <Label text="Catatan Produk" />
@@ -491,13 +566,14 @@ function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, productCatalog, salesOrders, refreshBackendData } = useApp();
+  const { customers, productCatalog, salesOrders, refreshBackendData, updateSalesOrder } = useApp();
   const catalogProductOptions = productCatalog.map(product => ({
     id: product.id,
     label: `${product.partNumber} - ${product.description}`,
     partNumber: product.partNumber,
     unit: product.unit || "pcs",
     materialSpec: product.materialSpec,
+    bomItems: product.bomItems,
   }));
 
   const isEdit = initialData?.mode === "edit";
@@ -519,7 +595,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     address: prefillCustomer?.address ?? "",
     deadline: existingAppSo?.deadline ?? "",
     generalNotes: "",
-    customerImageUrl: existingAppSo?.customerDrawingUrl ?? "",
     estimatedAmount: 0,
   });
 
@@ -542,7 +617,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const [repeatForm, setRepeatForm] = useState<RepeatForm>({
-    customerId: initialData?.customerId || "", previousSoId: "", deadline: today, generalNotes: "", customerImageUrl: "", estimatedAmount: 0
+    customerId: initialData?.customerId || "", previousSoId: initialData?.soId || "", deadline: today, generalNotes: "", estimatedAmount: 0
   });
 
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
@@ -551,7 +626,64 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     ? customers.find(c => c.code === repeatForm.customerId)
     : null;
 
-  const handleBack = () => orderType ? setOrderType(null) : onNavigate("so-list");
+  React.useEffect(() => {
+    if (orderType === "repeat" && repeatForm.previousSoId && repeatProducts.length === 0 && salesOrders.length > 0) {
+      const selectedSo = salesOrders.find(so => so.id === repeatForm.previousSoId || so.soNumber === repeatForm.previousSoId);
+      if (selectedSo) {
+        setRepeatForm(prev => ({
+          ...prev,
+          estimatedAmount: selectedSo.estimatedAmount || 0,
+          generalNotes: selectedSo.notes || "",
+        }));
+
+        const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+        let materials: any[] = [];
+        if (matchedProduct) {
+          materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+            id: b.inventoryItemId,
+            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+            specification: "",
+            quantity: String(b.quantity),
+            unit: b.unit,
+          })) : matchedProduct.materialSpec ? [
+            ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
+              id: matchedProduct.id + "-mat-" + idx,
+              name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+              specification: specPart.trim(),
+              quantity: "1",
+              unit: matchedProduct.unit.toLowerCase(),
+            }))
+          ] : [];
+        }
+
+        setRepeatProducts([{
+          ...emptyProduct(),
+          type: matchedProduct ? "existing" : "custom",
+          productName: matchedProduct ? matchedProduct.label : selectedSo.description,
+          customName: selectedSo.description,
+          quantity: String(selectedSo.quantity),
+          unit: selectedSo.unit,
+          unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+          materials,
+        }]);
+      }
+    }
+  }, [orderType, repeatForm.previousSoId, salesOrders, repeatProducts.length, catalogProductOptions]);
+
+  React.useEffect(() => {
+    if (orderType === "new") {
+      const total = products.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+      setCustomerForm(f => ({ ...f, estimatedAmount: total }));
+    }
+  }, [products, orderType]);
+
+  const handleBack = () => {
+    if (orderType) {
+      handleReset();
+    } else {
+      onNavigate("so-list");
+    }
+  };
 
   const updateProduct = useCallback((id: string, updated: ProductRow, list: ProductRow[], setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => {
     setter(list.map(p => p.id === id ? updated : p));
@@ -562,21 +694,50 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
-    setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
-    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", customerImageUrl: "", estimatedAmount: 0 });
+    setIsExistingCustomer(false);
+    setCustomerForm({ customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
+    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
 
   const handleRepeatSoSelect = (soId: string) => {
-    setRepeatForm({ ...repeatForm, previousSoId: soId });
     const selectedSo = salesOrders.find(so => so.id === soId || so.soNumber === soId);
+    setRepeatForm({
+      ...repeatForm,
+      previousSoId: soId,
+      estimatedAmount: selectedSo?.estimatedAmount || 0,
+      generalNotes: selectedSo?.notes || "",
+    });
     if (selectedSo) {
+      const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+      let materials: any[] = [];
+      if (matchedProduct) {
+        materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+          id: b.inventoryItemId,
+          name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+          specification: "",
+          quantity: String(b.quantity),
+          unit: b.unit,
+        })) : matchedProduct.materialSpec ? [
+          ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
+            id: matchedProduct.id + "-mat-" + idx,
+            name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+            specification: specPart.trim(),
+            quantity: "1",
+            unit: matchedProduct.unit.toLowerCase(),
+          }))
+        ] : [];
+      }
+
       setRepeatProducts([{
         ...emptyProduct(),
-        productName: selectedSo.description,
+        type: matchedProduct ? "existing" : "custom",
+        productName: matchedProduct ? matchedProduct.label : selectedSo.description,
         customName: selectedSo.description,
         quantity: String(selectedSo.quantity),
         unit: selectedSo.unit,
+        unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+        materials,
       }]);
     } else {
       setRepeatProducts([]);
@@ -625,7 +786,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       .replace(/^-|-$/g, "")
       .slice(0, 18) || "CUSTOM";
     const created = await salesApi.createProduct({
-      partNumber: `PJT-${compact}-${Date.now().toString().slice(-5)}`,
+      partNumber: `FG-${compact.slice(0, 5)}-${Date.now().toString().slice(-4)}`,
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -642,7 +803,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const items = await Promise.all(rows.map(async row => ({
       productId: await ensureProductId(row),
       qty: Number(row.quantity) || 1,
-      notes: row.notes || row.materials.map(material => `${material.name}: ${material.specification}`).filter(Boolean).join("; ") || null,
+      notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
     })));
 
     const payload = {
@@ -651,7 +812,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       targetDate,
       customerDrawingUrl: customerDrawingUrl || null,
       designReference: null,
-      designStatus: "PendingDesign",
+      designStatus: rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved",
       items,
     };
 
@@ -687,7 +848,22 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         phone: customerForm.phone,
         address: customerForm.address,
       });
-      const created = await createSalesOrderFromRows(customerId, customerForm.deadline, customerForm.customerImageUrl, products);
+      const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
+      const finalImageUrl = custProduct?.customerDesignUrl || "";
+      const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
+
+      // Clear any previous local storage state for this specific ID or soNumber
+      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
+        delete currentLocal[created.id];
+        if (created.soNumber) delete currentLocal[created.soNumber];
+        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
+      }
+
+      if (customerForm.estimatedAmount) {
+        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
+      }
+
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -713,7 +889,22 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         phone: selectedCustomer.phone,
         address: selectedCustomer.address,
       });
-      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, repeatForm.customerImageUrl, repeatProducts);
+      const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
+      const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
+      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
+
+      // Clear any previous local storage state for this specific ID or soNumber
+      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
+      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
+        delete currentLocal[created.id];
+        if (created.soNumber) delete currentLocal[created.soNumber];
+        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
+      }
+
+      if (repeatForm.estimatedAmount) {
+        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
+      }
+
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
@@ -732,6 +923,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const totalItems = orderType === "repeat"
       ? repeatProducts.length
       : products.length;
+    const isCustomSubmit = orderType === "repeat"
+      ? repeatProducts.some(r => r.type === "custom")
+      : products.some(r => r.type === "custom");
+
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
@@ -748,7 +943,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
               <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
               {" "}
-              Desain dan BOM (Bill of Materials) sedang diajukan ke tim Engineering. SO akan berstatus Pending Design.
+              {isCustomSubmit
+                ? "Pesanan telah disimpan. Anda dapat mengubah referensi desain dari Detail SO kapan saja sebelum tim Engineering memulai tahap produksi (In Production)."
+                : "Pesanan telah disimpan dan Harga telah ditetapkan. Pesanan akan diteruskan ke tim Finance untuk pembuatan Invoice DP."}
             </p>
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -851,13 +1048,16 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setIsExistingCustomer(true)}
+                onClick={() => {
+                  setIsExistingCustomer(true);
+                  setCustomerForm({ ...customerForm, customerCode: "", customerName: "", company: "", phone: "", email: "", address: "" });
+                }}
                 style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: isExistingCustomer ? 600 : 400, background: isExistingCustomer ? S.primary : S.white, color: isExistingCustomer ? S.white : S.secondary, border: `1px solid ${isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
               >
                 Pelanggan Terdaftar
               </button>
             </div>
-            
+
             {isExistingCustomer && (
               <div style={{ marginBottom: 16 }}>
                 <Label text="Pilih Pelanggan Existing" required />
@@ -919,13 +1119,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Target Pengiriman (Project Deadline)" required />
                 <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
               </div>
-              <div>
-                <Label text="URL Design Referensi Customer (Opsional)" />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="Kosongkan jika tim engineering yang desain" value={customerForm.customerImageUrl} onChange={e => setCustomerForm({ ...customerForm, customerImageUrl: e.target.value })} />
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Kosongkan jika pelanggan belum ada gambaran dan meminta tim Engineering yang mendesain.
-                </p>
-              </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
                 <Input placeholder="Instruksi umum, catatan pengiriman..." value={customerForm.generalNotes} onChange={e => setCustomerForm({ ...customerForm, generalNotes: e.target.value })} />
@@ -951,8 +1144,18 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             </div>
           </SectionCard>
 
+          <SectionCard title="Penetapan Harga" icon={<DollarSign size={14} />}>
+            <div style={{ padding: 14, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6 }}>
+              <Label text="Harga Estimasi / Nilai Kesepakatan Awal (Opsional)" />
+              <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 12 }}>Rp</span>} placeholder="0" value={customerForm.estimatedAmount || 0} onChange={(val: number) => setCustomerForm({ ...customerForm, estimatedAmount: val })} />
+              <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.secondary }}>
+                *Jika Anda telah menyepakati harga dengan pelanggan, isikan total nilainya di sini. Pesanan akan otomatis melewati tahap "Waiting Pricing" dari Finance, sehingga Produksi bisa langsung dimulai. Jika dikosongkan, Finance yang akan menentukan harganya.
+              </p>
+            </div>
+          </SectionCard>
+
           <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setOrderType(null)}
+            <button type="button" onClick={handleReset}
               style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}
@@ -990,7 +1193,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Sales Order Sebelumnya" required />
                 <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
                   <option value="">— Pilih SO untuk di-repeat —</option>
-                  {salesOrders.filter(so => so.customerId === selectedCustomer.code).map(so => (
+                  {salesOrders.filter(so => selectedCustomer && so.customerId === selectedCustomer.code).map(so => (
                     <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description}</option>
                   ))}
                 </Select>
@@ -1019,31 +1222,28 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Target Pengiriman (Project Deadline)" required />
                 <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
               </div>
-              <div>
-                <Label text="URL Gambar Referensi Customer (Opsional)" />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="Kosongkan jika tim engineering yang desain" value={repeatForm.customerImageUrl} onChange={e => setRepeatForm({ ...repeatForm, customerImageUrl: e.target.value })} />
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Kosongkan jika pelanggan belum ada gambaran dan meminta tim Engineering yang mendesain.
-                </p>
-              </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Label text="Catatan Umum" />
-                <Input placeholder="Perubahan spesifikasi, catatan khusus..." value={repeatForm.generalNotes} onChange={e => setRepeatForm({ ...repeatForm, generalNotes: e.target.value })} />
+                <Input placeholder="Tambahan catatan khusus..." value={repeatForm.generalNotes} onChange={e => setRepeatForm({ ...repeatForm, generalNotes: e.target.value })} />
               </div>
             </Grid2>
           </SectionCard>
 
           <SectionCard
-            title={`Produk Repeat Order`}
+            title={`Produk Repeat Order (${repeatProducts.length} item)`}
             icon={<Layers size={14} />}
+            action={<AddProductBtn onClick={() => addProduct(setRepeatProducts)} />}
           >
             {repeatForm.previousSoId ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {repeatProducts.map((row, idx) => (
-                  <div key={row.id} style={{ border: `1px solid ${S.border}`, borderRadius: 6, padding: 14, background: "#F8FAFC" }}>
-                    <div style={{ fontWeight: 600, fontSize: "13px", color: S.slate, marginBottom: 4 }}>{row.productName}</div>
-                    <div style={{ fontSize: "12px", color: S.secondary }}>Jumlah: {row.quantity} {row.unit}</div>
-                  </div>
+                  <ProductLineItem
+                    key={row.id}
+                    row={row} index={idx} total={repeatProducts.length}
+                    productOptions={catalogProductOptions}
+                    onChange={updated => updateProduct(row.id, updated, repeatProducts, setRepeatProducts)}
+                    onRemove={() => removeProduct(row.id, setRepeatProducts)}
+                  />
                 ))}
               </div>
             ) : (
@@ -1053,8 +1253,18 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             )}
           </SectionCard>
 
+          <SectionCard title="Penetapan Harga" icon={<DollarSign size={14} />}>
+            <div style={{ padding: 14, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6 }}>
+              <Label text="Harga Estimasi / Nilai Kesepakatan Awal (Opsional)" />
+              <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 12 }}>Rp</span>} placeholder="0" value={repeatForm.estimatedAmount || 0} onChange={(val: number) => setRepeatForm({ ...repeatForm, estimatedAmount: val })} />
+              <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.secondary }}>
+                *Jika Anda telah menyepakati harga dengan pelanggan, isikan total nilainya di sini. Pesanan akan otomatis melewati tahap "Waiting Pricing" dari Finance, sehingga Produksi bisa langsung dimulai. Jika dikosongkan, Finance yang akan menentukan harganya.
+              </p>
+            </div>
+          </SectionCard>
+
           <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setOrderType(null)}
+            <button type="button" onClick={handleReset}
               style={{ padding: "8px 20px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
               onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
               onMouseLeave={e => (e.currentTarget.style.background = S.white)}

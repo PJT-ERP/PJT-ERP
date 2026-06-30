@@ -1,11 +1,15 @@
 import type { SalesOrder } from "../data/mockData";
 import type { Invoice, Payment } from "../finance/mockData";
 
-export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created";
+export type SalesInvoiceStatus = "paid" | "verified" | "waiting" | "not_created" | "pending_verification" | "overdue";
 
 function mapFinanceInvoiceStatus(invoice: Invoice): SalesInvoiceStatus {
   if (invoice.status === "PAID") {
     return "paid";
+  }
+
+  if (invoice.status === "OVERDUE") {
+    return "overdue";
   }
 
   if (invoice.status === "PARTIAL" || invoice.paidAmount > 0 || invoice.paymentDate) {
@@ -29,6 +33,8 @@ export function resolveSalesOrderInvoice(order: SalesOrder, invoices: Invoice[])
     invoiceDate: financeInvoice.issueDate,
     dueDate: financeInvoice.dueDate,
     amount: financeInvoice.amount,
+    paidAmount: financeInvoice.paidAmount,
+    paymentSchedules: financeInvoice.paymentSchedules,
     status: mapFinanceInvoiceStatus(financeInvoice),
     paymentDate: financeInvoice.paymentDate || "",
   };
@@ -42,10 +48,11 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
   
   const hasPendingPayment = invoice?.invoiceId && payments.some(p => p.invoiceId === invoice.invoiceId && p.status === "PENDING");
 
-  if ((invoice?.status === "paid" || invoice?.status === "verified") && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
-    status = "Ready for Production";
-  } else if (hasPendingPayment && (status === "Waiting Payment" || status === "Menunggu Invoice DP")) {
-    status = "Waiting Approval"; // Using an existing SOStatus that implies waiting for an approval
+  if ((invoice?.status === "paid" || invoice?.status === "verified") && status === "Waiting Payment") {
+    // If QC has already passed, payment means it is fully Completed. Otherwise it's DP payment -> Ready for Production
+    status = (order.qcStatus === "Go") ? "Completed" as any : "Ready for Production" as any;
+  } else if (hasPendingPayment && status === "Waiting Payment") {
+    status = "Waiting Approval" as any; // Using an existing SOStatus that implies waiting for an approval
   }
 
   // Also enhance the invoice status string for badge display if there is a pending payment

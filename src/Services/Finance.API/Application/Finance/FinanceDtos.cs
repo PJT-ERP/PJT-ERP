@@ -30,7 +30,23 @@ public record CreateInvoiceRequest(
     IReadOnlyCollection<CreatePaymentScheduleRequest> PaymentSchedules,
     string? BankName,
     string? BankAccountName,
-    string? BankAccountNumber);
+    string? BankAccountNumber,
+    FallbackCandidateDto? FallbackCandidate = null);
+
+public record FallbackCandidateDto(
+    string SalesOrderNumber,
+    Guid CustomerId,
+    string CustomerCode,
+    string CustomerName,
+    string? CustomerEmail,
+    IReadOnlyCollection<FallbackCandidateItemDto> Items);
+
+public record FallbackCandidateItemDto(
+    Guid SalesOrderItemId,
+    Guid ProductId,
+    string ProductPartNumber,
+    string ProductDescription,
+    int Qty);
 
 public record CreateInvoiceItemPrice(Guid SalesOrderItemId, decimal UnitPrice);
 
@@ -160,3 +176,28 @@ public record FinanceDashboardDto(
     decimal OutstandingAmount,
     decimal OverdueAmount,
     decimal AveragePaymentPercent);
+
+public record SupplierPaymentDto(
+    Guid Id,
+    string PoNumber,
+    string SupplierName,
+    DateOnly PaymentDate,
+    decimal Amount,
+    string BankName,
+    string? BankReference,
+    string? ProofFileName,
+    string? ProofFileUrl,
+    string? Notes,
+    DateTime CreatedAtUtc);
+
+public class SubmitSupplierPaymentFormRequest
+{
+    public string PoNumber { get; set; } = "";
+    public string SupplierName { get; set; } = "";
+    public DateOnly PaymentDate { get; set; }
+    public decimal Amount { get; set; }
+    public string BankName { get; set; } = "";
+    public string? BankReference { get; set; }
+    public string? Notes { get; set; }
+    public IFormFile? ProofFile { get; set; }
+}
