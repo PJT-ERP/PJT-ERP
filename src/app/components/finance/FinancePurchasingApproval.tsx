@@ -47,11 +47,24 @@ export function FinancePurchasingApproval() {
       setPos(paymentPos);
 
       const allMrs = purchaseRequests.map(mapPurchaseRequestToMr);
-      const pendingMrs = allMrs.filter(mr => mr.backendStatus === "SupervisorApproved" || mr.backendStatus === "FinanceApproved" || mr.backendStatus === "FinanceRejected");
+      const pendingMrs = allMrs.filter(mr => {
+        if (mr.backendStatus === "Completed" || mr.status === "Completed") return false;
+        return mr.backendStatus === "SupervisorApproved" || 
+               mr.backendStatus === "FinanceApproved" || 
+               mr.backendStatus === "FinanceRejected" ||
+               mr.backendStatus === "Rejected" ||
+               mr.backendStatus === "Submitted" ||
+               mr.backendStatus === "Approved" ||
+               mr.status === "Approved" ||
+               mr.isReadyForFinance === true ||
+               mr.status === "Waiting for Finance Approval" ||
+               mr.status === "Revision Needed";
+      });
       
       pendingMrs.sort((a, b) => {
-        if (a.backendStatus === "SupervisorApproved" && b.backendStatus !== "SupervisorApproved") return -1;
-        if (a.backendStatus !== "SupervisorApproved" && b.backendStatus === "SupervisorApproved") return 1;
+        const aReady = a.isReadyForFinance ? 1 : 0;
+        const bReady = b.isReadyForFinance ? 1 : 0;
+        if (aReady !== bReady) return bReady - aReady;
         return 0;
       });
       
@@ -195,17 +208,17 @@ export function FinancePurchasingApproval() {
                         <td className="px-5 py-4 text-slate-600">{mr.department}</td>
                         <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalEst)}</td>
                         <td className="px-5 py-4 text-center">
-                          {mr.backendStatus === "SupervisorApproved" ? (
-                            <span className="text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-blue-200">WAITING</span>
-                          ) : mr.backendStatus === "FinanceApproved" ? (
+                          {mr.backendStatus === "FinanceApproved" || mr.financeApproval === "Approved" ? (
                             <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">APPROVED</span>
-                          ) : (
+                          ) : mr.backendStatus === "FinanceRejected" || mr.backendStatus === "Rejected" ? (
                             <span className="text-red-600 bg-red-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200">REJECTED</span>
+                          ) : (
+                            <span className="text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-blue-200">WAITING</span>
                           )}
                         </td>
                         <td className="px-5 py-4 text-center">
-                          {mr.backendStatus === "SupervisorApproved" ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
+                          {mr.backendStatus !== "FinanceApproved" && mr.financeApproval !== "Approved" && mr.backendStatus !== "Completed" ? (
+                            <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
                               <CheckCircle2 size={14} /> Review
                             </button>
                           ) : (

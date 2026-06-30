@@ -38,7 +38,7 @@ export function PurchaseRequestDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionError, setActionError] = useState("");
   
-  const [pricingData, setPricingData] = useState<Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean }>>({});
+  const [pricingData, setPricingData] = useState<Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }>>({});
   const [isSavingPricing, setIsSavingPricing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -46,29 +46,32 @@ export function PurchaseRequestDetailPage() {
 
 
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  const canEditPricing = isPurchasingOrAdmin && 
+    detail?.backendStatus !== "FinanceApproved" && 
+    detail?.status !== "Approved" && 
+    detail?.backendStatus !== "Completed";
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
         const data = await purchasingApi.listPurchaseRequests();
-        // ID is like PR-123. The backend returns PR-123 directly from request.prNumber
-        // Let's find it.
         const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
         if (req) {
           const mr = mapPurchaseRequestToMr(req);
-          if (mr.backendStatus === "SupervisorApproved" || mr.backendStatus === "FinanceRejected" || mr.status === "Rejected") {
-            const initData: Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean }> = {};
-            mr.items.forEach(item => {
-              const isCustom = item.supplierName ? !SUPPLIERS.includes(item.supplierName) : false;
-              initData[item.itemId] = {
-                supplierName: item.supplierName || "",
-                estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "",
-                isCustomSupplier: isCustom,
-              };
-            });
-            setPricingData(initData);
-          }
+          const initData: Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
+          mr.items.forEach(item => {
+            const isCustom = item.supplierName ? !SUPPLIERS.includes(item.supplierName) : false;
+            initData[item.itemId] = {
+              supplierName: item.supplierName || "",
+              estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "",
+              isCustomSupplier: isCustom,
+              itemName: item.name || "",
+              qty: item.qty ? String(item.qty) : "",
+            };
+          });
+          setPricingData(initData);
           setDetail(mr);
         } else {
           setDetail(null);
@@ -84,15 +87,25 @@ export function PurchaseRequestDetailPage() {
 
   const handleSavePricing = async () => {
     if (!detail) return;
-    const missingSupplierOrPrice = detail.items.some(item => {
-      const p = pricingData[item.itemId] || { supplierName: item.supplierName, estimatedPrice: item.estimatedPrice };
-      const sup = p.supplierName || item.supplierName;
+    const missingFields: string[] = [];
+    detail.items.forEach((item) => {
+      const p = pricingData[item.itemId] || {};
+      const matName = p.itemName !== undefined ? p.itemName : item.name;
+      const qtyVal = Number(p.qty !== undefined ? p.qty : item.qty);
+      const sup = p.supplierName !== undefined ? p.supplierName : item.supplierName;
       const price = Number(p.estimatedPrice !== undefined ? p.estimatedPrice : item.estimatedPrice);
-      return !sup || !String(sup).trim() || !price || price <= 0;
+
+      if (!matName || !String(matName).trim()) missingFields.push(`Tolong lengkapi Nama Material pada item ${item.code}`);
+      if (!qtyVal || qtyVal <= 0 || isNaN(qtyVal)) missingFields.push(`Tolong isi Quantity pada item ${item.code} (minimal 1)`);
+      if (!sup || !String(sup).trim() || sup === "Pilih Supplier") missingFields.push(`Tolong pilih Toko / Supplier untuk item ${item.code}`);
+      if (!price || price <= 0 || isNaN(price)) missingFields.push(`Tolong isi Estimasi Harga untuk item ${item.code}`);
     });
 
-    if (missingSupplierOrPrice) {
-      setDialogMsg({ title: "Peringatan", message: "Pilih supplier dan estimasi harga terlebih dahulu untuk semua item sebelum mengajukan persetujuan ke Finance!" });
+    if (missingFields.length > 0) {
+      setDialogMsg({ 
+        title: "Mohon Lengkapi Data", 
+        message: "Sebelum diajukan ke Finance, silakan lengkapi beberapa informasi berikut:\n\n• " + missingFields.join("\n• ") 
+      });
       return;
     }
 
@@ -106,22 +119,16 @@ export function PurchaseRequestDetailPage() {
 
       const promises = detail.items.map(item => {
         const p = pricingData[item.itemId];
-        if (!p?.supplierName && !p?.estimatedPrice) return Promise.resolve(); // Skip if nothing
+        if (!p?.supplierName && !p?.estimatedPrice && !p?.itemName && !p?.qty) return Promise.resolve(); // Skip if nothing
         
         return purchasingApi.updatePurchaseRequestItemInfo(backendReq.id, item.itemId, {
           supplierName: p?.supplierName || null,
           estimatedPrice: Number(p?.estimatedPrice) || null,
+          itemName: p?.itemName || null,
+          qty: Number(p?.qty) || null,
         });
       });
       await Promise.all(promises);
-
-      if (detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" || detail.backendStatus === "SupervisorRejected") {
-        await purchasingApi.supervisorReviewPurchaseRequest(backendReq.id, {
-          reviewedByUserId: currentUser?.id || "purchasing",
-          decision: "Accept",
-          rejectionReason: null as any
-        });
-      }
 
       await refreshBackendData();
       
@@ -250,7 +257,7 @@ export function PurchaseRequestDetailPage() {
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Kode</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Material</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Qty</th>
-                    {(detail.backendStatus === "SupervisorApproved" || detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance) && (
+                    {(canEditPricing || detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || detail.items.some(i => i.supplierName || i.estimatedPrice)) && (
                       <>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Supplier (Toko)</th>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Perkiraan</th>
@@ -262,9 +269,31 @@ export function PurchaseRequestDetailPage() {
                   {detail.items.map((item, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-0">
                       <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
-                      <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
-                      <td className="p-3 text-sm font-semibold text-slate-900">{item.qty} {item.unit}</td>
-                      {detail.backendStatus === "SupervisorApproved" && !detail.isReadyForFinance ? (
+                      <td className="p-3 text-sm font-medium text-slate-900">
+                        {canEditPricing ? (
+                          <input
+                            type="text"
+                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
+                            value={pricingData[item.itemId]?.itemName !== undefined ? pricingData[item.itemId]?.itemName : item.name}
+                            onChange={(e) => setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { supplierName: item.supplierName || "", estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "", qty: String(item.qty) }), itemName: e.target.value } }))}
+                          />
+                        ) : item.name}
+                      </td>
+                      <td className="p-3 text-sm font-semibold text-slate-900">
+                        {canEditPricing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              className="w-20 rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
+                              value={pricingData[item.itemId]?.qty !== undefined ? pricingData[item.itemId]?.qty : item.qty}
+                              onChange={(e) => setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { supplierName: item.supplierName || "", estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "", itemName: item.name }), qty: e.target.value } }))}
+                            />
+                            <span>{item.unit}</span>
+                          </div>
+                        ) : `${item.qty} ${item.unit}`}
+                      </td>
+                      {canEditPricing ? (
                         <>
                           <td className="p-2">
                             {pricingData[item.itemId]?.isCustomSupplier ? (
@@ -323,7 +352,7 @@ export function PurchaseRequestDetailPage() {
                             </div>
                           </td>
                         </>
-                      ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance) ? (
+                      ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || item.supplierName || item.estimatedPrice) ? (
                         <>
                           <td className="p-3 text-sm text-slate-900">{item.supplierName || "-"}</td>
                           <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
@@ -360,7 +389,7 @@ export function PurchaseRequestDetailPage() {
           )}
 
           {/* Actions */}
-          {((detail.backendStatus === "SupervisorApproved" && !detail.isReadyForFinance) || detail.backendStatus === "FinanceRejected" || detail.status === "Rejected") && (
+          {canEditPricing && (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className={`flex items-start gap-3 rounded p-4 border ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
                 <AlertTriangle size={18} className={`${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-600" : "text-amber-600"} shrink-0 mt-0.5`} />
