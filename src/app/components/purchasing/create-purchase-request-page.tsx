@@ -116,7 +116,7 @@ export function CreatePurchaseRequestPage() {
           salesOrderId: selectedSo?.backendId || null,
           salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
           projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "Manual Purchase Request",
-          itemName: item.code ? (item.name ? `[${item.code}] ${item.name}` : item.code) : (item.name || "Material"),
+          itemName: item.code ? `[${item.code}] ${item.name || "Material"}` : (item.name || "Material"),
           size: item.spec || null,
           qty: Number(item.qty) || 1,
           notes: [formUrgency, formNotes].filter(Boolean).join(" - ") || null,
