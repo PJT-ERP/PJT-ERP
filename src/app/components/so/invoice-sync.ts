@@ -50,7 +50,7 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
 
   if ((invoice?.status === "paid" || invoice?.status === "verified") && status === "Waiting Payment") {
     // If QC has already passed, payment means it is fully Completed. Otherwise it's DP payment -> Ready for Production
-    status = (order.qcStatus === "Go" || order.qcStatus === "Pass") ? "Completed" as any : "Ready for Production" as any;
+    status = (order.qcStatus === "Go") ? "Completed" as any : "Ready for Production" as any;
   } else if (hasPendingPayment && status === "Waiting Payment") {
     status = "Waiting Approval" as any; // Using an existing SOStatus that implies waiting for an approval
   }

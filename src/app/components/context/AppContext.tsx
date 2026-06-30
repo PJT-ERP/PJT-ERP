@@ -23,8 +23,8 @@ interface AppContextType {
   refreshBackendData: () => Promise<void>;
   addSalesOrder: (so: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>) => SalesOrder;
   updateSalesOrder: (id: string, updates: Partial<SalesOrder>) => void;
-  addUser: (user: Omit<User, 'id'>) => void;
-  updateUser: (id: string, updates: Partial<User>) => void;
+  addUser: (user: Omit<User, 'id'>) => Promise<boolean>;
+  updateUser: (id: string, updates: Partial<User>) => Promise<boolean>;
   deleteUser: (id: string) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomer: (code: string, updates: Partial<Customer>) => void;
@@ -285,40 +285,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addUser = (user: Omit<User, 'id'>) => {
-    const tempId = `u${Date.now()}`;
-    setUsers(prev => [...prev, { ...user, id: tempId }]);
-    
-    // Simpan ke backend
-    authApi.createUser({
+  const addUser = async (user: Omit<User, 'id'>): Promise<boolean> => {
+    const created = await authApi.createUser({
       name: user.name,
       email: user.email,
       password: (user as any).password || "DefaultPass123!",
       role: user.role,
       isActive: user.isActive
-    }).then(created => {
-      if (created) {
-        setUsers(prev => prev.map(u => u.id === tempId ? { ...u, id: created.userId || tempId } : u));
-      }
     });
+
+    if (created) {
+      setUsers(prev => [...prev, { ...user, id: created.userId }]);
+      return true;
+    }
+    return false;
   };
 
-  const updateUser = (id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
-
-    // Update ke backend
+  const updateUser = async (id: string, updates: Partial<User>): Promise<boolean> => {
     if (!id.startsWith('u')) {
       const currentUserData = users.find(u => u.id === id);
       if (currentUserData) {
-        authApi.updateUser(id, {
+        const updated = await authApi.updateUser(id, {
           name: updates.name ?? currentUserData.name,
           email: updates.email ?? currentUserData.email,
           role: updates.role ?? currentUserData.role,
           isActive: updates.isActive ?? currentUserData.isActive,
           password: (updates as any).password // if it exists
         });
+
+        if (!updated) {
+          return false;
+        }
       }
     }
+
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+    return true;
   };
 
   const deleteUser = (id: string) => {
@@ -449,7 +451,7 @@ function mapBackendRoleToUserRole(role?: string | null): UserRole {
     case "engineer":
     case "engineeringworker":
     case "engineeringreviewer":
-      return "Engineering Worker";
+      return "Engineering";
     case "engineeringsupervisor":
     case "supervisorengineering":
       return "Engineering Supervisor";
@@ -474,7 +476,7 @@ function mapCustomerDto(customer: CustomerDto): Customer {
 function canLoadPurchaseRequests(role?: UserRole | null) {
   return role === "Purchasing"
     || role === "Finance"
-    || role === "Engineering Worker"
+    || role === "Engineering"
     || role === "Engineering Supervisor"
     || role === "Admin"
     || role === "Owner";

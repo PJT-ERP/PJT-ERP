@@ -46,7 +46,7 @@ export function EngineeringPage() {
   const navigate = useNavigate();
   const { salesOrders, customers, currentUser, users } = useApp();
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
@@ -105,7 +105,7 @@ export function EngineeringPage() {
   ];
 
   const workerTaskData = users
-    .filter(user => (user.role === "Engineering Worker" || user.role === "Engineering Supervisor") && user.isActive)
+    .filter(user => (user.role === "Engineering" || user.role === "Engineering Supervisor") && user.isActive)
     .map(worker => {
       const designOrders = salesOrders.filter(so => so.designAssignedTo === worker.id);
       const prodOrders = salesOrders.filter(so => so.assignedTo === worker.id);

@@ -171,7 +171,7 @@ export function EngineeringTaskDetailPage() {
   }
 
   const customer = customers.find(c => c.code === qut.customerId);
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
   
   const currentUserBackendId = toBackendUserId(currentUser);

@@ -19,7 +19,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
   ],
-  'Engineering Worker': [
+  'Engineering': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
     { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Req. Pembelian", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
@@ -210,7 +210,7 @@ export function ERPLayout() {
           notifs.push({ id: so.id, type: 'warning', title: 'Harga Sedang Dihitung', desc: `SO ${so.id} sedang dihitung harganya oleh Finance.`, targetPath: `/erp/so/detail/${so.id}` });
         } else {
           // Check if a payment has already been reported
-          const invoice = invoices.find(inv => inv.salesOrderId === so.id || inv.salesOrderNumber === so.soNumber);
+          const invoice = invoices.find(inv => inv.soNumber === so.soNumber);
           const hasReportedPayment = invoice && payments.some(p => p.invoiceId === invoice.id && (p.status === "PENDING" || p.status === "VERIFIED"));
           
           if (!hasReportedPayment) {
@@ -221,7 +221,7 @@ export function ERPLayout() {
       salesOrders.filter(so => so.status === 'Rejected').forEach(so => {
         notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
       });
-    } else if (role === 'Engineering Worker' || role === 'Engineering Supervisor') {
+    } else if (role === 'Engineering' || role === 'Engineering Supervisor') {
       const isSpv = role === 'Engineering Supervisor' || currentUser.username === 'eng_spv';
       
       const isRelevant = (assignedToId: string | null | undefined) => {
@@ -307,7 +307,22 @@ export function ERPLayout() {
     return notifs;
   }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds, invoices, payments]);
 
-  const hasNotif = notifications.length > 0;
+  const [lastViewedKeys, setLastViewedKeys] = React.useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('lastViewedKeys') || '[]'); } catch { return []; }
+  });
+
+  const getNotifKey = (n: { id: string, title: string }) => `${n.id}-${n.title}`;
+
+  React.useEffect(() => {
+    if (isNotifOpen) {
+      const keys = notifications.map(getNotifKey);
+      setLastViewedKeys(keys);
+      localStorage.setItem('lastViewedKeys', JSON.stringify(keys));
+    }
+  }, [isNotifOpen, notifications]);
+
+  const unreadCount = notifications.filter(n => !lastViewedKeys.includes(getNotifKey(n))).length;
+  const hasNotif = unreadCount > 0;
 
   return (
     <div className="flex h-screen print:h-auto overflow-hidden print:overflow-visible" style={{ fontFamily: "Inter, sans-serif", background: "#F8FAFC" }}>
@@ -436,7 +451,7 @@ export function ERPLayout() {
                   borderRadius: 99, background: "#EF4444", border: "2px solid #fff", color: "#fff",
                   fontSize: 9, fontWeight: 700, lineHeight: "12px", textAlign: "center",
                 }}>
-                  {notifications.length}
+                  {unreadCount}
                 </span>
               )}
             </button>

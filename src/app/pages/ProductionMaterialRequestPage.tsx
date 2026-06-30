@@ -339,7 +339,7 @@ export function ProductionMaterialRequestPage() {
     }
 
     if (!requesterId) {
-      setErrorMsg("ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering Worker yang ditugaskan.");
+      setErrorMsg("ID operator tidak ditemukan. Silakan login ulang dengan akun Engineering yang ditugaskan.");
       return;
     }
 
@@ -347,7 +347,7 @@ export function ProductionMaterialRequestPage() {
       setIsSubmitting(true);
       await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering Worker",
+        requesterName: currentUser?.name || so.assignedName || "Engineering",
         notes: notes || null,
         items: parsedItems.map(item => ({
           materialRequirementId: null,

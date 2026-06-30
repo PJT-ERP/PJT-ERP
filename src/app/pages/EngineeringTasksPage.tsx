@@ -32,7 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
   const { updateSalesOrder, users } = useApp();
-  const engineers = users.filter(user => user.role === 'Engineering Worker' || user.role === 'Engineering Supervisor');
+  const engineers = users.filter(user => user.role === 'Engineering' || user.role === 'Engineering Supervisor');
 
   const handleAssign = (userId: string) => {
     const engineer = engineers.find(user => user.id === userId);
@@ -83,9 +83,9 @@ export function EngineeringTasksPage() {
   const itemsPerPage = 8;
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering Worker' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
   
-  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Waiting Payment', 'Rejected'];
+  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Rejected'];
   
   const pendingSalesOrders = salesOrders.filter(so => engineeringStatuses.includes(so.status) || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired' || so.backendDesignStatus === 'WaitingApproval');
   const completedSalesOrders = salesOrders.filter(so => 
@@ -216,11 +216,13 @@ export function EngineeringTasksPage() {
               (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
               qut.designAssignedTo === currentUser?.name ||
               qut.designAssignedName === currentUser?.name;
-            const canWork = isAssignedToCurrentUser && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
+            const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcDecision;
+            
+            const canWork = isPreProduction && isAssignedToCurrentUser && qut.backendDesignStatus !== 'Approved';
             // Review button: only when design is waiting for supervisor approval
-            const canReview = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
+            const canReview = isPreProduction && isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
             // Assign button: only when design hasn't started yet
-            const canAssign = isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'PendingDesign' || qut.status === 'Pending Design' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
+            const canAssign = isPreProduction && isSpv && currentUser?.role !== 'Admin' && qut.backendDesignStatus !== 'Approved';
 
             return (
             <div
@@ -278,17 +280,7 @@ export function EngineeringTasksPage() {
                     {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
                   </button>
                 )}
-                {!canWork && !canAssign && !canReview && (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigate(`/erp/engineer-tasks/${qut.id}`);
-                    }}
-                    style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Lihat
-                  </button>
-                )}
+
                 {!canWork && !canAssign && canReview && (
                   <button
                     onClick={(event) => {
