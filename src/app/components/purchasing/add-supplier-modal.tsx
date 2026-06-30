@@ -43,10 +43,38 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
     setErrorMessage("");
 
     if (!supplier) {
+      const fetchAndSetCode = async () => {
+        try {
+          const suppliers = await masterDataApi.listSuppliers();
+          let maxSeq = 0;
+          for (const s of suppliers) {
+            if (s.code && s.code.startsWith("SUP-")) {
+              const seq = parseInt(s.code.substring(4), 10);
+              if (!isNaN(seq) && seq > maxSeq) {
+                maxSeq = seq;
+              }
+            }
+          }
+          const nextSeq = maxSeq + 1;
+          setFormData({
+            ...emptyForm,
+            code: `SUP-${nextSeq.toString().padStart(4, '0')}`
+          });
+        } catch (error) {
+          console.error("Failed to fetch suppliers for code generation", error);
+          setFormData({
+            ...emptyForm,
+            code: `SUP-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}` // Fallback
+          });
+        }
+      };
+      
+      // Initialize with temporary loading or default code
       setFormData({
         ...emptyForm,
-        code: `SUP-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
+        code: "SUP-..."
       });
+      fetchAndSetCode();
       return;
     }
 
