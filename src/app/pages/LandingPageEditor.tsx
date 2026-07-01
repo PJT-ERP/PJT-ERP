@@ -852,7 +852,7 @@ export function LandingPageEditor() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "8px" }}>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                   <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL LinkedIn</label>
@@ -898,6 +898,22 @@ export function LandingPageEditor() {
                   value={form.footerYoutube} 
                   onChange={handleChange}
                   placeholder="https://youtube.com/..."
+                  style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: "6px", fontSize: "14px" }}
+                />
+              </div>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL Instagram</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showInstagram" checked={form.showInstagram} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
+                <input 
+                  name="footerInstagram" 
+                  value={form.footerInstagram} 
+                  onChange={handleChange}
+                  placeholder="https://instagram.com/..."
                   style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: "6px", fontSize: "14px" }}
                 />
               </div>

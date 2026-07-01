@@ -72,6 +72,8 @@ export interface LandingPageContent {
   showTwitter?: boolean;
   footerYoutube: string;
   showYoutube?: boolean;
+  footerInstagram: string;
+  showInstagram?: boolean;
 }
 
 export const defaultLandingPageContent: LandingPageContent = {
@@ -151,6 +153,8 @@ export const defaultLandingPageContent: LandingPageContent = {
   showTwitter: true,
   footerYoutube: "https://youtube.com",
   showYoutube: true,
+  footerInstagram: "https://instagram.com",
+  showInstagram: true,
 };
 
 interface AppContextType {
@@ -240,6 +244,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           showTwitter: parsed.showTwitter ?? defaultLandingPageContent.showTwitter,
           footerYoutube: parsed.footerYoutube || defaultLandingPageContent.footerYoutube,
           showYoutube: parsed.showYoutube ?? defaultLandingPageContent.showYoutube,
+          footerInstagram: parsed.footerInstagram || defaultLandingPageContent.footerInstagram,
+          showInstagram: parsed.showInstagram ?? defaultLandingPageContent.showInstagram,
         };
       }
       return defaultLandingPageContent;

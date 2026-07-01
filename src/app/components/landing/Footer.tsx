@@ -1,4 +1,4 @@
-import { Cog, Mail, Phone, MapPin, Linkedin, Twitter, Youtube } from "lucide-react";
+import { Cog, Mail, Phone, MapPin, Linkedin, Twitter, Youtube, Instagram } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 const navGroups = [
@@ -37,7 +37,8 @@ export function Footer() {
     footerDescription, footerAddress, footerPhone, footerEmail, 
     footerLinkedin, showLinkedin = true,
     footerTwitter, showTwitter = true,
-    footerYoutube, showYoutube = true
+    footerYoutube, showYoutube = true,
+    footerInstagram, showInstagram = true
   } = landingPageContent;
 
   const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -140,6 +141,7 @@ export function Footer() {
             ...(showLinkedin ? [{ icon: Linkedin, href: footerLinkedin }] : []),
             ...(showTwitter ? [{ icon: Twitter, href: footerTwitter }] : []),
             ...(showYoutube ? [{ icon: Youtube, href: footerYoutube }] : []),
+            ...(showInstagram ? [{ icon: Instagram, href: footerInstagram }] : []),
           ].map(({ icon: Icon, href }, i) => (
             <a
               key={i}

@@ -83,6 +83,8 @@ public class LandingPageContentDto
     public bool ShowTwitter { get; set; } = true;
     public string FooterYoutube { get; set; } = "https://youtube.com/c/innovationpratama";
     public bool ShowYoutube { get; set; } = true;
+    public string FooterInstagram { get; set; } = "https://instagram.com/innovationpratama";
+    public bool ShowInstagram { get; set; } = true;
 }
 
 public class ProjectItemDto
