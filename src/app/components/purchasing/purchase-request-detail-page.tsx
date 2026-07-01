@@ -49,7 +49,6 @@ export function PurchaseRequestDetailPage() {
   const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
   const canEditPricing = isPurchasingOrAdmin && 
     detail?.backendStatus !== "FinanceApproved" && 
-    detail?.status !== "Approved" && 
     detail?.backendStatus !== "Completed";
 
   useEffect(() => {

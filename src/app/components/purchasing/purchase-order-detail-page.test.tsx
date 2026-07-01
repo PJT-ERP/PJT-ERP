@@ -7,8 +7,16 @@ import { purchasingApi } from '../../services/purchasingApi';
 
 vi.mock('../../services/purchasingApi', () => ({
   purchasingApi: {
+    listMaterialRequirements: vi.fn().mockResolvedValue([]),
     listPurchaseRequests: vi.fn(),
     receivePurchaseRequestItem: vi.fn(),
+  }
+}));
+
+vi.mock('../../services/masterDataApi', () => ({
+  masterDataApi: {
+    listSuppliers: vi.fn().mockResolvedValue([]),
+    listInventory: vi.fn().mockResolvedValue([]),
   }
 }));
 

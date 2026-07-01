@@ -193,7 +193,7 @@ export function EngineeringTaskDetailPage() {
     canProcess = false;
   }
 
-  const isWaitingCustomerDesign = !qut.customerDrawingUrl;
+  const isWaitingCustomerDesign = false;
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
@@ -441,7 +441,7 @@ export function EngineeringTaskDetailPage() {
                   </div>
                 ) : (
                   <div style={{ marginBottom: 20, padding: "10px 16px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, display: "flex", gap: 10, alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: "#D97706", fontWeight: 600 }}>Menunggu Link Desain (URL) dari Sales...</span>
+                    <span style={{ fontSize: "12px", color: "#D97706", fontWeight: 600 }}>Sales tidak melampirkan gambar customer (Silakan buat gambar kerja & BOM internal berdasarkan spesifikasi pesanan di bawah ini).</span>
                   </div>
                 )}
                 {qut.designRevisions && qut.designRevisions.length > 0 && (

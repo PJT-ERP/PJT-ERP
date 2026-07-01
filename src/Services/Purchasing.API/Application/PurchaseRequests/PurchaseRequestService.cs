@@ -374,10 +374,21 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
             or PurchaseRequestStatuses.FinanceRejected
             or PurchaseRequestStatuses.SupervisorRejected)
         {
-            purchaseRequest.SupervisorReviewedAtUtc = null;
-            purchaseRequest.SupervisorReviewedByUserId = null;
-            purchaseRequest.FinanceReviewedAtUtc = null;
-            purchaseRequest.FinanceReviewedByUserId = null;
+            if (purchaseRequest.Status == PurchaseRequestStatuses.FinanceRejected)
+            {
+                purchaseRequest.FinanceReviewedAtUtc = null;
+                purchaseRequest.FinanceReviewedByUserId = null;
+                purchaseRequest.FinanceRejectionReason = null;
+                purchaseRequest.RejectionReason = null;
+                purchaseRequest.Status = PurchaseRequestStatuses.SupervisorApproved;
+            }
+            else
+            {
+                purchaseRequest.SupervisorReviewedAtUtc = null;
+                purchaseRequest.SupervisorReviewedByUserId = null;
+                purchaseRequest.FinanceReviewedAtUtc = null;
+                purchaseRequest.FinanceReviewedByUserId = null;
+            }
         }
 
         RefreshPurchaseRequestStatus(purchaseRequest);
@@ -906,9 +917,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
         if (decision == PurchaseRequestStatuses.Rejected)
         {
-            purchaseRequest.SupervisorReviewedAtUtc = null;
-            purchaseRequest.SupervisorReviewedByUserId = null;
-            purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+            purchaseRequest.Status = PurchaseRequestStatuses.FinanceRejected;
         }
         else
         {
@@ -1093,6 +1102,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
     {
         if (purchaseRequest.Status is PurchaseRequestStatuses.SupervisorApproved
             or PurchaseRequestStatuses.FinanceApproved
+            or PurchaseRequestStatuses.FinanceRejected
             or PurchaseRequestStatuses.Approved
             or PurchaseRequestStatuses.Processing
             or PurchaseRequestStatuses.Completed)
@@ -1125,7 +1135,6 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
     private static bool IsRejectedRequest(string status)
     {
         return status is PurchaseRequestStatuses.SupervisorRejected
-            or PurchaseRequestStatuses.FinanceRejected
             or PurchaseRequestStatuses.Rejected;
     }
 
