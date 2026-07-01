@@ -17,6 +17,15 @@ public static class ProductionSchemaInitializer
             DROP TABLE IF EXISTS quotation_items CASCADE;
             DROP TABLE IF EXISTS quotations CASCADE;
 
+            CREATE TABLE IF NOT EXISTS sales_order_design_revisions (
+                "Id" uuid NOT NULL PRIMARY KEY,
+                sales_order_id uuid NOT NULL REFERENCES sales_orders("Id") ON DELETE CASCADE,
+                version integer NOT NULL,
+                url character varying(1000) NOT NULL,
+                changed_by character varying(160) NOT NULL,
+                changed_at_utc timestamp with time zone NOT NULL
+            );
+
             ALTER TABLE customer_replicas ADD COLUMN IF NOT EXISTS email character varying(160);
 
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_email character varying(160);

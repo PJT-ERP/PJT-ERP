@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -22,6 +22,7 @@ import { useNavigate } from "react-router";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 import { SupplierPaymentDto } from "../../services/financeApi";
 import { useApp } from "../context/AppContext";
+import { usePurchasingData } from "./usePurchasingData";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -224,29 +225,11 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
+  const { purchaseRequests, supplierPayments } = usePurchasingData();
+  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments), [purchaseRequests, supplierPayments]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  const loadPurchaseOrders = useCallback(async () => {
-    try {
-      // In this component, we can use usePurchasingData or fetch them directly if not available.
-      // Since it's self-contained loading for now:
-      const [requests, paymentsRes] = await Promise.all([
-        purchasingApi.listPurchaseRequests(),
-        import("../../services/financeApi").then(m => m.financeApi.listSupplierPayments())
-      ]);
-      setPurchaseOrders(mapPurchaseRequestsToPos(requests, paymentsRes));
-    } catch (error) {
-      console.warn("Purchasing API unavailable; purchase order seed data was not loaded.", error);
-      setPurchaseOrders([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadPurchaseOrders();
-  }, [loadPurchaseOrders]);
 
   const filtered = purchaseOrders.filter((p) => {
     const q = search.toLowerCase();

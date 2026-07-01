@@ -230,12 +230,22 @@ export function CreateInvoice() {
       setSubmitted(true);
     } catch (error: any) {
       console.warn('Failed to create invoice.', error);
-      if (error.response && error.response.data) {
-        console.warn('Backend error data:', error.response.data);
-        setSubmitError(`Gagal membuat invoice: ${JSON.stringify(error.response.data)}`);
-      } else {
-        setSubmitError('Gagal membuat invoice. Pastikan SO belum pernah dibuatkan invoice dan harga sudah tersedia.');
+      let msg = 'Pastikan SO belum pernah dibuatkan invoice dan tanggal jatuh tempo valid.';
+      if (error?.response?.data) {
+        const data = error.response.data;
+        if (typeof data === 'string') {
+          msg = data;
+        } else if (typeof data === 'object') {
+          if (data.errors && typeof data.errors === 'object') {
+            msg = Object.values(data.errors).flat().join(" ");
+          } else {
+            msg = data.detail || data.message || (data.title !== "One or more validation errors occurred." && data.title !== "An error occurred while processing your request." ? data.title : null) || JSON.stringify(data);
+          }
+        }
+      } else if (error?.message) {
+        msg = error.message;
       }
+      setSubmitError(`Gagal membuat invoice: ${msg}`);
     } finally {
       setIsSaving(false);
     }
