@@ -112,6 +112,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [createdPoDetails, setCreatedPoDetails] = useState<{ poNumber: string; supplier: string; total: number; itemCount: number } | null>(null);
 
   const updateField = (setter: (value: string) => void) => (value: string) => {
     setMessage(null);
@@ -244,8 +245,12 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         purchaseNotes: [terms, shippingAddress, notes].filter(Boolean).join(" | ") || null,
       })));
       await refresh();
-      setMessage({ type: "success", text: `PO ${poNumber} berhasil dibuat dan tersimpan di backend.` });
-      onNavigate?.("orders");
+      setCreatedPoDetails({
+        poNumber,
+        supplier,
+        total,
+        itemCount: items.length,
+      });
     } catch (error: any) {
       console.warn("Failed to create backend PO.", error);
       setMessage({
@@ -451,6 +456,68 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           />
         </div>
       </section>
+
+      {createdPoDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-center text-white">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <CheckCircle2 className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold">Purchase Order Berhasil Dibuat!</h3>
+              <p className="text-emerald-100 text-sm mt-1">PO telah tercatat dan tersimpan di sistem backend.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2 text-sm">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <span className="text-slate-500">Nomor PO</span>
+                  <span className="font-bold text-slate-900 font-mono text-base">{createdPoDetails.poNumber}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Supplier</span>
+                  <span className="font-medium text-slate-800">{createdPoDetails.supplier}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Jumlah Item</span>
+                  <span className="font-medium text-slate-800">{createdPoDetails.itemCount} Item</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                  <span className="text-slate-500 font-medium">Total Estimasi</span>
+                  <span className="font-bold text-emerald-600 text-base">{formatRp(createdPoDetails.total)}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatedPoDetails(null);
+                    onNavigate?.("orders");
+                  }}
+                  className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Lihat Daftar Purchase Order
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatedPoDetails(null);
+                    setSelectedRequestId("");
+                    setSupplier("");
+                    setDueDate("");
+                    setItems([emptyItem()]);
+                    setMessage(null);
+                  }}
+                  className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-medium rounded-xl transition text-sm cursor-pointer"
+                >
+                  Buat PO Lainnya
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
