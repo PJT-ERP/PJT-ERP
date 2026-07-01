@@ -899,23 +899,23 @@ public sealed class FinanceService(FinanceContext db, IWebHostEnvironment env, I
 
     public async Task<decimal> GetOpeningBalanceAsync(CancellationToken cancellationToken = default)
     {
-        var setting = await _db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
         return setting?.OpeningBalance ?? 250_000_000m;
     }
 
     public async Task UpdateOpeningBalanceAsync(decimal newBalance, CancellationToken cancellationToken = default)
     {
-        var setting = await _db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
         if (setting == null)
         {
             setting = new FinanceSetting { Id = "default", OpeningBalance = newBalance };
-            _db.Settings.Add(setting);
+            db.Settings.Add(setting);
         }
         else
         {
             setting.OpeningBalance = newBalance;
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
     }
 }
