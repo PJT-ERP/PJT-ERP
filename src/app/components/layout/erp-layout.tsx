@@ -56,6 +56,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
     { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
     { label: "Master Produk", icon: <Package size={15} />, path: "/erp/admin/products" },
+    { label: "Daftar Supplier", icon: <Building2 size={15} />, path: "/erp/admin/suppliers" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
   ],
@@ -131,12 +132,6 @@ export function ERPLayout() {
             <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#F9FAFB", fontFamily: "Inter, sans-serif", lineHeight: 1.3 }}>PT Pratama Jaya</p>
             <p style={{ margin: 0, fontSize: "10px", color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>{currentUser.role} Module</p>
           </div>
-        )}
-        {!sidebarMinimized && (
-          <button className="lg:hidden" onClick={() => setSidebarOpen(false)}
-            style={{ color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", display: "flex" }}>
-            <X size={14} />
-          </button>
         )}
       </div>
 

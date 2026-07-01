@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -7,7 +7,7 @@ import {
 import {
   FileText, Clock, CheckCircle2, TrendingUp, TrendingDown,
   ArrowUpRight, FilePlus, ShieldCheck, BarChart3, ChevronRight,
-  AlertCircle, Wallet, RefreshCw, Users, CheckSquare
+  AlertCircle, Wallet, RefreshCw, Users, CheckSquare, Pencil, Check
 } from 'lucide-react';
 import {
   formatIDR, formatDate
@@ -114,6 +114,8 @@ export function FinanceDashboard() {
   const {
     invoices,
     payments,
+    openingBalance,
+    updateOpeningBalance,
     isLoading,
     isUsingBackend,
     refresh,
@@ -153,6 +155,21 @@ export function FinanceDashboard() {
     })).sort((a, b) => b.total - a.total);
   }, [activeTab, selectedCustomer, invoices]);
 
+  const [isEditingBalance, setIsEditingBalance] = useState(false);
+  const [balanceInput, setBalanceInput] = useState("");
+
+  const handleSaveBalance = async () => {
+    const val = parseInt(balanceInput.replace(/\D/g, ''), 10) || 0;
+    await updateOpeningBalance(val);
+    setIsEditingBalance(false);
+  };
+
+  useEffect(() => {
+    if (!isEditingBalance) {
+      setBalanceInput(openingBalance.toString());
+    }
+  }, [openingBalance, isEditingBalance]);
+
   const financeSummary = useMemo(() => {
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
     const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
@@ -163,7 +180,6 @@ export function FinanceDashboard() {
     const overdueAmount = invoices
       .filter(invoice => invoice.status === 'OVERDUE')
       .reduce((sum, invoice) => sum + Math.max(0, invoice.amount - invoice.paidAmount), 0);
-    const openingBalance = 250_000_000;
 
     return {
       outstandingAmount: Math.max(0, totalBilled - totalPaid),
@@ -173,9 +189,8 @@ export function FinanceDashboard() {
       openingBalance,
       collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
     };
-  }, [invoices, purchasingRequests]);
+  }, [invoices, purchasingRequests, openingBalance]);
 
-  // Adjust KPIs dynamically based on tab and selected customer
   const displayKPIs = useMemo(() => {
     const custInvoices = activeTab === 'CUSTOMER' && selectedCustomer !== 'ALL'
       ? invoices.filter(i => i.customerName === selectedCustomer)
@@ -185,11 +200,42 @@ export function FinanceDashboard() {
     const paidInv = custInvoices.filter(i => i.status === 'PAID').length;
     const totalRev = custInvoices.reduce((s, i) => s + i.paidAmount, 0);
 
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const currInv = custInvoices.filter(i => {
+      const d = new Date(i.issueDate);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+    const prevInv = custInvoices.filter(i => {
+      const d = new Date(i.issueDate);
+      return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    });
+
+    const currTotalInv = currInv.length;
+    const prevTotalInv = prevInv.length;
+    const invTrend = prevTotalInv === 0 ? 0 : Math.round(((currTotalInv - prevTotalInv) / prevTotalInv) * 100);
+
+    const currPending = currInv.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((s, i) => s + (i.amount - i.paidAmount), 0);
+    const prevPending = prevInv.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((s, i) => s + (i.amount - i.paidAmount), 0);
+    const pendingTrend = prevPending === 0 ? 0 : Math.round(((currPending - prevPending) / prevPending) * 100);
+
+    const currPaid = currInv.filter(i => i.status === 'PAID').length;
+    const prevPaid = prevInv.filter(i => i.status === 'PAID').length;
+    const paidTrend = prevPaid === 0 ? 0 : Math.round(((currPaid - prevPaid) / prevPaid) * 100);
+
+    const currRev = currInv.reduce((s, i) => s + i.paidAmount, 0);
+    const prevRev = prevInv.reduce((s, i) => s + i.paidAmount, 0);
+    const revTrend = prevRev === 0 ? 0 : Math.round(((currRev - prevRev) / prevRev) * 100);
+
     return [
-      { ...KPI_CARDS[0], value: String(totalInv), sub: activeTab === 'GLOBAL' ? 'Total invoice aktif' : 'Total Invoice Pelanggan' },
-      { ...KPI_CARDS[1], value: formatIDR(pendingInv), sub: activeTab === 'GLOBAL' ? 'Outstanding piutang' : 'Outstanding Piutang Pelanggan' },
-      { ...KPI_CARDS[2], value: String(paidInv), sub: 'Invoice Lunas' },
-      { ...KPI_CARDS[3], value: formatIDR(totalRev), sub: 'Total Telah Dibayar', title: activeTab === 'GLOBAL' ? 'Pendapatan Tercatat' : 'Pendapatan Pelanggan' },
+      { ...KPI_CARDS[0], value: String(totalInv), sub: activeTab === 'GLOBAL' ? 'Total invoice aktif' : 'Total Invoice Pelanggan', trend: `${invTrend >= 0 ? '+' : ''}${invTrend}%`, up: invTrend >= 0 },
+      { ...KPI_CARDS[1], value: formatIDR(pendingInv), sub: activeTab === 'GLOBAL' ? 'Outstanding piutang' : 'Outstanding Piutang Pelanggan', trend: `${pendingTrend >= 0 ? '+' : ''}${pendingTrend}%`, up: pendingTrend <= 0 },
+      { ...KPI_CARDS[2], value: String(paidInv), sub: 'Invoice Lunas', trend: `${paidTrend >= 0 ? '+' : ''}${paidTrend}%`, up: paidTrend >= 0 },
+      { ...KPI_CARDS[3], value: formatIDR(totalRev), sub: 'Total Telah Dibayar', title: activeTab === 'GLOBAL' ? 'Pendapatan Tercatat' : 'Pendapatan Pelanggan', trend: `${revTrend >= 0 ? '+' : ''}${revTrend}%`, up: revTrend >= 0 },
     ];
   }, [activeTab, selectedCustomer, invoices]);
 
@@ -200,7 +246,7 @@ export function FinanceDashboard() {
         <div>
           <h1 className="text-xl text-slate-900">Dashboard Keuangan</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Ringkasan keuangan PT Pratama Jaya Tekindo · {isUsingBackend ? 'data backend' : 'backend belum tersedia'}
+            Ringkasan keuangan PT Pratama Jaya Tekindo
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -290,9 +336,38 @@ export function FinanceDashboard() {
           { label: 'Hutang Supplier', value: financeSummary.supplierPayable, sub: 'Tagihan supplier belum lunas' },
           { label: 'Piutang Aktif', value: financeSummary.outstandingAmount, sub: 'Invoice customer belum lunas' },
         ].map((item) => (
-          <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-400">{item.label}</p>
-            <p className="text-lg font-semibold text-slate-900 mt-1">{formatIDR(item.value)}</p>
+          <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative group">
+            <div className="flex justify-between items-start">
+              <p className="text-xs text-slate-400">{item.label}</p>
+              {item.label === 'Saldo Awal' && !isEditingBalance && (
+                <button 
+                  onClick={() => setIsEditingBalance(true)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+            </div>
+            {item.label === 'Saldo Awal' && isEditingBalance ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="text"
+                  value={balanceInput}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setBalanceInput(formatIDR(parseInt(raw || '0', 10)));
+                  }}
+                  className="w-full text-lg font-semibold text-slate-900 border-b border-slate-300 focus:border-red-600 focus:outline-none bg-transparent p-0 m-0"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveBalance(); }}
+                />
+                <button onClick={handleSaveBalance} className="text-green-600 hover:text-green-700">
+                  <Check size={16} />
+                </button>
+              </div>
+            ) : (
+              <p className="text-lg font-semibold text-slate-900 mt-1">{formatIDR(item.value)}</p>
+            )}
             <p className="text-[11px] text-slate-400 mt-1">{item.sub}</p>
           </div>
         ))}
