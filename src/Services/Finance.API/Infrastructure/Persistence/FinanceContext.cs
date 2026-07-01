@@ -16,6 +16,7 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
     public DbSet<PaymentVerificationRequest> PaymentVerificationRequests => Set<PaymentVerificationRequest>();
     public DbSet<CollectionLetter> CollectionLetters => Set<CollectionLetter>();
     public DbSet<SupplierPayment> SupplierPayments => Set<SupplierPayment>();
+    public DbSet<FinanceSetting> Settings => Set<FinanceSetting>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -206,5 +207,13 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
         });
 
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+
+        modelBuilder.Entity<FinanceSetting>(builder =>
+        {
+            builder.ToTable("finance_settings");
+            builder.HasKey(setting => setting.Id);
+            builder.Property(setting => setting.Id).HasMaxLength(50).HasColumnName("id");
+            builder.Property(setting => setting.OpeningBalance).HasColumnType("numeric(18,2)").HasColumnName("opening_balance");
+        });
     }
 }

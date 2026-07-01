@@ -554,9 +554,6 @@ export function SuppliersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
-            <Download size={13} /> Export
-          </button>
           <button 
             onClick={() => {
               setEditingSupplier(null);

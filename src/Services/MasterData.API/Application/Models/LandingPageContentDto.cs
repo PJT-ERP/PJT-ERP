@@ -78,8 +78,13 @@ public class LandingPageContentDto
     public string FooterPhone { get; set; } = "(021) 5935 7380";
     public string FooterEmail { get; set; } = "marketing@innovation-pratama.co.id";
     public string FooterLinkedin { get; set; } = "https://linkedin.com/company/innovation-pratama";
+    public bool ShowLinkedin { get; set; } = true;
     public string FooterTwitter { get; set; } = "https://twitter.com/innovationpratama";
+    public bool ShowTwitter { get; set; } = true;
     public string FooterYoutube { get; set; } = "https://youtube.com/c/innovationpratama";
+    public bool ShowYoutube { get; set; } = true;
+    public string FooterInstagram { get; set; } = "https://instagram.com/innovationpratama";
+    public bool ShowInstagram { get; set; } = true;
 }
 
 public class ProjectItemDto

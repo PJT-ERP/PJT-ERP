@@ -67,8 +67,13 @@ export interface LandingPageContent {
   footerPhone: string;
   footerEmail: string;
   footerLinkedin: string;
+  showLinkedin?: boolean;
   footerTwitter: string;
+  showTwitter?: boolean;
   footerYoutube: string;
+  showYoutube?: boolean;
+  footerInstagram: string;
+  showInstagram?: boolean;
 }
 
 export const defaultLandingPageContent: LandingPageContent = {
@@ -143,8 +148,13 @@ export const defaultLandingPageContent: LandingPageContent = {
   footerPhone: "0821-2485-1442",
   footerEmail: "marketing.innovation-pratama.co.id",
   footerLinkedin: "https://linkedin.com",
+  showLinkedin: true,
   footerTwitter: "https://twitter.com",
+  showTwitter: true,
   footerYoutube: "https://youtube.com",
+  showYoutube: true,
+  footerInstagram: "https://instagram.com",
+  showInstagram: true,
 };
 
 interface AppContextType {
@@ -229,8 +239,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           footerPhone: parsed.footerPhone || defaultLandingPageContent.footerPhone,
           footerEmail: parsed.footerEmail || defaultLandingPageContent.footerEmail,
           footerLinkedin: parsed.footerLinkedin || defaultLandingPageContent.footerLinkedin,
+          showLinkedin: parsed.showLinkedin ?? defaultLandingPageContent.showLinkedin,
           footerTwitter: parsed.footerTwitter || defaultLandingPageContent.footerTwitter,
+          showTwitter: parsed.showTwitter ?? defaultLandingPageContent.showTwitter,
           footerYoutube: parsed.footerYoutube || defaultLandingPageContent.footerYoutube,
+          showYoutube: parsed.showYoutube ?? defaultLandingPageContent.showYoutube,
+          footerInstagram: parsed.footerInstagram || defaultLandingPageContent.footerInstagram,
+          showInstagram: parsed.showInstagram ?? defaultLandingPageContent.showInstagram,
         };
       }
       return defaultLandingPageContent;
