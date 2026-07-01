@@ -132,12 +132,6 @@ export function ERPLayout() {
             <p style={{ margin: 0, fontSize: "10px", color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>{currentUser.role} Module</p>
           </div>
         )}
-        {!sidebarMinimized && (
-          <button className="lg:hidden" onClick={() => setSidebarOpen(false)}
-            style={{ color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", display: "flex" }}>
-            <X size={14} />
-          </button>
-        )}
       </div>
 
       {/* Flat nav */}
