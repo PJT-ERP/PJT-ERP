@@ -7,7 +7,7 @@ import {
 import {
   FileText, Clock, CheckCircle2, TrendingUp, TrendingDown,
   ArrowUpRight, FilePlus, ShieldCheck, BarChart3, ChevronRight,
-  AlertCircle, Wallet, RefreshCw, Users, CheckSquare
+  AlertCircle, Wallet, RefreshCw, Users, CheckSquare, Pencil, Check
 } from 'lucide-react';
 import {
   formatIDR, formatDate
@@ -153,6 +153,20 @@ export function FinanceDashboard() {
     })).sort((a, b) => b.total - a.total);
   }, [activeTab, selectedCustomer, invoices]);
 
+  const [openingBalance, setOpeningBalance] = useState<number>(() => {
+    const saved = localStorage.getItem('finance_opening_balance');
+    return saved ? parseInt(saved, 10) : 250_000_000;
+  });
+  const [isEditingBalance, setIsEditingBalance] = useState(false);
+  const [balanceInput, setBalanceInput] = useState(openingBalance.toString());
+
+  const handleSaveBalance = () => {
+    const val = parseInt(balanceInput.replace(/\D/g, ''), 10) || 0;
+    setOpeningBalance(val);
+    localStorage.setItem('finance_opening_balance', val.toString());
+    setIsEditingBalance(false);
+  };
+
   const financeSummary = useMemo(() => {
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
     const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
@@ -163,7 +177,6 @@ export function FinanceDashboard() {
     const overdueAmount = invoices
       .filter(invoice => invoice.status === 'OVERDUE')
       .reduce((sum, invoice) => sum + Math.max(0, invoice.amount - invoice.paidAmount), 0);
-    const openingBalance = 250_000_000;
 
     return {
       outstandingAmount: Math.max(0, totalBilled - totalPaid),
@@ -173,7 +186,7 @@ export function FinanceDashboard() {
       openingBalance,
       collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
     };
-  }, [invoices, purchasingRequests]);
+  }, [invoices, purchasingRequests, openingBalance]);
 
   const displayKPIs = useMemo(() => {
     const custInvoices = activeTab === 'CUSTOMER' && selectedCustomer !== 'ALL'
@@ -320,9 +333,38 @@ export function FinanceDashboard() {
           { label: 'Hutang Supplier', value: financeSummary.supplierPayable, sub: 'Tagihan supplier belum lunas' },
           { label: 'Piutang Aktif', value: financeSummary.outstandingAmount, sub: 'Invoice customer belum lunas' },
         ].map((item) => (
-          <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-400">{item.label}</p>
-            <p className="text-lg font-semibold text-slate-900 mt-1">{formatIDR(item.value)}</p>
+          <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative group">
+            <div className="flex justify-between items-start">
+              <p className="text-xs text-slate-400">{item.label}</p>
+              {item.label === 'Saldo Awal' && !isEditingBalance && (
+                <button 
+                  onClick={() => setIsEditingBalance(true)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+            </div>
+            {item.label === 'Saldo Awal' && isEditingBalance ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="text"
+                  value={balanceInput}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setBalanceInput(formatIDR(parseInt(raw || '0', 10)));
+                  }}
+                  className="w-full text-lg font-semibold text-slate-900 border-b border-slate-300 focus:border-red-600 focus:outline-none bg-transparent p-0 m-0"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveBalance(); }}
+                />
+                <button onClick={handleSaveBalance} className="text-green-600 hover:text-green-700">
+                  <Check size={16} />
+                </button>
+              </div>
+            ) : (
+              <p className="text-lg font-semibold text-slate-900 mt-1">{formatIDR(item.value)}</p>
+            )}
             <p className="text-[11px] text-slate-400 mt-1">{item.sub}</p>
           </div>
         ))}
