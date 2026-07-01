@@ -56,6 +56,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
     { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
     { label: "Master Produk", icon: <Package size={15} />, path: "/erp/admin/products" },
+    { label: "Daftar Supplier", icon: <Building2 size={15} />, path: "/erp/admin/suppliers" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
   ],
