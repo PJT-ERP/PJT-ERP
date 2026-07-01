@@ -175,7 +175,6 @@ export function FinanceDashboard() {
     };
   }, [invoices, purchasingRequests]);
 
-  // Adjust KPIs dynamically based on tab and selected customer
   const displayKPIs = useMemo(() => {
     const custInvoices = activeTab === 'CUSTOMER' && selectedCustomer !== 'ALL'
       ? invoices.filter(i => i.customerName === selectedCustomer)
@@ -185,11 +184,42 @@ export function FinanceDashboard() {
     const paidInv = custInvoices.filter(i => i.status === 'PAID').length;
     const totalRev = custInvoices.reduce((s, i) => s + i.paidAmount, 0);
 
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const currInv = custInvoices.filter(i => {
+      const d = new Date(i.issueDate);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+    const prevInv = custInvoices.filter(i => {
+      const d = new Date(i.issueDate);
+      return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+    });
+
+    const currTotalInv = currInv.length;
+    const prevTotalInv = prevInv.length;
+    const invTrend = prevTotalInv === 0 ? 0 : Math.round(((currTotalInv - prevTotalInv) / prevTotalInv) * 100);
+
+    const currPending = currInv.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((s, i) => s + (i.amount - i.paidAmount), 0);
+    const prevPending = prevInv.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((s, i) => s + (i.amount - i.paidAmount), 0);
+    const pendingTrend = prevPending === 0 ? 0 : Math.round(((currPending - prevPending) / prevPending) * 100);
+
+    const currPaid = currInv.filter(i => i.status === 'PAID').length;
+    const prevPaid = prevInv.filter(i => i.status === 'PAID').length;
+    const paidTrend = prevPaid === 0 ? 0 : Math.round(((currPaid - prevPaid) / prevPaid) * 100);
+
+    const currRev = currInv.reduce((s, i) => s + i.paidAmount, 0);
+    const prevRev = prevInv.reduce((s, i) => s + i.paidAmount, 0);
+    const revTrend = prevRev === 0 ? 0 : Math.round(((currRev - prevRev) / prevRev) * 100);
+
     return [
-      { ...KPI_CARDS[0], value: String(totalInv), sub: activeTab === 'GLOBAL' ? 'Total invoice aktif' : 'Total Invoice Pelanggan' },
-      { ...KPI_CARDS[1], value: formatIDR(pendingInv), sub: activeTab === 'GLOBAL' ? 'Outstanding piutang' : 'Outstanding Piutang Pelanggan' },
-      { ...KPI_CARDS[2], value: String(paidInv), sub: 'Invoice Lunas' },
-      { ...KPI_CARDS[3], value: formatIDR(totalRev), sub: 'Total Telah Dibayar', title: activeTab === 'GLOBAL' ? 'Pendapatan Tercatat' : 'Pendapatan Pelanggan' },
+      { ...KPI_CARDS[0], value: String(totalInv), sub: activeTab === 'GLOBAL' ? 'Total invoice aktif' : 'Total Invoice Pelanggan', trend: `${invTrend >= 0 ? '+' : ''}${invTrend}%`, up: invTrend >= 0 },
+      { ...KPI_CARDS[1], value: formatIDR(pendingInv), sub: activeTab === 'GLOBAL' ? 'Outstanding piutang' : 'Outstanding Piutang Pelanggan', trend: `${pendingTrend >= 0 ? '+' : ''}${pendingTrend}%`, up: pendingTrend <= 0 },
+      { ...KPI_CARDS[2], value: String(paidInv), sub: 'Invoice Lunas', trend: `${paidTrend >= 0 ? '+' : ''}${paidTrend}%`, up: paidTrend >= 0 },
+      { ...KPI_CARDS[3], value: formatIDR(totalRev), sub: 'Total Telah Dibayar', title: activeTab === 'GLOBAL' ? 'Pendapatan Tercatat' : 'Pendapatan Pelanggan', trend: `${revTrend >= 0 ? '+' : ''}${revTrend}%`, up: revTrend >= 0 },
     ];
   }, [activeTab, selectedCustomer, invoices]);
 
