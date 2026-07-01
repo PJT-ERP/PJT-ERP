@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, Printer, X, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -15,34 +15,29 @@ import {
   calcReceived,
   mapPurchaseRequestsToPos
 } from "./purchase-orders-page";
+import { usePurchasingData } from "./usePurchasingData";
 
 export function PurchaseOrderDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = rawId ? decodeURIComponent(rawId) : "";
   const navigate = useNavigate();
   const { refreshBackendData } = useApp();
+  const { purchaseRequests, supplierPayments, isLoading: isDataLoading, refresh } = usePurchasingData();
 
-  const [detail, setDetail] = useState<PO | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isReceiving, setIsReceiving] = useState(false);
   const [receiveItemState, setReceiveItemState] = useState<POItem | null>(null);
 
+  const pos = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments), [purchaseRequests, supplierPayments]);
+  const detail = useMemo(() => {
+    if (!id && !rawId) return null;
+    const cleanId = (id || rawId || "").trim();
+    const cleanDash = cleanId.replace(/\s+/g, "-");
+    const cleanSpace = cleanId.replace(/-/g, " ");
+    return pos.find(p => p.id === cleanId || p.id === cleanDash || p.id === cleanSpace || p.id.replace(/\s+/g, "-") === cleanDash || p.id.replace(/-/g, " ") === cleanSpace) || null;
+  }, [pos, id, rawId]);
+
   const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const [requests, payments] = await Promise.all([
-        purchasingApi.listPurchaseRequests(),
-        import("../../services/financeApi").then(m => m.financeApi.listSupplierPayments())
-      ]);
-      const pos = mapPurchaseRequestsToPos(requests, payments);
-      // Backend sets PR-123 as PO if poNumber wasn't explicitly generated in the mock or mapping. 
-      // Our mapped POS have id matching the PO Number.
-      const po = pos.find(p => p.id === id);
-      setDetail(po || null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
+    await refresh();
   };
 
   useEffect(() => {
@@ -81,15 +76,16 @@ export function PurchaseOrderDetailPage() {
     }
   };
 
-  if (isLoading) {
+  if (isDataLoading && !detail) {
     return <div className="p-10 text-center text-slate-500">Memuat data PO...</div>;
   }
 
   if (!detail) {
     return (
-      <div className="p-10 text-center">
-        <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/orders")} className="mt-4 px-4 py-2 bg-red-600 text-white rounded">
-          Kembali
+      <div className="p-10 text-center space-y-4">
+        <p className="text-slate-600 font-medium">Purchase Order "{id || rawId}" tidak ditemukan.</p>
+        <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/orders")} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium transition">
+          Kembali ke Daftar PO
         </button>
       </div>
     );
