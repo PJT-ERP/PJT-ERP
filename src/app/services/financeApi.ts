@@ -277,4 +277,14 @@ export const financeApi = {
     });
     return response.data;
   },
+
+  async getOpeningBalance() {
+    const response = await apiClient.get<number>('/api/v1/finance/settings/opening-balance');
+    return response.data;
+  },
+
+  async updateOpeningBalance(openingBalance: number) {
+    const response = await apiClient.put('/api/v1/finance/settings/opening-balance', { openingBalance });
+    return response.data;
+  },
 };

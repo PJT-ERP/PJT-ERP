@@ -16,6 +16,7 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
     public DbSet<PaymentVerificationRequest> PaymentVerificationRequests => Set<PaymentVerificationRequest>();
     public DbSet<CollectionLetter> CollectionLetters => Set<CollectionLetter>();
     public DbSet<SupplierPayment> SupplierPayments => Set<SupplierPayment>();
+    public DbSet<FinanceSetting> Settings => Set<FinanceSetting>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

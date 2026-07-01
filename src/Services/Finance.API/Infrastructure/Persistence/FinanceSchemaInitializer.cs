@@ -31,6 +31,15 @@ public static class FinanceSchemaInitializer
                 rejected_at_utc timestamp with time zone NULL
             );
 
+            CREATE TABLE IF NOT EXISTS finance_settings (
+                id character varying(50) NOT NULL PRIMARY KEY,
+                opening_balance numeric(18,2) NOT NULL
+            );
+
+            INSERT INTO finance_settings (id, opening_balance)
+            VALUES ('default', 250000000.00)
+            ON CONFLICT (id) DO NOTHING;
+
             CREATE INDEX IF NOT EXISTS ix_payment_verification_requests_invoice_id
                 ON payment_verification_requests (invoice_id);
 

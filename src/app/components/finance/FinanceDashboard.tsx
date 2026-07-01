@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -114,6 +114,8 @@ export function FinanceDashboard() {
   const {
     invoices,
     payments,
+    openingBalance,
+    updateOpeningBalance,
     isLoading,
     isUsingBackend,
     refresh,
@@ -153,19 +155,20 @@ export function FinanceDashboard() {
     })).sort((a, b) => b.total - a.total);
   }, [activeTab, selectedCustomer, invoices]);
 
-  const [openingBalance, setOpeningBalance] = useState<number>(() => {
-    const saved = localStorage.getItem('finance_opening_balance');
-    return saved ? parseInt(saved, 10) : 250_000_000;
-  });
   const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [balanceInput, setBalanceInput] = useState(openingBalance.toString());
+  const [balanceInput, setBalanceInput] = useState("");
 
-  const handleSaveBalance = () => {
+  const handleSaveBalance = async () => {
     const val = parseInt(balanceInput.replace(/\D/g, ''), 10) || 0;
-    setOpeningBalance(val);
-    localStorage.setItem('finance_opening_balance', val.toString());
+    await updateOpeningBalance(val);
     setIsEditingBalance(false);
   };
+
+  useEffect(() => {
+    if (!isEditingBalance) {
+      setBalanceInput(openingBalance.toString());
+    }
+  }, [openingBalance, isEditingBalance]);
 
   const financeSummary = useMemo(() => {
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
