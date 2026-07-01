@@ -33,7 +33,12 @@ const navGroups = [
 
 export function Footer() {
   const { landingPageContent } = useApp();
-  const { footerDescription, footerAddress, footerPhone, footerEmail, footerLinkedin, footerTwitter, footerYoutube } = landingPageContent;
+  const { 
+    footerDescription, footerAddress, footerPhone, footerEmail, 
+    footerLinkedin, showLinkedin = true,
+    footerTwitter, showTwitter = true,
+    footerYoutube, showYoutube = true
+  } = landingPageContent;
 
   const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith("#")) {
@@ -132,9 +137,9 @@ export function Footer() {
         </p>
         <div className="flex items-center gap-3">
           {[
-            { icon: Linkedin, href: footerLinkedin },
-            { icon: Twitter, href: footerTwitter },
-            { icon: Youtube, href: footerYoutube },
+            ...(showLinkedin ? [{ icon: Linkedin, href: footerLinkedin }] : []),
+            ...(showTwitter ? [{ icon: Twitter, href: footerTwitter }] : []),
+            ...(showYoutube ? [{ icon: Youtube, href: footerYoutube }] : []),
           ].map(({ icon: Icon, href }, i) => (
             <a
               key={i}

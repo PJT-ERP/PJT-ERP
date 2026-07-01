@@ -74,7 +74,8 @@ export function LandingPageEditor() {
   }, [landingPageContent]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, type } = e.target;
+    const value = type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
     setForm(prev => ({ ...prev, [name]: value }));
     setIsSaved(false);
   };
@@ -853,7 +854,13 @@ export function LandingPageEditor() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "8px" }}>
               <div>
-                <label style={{ display: "block", color: S.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>URL LinkedIn</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL LinkedIn</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showLinkedin" checked={form.showLinkedin} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
                 <input 
                   name="footerLinkedin" 
                   value={form.footerLinkedin} 
@@ -863,7 +870,13 @@ export function LandingPageEditor() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", color: S.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>URL Twitter/X</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL Twitter/X</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showTwitter" checked={form.showTwitter} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
                 <input 
                   name="footerTwitter" 
                   value={form.footerTwitter} 
@@ -873,7 +886,13 @@ export function LandingPageEditor() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", color: S.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>URL YouTube</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL YouTube</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showYoutube" checked={form.showYoutube} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
                 <input 
                   name="footerYoutube" 
                   value={form.footerYoutube} 
