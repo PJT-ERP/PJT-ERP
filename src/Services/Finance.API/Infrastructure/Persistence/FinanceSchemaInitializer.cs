@@ -36,6 +36,23 @@ public static class FinanceSchemaInitializer
                 opening_balance numeric(18,2) NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS supplier_payments (
+                id uuid NOT NULL PRIMARY KEY,
+                po_number character varying(100) NOT NULL,
+                supplier_name character varying(255) NOT NULL,
+                payment_date date NOT NULL,
+                amount numeric(18,2) NOT NULL,
+                bank_name character varying(120) NOT NULL,
+                bank_reference character varying(120) NULL,
+                proof_file_name character varying(255) NULL,
+                proof_file_url text NULL,
+                notes text NULL,
+                created_at_utc timestamp with time zone NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_supplier_payments_po_number
+                ON supplier_payments (po_number);
+
             INSERT INTO finance_settings (id, opening_balance)
             VALUES ('default', 250000000.00)
             ON CONFLICT (id) DO NOTHING;
