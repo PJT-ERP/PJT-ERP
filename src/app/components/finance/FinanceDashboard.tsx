@@ -246,7 +246,7 @@ export function FinanceDashboard() {
         <div>
           <h1 className="text-xl text-slate-900">Dashboard Keuangan</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Ringkasan keuangan PT Pratama Jaya Tekindo · {isUsingBackend ? 'data backend' : 'backend belum tersedia'}
+            Ringkasan keuangan PT Pratama Jaya Tekindo
           </p>
         </div>
         <div className="flex items-center gap-2">
