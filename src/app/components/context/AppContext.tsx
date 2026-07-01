@@ -9,9 +9,147 @@ import { authApi } from "../../services/authApi";
 import { productionApi } from "../../services/productionApi";
 import { qcApi } from "../../services/qcApi";
 import { financeApi } from "../../services/financeApi";
+import { landingPageApi } from "../../services/landingPageApi";
 import { BACKEND_USER_IDS_BY_LOCAL_ID, isGuid, toBackendUserId } from "../../services/backendIds";
 
+export interface ProjectItem {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+}
+
+export interface FacilityMachineItem {
+  id: string;
+  desc: string;
+  unit: number;
+  img: string;
+}
+
+export interface TestimonialItem {
+  id: string;
+  name: string;
+  text: string;
+}
+
+export interface ContactLocationItem {
+  id: string;
+  label: string;
+  address: string;
+}
+
+export interface LandingPageContent {
+  topBarCompanyName: string;
+  topBarSubtitle: string;
+  heroHeadlineLine1: string;
+  heroHeadlineLine2: string;
+  heroTagline: string;
+  heroBadgeText: string;
+  companyIntroTitle: string;
+  companyIntroSubtitle: string;
+  companyIntroText1: string;
+  companyIntroText2: string;
+  projectsTitle: string;
+  projectsSubtitle: string;
+  projects: ProjectItem[];
+  facilitiesTitle: string;
+  facilitiesSubtitle: string;
+  tangerangMachines: FacilityMachineItem[];
+  surabayaMachines: FacilityMachineItem[];
+  testimonialsTitle: string;
+  testimonialsSubtitle: string;
+  testimonials: TestimonialItem[];
+  contactTitle: string;
+  contactSubtitle: string;
+  contactLocations: ContactLocationItem[];
+  footerDescription: string;
+  footerAddress: string;
+  footerPhone: string;
+  footerEmail: string;
+  footerLinkedin: string;
+  footerTwitter: string;
+  footerYoutube: string;
+}
+
+export const defaultLandingPageContent: LandingPageContent = {
+  topBarCompanyName: "PT. PRATAMA JAYA TEKINDO",
+  topBarSubtitle: "General Supplier, Mechanical Component, Design Engineering, CNC 3D Programming, Jig & Checking Fixture, Fabrication, PLC Automation System",
+  heroHeadlineLine1: "We are Mechanical",
+  heroHeadlineLine2: "Engineering Experts!",
+  heroTagline: "Need Precision Components or Special Purpose Machines?",
+  heroBadgeText: "INTEGRATED MANUFACTURING SOLUTIONS",
+  companyIntroTitle: "ABOUT COMPANY",
+  companyIntroSubtitle: "Delivering Speed, Accuracy, and Innovation for the Future of Industry",
+  companyIntroText1: "Established in 2016 as a 100% local manufacturing company, PT Pratama Jaya Tekindo is here to answer the high industrial demand for reliable mechanical & engineering services. We focus on providing precision components and end-to-to-end engineering solutions to support the smooth operation of large-scale factories and production lines.",
+  companyIntroText2: "Upholding the work philosophy of Speed (fast processes with high quality) and Snipe (sharp level of accuracy and precision), we combine the expertise of professional workforce with modern CNC machining. From the automotive industry to food and beverage, we are committed to being a trusted partner capable of creating more effective, efficient, and competitive production systems.",
+  projectsTitle: "Our Projects",
+  projectsSubtitle: "Showcasing our precision engineering and successful manufacturing results.",
+  projects: [
+    { id: "1", title: "ROTARY JIG INSPECTION", description: "We design and fabricate rotary jig inspection systems that ensure precision and consistency in production quality control processes.", image: "/5.jpg" },
+    { id: "2", title: "CONVEYOR", description: "Our conveyor systems are engineered for durability and seamless material handling, optimizing workflow efficiency across various industries.", image: "/6.jpg" },
+    { id: "3", title: "PIPING INSTALATION", description: "We offer complete piping installation services for industrial systems, ensuring safety, accuracy, and compliance with engineering standards.", image: "/7.jpg" },
+    { id: "4", title: "MOLD BLOW", description: "We produce high-quality blow molds designed for precision and long-term use, supporting various packaging and manufacturing applications.", image: "/8.jpg" },
+    { id: "5", title: "JIG ROTATY ENGINEMESIN EKSAVATOR", description: "We develop custom rotary jigs and components for heavy equipment such as excavators, enhancing accuracy, performance, and maintenance efficiency.", image: "/9.jpg" },
+    { id: "6", title: "DIES CUTTING FARMASI", description: "Our pharmaceutical die-cutting molds are engineered to meet industry standards, ensuring precision, hygiene, and consistent production quality.", image: "/10.jpg" },
+    { id: "7", title: "Mesin Tapping", description: "We manufacture reliable tapping machines that deliver accurate threading performance, ideal for both small-scale and industrial applications.", image: "/11.jpg" },
+    { id: "8", title: "Insert mold", description: "We design and produce insert molds with high precision to meet complex part geometries and improve manufacturing efficiency.", image: "/12.jpg" },
+    { id: "9", title: "Special Purpose Mesin", description: "Our custom-engineered special purpose machines are built to handle specific production needs, offering enhanced productivity and operational safety.", image: "/13.png" },
+    { id: "10", title: "Proses CNC Milling", description: "Our CNC milling services deliver precision machining for a wide range of materials, ensuring accuracy and high-quality surface finishing.", image: "/14.jpg" },
+    { id: "11", title: "Checking Fixture", description: "We design and produce checking fixtures that provide accurate measurements and quality assurance for manufactured components.", image: "/15.png" },
+    { id: "12", title: "PLC SYSTEM WITH HMI", description: "We integrate advanced PLC and HMI systems to automate and monitor industrial processes, ensuring seamless operation and real-time control.", image: "/16.jpg" },
+    { id: "13", title: "PLC SYSTEM WITH HMI", description: "We supply a wide range of industrial components, including electrical equipment, pneumatic parts, and hydraulic systems, from trusted brands to meet your operational needs.", image: "/17.jpg" },
+  ],
+  facilitiesTitle: "Our Facilities & Capacities",
+  facilitiesSubtitle: "Expanding our reach to deliver excellence across regions.",
+  tangerangMachines: [
+    { id: "t1", desc: "CNC Milling Hurco 2014", unit: 1, img: "/tangerang/CNC Milling Hurco 2014.jpeg" },
+    { id: "t2", desc: "CNC Milling Twinhorn 2021", unit: 1, img: "/tangerang/CNC Milling Twinhorn 2021.jpg" },
+    { id: "t3", desc: "CNC Milling YCM 2022", unit: 1, img: "/tangerang/CNC Milling YCM 2022.jpg" },
+    { id: "t4", desc: "CNC Milling Akira Seiki 2015", unit: 1, img: "/tangerang/CNC Milling Akira Seiki 2015.jpg" },
+    { id: "t5", desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 3, img: "/tangerang/CNC Lathe MC MAZAK 8 inch 2016.jpg" },
+    { id: "t6", desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/tangerang/CNC LATHE MC Goodway 8 inch 2016.jpg" },
+    { id: "t7", desc: "CNC LATHE M/C Microcut 6 inch 2016", unit: 1, img: "/tangerang/CNC LATHE MC Microcut 6 inch 2016.jpg" },
+    { id: "t8", desc: "Lathe Machine", unit: 1, img: "/tangerang/Lathe Machine.jpg" },
+    { id: "t9", desc: "Surface Grinding PROTH 2012", unit: 1, img: "/tangerang/Surface Grinding PROTH 2012.jpg" },
+    { id: "t10", desc: "Milling Machine STD SM5", unit: 1, img: "/tangerang/Milling Machine STD SM5.jpg" },
+    { id: "t11", desc: "Milling Machine STD SM4", unit: 1, img: "/tangerang/Milling Machine STD SM4.jpeg" },
+  ],
+  surabayaMachines: [
+    { id: "s1", desc: "CNC Milling YCM 2015", unit: 3, img: "/surabaya/CNC Milling YCM 2015 NSV 106AM.jpg" },
+    { id: "s2", desc: "CNC Milling YCM 2015", unit: 1, img: "/surabaya/CNC Milling YCM 2015 NSV 106AM.jpg" },
+    { id: "s3", desc: "CNC Milling VICTOR 2018", unit: 1, img: "/surabaya/CNC Milling VICTOR 2018.jpg" },
+    { id: "s4", desc: "CNC Milling First 2017", unit: 1, img: "/surabaya/CNC Milling First 2017.jpg" },
+    { id: "s5", desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 2, img: "/surabaya/CNC Lathe MC MAZAK 8 inch 2016.jpg" },
+    { id: "s6", desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/surabaya/CNC LATHE MC Goodway 8 inch 2016.webp" },
+    { id: "s7", desc: "CNC LATHE M/C Goodway 10 inch 2016", unit: 1, img: "/surabaya/CNC LATHE MC Goodway 10 inch 2016.jpg" },
+    { id: "s8", desc: "HORIZONTAL MILLING", unit: 1, img: "/surabaya/HORIZONTAL MILLING.jpg" },
+  ],
+  testimonialsTitle: "Read what people are saying",
+  testimonialsSubtitle: "Feedback from our clients using our manufacturing services.",
+  testimonials: [
+    { id: "testi1", name: "Jeniffer Smith", text: "PT. PRATAMA JAYA TEKINDO provided us with high-quality, precision parts for our production line. Their expertise in custom manufacturing and commitment to deadlines truly sets them apart." },
+    { id: "testi2", name: "David Johnson", text: "We've relied on PT. PRATAMA JAYA TEKINDO for several special-purpose machines, and their technical support has been exceptional. Always responsive and professional." },
+    { id: "testi3", name: "Steve Tailor", text: "Their team's ability to deliver complex parts on time with the highest quality has greatly improved our production efficiency. Highly recommended for any engineering needs." },
+  ],
+  contactTitle: "Don't Know Where to Start?",
+  contactSubtitle: "Get Solutions for All Your Engineering Needs",
+  contactLocations: [
+    { id: "loc1", label: "Head Office", address: "Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya, Kec.\nPs. Kemis, Kabupaten Tangerang, Banten 15560" },
+    { id: "loc2", label: "Branch Office", address: "Kawasan 3 bisnis centre,Ruko Shapire No 51 Jl. Lingkar\nTanjungpura, Tanjungpura, kec. Karawang Barat, Jawa Barat 41361" },
+    { id: "loc3", label: "Workshop 2", address: "Pergudangan centre point Blok B5, Krian, Sidoarjo," }
+  ],
+  footerDescription: "Leading mechanical manufacturing and precision engineering company providing components, moulds, and industrial automation systems.",
+  footerAddress: "Sunrise Bizpark Blok D3, Tangerang",
+  footerPhone: "0821-2485-1442",
+  footerEmail: "marketing.innovation-pratama.co.id",
+  footerLinkedin: "https://linkedin.com",
+  footerTwitter: "https://twitter.com",
+  footerYoutube: "https://youtube.com",
+};
+
 interface AppContextType {
+  landingPageContent: LandingPageContent;
+  setLandingPageContent: Dispatch<SetStateAction<LandingPageContent>>;
   currentUser: User | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -23,8 +161,8 @@ interface AppContextType {
   refreshBackendData: () => Promise<void>;
   addSalesOrder: (so: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>) => SalesOrder;
   updateSalesOrder: (id: string, updates: Partial<SalesOrder>) => void;
-  addUser: (user: Omit<User, 'id'>) => void;
-  updateUser: (id: string, updates: Partial<User>) => void;
+  addUser: (user: Omit<User, 'id'>) => Promise<boolean>;
+  updateUser: (id: string, updates: Partial<User>) => Promise<boolean>;
   deleteUser: (id: string) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomer: (code: string, updates: Partial<Customer>) => void;
@@ -70,6 +208,36 @@ function restoreStoredUser(): User | null {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [landingPageContent, setLandingPageContent] = useState<LandingPageContent>(() => {
+    try {
+      const stored = localStorage.getItem("erp_landingPageContent");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { 
+          ...defaultLandingPageContent, 
+          topBarCompanyName: parsed.topBarCompanyName || defaultLandingPageContent.topBarCompanyName,
+          topBarSubtitle: parsed.topBarSubtitle || defaultLandingPageContent.topBarSubtitle,
+          heroHeadlineLine1: parsed.heroHeadlineLine1 || defaultLandingPageContent.heroHeadlineLine1,
+          ...parsed,
+          projects: parsed.projects?.length ? parsed.projects : defaultLandingPageContent.projects,
+          tangerangMachines: parsed.tangerangMachines?.length ? parsed.tangerangMachines : defaultLandingPageContent.tangerangMachines,
+          surabayaMachines: parsed.surabayaMachines?.length ? parsed.surabayaMachines : defaultLandingPageContent.surabayaMachines,
+          testimonials: parsed.testimonials?.length ? parsed.testimonials : defaultLandingPageContent.testimonials,
+          contactLocations: parsed.contactLocations?.length ? parsed.contactLocations : defaultLandingPageContent.contactLocations,
+          footerDescription: parsed.footerDescription || defaultLandingPageContent.footerDescription,
+          footerAddress: parsed.footerAddress || defaultLandingPageContent.footerAddress,
+          footerPhone: parsed.footerPhone || defaultLandingPageContent.footerPhone,
+          footerEmail: parsed.footerEmail || defaultLandingPageContent.footerEmail,
+          footerLinkedin: parsed.footerLinkedin || defaultLandingPageContent.footerLinkedin,
+          footerTwitter: parsed.footerTwitter || defaultLandingPageContent.footerTwitter,
+          footerYoutube: parsed.footerYoutube || defaultLandingPageContent.footerYoutube,
+        };
+      }
+      return defaultLandingPageContent;
+    } catch {
+      return defaultLandingPageContent;
+    }
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(() => restoreStoredUser());
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -105,6 +273,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(AUTH_PROFILE_KEY);
     setCurrentUser(null);
   };
+
+  useEffect(() => {
+    localStorage.setItem("erp_landingPageContent", JSON.stringify(landingPageContent));
+  }, [landingPageContent]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -146,13 +318,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshBackendData = useCallback(async () => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
     const shouldLoadInvoices = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner" || currentUser?.role === "Sales";
-    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult] = await Promise.allSettled([
+    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult, landingPageResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
       salesApi.listSalesOrders(),
       shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
       authApi.getUsers(),
-      shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([])
+      shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([]),
+      landingPageApi.getLandingPageContent()
     ]);
 
     if (customersResult.status === "fulfilled") {
@@ -174,6 +347,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let invoices: any[] = [];
     if (invoicesResult && invoicesResult.status === "fulfilled" && Array.isArray(invoicesResult.value)) {
       invoices = invoicesResult.value;
+    }
+
+    if (landingPageResult.status === "fulfilled" && landingPageResult.value) {
+      setLandingPageContent(landingPageResult.value);
     }
 
     if (salesOrdersResult.status === "fulfilled") {
@@ -285,40 +462,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addUser = (user: Omit<User, 'id'>) => {
-    const tempId = `u${Date.now()}`;
-    setUsers(prev => [...prev, { ...user, id: tempId }]);
-    
-    // Simpan ke backend
-    authApi.createUser({
+  const addUser = async (user: Omit<User, 'id'>): Promise<boolean> => {
+    const created = await authApi.createUser({
       name: user.name,
       email: user.email,
       password: (user as any).password || "DefaultPass123!",
       role: user.role,
       isActive: user.isActive
-    }).then(created => {
-      if (created) {
-        setUsers(prev => prev.map(u => u.id === tempId ? { ...u, id: created.userId || tempId } : u));
-      }
     });
+
+    if (created) {
+      setUsers(prev => [...prev, { ...user, id: created.userId }]);
+      return true;
+    }
+    return false;
   };
 
-  const updateUser = (id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
-
-    // Update ke backend
+  const updateUser = async (id: string, updates: Partial<User>): Promise<boolean> => {
     if (!id.startsWith('u')) {
       const currentUserData = users.find(u => u.id === id);
       if (currentUserData) {
-        authApi.updateUser(id, {
+        const updated = await authApi.updateUser(id, {
           name: updates.name ?? currentUserData.name,
           email: updates.email ?? currentUserData.email,
           role: updates.role ?? currentUserData.role,
           isActive: updates.isActive ?? currentUserData.isActive,
           password: (updates as any).password // if it exists
         });
+
+        if (!updated) {
+          return false;
+        }
       }
     }
+
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+    return true;
   };
 
   const deleteUser = (id: string) => {
@@ -399,7 +578,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, login, logout,
+        landingPageContent,
+        setLandingPageContent,
+        currentUser,
+        login,
+        logout,
       salesOrders, customers, productCatalog, users, purchasingRequests,
       refreshBackendData,
       addSalesOrder, updateSalesOrder,
@@ -449,7 +632,7 @@ function mapBackendRoleToUserRole(role?: string | null): UserRole {
     case "engineer":
     case "engineeringworker":
     case "engineeringreviewer":
-      return "Engineering Worker";
+      return "Engineering";
     case "engineeringsupervisor":
     case "supervisorengineering":
       return "Engineering Supervisor";
@@ -474,7 +657,7 @@ function mapCustomerDto(customer: CustomerDto): Customer {
 function canLoadPurchaseRequests(role?: UserRole | null) {
   return role === "Purchasing"
     || role === "Finance"
-    || role === "Engineering Worker"
+    || role === "Engineering"
     || role === "Engineering Supervisor"
     || role === "Admin"
     || role === "Owner";
@@ -628,9 +811,10 @@ function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesO
     }
   }
 
-  if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
-    return "Waiting Pricing";
-  }
+  // Allow production to run in parallel with pricing
+  // if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
+  //   return "Waiting Pricing";
+  // }
 
   // Allow production to run in parallel with payment
   // if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {

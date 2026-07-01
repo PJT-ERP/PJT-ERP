@@ -1,32 +1,12 @@
 import React, { useState } from 'react';
 import { MapPin, Settings2, ShieldCheck, Wrench, ImageIcon, Box } from 'lucide-react';
 
-const tangerangMachines = [
-  { no: 1, desc: "CNC Milling Hurco 2014", unit: 1, img: "/tangerang/CNC Milling Hurco 2014.jpeg" },
-  { no: 2, desc: "CNC Milling Twinhorn 2021", unit: 1, img: "/tangerang/CNC Milling Twinhorn 2021.jpg" },
-  { no: 3, desc: "CNC Milling YCM 2022", unit: 1, img: "/tangerang/CNC Milling YCM 2022.jpg" },
-  { no: 4, desc: "CNC Milling Akira Seiki 2015", unit: 1, img: "/tangerang/CNC Milling Akira Seiki 2015.jpg" },
-  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 3, img: "/tangerang/CNC Lathe MC MAZAK 8 inch 2016.jpg" },
-  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/tangerang/CNC LATHE MC Goodway 8 inch 2016.jpg" },
-  { no: 7, desc: "CNC LATHE M/C Microcut 6 inch 2016", unit: 1, img: "/tangerang/CNC LATHE MC Microcut 6 inch 2016.jpg" },
-  { no: 8, desc: "Lathe Machine", unit: 1, img: "/tangerang/Lathe Machine.jpg" },
-  { no: 9, desc: "Surface Grinding PROTH 2012", unit: 1, img: "/tangerang/Surface Grinding PROTH 2012.jpg" },
-  { no: 10, desc: "Milling Machine STD SM5", unit: 1, img: "/tangerang/Milling Machine STD SM5.jpg" },
-  { no: 11, desc: "Milling Machine STD SM4", unit: 1, img: "/tangerang/Milling Machine STD SM4.jpeg" },
-];
-
-const surabayaMachines = [
-  { no: 1, desc: "CNC Milling YCM 2015", unit: 3, img: "/CNC MILLING YCM E5.png" },
-  { no: 2, desc: "CNC Milling YCM 2015", unit: 1, img: "/CNC MILLING YCM E5.png" },
-  { no: 3, desc: "CNC Milling VICTOR 2018", unit: 1, img: "/surabaya/CNC Milling VICTOR 2018.jpg" },
-  { no: 4, desc: "CNC Milling First 2017", unit: 1, img: null },
-  { no: 5, desc: "CNC Lathe M/C MAZAK 8 inch 2016", unit: 2, img: "/surabaya/CNC Lathe MC MAZAK 8 inch 2016.jpg" },
-  { no: 6, desc: "CNC LATHE M/C Goodway 8 inch 2016", unit: 1, img: "/surabaya/CNC LATHE MC Goodway 8 inch 2016.webp" },
-  { no: 7, desc: "CNC LATHE M/C Goodway 10 inch 2016", unit: 1, img: "/surabaya/CNC LATHE MC Goodway 10 inch 2016.jpg" },
-  { no: 8, desc: "HORIZONTAL MILLING", unit: 1, img: null },
-];
+import { useApp } from "../context/AppContext";
 
 export function FacilitySection() {
+  const { landingPageContent } = useApp();
+  const { facilitiesTitle, facilitiesSubtitle, tangerangMachines, surabayaMachines } = landingPageContent;
+
   const [activeTab, setActiveTab] = useState<"tangerang" | "surabaya">("tangerang");
 
   const activeMachines = activeTab === "tangerang" ? tangerangMachines : surabayaMachines;
@@ -46,7 +26,7 @@ export function FacilitySection() {
               marginBottom: "12px" 
             }}
           >
-            Our Facilities & Capacities
+            {facilitiesTitle}
           </h3>
           <h2 
             style={{ 
@@ -58,7 +38,7 @@ export function FacilitySection() {
               maxWidth: "800px"
             }}
           >
-            Expanding our reach to deliver excellence across regions.
+            {facilitiesSubtitle}
           </h2>
         </div>
 
@@ -118,9 +98,9 @@ export function FacilitySection() {
 
         {/* Machine Cards Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {activeMachines.map((m, idx) => (
+          {activeMachines?.map((m) => (
             <div 
-              key={idx} 
+              key={m.id} 
               className="flex flex-col bg-white overflow-hidden p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
             >
               {/* Image / Placeholder */}

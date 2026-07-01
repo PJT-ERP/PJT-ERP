@@ -1,19 +1,10 @@
-const stats = [
-  {
-    value: "Jeniffer Smith",
-    description: "PT. PRATAMA JAYA TEKINDO provided us with high-quality, precision parts for our production line. Their expertise in custom manufacturing and commitment to deadlines truly sets them apart.",
-  },
-  {
-    value: "David Johnson",
-    description: "We've relied on PT. PRATAMA JAYA TEKINDO for several special-purpose machines, and their technical support has been exceptional. Always responsive and professional.",
-  },
-  {
-    value: "Steve Tailor",
-    description: "Their team's ability to deliver complex parts on time with the highest quality has greatly improved our production efficiency. Highly recommended for any engineering needs.",
-  },
-];
+import { useApp } from "../context/AppContext";
+import { Star } from "lucide-react";
 
 export function CompanyStats() {
+  const { landingPageContent } = useApp();
+  const { testimonialsTitle, testimonialsSubtitle, testimonials } = landingPageContent;
+
   return (
     <section
       style={{
@@ -33,7 +24,7 @@ export function CompanyStats() {
               letterSpacing: "-0.01em",
             }}
           >
-            Read what people are saying
+            {testimonialsTitle}
           </h2>
           <p
             style={{
@@ -43,14 +34,14 @@ export function CompanyStats() {
               marginTop: "8px",
             }}
           >
-            Feedback from our clients using our manufacturing services.
+            {testimonialsSubtitle}
           </p>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stats.map((stat) => (
+          {testimonials?.map((stat) => (
             <div
-              key={stat.value}
+              key={stat.id}
               className="rounded-xl p-5 text-left"
               style={{
                 backgroundColor: "#FFFFFF",
@@ -61,42 +52,39 @@ export function CompanyStats() {
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src={`https://ui-avatars.com/api/?name=${stat.value.replace(" ", "+")}&background=F1F5F9&color=475569`}
-                    alt={stat.value}
+                    src={`https://ui-avatars.com/api/?name=${stat.name.replace(" ", "+")}&background=F1F5F9&color=475569`}
+                    alt={stat.name}
                     className="w-10 h-10 rounded-full"
                   />
                   <div>
-                    <div
+                    <h3
                       style={{
                         color: "#111827",
                         fontFamily: "Inter, sans-serif",
                         fontSize: "14px",
                         fontWeight: 600,
+                        margin: 0
                       }}
                     >
-                      {stat.value}
-                    </div>
-                    <div
-                      style={{
-                        color: "#64748B",
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: "12px",
-                      }}
-                    >
-                      @{stat.value.toLowerCase().replace(" ", "")}
+                      {stat.name}
+                    </h3>
+                    <div className="flex items-center text-amber-400 mt-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={14} fill="currentColor" />
+                      ))}
                     </div>
                   </div>
                 </div>
               </div>
               <p
                 style={{
-                  color: "#334155",
+                  color: "#475569",
                   fontFamily: "Inter, sans-serif",
-                  fontSize: "13px",
+                  fontSize: "14px",
                   lineHeight: 1.6,
                 }}
               >
-                {stat.description}
+                "{stat.text}"
               </p>
             </div>
           ))}

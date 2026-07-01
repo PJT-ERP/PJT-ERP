@@ -20,8 +20,9 @@ import { FinancePurchasingApproval } from "./components/finance/FinancePurchasin
 import { FinancePrDetail } from "./components/finance/FinancePrDetail";
 import { FinancePoDetail } from "./components/finance/FinancePoDetail";
 
-// Migrated Pages from Folder B
 import { AdminPage } from "./pages/AdminPage";
+import { AdminProductsPage } from "./pages/AdminProductsPage";
+import { LandingPageEditor } from "./pages/LandingPageEditor";
 import { EngineeringTasksPage } from "./pages/EngineeringTasksPage";
 import { EngineeringTaskDetailPage } from "./pages/EngineeringTaskDetailPage";
 import { EngineeringPage } from "./pages/EngineeringPage";
@@ -64,15 +65,15 @@ export default function App() {
             {/* SO: Sales, Admin, Owner */}
             <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Admin', 'Owner']}><SalesOrderModule /></ProtectedRoute>} />
 
-            {/* Engineer: Engineering Worker, Admin, Owner, Engineering Supervisor */}
-            <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPage /></ProtectedRoute>} />
-            <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
-            <Route path="engineer-tasks/:id" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTaskDetailPage /></ProtectedRoute>} />
-            <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
-            <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
-            <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
-            <Route path="production/mr/:id" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionMaterialRequestPage /></ProtectedRoute>} />
-            <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><QCPage /></ProtectedRoute>} />
+            {/* Engineer: Engineering, Admin, Owner, Engineering Supervisor */}
+            <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPage /></ProtectedRoute>} />
+            <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
+            <Route path="engineer-tasks/:id" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTaskDetailPage /></ProtectedRoute>} />
+            <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
+            <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
+            <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
+            <Route path="production/mr/:id" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionMaterialRequestPage /></ProtectedRoute>} />
+            <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><QCPage /></ProtectedRoute>} />
 
             {/* Owner & Engineering Supervisor Approval */}
             <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><OwnerApprovalPage /></ProtectedRoute>} />
@@ -81,6 +82,8 @@ export default function App() {
             
             {/* Admin: Admin & Owner */}
             <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />
+            <Route path="admin/products" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminProductsPage /></ProtectedRoute>} />
+            <Route path="landing-page" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><LandingPageEditor /></ProtectedRoute>} />
 
             {/* Finance: Finance, Admin, Owner */}
             <Route path="finance">

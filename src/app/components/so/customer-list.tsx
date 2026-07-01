@@ -126,7 +126,14 @@ function CustomerModal({ state, onSave, onClose }: {
                 <ModalLabel text="Kode" />
                 <input
                   type="text"
-                  value={form.code ?? state.customer.code ?? `CUST-${String(customers.length + 1).padStart(3, "0")}`}
+                  value={form.code ?? state.customer.code ?? (() => {
+                    const maxNum = customers.reduce((max, c) => {
+                      const match = c.code.match(/\d+/);
+                      const num = match ? parseInt(match[0], 10) : 0;
+                      return num < 9000 ? Math.max(max, num) : max;
+                    }, 0);
+                    return `CUST-${String(maxNum + 1).padStart(3, "0")}`;
+                  })()}
                   disabled={true}
                   style={{
                     width: "100%", boxSizing: "border-box", background: S.bg, cursor: "not-allowed",
@@ -148,8 +155,8 @@ function CustomerModal({ state, onSave, onClose }: {
                 <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required />
               </div>
               <div>
-                <ModalLabel text="Email" />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} />
+                <ModalLabel text="Email" required />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required />
               </div>
             </div>
             <div>
@@ -221,8 +228,16 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 
   const handleSave = (data: Partial<Customer>) => {
     if (modal?.mode === "add") {
+      const generateCode = () => {
+        const maxNum = customers.reduce((max, c) => {
+          const match = c.code.match(/\d+/);
+          const num = match ? parseInt(match[0], 10) : 0;
+          return num < 9000 ? Math.max(max, num) : max;
+        }, 0);
+        return `CUST-${String(maxNum + 1).padStart(3, "0")}`;
+      };
       const newCustomer: Customer = {
-        code: `CUST-${String(customers.length + 1).padStart(3, "0")}`,
+        code: generateCode(),
         name: data.name ?? "",
         contactPerson: data.contactPerson ?? "",
         contact: data.contact ?? "",

@@ -48,7 +48,7 @@ export function DashboardPage() {
   }));
 
   const workerTaskData = users
-    .filter(user => user.role === 'Engineering Worker')
+    .filter(user => user.role === 'Engineering')
     .map((worker, index) => {
       const assigned = salesOrders.filter(so => so.designAssignedTo === worker.id || so.assignedTo === worker.id);
       const active = assigned.filter(so => !['Completed', 'Rejected'].includes(so.status)).length;

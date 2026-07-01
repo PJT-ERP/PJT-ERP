@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Edit2, Trash2, Users, Building2, CheckCircle, XCircle, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, Users, Building2, CheckCircle, XCircle, Search, X } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { User, Customer, UserRole } from "../components/data/mockData";
 
@@ -15,14 +15,14 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const ROLES: UserRole[] = ['Sales', 'Engineering Worker', 'Admin', 'Finance', 'Purchasing'];
+const ROLES: UserRole[] = ['Sales', 'Engineering', 'Admin', 'Finance', 'Purchasing'];
 
 function getRoleColors(role: string) {
   switch (role) {
-    case 'Owner': return { bg: '#1E293B', text: '#F8FAFC', border: '#334155' };
+    case 'Owner': return { bg: '#FFEDD5', text: '#C2410C', border: '#FED7AA' };
     case 'Admin': return { bg: '#F1F5F9', text: '#475569', border: '#E2E8F0' };
-    case 'Engineering Supervisor':
-    case 'Engineering Worker': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' };
+    case 'Engineering Supervisor': return { bg: '#F3E8FF', text: '#9333EA', border: '#E9D5FF' }; // Purple
+    case 'Engineering': return { bg: '#FFE4E6', text: '#E11D48', border: '#FECDD3' }; // Rose / Red
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
     default: return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' }; // Sales
@@ -43,7 +43,7 @@ function RoleBadge({ role }: { role: string }) {
 function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
   const { addUser, updateUser } = useApp();
   const isActuallyEngSpv = user?.role === 'Engineering Supervisor';
-  const initialRole = isActuallyEngSpv ? 'Engineering Worker' : (user?.role ?? 'Sales');
+  const initialRole = isActuallyEngSpv ? 'Engineering' : (user?.role ?? 'Sales');
 
   const [form, setForm] = useState({
     name: user?.name ?? '',
@@ -55,9 +55,14 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
     isSupervisor: isActuallyEngSpv,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalRole = (form.role === 'Engineering Worker' && form.isSupervisor) ? 'Engineering Supervisor' : form.role;
+    setErrorMsg("");
+    setIsSubmitting(true);
+    const finalRole = (form.role === 'Engineering' && form.isSupervisor) ? 'Engineering Supervisor' : form.role;
 
     const submitData = {
       name: form.name,
@@ -68,12 +73,19 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
       isActive: form.isActive
     };
 
+    let success = false;
     if (user) {
-      updateUser(user.id, submitData);
+      success = await updateUser(user.id, submitData);
     } else {
-      addUser(submitData);
+      success = await addUser(submitData);
     }
-    onClose();
+    
+    setIsSubmitting(false);
+    if (success) {
+      onClose();
+    } else {
+      setErrorMsg("Gagal menyimpan data user. Pastikan email belum digunakan oleh user lain dan koneksi stabil.");
+    }
   };
 
   return (
@@ -84,6 +96,11 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
         </div>
         <form onSubmit={handleSubmit} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {errorMsg && (
+            <div style={{ padding: "10px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 8, color: "#DC2626", fontSize: "13px" }}>
+              {errorMsg}
+            </div>
+          )}
           <div>
             <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Lengkap *</label>
             <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
@@ -91,11 +108,11 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email / Username *</label>
-              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              <input type="email" autoComplete="off" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Password {user ? '' : '*'}</label>
-              <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={!user} placeholder={user ? "Kosongkan jika tidak diubah" : "Password baru"} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
+              <input type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required={!user} placeholder={user ? "Kosongkan jika tidak diubah" : "Password baru"} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
               {user && <span style={{ fontSize: "11px", color: S.secondary, marginTop: 4, display: "block" }}>Disembunyikan karena alasan keamanan.</span>}
             </div>
           </div>
@@ -105,7 +122,7 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          {form.role === 'Engineering Worker' && (
+          {form.role === 'Engineering' && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F3E8FF", border: "1px solid #E9D5FF", borderRadius: 8, padding: "10px 12px" }}>
               <input type="checkbox" id="isSupervisor" checked={form.isSupervisor} onChange={e => setForm(f => ({ ...f, isSupervisor: e.target.checked }))} style={{ accentColor: "#9333EA" }} />
               <label htmlFor="isSupervisor" style={{ fontSize: "13px", color: "#6B21A8", cursor: "pointer" }}>
@@ -118,8 +135,8 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
             <label htmlFor="isActive" style={{ fontSize: "13.5px", color: S.slate, cursor: "pointer" }}>Akun Aktif</label>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Simpan</button>
+            <button type="button" disabled={isSubmitting} onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+            <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", opacity: isSubmitting ? 0.7 : 1 }}>{isSubmitting ? "Menyimpan..." : "Simpan"}</button>
           </div>
         </form>
       </div>
@@ -130,7 +147,15 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
 function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose: () => void }) {
   const { customers, addCustomer, updateCustomer } = useApp();
   
-  const nextCode = customer?.code || `CUST-${String(customers.length + 1).padStart(3, "0")}`;
+  const generateCode = () => {
+    const maxNum = customers.reduce((max, c) => {
+      const match = c.code.match(/\d+/);
+      const num = match ? parseInt(match[0], 10) : 0;
+      return num < 9000 ? Math.max(max, num) : max;
+    }, 0);
+    return `CUST-${String(maxNum + 1).padStart(3, "0")}`;
+  };
+  const nextCode = customer?.code || generateCode();
 
   const [form, setForm] = useState({
     code: nextCode,
@@ -173,7 +198,7 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
             onMouseEnter={e => { (e.currentTarget).style.background = "#FEF2F2"; (e.currentTarget).style.color = "#EF4444"; (e.currentTarget).style.borderColor = "#FCA5A5"; }}
             onMouseLeave={e => { (e.currentTarget).style.background = S.white; (e.currentTarget).style.color = S.secondary; (e.currentTarget).style.borderColor = S.border; }}
           >
-            <XCircle size={13} />
+            <X size={13} />
           </button>
         </div>
 
@@ -189,21 +214,21 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
                 <input style={inputStyle} type="text" placeholder="PT / CV ..." value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
               </div>
               <div>
-                <label style={labelStyle}>Nama Pelanggan / PIC <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+                <label style={labelStyle}>Nama Pelanggan <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
                 <input style={inputStyle} type="text" placeholder="Nama kontak" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
               </div>
               <div>
-                <label style={labelStyle}>No. Telepon</label>
-                <input style={inputStyle} type="text" placeholder="08xxxxxxxxxx" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+                <label style={labelStyle}>No. Telepon <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+                <input style={inputStyle} type="tel" placeholder="08xxxxxxxxxx" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/[^\d+-]/g, '') }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
               </div>
               <div>
-                <label style={labelStyle}>Email</label>
-                <input style={inputStyle} type="email" placeholder="email@perusahaan.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+                <label style={labelStyle}>Email <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+                <input style={inputStyle} type="email" placeholder="email@perusahaan.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
               </div>
             </div>
             <div>
-              <label style={labelStyle}>Alamat Lengkap</label>
-              <input style={inputStyle} type="text" placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
+              <label style={labelStyle}>Alamat Lengkap <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+              <input style={inputStyle} type="text" placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
             </div>
           </div>
 

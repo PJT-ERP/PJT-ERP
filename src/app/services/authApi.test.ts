@@ -62,7 +62,7 @@ describe('authApi Service', () => {
     
     expect(authApi.hasRole('Finance')).toBe(true);
     expect(authApi.hasRole('Admin')).toBe(true);
-    expect(authApi.hasRole('Engineering Worker')).toBe(false);
+    expect(authApi.hasRole('Engineering')).toBe(false);
   });
 
   it('isLoggedIn returns true only when token exists', () => {

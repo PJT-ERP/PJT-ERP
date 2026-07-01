@@ -1048,7 +1048,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setIsExistingCustomer(true)}
+                onClick={() => {
+                  setIsExistingCustomer(true);
+                  setCustomerForm({ ...customerForm, customerCode: "", customerName: "", company: "", phone: "", email: "", address: "" });
+                }}
                 style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: isExistingCustomer ? 600 : 400, background: isExistingCustomer ? S.primary : S.white, color: isExistingCustomer ? S.white : S.secondary, border: `1px solid ${isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
               >
                 Pelanggan Terdaftar

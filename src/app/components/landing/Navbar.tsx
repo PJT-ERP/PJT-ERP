@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 const navLinks = [
   { label: "Home", href: "#home" },
@@ -12,6 +13,8 @@ const navLinks = [
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { landingPageContent } = useApp();
+  const { topBarCompanyName, topBarSubtitle } = landingPageContent;
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -37,12 +40,12 @@ export function Navbar() {
             </div>
             <div>
               <div style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "16px", fontWeight: 800, letterSpacing: "-0.01em" }}>
-                PT. PRATAMA JAYA TEKINDO
+                {topBarCompanyName}
               </div>
               <div 
                 className="max-w-[280px] md:max-w-[320px] leading-[1.3]"
                 style={{ color: "#64748B", fontFamily: "Inter, sans-serif", fontSize: "11px", marginTop: "4px" }}>
-                General Supplier, Mechanical Component, Design Engineering, CNC 3D Programming, Jig & Checking Fixture, Fabrication, PLC Automation System
+                {topBarSubtitle}
               </div>
             </div>
           </div>

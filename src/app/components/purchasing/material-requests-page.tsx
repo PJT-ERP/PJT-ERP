@@ -114,24 +114,41 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       : undefined,
     isReadyForFinance: isReadyForFinance,
     hasUnorderedItems,
-    items: request.items.map(item => ({
-      itemId: item.id,
-      materialRequirementId: item.materialRequirementId || null,
-      salesOrderId: item.salesOrderId || request.salesOrderId || null,
-      salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
-      projectName: item.projectName || request.projectName || null,
-      purchaseCategory: item.purchaseCategory || null,
-      code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
-      name: item.itemName,
-      spec: item.size || item.notes || "-",
-      qty: item.qty,
-      unit: "pcs",
-      currentStock: 0,
-      estimatedPrice: item.estimatedPrice || undefined,
-      supplierName: item.supplierName || undefined,
-      poNumber: item.poNumber || null,
-      purchaseStatus: item.purchaseStatus,
-    })),
+    items: request.items.map(item => {
+      let extCode = item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase();
+      let extName = item.itemName;
+
+      const bracketMatch = item.itemName.match(/^\[(.*?)\]\s*(.*)/);
+      if (bracketMatch) {
+        extCode = bracketMatch[1];
+        extName = bracketMatch[2];
+      } else {
+        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        if (dashMatch) {
+          extCode = dashMatch[1].toUpperCase();
+          extName = dashMatch[2];
+        }
+      }
+
+      return {
+        itemId: item.id,
+        materialRequirementId: item.materialRequirementId || null,
+        salesOrderId: item.salesOrderId || request.salesOrderId || null,
+        salesOrderNumber: item.salesOrderNumber || request.salesOrderNumber || null,
+        projectName: item.projectName || request.projectName || null,
+        purchaseCategory: item.purchaseCategory || null,
+        code: extCode,
+        name: extName,
+        spec: item.size || item.notes || "-",
+        qty: item.qty,
+        unit: "pcs",
+        currentStock: 0,
+        estimatedPrice: item.estimatedPrice || undefined,
+        supplierName: item.supplierName || undefined,
+        poNumber: item.poNumber || null,
+        purchaseStatus: item.purchaseStatus,
+      };
+    }),
   };
 }
 
