@@ -516,6 +516,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteUser = (id: string) => {
+    if (!id.startsWith('u')) {
+      void authApi.deleteUser(id);
+    }
     setUsers(prev => prev.filter(u => u.id !== id));
   };
 

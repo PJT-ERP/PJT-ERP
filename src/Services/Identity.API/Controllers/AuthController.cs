@@ -104,4 +104,16 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         }
         return Ok(user);
     }
+
+    [HttpDelete("users/{userId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteUser(Guid userId, CancellationToken cancellationToken)
+    {
+        var deleted = await authService.DeleteUserAsync(userId, cancellationToken);
+        if (!deleted)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
 }

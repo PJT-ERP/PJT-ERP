@@ -84,6 +84,16 @@ export const authApi = {
     }
   },
 
+  async deleteUser(id: string): Promise<boolean> {
+    try {
+      await apiClient.delete(`/api/v1/auth/users/${id}`);
+      return true;
+    } catch (e) {
+      console.error("Failed to delete user", e);
+      return false;
+    }
+  },
+
   getCurrentUser(): Omit<LoginResponseDto, "accessToken"> | null {
     try {
       const raw = localStorage.getItem("auth_user");

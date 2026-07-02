@@ -16,7 +16,7 @@ public sealed class SuppliersController(ICatalogService catalogService) : Contro
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Purchasing")]
     public async Task<ActionResult<SupplierDto>> Create(CreateSupplierRequest request, CancellationToken cancellationToken)
     {
         var supplier = await catalogService.CreateSupplierAsync(request, cancellationToken);
@@ -24,7 +24,7 @@ public sealed class SuppliersController(ICatalogService catalogService) : Contro
     }
 
     [HttpPut("{code}")]
-    [Authorize(Roles = "Admin,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Purchasing")]
     public async Task<ActionResult<SupplierDto>> Update(string code, UpdateSupplierRequest request, CancellationToken cancellationToken)
     {
         var supplier = await catalogService.UpdateSupplierAsync(code, request, cancellationToken);
@@ -32,7 +32,7 @@ public sealed class SuppliersController(ICatalogService catalogService) : Contro
     }
 
     [HttpDelete("{code}")]
-    [Authorize(Roles = "Admin,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Purchasing")]
     public async Task<IActionResult> Delete(string code, CancellationToken cancellationToken)
     {
         var deleted = await catalogService.DeleteSupplierAsync(code, cancellationToken);
