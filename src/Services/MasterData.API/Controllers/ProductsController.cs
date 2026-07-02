@@ -27,15 +27,8 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
     [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Worker,Purchasing")]
     public async Task<ActionResult<ProductDto>> Update(Guid id, CreateProductRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var product = await catalogService.UpdateProductAsync(id, request, cancellationToken);
-            return Ok(product);
-        }
-        catch (Exception)
-        {
-            return NotFound();
-        }
+        var product = await catalogService.UpdateProductAsync(id, request, cancellationToken);
+        return Ok(product);
     }
 
     [HttpPut("{id}/bom")]

@@ -211,19 +211,38 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         product.MaterialSpec = request.MaterialSpec;
         product.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Update BOM
-        db.ProductBomItems.RemoveRange(product.BomItems);
-        product.BomItems.Clear();
-
-        if (request.BomItems != null)
+        // Update BOM properly
+        if (request.BomItems == null)
         {
-            foreach (var item in request.BomItems)
+            db.ProductBomItems.RemoveRange(product.BomItems);
+        }
+        else
+        {
+            // Remove items not in the request
+            var requestInventoryItemIds = request.BomItems.Select(b => b.InventoryItemId).ToList();
+            var itemsToRemove = product.BomItems.Where(b => !requestInventoryItemIds.Contains(b.InventoryItemId)).ToList();
+            foreach (var item in itemsToRemove)
             {
-                product.BomItems.Add(new ProductBomItem
+                product.BomItems.Remove(item);
+                db.ProductBomItems.Remove(item);
+            }
+
+            // Update existing and add new
+            foreach (var reqItem in request.BomItems)
+            {
+                var existingItem = product.BomItems.FirstOrDefault(b => b.InventoryItemId == reqItem.InventoryItemId);
+                if (existingItem != null)
                 {
-                    InventoryItemId = item.InventoryItemId,
-                    Quantity = item.Quantity
-                });
+                    existingItem.Quantity = reqItem.Quantity;
+                }
+                else
+                {
+                    product.BomItems.Add(new ProductBomItem
+                    {
+                        InventoryItemId = reqItem.InventoryItemId,
+                        Quantity = reqItem.Quantity
+                    });
+                }
             }
         }
 
