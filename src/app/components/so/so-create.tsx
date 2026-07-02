@@ -51,6 +51,7 @@ interface ProductRow {
   notes: string;
   customerDesignUrl?: string;
   unitPrice?: number;
+  materialSpec?: string | null;
 }
 
 interface ProductOption {
@@ -73,6 +74,7 @@ const emptyProduct = (): ProductRow => ({
   unit: "pcs",
   notes: "",
   unitPrice: 0,
+  materialSpec: null,
 });
 
 function addDaysIso(date: Date, days: number) {
@@ -421,15 +423,7 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                   specification: "",
                   quantity: String(b.quantity),
                   unit: b.unit,
-                })) : selected?.materialSpec ? [
-                  ...selected.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
-                    id: selected.id + "-mat-" + idx,
-                    name: `MAT-${String(parseInt(selected.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-                    specification: specPart.trim(),
-                    quantity: "1",
-                    unit: selected.unit.toLowerCase(),
-                  }))
-                ] : [],
+                })) : [],
               });
             }} required>
               <option value="">— Pilih produk —</option>
@@ -484,6 +478,15 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                 *Tim Engineering akan merancang desain dari awal berdasarkan catatan/kebutuhan.
               </p>
             ) : null}
+          </div>
+        )}
+
+        {row.materialSpec && (
+          <div style={{ marginBottom: 16, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6, padding: 12 }}>
+            <Label text="Catatan Spesifikasi (Material Spec)" />
+            <div style={{ marginTop: 4, fontSize: "12px", color: S.slate, whiteSpace: "pre-wrap", fontFamily: S.font }}>
+              {row.materialSpec}
+            </div>
           </div>
         )}
 
@@ -645,15 +648,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             specification: "",
             quantity: String(b.quantity),
             unit: b.unit,
-          })) : matchedProduct.materialSpec ? [
-            ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
-              id: matchedProduct.id + "-mat-" + idx,
-              name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-              specification: specPart.trim(),
-              quantity: "1",
-              unit: matchedProduct.unit.toLowerCase(),
-            }))
-          ] : [];
+          })) : [];
         }
 
         setRepeatProducts([{
@@ -718,15 +713,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           specification: "",
           quantity: String(b.quantity),
           unit: b.unit,
-        })) : matchedProduct.materialSpec ? [
-          ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
-            id: matchedProduct.id + "-mat-" + idx,
-            name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-            specification: specPart.trim(),
-            quantity: "1",
-            unit: matchedProduct.unit.toLowerCase(),
-          }))
-        ] : [];
+        })) : [];
       }
 
       setRepeatProducts([{
@@ -852,14 +839,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const finalImageUrl = custProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
 
-      // Clear any previous local storage state for this specific ID or soNumber
-      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
-        delete currentLocal[created.id];
-        if (created.soNumber) delete currentLocal[created.soNumber];
-        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
-      }
-
       if (customerForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
       }
@@ -893,13 +872,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
 
-      // Clear any previous local storage state for this specific ID or soNumber
-      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
-        delete currentLocal[created.id];
-        if (created.soNumber) delete currentLocal[created.soNumber];
-        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
-      }
+
 
       if (repeatForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });

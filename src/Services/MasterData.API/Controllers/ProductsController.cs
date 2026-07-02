@@ -23,6 +23,14 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
         return CreatedAtAction(nameof(List), new { id = product.Id }, product);
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Worker,Purchasing")]
+    public async Task<ActionResult<ProductDto>> Update(Guid id, CreateProductRequest request, CancellationToken cancellationToken)
+    {
+        var product = await catalogService.UpdateProductAsync(id, request, cancellationToken);
+        return Ok(product);
+    }
+
     [HttpPut("{id}/bom")]
     [Authorize(Roles = "Admin,Owner,Engineering Worker,Purchasing")]
     public async Task<ActionResult> UpdateBom(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken)
