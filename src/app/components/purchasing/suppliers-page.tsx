@@ -19,6 +19,7 @@ import {
   ArrowDownRight,
   Edit2,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -191,14 +192,6 @@ function SupplierDetail({
             >
               <Trash2 size={13} /> Hapus
             </button>
-            {canCreatePo && (
-              <button
-                className="flex items-center gap-1.5 rounded px-3 py-2 text-white hover:opacity-90 transition-opacity"
-                style={{ fontSize: 12, background: "#C8102E" }}
-              >
-                <ShoppingCart size={13} /> Buat PO
-              </button>
-            )}
           </div>
         </div>
 
@@ -406,6 +399,7 @@ export function SuppliersPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | SupplierDto | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
@@ -524,18 +518,21 @@ export function SuppliersPage() {
     setIsAddModalOpen(true);
   };
 
-  const handleDeleteSupplier = async (supplier: Supplier | SupplierDto) => {
-    if (!window.confirm(`Hapus supplier ${supplier.name}? Data supplier akan dihapus dari master data.`)) {
-      return;
-    }
+  const handleDeleteSupplier = (supplier: Supplier | SupplierDto) => {
+    setSupplierToDelete(supplier);
+  };
 
+  const confirmDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
     setIsDeleting(true);
     setStatusMessage(null);
     try {
-      await masterDataApi.deleteSupplier(supplier.code);
-      setSelectedSupplier(null);
+      await masterDataApi.deleteSupplier(supplierToDelete.code);
+      if (selectedSupplier && selectedSupplier.code === supplierToDelete.code) {
+        setSelectedSupplier(null);
+      }
       await refresh();
-      setStatusMessage({ type: "success", text: `Supplier ${supplier.name} berhasil dihapus.` });
+      setStatusMessage({ type: "success", text: `Supplier ${supplierToDelete.name} berhasil dihapus.` });
     } catch (error: any) {
       console.warn("Failed to delete supplier.", error);
       setStatusMessage({
@@ -544,6 +541,7 @@ export function SuppliersPage() {
       });
     } finally {
       setIsDeleting(false);
+      setSupplierToDelete(null);
     }
   };
 
@@ -582,6 +580,29 @@ export function SuppliersPage() {
             setStatusMessage({ type: "success", text: "Supplier berhasil diperbarui." });
           }}
         />
+        {supplierToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="text-red-600" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Hapus Supplier</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Yakin ingin menghapus <strong>{supplierToDelete.name}</strong>?
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setSupplierToDelete(null)} disabled={isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
+                <button onClick={confirmDeleteSupplier} disabled={isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                  {isDeleting ? "Menghapus..." : "Hapus"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -778,6 +799,29 @@ export function SuppliersPage() {
             setStatusMessage({ type: "success", text: editingSupplier ? "Supplier berhasil diperbarui." : "Supplier baru berhasil ditambahkan." });
           }}
       />
+      {supplierToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="text-red-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Hapus Supplier</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Yakin ingin menghapus <strong>{supplierToDelete.name}</strong>?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setSupplierToDelete(null)} disabled={isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
+              <button onClick={confirmDeleteSupplier} disabled={isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                {isDeleting ? "Menghapus..." : "Hapus"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
