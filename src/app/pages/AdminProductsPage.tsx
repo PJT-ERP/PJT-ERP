@@ -79,9 +79,13 @@ export function AdminProductsPage() {
         .map(b => ({ inventoryItemId: b.inventoryItemId, quantity: Number(b.quantity) }));
 
       if (isEditingId) {
-        // Mock update for now since backend might not have updateProduct yet
-        // In a real app we'd call salesApi.updateProduct(isEditingId, {...})
-        alert("Fungsi edit segera tersedia (membutuhkan update API backend)");
+        await salesApi.updateProduct(isEditingId, {
+          partNumber: partNumberPreview,
+          description: newDesc,
+          unit: newUnit,
+          materialSpec: newSpec,
+          bomItems: formattedBom
+        });
       } else {
         await salesApi.createProduct({
           partNumber: partNumberPreview,
@@ -125,7 +129,14 @@ export function AdminProductsPage() {
             Kelola daftar Finished Goods (Produk) yang ditawarkan ke pelanggan.
           </p>
         </div>
-        <button onClick={() => setIsAdding(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: S.primary, color: "#fff", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 5px rgba(200,16,46,0.2)" }}>
+        <button onClick={() => {
+          setIsEditingId(null);
+          setNewDesc('');
+          setNewUnit('pcs');
+          setNewSpec('');
+          setBomItems([]);
+          setIsAdding(true);
+        }} style={{ display: "flex", alignItems: "center", gap: 8, background: S.primary, color: "#fff", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 5px rgba(200,16,46,0.2)" }}>
           <Plus size={16} /> Tambah Produk
         </button>
       </div>
