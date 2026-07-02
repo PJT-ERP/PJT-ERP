@@ -507,7 +507,9 @@ export function SOList({ onNavigate }: SOListProps) {
 
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: "auto" }}>
                     <MobileActionBtn label="Detail" bg="#EFF6FF" color="#C8102E" action={() => onNavigate("so-detail", order.id)} />
-                    <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
+                    {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+                      <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
+                    )}
                   </div>
                 </div>
               );
@@ -587,7 +589,9 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
       <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
-          <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
+          {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+            <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
+          )}
         </div>
       </td>
     </tr>

@@ -1495,7 +1495,7 @@ export function ProductionPage() {
                         Review MR
                       </button>
                     )}
-                    {mrState === 'none' && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                    {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                       <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                         <FileWarning size={14} /> Material Kurang
@@ -1558,6 +1558,7 @@ export function ProductionPage() {
                 todayDate.setHours(0, 0, 0, 0);
                 canFinish = todayDate >= hMinus3;
               }
+              const mrState = getMaterialRequestState(so);
 
               return (
                 <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
@@ -1566,6 +1567,11 @@ export function ProductionPage() {
                       <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                       <StatusBadge status={so.status} />
                       {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
+                      {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                      {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
+                      {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
+                      {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
+                      {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
                       {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
                     </div>
                     <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
@@ -1580,37 +1586,51 @@ export function ProductionPage() {
                       </p>
                     )}
                   </div>
-                  {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {so.status === 'Paused' ? (
-                        <>
-                          <button onClick={() => setStartModal(so)}
-                            style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                            <PlayCircle size={14} /> Lanjutkan Produksi
-                          </button>
-                          {so.pauseReason?.toLowerCase().includes("material") && (
-                            <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                              style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                              <Package size={14} /> Req. Material Kurang
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <button onClick={() => setPauseModal(so)}
-                          style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                          <PauseCircle size={14} /> Jeda Produksi
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => {
-                          if (so.status === 'Paused') return;
-                          setCompleteModal(so);
-                        }} 
-                        style={{ padding: "8px 16px", background: !canFinish ? "#D1D5DB" : "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
-                        <CheckSquare size={14} /> Selesai Produksi
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
+                      <button onClick={() => setReviewMrModal(so)}
+                        style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
+                        Review MR
                       </button>
-                    </div>
-                  )}
+                    )}
+                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                      <>
+                        {so.status === 'Paused' ? (
+                          <>
+                            <button onClick={() => setStartModal(so)}
+                              style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              <PlayCircle size={14} /> Lanjutkan Produksi
+                            </button>
+                            {so.pauseReason?.toLowerCase().includes("material") && (mrState === 'none' || mrState === 'completed') && (
+                              <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                                style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                                <Package size={14} /> Req. Material Kurang
+                              </button>
+                            )}
+                            {so.pauseReason?.toLowerCase().includes("material") && mrState === 'rejected' && (
+                              <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                                style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                                <FileWarning size={14} /> Ajukan Ulang MR
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <button onClick={() => setPauseModal(so)}
+                            style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                            <PauseCircle size={14} /> Jeda Produksi
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => {
+                            if (so.status === 'Paused') return;
+                            setCompleteModal(so);
+                          }} 
+                          style={{ padding: "8px 16px", background: !canFinish ? "#D1D5DB" : "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
+                          <CheckSquare size={14} /> Selesai Produksi
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}
