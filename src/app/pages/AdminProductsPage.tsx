@@ -254,12 +254,12 @@ export function AdminProductsPage() {
                 <input disabled value={partNumberPreview} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", background: "#F1F5F9", color: S.secondary, fontWeight: 600 }} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Deskripsi / Nama Produk *</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Deskripsi / Nama Produk <span className="text-[#C8102E]">*</span></label>
                 <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Contoh: Gearbox Assembly" style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }} />
               </div>
               <div style={{ display: "flex", gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Satuan *</label>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Satuan <span className="text-[#C8102E]">*</span></label>
                   <select value={newUnit} onChange={e => setNewUnit(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
                     <option value="pcs">Pcs</option>
                     <option value="unit">Unit</option>

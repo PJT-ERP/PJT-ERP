@@ -218,11 +218,11 @@ export function CreatePurchaseRequestPage() {
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
                   <div className="md:col-span-4">
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kode Material (SKU) *</label>
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kode Material (SKU) <span className="text-[#C8102E]">*</span></label>
                     <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm font-mono uppercase outline-none focus:border-blue-500" value={item.code} onChange={(e) => updateFormItem(i, "code", e.target.value.toUpperCase())} placeholder="RAW-STL-001" />
                   </div>
                   <div className="md:col-span-4">
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Pilih dari Master / Nama *</label>
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Pilih dari Master / Nama <span className="text-[#C8102E]">*</span></label>
                     <InventoryCombobox
                       value={item.name || ""}
                       onChange={(val, selectedItem) => {
@@ -257,7 +257,7 @@ export function CreatePurchaseRequestPage() {
                     <input type="text" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.spec} onChange={(e) => updateFormItem(i, "spec", e.target.value)} placeholder="Grade, ukuran, warna, standar, dll." />
                   </div>
                   <div className="md:col-span-3">
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Jumlah *</label>
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">Jumlah <span className="text-[#C8102E]">*</span></label>
                     <input type="number" className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500" value={item.qty} onChange={(e) => updateFormItem(i, "qty", e.target.value)} min={1} />
                   </div>
                   <div className="md:col-span-3">
