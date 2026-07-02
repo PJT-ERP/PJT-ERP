@@ -125,7 +125,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
         npwp: formData.npwp,
         paymentTerms: formData.paymentTerms,
         since: supplier?.since || new Date().getFullYear().toString(),
-        rating: supplier?.rating ?? 4.0,
+        rating: supplier?.rating ?? 0,
         contacts: formData.contactName ? [{
           name: formData.contactName,
           role: formData.contactRole,

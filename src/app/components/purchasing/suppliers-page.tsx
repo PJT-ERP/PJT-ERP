@@ -36,6 +36,7 @@ import { usePurchasingData } from "./usePurchasingData";
 import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { AddSupplierModal } from "./add-supplier-modal";
 import { useApp } from "../context/AppContext";
+import { mapPurchaseRequestsToPos, calcTotal, PO } from "./purchase-orders-page";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -74,34 +75,27 @@ interface Supplier {
   since: string;
 }
 
-const generateMockHistory = () => {
-  return [
-    { month: "Jan", value: 100, pos: 2 },
-    { month: "Feb", value: 120, pos: 3 },
-    { month: "Mar", value: 90, pos: 2 },
-    { month: "Apr", value: 150, pos: 4 },
-    { month: "May", value: 130, pos: 3 },
-    { month: "Jun", value: 160, pos: 4 },
+const calculateSupplierHistory = (supplierPos: PO[]) => {
+  const monthPairs = [
+    { label: "Jan", aliases: ["Jan", "01/"] },
+    { label: "Feb", aliases: ["Feb", "02/"] },
+    { label: "Mar", aliases: ["Mar", "03/"] },
+    { label: "Apr", aliases: ["Apr", "04/"] },
+    { label: "May", aliases: ["May", "Mei", "05/"] },
+    { label: "Jun", aliases: ["Jun", "06/"] }
   ];
-};
-
-const MOCK_HISTORY = {
-  "SUP-003": [
-    { month: "Jan", value: 450, pos: 8 },
-    { month: "Feb", value: 520, pos: 10 },
-    { month: "Mar", value: 480, pos: 9 },
-    { month: "Apr", value: 610, pos: 12 },
-    { month: "May", value: 580, pos: 11 },
-    { month: "Jun", value: 680, pos: 14 }
-  ],
-  "SUP-007": [
-    { month: "Jan", value: 200, pos: 5 },
-    { month: "Feb", value: 180, pos: 4 },
-    { month: "Mar", value: 250, pos: 6 },
-    { month: "Apr", value: 220, pos: 5 },
-    { month: "May", value: 290, pos: 7 },
-    { month: "Jun", value: 310, pos: 8 }
-  ]
+  return monthPairs.map(mp => {
+    const posInMonth = supplierPos.filter(po => {
+      if (!po.orderDate) return false;
+      return mp.aliases.some(alias => po.orderDate.includes(alias));
+    });
+    const value = posInMonth.reduce((sum, po) => sum + calcTotal(po.items), 0);
+    return {
+      month: mp.label,
+      pos: posInMonth.length,
+      value: Math.round(value / 1000000)
+    };
+  });
 };
 
 /* ── Helpers ───────────────────────────────────────────────── */
@@ -386,7 +380,7 @@ function SupplierDetail({
                     <TD><span style={{ fontWeight: 500, color: "#1F1F1F" }}>{h.month} 2026</span></TD>
                     <TD><span style={{ color: "#475569" }}>{h.pos} PO</span></TD>
                     <TD><span style={{ fontWeight: 600, color: "#1F1F1F" }}>Rp {h.value} Jt</span></TD>
-                    <TD><span style={{ color: "#64748b" }}>Rp {Math.round(h.value / h.pos)} Jt</span></TD>
+                    <TD><span style={{ color: "#64748b" }}>Rp {h.pos > 0 ? Math.round(h.value / h.pos) : 0} Jt</span></TD>
                   </tr>
                 ))}
               </tbody>
@@ -437,23 +431,48 @@ export function SuppliersPage() {
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
-  const { suppliers, isLoading, refresh } = usePurchasingData();
+  const { suppliers, purchaseRequests, supplierPayments, isLoading, refresh } = usePurchasingData();
+
+  const allPos = useMemo(() => {
+    return mapPurchaseRequestsToPos(purchaseRequests || [], supplierPayments || []);
+  }, [purchaseRequests, supplierPayments]);
 
   const enhancedSuppliers = useMemo(() => {
     return (suppliers as any[]).map(s => {
-      const isIndo = s.code === "SUP-003";
-      const isSumber = s.code === "SUP-007";
+      const supplierPos = allPos.filter(po => {
+        if (!po) return false;
+        return po.supplierCode === s.code ||
+               po.supplier === s.name ||
+               (po.supplier && s.name && po.supplier.toLowerCase().trim() === s.name.toLowerCase().trim()) ||
+               (po.supplier && s.name && po.supplier.toLowerCase().includes(s.name.toLowerCase()));
+      });
+
+      const totalPOs = supplierPos.length;
+      const totalValue = supplierPos.reduce((sum, po) => sum + calcTotal(po.items), 0);
+
+      const completedPos = supplierPos.filter(p => p.deliveryStatus === "Received" || p.deliveryStatus === "Closed");
+      const cancelledPos = supplierPos.filter(p => p.deliveryStatus === "Cancelled");
+      const onTimeRate = totalPOs === 0 ? 0 : Math.round(((totalPOs - cancelledPos.length) / totalPOs) * 100);
+
+      const allItems = supplierPos.flatMap(p => p.items);
+      const rejectedItems = allItems.filter(i => i.purchaseStatus === "Rejected" || i.purchaseStatus === "Ditolak");
+      const defectRate = allItems.length === 0 ? 0 : Number(((rejectedItems.length / allItems.length) * 100).toFixed(1));
+
+      const calculatedRating = totalPOs === 0
+        ? 0
+        : Number(Math.min(5.0, Math.max(1.0, ((onTimeRate / 100) * 2.5) + Math.max(0, 2.0 - (defectRate * 0.4)) + Math.min(0.5, totalPOs * 0.05))).toFixed(1));
+
       return {
         ...s,
-        totalPOs: isIndo ? 47 : isSumber ? 31 : 15,
-        totalValue: isIndo ? 2900000000 : isSumber ? 950000000 : 380000000,
-        onTimeRate: isIndo ? 96 : isSumber ? 89 : 82,
-        defectRate: isIndo ? 0.5 : isSumber ? 1.2 : 2.5,
-        rating: s.rating ?? 4.0,
-        history: MOCK_HISTORY[s.code as keyof typeof MOCK_HISTORY] || generateMockHistory()
+        totalPOs,
+        totalValue,
+        onTimeRate,
+        defectRate,
+        rating: calculatedRating,
+        history: calculateSupplierHistory(supplierPos)
       };
     });
-  }, [suppliers]);
+  }, [suppliers, allPos]);
 
   const filtered = useMemo(() => {
     return enhancedSuppliers.filter((s) => {
