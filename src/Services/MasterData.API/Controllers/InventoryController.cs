@@ -22,4 +22,27 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
         var item = await inventoryService.CreateInventoryItemAsync(request, cancellationToken);
         return CreatedAtAction(nameof(List), new { id = item.Id }, item);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<InventoryItemDto>> Update(Guid id, CreateInventoryItemRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var item = await inventoryService.UpdateInventoryItemAsync(id, request, cancellationToken);
+            return Ok(item);
+        }
+        catch (Exception)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await inventoryService.DeleteInventoryItemAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

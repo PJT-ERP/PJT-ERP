@@ -354,7 +354,10 @@ export function InventoryPage() {
         <div className="flex items-center gap-2">
           {canCreatePo && (
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setEditItem(null);
+                setIsAddModalOpen(true);
+              }}
               title="Tambah Material / Stok Baru"
               className="flex items-center gap-2 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
             >

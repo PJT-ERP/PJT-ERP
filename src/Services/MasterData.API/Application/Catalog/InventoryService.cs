@@ -65,4 +65,52 @@ public sealed class InventoryService(MasterDataContext db) : IInventoryService
             item.CreatedAtUtc,
             item.UpdatedAtUtc);
     }
+
+    public async Task<InventoryItemDto> UpdateInventoryItemAsync(Guid id, CreateInventoryItemRequest request, CancellationToken cancellationToken)
+    {
+        var item = await db.InventoryItems.FindAsync(new object[] { id }, cancellationToken);
+        if (item == null)
+        {
+            throw new Exception("Inventory item not found");
+        }
+
+        item.Name = request.Name.Trim();
+        item.Category = request.Category;
+        item.Unit = request.Unit;
+        item.CurrentStock = request.CurrentStock;
+        item.MinStock = request.MinStock;
+        item.MaxStock = request.MaxStock;
+        item.ReorderPoint = request.ReorderPoint;
+        item.Location = request.Location;
+        item.SupplierName = request.SupplierName;
+        item.UnitPrice = request.UnitPrice;
+        
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new InventoryItemDto(
+            item.Id,
+            item.Code,
+            item.Name,
+            item.Category,
+            item.Unit,
+            item.CurrentStock,
+            item.MinStock,
+            item.MaxStock,
+            item.ReorderPoint,
+            item.Location,
+            item.SupplierName,
+            item.UnitPrice,
+            item.CreatedAtUtc,
+            item.UpdatedAtUtc);
+    }
+
+    public async Task DeleteInventoryItemAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await db.InventoryItems.FindAsync(new object[] { id }, cancellationToken);
+        if (item != null)
+        {
+            db.InventoryItems.Remove(item);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+    }
 }
