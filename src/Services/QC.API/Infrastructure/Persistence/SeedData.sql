@@ -1,1 +1,0 @@
--- File deliberately left empty to avoid seeding mock transactional data.

@@ -22,6 +22,7 @@ import { FinancePoDetail } from "./components/finance/FinancePoDetail";
 
 import { AdminPage } from "./pages/AdminPage";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
+import { SuppliersPage } from "./components/purchasing/suppliers-page";
 import { LandingPageEditor } from "./pages/LandingPageEditor";
 import { EngineeringTasksPage } from "./pages/EngineeringTasksPage";
 import { EngineeringTaskDetailPage } from "./pages/EngineeringTaskDetailPage";
@@ -83,6 +84,7 @@ export default function App() {
             {/* Admin: Admin & Owner */}
             <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />
             <Route path="admin/products" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminProductsPage /></ProtectedRoute>} />
+            <Route path="admin/suppliers" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><SuppliersPage /></ProtectedRoute>} />
             <Route path="landing-page" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><LandingPageEditor /></ProtectedRoute>} />
 
             {/* Finance: Finance, Admin, Owner */}

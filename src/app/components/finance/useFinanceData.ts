@@ -197,6 +197,7 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
   const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
   const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
   const [supplierPayments, setSupplierPayments] = useState<any[]>([]);
+  const [openingBalance, setOpeningBalance] = useState<number>(250_000_000);
   const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
   const [isUsingBackend, setIsUsingBackend] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -204,23 +205,26 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult] = await Promise.allSettled([
+      const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult, openingBalanceResult] = await Promise.allSettled([
         financeApi.listInvoices(),
         financeApi.listInvoiceCandidates(),
         financeApi.listPaymentVerifications(),
         fetchSupplierPayments ? financeApi.listSupplierPayments() : Promise.resolve([]),
+        financeApi.getOpeningBalance(),
       ]);
 
       const invoices = invoicesResult.status === 'fulfilled' ? invoicesResult.value : [];
       const candidates = candidatesResult.status === 'fulfilled' ? candidatesResult.value : [];
       const paymentVerifications = paymentVerificationsResult.status === 'fulfilled' ? paymentVerificationsResult.value : [];
       const supplierPaymentsList = supplierPaymentsResult.status === 'fulfilled' ? supplierPaymentsResult.value : [];
+      const balance = openingBalanceResult.status === 'fulfilled' ? openingBalanceResult.value : 250_000_000;
 
       setBackendInvoices(invoices.map(mapInvoice));
       setBackendPayments(mapPayments(invoices, paymentVerifications));
       setBackendTransactions(buildTransactionsFromInvoices(invoices));
       setInvoiceCandidates(candidates);
       setSupplierPayments(supplierPaymentsList);
+      setOpeningBalance(balance);
       setIsUsingBackend(true);
     } catch (error) {
       console.warn('Finance API unavailable; finance seed data was not loaded.', error);
@@ -234,6 +238,13 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
       setIsLoading(false);
     }
   }, []);
+
+  const updateOpeningBalance = async (newBalance: number) => {
+    if (isUsingBackend) {
+      await financeApi.updateOpeningBalance(newBalance);
+      setOpeningBalance(newBalance);
+    }
+  };
 
   useEffect(() => {
     if (enabled) {
@@ -253,10 +264,12 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
     transactions,
     invoiceCandidates,
     supplierPayments,
+    openingBalance,
+    updateOpeningBalance,
     isLoading,
     isUsingBackend,
     refresh,
     monthlyRevenueData: buildMonthlyData(invoices),
     invoiceStatusData: buildStatusData(invoices),
-  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, isLoading, isUsingBackend, refresh]);
+  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, openingBalance, isLoading, isUsingBackend, refresh]);
 }

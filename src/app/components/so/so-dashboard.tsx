@@ -65,6 +65,12 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
   const inProduction = mergedSalesOrders.filter((o) => o.status === "In Production" || o.status === "Ready for Production" || o.status === "QC").length;
   const completed = mergedSalesOrders.filter((o) => o.status === "Completed").length;
 
+  const thisWeekCount = mergedSalesOrders.filter(o => {
+    const d = new Date(o.createdAt);
+    const now = new Date();
+    return (now.getTime() - d.getTime()) <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
+
   const recentOrders = [...mergedSalesOrders]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
@@ -103,7 +109,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       icon: <ShoppingCart size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: "+3 minggu ini",
+      change: `+${thisWeekCount} minggu ini`,
     },
     {
       label: "Waiting Finance",

@@ -74,7 +74,8 @@ export function LandingPageEditor() {
   }, [landingPageContent]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, type } = e.target;
+    const value = type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
     setForm(prev => ({ ...prev, [name]: value }));
     setIsSaved(false);
   };
@@ -428,7 +429,7 @@ export function LandingPageEditor() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
             {form.projects?.map((project, idx) => (
-              <div key={project.id} style={{ border: `1px solid ${S.border}`, borderRadius: "8px", padding: "16px", background: "#f8fafc", position: "relative", maxHeight: "350px", overflowY: "auto" }}>
+              <div key={project.id} style={{ border: `1px solid ${S.border}`, borderRadius: "8px", padding: "16px", background: "#f8fafc", position: "relative" }}>
                 <button 
                   onClick={() => handleRemoveProject(project.id)}
                   style={{ position: "absolute", top: "12px", right: "12px", background: "#fee2e2", color: "#ef4444", border: "none", padding: "6px", borderRadius: "4px", cursor: "pointer" }}
@@ -448,13 +449,39 @@ export function LandingPageEditor() {
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Path / URL Gambar</label>
-                    <input 
-                      value={project.image} 
-                      onChange={(e) => handleProjectChange(project.id, "image", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", border: `1px solid ${S.border}`, borderRadius: "4px", fontSize: "13px" }}
-                      placeholder="Contoh: /5.jpg atau https://..."
-                    />
+                    <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Gambar Project</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <label style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                        padding: "8px", background: "#f8fafc", color: S.primary,
+                        border: `1px dashed ${S.primary}`, borderRadius: "4px", fontSize: "12px", fontWeight: 600,
+                        cursor: "pointer", width: "100%", boxSizing: "border-box"
+                      }}>
+                        <Image size={14} /> Pilih Gambar Komputer
+                        <input 
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                if (ev.target?.result) {
+                                  handleProjectChange(project.id, "image", ev.target.result as string);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          style={{ display: "none" }}
+                        />
+                      </label>
+                      {project.image && (
+                        <div style={{ marginTop: "4px", border: `1px solid ${S.border}`, borderRadius: "4px", overflow: "hidden", height: "100px", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+                          <img src={project.image} alt="Preview" style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Deskripsi Singkat</label>
@@ -546,12 +573,39 @@ export function LandingPageEditor() {
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
                     <div>
-                      <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Path / URL Gambar</label>
-                      <input 
-                        value={machine.img} 
-                        onChange={(e) => handleFacilityMachineChange("tangerang", machine.id, "img", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", border: `1px solid ${S.border}`, borderRadius: "4px", fontSize: "13px" }}
-                      />
+                      <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Gambar Mesin</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <label style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                          padding: "8px", background: "#f8fafc", color: S.primary,
+                          border: `1px dashed ${S.primary}`, borderRadius: "4px", fontSize: "12px", fontWeight: 600,
+                          cursor: "pointer", width: "100%", boxSizing: "border-box"
+                        }}>
+                          <Image size={14} /> Pilih Gambar
+                          <input 
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  if (ev.target?.result) {
+                                    handleFacilityMachineChange("tangerang", machine.id, "img", ev.target.result as string);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                        {machine.img && (
+                          <div style={{ marginTop: "4px", border: `1px solid ${S.border}`, borderRadius: "4px", overflow: "hidden", height: "80px", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+                            <img src={machine.img} alt="Preview" style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Jumlah</label>
@@ -605,12 +659,39 @@ export function LandingPageEditor() {
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
                     <div>
-                      <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Path / URL Gambar</label>
-                      <input 
-                        value={machine.img} 
-                        onChange={(e) => handleFacilityMachineChange("surabaya", machine.id, "img", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", border: `1px solid ${S.border}`, borderRadius: "4px", fontSize: "13px" }}
-                      />
+                      <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Gambar Mesin</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <label style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                          padding: "8px", background: "#f8fafc", color: S.primary,
+                          border: `1px dashed ${S.primary}`, borderRadius: "4px", fontSize: "12px", fontWeight: 600,
+                          cursor: "pointer", width: "100%", boxSizing: "border-box"
+                        }}>
+                          <Image size={14} /> Pilih Gambar
+                          <input 
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  if (ev.target?.result) {
+                                    handleFacilityMachineChange("surabaya", machine.id, "img", ev.target.result as string);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                        {machine.img && (
+                          <div style={{ marginTop: "4px", border: `1px solid ${S.border}`, borderRadius: "4px", overflow: "hidden", height: "80px", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+                            <img src={machine.img} alt="Preview" style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label style={{ display: "block", color: S.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Jumlah</label>
@@ -678,7 +759,7 @@ export function LandingPageEditor() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
             {form.testimonials?.map((testi, idx) => (
-              <div key={testi.id} style={{ border: `1px solid ${S.border}`, borderRadius: "8px", padding: "16px", background: "#f8fafc", position: "relative", maxHeight: "350px", overflowY: "auto" }}>
+              <div key={testi.id} style={{ border: `1px solid ${S.border}`, borderRadius: "8px", padding: "16px", background: "#f8fafc", position: "relative" }}>
                 <button 
                   onClick={() => handleRemoveTestimonial(testi.id)}
                   style={{ position: "absolute", top: "12px", right: "12px", background: "#fee2e2", color: "#ef4444", border: "none", padding: "6px", borderRadius: "4px", cursor: "pointer" }}
@@ -761,7 +842,7 @@ export function LandingPageEditor() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
             {form.contactLocations?.map((loc, idx) => (
-              <div key={loc.id} style={{ border: `1px solid ${S.border}`, borderRadius: "8px", padding: "16px", background: "#f8fafc", position: "relative", maxHeight: "350px", overflowY: "auto" }}>
+              <div key={loc.id} style={{ border: `1px solid ${S.border}`, borderRadius: "8px", padding: "16px", background: "#f8fafc", position: "relative" }}>
                 <button 
                   onClick={() => handleRemoveContactLocation(loc.id)}
                   style={{ position: "absolute", top: "12px", right: "12px", background: "#fee2e2", color: "#ef4444", border: "none", padding: "6px", borderRadius: "4px", cursor: "pointer" }}
@@ -851,9 +932,15 @@ export function LandingPageEditor() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "8px" }}>
               <div>
-                <label style={{ display: "block", color: S.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>URL LinkedIn</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL LinkedIn</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showLinkedin" checked={form.showLinkedin} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
                 <input 
                   name="footerLinkedin" 
                   value={form.footerLinkedin} 
@@ -863,7 +950,13 @@ export function LandingPageEditor() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", color: S.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>URL Twitter/X</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL Twitter/X</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showTwitter" checked={form.showTwitter} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
                 <input 
                   name="footerTwitter" 
                   value={form.footerTwitter} 
@@ -873,12 +966,34 @@ export function LandingPageEditor() {
                 />
               </div>
               <div>
-                <label style={{ display: "block", color: S.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>URL YouTube</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL YouTube</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showYoutube" checked={form.showYoutube} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
                 <input 
                   name="footerYoutube" 
                   value={form.footerYoutube} 
                   onChange={handleChange}
                   placeholder="https://youtube.com/..."
+                  style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: "6px", fontSize: "14px" }}
+                />
+              </div>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <label style={{ color: S.slate, fontSize: "13px", fontWeight: 600 }}>URL Instagram</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: S.secondary, cursor: "pointer" }}>
+                    <input type="checkbox" name="showInstagram" checked={form.showInstagram} onChange={handleChange} />
+                    Tampilkan
+                  </label>
+                </div>
+                <input 
+                  name="footerInstagram" 
+                  value={form.footerInstagram} 
+                  onChange={handleChange}
+                  placeholder="https://instagram.com/..."
                   style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: "6px", fontSize: "14px" }}
                 />
               </div>

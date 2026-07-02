@@ -22,4 +22,6 @@ public interface IFinanceService
 
     Task<IReadOnlyCollection<SupplierPaymentDto>> ListSupplierPaymentsAsync(CancellationToken cancellationToken);
     Task<SupplierPaymentDto?> SubmitSupplierPaymentAsync(SubmitSupplierPaymentFormRequest request, CancellationToken cancellationToken);
+    Task<decimal> GetOpeningBalanceAsync(CancellationToken cancellationToken = default);
+    Task UpdateOpeningBalanceAsync(decimal newBalance, CancellationToken cancellationToken = default);
 }
