@@ -37,6 +37,7 @@ import { usePurchasingData } from "./usePurchasingData";
 import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { AddSupplierModal } from "./add-supplier-modal";
 import { useApp } from "../context/AppContext";
+import { mapPurchaseRequestsToPos, calcTotal, PO } from "./purchase-orders-page";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -75,7 +76,28 @@ interface Supplier {
   since: string;
 }
 
-
+const calculateSupplierHistory = (supplierPos: PO[]) => {
+  const monthPairs = [
+    { label: "Jan", aliases: ["Jan", "01/"] },
+    { label: "Feb", aliases: ["Feb", "02/"] },
+    { label: "Mar", aliases: ["Mar", "03/"] },
+    { label: "Apr", aliases: ["Apr", "04/"] },
+    { label: "May", aliases: ["May", "Mei", "05/"] },
+    { label: "Jun", aliases: ["Jun", "06/"] }
+  ];
+  return monthPairs.map(mp => {
+    const posInMonth = supplierPos.filter(po => {
+      if (!po.orderDate) return false;
+      return mp.aliases.some(alias => po.orderDate.includes(alias));
+    });
+    const value = posInMonth.reduce((sum, po) => sum + calcTotal(po.items), 0);
+    return {
+      month: mp.label,
+      pos: posInMonth.length,
+      value: Math.round(value / 1000000)
+    };
+  });
+};
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -351,7 +373,7 @@ function SupplierDetail({
                     <TD><span style={{ fontWeight: 500, color: "#1F1F1F" }}>{h.month} 2026</span></TD>
                     <TD><span style={{ color: "#475569" }}>{h.pos} PO</span></TD>
                     <TD><span style={{ fontWeight: 600, color: "#1F1F1F" }}>Rp {h.value} Jt</span></TD>
-                    <TD><span style={{ color: "#64748b" }}>Rp {Math.round(h.value / h.pos)} Jt</span></TD>
+                    <TD><span style={{ color: "#64748b" }}>Rp {h.pos > 0 ? Math.round(h.value / h.pos) : 0} Jt</span></TD>
                   </tr>
                 ))}
               </tbody>
@@ -403,82 +425,36 @@ export function SuppliersPage() {
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
-  const { suppliers, purchaseRequests, isLoading, refresh } = usePurchasingData();
+  const { suppliers, purchaseRequests, supplierPayments, isLoading, refresh } = usePurchasingData();
+
+  const allPos = useMemo(() => {
+    return mapPurchaseRequestsToPos(purchaseRequests || [], supplierPayments || []);
+  }, [purchaseRequests, supplierPayments]);
 
   const enhancedSuppliers = useMemo(() => {
     return (suppliers as any[]).map(s => {
-      // Find all purchase request items for this supplier
-      const supplierItems = purchaseRequests.flatMap(pr => pr.items || []).filter(i => 
-        i.supplierName?.toLowerCase() === s.name.toLowerCase() && i.poNumber
-      );
-
-      // Unique POs
-      const uniquePos = new Set(supplierItems.map(i => i.poNumber).filter(Boolean));
-      const totalPOs = uniquePos.size;
-
-      // Total Value
-      const totalValue = supplierItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-
-      // On-time calculation
-      let onTimeCount = 0;
-      let receivedCount = 0;
-      let defectCount = 0;
-
-      supplierItems.forEach(item => {
-        if (item.purchaseStatus === "Received" || item.receivedDate) {
-          receivedCount++;
-          
-          if (item.expectedArrivalDate && item.receivedDate) {
-            const expected = new Date(item.expectedArrivalDate);
-            const received = new Date(item.receivedDate);
-            if (received <= expected) {
-              onTimeCount++;
-            }
-          } else {
-            // Assume on-time if dates are missing but it's received
-            onTimeCount++;
-          }
-        }
-        
-        if (item.purchaseStatus === "Rejected" || item.rejectionReason) {
-          defectCount++;
-        }
+      const supplierPos = allPos.filter(po => {
+        if (!po) return false;
+        return po.supplierCode === s.code ||
+               po.supplier === s.name ||
+               (po.supplier && s.name && po.supplier.toLowerCase().trim() === s.name.toLowerCase().trim()) ||
+               (po.supplier && s.name && po.supplier.toLowerCase().includes(s.name.toLowerCase()));
       });
 
-      const onTimeRate = receivedCount > 0 ? Math.round((onTimeCount / receivedCount) * 100) : 100;
-      // Defect rate: defects out of all items
-      const defectRate = supplierItems.length > 0 ? Number(((defectCount / supplierItems.length) * 100).toFixed(1)) : 0;
+      const totalPOs = supplierPos.length;
+      const totalValue = supplierPos.reduce((sum, po) => sum + calcTotal(po.items), 0);
 
-      // History: group by month for the last 6 months
-      const historyMap = new Map<string, { value: number; pos: Set<string> }>();
-      
-      // Initialize last 6 months
-      const now = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = d.toLocaleString('id-ID', { month: 'short' }); // e.g. "Jan", "Feb"
-        historyMap.set(monthName, { value: 0, pos: new Set<string>() });
-      }
+      const completedPos = supplierPos.filter(p => p.deliveryStatus === "Received" || p.deliveryStatus === "Closed");
+      const cancelledPos = supplierPos.filter(p => p.deliveryStatus === "Cancelled");
+      const onTimeRate = totalPOs === 0 ? 0 : Math.round(((totalPOs - cancelledPos.length) / totalPOs) * 100);
 
-      supplierItems.forEach(item => {
-        if (item.purchaseDate || item.receivedDate) {
-          const dateStr = item.purchaseDate || item.receivedDate || "";
-          if (!dateStr) return;
-          const d = new Date(dateStr);
-          const monthName = d.toLocaleString('id-ID', { month: 'short' });
-          if (historyMap.has(monthName)) {
-            const current = historyMap.get(monthName)!;
-            current.value += (item.totalPrice || 0) / 1000000; // Convert to millions (Jt)
-            if (item.poNumber) current.pos.add(item.poNumber);
-          }
-        }
-      });
+      const allItems = supplierPos.flatMap(p => p.items);
+      const rejectedItems = allItems.filter(i => i.purchaseStatus === "Rejected" || i.purchaseStatus === "Ditolak");
+      const defectRate = allItems.length === 0 ? 0 : Number(((rejectedItems.length / allItems.length) * 100).toFixed(1));
 
-      const history = Array.from(historyMap.entries()).map(([month, data]) => ({
-        month,
-        value: Math.round(data.value),
-        pos: data.pos.size
-      }));
+      const calculatedRating = totalPOs === 0
+        ? 0
+        : Number(Math.min(5.0, Math.max(1.0, ((onTimeRate / 100) * 2.5) + Math.max(0, 2.0 - (defectRate * 0.4)) + Math.min(0.5, totalPOs * 0.05))).toFixed(1));
 
       return {
         ...s,
@@ -486,11 +462,11 @@ export function SuppliersPage() {
         totalValue,
         onTimeRate,
         defectRate,
-        rating: s.rating ?? 0, // Keep actual rating from DB, default 0 if missing
-        history
+        rating: calculatedRating,
+        history: calculateSupplierHistory(supplierPos)
       };
     });
-  }, [suppliers, purchaseRequests]);
+  }, [suppliers, allPos]);
 
   const filtered = useMemo(() => {
     return enhancedSuppliers.filter((s) => {
