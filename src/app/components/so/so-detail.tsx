@@ -977,7 +977,7 @@ function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { inv
                 </div>
               )}
 
-              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && (
+              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && status !== "paid" && status !== "verified" && (
                 <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>
                   <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#B91C1C", display: "flex", alignItems: "center", gap: 6 }}>
                     <AlertTriangle size={14} /> Laporan Pembayaran Terakhir Ditolak
