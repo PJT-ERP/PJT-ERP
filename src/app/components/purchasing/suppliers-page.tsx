@@ -74,35 +74,7 @@ interface Supplier {
   since: string;
 }
 
-const generateMockHistory = () => {
-  return [
-    { month: "Jan", value: 100, pos: 2 },
-    { month: "Feb", value: 120, pos: 3 },
-    { month: "Mar", value: 90, pos: 2 },
-    { month: "Apr", value: 150, pos: 4 },
-    { month: "May", value: 130, pos: 3 },
-    { month: "Jun", value: 160, pos: 4 },
-  ];
-};
 
-const MOCK_HISTORY = {
-  "SUP-003": [
-    { month: "Jan", value: 450, pos: 8 },
-    { month: "Feb", value: 520, pos: 10 },
-    { month: "Mar", value: 480, pos: 9 },
-    { month: "Apr", value: 610, pos: 12 },
-    { month: "May", value: 580, pos: 11 },
-    { month: "Jun", value: 680, pos: 14 }
-  ],
-  "SUP-007": [
-    { month: "Jan", value: 200, pos: 5 },
-    { month: "Feb", value: 180, pos: 4 },
-    { month: "Mar", value: 250, pos: 6 },
-    { month: "Apr", value: 220, pos: 5 },
-    { month: "May", value: 290, pos: 7 },
-    { month: "Jun", value: 310, pos: 8 }
-  ]
-};
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
@@ -437,23 +409,94 @@ export function SuppliersPage() {
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
-  const { suppliers, isLoading, refresh } = usePurchasingData();
+  const { suppliers, purchaseRequests, isLoading, refresh } = usePurchasingData();
 
   const enhancedSuppliers = useMemo(() => {
     return (suppliers as any[]).map(s => {
-      const isIndo = s.code === "SUP-003";
-      const isSumber = s.code === "SUP-007";
+      // Find all purchase request items for this supplier
+      const supplierItems = purchaseRequests.flatMap(pr => pr.items || []).filter(i => 
+        i.supplierName?.toLowerCase() === s.name.toLowerCase() && i.poNumber
+      );
+
+      // Unique POs
+      const uniquePos = new Set(supplierItems.map(i => i.poNumber).filter(Boolean));
+      const totalPOs = uniquePos.size;
+
+      // Total Value
+      const totalValue = supplierItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+
+      // On-time calculation
+      let onTimeCount = 0;
+      let receivedCount = 0;
+      let defectCount = 0;
+
+      supplierItems.forEach(item => {
+        if (item.purchaseStatus === "Received" || item.receivedDate) {
+          receivedCount++;
+          
+          if (item.expectedArrivalDate && item.receivedDate) {
+            const expected = new Date(item.expectedArrivalDate);
+            const received = new Date(item.receivedDate);
+            if (received <= expected) {
+              onTimeCount++;
+            }
+          } else {
+            // Assume on-time if dates are missing but it's received
+            onTimeCount++;
+          }
+        }
+        
+        if (item.purchaseStatus === "Rejected" || item.rejectionReason) {
+          defectCount++;
+        }
+      });
+
+      const onTimeRate = receivedCount > 0 ? Math.round((onTimeCount / receivedCount) * 100) : 100;
+      // Defect rate: defects out of all items
+      const defectRate = supplierItems.length > 0 ? Number(((defectCount / supplierItems.length) * 100).toFixed(1)) : 0;
+
+      // History: group by month for the last 6 months
+      const historyMap = new Map<string, { value: number; pos: Set<string> }>();
+      
+      // Initialize last 6 months
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = d.toLocaleString('id-ID', { month: 'short' }); // e.g. "Jan", "Feb"
+        historyMap.set(monthName, { value: 0, pos: new Set<string>() });
+      }
+
+      supplierItems.forEach(item => {
+        if (item.purchaseDate || item.receivedDate) {
+          const dateStr = item.purchaseDate || item.receivedDate || "";
+          if (!dateStr) return;
+          const d = new Date(dateStr);
+          const monthName = d.toLocaleString('id-ID', { month: 'short' });
+          if (historyMap.has(monthName)) {
+            const current = historyMap.get(monthName)!;
+            current.value += (item.totalPrice || 0) / 1000000; // Convert to millions (Jt)
+            if (item.poNumber) current.pos.add(item.poNumber);
+          }
+        }
+      });
+
+      const history = Array.from(historyMap.entries()).map(([month, data]) => ({
+        month,
+        value: Math.round(data.value),
+        pos: data.pos.size
+      }));
+
       return {
         ...s,
-        totalPOs: isIndo ? 47 : isSumber ? 31 : 15,
-        totalValue: isIndo ? 2900000000 : isSumber ? 950000000 : 380000000,
-        onTimeRate: isIndo ? 96 : isSumber ? 89 : 82,
-        defectRate: isIndo ? 0.5 : isSumber ? 1.2 : 2.5,
-        rating: s.rating ?? 4.0,
-        history: MOCK_HISTORY[s.code as keyof typeof MOCK_HISTORY] || generateMockHistory()
+        totalPOs,
+        totalValue,
+        onTimeRate,
+        defectRate,
+        rating: s.rating ?? 0, // Keep actual rating from DB, default 0 if missing
+        history
       };
     });
-  }, [suppliers]);
+  }, [suppliers, purchaseRequests]);
 
   const filtered = useMemo(() => {
     return enhancedSuppliers.filter((s) => {
