@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MaterialRequirementDto } from "../../services/purchasingApi";
-import { masterDataApi } from "../../services/masterDataApi";
+import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { usePurchasingData } from "./usePurchasingData";
 import { useApp } from "../context/AppContext";
 
@@ -104,7 +104,7 @@ function TD({ children, className = "", right = false }: { children: React.React
 
 const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
 
-function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[], editItem?: InventoryItem | null }) {
+function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, suppliers }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[], editItem?: InventoryItem | null, suppliers: SupplierDto[] }) {
   const [formData, setFormData] = useState({
     code: "", name: "", category: "Project", unit: "pcs",
     currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
@@ -231,7 +231,12 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }
             </div>
             <div className="col-span-2">
               <label className={labelClass}>Nama Supplier Default</label>
-              <input value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass} placeholder="PT Indo Steel" />
+              <select required value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass}>
+                <option value="" disabled>Pilih Supplier</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -251,7 +256,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }
 export function InventoryPage() {
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const { inventoryItems, purchaseRequests, refresh } = usePurchasingData();
+  const { inventoryItems, purchaseRequests, suppliers, refresh } = usePurchasingData();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -695,6 +700,7 @@ export function InventoryPage() {
         onAdded={() => void refresh()}
         inventoryItems={inventory}
         editItem={editItem}
+        suppliers={suppliers}
       />
 
       {deleteItem && (
