@@ -90,4 +90,14 @@ public sealed class AuthService(IdentityContext db, JwtTokenIssuer tokenIssuer) 
         await db.SaveChangesAsync(cancellationToken);
         return new CurrentUserResponse(user.Id, user.Email, user.Name, user.RoleList, user.Department, user.Status);
     }
+
+    public async Task<bool> DeleteUserAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await db.UserAccounts.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null) return false;
+
+        db.UserAccounts.Remove(user);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

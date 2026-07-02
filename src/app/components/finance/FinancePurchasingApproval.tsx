@@ -147,13 +147,13 @@ export function FinancePurchasingApproval() {
         </div>
         <div className="flex gap-2">
           {pendingMrsCount > 0 && (
-            <div className="bg-blue-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold">
+            <div className="bg-[#C8102E] text-white border-transparent shadow-sm px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold">
               <FileText size={16} />
               {pendingMrsCount} PR Menunggu
             </div>
           )}
           {pendingPosCount > 0 && (
-            <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold">
+            <div className="bg-amber-500 text-white border-transparent shadow-sm px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold">
               <AlertCircle size={16} />
               {pendingPosCount} Tagihan AP Menunggu
             </div>
@@ -162,19 +162,19 @@ export function FinancePurchasingApproval() {
       </div>
 
       <Tabs defaultValue="budget" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="budget" className="flex items-center gap-2">
+        <TabsList className="mb-4 bg-slate-100 rounded-md p-1">
+          <TabsTrigger value="budget" className="flex items-center gap-2 rounded-sm">
             <FileText size={15} /> Persetujuan Anggaran PR
-            {pendingMrsCount > 0 && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs ml-1">{pendingMrsCount}</span>}
+            {pendingMrsCount > 0 && <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-xs ml-1">{pendingMrsCount}</span>}
           </TabsTrigger>
-          <TabsTrigger value="payment" className="flex items-center gap-2">
+          <TabsTrigger value="payment" className="flex items-center gap-2 rounded-sm">
             <CheckSquare size={15} /> Tagihan Supplier (AP)
             {pendingPosCount > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full text-xs ml-1">{pendingPosCount}</span>}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="budget">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-slate-50">
               <div className="relative max-w-md">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -182,7 +182,7 @@ export function FinancePurchasingApproval() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Cari No. PR, Departemen..."
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
                 />
               </div>
             </div>
@@ -213,12 +213,12 @@ export function FinancePurchasingApproval() {
                           ) : mr.backendStatus === "FinanceRejected" || mr.backendStatus === "Rejected" ? (
                             <span className="text-red-600 bg-red-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200">REJECTED</span>
                           ) : (
-                            <span className="text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-blue-200">WAITING</span>
+                            <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">WAITING</span>
                           )}
                         </td>
                         <td className="px-5 py-4 text-center">
                           {mr.backendStatus !== "FinanceApproved" && mr.financeApproval !== "Approved" && mr.backendStatus !== "Completed" ? (
-                            <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
+                            <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
                               <CheckCircle2 size={14} /> Review
                             </button>
                           ) : (
@@ -240,7 +240,7 @@ export function FinancePurchasingApproval() {
         </TabsContent>
 
         <TabsContent value="payment">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-slate-50">
               <div className="relative max-w-md">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -248,7 +248,7 @@ export function FinancePurchasingApproval() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Cari No. PO, Supplier..."
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
                 />
               </div>
             </div>
@@ -282,7 +282,7 @@ export function FinancePurchasingApproval() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           {po.paymentStatus !== 'Paid' ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
+                              <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
                               <DollarSign size={14} /> Bayar Tagihan
                             </button>
                           ) : (
@@ -306,11 +306,11 @@ export function FinancePurchasingApproval() {
       {selectedMr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedMr(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <FileText size={18} className="text-blue-600" />
+                  <FileText size={18} className="text-[#C8102E]" />
                   Review Anggaran Purchase Request
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">{selectedMr.id} - {selectedMr.department}</p>
@@ -321,20 +321,20 @@ export function FinancePurchasingApproval() {
             </div>
             
             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
-              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-3">
+              <div className="bg-red-50/50 border border-red-100 rounded-md p-4 space-y-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">Requestor</span>
                   <span className="font-semibold text-slate-800">{selectedMr.requestor}</span>
                 </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm mt-2">
+                <div className="flex justify-between items-center bg-white p-3 rounded-md border border-red-100 shadow-sm mt-2">
                   <span className="text-sm font-bold text-slate-700">Estimasi Total Anggaran</span>
-                  <span className="text-lg font-black text-blue-700 flex items-center gap-1">
+                  <span className="text-lg font-black text-[#C8102E] flex items-center gap-1">
                     {formatIDR(selectedMr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0))}
                   </span>
                 </div>
               </div>
 
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <div className="overflow-x-auto border border-slate-200 rounded-md">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -361,10 +361,10 @@ export function FinancePurchasingApproval() {
             </div>
 
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button disabled={isApproving} onClick={() => setShowRejectModal(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors">
+              <button disabled={isApproving} onClick={() => setShowRejectModal(true)} className="px-4 py-2 rounded-md text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors">
                 Tolak Anggaran
               </button>
-              <button disabled={isApproving} onClick={() => handleReviewPr('Accept')} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors flex items-center gap-2">
+              <button disabled={isApproving} onClick={() => handleReviewPr('Accept')} className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors flex items-center gap-2">
                 <CheckCircle2 size={16} /> {isApproving ? "Menyimpan..." : "Setujui Anggaran"}
               </button>
             </div>
@@ -374,7 +374,7 @@ export function FinancePurchasingApproval() {
 
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl border border-slate-100">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 shadow-xl border border-slate-100">
             <h3 className="text-lg font-bold text-slate-800 mb-2">Tolak Persetujuan Anggaran</h3>
             <p className="text-sm text-slate-600 mb-4">
               Silakan berikan alasan penolakan anggaran ini agar tim Purchasing tahu apa yang harus direvisi.
@@ -411,11 +411,11 @@ export function FinancePurchasingApproval() {
       {selectedPo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedPo(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <DollarSign size={18} className="text-blue-600" />
+                  <DollarSign size={18} className="text-[#C8102E]" />
                   Proses Pembayaran Tagihan
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">{selectedPo.id} - {selectedPo.supplier}</p>
@@ -427,7 +427,7 @@ export function FinancePurchasingApproval() {
             
             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
               {/* Info Box */}
-              <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 space-y-3">
+              <div className="bg-red-50/50 border border-red-100 rounded-md p-4 space-y-3">
                 <div className="flex justify-between items-start text-sm">
                   <span className="text-slate-500">No. Rekening Tujuan</span>
                   <div className="text-right">
@@ -449,9 +449,9 @@ export function FinancePurchasingApproval() {
                   <span className="text-slate-500">Termin Pembayaran</span>
                   <span className="font-semibold text-slate-800">{selectedPo.paymentTerms}</span>
                 </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-blue-100 shadow-sm mt-2">
+                <div className="flex justify-between items-center bg-white p-3 rounded-md border border-red-100 shadow-sm mt-2">
                     <span className="text-sm font-bold text-slate-700">Total Tagihan</span>
-                  <span className="text-lg font-black text-blue-700 flex items-center gap-1">
+                  <span className="text-lg font-black text-[#C8102E] flex items-center gap-1">
                     {formatIDR(calcTotal(selectedPo.items))}
                   </span>
                 </div>
@@ -464,7 +464,7 @@ export function FinancePurchasingApproval() {
                   <select 
                     value={category}
                     onChange={e => setCategory(e.target.value as POCategory)}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm"
+                    className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm"
                   >
                     <option value="" disabled>-- Pilih Akun Bank --</option>
                     <option value="BCA">Bank BCA - Operasional</option>
@@ -475,7 +475,7 @@ export function FinancePurchasingApproval() {
                 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Upload Bukti Transfer <span className="text-red-500">*</span></label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-md p-6 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 transition-colors">
                     <UploadCloud size={24} className="text-slate-400 mb-2" />
                     <p className="text-sm text-slate-600 font-medium">Tarik & lepas file atau klik untuk browse</p>
                     <p className="text-xs text-slate-400 mt-1">JPG, PNG, PDF (Max 5MB)</p>
@@ -484,7 +484,7 @@ export function FinancePurchasingApproval() {
                         setProofFile(e.target.files[0]);
                       }
                     }} />
-                    <button onClick={() => document.getElementById('proof-upload')?.click()} className="mt-3 bg-white border border-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:bg-slate-50 transition-colors">
+                    <button onClick={() => document.getElementById('proof-upload')?.click()} className="mt-3 bg-white border border-slate-300 text-slate-700 px-4 py-1.5 rounded-md text-xs font-semibold shadow-sm hover:bg-slate-50 transition-colors">
                       Pilih File
                     </button>
                     {proofFile && <p className="mt-2 text-xs text-green-600 font-medium">✓ File terpilih: {proofFile.name}</p>}
@@ -498,20 +498,20 @@ export function FinancePurchasingApproval() {
                     onChange={e => setNotes(e.target.value)}
                     rows={2}
                     placeholder="Tambahkan catatan (mis: dibayar separuh, dll)"
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm resize-none"
+                    className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm resize-none"
                   />
                 </div>
               </div>
             </div>
 
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button onClick={() => setSelectedPo(null)} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm">
+              <button onClick={() => setSelectedPo(null)} className="px-4 py-2 rounded-md text-sm font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm">
                 Batal
               </button>
               <button 
                 onClick={handlePay}
                 disabled={!category || !proofFile}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#C8102E] hover:bg-red-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <DollarSign size={16} /> Simpan & Tandai Lunas
               </button>
@@ -522,7 +522,7 @@ export function FinancePurchasingApproval() {
 
       {dialogMsg && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
+          <div className="bg-white rounded-lg w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
             <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
               <AlertCircle size={24} />
             </div>
@@ -531,7 +531,7 @@ export function FinancePurchasingApproval() {
             <button
               type="button"
               onClick={() => setDialogMsg(null)}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
+              className="w-full py-2.5 rounded-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
             >
               Mengerti
             </button>

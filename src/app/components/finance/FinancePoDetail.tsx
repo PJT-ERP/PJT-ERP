@@ -134,7 +134,7 @@ export function FinancePoDetail() {
     return (
       <div className="p-10 text-center">
         <h2 className="text-xl font-bold text-slate-800">Purchase Order tidak ditemukan</h2>
-        <button onClick={() => navigate("/erp/finance/approval")} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+        <button onClick={() => navigate("/erp/finance/approval")} className="mt-4 px-4 py-2 bg-[#C8102E] text-white rounded-md">
           Kembali ke Persetujuan Pembayaran
         </button>
       </div>
@@ -164,7 +164,7 @@ export function FinancePoDetail() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm print:shadow-none print:border-none">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm print:shadow-none print:border-none">
         
         {/* PRINT ONLY: Professional Invoice Header */}
         <div className="hidden print:block px-6 pt-10 pb-6 border-b-2 border-slate-800">
@@ -202,7 +202,7 @@ export function FinancePoDetail() {
         <div className="px-6 py-6 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-start justify-between gap-4 print:hidden">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <FileText size={20} className="text-blue-600" />
+              <FileText size={20} className="text-[#C8102E]" />
               <h2 className="text-xl font-bold text-slate-900 m-0">{detail.id}</h2>
               <span className="inline-flex items-center gap-1.5 rounded px-2.5 py-1" style={{ background: pc.bg, color: pc.color, fontSize: 12, fontWeight: 700 }}>
                 {detail.paymentStatus}
@@ -215,15 +215,15 @@ export function FinancePoDetail() {
           
           <div className="bg-white px-5 py-3 rounded-lg border border-slate-200 shadow-sm text-right min-w-[200px]">
              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Tagihan AP</p>
-             <p className="text-xl font-bold text-blue-700 m-0">Rp {formatRp(totalTagihan)}</p>
+             <p className="text-xl font-bold text-[#C8102E] m-0">Rp {formatRp(totalTagihan)}</p>
           </div>
         </div>
 
         <div className="px-6 py-6 print:py-2 space-y-6 print:space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:gap-4">
             {/* Info Rekening */}
-            <div className="rounded-lg p-5 print:p-2 bg-blue-50 print:bg-transparent border border-blue-100 print:border-none">
-              <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <div className="rounded-md p-5 print:p-2 bg-red-50 print:bg-transparent border border-red-100 print:border-none">
+              <p className="text-xs font-bold text-[#C8102E] uppercase tracking-wider mb-3 flex items-center gap-2">
                 <DollarSign size={14} /> Informasi Rekening Pembayaran
               </p>
               <div className="space-y-1">
@@ -243,7 +243,7 @@ export function FinancePoDetail() {
             </div>
 
             {/* Info Tagihan */}
-            <div className="rounded-lg p-5 print:p-2 bg-slate-50 print:bg-transparent border border-slate-200 print:border-none">
+            <div className="rounded-md p-5 print:p-2 bg-slate-50 print:bg-transparent border border-slate-200 print:border-none">
               <div className="grid grid-cols-2 gap-4">
                  <div>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jatuh Tempo</p>
@@ -313,14 +313,14 @@ export function FinancePoDetail() {
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                  Konfirmasi Pembayaran Tagihan
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-lg border border-slate-200">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Metode Pembayaran <span className="text-red-500">*</span></label>
                     <select 
                       value={category}
                       onChange={e => setCategory(e.target.value as POCategory)}
-                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm"
+                      className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm"
                     >
                       <option value="" disabled>-- Pilih Akun Bank --</option>
                       <option value="BCA">Bank BCA - Operasional</option>
@@ -335,15 +335,15 @@ export function FinancePoDetail() {
                       onChange={e => setNotes(e.target.value)}
                       rows={3}
                       placeholder="Tambahkan catatan (mis: dibayar dari BCA Pusat)"
-                      className="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm resize-none"
+                      className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm resize-none"
                     />
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Upload Bukti Transfer <span className="text-red-500">*</span></label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-white hover:bg-slate-50 transition-colors h-[172px]">
-                    <UploadCloud size={32} className="text-blue-500 mb-2" />
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-center bg-white hover:bg-slate-50 transition-colors h-[172px]">
+                    <UploadCloud size={32} className="text-[#C8102E] mb-2" />
                     <p className="text-sm text-slate-600 font-medium">Tarik & lepas file atau browse</p>
                     <p className="text-xs text-slate-400 mt-1">Format JPG, PNG, PDF</p>
                     <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" id="proof-upload" onChange={e => {
@@ -351,7 +351,7 @@ export function FinancePoDetail() {
                         setProofFile(e.target.files[0]);
                       }
                     }} />
-                    <button onClick={() => document.getElementById('proof-upload')?.click()} className="mt-3 bg-white border border-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors">
+                    <button onClick={() => document.getElementById('proof-upload')?.click()} className="mt-3 bg-white border border-slate-300 text-slate-700 px-4 py-1.5 rounded-md text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors">
                       Pilih File
                     </button>
                     {proofFile && <p className="mt-2 text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded">✓ File: {proofFile.name}</p>}
@@ -369,7 +369,7 @@ export function FinancePoDetail() {
                 <button 
                   onClick={handlePay}
                   disabled={!category || !proofFile || isPaying}
-                  className="px-6 py-3 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-3 rounded-md text-sm font-bold text-white bg-[#C8102E] hover:bg-red-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <CheckCircle2 size={18} /> {isPaying ? "Memproses..." : "Konfirmasi & Tandai Lunas"}
                 </button>
@@ -377,7 +377,7 @@ export function FinancePoDetail() {
             </div>
           ) : detail.paymentStatus === "Paid" ? (
              <div className="pt-6 border-t border-slate-100 print:hidden">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl p-6 bg-emerald-50 border border-emerald-200">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-lg p-6 bg-emerald-50 border border-emerald-200">
                   <div className="flex items-start gap-4">
                     <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 shrink-0">
                       <CheckCircle2 size={24} />
@@ -389,7 +389,7 @@ export function FinancePoDetail() {
                       </p>
                     </div>
                   </div>
-                  <button onClick={() => setShowReceipt(true)} className="px-4 py-2 bg-white border border-emerald-300 text-emerald-700 font-bold text-sm rounded-lg hover:bg-emerald-100 shadow-sm transition flex items-center gap-2 whitespace-nowrap print-hide">
+                  <button onClick={() => setShowReceipt(true)} className="px-4 py-2 bg-white border border-emerald-300 text-emerald-700 font-bold text-sm rounded-md hover:bg-emerald-100 shadow-sm transition flex items-center gap-2 whitespace-nowrap print-hide">
                     <FileText size={16} /> Lihat Bukti Transfer
                   </button>
                 </div>
@@ -400,7 +400,7 @@ export function FinancePoDetail() {
       
       {showReceipt && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 print-hide p-4">
-          <div className="bg-white rounded-xl shadow-2xl overflow-hidden w-full max-w-2xl max-h-[95vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-lg shadow-2xl overflow-hidden w-full max-w-2xl max-h-[95vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50 shrink-0">
               <h3 className="font-bold text-slate-800">Bukti Transfer - {detail.id}</h3>
               <button onClick={() => setShowReceipt(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition">
@@ -419,8 +419,8 @@ export function FinancePoDetail() {
                   )}
                 </div>
               ) : (
-                <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-sm border border-slate-200 mb-4">
-                  <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="max-w-md mx-auto bg-white p-6 rounded-md shadow-sm border border-slate-200 mb-4">
+                  <div className="w-16 h-16 bg-red-100 text-[#C8102E] rounded-full flex items-center justify-center mx-auto mb-4">
                     <DollarSign size={32} />
                   </div>
                   <h4 className="text-xl font-bold text-slate-800 mb-1">Rp {formatRp(totalTagihan)}</h4>
