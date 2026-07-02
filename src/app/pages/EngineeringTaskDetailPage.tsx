@@ -151,12 +151,9 @@ export function EngineeringTaskDetailPage() {
 
   useEffect(() => {
     if (qut) {
-      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      const qutLocal = localUpdates[qut.id] || {};
-      
-      setDesignLink(qutLocal.designLink ?? qut.designLink ?? qut.designId ?? '');
-      setMaterials(qutLocal.materials ?? qut.materials ?? []);
-      setLocalRejectionReason(qutLocal.rejectionReason ?? qut.rejectionReason);
+      setDesignLink(qut.designLink ?? qut.designId ?? '');
+      setMaterials(qut.materials ?? []);
+      setLocalRejectionReason(qut.rejectionReason);
     }
   }, [qut]);
 
@@ -245,9 +242,6 @@ export function EngineeringTaskDetailPage() {
 
       if (isDoingSpvApproval) {
         setCompletedAsSpv(true);
-        const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-        localUpdates[qut.id] = { ...localUpdates[qut.id], designLink, materials };
-        localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
         await refreshBackendData();
       } else if (isDoingWorkerSubmission) {
         updateSalesOrder(qut.id, {
@@ -304,17 +298,14 @@ export function EngineeringTaskDetailPage() {
         }
       }
 
-      // Save BOM and rejection reason locally so it's not lost
-      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      localUpdates[qut.id] = { ...localUpdates[qut.id], materials, designLink, rejectionReason: rejectReason };
-      localStorage.setItem('soLocalUpdates', JSON.stringify(localUpdates));
-
+      // Save BOM and rejection reason via standard global state instead of local storage
       updateSalesOrder(qut.id, {
         status: 'Revision Required',
         backendDesignStatus: 'RevisionRequired',
         notes: rejectReason,
         rejectionReason: rejectReason,
-        materials: materials, // Ensure local context keeps the materials
+        materials,
+        designLink
       });
       if (isDoingSpvApproval) {
         await refreshBackendData();
