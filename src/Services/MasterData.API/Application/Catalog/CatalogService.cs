@@ -198,7 +198,6 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
     public async Task<ProductDto> UpdateProductAsync(Guid id, CreateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await db.Products
-            .Include(p => p.BomItems)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
             
         if (product == null)
@@ -211,38 +210,23 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         product.MaterialSpec = request.MaterialSpec;
         product.UpdatedAtUtc = DateTime.UtcNow;
 
-        // Update BOM properly
-        if (request.BomItems == null)
-        {
-            db.ProductBomItems.RemoveRange(product.BomItems);
-        }
-        else
-        {
-            // Remove items not in the request
-            var requestInventoryItemIds = request.BomItems.Select(b => b.InventoryItemId).ToList();
-            var itemsToRemove = product.BomItems.Where(b => !requestInventoryItemIds.Contains(b.InventoryItemId)).ToList();
-            foreach (var item in itemsToRemove)
-            {
-                product.BomItems.Remove(item);
-                db.ProductBomItems.Remove(item);
-            }
+        // Update BOM properly - Bypass change tracker for deletes to avoid double-delete/concurrency state issues
+        await db.ProductBomItems.Where(b => b.ProductId == id).ExecuteDeleteAsync(cancellationToken);
+        product.BomItems = new List<ProductBomItem>();
 
-            // Update existing and add new
+        if (request.BomItems != null)
+        {
             foreach (var reqItem in request.BomItems)
             {
-                var existingItem = product.BomItems.FirstOrDefault(b => b.InventoryItemId == reqItem.InventoryItemId);
-                if (existingItem != null)
+                var newItem = new ProductBomItem
                 {
-                    existingItem.Quantity = reqItem.Quantity;
-                }
-                else
-                {
-                    product.BomItems.Add(new ProductBomItem
-                    {
-                        InventoryItemId = reqItem.InventoryItemId,
-                        Quantity = reqItem.Quantity
-                    });
-                }
+                    Id = Guid.NewGuid(),
+                    ProductId = product.Id,
+                    InventoryItemId = reqItem.InventoryItemId,
+                    Quantity = reqItem.Quantity
+                };
+                db.ProductBomItems.Add(newItem);
+                product.BomItems.Add(newItem);
             }
         }
 
@@ -250,7 +234,29 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             new MasterDataUpdatedEvent(product.Id, "Product", "Updated", product.PartNumber, product.Description, product.Unit, product.MaterialSpec),
             cancellationToken);
             
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            var messages = new List<string>();
+            foreach (var entry in ex.Entries)
+            {
+                var entityType = entry.Entity.GetType().Name;
+                var state = entry.State;
+                var dbValues = await entry.GetDatabaseValuesAsync();
+                
+                string entityDetails = "N/A";
+                if (entry.Entity is ProductBomItem pbi)
+                {
+                    entityDetails = $"Id={pbi.Id}, InvId={pbi.InventoryItemId}, Qty={pbi.Quantity}";
+                }
+                
+                messages.Add($"Concurrency exception on {entityType} (State: {state}). Details: {entityDetails}. Database values exists: {dbValues != null}");
+            }
+            throw new Exception(string.Join(" | ", messages), ex);
+        }
 
         // Load the navigation properties for the return DTO
         if (product.BomItems.Count > 0)
@@ -279,17 +285,13 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
     public async Task UpdateProductBomAsync(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken)
     {
         var product = await db.Products
-            .Include(p => p.BomItems)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (product is null) return;
 
-        // Copy list to avoid modifying collection while iterating
-        var existingBomItems = product.BomItems.ToList();
-        
         // Remove old items completely
-        db.ProductBomItems.RemoveRange(existingBomItems);
-        product.BomItems.Clear();
+        await db.ProductBomItems.Where(b => b.ProductId == id).ExecuteDeleteAsync(cancellationToken);
+        product.BomItems = new List<ProductBomItem>();
 
         if (request.BomItems != null)
         {

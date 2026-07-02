@@ -276,13 +276,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={exportPOs}
-            className="flex items-center gap-2 rounded-lg px-4 py-2 border hover:bg-slate-50 transition-colors"
-            style={{ fontSize: 14, fontWeight: 500, color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}
-          >
-            <Download size={16} /> Unduh Data
-          </button>
+
           {canCreatePo && (
             <button
               onClick={() => navigate("/erp/purchasing/create")}
