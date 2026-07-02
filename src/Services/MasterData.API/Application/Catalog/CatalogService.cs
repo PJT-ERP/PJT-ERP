@@ -411,7 +411,7 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
     {
         var normalizedCode = code.Trim().ToUpperInvariant();
         var supplier = await db.Suppliers
-            .Include(s => s.Contacts)
+            // .Include(s => s.Contacts) // DO NOT INCLUDE to avoid EF tracking conflicts on update
             .FirstOrDefaultAsync(s => s.Code == normalizedCode, cancellationToken);
 
         if (supplier is null)
@@ -435,13 +435,8 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         supplier.Rating = request.Rating;
         supplier.UpdatedAtUtc = DateTime.UtcNow;
 
-        var existingContacts = supplier.Contacts.ToList();
-        if (existingContacts.Count > 0)
-        {
-            db.SupplierContacts.RemoveRange(existingContacts);
-        }
+        await db.SupplierContacts.Where(c => c.SupplierId == supplier.Id).ExecuteDeleteAsync(cancellationToken);
 
-        supplier.Contacts = new List<SupplierContact>();
         foreach (var contact in request.Contacts ?? new List<CreateSupplierContactRequest>())
         {
             if (string.IsNullOrWhiteSpace(contact.Name))
@@ -449,14 +444,17 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
                 continue;
             }
 
-            supplier.Contacts.Add(new SupplierContact
+            var newContact = new SupplierContact
             {
+                Id = Guid.NewGuid(),
+                SupplierId = supplier.Id,
                 Name = contact.Name.Trim(),
                 Role = contact.Role,
                 Phone = contact.Phone,
                 Email = NormalizeEmail(contact.Email),
                 IsPrimary = contact.IsPrimary
-            });
+            };
+            db.SupplierContacts.Add(newContact);
         }
 
         await eventPublisher.PublishAsync(
