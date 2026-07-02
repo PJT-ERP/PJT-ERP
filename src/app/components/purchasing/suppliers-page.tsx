@@ -178,12 +178,12 @@ function SupplierDetail({
       {/* Supplier header */}
       <div
         className="rounded-lg p-5"
-        style={{ background: "#0f1e35", border: "1px solid #1e3a5f" }}
+        style={{ background: "#1F1F1F", border: "1px solid #334155" }}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg shrink-0" style={{ background: "#1e3a5f" }}>
-              <Building2 size={20} style={{ color: "#60a5fa" }} />
+            <div className="flex items-center justify-center w-12 h-12 rounded-md shrink-0" style={{ background: "#334155" }}>
+              <Building2 size={20} style={{ color: "#fff" }} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -244,7 +244,7 @@ function SupplierDetail({
             <TabsTrigger
               key={t.val}
               value={t.val}
-              className="rounded h-7 px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="rounded-sm h-7 px-3 text-xs data-[state=active]:bg-[#C8102E] data-[state=active]:text-white data-[state=active]:shadow-sm"
             >
               {t.label}
             </TabsTrigger>
@@ -296,7 +296,7 @@ function SupplierDetail({
               <div className="flex items-start gap-4">
                 <div
                   className="flex items-center justify-center w-10 h-10 rounded-full text-white shrink-0"
-                  style={{ background: "#1e3a5f", fontSize: 14, fontWeight: 700 }}
+                  style={{ background: "#C8102E", fontSize: 14, fontWeight: 700 }}
                 >
                   {c.name.charAt(0)}
                 </div>
@@ -599,8 +599,8 @@ export function SuppliersPage() {
               setEditingSupplier(null);
               setIsAddModalOpen(true);
             }}
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
-            style={{ fontSize: 12, background: "#1e3a5f" }}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
+            style={{ fontSize: 12, background: "#C8102E" }}
           >
             <Plus size={13} /> Tambah Supplier
           </button>
@@ -628,7 +628,7 @@ export function SuppliersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama, kode, kategori, kota..."
-            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-md border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#C8102E]/20"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
@@ -637,12 +637,12 @@ export function SuppliersPage() {
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
-              className="rounded px-3 py-1.5 transition-colors"
+              className="rounded-md px-3 py-1.5 transition-colors"
               style={{
                 fontSize: 12, fontWeight: 500,
-                background: filterStatus === s ? "#1e3a5f" : "#f8fafc",
+                background: filterStatus === s ? "#C8102E" : "#f8fafc",
                 color: filterStatus === s ? "#fff" : "#475569",
-                border: `1px solid ${filterStatus === s ? "#1e3a5f" : "#e2e8f0"}`,
+                border: `1px solid ${filterStatus === s ? "#C8102E" : "#e2e8f0"}`,
               }}
             >
               {s === "all" ? "Semua" : s}
@@ -681,7 +681,7 @@ export function SuppliersPage() {
                   >
                     <TD>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded shrink-0" style={{ background: "#1e3a5f", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                        <div className="flex items-center justify-center w-8 h-8 rounded-md shrink-0" style={{ background: "#C8102E", fontSize: 13, fontWeight: 700, color: "#fff" }}>
                           {s.name.charAt(0)}
                         </div>
                         <div>
