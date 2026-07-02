@@ -184,16 +184,16 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Kode Material</label>
+              <label className={labelClass}>Kode Material <span className="text-[#C8102E]">*</span></label>
               <input required readOnly value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className={`${inputClass} bg-slate-100 cursor-not-allowed`} placeholder="Contoh: MAT-001" />
             </div>
             <div>
-              <label className={labelClass}>Nama Material</label>
+              <label className={labelClass}>Nama Material <span className="text-[#C8102E]">*</span></label>
               <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} placeholder="Aluminium Plate..." />
             </div>
             <div>
-              <label className={labelClass}>Kategori</label>
-              <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className={inputClass}>
+              <label className={labelClass}>Kategori <span className="text-[#C8102E]">*</span></label>
+              <select required value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className={inputClass}>
                 <option>Project</option>
                 <option>Consumable</option>
                 <option>Tools</option>
@@ -202,35 +202,45 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
               </select>
             </div>
             <div>
-              <label className={labelClass}>Satuan</label>
+              <label className={labelClass}>Satuan <span className="text-[#C8102E]">*</span></label>
               <input required value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className={inputClass} placeholder="pcs, kg, m, dll" />
             </div>
             <div>
-              <label className={labelClass}>Stok Awal</label>
-              <input type="number" required value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Stok Awal <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.currentStock === 0 ? "" : formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Reorder Point</label>
-              <input type="number" required value={formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Reorder Point <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.reorderPoint === 0 ? "" : formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Min Stock</label>
-              <input type="number" required value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Min Stock <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.minStock === 0 ? "" : formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Max Stock</label>
-              <input type="number" required value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Max Stock <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.maxStock === 0 ? "" : formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Harga Satuan (Rp)</label>
-              <input type="number" required value={formData.unitPrice} onChange={e => setFormData({ ...formData, unitPrice: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Harga Satuan (Rp) <span className="text-[#C8102E]">*</span></label>
+              <input 
+                type="text" 
+                required 
+                value={formData.unitPrice === 0 ? "" : formData.unitPrice.toLocaleString("id-ID")} 
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                  setFormData({ ...formData, unitPrice: rawValue === "" ? 0 : Number(rawValue) });
+                }} 
+                className={inputClass} 
+                placeholder="0" 
+              />
             </div>
             <div>
-              <label className={labelClass}>Lokasi Penyimpanan</label>
-              <input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
+              <label className={labelClass}>Lokasi Penyimpanan <span className="text-[#C8102E]">*</span></label>
+              <input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
             </div>
             <div className="col-span-2">
-              <label className={labelClass}>Nama Supplier Default</label>
+              <label className={labelClass}>Nama Supplier Default <span className="text-[#C8102E]">*</span></label>
               <select required value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass}>
                 <option value="" disabled>Pilih Supplier</option>
                 {suppliers.map(s => (
