@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Clock,
   Activity, Printer, Edit, Copy,
   AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye, Upload, X, Box, Plus
+  Receipt, Download, Eye, Upload, X, Box, Plus, Link as LinkIcon
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
@@ -315,6 +315,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         unitPrice,
         lineTotal: unitPrice > 0 ? unitPrice * quantity : 0,
         notes: item.notes || "",
+        designReference: (item as any).designReference || "",
+        customerDrawingUrl: (item as any).customerDrawingUrl || "",
       };
     })
     : [{
@@ -486,6 +488,19 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     <p style={{ margin: 0, fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.productName}</p>
                     <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>Kode Produk: {item.productCode}</p>
                     {item.notes && <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>}
+                    {(item as any).designReference === "INTERNAL_DESIGN" && (
+                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#F59E0B", display: "flex", alignItems: "center", gap: 4 }}>
+                        <FileText size={10} /> Engineering akan desain ulang
+                      </p>
+                    )}
+                    {(item as any).customerDrawingUrl && (
+                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: S.cyan, display: "flex", alignItems: "center", gap: 4 }}>
+                        <LinkIcon size={10} /> 
+                        <a href={(item as any).customerDrawingUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          Lihat Referensi Klien
+                        </a>
+                      </p>
+                    )}
                   </div>
                   <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
                   <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>

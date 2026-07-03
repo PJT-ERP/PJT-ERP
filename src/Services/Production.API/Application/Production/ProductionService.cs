@@ -120,7 +120,9 @@ public sealed class ProductionService(
                     ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
                     UnitPrice = item.UnitPrice,
-                    Notes = NormalizeOptional(item.Notes)
+                    Notes = NormalizeOptional(item.Notes),
+                    DesignReference = NormalizeOptional(item.DesignReference),
+                    CustomerDrawingUrl = NormalizeOptionalUrl(item.CustomerDrawingUrl, "Customer drawing URL")
                 };
             }).ToList()
         };
@@ -897,7 +899,9 @@ public sealed class ProductionService(
                     item.ProductId,
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.DesignReference,
+                    item.CustomerDrawingUrl))
                 .ToArray());
     }
 
@@ -928,7 +932,9 @@ public sealed class ProductionService(
                 .Select(item => new PublicProductionTrackingItemDto(
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.DesignReference,
+                    item.CustomerDrawingUrl))
                 .ToArray());
     }
 

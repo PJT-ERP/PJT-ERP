@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft, FileText, Link as LinkIcon } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { salesApi } from "../services/salesApi";
@@ -461,9 +461,33 @@ export function EngineeringTaskDetailPage() {
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Daftar Item / Produk:</span>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {qut.items?.map((item, idx) => (
-                        <div key={idx} style={{ fontSize: "14px", color: S.slate, display: "flex", justifyContent: "space-between", background: "#F8FAFC", padding: "10px 16px", borderRadius: 6, border: `1px solid ${S.border}` }}>
-                          <span>{item.productName || "Custom Product"}</span>
-                          <span style={{ fontWeight: 600 }}>{item.quantity} {item.unit}</span>
+                        <div key={idx} style={{ fontSize: "14px", color: S.slate, display: "flex", flexDirection: "column", gap: 8, background: "#F8FAFC", padding: "10px 16px", borderRadius: 6, border: `1px solid ${S.border}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <div>
+                              <span style={{ fontWeight: 500, display: "block" }}>{item.productName || "Custom Product"}</span>
+                              {((item as any).productPartNumber || (item as any).partNumber) && (
+                                <span style={{ fontSize: "12px", color: S.secondary }}>{((item as any).productPartNumber || (item as any).partNumber)}</span>
+                              )}
+                            </div>
+                            <span style={{ fontWeight: 600 }}>{item.quantity} {item.unit}</span>
+                          </div>
+                          {((item as any).designReference === "INTERNAL_DESIGN" || (item as any).customerDrawingUrl) && (
+                            <div style={{ fontSize: "12px", background: "#FFFFFF", padding: "8px", borderRadius: "4px", border: `1px solid #E2E8F0` }}>
+                              {(item as any).designReference === "INTERNAL_DESIGN" && (
+                                <div style={{ color: "#F59E0B", display: "flex", alignItems: "center", gap: 6 }}>
+                                  <FileText size={12} /> Engineering perlu desain ulang
+                                </div>
+                              )}
+                              {(item as any).customerDrawingUrl && (
+                                <div style={{ color: S.cyan, display: "flex", alignItems: "center", gap: 6 }}>
+                                  <LinkIcon size={12} />
+                                  <a href={(item as any).customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: "inherit", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    Lihat Referensi Klien
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

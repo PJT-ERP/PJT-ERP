@@ -792,9 +792,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();
     const fallbackName = name || "Custom Product";
-    const nextNumStr = (nextPrdNum.current++).toString().padStart(3, '0');
     const created = await salesApi.createProduct({
-      partNumber: `PRD-${nextNumStr}`,
+      partNumber: "",
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -824,6 +823,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         qty: Number(row.quantity) || 1,
         unitPrice: row.unitPrice || 0,
         notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
+        designReference: row.type === "custom" && row.designId === "none" ? "INTERNAL_DESIGN" : null,
+        customerDrawingUrl: row.type === "custom" && row.designId === "customer" ? (row.customerDesignUrl || null) : null,
       });
     }
 

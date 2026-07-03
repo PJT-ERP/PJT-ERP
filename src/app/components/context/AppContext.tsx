@@ -666,9 +666,13 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
       id: item.id,
       productId: item.productId,
       productName: item.productDescription,
+      partNumber: item.productPartNumber,
+      productPartNumber: item.productPartNumber,
       quantity: item.qty,
       unitPrice: (item as any).unitPrice || 0,
-      unit: "PCS"
+      unit: "PCS",
+      designReference: item.designReference || undefined,
+      customerDrawingUrl: item.customerDrawingUrl || undefined
     }))
   };
 }

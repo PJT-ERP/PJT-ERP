@@ -98,8 +98,10 @@ export interface SalesOrderDto {
     productPartNumber: string;
     productDescription: string;
     qty: number;
-    unitPrice: number;
+    unitPrice?: number;
     notes?: string | null;
+    designReference?: string | null;
+    customerDrawingUrl?: string | null;
   }>;
 }
 
@@ -112,6 +114,8 @@ export interface CreateSalesOrderRequest {
     qty: number;
     unitPrice: number;
     notes?: string | null;
+    designReference?: string | null;
+    customerDrawingUrl?: string | null;
   }>;
   productionWorker?: {
     userId: string;

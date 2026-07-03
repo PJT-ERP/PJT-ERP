@@ -12,6 +12,8 @@ public sealed class SalesOrderItem
     public int Qty { get; set; }
     public decimal UnitPrice { get; set; }
     public string? Notes { get; set; }
+    public string? DesignReference { get; set; }
+    public string? CustomerDrawingUrl { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
