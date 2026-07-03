@@ -81,7 +81,7 @@ public sealed class ProductionServiceTests
         await db.SaveChangesAsync();
 
         var eventPublisher = new RecordingEventPublisher();
-        var service = new ProductionService(db, eventPublisher);
+        var service = new ProductionService(db, eventPublisher, new StubMasterDataClient());
         var salesOrder = await service.CreateSalesOrderAsync(
             new CreateSalesOrderRequest(
                 customer.Id,
@@ -136,7 +136,7 @@ public sealed class ProductionServiceTests
         await db.SalesOrders.AddAsync(salesOrder);
         await db.SaveChangesAsync();
 
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.ConfirmSalesOrderAsync(salesOrder.Id, new ConfirmSalesOrderRequest(Guid.NewGuid()), CancellationToken.None));
@@ -183,7 +183,7 @@ public sealed class ProductionServiceTests
     {
         await using var db = CreateDbContext();
         var (_, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var result = await service.GetSalesOrderTrackingByCodeAsync(productionOrder.BarcodeUid, CancellationToken.None);
 
@@ -201,7 +201,7 @@ public sealed class ProductionServiceTests
         await using var db = CreateDbContext();
         var (salesOrder, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
         var eventPublisher = new RecordingEventPublisher();
-        var service = new ProductionService(db, eventPublisher);
+        var service = new ProductionService(db, eventPublisher, new StubMasterDataClient());
 
         var started = await service.StartProductionAsync(
             salesOrder.Id,
@@ -237,7 +237,7 @@ public sealed class ProductionServiceTests
     {
         await using var db = CreateDbContext();
         var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var result = await service.UploadEngineeringDrawingAsync(
             salesOrder.Id,
@@ -261,7 +261,7 @@ public sealed class ProductionServiceTests
         await using var db = CreateDbContext();
         var (salesOrder, productionOrder) = await SeedSalesOrderWithProductionOrderAsync(db);
         var eventPublisher = new RecordingEventPublisher();
-        var service = new ProductionService(db, eventPublisher);
+        var service = new ProductionService(db, eventPublisher, new StubMasterDataClient());
 
         var result = await service.SubmitMaterialRequestAsync(
             salesOrder.Id,
@@ -309,7 +309,7 @@ public sealed class ProductionServiceTests
     {
         await using var db = CreateDbContext();
         var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.UploadEngineeringDrawingAsync(
@@ -329,7 +329,7 @@ public sealed class ProductionServiceTests
     {
         await using var db = CreateDbContext();
         var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.StartProductionAsync(
@@ -345,7 +345,7 @@ public sealed class ProductionServiceTests
     {
         await using var db = CreateDbContext();
         var (salesOrder, _) = await SeedSalesOrderWithProductionOrderAsync(db);
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => service.FinishProductionAsync(
@@ -368,7 +368,7 @@ public sealed class ProductionServiceTests
         await db.SalesOrders.AddAsync(salesOrder);
         await db.SaveChangesAsync();
 
-        var service = new ProductionService(db, new RecordingEventPublisher());
+        var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
         var tracking = await service.GetPublicTrackingAsync("SO-001", CancellationToken.None);
 
@@ -472,6 +472,60 @@ public sealed class ProductionServiceTests
         };
     }
 
+    [Fact]
+    public async Task CreateSalesOrderAsync_fetches_missing_master_data_synchronously_via_http_fallback()
+    {
+        await using var db = CreateDbContext();
+        
+        // We do NOT seed the Customer or Products into db.CustomerReplicas or db.ProductReplicas.
+        // This simulates the race condition where the event bus is lagging behind.
+        var customerId = Guid.NewGuid();
+        var productId1 = Guid.NewGuid();
+        var productId2 = Guid.NewGuid();
+        
+        var eventPublisher = new RecordingEventPublisher();
+        var stubClient = new StubMasterDataClient();
+        var service = new ProductionService(db, eventPublisher, stubClient);
+        
+        var salesOrder = await service.CreateSalesOrderAsync(
+            new CreateSalesOrderRequest(
+                customerId,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)),
+                [
+                    new CreateSalesOrderItemRequest(productId1, 10, 0m, "Urgent"),
+                    new CreateSalesOrderItemRequest(productId2, 4, 0m, null)
+                ],
+                null,
+                new EngineerAssignment(WorkerUserId, "Worker Engineer"),
+                new EngineerAssignment(ReviewerUserId, "Reviewer Engineer"),
+                "https://drive.example/customer-drawing.jpg",
+                "DESIGN-001",
+                SalesOrderDesignStatuses.Approved),
+            CancellationToken.None);
+
+        // Assert that the client was called with the exact missing IDs
+        Assert.Single(stubClient.RequestedCustomerIds);
+        Assert.Equal(customerId, stubClient.RequestedCustomerIds[0]);
+
+        Assert.Equal(2, stubClient.RequestedProductIds.Count);
+        Assert.Contains(productId1, stubClient.RequestedProductIds);
+        Assert.Contains(productId2, stubClient.RequestedProductIds);
+
+        // Assert that the fallback actually saved them to the local database correctly
+        var savedCustomer = await db.CustomerReplicas.SingleOrDefaultAsync(c => c.Id == customerId);
+        Assert.NotNull(savedCustomer);
+        Assert.Equal("CUST-HTTP", savedCustomer.Code);
+
+        var savedProduct1 = await db.ProductReplicas.SingleOrDefaultAsync(p => p.Id == productId1);
+        Assert.NotNull(savedProduct1);
+        Assert.StartsWith("PART-HTTP-", savedProduct1.PartNumber);
+
+        // Assert the Sales Order was successfully created
+        Assert.NotNull(salesOrder);
+        Assert.Equal(2, salesOrder.Items.Count);
+    }
+
     private sealed class RecordingEventPublisher : IEventPublisher
     {
         public List<IntegrationEvent> PublishedEvents { get; } = [];
@@ -480,6 +534,24 @@ public sealed class ProductionServiceTests
         {
             PublishedEvents.Add(integrationEvent);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubMasterDataClient : IMasterDataClient
+    {
+        public List<Guid> RequestedCustomerIds { get; } = [];
+        public List<Guid> RequestedProductIds { get; } = [];
+
+        public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken)
+        {
+            RequestedCustomerIds.Add(id);
+            return Task.FromResult<MasterDataCustomerDto?>(new MasterDataCustomerDto(id, "CUST-HTTP", "PT HTTP Customer", "http@test.com", true));
+        }
+
+        public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken cancellationToken)
+        {
+            RequestedProductIds.Add(id);
+            return Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, $"PART-HTTP-{id.ToString()[..4]}", "HTTP Desc", "pcs", "HTTP Spec", true));
         }
     }
 }
