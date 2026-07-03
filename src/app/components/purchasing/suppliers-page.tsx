@@ -19,6 +19,7 @@ import {
   ArrowDownRight,
   Edit2,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -36,6 +37,7 @@ import { usePurchasingData } from "./usePurchasingData";
 import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { AddSupplierModal } from "./add-supplier-modal";
 import { useApp } from "../context/AppContext";
+import { mapPurchaseRequestsToPos, calcTotal, PO } from "./purchase-orders-page";
 
 /* ── Types & Data ──────────────────────────────────────────── */
 
@@ -74,34 +76,27 @@ interface Supplier {
   since: string;
 }
 
-const generateMockHistory = () => {
-  return [
-    { month: "Jan", value: 100, pos: 2 },
-    { month: "Feb", value: 120, pos: 3 },
-    { month: "Mar", value: 90, pos: 2 },
-    { month: "Apr", value: 150, pos: 4 },
-    { month: "May", value: 130, pos: 3 },
-    { month: "Jun", value: 160, pos: 4 },
+const calculateSupplierHistory = (supplierPos: PO[]) => {
+  const monthPairs = [
+    { label: "Jan", aliases: ["Jan", "01/"] },
+    { label: "Feb", aliases: ["Feb", "02/"] },
+    { label: "Mar", aliases: ["Mar", "03/"] },
+    { label: "Apr", aliases: ["Apr", "04/"] },
+    { label: "May", aliases: ["May", "Mei", "05/"] },
+    { label: "Jun", aliases: ["Jun", "06/"] }
   ];
-};
-
-const MOCK_HISTORY = {
-  "SUP-003": [
-    { month: "Jan", value: 450, pos: 8 },
-    { month: "Feb", value: 520, pos: 10 },
-    { month: "Mar", value: 480, pos: 9 },
-    { month: "Apr", value: 610, pos: 12 },
-    { month: "May", value: 580, pos: 11 },
-    { month: "Jun", value: 680, pos: 14 }
-  ],
-  "SUP-007": [
-    { month: "Jan", value: 200, pos: 5 },
-    { month: "Feb", value: 180, pos: 4 },
-    { month: "Mar", value: 250, pos: 6 },
-    { month: "Apr", value: 220, pos: 5 },
-    { month: "May", value: 290, pos: 7 },
-    { month: "Jun", value: 310, pos: 8 }
-  ]
+  return monthPairs.map(mp => {
+    const posInMonth = supplierPos.filter(po => {
+      if (!po.orderDate) return false;
+      return mp.aliases.some(alias => po.orderDate.includes(alias));
+    });
+    const value = posInMonth.reduce((sum, po) => sum + calcTotal(po.items), 0);
+    return {
+      month: mp.label,
+      pos: posInMonth.length,
+      value: Math.round(value / 1000000)
+    };
+  });
 };
 
 /* ── Helpers ───────────────────────────────────────────────── */
@@ -183,12 +178,12 @@ function SupplierDetail({
       {/* Supplier header */}
       <div
         className="rounded-lg p-5"
-        style={{ background: "#0f1e35", border: "1px solid #1e3a5f" }}
+        style={{ background: "#1F1F1F", border: "1px solid #334155" }}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg shrink-0" style={{ background: "#1e3a5f" }}>
-              <Building2 size={20} style={{ color: "#60a5fa" }} />
+            <div className="flex items-center justify-center w-12 h-12 rounded-md shrink-0" style={{ background: "#334155" }}>
+              <Building2 size={20} style={{ color: "#fff" }} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -219,14 +214,6 @@ function SupplierDetail({
             >
               <Trash2 size={13} /> Hapus
             </button>
-            {canCreatePo && (
-              <button
-                className="flex items-center gap-1.5 rounded px-3 py-2 text-white hover:opacity-90 transition-opacity"
-                style={{ fontSize: 12, background: "#C8102E" }}
-              >
-                <ShoppingCart size={13} /> Buat PO
-              </button>
-            )}
           </div>
         </div>
 
@@ -257,7 +244,7 @@ function SupplierDetail({
             <TabsTrigger
               key={t.val}
               value={t.val}
-              className="rounded h-7 px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-sm"
+              className="rounded-sm h-7 px-3 text-xs data-[state=active]:bg-[#C8102E] data-[state=active]:text-white data-[state=active]:shadow-sm"
             >
               {t.label}
             </TabsTrigger>
@@ -309,7 +296,7 @@ function SupplierDetail({
               <div className="flex items-start gap-4">
                 <div
                   className="flex items-center justify-center w-10 h-10 rounded-full text-white shrink-0"
-                  style={{ background: "#1e3a5f", fontSize: 14, fontWeight: 700 }}
+                  style={{ background: "#C8102E", fontSize: 14, fontWeight: 700 }}
                 >
                   {c.name.charAt(0)}
                 </div>
@@ -331,18 +318,6 @@ function SupplierDetail({
                       <Mail size={14} style={{ color: "#94a3b8" }} /> {c.email}
                     </a>
                   </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <a href={`tel:${c.phone}`}>
-                    <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0" }}>
-                      <Phone size={13} /> Telepon
-                    </button>
-                  </a>
-                  <a href={`mailto:${c.email}`}>
-                    <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0" }}>
-                      <Mail size={13} /> Email
-                    </button>
-                  </a>
                 </div>
               </div>
             </div>
@@ -386,7 +361,7 @@ function SupplierDetail({
                     <TD><span style={{ fontWeight: 500, color: "#1F1F1F" }}>{h.month} 2026</span></TD>
                     <TD><span style={{ color: "#475569" }}>{h.pos} PO</span></TD>
                     <TD><span style={{ fontWeight: 600, color: "#1F1F1F" }}>Rp {h.value} Jt</span></TD>
-                    <TD><span style={{ color: "#64748b" }}>Rp {Math.round(h.value / h.pos)} Jt</span></TD>
+                    <TD><span style={{ color: "#64748b" }}>Rp {h.pos > 0 ? Math.round(h.value / h.pos) : 0} Jt</span></TD>
                   </tr>
                 ))}
               </tbody>
@@ -434,26 +409,52 @@ export function SuppliersPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | SupplierDto | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
-  const { suppliers, isLoading, refresh } = usePurchasingData();
+  const { suppliers, purchaseRequests, supplierPayments, isLoading, refresh } = usePurchasingData();
+
+  const allPos = useMemo(() => {
+    return mapPurchaseRequestsToPos(purchaseRequests || [], supplierPayments || []);
+  }, [purchaseRequests, supplierPayments]);
 
   const enhancedSuppliers = useMemo(() => {
     return (suppliers as any[]).map(s => {
-      const isIndo = s.code === "SUP-003";
-      const isSumber = s.code === "SUP-007";
+      const supplierPos = allPos.filter(po => {
+        if (!po) return false;
+        return po.supplierCode === s.code ||
+               po.supplier === s.name ||
+               (po.supplier && s.name && po.supplier.toLowerCase().trim() === s.name.toLowerCase().trim()) ||
+               (po.supplier && s.name && po.supplier.toLowerCase().includes(s.name.toLowerCase()));
+      });
+
+      const totalPOs = supplierPos.length;
+      const totalValue = supplierPos.reduce((sum, po) => sum + calcTotal(po.items), 0);
+
+      const completedPos = supplierPos.filter(p => p.deliveryStatus === "Received" || p.deliveryStatus === "Closed");
+      const cancelledPos = supplierPos.filter(p => p.deliveryStatus === "Cancelled");
+      const onTimeRate = totalPOs === 0 ? 0 : Math.round(((totalPOs - cancelledPos.length) / totalPOs) * 100);
+
+      const allItems = supplierPos.flatMap(p => p.items);
+      const rejectedItems = allItems.filter(i => i.purchaseStatus === "Rejected" || i.purchaseStatus === "Ditolak");
+      const defectRate = allItems.length === 0 ? 0 : Number(((rejectedItems.length / allItems.length) * 100).toFixed(1));
+
+      const calculatedRating = totalPOs === 0
+        ? 0
+        : Number(Math.min(5.0, Math.max(1.0, ((onTimeRate / 100) * 2.5) + Math.max(0, 2.0 - (defectRate * 0.4)) + Math.min(0.5, totalPOs * 0.05))).toFixed(1));
+
       return {
         ...s,
-        totalPOs: isIndo ? 47 : isSumber ? 31 : 15,
-        totalValue: isIndo ? 2900000000 : isSumber ? 950000000 : 380000000,
-        onTimeRate: isIndo ? 96 : isSumber ? 89 : 82,
-        defectRate: isIndo ? 0.5 : isSumber ? 1.2 : 2.5,
-        rating: s.rating ?? 4.0,
-        history: MOCK_HISTORY[s.code as keyof typeof MOCK_HISTORY] || generateMockHistory()
+        totalPOs,
+        totalValue,
+        onTimeRate,
+        defectRate,
+        rating: calculatedRating,
+        history: calculateSupplierHistory(supplierPos)
       };
     });
-  }, [suppliers]);
+  }, [suppliers, allPos]);
 
   const filtered = useMemo(() => {
     return enhancedSuppliers.filter((s) => {
@@ -481,18 +482,21 @@ export function SuppliersPage() {
     setIsAddModalOpen(true);
   };
 
-  const handleDeleteSupplier = async (supplier: Supplier | SupplierDto) => {
-    if (!window.confirm(`Hapus supplier ${supplier.name}? Data supplier akan dihapus dari master data.`)) {
-      return;
-    }
+  const handleDeleteSupplier = (supplier: Supplier | SupplierDto) => {
+    setSupplierToDelete(supplier);
+  };
 
+  const confirmDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
     setIsDeleting(true);
     setStatusMessage(null);
     try {
-      await masterDataApi.deleteSupplier(supplier.code);
-      setSelectedSupplier(null);
+      await masterDataApi.deleteSupplier(supplierToDelete.code);
+      if (selectedSupplier && selectedSupplier.code === supplierToDelete.code) {
+        setSelectedSupplier(null);
+      }
       await refresh();
-      setStatusMessage({ type: "success", text: `Supplier ${supplier.name} berhasil dihapus.` });
+      setStatusMessage({ type: "success", text: `Supplier ${supplierToDelete.name} berhasil dihapus.` });
     } catch (error: any) {
       console.warn("Failed to delete supplier.", error);
       setStatusMessage({
@@ -501,6 +505,7 @@ export function SuppliersPage() {
       });
     } finally {
       setIsDeleting(false);
+      setSupplierToDelete(null);
     }
   };
 
@@ -539,6 +544,29 @@ export function SuppliersPage() {
             setStatusMessage({ type: "success", text: "Supplier berhasil diperbarui." });
           }}
         />
+        {supplierToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="text-red-600" size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Hapus Supplier</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Yakin ingin menghapus <strong>{supplierToDelete.name}</strong>?
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setSupplierToDelete(null)} disabled={isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
+                <button onClick={confirmDeleteSupplier} disabled={isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                  {isDeleting ? "Menghapus..." : "Hapus"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -559,8 +587,8 @@ export function SuppliersPage() {
               setEditingSupplier(null);
               setIsAddModalOpen(true);
             }}
-            className="flex items-center gap-1.5 rounded px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
-            style={{ fontSize: 12, background: "#1e3a5f" }}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
+            style={{ fontSize: 12, background: "#C8102E" }}
           >
             <Plus size={13} /> Tambah Supplier
           </button>
@@ -588,7 +616,7 @@ export function SuppliersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama, kode, kategori, kota..."
-            className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-md border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#C8102E]/20"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
@@ -597,12 +625,12 @@ export function SuppliersPage() {
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
-              className="rounded px-3 py-1.5 transition-colors"
+              className="rounded-md px-3 py-1.5 transition-colors"
               style={{
                 fontSize: 12, fontWeight: 500,
-                background: filterStatus === s ? "#1e3a5f" : "#f8fafc",
+                background: filterStatus === s ? "#C8102E" : "#f8fafc",
                 color: filterStatus === s ? "#fff" : "#475569",
-                border: `1px solid ${filterStatus === s ? "#1e3a5f" : "#e2e8f0"}`,
+                border: `1px solid ${filterStatus === s ? "#C8102E" : "#e2e8f0"}`,
               }}
             >
               {s === "all" ? "Semua" : s}
@@ -641,7 +669,7 @@ export function SuppliersPage() {
                   >
                     <TD>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded shrink-0" style={{ background: "#1e3a5f", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                        <div className="flex items-center justify-center w-8 h-8 rounded-md shrink-0" style={{ background: "#C8102E", fontSize: 13, fontWeight: 700, color: "#fff" }}>
                           {s.name.charAt(0)}
                         </div>
                         <div>
@@ -678,11 +706,6 @@ export function SuppliersPage() {
                     </TD>
                     <TD>
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <a href={`tel:${s.contacts?.[0]?.phone || ''}`}>
-                          <button className="rounded p-1.5 hover:bg-slate-100 transition-colors" style={{ color: "#64748b" }}>
-                            <Phone size={13} />
-                          </button>
-                        </a>
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-red-50 transition-colors"
                           style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
@@ -735,6 +758,29 @@ export function SuppliersPage() {
             setStatusMessage({ type: "success", text: editingSupplier ? "Supplier berhasil diperbarui." : "Supplier baru berhasil ditambahkan." });
           }}
       />
+      {supplierToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="text-red-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Hapus Supplier</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Yakin ingin menghapus <strong>{supplierToDelete.name}</strong>?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setSupplierToDelete(null)} disabled={isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
+              <button onClick={confirmDeleteSupplier} disabled={isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                {isDeleting ? "Menghapus..." : "Hapus"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

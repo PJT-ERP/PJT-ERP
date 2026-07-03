@@ -90,7 +90,7 @@ export function FinancePrDetail() {
     return (
       <div className="p-10 text-center">
         <h2 className="text-xl font-bold text-slate-800">Purchase Request tidak ditemukan</h2>
-        <button onClick={() => navigate("/erp/finance/approval")} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+        <button onClick={() => navigate("/erp/finance/approval")} className="mt-4 px-4 py-2 bg-[#C8102E] text-white rounded">
           Kembali ke Persetujuan Anggaran
         </button>
       </div>
@@ -112,12 +112,12 @@ export function FinancePrDetail() {
         <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Persetujuan Anggaran PR</h1>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
         {/* Info Header */}
         <div className="px-6 py-6 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <FileText size={20} className="text-blue-600" />
+              <FileText size={20} className="text-[#C8102E]" />
               <h2 className="text-xl font-bold text-slate-900 m-0">{detail.id}</h2>
               <Pill cfg={sc} label={detail.status} />
               <Pill cfg={pc} label={detail.priority} />
@@ -129,7 +129,7 @@ export function FinancePrDetail() {
           
           <div className="bg-white px-5 py-3 rounded-lg border border-slate-200 shadow-sm text-right min-w-[200px]">
              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Estimasi Anggaran</p>
-             <p className="text-xl font-bold text-blue-700 m-0">Rp {formatRp(totalAnggaran)}</p>
+             <p className="text-xl font-bold text-[#C8102E] m-0">Rp {formatRp(totalAnggaran)}</p>
           </div>
         </div>
 
@@ -200,14 +200,14 @@ export function FinancePrDetail() {
                 <button
                   disabled={isApproving}
                   onClick={() => setShowRejectModal(true)}
-                  className="flex-1 py-3 rounded-lg text-sm font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 rounded-md text-sm font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
                 >
                   Tolak Anggaran
                 </button>
                 <button
                   disabled={isApproving}
                   onClick={() => handleReviewPr('Accept')}
-                  className="flex-1 py-3 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 py-3 rounded-md text-sm font-bold text-white bg-[#C8102E] hover:bg-red-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                 >
                   <CheckCircle2 size={18} /> {isApproving ? "Memproses..." : "Setujui Anggaran"}
                 </button>
@@ -231,7 +231,7 @@ export function FinancePrDetail() {
 
       {showRejectModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl border border-slate-100">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 shadow-xl border border-slate-100">
             <h3 className="text-lg font-bold text-slate-800 mb-2">Tolak Persetujuan Anggaran</h3>
             <p className="text-sm text-slate-600 mb-4">
               Silakan berikan alasan penolakan anggaran ini agar tim Purchasing dapat melakukan revisi harga atau memilih supplier lain.
@@ -266,7 +266,7 @@ export function FinancePrDetail() {
 
       {dialogMsg && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
+          <div className="bg-white rounded-lg w-full max-w-sm p-6 shadow-2xl border border-slate-100 text-center">
             <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
               <AlertCircle size={24} />
             </div>
@@ -275,7 +275,7 @@ export function FinancePrDetail() {
             <button
               type="button"
               onClick={() => setDialogMsg(null)}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
+              className="w-full py-2.5 rounded-md text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-sm"
             >
               Mengerti
             </button>

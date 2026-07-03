@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { MaterialRequirementDto } from "../../services/purchasingApi";
-import { masterDataApi } from "../../services/masterDataApi";
+import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { usePurchasingData } from "./usePurchasingData";
 import { useApp } from "../context/AppContext";
 
@@ -104,7 +104,7 @@ function TD({ children, className = "", right = false }: { children: React.React
 
 const CHART_COLORS = ["#C8102E", "#0891b2", "#7c3aed", "#16a34a", "#d97706"];
 
-function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[], editItem?: InventoryItem | null }) {
+function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, suppliers }: { isOpen: boolean; onClose: () => void; onAdded: () => void; inventoryItems: InventoryItem[], editItem?: InventoryItem | null, suppliers: SupplierDto[] }) {
   const [formData, setFormData] = useState({
     code: "", name: "", category: "Project", unit: "pcs",
     currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0,
@@ -184,16 +184,16 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Kode Material</label>
+              <label className={labelClass}>Kode Material <span className="text-[#C8102E]">*</span></label>
               <input required readOnly value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className={`${inputClass} bg-slate-100 cursor-not-allowed`} placeholder="Contoh: MAT-001" />
             </div>
             <div>
-              <label className={labelClass}>Nama Material</label>
+              <label className={labelClass}>Nama Material <span className="text-[#C8102E]">*</span></label>
               <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClass} placeholder="Aluminium Plate..." />
             </div>
             <div>
-              <label className={labelClass}>Kategori</label>
-              <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className={inputClass}>
+              <label className={labelClass}>Kategori <span className="text-[#C8102E]">*</span></label>
+              <select required value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className={inputClass}>
                 <option>Project</option>
                 <option>Consumable</option>
                 <option>Tools</option>
@@ -202,36 +202,51 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }
               </select>
             </div>
             <div>
-              <label className={labelClass}>Satuan</label>
+              <label className={labelClass}>Satuan <span className="text-[#C8102E]">*</span></label>
               <input required value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className={inputClass} placeholder="pcs, kg, m, dll" />
             </div>
             <div>
-              <label className={labelClass}>Stok Awal</label>
-              <input type="number" required value={formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Stok Awal <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.currentStock === 0 ? "" : formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Reorder Point</label>
-              <input type="number" required value={formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Reorder Point <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.reorderPoint === 0 ? "" : formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Min Stock</label>
-              <input type="number" required value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Min Stock <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.minStock === 0 ? "" : formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Max Stock</label>
-              <input type="number" required value={formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Max Stock <span className="text-[#C8102E]">*</span></label>
+              <input type="number" required value={formData.maxStock === 0 ? "" : formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
             <div>
-              <label className={labelClass}>Harga Satuan (Rp)</label>
-              <input type="number" required value={formData.unitPrice} onChange={e => setFormData({ ...formData, unitPrice: Number(e.target.value) })} className={inputClass} />
+              <label className={labelClass}>Harga Satuan (Rp) <span className="text-[#C8102E]">*</span></label>
+              <input 
+                type="text" 
+                required 
+                value={formData.unitPrice === 0 ? "" : formData.unitPrice.toLocaleString("id-ID")} 
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                  setFormData({ ...formData, unitPrice: rawValue === "" ? 0 : Number(rawValue) });
+                }} 
+                className={inputClass} 
+                placeholder="0" 
+              />
             </div>
             <div>
-              <label className={labelClass}>Lokasi Penyimpanan</label>
-              <input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
+              <label className={labelClass}>Lokasi Penyimpanan <span className="text-[#C8102E]">*</span></label>
+              <input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
             </div>
             <div className="col-span-2">
-              <label className={labelClass}>Nama Supplier Default</label>
-              <input value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass} placeholder="PT Indo Steel" />
+              <label className={labelClass}>Nama Supplier Default <span className="text-[#C8102E]">*</span></label>
+              <select required value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass}>
+                <option value="" disabled>Pilih Supplier</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -251,7 +266,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem }
 export function InventoryPage() {
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const { inventoryItems, purchaseRequests, refresh } = usePurchasingData();
+  const { inventoryItems, purchaseRequests, suppliers, refresh } = usePurchasingData();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -319,8 +334,14 @@ export function InventoryPage() {
   const categories = useMemo(() => Array.from(new Set(inventory.map((item) => item.category))), [inventory]);
   const chartData = useMemo(() => categories.map((cat) => ({
     name: cat.split(" ")[0],
-    value: Math.round(inventory.filter((item) => item.category === cat).reduce((s, item) => s + item.currentStock * item.unitPrice, 0) / 1_000_000),
+    value: Math.round(inventory.filter((item) => item.category === cat).reduce((s, item) => s + item.currentStock * item.unitPrice, 0)),
   })), [categories, inventory]);
+
+  const formatRupiah = (v: number) => {
+    if (v >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)} Jt`;
+    if (v >= 1_000) return `Rp ${(v / 1_000).toFixed(0)} Rb`;
+    return `Rp ${v.toLocaleString("id-ID")}`;
+  };
 
   const filtered = inventory.filter((item) => {
     const q = search.toLowerCase();
@@ -349,7 +370,10 @@ export function InventoryPage() {
         <div className="flex items-center gap-2">
           {canCreatePo && (
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setEditItem(null);
+                setIsAddModalOpen(true);
+              }}
               title="Tambah Material / Stok Baru"
               className="flex items-center gap-2 text-sm bg-slate-900 hover:bg-slate-800 text-white rounded-md px-4 py-1.5 font-medium transition-colors shadow-sm"
             >
@@ -437,7 +461,7 @@ export function InventoryPage() {
         <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Nilai Stok per Kategori (Juta Rp)
+              Nilai Stok per Kategori
             </p>
           </div>
           <div className="px-2 py-4 flex-1 min-h-[180px]">
@@ -445,8 +469,8 @@ export function InventoryPage() {
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [`Rp ${v} Jt`]} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatRupiah(v)} width={70} />
+                <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [formatRupiah(v), "Nilai Stok"]} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {chartData.map((_, i) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -695,6 +719,7 @@ export function InventoryPage() {
         onAdded={() => void refresh()}
         inventoryItems={inventory}
         editItem={editItem}
+        suppliers={suppliers}
       />
 
       {deleteItem && (

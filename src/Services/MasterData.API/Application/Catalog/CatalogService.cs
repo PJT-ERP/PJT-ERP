@@ -195,20 +195,103 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             product.UpdatedAtUtc);
     }
 
+    public async Task<ProductDto> UpdateProductAsync(Guid id, CreateProductRequest request, CancellationToken cancellationToken)
+    {
+        var product = await db.Products
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            
+        if (product == null)
+        {
+            throw new Exception("Product not found");
+        }
+
+        product.Description = request.Description?.Trim() ?? "";
+        product.Unit = string.IsNullOrWhiteSpace(request.Unit) ? "pcs" : request.Unit.Trim();
+        product.MaterialSpec = request.MaterialSpec;
+        product.UpdatedAtUtc = DateTime.UtcNow;
+
+        // Update BOM properly - Bypass change tracker for deletes to avoid double-delete/concurrency state issues
+        await db.ProductBomItems.Where(b => b.ProductId == id).ExecuteDeleteAsync(cancellationToken);
+        product.BomItems = new List<ProductBomItem>();
+
+        if (request.BomItems != null)
+        {
+            foreach (var reqItem in request.BomItems)
+            {
+                var newItem = new ProductBomItem
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = product.Id,
+                    InventoryItemId = reqItem.InventoryItemId,
+                    Quantity = reqItem.Quantity
+                };
+                db.ProductBomItems.Add(newItem);
+                product.BomItems.Add(newItem);
+            }
+        }
+
+        await eventPublisher.PublishAsync(
+            new MasterDataUpdatedEvent(product.Id, "Product", "Updated", product.PartNumber, product.Description, product.Unit, product.MaterialSpec),
+            cancellationToken);
+            
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            var messages = new List<string>();
+            foreach (var entry in ex.Entries)
+            {
+                var entityType = entry.Entity.GetType().Name;
+                var state = entry.State;
+                var dbValues = await entry.GetDatabaseValuesAsync();
+                
+                string entityDetails = "N/A";
+                if (entry.Entity is ProductBomItem pbi)
+                {
+                    entityDetails = $"Id={pbi.Id}, InvId={pbi.InventoryItemId}, Qty={pbi.Quantity}";
+                }
+                
+                messages.Add($"Concurrency exception on {entityType} (State: {state}). Details: {entityDetails}. Database values exists: {dbValues != null}");
+            }
+            throw new Exception(string.Join(" | ", messages), ex);
+        }
+
+        // Load the navigation properties for the return DTO
+        if (product.BomItems.Count > 0)
+        {
+            await db.Entry(product).Collection(p => p.BomItems).Query().Include(b => b.InventoryItem).LoadAsync(cancellationToken);
+        }
+
+        return new ProductDto(
+            product.Id, 
+            product.PartNumber, 
+            product.Description, 
+            product.Unit, 
+            product.MaterialSpec, 
+            product.IsActive, 
+            product.BomItems.Select(b => new ProductBomItemDto(
+                b.Id,
+                b.InventoryItemId,
+                b.InventoryItem.Code,
+                b.InventoryItem.Name,
+                b.Quantity,
+                b.InventoryItem.Unit)).ToList(),
+            product.CreatedAtUtc, 
+            product.UpdatedAtUtc);
+    }
+
     public async Task UpdateProductBomAsync(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken)
     {
         var product = await db.Products
-            .Include(p => p.BomItems)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         if (product is null) return;
 
-        // Copy list to avoid modifying collection while iterating
-        var existingBomItems = product.BomItems.ToList();
-        
         // Remove old items completely
-        db.ProductBomItems.RemoveRange(existingBomItems);
-        product.BomItems.Clear();
+        await db.ProductBomItems.Where(b => b.ProductId == id).ExecuteDeleteAsync(cancellationToken);
+        product.BomItems = new List<ProductBomItem>();
 
         if (request.BomItems != null)
         {
@@ -328,7 +411,7 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
     {
         var normalizedCode = code.Trim().ToUpperInvariant();
         var supplier = await db.Suppliers
-            .Include(s => s.Contacts)
+            // .Include(s => s.Contacts) // DO NOT INCLUDE to avoid EF tracking conflicts on update
             .FirstOrDefaultAsync(s => s.Code == normalizedCode, cancellationToken);
 
         if (supplier is null)
@@ -352,13 +435,8 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         supplier.Rating = request.Rating;
         supplier.UpdatedAtUtc = DateTime.UtcNow;
 
-        var existingContacts = supplier.Contacts.ToList();
-        if (existingContacts.Count > 0)
-        {
-            db.SupplierContacts.RemoveRange(existingContacts);
-        }
+        await db.SupplierContacts.Where(c => c.SupplierId == supplier.Id).ExecuteDeleteAsync(cancellationToken);
 
-        supplier.Contacts = new List<SupplierContact>();
         foreach (var contact in request.Contacts ?? new List<CreateSupplierContactRequest>())
         {
             if (string.IsNullOrWhiteSpace(contact.Name))
@@ -366,14 +444,17 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
                 continue;
             }
 
-            supplier.Contacts.Add(new SupplierContact
+            var newContact = new SupplierContact
             {
+                Id = Guid.NewGuid(),
+                SupplierId = supplier.Id,
                 Name = contact.Name.Trim(),
                 Role = contact.Role,
                 Phone = contact.Phone,
                 Email = NormalizeEmail(contact.Email),
                 IsPrimary = contact.IsPrimary
-            });
+            };
+            db.SupplierContacts.Add(newContact);
         }
 
         await eventPublisher.PublishAsync(

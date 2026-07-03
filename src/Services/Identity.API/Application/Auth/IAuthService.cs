@@ -7,4 +7,5 @@ public interface IAuthService
     Task<IReadOnlyList<CurrentUserResponse>> GetAllUsersAsync(CancellationToken cancellationToken);
     Task<CurrentUserResponse> CreateUserAsync(CreateUserRequest request, CancellationToken cancellationToken);
     Task<CurrentUserResponse?> UpdateUserAsync(Guid userId, UpdateUserRequest request, CancellationToken cancellationToken);
+    Task<bool> DeleteUserAsync(Guid userId, CancellationToken cancellationToken);
 }

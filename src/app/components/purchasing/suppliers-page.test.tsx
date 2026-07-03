@@ -26,6 +26,7 @@ describe('SuppliersPage', () => {
           rating: 4.5
         }
       ],
+      purchaseRequests: [],
       isLoading: false,
       refresh: vi.fn(),
     } as any);
@@ -59,6 +60,7 @@ describe('SuppliersPage', () => {
           rating: 3.5
         }
       ],
+      purchaseRequests: [],
       isLoading: false,
       refresh: vi.fn(),
     } as any);

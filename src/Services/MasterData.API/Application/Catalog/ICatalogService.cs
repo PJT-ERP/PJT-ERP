@@ -8,6 +8,7 @@ public interface ICatalogService
     Task<bool> DeleteCustomerAsync(string code, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<ProductDto>> ListProductsAsync(CancellationToken cancellationToken);
     Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken cancellationToken = default);
+    Task<ProductDto> UpdateProductAsync(Guid id, CreateProductRequest request, CancellationToken cancellationToken = default);
     Task UpdateProductBomAsync(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken = default);
     Task DeleteProductAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<SupplierDto>> ListSuppliersAsync(CancellationToken cancellationToken);

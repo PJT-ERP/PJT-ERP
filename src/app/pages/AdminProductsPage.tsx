@@ -27,6 +27,9 @@ export function AdminProductsPage() {
   const [newSpec, setNewSpec] = useState(''); 
   const [bomItems, setBomItems] = useState<{ inventoryItemId: string; quantity: string }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, partNumber: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (isAdding && !isEditingId) {
@@ -58,14 +61,21 @@ export function AdminProductsPage() {
     setIsAdding(true);
   };
 
-  const handleDelete = async (id: string, partNumber: string) => {
-    if (confirm(`Yakin ingin menghapus produk ${partNumber}?`)) {
-      try {
-        await salesApi.deleteProduct(id);
-        await refreshBackendData();
-      } catch (e) {
-        alert("Gagal menghapus produk");
-      }
+  const handleDeleteClick = (id: string, partNumber: string) => {
+    setDeleteConfirm({ id, partNumber });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      setIsDeleting(true);
+      await salesApi.deleteProduct(deleteConfirm.id);
+      await refreshBackendData();
+      setDeleteConfirm(null);
+    } catch (e) {
+      alert("Gagal menghapus produk");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -79,9 +89,13 @@ export function AdminProductsPage() {
         .map(b => ({ inventoryItemId: b.inventoryItemId, quantity: Number(b.quantity) }));
 
       if (isEditingId) {
-        // Mock update for now since backend might not have updateProduct yet
-        // In a real app we'd call salesApi.updateProduct(isEditingId, {...})
-        alert("Fungsi edit segera tersedia (membutuhkan update API backend)");
+        await salesApi.updateProduct(isEditingId, {
+          partNumber: partNumberPreview,
+          description: newDesc,
+          unit: newUnit,
+          materialSpec: newSpec,
+          bomItems: formattedBom
+        });
       } else {
         await salesApi.createProduct({
           partNumber: partNumberPreview,
@@ -125,7 +139,14 @@ export function AdminProductsPage() {
             Kelola daftar Finished Goods (Produk) yang ditawarkan ke pelanggan.
           </p>
         </div>
-        <button onClick={() => setIsAdding(true)} style={{ display: "flex", alignItems: "center", gap: 8, background: S.primary, color: "#fff", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 5px rgba(200,16,46,0.2)" }}>
+        <button onClick={() => {
+          setIsEditingId(null);
+          setNewDesc('');
+          setNewUnit('pcs');
+          setNewSpec('');
+          setBomItems([]);
+          setIsAdding(true);
+        }} style={{ display: "flex", alignItems: "center", gap: 8, background: S.primary, color: "#fff", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 5px rgba(200,16,46,0.2)" }}>
           <Plus size={16} /> Tambah Produk
         </button>
       </div>
@@ -164,7 +185,7 @@ export function AdminProductsPage() {
                   <td style={{ padding: "12px 16px" }}>{p.materialSpec || "-"}</td>
                   <td style={{ padding: "12px 16px", textAlign: "right", display: "flex", justifyContent: "flex-end", gap: 8 }}>
                     <button onClick={() => handleEdit(p)} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, padding: 4 }} title="Edit"><Edit2 size={15} /></button>
-                    <button onClick={() => handleDelete(p.id, p.partNumber)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 4 }} title="Hapus"><Trash2 size={15} /></button>
+                    <button onClick={() => handleDeleteClick(p.id, p.partNumber)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 4 }} title="Hapus"><Trash2 size={15} /></button>
                   </td>
                 </tr>
               ))}
@@ -177,6 +198,48 @@ export function AdminProductsPage() {
           </table>
         </div>
       </div>
+
+      {deleteConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: S.white, width: "100%", maxWidth: 400, borderRadius: 12, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)", overflow: "hidden", animation: "modalIn 0.2s ease-out" }}>
+            <div style={{ padding: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Trash2 size={24} color="#ef4444" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: S.slate }}>Hapus Produk</h3>
+                </div>
+              </div>
+              <p style={{ margin: "0 0 0 60px", color: S.secondary, fontSize: 14, lineHeight: 1.5 }}>
+                Yakin ingin menghapus produk <strong style={{ color: S.slate }}>{deleteConfirm.partNumber}</strong>? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data BOM terkait.
+              </p>
+            </div>
+            <div style={{ padding: "16px 24px", background: "#f8fafc", display: "flex", justifyContent: "flex-end", gap: 12, borderTop: `1px solid ${S.border}` }}>
+              <button 
+                onClick={() => setDeleteConfirm(null)} 
+                disabled={isDeleting}
+                style={{ background: "#fff", border: `1px solid ${S.border}`, padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500, color: S.slate, cursor: isDeleting ? "not-allowed" : "pointer" }}
+              >
+                Batal
+              </button>
+              <button 
+                onClick={confirmDelete} 
+                disabled={isDeleting}
+                style={{ background: "#ef4444", border: "none", padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500, color: "#fff", cursor: isDeleting ? "not-allowed" : "pointer", opacity: isDeleting ? 0.7 : 1, display: "flex", alignItems: "center", gap: 8 }}
+              >
+                {isDeleting ? "Menghapus..." : "Ya, Hapus"}
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes modalIn {
+              from { opacity: 0; transform: scale(0.95) translateY(10px); }
+              to { opacity: 1; transform: scale(1) translateY(0); }
+            }
+          `}</style>
+        </div>
+      )}
 
       {isAdding && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -191,12 +254,12 @@ export function AdminProductsPage() {
                 <input disabled value={partNumberPreview} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", background: "#F1F5F9", color: S.secondary, fontWeight: 600 }} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Deskripsi / Nama Produk *</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Deskripsi / Nama Produk <span className="text-[#C8102E]">*</span></label>
                 <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Contoh: Gearbox Assembly" style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }} />
               </div>
               <div style={{ display: "flex", gap: 12 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Satuan *</label>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: S.slate, marginBottom: 6 }}>Satuan <span className="text-[#C8102E]">*</span></label>
                   <select value={newUnit} onChange={e => setNewUnit(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
                     <option value="pcs">Pcs</option>
                     <option value="unit">Unit</option>

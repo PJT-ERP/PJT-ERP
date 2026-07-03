@@ -169,6 +169,11 @@ export const salesApi = {
     return response.data;
   },
 
+  async updateProduct(productId: string, request: CreateProductRequest) {
+    const response = await apiClient.put<ProductDto>(`/api/v1/master-data/products/${productId}`, request);
+    return response.data;
+  },
+
   async updateProductBom(productId: string, request: { bomItems: CreateProductBomItemRequest[] }) {
     await apiClient.put(`/api/v1/master-data/products/${productId}/bom`, request);
   },

@@ -51,6 +51,7 @@ interface ProductRow {
   notes: string;
   customerDesignUrl?: string;
   unitPrice?: number;
+  materialSpec?: string | null;
 }
 
 interface ProductOption {
@@ -73,6 +74,7 @@ const emptyProduct = (): ProductRow => ({
   unit: "pcs",
   notes: "",
   unitPrice: 0,
+  materialSpec: null,
 });
 
 function addDaysIso(date: Date, days: number) {
@@ -421,15 +423,7 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
                   specification: "",
                   quantity: String(b.quantity),
                   unit: b.unit,
-                })) : selected?.materialSpec ? [
-                  ...selected.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
-                    id: selected.id + "-mat-" + idx,
-                    name: `MAT-${String(parseInt(selected.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-                    specification: specPart.trim(),
-                    quantity: "1",
-                    unit: selected.unit.toLowerCase(),
-                  }))
-                ] : [],
+                })) : [],
               });
             }} required>
               <option value="">— Pilih produk —</option>
@@ -487,6 +481,15 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
           </div>
         )}
 
+        {row.materialSpec && (
+          <div style={{ marginBottom: 16, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6, padding: 12 }}>
+            <Label text="Catatan Spesifikasi (Material Spec)" />
+            <div style={{ marginTop: 4, fontSize: "12px", color: S.slate, whiteSpace: "pre-wrap", fontFamily: S.font }}>
+              {row.materialSpec}
+            </div>
+          </div>
+        )}
+
         {row.materials && row.materials.length > 0 && (
           <div style={{ marginBottom: 16, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6, padding: 12 }}>
             <Label text="Bill of Materials (BOM) — Read Only" />
@@ -526,11 +529,22 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
           </div>
           <div>
             <Label text="Satuan" />
-            <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
-              {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </Select>
+            {!isCustom && row.productName ? (
+              <div style={{
+                width: "100%", boxSizing: "border-box",
+                background: "#F1F5F9", border: "1px solid #CBD5E1",
+                borderRadius: 4, padding: "7px 10px",
+                fontSize: "12.5px", color: "#475569", fontFamily: S.font,
+              }}>
+                {row.unit}
+              </div>
+            ) : (
+              <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
+                {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </Select>
+            )}
           </div>
           <div>
             <Label text="Harga Satuan (Rp)" />
@@ -587,7 +601,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [orderType, setOrderType] = useState<OrderType>(isEdit ? "new" : initialData?.orderType ?? null);
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
-    customerCode: prefillCustomer?.code ?? `CUST-${String(customers.length + 1).padStart(3, "0")}`,
+    customerCode: prefillCustomer?.code ?? `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
     customerName: prefillCustomer?.contactPerson ?? prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
@@ -612,7 +626,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [submitted, setSubmitted] = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isExistingCustomer, setIsExistingCustomer] = useState(false);
+  const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -645,15 +659,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             specification: "",
             quantity: String(b.quantity),
             unit: b.unit,
-          })) : matchedProduct.materialSpec ? [
-            ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
-              id: matchedProduct.id + "-mat-" + idx,
-              name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-              specification: specPart.trim(),
-              quantity: "1",
-              unit: matchedProduct.unit.toLowerCase(),
-            }))
-          ] : [];
+          })) : [];
         }
 
         setRepeatProducts([{
@@ -695,7 +701,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
     setIsExistingCustomer(false);
-    setCustomerForm({ customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
+    setCustomerForm({ customerCode: `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
@@ -718,15 +724,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           specification: "",
           quantity: String(b.quantity),
           unit: b.unit,
-        })) : matchedProduct.materialSpec ? [
-          ...matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart: string, idx: number) => ({
-            id: matchedProduct.id + "-mat-" + idx,
-            name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-            specification: specPart.trim(),
-            quantity: "1",
-            unit: matchedProduct.unit.toLowerCase(),
-          }))
-        ] : [];
+        })) : [];
       }
 
       setRepeatProducts([{
@@ -786,7 +784,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       .replace(/^-|-$/g, "")
       .slice(0, 18) || "CUSTOM";
     const created = await salesApi.createProduct({
-      partNumber: `FG-${compact.slice(0, 5)}-${Date.now().toString().slice(-4)}`,
+      partNumber: `FG-${compact.slice(0, 5)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -811,7 +809,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       soDate: today,
       targetDate,
       customerDrawingUrl: customerDrawingUrl || null,
-      designReference: null,
+      designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
       designStatus: rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved",
       items,
     };
@@ -852,14 +850,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const finalImageUrl = custProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
 
-      // Clear any previous local storage state for this specific ID or soNumber
-      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
-        delete currentLocal[created.id];
-        if (created.soNumber) delete currentLocal[created.soNumber];
-        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
-      }
-
       if (customerForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
       }
@@ -867,8 +857,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to create sales order in backend.", error);
+    } catch (error: any) {
+      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      console.error(error);
       window.alert("Gagal membuat Sales Order di backend. Cek data customer, produk, dan URL gambar.");
     } finally {
       setIsSubmitting(false);
@@ -893,13 +884,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
 
-      // Clear any previous local storage state for this specific ID or soNumber
-      const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      if (currentLocal[created.id] || (created.soNumber && currentLocal[created.soNumber])) {
-        delete currentLocal[created.id];
-        if (created.soNumber) delete currentLocal[created.soNumber];
-        localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
-      }
+
 
       if (repeatForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
@@ -908,8 +893,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to create repeat sales order in backend.", error);
+    } catch (error: any) {
+      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      console.error(error);
       window.alert("Gagal membuat Repeat Order di backend.");
     } finally {
       setIsSubmitting(false);
@@ -1040,7 +1026,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 type="button"
                 onClick={() => {
                   setIsExistingCustomer(false);
-                  setCustomerForm({ ...customerForm, customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "" });
+                  setCustomerForm({ ...customerForm, customerCode: `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, customerName: "", company: "", phone: "", email: "", address: "" });
                 }}
                 style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: !isExistingCustomer ? 600 : 400, background: !isExistingCustomer ? S.primary : S.white, color: !isExistingCustomer ? S.white : S.secondary, border: `1px solid ${!isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
               >

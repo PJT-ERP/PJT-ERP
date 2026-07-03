@@ -218,41 +218,7 @@ function restoreStoredUser(): User | null {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [landingPageContent, setLandingPageContent] = useState<LandingPageContent>(() => {
-    try {
-      const stored = localStorage.getItem("erp_landingPageContent");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { 
-          ...defaultLandingPageContent, 
-          topBarCompanyName: parsed.topBarCompanyName || defaultLandingPageContent.topBarCompanyName,
-          topBarSubtitle: parsed.topBarSubtitle || defaultLandingPageContent.topBarSubtitle,
-          heroHeadlineLine1: parsed.heroHeadlineLine1 || defaultLandingPageContent.heroHeadlineLine1,
-          ...parsed,
-          projects: parsed.projects?.length ? parsed.projects : defaultLandingPageContent.projects,
-          tangerangMachines: parsed.tangerangMachines?.length ? parsed.tangerangMachines : defaultLandingPageContent.tangerangMachines,
-          surabayaMachines: parsed.surabayaMachines?.length ? parsed.surabayaMachines : defaultLandingPageContent.surabayaMachines,
-          testimonials: parsed.testimonials?.length ? parsed.testimonials : defaultLandingPageContent.testimonials,
-          contactLocations: parsed.contactLocations?.length ? parsed.contactLocations : defaultLandingPageContent.contactLocations,
-          footerDescription: parsed.footerDescription || defaultLandingPageContent.footerDescription,
-          footerAddress: parsed.footerAddress || defaultLandingPageContent.footerAddress,
-          footerPhone: parsed.footerPhone || defaultLandingPageContent.footerPhone,
-          footerEmail: parsed.footerEmail || defaultLandingPageContent.footerEmail,
-          footerLinkedin: parsed.footerLinkedin || defaultLandingPageContent.footerLinkedin,
-          showLinkedin: parsed.showLinkedin ?? defaultLandingPageContent.showLinkedin,
-          footerTwitter: parsed.footerTwitter || defaultLandingPageContent.footerTwitter,
-          showTwitter: parsed.showTwitter ?? defaultLandingPageContent.showTwitter,
-          footerYoutube: parsed.footerYoutube || defaultLandingPageContent.footerYoutube,
-          showYoutube: parsed.showYoutube ?? defaultLandingPageContent.showYoutube,
-          footerInstagram: parsed.footerInstagram || defaultLandingPageContent.footerInstagram,
-          showInstagram: parsed.showInstagram ?? defaultLandingPageContent.showInstagram,
-        };
-      }
-      return defaultLandingPageContent;
-    } catch {
-      return defaultLandingPageContent;
-    }
-  });
+  const [landingPageContent, setLandingPageContent] = useState<LandingPageContent>(defaultLandingPageContent);
   const [currentUser, setCurrentUser] = useState<User | null>(() => restoreStoredUser());
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -289,9 +255,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUser(null);
   };
 
-  useEffect(() => {
-    localStorage.setItem("erp_landingPageContent", JSON.stringify(landingPageContent));
-  }, [landingPageContent]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -333,15 +296,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshBackendData = useCallback(async () => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
     const shouldLoadInvoices = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner" || currentUser?.role === "Sales";
-    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult, landingPageResult] = await Promise.allSettled([
-      salesApi.listCustomers(),
-      salesApi.listProducts(),
-      salesApi.listSalesOrders(),
-      shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
-      authApi.getUsers(),
-      shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([]),
-      landingPageApi.getLandingPageContent()
-    ]);
+      const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult] = await Promise.allSettled([
+        salesApi.listCustomers(),
+        salesApi.listProducts(),
+        salesApi.listSalesOrders(),
+        shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
+        authApi.getUsers(),
+        shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([])
+      ]);
 
     if (customersResult.status === "fulfilled") {
       const backendCustomers = customersResult.value;
@@ -364,39 +326,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       invoices = invoicesResult.value;
     }
 
-    if (landingPageResult.status === "fulfilled" && landingPageResult.value) {
-      setLandingPageContent(landingPageResult.value);
-    }
-
     if (salesOrdersResult.status === "fulfilled") {
-      const localUpdates = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-      
-      setSalesOrders(salesOrdersResult.value.map(dto => {
-        const base = mapSalesOrderDto(dto, invoices);
-        const updates = localUpdates[base.id];
-        if (updates) {
-          // Hanya me-restore field spesifik yang murni disimpan secara lokal (seperti materials BOM)
-          // Jangan me-restore status karena bisa override progress dari backend
-          const updatedItems = updates.items ? base.items?.map(item => {
-            const up = updates.items.find((i: any) => i.productId === item.productId || i.id === item.id);
-            return up ? { ...item, unitPrice: up.unitPrice || 0 } : item;
-          }) : base.items;
-
-          let finalStatus = base.status;
-          const finalEstimatedAmount = updates.estimatedAmount || base.estimatedAmount;
-
-          return { 
-            ...base, 
-            status: finalStatus,
-            materials: base.materials || updates.materials, 
-            designLink: base.designLink || updates.designLink,
-            estimatedAmount: finalEstimatedAmount,
-            deadline: updates.deadline || base.deadline,
-            items: updatedItems || base.items
-          };
-        }
-        return base;
-      }));
+      setSalesOrders(salesOrdersResult.value.map(dto => mapSalesOrderDto(dto, invoices)));
     } else {
       console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
     }
@@ -435,6 +366,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.role]);
 
   useEffect(() => {
+    // Fetch landing page content once on mount, regardless of login state
+    landingPageApi.getLandingPageContent().then((res) => {
+      if (res) {
+        setLandingPageContent(res);
+      }
+    }).catch(err => {
+      console.warn("Failed to fetch landing page content on mount.", err);
+    });
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       void refreshBackendData();
     }
@@ -453,14 +395,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdBy: currentUser?.id ?? 'u1',
     };
 
-    // Clear any previous local storage state for this specific ID
-    // so it doesn't bleed into the newly created task if the counter has reset.
-    const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-    if (currentLocal[newId]) {
-      delete currentLocal[newId];
-      localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
-    }
-
     setSalesOrders(prev => [so, ...prev]);
     void syncCreateSalesOrder(so, customers, pendingCustomersByCode.current, backendCustomerIdsByCode, setBackendCustomerIdsByCode, setSalesOrders);
     return so;
@@ -468,9 +402,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateSalesOrder = (id: string, updates: Partial<SalesOrder>) => {
     setSalesOrders(prev => prev.map(so => so.id === id ? { ...so, ...updates } : so));
-    const currentLocal = JSON.parse(localStorage.getItem('soLocalUpdates') || '{}');
-    currentLocal[id] = { ...(currentLocal[id] || {}), ...updates };
-    localStorage.setItem('soLocalUpdates', JSON.stringify(currentLocal));
     const current = salesOrders.find(so => so.id === id);
     if (current) {
       void syncUpdateSalesOrder(current, updates, currentUser, users, setSalesOrders);
@@ -516,6 +447,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteUser = (id: string) => {
+    if (!id.startsWith('u')) {
+      void authApi.deleteUser(id);
+    }
     setUsers(prev => prev.filter(u => u.id !== id));
   };
 
@@ -698,7 +632,8 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     status: mapSalesOrderStatus(order, invoices),
     createdBy: "backend",
     createdAt: order.soDate,
-    designLink: order.drawingFileUrl || order.designReference || undefined,
+    designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
+    designLink: order.drawingFileUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
     startTime: order.startedAtUtc || undefined,
     endTime: order.finishedAtUtc || undefined,
     qcStatus: mapQcDecision(order.qcDecision),
@@ -1024,18 +959,51 @@ async function syncUpdateSalesOrder(
       // Missing qcApi integration due to missing inspectionId logic
     }
 
-    if (updates.customerDrawingUrl !== undefined) {
+    if (updates.customerDrawingUrl !== undefined || updates.designLink !== undefined) {
       try {
         const updated = await salesApi.updateCustomerDrawing(backendId, {
-          customerDrawingUrl: updates.customerDrawingUrl,
+          customerDrawingUrl: updates.customerDrawingUrl || updates.designLink || "",
           updatedByName: currentUser?.name || "System"
         });
         setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
       } catch (err) {
-        console.warn("Failed to update customer drawing URL in backend.", err);
-        window.alert("Gagal menyimpan Referensi Desain ke sistem. Pastikan URL valid (awali dengan http/https).");
-        // Revert local changes for customer drawing URL
-        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? { ...item, customerDrawingUrl: so.customerDrawingUrl } : item));
+        console.warn("Failed to update customer drawing URL/design link in backend.", err);
+      }
+    }
+
+    if (updates.backendDesignStatus === "RevisionRequired" || updates.status === "Revision Required") {
+      try {
+        const updated = await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: "RevisionRequired",
+          reviewedByUserId: toBackendUserId(currentUser) || currentUser?.id,
+          reviewerName: currentUser?.name || "System",
+          notes: updates.rejectionReason || updates.notes
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+      } catch (err) {
+        console.warn("Failed to update design status to RevisionRequired in backend.", err);
+      }
+    }
+
+    if (updates.materials !== undefined) {
+      try {
+        const primaryItem = so.items?.[0];
+        if (primaryItem) {
+          const updated = await salesApi.updateSalesOrderItems(backendId, {
+            items: [
+              {
+                salesOrderItemId: primaryItem.id,
+                productId: primaryItem.productId,
+                qty: primaryItem.quantity,
+                unitPrice: (primaryItem as any).unitPrice || 0,
+                notes: JSON.stringify(updates.materials)
+              }
+            ]
+          });
+          setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+        }
+      } catch (err) {
+        console.warn("Failed to update materials in backend.", err);
       }
     }
   } catch (error) {

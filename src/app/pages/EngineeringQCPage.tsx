@@ -428,10 +428,11 @@ export function EngineeringQCPage() {
   const [currentPageHistory, setCurrentPageHistory] = useState(1);
   const itemsPerPage = 8;
 
-  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
+  const isOwner = currentUser?.role === 'Owner';
+  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin';
+  const isReadOnly = (currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin') || isOwner;
 
-  if (isRegularEngineer) {
+  if (isReadOnly) {
     return <QCReadOnlyView />;
   }
 
