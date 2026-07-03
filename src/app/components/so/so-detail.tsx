@@ -632,7 +632,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                           </p>
                         )}
                       </>
-                    ) : !order.customerDrawingUrl ? (
+                    ) : order.designId === "none" && !order.designLink ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                        <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B", fontWeight: 600 }}>Menunggu desain dari tim Engineering</p>
+                      </div>
+                    ) : !order.customerDrawingUrl && !order.designLink ? (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
                         <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
                         {currentUser?.role !== 'Engineering' && (
@@ -973,7 +977,7 @@ function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { inv
                 </div>
               )}
 
-              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && (
+              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && status !== "paid" && status !== "verified" && (
                 <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>
                   <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#B91C1C", display: "flex", alignItems: "center", gap: 6 }}>
                     <AlertTriangle size={14} /> Laporan Pembayaran Terakhir Ditolak
@@ -1287,10 +1291,12 @@ function SOPrintView({ order, customer, displayMaterials, currentUser }: { order
       {/* Professional Sales Order Header */}
       <div className="px-6 pt-10 pb-6 border-b-2 border-slate-800">
         <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">PT PJT JAYA</h1>
-            <p className="text-sm text-slate-600 font-medium">Kawasan Industri Margomulyo Permai</p>
-            <p className="text-sm text-slate-600">Surabaya, Jawa Timur 60186</p>
+          <div className="flex gap-6 items-center">
+            <img src="/pjt-logo-new.png" alt="PT. Pratama Jaya Logo" className="h-20 w-auto object-contain flex-shrink-0" />
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA</h2>
+              <p className="text-sm text-slate-500 mt-1 leading-relaxed">Kawasan Industri MM2100<br/>Cikarang Barat, Bekasi 17530<br/>sales@pratamajaya.co.id</p>
+            </div>
           </div>
           <div className="text-right">
             <h2 className="text-4xl font-black text-slate-200 tracking-widest uppercase mb-2">SALES ORDER</h2>

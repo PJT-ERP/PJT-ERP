@@ -48,7 +48,7 @@ function FieldLabel({ children }: FieldLabelProps) {
 }
 
 function inputClass(extra: string = "") {
-  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 ${extra}`;
+  return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 min-h-[38px] ${extra}`;
 }
 
 function SupplierCombobox({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; }) {
@@ -106,7 +106,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [poCategory, setPoCategory] = useState("Consumable");
   const [dueDate, setDueDate] = useState("");
-  const [terms, setTerms] = useState("Net 14");
+  const [terms, setTerms] = useState("Cash");
   const [shippingAddress, setShippingAddress] = useState("Gudang Utama - Jl. Industri No. 1, Bekasi");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
@@ -320,10 +320,24 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No Permintaan / PR *</FieldLabel>
-            <select value={selectedRequestId} onChange={(e: ChangeEvent<HTMLSelectElement>) => applySelectedRequest(e.target.value)} className={inputClass()}>
-              <option value="">Pilih PR disetujui Supervisor</option>
-              {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber.replace(/^MR-/, "PR-")} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
-            </select>
+            {(() => {
+              const isLocked = !!new URLSearchParams(window.location.search).get("reqId");
+              if (isLocked) {
+                const req = eligibleRequests.find(r => r.id === selectedRequestId);
+                const display = req ? `${req.prNumber.replace(/^MR-/, "PR-")} - ${req.projectName || req.salesOrderNumber || "Non-project"}` : selectedRequestId;
+                return <input value={display} readOnly className={inputClass("cursor-not-allowed text-slate-500")} />;
+              }
+              return (
+                <select 
+                  value={selectedRequestId} 
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => applySelectedRequest(e.target.value)} 
+                  className={inputClass()}
+                >
+                  <option value="">Pilih PR disetujui Supervisor</option>
+                  {eligibleRequests.map(request => <option key={request.id} value={request.id}>{request.prNumber.replace(/^MR-/, "PR-")} - {request.projectName || request.salesOrderNumber || "Non-project"}</option>)}
+                </select>
+              );
+            })()}
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No SO</FieldLabel>
@@ -397,17 +411,12 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
-                <select value={item.unit} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 text-xs")}>
+                <select value={item.unit} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3")}>
                   {UNITS.map(unit => <option key={unit} value={unit}>{unit}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5 md:col-span-2">
-                <div className="flex items-center justify-between">
-                  <FieldLabel>Total Harga *</FieldLabel>
-                  {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
-                    <span className="text-[10px] text-slate-400">Harga satuan otomatis: {formatRp(Number(item.totalPrice) / Number(item.qty))}</span>
-                  )}
-                </div>
+                <FieldLabel>Total Harga *</FieldLabel>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 text-slate-400 text-sm">Rp</span>
                   <input
@@ -423,12 +432,17 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                     className={inputClass("text-right pl-8 cursor-not-allowed opacity-80")}
                   />
                 </div>
+                {Number(item.qty) > 0 && Number(item.totalPrice) > 0 && (
+                  <div className="text-[10px] text-slate-400 leading-tight">
+                    Harga satuan: {formatRp(Number(item.totalPrice) / Number(item.qty))}
+                  </div>
+                )}
               </div>
-              <div className="flex items-end md:col-span-1">
+              <div className="pt-[20px] md:col-span-1">
                 <button
                   onClick={() => removeItem(index)}
                   disabled={items.length === 1}
-                  className="flex h-9 w-full items-center justify-center rounded border border-red-100 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-[38px] w-full items-center justify-center rounded border border-red-100 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
                   title="Hapus item"
                 >
                   <Trash2 size={15} />

@@ -190,7 +190,7 @@ export function EngineeringTaskDetailPage() {
     canProcess = false;
   }
 
-  const isWaitingCustomerDesign = false;
+  const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
 
   const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
   const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));

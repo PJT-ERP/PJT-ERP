@@ -809,7 +809,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       soDate: today,
       targetDate,
       customerDrawingUrl: customerDrawingUrl || null,
-      designReference: null,
+      designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
       designStatus: rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved",
       items,
     };

@@ -16,7 +16,7 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Engineering Worker,Purchasing")]
     public async Task<ActionResult<ProductDto>> Create(CreateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await catalogService.CreateProductAsync(request, cancellationToken);
@@ -32,7 +32,7 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
     }
 
     [HttpPut("{id}/bom")]
-    [Authorize(Roles = "Admin,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Engineering Worker,Purchasing")]
     public async Task<ActionResult> UpdateBom(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken)
     {
         await catalogService.UpdateProductBomAsync(id, request, cancellationToken);
@@ -40,7 +40,7 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await catalogService.DeleteProductAsync(id, cancellationToken);

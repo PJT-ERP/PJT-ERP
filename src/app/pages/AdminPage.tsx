@@ -102,12 +102,12 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
             </div>
           )}
           <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Lengkap *</label>
+            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Nama Lengkap <span className="text-[#C8102E]">*</span></label>
             <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email / Username *</label>
+              <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Email / Username <span className="text-[#C8102E]">*</span></label>
               <input type="email" autoComplete="off" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box" }} />
             </div>
             <div>
@@ -117,7 +117,7 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
             </div>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Role *</label>
+            <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Role <span className="text-[#C8102E]">*</span></label>
             <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))} style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none", boxSizing: "border-box", background: S.white }}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>

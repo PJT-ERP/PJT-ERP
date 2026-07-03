@@ -125,7 +125,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
         npwp: formData.npwp,
         paymentTerms: formData.paymentTerms,
         since: supplier?.since || new Date().getFullYear().toString(),
-        rating: supplier?.rating ?? 4.0,
+        rating: supplier?.rating ?? 0,
         contacts: formData.contactName ? [{
           name: formData.contactName,
           role: formData.contactRole,
@@ -173,11 +173,11 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="code">Kode Supplier *</Label>
+              <Label htmlFor="code">Kode Supplier <span className="text-[#C8102E]">*</span></Label>
               <Input id="code" name="code" value={formData.code} onChange={handleChange} required disabled placeholder="Auto-generated" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Nama Perusahaan *</Label>
+              <Label htmlFor="name">Nama Perusahaan <span className="text-[#C8102E]">*</span></Label>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required placeholder="Contoh: PT Sumber Baru" />
             </div>
             <div className="space-y-2">
@@ -193,7 +193,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">Kategori *</Label>
+              <Label htmlFor="category">Kategori <span className="text-[#C8102E]">*</span></Label>
               <Input id="category" name="category" value={formData.category} onChange={handleChange} required placeholder="Contoh: Besi & Baja" />
             </div>
             <div className="space-y-2">

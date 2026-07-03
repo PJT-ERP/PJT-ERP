@@ -204,21 +204,41 @@ export function ERPLayout() {
       // Owner hanya memantau info, tidak melakukan approval.
       // Jika ada insight kritis lain, bisa ditambahkan di sini.
     } else if (role === 'Sales') {
-      salesOrders.filter(so => so.status === 'Waiting Payment' || so.status === 'Waiting Pricing').forEach(so => {
+      salesOrders.forEach(so => {
         if (so.status === 'Waiting Pricing') {
           notifs.push({ id: so.id, type: 'warning', title: 'Harga Sedang Dihitung', desc: `SO ${so.id} sedang dihitung harganya oleh Finance.`, targetPath: `/erp/so/detail/${so.id}` });
-        } else {
-          // Check if a payment has already been reported
+        }
+        if (so.status === 'Waiting Payment') {
           const invoice = invoices.find(inv => inv.soNumber === so.soNumber);
           const hasReportedPayment = invoice && payments.some(p => p.invoiceId === invoice.id && (p.status === "PENDING" || p.status === "VERIFIED"));
-          
           if (!hasReportedPayment) {
             notifs.push({ id: so.id, type: 'success', title: 'Tagihan Siap', desc: `Invoice untuk SO ${so.id} siap dibayar oleh pelanggan.`, targetPath: `/erp/so/detail/${so.id}` });
           }
         }
-      });
-      salesOrders.filter(so => so.status === 'Rejected').forEach(so => {
-        notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
+        if (so.status === 'Rejected') {
+          notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
+        }
+        if (so.status === 'Completed' || so.status === 'Finished') {
+          const notifId = `so-comp-${so.id}`;
+          if (!dismissedNotifIds.includes(notifId)) {
+            notifs.push({ id: notifId, type: 'success', title: 'Pesanan Selesai', desc: `SO ${so.id} telah selesai diproduksi dan lunas.`, targetPath: `/erp/so/detail/${so.id}`, isDismissible: true });
+          }
+        }
+
+        const invoice = invoices.find(inv => inv.soNumber === so.soNumber);
+        if (invoice) {
+          const invPayments = payments.filter(p => p.invoiceId === invoice.id);
+          const latestPayment = invPayments[invPayments.length - 1];
+          if (latestPayment && latestPayment.status === "REJECTED") {
+            notifs.push({ id: `pay-rej-${latestPayment.id}`, type: 'alert', title: 'Pembayaran Ditolak', desc: `Laporan pembayaran Invoice ${invoice.invoiceNumber} ditolak Finance. Harap unggah ulang.`, targetPath: `/erp/so/detail/${so.id}` });
+          }
+          if (latestPayment && latestPayment.status === "VERIFIED") {
+            const notifId = `pay-ver-${latestPayment.id}`;
+            if (!dismissedNotifIds.includes(notifId)) {
+              notifs.push({ id: notifId, type: 'success', title: 'Pembayaran Diverifikasi', desc: `Pembayaran Invoice ${invoice.invoiceNumber} telah diverifikasi Finance.`, targetPath: `/erp/so/detail/${so.id}`, isDismissible: true });
+            }
+          }
+        }
       });
     } else if (role === 'Engineering' || role === 'Engineering Supervisor') {
       const isSpv = role === 'Engineering Supervisor' || currentUser.username === 'eng_spv';
