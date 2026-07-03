@@ -142,7 +142,7 @@ services:
       ReverseProxy__Clusters__purchasing__Destinations__purchasingApi__Address: "http://purchasing-api:8080/"
       ReverseProxy__Clusters__finance__Destinations__financeApi__Address: "http://finance-api:8080/"
     ports:
-      - "172.17.0.1:5010:8080"
+      - "5010:8080"
     depends_on:
       identity-api:
         condition: service_started
@@ -167,7 +167,7 @@ services:
         VITE_DEV_MASTER_TOKEN: "${VITE_DEV_MASTER_TOKEN:-}"
     restart: unless-stopped
     ports:
-      - "172.17.0.1:5174:80"
+      - "5174:80"
     depends_on:
       web-gateway:
         condition: service_started
