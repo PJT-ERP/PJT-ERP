@@ -98,7 +98,10 @@ export interface SalesOrderDto {
     productPartNumber: string;
     productDescription: string;
     qty: number;
+    unitPrice?: number;
     notes?: string | null;
+    designReference?: string | null;
+    customerDrawingUrl?: string | null;
   }>;
 }
 
@@ -109,7 +112,10 @@ export interface CreateSalesOrderRequest {
   items: Array<{
     productId: string;
     qty: number;
+    unitPrice: number;
     notes?: string | null;
+    designReference?: string | null;
+    customerDrawingUrl?: string | null;
   }>;
   productionWorker?: {
     userId: string;
@@ -142,6 +148,11 @@ export interface AssignSalesOrderEngineersRequest {
 export const salesApi = {
   async listCustomers() {
     const response = await apiClient.get<CustomerDto[]>('/api/v1/master-data/customers');
+    return response.data;
+  },
+
+  async getNextCustomerCode() {
+    const response = await apiClient.get<{ code: string }>('/api/v1/master-data/customers/next-code');
     return response.data;
   },
 

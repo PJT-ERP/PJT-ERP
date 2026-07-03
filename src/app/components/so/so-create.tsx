@@ -602,7 +602,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [orderType, setOrderType] = useState<OrderType>(isEdit ? "new" : initialData?.orderType ?? null);
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
-    customerCode: prefillCustomer?.code ?? `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    customerCode: prefillCustomer?.code ?? "",
     customerName: prefillCustomer?.contactPerson ?? prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
@@ -684,6 +684,18 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   }, [products, orderType]);
 
+  React.useEffect(() => {
+    if (!isExistingCustomer && !isEdit && orderType === "new" && (!customerForm.customerCode || customerForm.customerCode.startsWith("CUST-") === false)) {
+      import("../../services/salesApi").then(({ salesApi }) => {
+        salesApi.getNextCustomerCode().then(res => {
+          setCustomerForm(f => ({ ...f, customerCode: res.code }));
+        }).catch(() => {
+          // Ignore error, it will just fallback to Otomatis
+        });
+      });
+    }
+  }, [isExistingCustomer, isEdit, orderType]);
+
   const handleBack = () => {
     if (orderType) {
       handleReset();
@@ -702,7 +714,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
     setIsExistingCustomer(false);
-    setCustomerForm({ customerCode: `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
+    setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
@@ -772,7 +784,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   };
 
   const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
-    if (row.type !== "custom") {
+    if (row.type === "existing" && row.productName) {
       const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
       if (selected) {
         return selected.id;
@@ -781,9 +793,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();
     const fallbackName = name || "Custom Product";
-    const nextNumStr = (nextPrdNum.current++).toString().padStart(3, '0');
     const created = await salesApi.createProduct({
-      partNumber: `PRD-${nextNumStr}`,
+      partNumber: "",
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -811,7 +822,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       items.push({
         productId: await ensureProductId(row, nextPrdNum),
         qty: Number(row.quantity) || 1,
+        unitPrice: row.unitPrice || 0,
         notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
+        designReference: row.type === "custom" && row.designId === "none" ? "INTERNAL_DESIGN" : null,
+        customerDrawingUrl: row.type === "custom" && row.designId === "customer" ? (row.customerDesignUrl || null) : null,
       });
     }
 
@@ -1037,7 +1051,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 type="button"
                 onClick={() => {
                   setIsExistingCustomer(false);
-                  setCustomerForm({ ...customerForm, customerCode: `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, customerName: "", company: "", phone: "", email: "", address: "" });
+                  setCustomerForm({ ...customerForm, customerCode: "", customerName: "", company: "", phone: "", email: "", address: "" });
                 }}
                 style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: !isExistingCustomer ? 600 : 400, background: !isExistingCustomer ? S.primary : S.white, color: !isExistingCustomer ? S.white : S.secondary, border: `1px solid ${!isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
               >
@@ -1084,7 +1098,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Kode Pelanggan (Auto)" required />
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 4, height: "32px", boxSizing: "border-box" }}>
                   <Hash size={13} style={{ color: "#2563EB" }} />
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#1E3A8A", fontFamily: "monospace" }}>{customerForm.customerCode}</span>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#1E3A8A", fontFamily: "monospace", opacity: customerForm.customerCode ? 1 : 0.6 }}>{customerForm.customerCode || "Otomatis"}</span>
                 </div>
               </div>
               <div>

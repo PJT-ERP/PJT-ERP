@@ -22,7 +22,7 @@ dist/
 
 *.log
 logs/
-data/
+/data/
 letsencrypt/
 
 docker-compose.*.override.yml

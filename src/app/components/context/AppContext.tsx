@@ -315,8 +315,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.warn("Customer seed data was not loaded.", customersResult.reason);
     }
 
+    let productsForSalesOrders: ProductDto[] = [];
     if (productsResult.status === "fulfilled") {
-      setProductCatalog(productsResult.value.filter(product => product.isActive !== false));
+      productsForSalesOrders = productsResult.value.filter(product => product.isActive !== false);
+      setProductCatalog(productsForSalesOrders);
     } else {
       console.warn("Product seed data was not loaded.", productsResult.reason);
     }
@@ -327,7 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     if (salesOrdersResult.status === "fulfilled") {
-      setSalesOrders(salesOrdersResult.value.map(dto => mapSalesOrderDto(dto, invoices)));
+      setSalesOrders(salesOrdersResult.value.map(dto => mapSalesOrderDto(dto, invoices, productsForSalesOrders)));
     } else {
       console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
     }
@@ -612,12 +614,75 @@ function canLoadPurchaseRequests(role?: UserRole | null) {
     || role === "Owner";
 }
 
-function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrder {
+function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = []): SalesOrder["materials"] {
+  const legacyMaterials: any[] = [];
+  order.items.forEach(item => {
+    if (!item.notes?.startsWith("[")) return;
+
+    try {
+      const parsed = JSON.parse(item.notes);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((material, index) => {
+          if (!material || typeof material !== "object") return;
+
+          legacyMaterials.push({
+            ...material,
+            id: material.id || `${item.id}-legacy-${index}`,
+          });
+        });
+      }
+    } catch {
+      // Keep older malformed notes from breaking the whole SO list.
+    }
+  });
+
+  if (legacyMaterials.length > 0) {
+    return legacyMaterials;
+  }
+
+  const productsById = new Map(products.map(product => [product.id, product]));
+  const materialsByKey = new Map<string, any>();
+
+  order.items.forEach(item => {
+    const product = productsById.get(item.productId);
+    product?.bomItems?.forEach(bomItem => {
+      const itemQuantity = Number(item.qty || 0);
+      const bomQuantity = Number(bomItem.quantity || 0);
+      if (bomQuantity <= 0) return;
+
+      const key = bomItem.inventoryItemId || `${bomItem.inventoryItemName}|${bomItem.unit}`;
+      const existing = materialsByKey.get(key);
+      const quantity = bomQuantity * Math.max(itemQuantity, 1);
+
+      if (existing) {
+        existing.quantity += quantity;
+        return;
+      }
+
+      materialsByKey.set(key, {
+        id: `${item.id}-${bomItem.id || key}`,
+        inventoryItemId: bomItem.inventoryItemId,
+        name: bomItem.inventoryItemName,
+        spec: bomItem.inventoryItemCode,
+        specification: bomItem.inventoryItemCode,
+        quantity,
+        unit: bomItem.unit,
+      });
+    });
+  });
+
+  const materials = Array.from(materialsByKey.values());
+  return materials.length > 0 ? materials : undefined;
+}
+
+function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = []): SalesOrder {
   const primaryItem = order.items[0];
+  const materials = mapSalesOrderMaterials(order, products);
 
   return {
     id: order.soNumber || order.id,
     backendId: order.id,
+    backendStatus: order.status,
     soNumber: order.soNumber,
     customerId: order.customerCode,
     customerName: order.customerName || order.customerCode,
@@ -632,6 +697,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     status: mapSalesOrderStatus(order, invoices),
     createdBy: "backend",
     createdAt: order.soDate,
+    designReference: order.designReference,
     designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
     designLink: order.drawingFileUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
     startTime: order.startedAtUtc || undefined,
@@ -653,23 +719,20 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     designAssignedTo: order.designWorkerUserId || undefined,
     designAssignedName: order.designWorkerName || undefined,
     notes: order.items.map(item => (item.notes && item.notes.startsWith('[')) ? null : item.notes).filter(Boolean).join("; ") || undefined,
-    materials: (function () {
-      try {
-        if (primaryItem?.notes?.startsWith('[')) {
-          return JSON.parse(primaryItem.notes);
-        }
-      } catch (e) { }
-      return undefined;
-    })(),
+    materials,
     backendDesignStatus: order.designStatus,
     items: order.items.map(item => ({
       id: item.id,
       productId: item.productId,
       productName: item.productDescription,
+      partNumber: item.productPartNumber,
+      productPartNumber: item.productPartNumber,
       quantity: item.qty,
       unitPrice: (item as any).unitPrice || 0,
       unit: "PCS",
-      notes: item.notes
+      notes: item.notes,
+      designReference: item.designReference || undefined,
+      customerDrawingUrl: item.customerDrawingUrl || undefined
     }))
   };
 }
@@ -878,6 +941,7 @@ async function syncCreateSalesOrder(
         {
           productId: "00000000-0000-0000-0000-000000000000",
           qty: so.quantity,
+          unitPrice: (so as any).estimatedAmount ? (so as any).estimatedAmount / so.quantity : 0,
           notes: so.material,
         }
       ],

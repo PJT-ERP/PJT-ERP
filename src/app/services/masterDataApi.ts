@@ -96,6 +96,10 @@ export const masterDataApi = {
         const response = await apiClient.get<SupplierDto[]>("/api/v1/master-data/suppliers");
         return response.data;
     },
+    getNextSupplierCode: async (): Promise<{ code: string }> => {
+        const response = await apiClient.get<{ code: string }>("/api/v1/master-data/suppliers/next-code");
+        return response.data;
+    },
     createSupplier: async (request: CreateSupplierRequest): Promise<SupplierDto> => {
         const response = await apiClient.post<SupplierDto>("/api/v1/master-data/suppliers", request);
         return response.data;
@@ -121,5 +125,8 @@ export const masterDataApi = {
     },
     deleteInventoryItem: async (id: string): Promise<void> => {
         await apiClient.delete(`/api/v1/master-data/inventory/${id}`);
+    },
+    updateProductBom: async (id: string, request: { bomItems: { inventoryItemId: string; quantity: number }[] }): Promise<void> => {
+        await apiClient.put(`/api/v1/master-data/products/${id}/bom`, request);
     }
 };

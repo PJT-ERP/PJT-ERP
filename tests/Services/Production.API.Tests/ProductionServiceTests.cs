@@ -553,5 +553,10 @@ public sealed class ProductionServiceTests
             RequestedProductIds.Add(id);
             return Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, $"PART-HTTP-{id.ToString()[..4]}", "HTTP Desc", "pcs", "HTTP Spec", true));
         }
+
+        public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

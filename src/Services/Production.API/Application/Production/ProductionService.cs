@@ -120,7 +120,9 @@ public sealed class ProductionService(
                     ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
                     UnitPrice = item.UnitPrice,
-                    Notes = NormalizeOptional(item.Notes)
+                    Notes = NormalizeOptional(item.Notes),
+                    DesignReference = NormalizeOptional(item.DesignReference),
+                    CustomerDrawingUrl = NormalizeOptionalUrl(item.CustomerDrawingUrl, "Customer drawing URL")
                 };
             }).ToList()
         };
@@ -656,6 +658,13 @@ public sealed class ProductionService(
 
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+        
+        var firstItem = salesOrder.Items.FirstOrDefault();
+        if (firstItem != null)
+        {
+            await masterDataClient.DeductBomStockAsync(firstItem.ProductId, productionOrder.OrderQty, cancellationToken);
+        }
+
         StartProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.Status = SalesOrderStatuses.InProduction;
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
@@ -899,7 +908,9 @@ public sealed class ProductionService(
                     item.ProductId,
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.DesignReference,
+                    item.CustomerDrawingUrl))
                 .ToArray());
     }
 
@@ -930,7 +941,9 @@ public sealed class ProductionService(
                 .Select(item => new PublicProductionTrackingItemDto(
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.DesignReference,
+                    item.CustomerDrawingUrl))
                 .ToArray());
     }
 

@@ -17,9 +17,11 @@ import { useApp } from "../context/AppContext";
 import { SalesOrder, SOStatus } from "../data/mockData";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
+import { useFinanceData } from "./useFinanceData";
 
 export function FinanceCosting() {
   const { salesOrders, customers, updateSalesOrder } = useApp();
+  const { invoiceCandidates } = useFinanceData(true, false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -36,17 +38,34 @@ export function FinanceCosting() {
   ];
 
   const isUnpriced = (so: any) => !so.items || so.items.length === 0 || so.items.some((item: any) => !item.unitPrice || item.unitPrice === 0);
+  const hasInvoiceCandidate = (so: any) => invoiceCandidates.some(candidate =>
+    candidate.status !== "Invoiced" && (
+      candidate.salesOrderId === (so.backendId || so.id) ||
+      candidate.salesOrderNumber === (so.soNumber || so.id)
+    )
+  );
+  const isWaitingPricing = (so: any) => {
+    if (so.backendStatus === "Waiting Pricing" || so.status === "Waiting Pricing") {
+      return true;
+    }
+
+    const productionCanRunBeforePricing = so.backendDesignStatus === "Approved"
+      && ["Confirmed", "InProduction"].includes(so.backendStatus || "")
+      && !hasInvoiceCandidate(so);
+
+    return productionCanRunBeforePricing;
+  };
 
   // Status that indicates SO is ready for Costing (after SPV Engineering approval)
   const waitingPricingSO = salesOrders.filter(so => 
-    so.status === "Waiting Pricing" || (historyStatuses.includes(so.status) && isUnpriced(so))
+    isWaitingPricing(so) || (historyStatuses.includes(so.status) && isUnpriced(so))
   ).map(so => ({
     ...so,
     isQuotation: false
   }));
 
   const historySO = salesOrders.filter(so => 
-    historyStatuses.includes(so.status) && !isUnpriced(so)
+    !isWaitingPricing(so) && historyStatuses.includes(so.status) && !isUnpriced(so)
   ).map(so => ({
     ...so,
     isQuotation: false
@@ -109,14 +128,16 @@ export function FinanceCosting() {
         // Local state update for smooth UX
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Waiting Payment" 
+          status: "Waiting Payment",
+          backendStatus: "Waiting Payment",
         });
       } catch (error) {
         console.error("Failed to update pricing to backend", error);
         alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Waiting Payment" 
+          status: "Waiting Payment",
+          backendStatus: "Waiting Payment",
         });
       }
       

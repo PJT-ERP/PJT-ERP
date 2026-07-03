@@ -15,6 +15,13 @@ public sealed class SuppliersController(ICatalogService catalogService) : Contro
         return Ok(await catalogService.ListSuppliersAsync(cancellationToken));
     }
 
+    [HttpGet("next-code")]
+    public async Task<ActionResult<object>> GetNextCode(CancellationToken cancellationToken)
+    {
+        var code = await catalogService.PreviewNextSupplierCodeAsync(cancellationToken);
+        return Ok(new { code });
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Owner,Purchasing")]
     public async Task<ActionResult<SupplierDto>> Create(CreateSupplierRequest request, CancellationToken cancellationToken)

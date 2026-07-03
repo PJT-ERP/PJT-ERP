@@ -17,4 +17,6 @@ public interface ICatalogService
     Task<bool> DeleteSupplierAsync(string code, CancellationToken cancellationToken);
     Task<CustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken);
     Task<ProductDto?> GetProductAsync(Guid id, CancellationToken cancellationToken);
+    Task<string> PreviewNextCustomerCodeAsync(CancellationToken cancellationToken);
+    Task<string> PreviewNextSupplierCodeAsync(CancellationToken cancellationToken);
 }
