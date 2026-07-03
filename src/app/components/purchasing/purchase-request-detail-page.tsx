@@ -57,7 +57,7 @@ export function PurchaseRequestDetailPage() {
       try {
         const data = await purchasingApi.listPurchaseRequests();
         const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
-        if (req) {
+        if (req && req.status !== "Submitted" && req.status !== "SupervisorRejected") {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {

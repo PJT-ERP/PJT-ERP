@@ -213,10 +213,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
               <label className={labelClass}>Reorder Point <span className="text-[#C8102E]">*</span></label>
               <input type="number" required value={formData.reorderPoint === 0 ? "" : formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
-            <div>
-              <label className={labelClass}>Min Stock <span className="text-[#C8102E]">*</span></label>
-              <input type="number" required value={formData.minStock === 0 ? "" : formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
-            </div>
+
             <div>
               <label className={labelClass}>Max Stock <span className="text-[#C8102E]">*</span></label>
               <input type="number" required value={formData.maxStock === 0 ? "" : formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
@@ -235,10 +232,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
                 placeholder="0" 
               />
             </div>
-            <div>
-              <label className={labelClass}>Lokasi Penyimpanan <span className="text-[#C8102E]">*</span></label>
-              <input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
-            </div>
+
             <div className="col-span-2">
               <label className={labelClass}>Nama Supplier Default <span className="text-[#C8102E]">*</span></label>
               <select required value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass}>

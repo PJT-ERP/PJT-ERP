@@ -242,7 +242,9 @@ export function MaterialRequestsPage() {
     setIsLoading(true);
     try {
       const data = await purchasingApi.listPurchaseRequests();
-      setRequests(data.map(mapPurchaseRequestToMr));
+      // Hanya tampilkan PR yang sudah lolos tahap Supervisor di modul Purchasing
+      const validForPurchasing = data.filter(r => r.status !== "Submitted" && r.status !== "SupervisorRejected");
+      setRequests(validForPurchasing.map(mapPurchaseRequestToMr));
     } catch (error) {
       console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
       setRequests([]);
