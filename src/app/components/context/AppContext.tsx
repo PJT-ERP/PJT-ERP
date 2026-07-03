@@ -632,6 +632,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     status: mapSalesOrderStatus(order, invoices),
     createdBy: "backend",
     createdAt: order.soDate,
+    designReference: order.designReference,
     designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
     designLink: order.drawingFileUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
     startTime: order.startedAtUtc || undefined,
@@ -876,6 +877,7 @@ async function syncCreateSalesOrder(
         {
           productId: "00000000-0000-0000-0000-000000000000",
           qty: so.quantity,
+          unitPrice: (so as any).estimatedAmount ? (so as any).estimatedAmount / so.quantity : 0,
           notes: so.material,
         }
       ],

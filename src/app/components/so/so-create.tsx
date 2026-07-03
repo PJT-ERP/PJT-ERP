@@ -822,6 +822,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       items.push({
         productId: await ensureProductId(row, nextPrdNum),
         qty: Number(row.quantity) || 1,
+        unitPrice: row.unitPrice || 0,
         notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
       });
     }

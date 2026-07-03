@@ -463,6 +463,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               <InfoRow icon={<Hash size={11} />} label="No. PO" value={order.soNumber || order.id} isEdit={false} />
               <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
               <InfoRow icon={<Receipt size={11} />} label="Nilai SO" value={formatCurrency(orderValue)} isEdit={false} />
+              {isCustomBackend && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <InfoRow icon={<FileText size={11} />} label="Sumber Desain" value={order.designReference === "INTERNAL_DESIGN" ? "Butuh Desain Engineering Internal" : (order.customerDrawingUrl || order.designLink ? "Referensi Desain dari Customer" : "Belum ditentukan")} isEdit={false} />
+                </div>
+              )}
               <div style={{ gridColumn: "1 / -1" }}>
                 <InfoRow icon={<FileText size={11} />} label="Catatan Umum" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
               </div>

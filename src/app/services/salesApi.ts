@@ -98,6 +98,7 @@ export interface SalesOrderDto {
     productPartNumber: string;
     productDescription: string;
     qty: number;
+    unitPrice: number;
     notes?: string | null;
   }>;
 }
@@ -109,6 +110,7 @@ export interface CreateSalesOrderRequest {
   items: Array<{
     productId: string;
     qty: number;
+    unitPrice: number;
     notes?: string | null;
   }>;
   productionWorker?: {

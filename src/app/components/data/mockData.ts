@@ -54,6 +54,7 @@ export interface SalesOrder {
   createdBy: string;
   createdAt: string;
   designLink?: string;
+  designReference?: string | null;
   backendDesignStatus?: string;
   submittedAt?: string;
   approvedAt?: string;
