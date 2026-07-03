@@ -783,9 +783,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   };
 
   const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
-    const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
-    if (selected) {
-      return selected.id;
+    if (row.type === "existing" && row.productName) {
+      const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
+      if (selected) {
+        return selected.id;
+      }
     }
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();
