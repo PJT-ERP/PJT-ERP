@@ -718,6 +718,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[]): Pur
     urgency,
     notes: request.projectName || "",
     requestedBy: requestedByStr,
+    requestedByUserId: request.requestedByUserId,
     requestedAt: request.requestDate,
     status: mapPurchasingStatus(request.status),
     supplier: request.items.map(item => item.supplierName).find(Boolean) || undefined,

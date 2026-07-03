@@ -485,7 +485,7 @@ interface ItemDraft {
   unit: string;
 }
 
-function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; editRequest?: PurchasingRequest | null }) {
+function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () => void; editRequest?: PurchasingRequest | null, onSuccess?: (items?: PurchasingItem[]) => void }) {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
   const [soId, setSoId] = useState(editRequest?.soId || '');
   const [urgency, setUrgency] = useState<PurchasingUrgency>(editRequest?.urgency || 'Normal');
@@ -494,9 +494,20 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 
   useEffect(() => {
     import('../services/masterDataApi').then(({ masterDataApi }) => {
-      masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
+      masterDataApi.listInventory().then(invs => {
+        setInventoryItems(invs);
+        if (editRequest) {
+          setItems(prev => prev.map(item => {
+            const master = invs.find(i => i.name === item.itemName || i.id === item.itemId);
+            if (master && master.unit && master.unit.toUpperCase() !== item.unit.toUpperCase()) {
+              return { ...item, unit: master.unit };
+            }
+            return item;
+          }));
+        }
+      }).catch(console.error);
     });
-  }, []);
+  }, [editRequest]);
 
   const [items, setItems] = useState<ItemDraft[]>(() => {
     const sourceItems = editRequest?.items && editRequest.items.length > 0
@@ -565,12 +576,13 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
       setIsSubmitting(true);
       const payload = {
         requestDate: new Date().toISOString().split("T")[0],
-        requestedByUserId: requesterId,
-        requesterName: currentUser?.name || editRequest?.requestedBy || "Engineering",
+        requestedByUserId: editRequest?.requestedByUserId || requesterId,
+        requesterName: editRequest?.requestedBy || currentUser?.name || "Engineering",
         salesOrderId: selectedSo?.backendId || null,
         salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || null,
         projectName: selectedSo ? `${selectedSo.id} - ${selectedSo.description}` : "General Engineering Request",
         items: parsedItems.map(item => ({
+          id: item.itemId,
           materialRequirementId: item.materialRequirementId || null,
           salesOrderId: selectedSo?.backendId || item.salesOrderId || null,
           salesOrderNumber: selectedSo?.soNumber || selectedSo?.id || item.salesOrderNumber || null,
@@ -586,11 +598,15 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
 
       if (editRequest?.backendId) {
         await purchasingApi.updatePurchaseRequest(editRequest.backendId, payload);
+        await refreshBackendData();
+        onSuccess?.(parsedItems);
+        onClose();
+        return;
       } else {
         await purchasingApi.createPurchaseRequest(payload);
+        await refreshBackendData();
+        setDone(true);
       }
-      await refreshBackendData();
-      setDone(true);
     } catch (error: any) {
       console.warn("Failed to submit backend purchase request.", error);
       const message = error?.response?.data?.message
@@ -611,7 +627,7 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
         </div>
         <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>{editRequest ? "Pengajuan Berhasil Diperbarui" : "Pengajuan Berhasil Dikirim"}</h3>
         <p style={{ color: S.secondary, fontSize: "13.5px", margin: "0 0 24px" }}>
-          {items.length > 1 ? `${items.length} item` : 'Permintaan'} akan masuk kembali ke review Supervisor.
+          {items.length > 1 ? `${items.length} item` : 'Permintaan'} berhasil disimpan dan akan diproses ke tahap selanjutnya.
         </p>
         <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}>
           Tutup
@@ -717,9 +733,13 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
                       <select
                         value={item.unit}
                         onChange={e => updateItem(idx, 'unit', e.target.value)}
-                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
+                        disabled
+                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F1F5F9", color: S.slate, cursor: "not-allowed" }}
                       >
-                        {UNITS.map(u => <option key={u}>{u}</option>)}
+                        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                        {!UNITS.includes(item.unit) && item.unit && (
+                          <option value={item.unit}>{item.unit}</option>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -937,6 +957,17 @@ export function EngineeringPurchasingPage() {
           onClose={() => {
             setShowForm(false);
             setEditRequest(null);
+          }}
+          onSuccess={(updatedItems) => {
+            if (editRequest) {
+              const newReq = { ...editRequest };
+              if (updatedItems && updatedItems.length > 0) {
+                newReq.items = updatedItems;
+                newReq.quantity = updatedItems[0].quantity;
+                newReq.itemName = updatedItems[0].itemName;
+              }
+              setSelected(newReq);
+            }
           }}
         />
       )}

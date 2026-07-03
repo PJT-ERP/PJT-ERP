@@ -507,7 +507,8 @@ export function ProductionMaterialRequestPage() {
                           <select
                             value={item.unit}
                             onChange={e => updateItem(index, "unit", e.target.value)}
-                            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.bg, boxSizing: "border-box", color: S.slate }}
+                            disabled
+                            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F1F5F9", boxSizing: "border-box", color: S.slate, cursor: "not-allowed" }}
                           >
                             <option value="pcs">pcs</option>
                             <option value="kg">kg</option>
