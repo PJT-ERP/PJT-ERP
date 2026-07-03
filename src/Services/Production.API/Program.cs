@@ -23,6 +23,12 @@ builder.Services.AddDbContext<ProductionContext>(options =>
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ProductionContext>());
 builder.Services.AddScoped<IProductionService, ProductionService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+
+builder.Services.AddHttpClient<IMasterDataClient, MasterDataClient>(client =>
+{
+    var address = builder.Configuration["MasterDataApi__Address"] ?? "http://masterdata-api:8080/";
+    client.BaseAddress = new Uri(address);
+});
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<ProductionContext>(builder.Configuration, options =>
 {
