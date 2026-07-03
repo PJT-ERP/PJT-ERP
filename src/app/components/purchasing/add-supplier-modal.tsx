@@ -45,7 +45,12 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
     if (!supplier) {
       setFormData({
         ...emptyForm,
-        code: ""
+        code: "Memuat..."
+      });
+      masterDataApi.getNextSupplierCode().then(res => {
+        setFormData(f => ({ ...f, code: res.code }));
+      }).catch(() => {
+        setFormData(f => ({ ...f, code: "Otomatis" }));
       });
       return;
     }

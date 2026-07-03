@@ -583,4 +583,14 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
 
         return $"{prefix}{(max + 1):000}";
     }
+
+    public async Task<string> PreviewNextCustomerCodeAsync(CancellationToken cancellationToken)
+    {
+        return await GenerateSequentialCodeAsync("CUST-", db.Customers.Select(c => c.Code), cancellationToken);
+    }
+
+    public async Task<string> PreviewNextSupplierCodeAsync(CancellationToken cancellationToken)
+    {
+        return await GenerateSequentialCodeAsync("SUP-", db.Suppliers.Select(s => s.Code), cancellationToken);
+    }
 }

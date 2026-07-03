@@ -145,6 +145,11 @@ export const salesApi = {
     return response.data;
   },
 
+  async getNextCustomerCode() {
+    const response = await apiClient.get<{ code: string }>('/api/v1/master-data/customers/next-code');
+    return response.data;
+  },
+
   async createCustomer(request: CreateCustomerRequest) {
     const response = await apiClient.post<CustomerDto>('/api/v1/master-data/customers', request);
     return response.data;

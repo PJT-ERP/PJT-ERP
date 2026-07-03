@@ -683,6 +683,18 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   }, [products, orderType]);
 
+  React.useEffect(() => {
+    if (!isExistingCustomer && !isEdit && orderType === "new" && (!customerForm.customerCode || customerForm.customerCode.startsWith("CUST-") === false)) {
+      import("../../services/salesApi").then(({ salesApi }) => {
+        salesApi.getNextCustomerCode().then(res => {
+          setCustomerForm(f => ({ ...f, customerCode: res.code }));
+        }).catch(() => {
+          // Ignore error, it will just fallback to Otomatis
+        });
+      });
+    }
+  }, [isExistingCustomer, isEdit, orderType]);
+
   const handleBack = () => {
     if (orderType) {
       handleReset();
