@@ -29,7 +29,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
 
         CustomerReplica? customer = null;
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 12; i++)
         {
             customer = await db.CustomerReplicas
                 .AsNoTracking()
@@ -46,7 +46,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
         Dictionary<Guid, ProductReplica> products = new();
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 12; i++)
         {
             products = await db.ProductReplicas
                 .AsNoTracking()
@@ -179,7 +179,7 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
         Dictionary<Guid, ProductReplica> products = new();
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 12; i++)
         {
             products = await db.ProductReplicas
                 .AsNoTracking()

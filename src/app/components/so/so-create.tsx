@@ -770,21 +770,17 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     return created.id;
   };
 
-  const ensureProductId = async (row: ProductRow) => {
-    const selected = catalogProductOptions.find(product => product.label === row.productName);
+  const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
+    const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
     if (selected) {
       return selected.id;
     }
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();
     const fallbackName = name || "Custom Product";
-    const compact = fallbackName
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 18) || "CUSTOM";
+    const nextNumStr = (nextPrdNum.current++).toString().padStart(3, '0');
     const created = await salesApi.createProduct({
-      partNumber: `FG-${compact.slice(0, 5)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      partNumber: `PRD-${nextNumStr}`,
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -798,11 +794,23 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     customerDrawingUrl: string,
     rows: ProductRow[],
   ) => {
-    const items = await Promise.all(rows.map(async row => ({
-      productId: await ensureProductId(row),
-      qty: Number(row.quantity) || 1,
-      notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
-    })));
+    let maxPrd = 0;
+    productCatalog.forEach(p => {
+      if (p.partNumber.startsWith("PRD-")) {
+        const num = parseInt(p.partNumber.split("-")[1], 10);
+        if (!isNaN(num) && num > maxPrd) maxPrd = num;
+      }
+    });
+    const nextPrdNum = { current: maxPrd + 1 };
+
+    const items = [];
+    for (const row of rows) {
+      items.push({
+        productId: await ensureProductId(row, nextPrdNum),
+        qty: Number(row.quantity) || 1,
+        notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
+      });
+    }
 
     const payload = {
       customerId,
