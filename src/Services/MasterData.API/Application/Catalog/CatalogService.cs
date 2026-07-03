@@ -513,4 +513,48 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             supplier.UpdatedAtUtc
         );
     }
+
+    public async Task<CustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var customer = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        if (customer is null) return null;
+
+        return new CustomerDto(
+            customer.Id,
+            customer.Code,
+            customer.Name,
+            customer.Address,
+            customer.ContactPerson,
+            customer.Email,
+            customer.Phone,
+            customer.IsActive);
+    }
+
+    public async Task<ProductDto?> GetProductAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var product = await db.Products
+            .AsNoTracking()
+            .Include(p => p.BomItems)
+            .ThenInclude(b => b.InventoryItem)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (product is null) return null;
+
+        return new ProductDto(
+            product.Id, 
+            product.PartNumber, 
+            product.Description, 
+            product.Unit, 
+            product.MaterialSpec, 
+            product.IsActive, 
+            product.BomItems.Select(b => new ProductBomItemDto(
+                b.Id,
+                b.InventoryItemId,
+                b.InventoryItem.Code,
+                b.InventoryItem.Name,
+                b.Quantity,
+                b.InventoryItem.Unit)).ToList(),
+            product.CreatedAtUtc, 
+            product.UpdatedAtUtc);
+    }
 }

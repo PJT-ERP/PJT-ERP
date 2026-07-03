@@ -529,11 +529,22 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
           </div>
           <div>
             <Label text="Satuan" />
-            <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
-              {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </Select>
+            {!isCustom && row.productName ? (
+              <div style={{
+                width: "100%", boxSizing: "border-box",
+                background: "#F1F5F9", border: "1px solid #CBD5E1",
+                borderRadius: 4, padding: "7px 10px",
+                fontSize: "12.5px", color: "#475569", fontFamily: S.font,
+              }}>
+                {row.unit}
+              </div>
+            ) : (
+              <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
+                {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </Select>
+            )}
           </div>
           <div>
             <Label text="Harga Satuan (Rp)" />
@@ -590,7 +601,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [orderType, setOrderType] = useState<OrderType>(isEdit ? "new" : initialData?.orderType ?? null);
 
   const [customerForm, setCustomerForm] = useState<CustomerForm>({
-    customerCode: prefillCustomer?.code ?? `CUST-${String(customers.length + 1).padStart(3, "0")}`,
+    customerCode: prefillCustomer?.code ?? `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
     customerName: prefillCustomer?.contactPerson ?? prefillCustomer?.contact ?? "",
     company: prefillCustomer?.name ?? "",
     phone: prefillCustomer?.phone ?? "",
@@ -615,7 +626,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [submitted, setSubmitted] = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isExistingCustomer, setIsExistingCustomer] = useState(false);
+  const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -690,7 +701,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const handleReset = () => {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
     setIsExistingCustomer(false);
-    setCustomerForm({ customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
+    setCustomerForm({ customerCode: `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
     setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
@@ -759,21 +770,17 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     return created.id;
   };
 
-  const ensureProductId = async (row: ProductRow) => {
-    const selected = catalogProductOptions.find(product => product.label === row.productName);
+  const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
+    const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
     if (selected) {
       return selected.id;
     }
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();
     const fallbackName = name || "Custom Product";
-    const compact = fallbackName
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 18) || "CUSTOM";
+    const nextNumStr = (nextPrdNum.current++).toString().padStart(3, '0');
     const created = await salesApi.createProduct({
-      partNumber: `FG-${compact.slice(0, 5)}-${Date.now().toString().slice(-4)}`,
+      partNumber: `PRD-${nextNumStr}`,
       description: fallbackName,
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
@@ -787,11 +794,23 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     customerDrawingUrl: string,
     rows: ProductRow[],
   ) => {
-    const items = await Promise.all(rows.map(async row => ({
-      productId: await ensureProductId(row),
-      qty: Number(row.quantity) || 1,
-      notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
-    })));
+    let maxPrd = 0;
+    productCatalog.forEach(p => {
+      if (p.partNumber.startsWith("PRD-")) {
+        const num = parseInt(p.partNumber.split("-")[1], 10);
+        if (!isNaN(num) && num > maxPrd) maxPrd = num;
+      }
+    });
+    const nextPrdNum = { current: maxPrd + 1 };
+
+    const items = [];
+    for (const row of rows) {
+      items.push({
+        productId: await ensureProductId(row, nextPrdNum),
+        qty: Number(row.quantity) || 1,
+        notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
+      });
+    }
 
     const payload = {
       customerId,
@@ -846,8 +865,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to create sales order in backend.", error);
+    } catch (error: any) {
+      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      console.error(error);
       window.alert("Gagal membuat Sales Order di backend. Cek data customer, produk, dan URL gambar.");
     } finally {
       setIsSubmitting(false);
@@ -881,8 +901,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to create repeat sales order in backend.", error);
+    } catch (error: any) {
+      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      console.error(error);
       window.alert("Gagal membuat Repeat Order di backend.");
     } finally {
       setIsSubmitting(false);
@@ -1013,7 +1034,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 type="button"
                 onClick={() => {
                   setIsExistingCustomer(false);
-                  setCustomerForm({ ...customerForm, customerCode: `CUST-${String(customers.length + 1).padStart(3, "0")}`, customerName: "", company: "", phone: "", email: "", address: "" });
+                  setCustomerForm({ ...customerForm, customerCode: `CUST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`, customerName: "", company: "", phone: "", email: "", address: "" });
                 }}
                 style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: !isExistingCustomer ? 600 : 400, background: !isExistingCustomer ? S.primary : S.white, color: !isExistingCustomer ? S.white : S.secondary, border: `1px solid ${!isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
               >

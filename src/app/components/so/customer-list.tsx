@@ -280,7 +280,6 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>{customers.length} pelanggan terdaftar</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <HeaderBtn icon={<Download size={12} />} label="Export" onClick={() => { }} />
           <HeaderBtn icon={<Plus size={12} />} label="Tambah Pelanggan" onClick={openAdd} primary />
         </div>
       </div>
@@ -343,6 +342,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
               ) : paginated.map((c, idx) => {
                 const initials = (c.name || "UN").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
                 const active = getActiveOrders(c.code);
+                const total = salesOrders.filter(o => o.customerId === c.code).length;
                 const isLast = idx === paginated.length - 1;
                 return (
                   <CustomerTableRow
@@ -350,6 +350,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                     customer={c}
                     initials={initials}
                     active={active}
+                    total={total}
                     isLast={isLast}
                     onEdit={() => openEdit(c)}
                     onCreateSO={() => goCreateSO(c.code)}
@@ -451,8 +452,8 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 }
 
 // ─── CustomerTableRow ─────────────────────────────────────────────────────────
-function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCreateSO, onRepeat }: {
-  customer: Customer; initials: string; active: number; isLast: boolean;
+function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit, onCreateSO, onRepeat }: {
+  customer: Customer; initials: string; active: number; total: number; isLast: boolean;
   onEdit: () => void; onCreateSO: () => void; onRepeat: () => void;
 }) {
   const [hov, setHov] = useState(false);
@@ -481,7 +482,7 @@ function CustomerTableRow({ customer: c, initials, active, isLast, onEdit, onCre
         <span style={{ fontSize: "12.5px", color: S.slate }}>{c.address.split(",")[0]}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
-        <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{1}</span>
+        <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{total}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
         <span style={{ fontSize: "12.5px", fontWeight: 500, color: active > 0 ? S.cyan : S.secondary }}>{active}</span>

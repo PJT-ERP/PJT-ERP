@@ -334,8 +334,14 @@ export function InventoryPage() {
   const categories = useMemo(() => Array.from(new Set(inventory.map((item) => item.category))), [inventory]);
   const chartData = useMemo(() => categories.map((cat) => ({
     name: cat.split(" ")[0],
-    value: Math.round(inventory.filter((item) => item.category === cat).reduce((s, item) => s + item.currentStock * item.unitPrice, 0) / 1_000_000),
+    value: Math.round(inventory.filter((item) => item.category === cat).reduce((s, item) => s + item.currentStock * item.unitPrice, 0)),
   })), [categories, inventory]);
+
+  const formatRupiah = (v: number) => {
+    if (v >= 1_000_000) return `Rp ${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)} Jt`;
+    if (v >= 1_000) return `Rp ${(v / 1_000).toFixed(0)} Rb`;
+    return `Rp ${v.toLocaleString("id-ID")}`;
+  };
 
   const filtered = inventory.filter((item) => {
     const q = search.toLowerCase();
@@ -455,7 +461,7 @@ export function InventoryPage() {
         <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Nilai Stok per Kategori (Juta Rp)
+              Nilai Stok per Kategori
             </p>
           </div>
           <div className="px-2 py-4 flex-1 min-h-[180px]">
@@ -463,8 +469,8 @@ export function InventoryPage() {
               <BarChart data={chartData} margin={{ top: 5, right: 10, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [`Rp ${v} Jt`]} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatRupiah(v)} width={70} />
+                <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [formatRupiah(v), "Nilai Stok"]} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {chartData.map((_, i) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />

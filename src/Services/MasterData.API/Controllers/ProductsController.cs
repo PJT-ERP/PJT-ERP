@@ -15,6 +15,14 @@ public sealed class ProductsController(ICatalogService catalogService) : Control
         return Ok(await catalogService.ListProductsAsync(cancellationToken));
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ProductDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var product = await catalogService.GetProductAsync(id, cancellationToken);
+        if (product is null) return NotFound();
+        return Ok(product);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Engineering Worker,Purchasing")]
     public async Task<ActionResult<ProductDto>> Create(CreateProductRequest request, CancellationToken cancellationToken)

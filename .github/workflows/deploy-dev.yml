@@ -1,0 +1,119 @@
+name: Deploy Dev VPS
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: dev-vps
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  VPS_HOST: ${{ secrets.VPS_HOST }}
+  VPS_USER: ${{ secrets.VPS_USER || 'root' }}
+  VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+  VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/pjt-erp' }}/dev
+
+jobs:
+  deploy:
+    name: Build and deploy Dev
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish all backend APIs
+        run: |
+          dotnet publish src/Services/Identity.API/Identity.API.csproj -c Release -o publish/identity-api
+          dotnet publish src/Services/MasterData.API/MasterData.API.csproj -c Release -o publish/masterdata-api
+          dotnet publish src/Services/Production.API/Production.API.csproj -c Release -o publish/production-api
+          dotnet publish src/Services/QC.API/QC.API.csproj -c Release -o publish/qc-api
+          dotnet publish src/Services/Purchasing.API/Purchasing.API.csproj -c Release -o publish/purchasing-api
+          dotnet publish src/Services/Finance.API/Finance.API.csproj -c Release -o publish/finance-api
+          dotnet publish src/ApiGateways/Web.Gateway/Web.Gateway.csproj -c Release -o publish/web-gateway
+
+      - name: Configure SSH
+        run: |
+          if [ -z "$VPS_HOST" ]; then
+            echo "Missing VPS_HOST secret."
+            exit 1
+          fi
+          if [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "Missing VPS_SSH_KEY secret."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "Checking SSH TCP connectivity..."
+          timeout 30 bash -c "cat < /dev/null > /dev/tcp/$VPS_HOST/$VPS_PORT"
+          if ! ssh-keyscan -4 -T 30 -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts; then
+            echo "::warning::ssh-keyscan failed for $VPS_HOST:$VPS_PORT. Continuing with StrictHostKeyChecking=accept-new."
+          fi
+
+      - name: Package source with pre-built binaries
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='./node_modules' \
+            --exclude='./data' \
+            --exclude='./letsencrypt' \
+            --exclude='**/bin' \
+            --exclude='**/obj' \
+            -czf /tmp/pjt-erp-dev.tar.gz .
+
+      - name: Upload package
+        run: |
+          scp -4 -P "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new /tmp/pjt-erp-dev.tar.gz "$VPS_USER@$VPS_HOST:~/pjt-erp-dev.tar.gz"
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=10 -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+          set -euo pipefail
+
+          mkdir -p "$APP_DIR"
+
+          if [ ! -f "$APP_DIR/.env" ]; then
+            echo "Missing $APP_DIR/.env. Create it from .env.example before first deploy."
+            exit 1
+          fi
+
+          rm -rf "$APP_DIR.release"
+          mkdir -p "$APP_DIR.release"
+          tar -xzf ~/pjt-erp-dev.tar.gz -C "$APP_DIR.release"
+          cp "$APP_DIR/.env" "$APP_DIR.release/.env"
+
+          rm -rf "$APP_DIR.previous"
+          if [ -d "$APP_DIR/current" ]; then
+            mv "$APP_DIR/current" "$APP_DIR.previous"
+          fi
+          mv "$APP_DIR.release" "$APP_DIR/current"
+
+          cd "$APP_DIR/current"
+          docker compose -f docker-compose.dev.yml -p dev build
+          docker compose -f docker-compose.dev.yml -p dev up -d --remove-orphans
+          docker compose -f docker-compose.dev.yml -p dev ps
+          docker image prune -f
+          EOF
