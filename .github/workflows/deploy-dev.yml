@@ -73,20 +73,18 @@ jobs:
             echo "::warning::ssh-keyscan failed for $VPS_HOST:$VPS_PORT. Continuing with StrictHostKeyChecking=accept-new."
           fi
 
-      - name: Package source with pre-built binaries
+      - name: Sync files via rsync
         run: |
-          tar \
+          ssh -4 -p "$VPS_PORT" -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "mkdir -p $VPS_APP_DIR/sync"
+          rsync -avz --delete \
             --exclude='.git' \
             --exclude='./node_modules' \
             --exclude='./data' \
             --exclude='./letsencrypt' \
             --exclude='**/bin' \
             --exclude='**/obj' \
-            -czf /tmp/pjt-erp-dev.tar.gz .
-
-      - name: Upload package
-        run: |
-          scp -4 -P "$VPS_PORT" -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new /tmp/pjt-erp-dev.tar.gz "$VPS_USER@$VPS_HOST:~/pjt-erp-dev.tar.gz"
+            -e "ssh -p $VPS_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/sync/"
 
       - name: Deploy with Docker Compose
         run: |
@@ -101,8 +99,7 @@ jobs:
           fi
 
           rm -rf "$APP_DIR.release"
-          mkdir -p "$APP_DIR.release"
-          tar -xzf ~/pjt-erp-dev.tar.gz -C "$APP_DIR.release"
+          cp -a "$APP_DIR/sync" "$APP_DIR.release"
           cp "$APP_DIR/.env" "$APP_DIR.release/.env"
 
           rm -rf "$APP_DIR.previous"
