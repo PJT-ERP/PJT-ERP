@@ -31,9 +31,13 @@ public sealed class InventoryService(MasterDataContext db) : IInventoryService
 
     public async Task<InventoryItemDto> CreateInventoryItemAsync(CreateInventoryItemRequest request, CancellationToken cancellationToken)
     {
+        var code = string.IsNullOrWhiteSpace(request.Code)
+            ? await GenerateSequentialCodeAsync("MAT-", db.InventoryItems.Where(i => i.Code.StartsWith("MAT-")).Select(i => i.Code), cancellationToken)
+            : request.Code.Trim().ToUpperInvariant();
+
         var item = new InventoryItem
         {
-            Code = request.Code.Trim().ToUpperInvariant(),
+            Code = code,
             Name = request.Name.Trim(),
             Category = request.Category,
             Unit = request.Unit,
@@ -112,5 +116,23 @@ public sealed class InventoryService(MasterDataContext db) : IInventoryService
             db.InventoryItems.Remove(item);
             await db.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    private async Task<string> GenerateSequentialCodeAsync(string prefix, IQueryable<string> existingCodesQuery, CancellationToken cancellationToken)
+    {
+        var existingCodes = await existingCodesQuery.ToListAsync(cancellationToken);
+        
+        var max = 0;
+        foreach (var code in existingCodes)
+        {
+            if (code.Length <= prefix.Length) continue;
+            var numberStr = code[prefix.Length..];
+            if (int.TryParse(numberStr, out var number) && number > max)
+            {
+                max = number;
+            }
+        }
+
+        return $"{prefix}{(max + 1):000}";
     }
 }
