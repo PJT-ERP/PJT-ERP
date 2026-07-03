@@ -714,13 +714,12 @@ function PurchasingFormModal({ onClose, editRequest }: { onClose: () => void; ed
                         placeholder="Qty *"
                         style={{ flex: 1, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
-                      <select
+                      <input
+                        type="text"
                         value={item.unit}
-                        onChange={e => updateItem(idx, 'unit', e.target.value)}
-                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
-                      >
-                        {UNITS.map(u => <option key={u}>{u}</option>)}
-                      </select>
+                        readOnly
+                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                      />
                     </div>
                   </div>
                 ))}

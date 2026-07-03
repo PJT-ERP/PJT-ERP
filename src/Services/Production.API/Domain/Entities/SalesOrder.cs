@@ -23,6 +23,7 @@ public sealed class SalesOrder
     public Guid? QcReviewerUserId { get; set; }
     public string? QcReviewerName { get; set; }
     public string Status { get; set; } = SalesOrderStatuses.Draft;
+    public string? RejectionReason { get; set; }
     public Guid? ApprovedByUserId { get; set; }
     public DateTime? ApprovedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

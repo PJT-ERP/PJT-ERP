@@ -436,8 +436,9 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
 
         {isCustom && (
           <div style={{ marginBottom: 10 }}>
-            <Label text="Sumber Desain / ID Desain" />
+            <Label text="Sumber Desain / ID Desain" required />
             <Select
+              required
               value={row.designId}
               onChange={e => {
                 const selectedDesignId = e.target.value;
@@ -771,9 +772,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   };
 
   const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
-    const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
-    if (selected) {
-      return selected.id;
+    if (row.type !== "custom") {
+      const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
+      if (selected) {
+        return selected.id;
+      }
     }
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();

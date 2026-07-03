@@ -149,10 +149,17 @@ export function EngineeringTaskDetailPage() {
 
   const [localRejectionReason, setLocalRejectionReason] = useState<string | undefined>(undefined);
 
+  const isInitialized = React.useRef(false);
+  
   useEffect(() => {
-    if (qut) {
-      setDesignLink(qut.designLink ?? qut.designId ?? '');
+    if (qut && !isInitialized.current) {
+      const initialDesignLink = qut.designLink ?? (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '');
+      setDesignLink(initialDesignLink);
       setMaterials(qut.materials ?? []);
+      setLocalRejectionReason(qut.rejectionReason);
+      isInitialized.current = true;
+    } else if (qut && isInitialized.current) {
+      // Always keep rejection reason up to date
       setLocalRejectionReason(qut.rejectionReason);
     }
   }, [qut]);
@@ -423,39 +430,8 @@ export function EngineeringTaskDetailPage() {
               {/* Referensi Sales */}
               <div style={{ background: "#FFFFFF", border: `1px solid ${S.border}`, borderRadius: 8, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
                 <p style={{ fontSize: "15px", color: S.slate, fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 6 }}>Instruksi / Referensi dari Sales</p>
-                {qut.customerDrawingUrl ? (
-                  <div style={{ marginBottom: 20, padding: "10px 16px", background: "#F1F5F9", borderRadius: 6, display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: "12px", color: S.secondary }}>Referensi Desain Customer</span>
-                    <a href={qut.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
-                      {qut.customerDrawingUrl}
-                    </a>
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: 20, padding: "10px 16px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, display: "flex", gap: 10, alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: "#D97706", fontWeight: 600 }}>Sales tidak melampirkan gambar customer (Silakan buat gambar kerja & BOM internal berdasarkan spesifikasi pesanan di bawah ini).</span>
-                  </div>
-                )}
-                {qut.designRevisions && qut.designRevisions.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Riwayat Revisi Desain Customer:</span>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
-                      {qut.designRevisions.map(rev => (
-                        <div key={rev.version} style={{ position: "relative" }}>
-                          <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
-                          <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
-                            <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
-                          </p>
-                          <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11px", color: S.cyan, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
-                            {rev.url || "(URL Dihapus)"}
-                          </a>
-                          <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#94A3B8" }}>
-                            {new Date(rev.changedAt).toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
+
                 <div style={{ display: "flex", gap: 32 }}>
                   <div style={{ flex: 1 }}>
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Daftar Item / Produk:</span>
@@ -537,13 +513,12 @@ export function EngineeringTaskDetailPage() {
                         />
                         <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC" }} />
                         <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || isWaitingCustomerDesign} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
-                        <select value={m.unit} onChange={e => updateMaterial(m.id, 'unit', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign} style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC" }}>
-                          <option value="pcs">pcs</option>
-                          <option value="kg">kg</option>
-                          <option value="meter">meter</option>
-                          <option value="lembar">lembar</option>
-                          <option value="batang">batang</option>
-                        </select>
+                        <input
+                          type="text"
+                          value={m.unit}
+                          readOnly
+                          style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                        />
                         {canProcess && !isWaitingCustomerDesign && (
                           <button onClick={() => removeMaterial(m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                             <Trash2 size={18} />
@@ -563,7 +538,7 @@ export function EngineeringTaskDetailPage() {
           <div style={{ padding: "20px 24px", borderTop: `1px solid ${S.border}`, display: "flex", gap: 16, flexShrink: 0, background: "#F8FAFC", borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }}>
             {step === 'reject' ? (
               <>
-                <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "14px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Batal Kembali</button>
+                <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "14px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Batal</button>
                 <button onClick={handleReject} disabled={!rejectReason.trim() || isSubmitting} style={{ flex: 1, padding: "14px", background: "#DC2626", border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: rejectReason.trim() && !isSubmitting ? 1 : 0.5 }}>
                   <Trash2 size={18} /> {isSubmitting ? 'Memproses...' : 'Tolak Desain'}
                 </button>

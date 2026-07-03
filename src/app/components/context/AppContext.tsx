@@ -646,6 +646,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
     })),
     completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
     pauseReason: (order as any).pauseReason || undefined,
+    rejectionReason: (order as any).rejectionReason || undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
@@ -667,7 +668,8 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = []): SalesOrde
       productName: item.productDescription,
       quantity: item.qty,
       unitPrice: (item as any).unitPrice || 0,
-      unit: "PCS"
+      unit: "PCS",
+      notes: item.notes
     }))
   };
 }
@@ -990,15 +992,13 @@ async function syncUpdateSalesOrder(
         const primaryItem = so.items?.[0];
         if (primaryItem) {
           const updated = await salesApi.updateSalesOrderItems(backendId, {
-            items: [
-              {
-                salesOrderItemId: primaryItem.id,
-                productId: primaryItem.productId,
-                qty: primaryItem.quantity,
-                unitPrice: (primaryItem as any).unitPrice || 0,
-                notes: JSON.stringify(updates.materials)
-              }
-            ]
+            items: so.items.map((it, idx) => ({
+              salesOrderItemId: it.id,
+              productId: it.productId,
+              qty: it.quantity,
+              unitPrice: (it as any).unitPrice || 0,
+              notes: idx === 0 ? JSON.stringify(updates.materials) : (it as any).notes
+            }))
           });
           setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
         }
