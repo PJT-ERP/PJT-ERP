@@ -29,10 +29,15 @@ public record CreateInventoryItemRequest(
     string SupplierName,
     decimal UnitPrice);
 
+public record DeductBomStockRequest(
+    Guid ProductId,
+    int ProductionQuantity);
+
 public interface IInventoryService
 {
     Task<IReadOnlyCollection<InventoryItemDto>> ListInventoryAsync(CancellationToken cancellationToken);
     Task<InventoryItemDto> CreateInventoryItemAsync(CreateInventoryItemRequest request, CancellationToken cancellationToken);
     Task<InventoryItemDto> UpdateInventoryItemAsync(Guid id, CreateInventoryItemRequest request, CancellationToken cancellationToken);
     Task DeleteInventoryItemAsync(Guid id, CancellationToken cancellationToken);
+    Task DeductBomStockAsync(DeductBomStockRequest request, CancellationToken cancellationToken);
 }

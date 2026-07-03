@@ -45,4 +45,19 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
         await inventoryService.DeleteInventoryItemAsync(id, cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("deduct-bom")]
+    [Authorize(Roles = "Admin,Production")]
+    public async Task<IActionResult> DeductBom(DeductBomStockRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.DeductBomStockAsync(request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

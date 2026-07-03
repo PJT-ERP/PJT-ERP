@@ -648,6 +648,13 @@ public sealed class ProductionService(
 
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+        
+        var firstItem = salesOrder.Items.FirstOrDefault();
+        if (firstItem != null)
+        {
+            await masterDataClient.DeductBomStockAsync(firstItem.ProductId, productionOrder.OrderQty, cancellationToken);
+        }
+
         StartProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.Status = SalesOrderStatuses.InProduction;
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;

@@ -1081,7 +1081,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 <Label text="Kode Pelanggan (Auto)" required />
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 4, height: "32px", boxSizing: "border-box" }}>
                   <Hash size={13} style={{ color: "#2563EB" }} />
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#1E3A8A", fontFamily: "monospace" }}>{customerForm.customerCode}</span>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#1E3A8A", fontFamily: "monospace", opacity: customerForm.customerCode ? 1 : 0.6 }}>{customerForm.customerCode || "Otomatis"}</span>
                 </div>
               </div>
               <div>

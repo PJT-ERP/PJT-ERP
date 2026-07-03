@@ -37,4 +37,18 @@ public sealed class MasterDataClient(HttpClient httpClient) : IMasterDataClient
             return null;
         }
     }
+
+    public async Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken)
+    {
+        var request = new { ProductId = productId, ProductionQuantity = quantity };
+        var response = await httpClient.PostAsJsonAsync("api/v1/master-data/inventory/deduct-bom", request, cancellationToken);
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: cancellationToken);
+            throw new InvalidOperationException(error?.Message ?? "Failed to deduct BOM stock due to insufficient inventory.");
+        }
+    }
+
+    private record ErrorResponse(string Message);
 }
