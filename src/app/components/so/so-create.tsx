@@ -857,8 +857,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to create sales order in backend.", error);
+    } catch (error: any) {
+      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      console.error(error);
       window.alert("Gagal membuat Sales Order di backend. Cek data customer, produk, dan URL gambar.");
     } finally {
       setIsSubmitting(false);
@@ -892,8 +893,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       await refreshBackendData();
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
-    } catch (error) {
-      console.warn("Failed to create repeat sales order in backend.", error);
+    } catch (error: any) {
+      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      console.error(error);
       window.alert("Gagal membuat Repeat Order di backend.");
     } finally {
       setIsSubmitting(false);
