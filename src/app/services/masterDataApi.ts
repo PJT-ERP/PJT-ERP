@@ -125,5 +125,8 @@ export const masterDataApi = {
     },
     deleteInventoryItem: async (id: string): Promise<void> => {
         await apiClient.delete(`/api/v1/master-data/inventory/${id}`);
+    },
+    updateProductBom: async (id: string, request: { bomItems: { inventoryItemId: string; quantity: number }[] }): Promise<void> => {
+        await apiClient.put(`/api/v1/master-data/products/${id}/bom`, request);
     }
 };

@@ -16,7 +16,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Purchasing")]
+    [Authorize(Roles = "Admin,Purchasing,Engineering Worker,Engineering Supervisor")]
     public async Task<ActionResult<InventoryItemDto>> Create(CreateInventoryItemRequest request, CancellationToken cancellationToken)
     {
         var item = await inventoryService.CreateInventoryItemAsync(request, cancellationToken);

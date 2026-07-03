@@ -38,6 +38,7 @@ export interface Customer {
 export interface SalesOrder {
   id: string;
   backendId?: string;
+  backendStatus?: string;
   soNumber?: string;
   customerId: string;
   customerName?: string;
