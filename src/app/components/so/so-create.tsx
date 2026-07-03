@@ -529,11 +529,22 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
           </div>
           <div>
             <Label text="Satuan" />
-            <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
-              {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </Select>
+            {!isCustom && row.productName ? (
+              <div style={{
+                width: "100%", boxSizing: "border-box",
+                background: "#F1F5F9", border: "1px solid #CBD5E1",
+                borderRadius: 4, padding: "7px 10px",
+                fontSize: "12.5px", color: "#475569", fontFamily: S.font,
+              }}>
+                {row.unit}
+              </div>
+            ) : (
+              <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
+                {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </Select>
+            )}
           </div>
           <div>
             <Label text="Harga Satuan (Rp)" />
@@ -615,7 +626,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [submitted, setSubmitted] = useState(false);
   const [generatedSONumber, setGeneratedSONumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isExistingCustomer, setIsExistingCustomer] = useState(false);
+  const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
 
   const today = new Date().toISOString().split("T")[0];
 

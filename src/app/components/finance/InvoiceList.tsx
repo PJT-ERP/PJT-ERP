@@ -543,15 +543,6 @@ export function InvoiceList() {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportInvoices}
-                className="flex items-center justify-center gap-1.5 text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-2 hover:bg-slate-50 transition-colors"
-              >
-                <Download size={14} />
-                <span>Export</span>
-              </button>
-            </div>
           </div>
         </div>
 

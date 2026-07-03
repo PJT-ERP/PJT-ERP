@@ -304,18 +304,6 @@ function SupplierDetail({
                     </a>
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <a href={`tel:${c.phone}`}>
-                    <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0" }}>
-                      <Phone size={13} /> Telepon
-                    </button>
-                  </a>
-                  <a href={`mailto:${c.email}`}>
-                    <button className="flex items-center gap-1.5 rounded px-3 py-1.5 border hover:bg-slate-50 transition-colors" style={{ fontSize: 12, color: "#475569", borderColor: "#e2e8f0" }}>
-                      <Mail size={13} /> Email
-                    </button>
-                  </a>
-                </div>
               </div>
             </div>
           ))}
@@ -358,7 +346,7 @@ function SupplierDetail({
                     <TD><span style={{ fontWeight: 500, color: "#1F1F1F" }}>{h.month} 2026</span></TD>
                     <TD><span style={{ color: "#475569" }}>{h.pos} PO</span></TD>
                     <TD><span style={{ fontWeight: 600, color: "#1F1F1F" }}>Rp {h.value} Jt</span></TD>
-                    <TD><span style={{ color: "#64748b" }}>Rp {Math.round(h.value / h.pos)} Jt</span></TD>
+                    <TD><span style={{ color: "#64748b" }}>Rp {h.pos > 0 ? Math.round(h.value / h.pos) : 0} Jt</span></TD>
                   </tr>
                 ))}
               </tbody>
@@ -721,11 +709,6 @@ export function SuppliersPage() {
                     </TD>
                     <TD>
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <a href={`tel:${s.contacts?.[0]?.phone || ''}`}>
-                          <button className="rounded p-1.5 hover:bg-slate-100 transition-colors" style={{ color: "#64748b" }}>
-                            <Phone size={13} />
-                          </button>
-                        </a>
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-red-50 transition-colors"
                           style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
