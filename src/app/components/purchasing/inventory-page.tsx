@@ -479,8 +479,8 @@ export function InventoryPage() {
         <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <Truck size={14} style={{ color: "#0891b2" }} />
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Material Masuk
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em", flex: 1 }}>
+              Dalam Perjalanan (ETA)
             </p>
             <span className="ml-auto rounded-full flex items-center justify-center text-white" style={{ width: 18, height: 18, background: "#0891b2", fontSize: 10, fontWeight: 700 }}>
               {incomingItems.length}
@@ -584,7 +584,7 @@ export function InventoryPage() {
                 <TH className="hidden xl:table-cell" right>Maks</TH>
                 <TH className="hidden lg:table-cell w-36">Level Stok</TH>
                 <TH>Status</TH>
-                <TH className="hidden md:table-cell">Material Masuk</TH>
+                <TH className="hidden md:table-cell">Sedang Dipesan (ETA)</TH>
                 <TH className="hidden xl:table-cell">Lokasi</TH>
                 <TH className="hidden sm:table-cell" right>Nilai Stok</TH>
                 <TH right>Aksi</TH>

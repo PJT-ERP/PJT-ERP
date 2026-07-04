@@ -631,11 +631,15 @@ function MaterialRequestModal({
 
 function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    setBackendError(null);
 
     const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
     const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
@@ -643,7 +647,7 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
 
     const salesOrderId = getBackendSalesOrderId(so);
     if (!isGuid(salesOrderId) || !workerUserId) {
-      alert("Gagal: SO ini belum sinkron dengan backend (ID tidak valid) atau user pekerja tidak valid.");
+      setBackendError("Gagal: SO ini belum sinkron dengan backend (ID tidak valid) atau user pekerja tidak valid.");
       return;
     }
 
@@ -658,8 +662,8 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
     } catch (error: unknown) {
       console.warn("Failed to start production in backend.", error);
       const axiosError = error as { response?: { data?: { message?: string } } };
-      const backendMsg = axiosError?.response?.data?.message;
-      alert(backendMsg ? `Gagal mulai produksi: ${backendMsg}` : "Gagal mulai produksi di backend. Cek koneksi API atau data operator.");
+      const backendMsg = axiosError?.response?.data?.message || "Gagal mulai produksi di backend. Cek koneksi API atau data operator.";
+      setBackendError(backendMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -677,6 +681,8 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
       daysLate = Math.round((tDate.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24));
     }
   }
+
+  const isStockError = backendError && (backendError.toLowerCase().includes("stock") || backendError.toLowerCase().includes("material"));
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -698,6 +704,31 @@ function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => 
               </div>
             </div>
           )}
+          
+          {backendError && (
+            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#B91C1C", fontSize: "13px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ marginTop: 2, flexShrink: 0 }}><AlertTriangle size={16} /></div>
+                <div>
+                  <strong>{isStockError ? "Stok Material Tidak Cukup" : "Gagal Memulai Produksi"}</strong>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", lineHeight: "1.4" }}>{backendError}</p>
+                </div>
+              </div>
+              
+              {isStockError && (
+                <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
+                  <button 
+                    type="button"
+                    onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <FileWarning size={14} /> Buat Material Request
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, lineHeight: "1.5" }}>
               {so.status === 'Paused' && so.pauseReason === 'Mesin Rusak' ? (
@@ -813,16 +844,20 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
 
   let canFinish = true;
   let hMinus3Str = "";
+  let deadlineStrFormatted = "";
   if (so.deadline) {
     const deadlineDate = new Date(so.deadline);
     if (!isNaN(deadlineDate.getTime())) {
+      deadlineStrFormatted = deadlineDate.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
       const hMinus3 = new Date(deadlineDate);
       hMinus3.setDate(deadlineDate.getDate() - 3);
       hMinus3.setHours(0, 0, 0, 0);
       
       const todayDate = new Date();
       todayDate.setHours(0, 0, 0, 0);
+      
       canFinish = todayDate >= hMinus3;
+      
       hMinus3Str = hMinus3.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
     }
   }
@@ -904,8 +939,9 @@ function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () 
             </>
           )}
           {!canFinish ? (
-            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#991B1B", fontSize: "13.5px" }}>
-              <AlertTriangle size={14} style={{ display: 'inline', marginTop: -2 }} /> Tombol baru dapat diklik mulai <strong>{hMinus3Str}</strong> (Minimal H-3 Deadline).
+            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#991B1B", fontSize: "13.5px", lineHeight: "1.5" }}>
+              <AlertTriangle size={14} style={{ display: 'inline', marginTop: -2 }} /> Deadline pesanan ini adalah <strong>{deadlineStrFormatted}</strong>. <br />
+              Tombol baru dapat diklik mulai H-3, yaitu pada <strong>{hMinus3Str}</strong>.
             </div>
           ) : (
             <div>

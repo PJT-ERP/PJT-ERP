@@ -406,7 +406,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSalesOrders(prev => prev.map(so => so.id === id ? { ...so, ...updates } : so));
     const current = salesOrders.find(so => so.id === id);
     if (current) {
-      void syncUpdateSalesOrder(current, updates, currentUser, users, setSalesOrders);
+      void syncUpdateSalesOrder(current, updates, currentUser, users, setSalesOrders, productCatalog);
     }
   };
 
@@ -961,6 +961,7 @@ async function syncUpdateSalesOrder(
   currentUser: User | null,
   allUsers: User[],
   setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
+  productCatalog: ProductDto[] = [],
 ) {
   const backendId = so.backendId || so.id;
   if (!isGuid(backendId)) return;
@@ -976,7 +977,7 @@ async function syncUpdateSalesOrder(
             name: assignedUser?.name || updates.assignedName || "Worker",
           }
         });
-        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
       }
     }
 
@@ -990,7 +991,7 @@ async function syncUpdateSalesOrder(
             name: assignedUser?.name || updates.designAssignedName || "Worker",
           }
         });
-        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
       }
     }
 
@@ -1030,7 +1031,7 @@ async function syncUpdateSalesOrder(
           customerDrawingUrl: updates.customerDrawingUrl || updates.designLink || "",
           updatedByName: currentUser?.name || "System"
         });
-        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
       } catch (err) {
         console.warn("Failed to update customer drawing URL/design link in backend.", err);
       }
@@ -1044,7 +1045,7 @@ async function syncUpdateSalesOrder(
           reviewerName: currentUser?.name || "System",
           notes: updates.rejectionReason || updates.notes
         });
-        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
       } catch (err) {
         console.warn("Failed to update design status to RevisionRequired in backend.", err);
       }
@@ -1065,7 +1066,7 @@ async function syncUpdateSalesOrder(
               }
             ]
           });
-          setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated) : item));
+          setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
         }
       } catch (err) {
         console.warn("Failed to update materials in backend.", err);

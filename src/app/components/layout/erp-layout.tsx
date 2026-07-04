@@ -303,7 +303,14 @@ export function ERPLayout() {
         }
       });
     } else if (role === 'Finance') {
-      salesOrders.filter(so => so.status === 'Waiting Pricing').forEach(so => {
+      salesOrders.filter(so => {
+        if (so.status === 'Waiting Pricing' || so.backendStatus === 'Waiting Pricing') return true;
+        const hasInvoice = invoices.some(inv => inv.soNumber === so.soNumber);
+        return so.backendDesignStatus === "Approved"
+          && so.status !== "Waiting Payment" && so.backendStatus !== "Waiting Payment"
+          && so.status !== "Completed" && so.backendStatus !== "Completed"
+          && !hasInvoice;
+      }).forEach(so => {
         notifs.push({ id: so.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS & buat Invoice untuk SO ${so.id}.`, targetPath: '/erp/finance/costing' });
       });
       payments.filter(p => p.status === 'PENDING').forEach(payment => {

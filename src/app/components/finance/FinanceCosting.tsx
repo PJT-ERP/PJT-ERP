@@ -49,9 +49,12 @@ export function FinanceCosting() {
       return true;
     }
 
+    // For custom products (backendDesignStatus === "Approved"), they skip "Waiting Pricing"
+    // or run in parallel with production.
     const productionCanRunBeforePricing = so.backendDesignStatus === "Approved"
-      && ["Confirmed", "InProduction"].includes(so.backendStatus || "")
-      && !hasInvoiceCandidate(so);
+      && !hasInvoiceCandidate(so)
+      && (so.status !== "Waiting Payment" && so.backendStatus !== "Waiting Payment")
+      && (so.status !== "Completed" && so.backendStatus !== "Completed");
 
     return productionCanRunBeforePricing;
   };

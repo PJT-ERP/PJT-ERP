@@ -22,6 +22,7 @@ type MaterialOption = {
   key: string;
   itemName: string;
   specification: string;
+  quantity?: number;
 };
 
 function parseMaterialText(value?: string | null): MaterialOption[] {
@@ -50,11 +51,11 @@ function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   const options: MaterialOption[] = [];
   const seen = new Set<string>();
 
-  const addOption = (item: string, spec: string) => {
+  const addOption = (item: string, spec: string, quantity?: number) => {
     const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
-      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim() });
+      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim(), quantity });
     }
   };
 
@@ -67,7 +68,8 @@ function getMaterialOptions(so: SalesOrder): MaterialOption[] {
       
       // Ignore obvious dummy test inputs
       if (itemName && itemName.toLowerCase() !== "pppp") {
-        addOption(itemName, specification);
+        const quantity = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
+        addOption(itemName, specification, isNaN(quantity) ? undefined : quantity);
         hasValidEngineerMaterials = true;
       }
     });
@@ -237,38 +239,45 @@ export function ProductionMaterialRequestPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  const [items, setItems] = useState([
-    {
-      materialKey: "",
-      itemName: "",
-      specification: "",
-      quantity: "1",
-      unit: "pcs",
-      urgency: "Urgent" as PurchasingUrgency,
-      purchaseCategory: "Project",
-    },
-  ]);
+  const [items, setItems] = useState(() => {
+    if (materialOptions.length > 0) {
+      return materialOptions.map((m) => ({
+        materialKey: m.key,
+        itemName: m.itemName,
+        specification: m.specification,
+        quantity: m.quantity ? String(m.quantity) : "1",
+        unit: "pcs",
+        urgency: "Urgent" as PurchasingUrgency,
+        purchaseCategory: "Project",
+      }));
+    }
+    return [
+      {
+        materialKey: "",
+        itemName: "",
+        specification: "",
+        quantity: "1",
+        unit: "pcs",
+        urgency: "Urgent" as PurchasingUrgency,
+        purchaseCategory: "Project",
+      }
+    ];
+  });
 
   useEffect(() => {
-    if (so) {
-      const options = getMaterialOptions(so);
-      
-      const firstMaterial = options[0];
-      if (firstMaterial && items[0].materialKey === "") {
-        setItems([
-          {
-            materialKey: firstMaterial.key || "",
-            itemName: firstMaterial.itemName || "",
-            specification: firstMaterial.specification || "",
-            quantity: "1",
-            unit: "pcs",
-            urgency: "Urgent",
-            purchaseCategory: "Project",
-          },
-        ]);
-      }
+    if (realInventoryItems.length > 0 && materialOptions.length > 0) {
+      setItems(prevItems => prevItems.map(item => {
+        const inventoryItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
+        if (inventoryItem) {
+          const originalRequired = materialOptions.find(m => m.key === item.materialKey)?.quantity || 1;
+          const currentStock = inventoryItem.currentStock || 0;
+          const deficit = Math.max(0, Number(originalRequired) - currentStock);
+          return { ...item, quantity: String(deficit) };
+        }
+        return item;
+      }).filter(item => Number(item.quantity) > 0));
     }
-  }, [so]);
+  }, [realInventoryItems, materialOptions]);
 
   if (!so) {
     return (
@@ -378,7 +387,7 @@ export function ProductionMaterialRequestPage() {
       <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
           <button 
-            onClick={() => navigate("/erp/production")} 
+            onClick={() => { window.location.href = '/erp/production'; }} 
             style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: S.white, border: `1px solid ${S.border}`, borderRadius: "8px", cursor: "pointer", color: S.slate, fontSize: "14px", fontWeight: 500, marginBottom: "20px", padding: "8px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", transition: "all 0.2s", alignSelf: "flex-start" }}
             onMouseEnter={e => { e.currentTarget.style.background = S.bg; e.currentTarget.style.borderColor = "#CBD5E1"; }}
             onMouseLeave={e => { e.currentTarget.style.background = S.white; e.currentTarget.style.borderColor = S.border; }}
@@ -398,7 +407,7 @@ export function ProductionMaterialRequestPage() {
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
                 Pengajuan MR untuk {so.id} telah dikirim ke Supervisor untuk direview sebelum diteruskan ke tim Purchasing.
               </p>
-              <button onClick={() => navigate('/erp/production')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
+              <button onClick={() => { window.location.href = '/erp/production'; }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
             </div>
           ) : (
             <>
