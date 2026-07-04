@@ -374,9 +374,7 @@ export function InventoryPage() {
               <Plus size={14} /> Tambah Material
             </button>
           )}
-          <button onClick={() => void refresh()} className="flex items-center gap-2 text-sm border hover:bg-slate-50 transition-colors rounded-md px-4 py-1.5 font-medium shadow-sm" style={{ color: "#475569", borderColor: "#e2e8f0", background: "#fff" }}>
-            <RefreshCcw size={14} /> Refresh
-          </button>
+
           {canCreatePo && (
             <button
               onClick={() => navigate("/erp/purchasing/create")}

@@ -807,7 +807,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[]): Pur
       specification: item.size || "",
       quantity: item.qty,
       unit: "PCS",
-      supplierName: item.supplierName || undefined,
+      supplierName: item.supplierName && item.supplierName !== "-" ? item.supplierName : undefined,
       estimatedPrice: item.estimatedPrice || undefined,
       totalPrice: item.totalPrice || undefined,
       purchaseStatus: item.purchaseStatus,
@@ -818,7 +818,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[]): Pur
     requestedByUserId: request.requestedByUserId,
     requestedAt: request.requestDate,
     status: mapPurchasingStatus(request.status),
-    supplier: request.items.map(item => item.supplierName).find(Boolean) || undefined,
+    supplier: request.items.map(item => item.supplierName && item.supplierName !== "-" ? item.supplierName : undefined).find(Boolean) || undefined,
     poNumber: request.items.map(item => item.poNumber).find(Boolean) || undefined,
     estimatedPrice: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0) || undefined,
     expectedDelivery: request.items.map(item => item.expectedArrivalDate).find(Boolean) || undefined,
@@ -1060,15 +1060,15 @@ async function syncUpdateSalesOrder(
       // Missing qcApi integration due to missing inspectionId logic
     }
 
-    if (updates.customerDrawingUrl !== undefined || updates.designLink !== undefined) {
+    if (updates.customerDrawingUrl !== undefined) {
       try {
         const updated = await salesApi.updateCustomerDrawing(backendId, {
-          customerDrawingUrl: updates.customerDrawingUrl || updates.designLink || "",
+          customerDrawingUrl: updates.customerDrawingUrl || "",
           updatedByName: currentUser?.name || "System"
         });
         setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
       } catch (err) {
-        console.warn("Failed to update customer drawing URL/design link in backend.", err);
+        console.warn("Failed to update customer drawing URL in backend.", err);
       }
     }
 

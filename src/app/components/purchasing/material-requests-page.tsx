@@ -144,7 +144,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         unit: "pcs",
         currentStock: 0,
         estimatedPrice: item.estimatedPrice || undefined,
-        supplierName: item.supplierName || undefined,
+        supplierName: item.supplierName && item.supplierName !== "-" ? item.supplierName : undefined,
         poNumber: item.poNumber || null,
         purchaseStatus: item.purchaseStatus,
       };

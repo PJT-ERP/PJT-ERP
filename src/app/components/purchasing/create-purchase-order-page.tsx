@@ -142,9 +142,18 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
 
   const updateItem = (index: number, field: keyof FormItem, value: string) => {
     setMessage(null);
-    setItems(prev => prev.map((item, itemIndex) => (
-      itemIndex === index ? { ...item, [field]: value } : item
-    )));
+    setItems(prev => prev.map((item, itemIndex) => {
+      if (itemIndex === index) {
+        if (field === "name") {
+          const invItem = inventoryItems?.find(inv => inv.name === value || (inv.code + " - " + inv.name) === value);
+          if (invItem) {
+            return { ...item, [field]: value, code: invItem.code, unit: invItem.unit || item.unit };
+          }
+        }
+        return { ...item, [field]: value };
+      }
+      return item;
+    }));
   };
 
   const applySelectedRequest = (requestId: string) => {
@@ -173,9 +182,11 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
       let extractedName = item.itemName;
       
       const invItem = inventoryItems?.find(inv => inv.name === item.itemName || (inv.code + " - " + inv.name) === item.itemName);
+      let unit = "pcs";
       if (invItem) {
         extractedCode = invItem.code;
         extractedName = invItem.name;
+        unit = invItem.unit || "pcs";
       } else {
         const match = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
         if (match) {
@@ -186,13 +197,18 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         }
       }
 
+      let spec = item.size || item.notes || "";
+      if (spec.trim().toUpperCase() === extractedCode.trim().toUpperCase() || spec === "-") {
+        spec = "";
+      }
+
       return {
         requestItemId: item.id,
         code: extractedCode,
         name: extractedName,
-        spec: item.size || item.notes || "",
+        spec: spec,
         qty: String(item.qty),
-        unit: "pcs",
+        unit: unit,
         totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
       };
     }));
@@ -383,7 +399,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <div key={index} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-12">
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Kode Item *</FieldLabel>
-                <input value={item.code} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Nama Material *</FieldLabel>
@@ -459,16 +475,16 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
 
       {createdPoDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-center text-white">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-[#C8102E] p-6 text-center text-white">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
                 <CheckCircle2 className="w-10 h-10 text-white" />
               </div>
               <h3 className="text-xl font-bold">Purchase Order Berhasil Dibuat!</h3>
-              <p className="text-emerald-100 text-sm mt-1">PO telah tercatat dan tersimpan di sistem backend.</p>
+              <p className="text-red-100 text-sm mt-1">PO telah tercatat dan tersimpan di sistem backend.</p>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2 text-sm">
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200/80 space-y-2 text-sm">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                   <span className="text-slate-500">Nomor PO</span>
                   <span className="font-bold text-slate-900 font-mono text-base">{createdPoDetails.poNumber}</span>
@@ -483,7 +499,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-slate-200">
                   <span className="text-slate-500 font-medium">Total Estimasi</span>
-                  <span className="font-bold text-emerald-600 text-base">{formatRp(createdPoDetails.total)}</span>
+                  <span className="font-bold text-[#C8102E] text-base">{formatRp(createdPoDetails.total)}</span>
                 </div>
               </div>
 
@@ -494,7 +510,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                     setCreatedPoDetails(null);
                     onNavigate?.("orders");
                   }}
-                  className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 px-4 bg-[#C8102E] hover:bg-red-700 active:bg-red-800 text-white font-medium rounded-lg shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Lihat Daftar Purchase Order
@@ -503,13 +519,14 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                   type="button"
                   onClick={() => {
                     setCreatedPoDetails(null);
-                    setSelectedRequestId("");
-                    setSupplier("");
-                    setDueDate("");
                     setItems([emptyItem()]);
-                    setMessage(null);
+                    setSupplier("");
+                    setSoNumber("");
+                    setRequestRefs("");
+                    setSelectedRequestId("");
+                    setDueDate("");
                   }}
-                  className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-medium rounded-xl transition text-sm cursor-pointer"
+                  className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-medium rounded-lg border border-slate-200 transition cursor-pointer"
                 >
                   Buat PO Lainnya
                 </button>
