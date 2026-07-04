@@ -125,6 +125,7 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
   const { invoices, payments } = useFinanceData();
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
@@ -725,15 +726,29 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     </div>
                   </>
                 )}
+                {order.productionPhotos && order.productionPhotos.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Hasil Produksi</p>
+                    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                    {order.productionPhotos.map((photo, i) => (
+                      <div key={i} onClick={() => setPreviewPhoto(photo)} style={{ width: 80, height: 60, borderRadius: 4, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", flexShrink: 0 }}>
+                        <img src={photo} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                      </div>
+                    ))}
+                    </div>
+                  </div>
+                )}
                 {order.qcPhotos && order.qcPhotos.length > 0 && (
                   <>
                     <div style={{ height: 1, background: "#F8FAFC" }} />
                     <div>
                       <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
                       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                        {order.qcPhotos.map((photo, i) => (
-                          <img key={i} src={photo} alt={`QC Photo ${i + 1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />
-                        ))}
+                      {order.qcPhotos.map((photo, i) => (
+                        <div key={i} onClick={() => setPreviewPhoto(photo)} style={{ width: 80, height: 60, borderRadius: 4, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
+                          <img src={photo} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                        </div>
+                      ))}
                       </div>
                     </div>
                   </>
@@ -889,8 +904,36 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       </div>
       </div>
+      {previewPhoto && <ImagePreviewModal src={previewPhoto} onClose={() => setPreviewPhoto(null)} />}
       <SOPrintView order={order} customer={customer} displayMaterials={displayMaterials} currentUser={currentUser} />
     </>
+  );
+}
+
+// ─── ImagePreviewModal ────────────────────────────────────────────────────────
+function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 print-hide p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-2xl overflow-hidden w-full max-w-2xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50 shrink-0">
+          <h3 className="font-bold text-slate-800">Pratinjau Foto QC</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-8 text-center bg-slate-100/50 overflow-y-auto flex-1">
+          <div className="max-w-xl mx-auto bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
+            <img src={src} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" onError={(e) => { e.currentTarget.src = `https://placehold.co/800x600?text=${encodeURIComponent(src.split('/').pop() || 'Image')}` }} />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">Ini adalah representasi visual foto QC yang diunggah.</p>
+        </div>
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm rounded transition">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

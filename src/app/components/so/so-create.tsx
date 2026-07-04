@@ -436,8 +436,9 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
 
         {isCustom && (
           <div style={{ marginBottom: 10 }}>
-            <Label text="Sumber Desain / ID Desain" />
+            <Label text="Sumber Desain / ID Desain" required />
             <Select
+              required
               value={row.designId}
               onChange={e => {
                 const selectedDesignId = e.target.value;

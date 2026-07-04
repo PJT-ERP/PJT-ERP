@@ -207,7 +207,7 @@ export function FinancePrDetail() {
                 <button
                   disabled={isApproving}
                   onClick={() => handleReviewPr('Accept')}
-                  className="flex-1 py-3 rounded-md text-sm font-bold text-white bg-[#C8102E] hover:bg-red-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 py-3 rounded-md text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                 >
                   <CheckCircle2 size={18} /> {isApproving ? "Memproses..." : "Setujui Anggaran"}
                 </button>

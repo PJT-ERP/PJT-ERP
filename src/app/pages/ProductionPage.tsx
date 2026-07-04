@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PlayCircle, PauseCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { PlayCircle, PauseCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Edit2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingRequest, PurchasingUrgency, SalesOrder, getStatusColor } from "../components/data/mockData";
@@ -11,6 +11,7 @@ import { useFinanceData } from "../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../components/so/invoice-sync";
 import { masterDataApi, InventoryItemDto } from "../services/masterDataApi";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
+import { PurchasingFormModal } from "./EngineeringPurchasingPage";
 
 const S = {
   font: "Inter, sans-serif",
@@ -22,6 +23,19 @@ const S = {
   bg: "#F8FAFC",
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
+};
+
+const URGENCY_COLORS: Record<PurchasingUrgency, { bg: string, text: string, border: string, dot: string }> = {
+  Normal: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-300', dot: 'bg-slate-400' },
+  Urgent: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300', dot: 'bg-amber-500' },
+  Critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300', dot: 'bg-red-500' },
+};
+
+const PR_STATUS_COLORS: Record<string, { bg: string, text: string, border: string, dot: string }> = {
+  Pending: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-300', dot: 'bg-slate-500' },
+  Diproses: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-300', dot: 'bg-blue-500' },
+  Selesai: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-300', dot: 'bg-green-500' },
+  Ditolak: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300', dot: 'bg-red-500' },
 };
 
 type SystemMessage = {
@@ -1032,6 +1046,21 @@ function MaterialReviewModal({
   const [isApproving, setIsApproving] = useState(false);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  if (isEditing) {
+    return (
+      <PurchasingFormModal
+        editRequest={request}
+        onClose={() => setIsEditing(false)}
+        onSuccess={() => {
+          setIsEditing(false);
+          onClose();
+        }}
+      />
+    );
+  }
+
   const items = request?.items && request.items.length > 0
     ? request.items
     : [{
@@ -1051,48 +1080,73 @@ function MaterialReviewModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 560, maxHeight: "90vh", overflow: "hidden", fontFamily: S.font, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "16px 22px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, maxHeight: "90vh", overflow: "hidden", fontFamily: S.font, display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
-            <h2 style={{ color: S.slate, margin: 0, fontSize: 18 }}>Review Material Request</h2>
-            <p style={{ color: S.secondary, margin: "4px 0 0", fontSize: 12.5 }}>{so.id} - {so.description}</p>
+            <p style={{ fontFamily: "monospace", fontSize: "13px", color: S.secondary, margin: 0 }}>{request?.id || "-"}</p>
+            <h2 style={{ color: S.slate, margin: "2px 0 0", fontSize: "18px" }}>
+              {items.length > 1 ? `${items.length} item material` : items[0].itemName}
+            </h2>
           </div>
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: 22, lineHeight: 1 }}>&times;</button>
         </div>
 
-        <div style={{ padding: "18px 22px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <p style={{ margin: 0, color: S.secondary, fontSize: 12, fontWeight: 600 }}>No. MR</p>
-              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5, fontFamily: "monospace" }}>{request?.id || "-"}</p>
+        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Status & Urgency */}
+          {request && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }} className={`px-2.5 py-1 rounded-md border ${PR_STATUS_COLORS[request.status]?.bg || "bg-slate-50"} ${PR_STATUS_COLORS[request.status]?.border || "border-slate-300"} ${PR_STATUS_COLORS[request.status]?.text || "text-slate-700"}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[request.status]?.dot || "bg-slate-500"}`} />
+                <span className="text-xs font-medium">{request.status}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }} className={`px-2.5 py-1 rounded-md border ${URGENCY_COLORS[request.urgency]?.bg || "bg-slate-50"} ${URGENCY_COLORS[request.urgency]?.border || "border-slate-300"} ${URGENCY_COLORS[request.urgency]?.text || "text-slate-700"}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[request.urgency]?.dot || "bg-slate-500"}`} />
+                <span className="text-xs font-medium">{request.urgency}</span>
+              </div>
             </div>
-            <div>
-              <p style={{ margin: 0, color: S.secondary, fontSize: 12, fontWeight: 600 }}>Diajukan Oleh</p>
-              <p style={{ margin: "3px 0 0", color: S.slate, fontSize: 13.5 }}>{request?.requestedBy || so.assignedName || "Engineering"}</p>
-            </div>
-          </div>
+          )}
 
+          {/* Items list */}
           <div>
-            <p style={{ margin: "0 0 8px", color: S.secondary, fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Daftar Material</p>
+            <p style={{ fontSize: "12.5px", color: S.secondary, margin: "0 0 8px", fontWeight: 500 }}>
+              {items.length > 1 ? `Daftar Item (${items.length})` : 'Item / Material'}
+            </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {items.map((item, index) => (
-                <div key={`${item.itemName}-${index}`} style={{ border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, background: S.bg }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                    <p style={{ margin: 0, color: S.slate, fontSize: 13.5, fontWeight: 700 }}>{item.itemName}</p>
-                    <span style={{ color: S.slate, fontSize: 12, fontWeight: 700, background: S.white, border: `1px solid ${S.border}`, borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
+              {items.map((item, idx) => (
+                <div key={idx} style={{ background: S.bg, borderRadius: 8, padding: 12 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                    <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, fontWeight: 500 }}>{item.itemName}</p>
+                    <span style={{ fontSize: "12px", color: S.slate, background: S.white, border: `1px solid ${S.border}`, padding: "2px 8px", borderRadius: 99, flexShrink: 0, fontWeight: 500 }}>
                       {item.quantity} {item.unit}
                     </span>
                   </div>
-                  <p style={{ margin: "5px 0 0", color: S.secondary, fontSize: 12.5 }}>{item.specification || "-"}</p>
+                  <p style={{ fontSize: "12.5px", color: S.secondary, margin: "4px 0 0" }}>{item.specification || "-"}</p>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* Meta info */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Tanggal Pengajuan</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{request?.requestedAt || "-"}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Referensi SO</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500, fontFamily: "monospace" }}>{so.id}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Diajukan Oleh</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{request?.requestedBy || so.assignedName || "Engineering"}</p>
+            </div>
+          </div>
+
+          {/* Notes */}
           {request?.notes && (
-            <div style={{ border: `1px solid ${S.border}`, borderRadius: 8, padding: 12 }}>
-              <p style={{ margin: "0 0 4px", color: S.secondary, fontSize: 12, fontWeight: 700 }}>Catatan Engineer</p>
-              <p style={{ margin: 0, color: S.slate, fontSize: 13 }}>{request.notes}</p>
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 4px" }}>Catatan Engineer</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, background: S.bg, borderRadius: 8, padding: "10px 12px", margin: 0 }}>{request.notes}</p>
             </div>
           )}
 
@@ -1135,12 +1189,22 @@ function MaterialReviewModal({
         </div>
 
         {!rejectMode && (
-          <div style={{ padding: "14px 22px", borderTop: `1px solid ${S.border}`, display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setRejectMode(true)} disabled={isApproving} style={{ flex: 1, padding: "10px", background: S.white, border: "1px solid #FECACA", color: "#EF4444", borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: isApproving ? "not-allowed" : "pointer" }}>
-              Tolak
-            </button>
-            <button type="button" onClick={handleApprove} disabled={isApproving} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: isApproving ? "not-allowed" : "pointer", opacity: isApproving ? 0.65 : 1 }}>
-              {isApproving ? "Menyetujui..." : "Approve ke Purchasing"}
+          <div style={{ padding: "14px 22px", borderTop: `1px solid ${S.border}`, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => setRejectMode(true)} disabled={isApproving} style={{ flex: 1, padding: "10px", background: S.white, border: "1px solid #FECACA", color: "#EF4444", borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: isApproving ? "not-allowed" : "pointer" }}>
+                Tolak
+              </button>
+              <button type="button" onClick={handleApprove} disabled={isApproving} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: 13.5, fontWeight: 700, cursor: isApproving ? "not-allowed" : "pointer", opacity: isApproving ? 0.65 : 1 }}>
+                {isApproving ? "Menyetujui..." : "Approve ke Purchasing"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              disabled={isApproving}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", background: "#FFF7ED", border: "1px solid #FED7AA", color: "#C2410C", borderRadius: 8, fontSize: "13.5px", fontWeight: 700, cursor: isApproving ? "not-allowed" : "pointer" }}
+            >
+              <Edit2 size={15} /> Edit Pengajuan
             </button>
           </div>
         )}
@@ -1323,10 +1387,10 @@ export function ProductionPage() {
     const request = getMaterialRequest(so);
     if (!request) return hasLocalMaterialRequest(so) ? 'requested' : 'none';
     if (request.backendStatus === 'SupervisorRejected' || request.backendStatus === 'FinanceRejected' || request.backendStatus === 'Rejected') return 'rejected';
-    if (request.backendStatus === 'Completed' || request.backendStatus === 'FinanceApproved' || request.status === 'Selesai') return 'completed';
-    if (request.backendStatus === 'SupervisorApproved' || request.backendStatus === 'Processing') return 'approved';
+    if (request.backendStatus === 'Completed' || request.status === 'Selesai') return 'completed';
+    if (request.backendStatus === 'Processing' || request.backendStatus === 'FinanceApproved' || request.status === 'Diproses') return 'approved';
+    if (request.backendStatus === 'SupervisorApproved') return 'finance_pending';
     if (request.status === 'Ditolak') return 'rejected';
-    if (request.status === 'Diproses') return 'approved';
     return 'requested';
   };
 

@@ -71,9 +71,36 @@ function DrawingLink({ so, inspection }: { so: SalesOrder; inspection?: QcInspec
 
 // ─── Modals ──────────────────────────────────────────────────────────────────
 
+function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 print-hide p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-2xl overflow-hidden w-full max-w-2xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50 shrink-0">
+          <h3 className="font-bold text-slate-800">Pratinjau Foto QC</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-8 text-center bg-slate-100/50 overflow-y-auto flex-1">
+          <div className="max-w-xl mx-auto bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
+            <img src={src} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" onError={(e) => { e.currentTarget.src = `https://placehold.co/800x600?text=${encodeURIComponent(src.split('/').pop() || 'Image')}` }} />
+          </div>
+          <p className="text-xs text-slate-500 mt-2">Ini adalah representasi visual foto QC yang diunggah.</p>
+        </div>
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+          <button onClick={onClose} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-sm rounded transition">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspection?: QcInspectionDto; onClose: () => void }) {
   const { customers } = useApp();
   const customer = customers.find(c => c.code === so.customerId);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -120,18 +147,33 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
             </div>
           )}
 
-          {so.qcPhotos && so.qcPhotos.length > 0 && (
-            <div>
-              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti ({so.qcPhotos.length})</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-                {so.qcPhotos.map((p, i) => (
-                  <div key={i} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <ImageIcon size={20} style={{ color: S.secondary }} />
-                  </div>
-                ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {so.productionPhotos && so.productionPhotos.length > 0 && (
+              <div>
+                <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Hasil Produksi ({so.productionPhotos.length})</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                  {so.productionPhotos.map((p, i) => (
+                    <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
+                      <img src={p} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {so.qcPhotos && so.qcPhotos.length > 0 && (
+              <div>
+                <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti ({so.qcPhotos.length})</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                  {so.qcPhotos.map((p, i) => (
+                    <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
+                      <img src={p} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div style={{ paddingTop: 8 }}>
             <button onClick={onClose} style={{ width: "100%", padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>
@@ -140,6 +182,7 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
           </div>
         </div>
       </div>
+      {previewPhoto && <ImagePreviewModal src={previewPhoto} onClose={() => setPreviewPhoto(null)} />}
     </div>
   );
 }
@@ -169,15 +212,19 @@ function QCInspectionModal({
   const handleProductionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     files.forEach(file => {
-      const url = URL.createObjectURL(file);
-      setProductionPhotos(prev => [...prev, { name: file.name, url }]);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setProductionPhotos(prev => [...prev, { name: file.name, url: ev.target!.result as string }]);
+        }
+      };
+      reader.readAsDataURL(file);
     });
     e.target.value = '';
   };
 
   const removeProductionPhoto = (idx: number) => {
     setProductionPhotos(prev => {
-      URL.revokeObjectURL(prev[idx].url);
       return prev.filter((_, i) => i !== idx);
     });
   };
@@ -185,15 +232,19 @@ function QCInspectionModal({
   const handleQcFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     files.forEach(file => {
-      const url = URL.createObjectURL(file);
-      setQcPhotos(prev => [...prev, { name: file.name, url }]);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setQcPhotos(prev => [...prev, { name: file.name, url: ev.target!.result as string }]);
+        }
+      };
+      reader.readAsDataURL(file);
     });
     e.target.value = '';
   };
 
   const removeQcPhoto = (idx: number) => {
     setQcPhotos(prev => {
-      URL.revokeObjectURL(prev[idx].url);
       return prev.filter((_, i) => i !== idx);
     });
   };
@@ -239,8 +290,8 @@ function QCInspectionModal({
       const updatedInspection = await qcApi.uploadResult(inspection.id, {
         reviewerUserId,
         reviewerName: currentUser?.name || inspection.assignedReviewerName || "QC Reviewer",
-        productionPhotos: productionPhotos.map(p => p.name),
-        qcPhotos: qcPhotos.map(p => p.name),
+        productionPhotos: productionPhotos.map(p => p.url),
+        qcPhotos: qcPhotos.map(p => p.url),
         notes: notes || null,
         decision: result,
       });
@@ -258,7 +309,8 @@ function QCInspectionModal({
         qcNotes: notes,
         qcAt: new Date().toISOString(),
         completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: qcPhotos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.url),
+        productionPhotos: productionPhotos.map(p => p.url),
       });
     } else {
       updateSalesOrder(so.id, {
@@ -266,7 +318,8 @@ function QCInspectionModal({
         qcStatus: 'NoGo',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
-        qcPhotos: qcPhotos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.url),
+        productionPhotos: productionPhotos.map(p => p.url),
         isRework: true,
       });
     }
@@ -728,8 +781,9 @@ function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: Sal
         : "Ready for Production",
     qcStatus: isGo(decision) ? "Go" : isNoGo(decision) ? "NoGo" : existing?.qcStatus,
     qcNotes: inspection.notes || existing?.qcNotes,
-    qcAt: inspection.reviewedAtUtc || existing?.qcAt,
+    qcAt: inspection.reviewedAtUtc ?? existing?.qcAt,
     qcPhotos: inspection.qcPhotos?.length ? inspection.qcPhotos : existing?.qcPhotos,
+    productionPhotos: inspection.productionPhotos?.length ? inspection.productionPhotos : existing?.productionPhotos,
     customerDrawingUrl: inspection.customerDrawingUrl || existing?.customerDrawingUrl,
     designLink: inspection.customerDrawingUrl || existing?.designLink,
     backendDesignStatus: inspection.designReference || existing?.backendDesignStatus,

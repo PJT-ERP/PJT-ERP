@@ -311,12 +311,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
           <div className="space-y-1.5 md:col-span-2">
             <FieldLabel>Supplier *</FieldLabel>
-            <SupplierCombobox
-              value={supplier}
-              onChange={updateField(setSupplier)}
-              options={supplierNames}
-              placeholder="Pilih atau tulis supplier"
-            />
+            <input value={supplier} readOnly placeholder="Supplier akan otomatis terisi dari PR" className={inputClass("cursor-not-allowed text-slate-500 bg-slate-50")} />
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No Permintaan / PR *</FieldLabel>
@@ -388,22 +383,15 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <div key={index} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-12">
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Kode Item *</FieldLabel>
-                <input value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass()} />
+                <input value={item.code} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Nama Material *</FieldLabel>
-                {availableMaterials.length > 0 ? (
-                  <select value={item.name} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateItem(index, "name", e.target.value)} className={inputClass()}>
-                    <option value="">Pilih Material</option>
-                    {availableMaterials.map(mat => <option key={mat} value={mat}>{mat}</option>)}
-                  </select>
-                ) : (
-                  <input value={item.name} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} placeholder="Nama material / consumable / tools" className={inputClass()} />
-                )}
+                <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} placeholder="Nama material / consumable / tools" className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
-                <input value={item.spec} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass()} />
+                <input value={item.spec} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Qty *</FieldLabel>
@@ -411,9 +399,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
-                <select value={item.unit} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3")}>
-                  {UNITS.map(unit => <option key={unit} value={unit}>{unit}</option>)}
-                </select>
+                <input value={item.unit} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3 cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Total Harga *</FieldLabel>

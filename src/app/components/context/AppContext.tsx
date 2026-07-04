@@ -636,12 +636,19 @@ function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = [
     }
   });
 
-  if (legacyMaterials.length > 0) {
-    return legacyMaterials;
-  }
-
   const productsById = new Map(products.map(product => [product.id, product]));
   const materialsByKey = new Map<string, any>();
+
+  // Add legacy materials
+  legacyMaterials.forEach(legacy => {
+    const key = legacy.inventoryItemId || `${legacy.name}|${legacy.unit}`;
+    const existing = materialsByKey.get(key);
+    if (existing) {
+      existing.quantity += Number(legacy.quantity || 0);
+    } else {
+      materialsByKey.set(key, { ...legacy, quantity: Number(legacy.quantity || 0) });
+    }
+  });
 
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
@@ -675,9 +682,31 @@ function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = [
   return materials.length > 0 ? materials : undefined;
 }
 
+function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
+  const bomsPerItem: Record<string, any[]> = {};
+  order.items.forEach(item => {
+    if (!item.notes?.startsWith("[")) {
+      bomsPerItem[item.id] = [];
+      return;
+    }
+    try {
+      const parsed = JSON.parse(item.notes);
+      if (Array.isArray(parsed)) {
+        bomsPerItem[item.id] = parsed;
+      } else {
+        bomsPerItem[item.id] = [];
+      }
+    } catch {
+      bomsPerItem[item.id] = [];
+    }
+  });
+  return bomsPerItem;
+}
+
 function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = []): SalesOrder {
   const primaryItem = order.items[0];
   const materials = mapSalesOrderMaterials(order, products);
+  const bomsPerItem = mapBomsPerItem(order);
 
   return {
     id: order.soNumber || order.id,
@@ -712,6 +741,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: 
     })),
     completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
     pauseReason: (order as any).pauseReason || undefined,
+    rejectionReason: (order as any).rejectionReason || undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,
     assignedName: order.productionWorkerName || undefined,
@@ -719,6 +749,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: 
     designAssignedName: order.designWorkerName || undefined,
     notes: order.items.map(item => (item.notes && item.notes.startsWith('[')) ? null : item.notes).filter(Boolean).join("; ") || undefined,
     materials,
+    bomsPerItem,
     backendDesignStatus: order.designStatus,
     items: order.items.map(item => ({
       id: item.id,
@@ -729,6 +760,7 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: 
       quantity: item.qty,
       unitPrice: (item as any).unitPrice || 0,
       unit: "PCS",
+      notes: item.notes,
       designReference: item.designReference || undefined,
       customerDrawingUrl: item.customerDrawingUrl || undefined
     }))
@@ -769,7 +801,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[]): Pur
       projectName: item.projectName || request.projectName || null,
       purchaseCategory: item.purchaseCategory || null,
       itemName: item.itemName,
-      specification: item.size || item.notes || "",
+      specification: item.size || "",
       quantity: item.qty,
       unit: "PCS",
       supplierName: item.supplierName || undefined,
@@ -778,7 +810,7 @@ function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[]): Pur
       purchaseStatus: item.purchaseStatus,
     })),
     urgency,
-    notes: request.projectName || "",
+    notes: request.items.map(i => i.notes).find(Boolean) || "",
     requestedBy: requestedByStr,
     requestedByUserId: request.requestedByUserId,
     requestedAt: request.requestDate,
@@ -1056,15 +1088,13 @@ async function syncUpdateSalesOrder(
         const primaryItem = so.items?.[0];
         if (primaryItem) {
           const updated = await salesApi.updateSalesOrderItems(backendId, {
-            items: [
-              {
-                salesOrderItemId: primaryItem.id,
-                productId: primaryItem.productId,
-                qty: primaryItem.quantity,
-                unitPrice: (primaryItem as any).unitPrice || 0,
-                notes: JSON.stringify(updates.materials)
-              }
-            ]
+            items: so.items.map((it, idx) => ({
+              salesOrderItemId: it.id,
+              productId: it.productId,
+              qty: it.quantity,
+              unitPrice: (it as any).unitPrice || 0,
+              notes: updates.bomsPerItem?.[it.id] ? JSON.stringify(updates.bomsPerItem[it.id]) : (idx === 0 && updates.materials ? JSON.stringify(updates.materials) : (it as any).notes)
+            }))
           });
           setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
         }

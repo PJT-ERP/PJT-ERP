@@ -241,8 +241,9 @@ public sealed class ProductionService(
             if (!product.IsActive) throw new InvalidOperationException($"Product {product.PartNumber} is not active.");
         }
 
-        salesOrder.Items = request.Items.Select(item => new SalesOrderItem
+        var newItems = request.Items.Select(item => new SalesOrderItem
         {
+            Id = Guid.NewGuid(),
             SalesOrderId = salesOrder.Id,
             ProductId = item.ProductId,
             ProductPartNumber = products[item.ProductId].PartNumber,
@@ -251,6 +252,8 @@ public sealed class ProductionService(
             UnitPrice = item.UnitPrice,
             Notes = item.Notes
         }).ToList();
+
+        db.SalesOrderItems.AddRange(newItems);
 
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -407,6 +410,11 @@ public sealed class ProductionService(
         if (designStatus == SalesOrderDesignStatuses.Approved)
         {
             salesOrder.Status = "Waiting Pricing";
+            salesOrder.RejectionReason = null;
+        }
+        else if (designStatus == SalesOrderDesignStatuses.RevisionRequired || designStatus == SalesOrderDesignStatuses.Rejected)
+        {
+            salesOrder.RejectionReason = request.Notes;
         }
 
         salesOrder.DesignReference = request.DesignReference is null
@@ -813,6 +821,7 @@ public sealed class ProductionService(
             order.DesignApprovedByUserId,
             order.DesignApprovedByName,
             order.DesignApprovedAtUtc,
+            order.RejectionReason,
             order.SoDate,
             order.TargetDate,
             order.DesignWorkerUserId,

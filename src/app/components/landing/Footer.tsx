@@ -7,7 +7,6 @@ const navGroups = [
     links: [
       { label: "About Us", href: "#about" },
       { label: "Our Services", href: "#services" },
-      { label: "Manufacturing Process", href: "#process" },
       { label: "Why Choose Us", href: "#why" },
     ],
   },
@@ -25,7 +24,6 @@ const navGroups = [
     links: [
       { label: "Order Tracking", href: "#tracking" },
       { label: "Request Quote", href: "#contact" },
-      { label: "Customer Login", href: "#login" },
       { label: "Contact Us", href: "#contact" },
     ],
   },
