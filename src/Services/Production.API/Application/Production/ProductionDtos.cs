@@ -71,8 +71,11 @@ public sealed record SalesOrderDto(
     string? PauseReason,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    decimal? EstimatedAmount,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
-    IReadOnlyCollection<SalesOrderItemDto> Items);
+    IReadOnlyCollection<SalesOrderItemDto> Items,
+    IReadOnlyCollection<string>? ProductionPhotos,
+    IReadOnlyCollection<string>? QcPhotos);
 
 public sealed record SalesOrderDesignRevisionDto(
     int Version,

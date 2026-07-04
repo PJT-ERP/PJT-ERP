@@ -71,6 +71,9 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.ApprovedAtUtc).HasColumnName("approved_at_utc");
             builder.Property(order => order.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(order => order.UpdatedAtUtc).HasColumnName("updated_at_utc");
+            builder.Property(order => order.ProductionPhotos).HasColumnName("production_photos");
+            builder.Property(order => order.QcPhotos).HasColumnName("qc_photos");
+            builder.Property(order => order.EstimatedAmount).HasColumnName("estimated_amount");
             builder.HasMany(order => order.Items)
                 .WithOne(item => item.SalesOrder)
                 .HasForeignKey(item => item.SalesOrderId)

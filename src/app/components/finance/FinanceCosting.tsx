@@ -49,19 +49,33 @@ export function FinanceCosting() {
       return true;
     }
 
-    // For custom products (backendDesignStatus === "Approved"), they skip "Waiting Pricing"
-    // or run in parallel with production.
-    const productionCanRunBeforePricing = so.backendDesignStatus === "Approved"
-      && !hasInvoiceCandidate(so)
-      && (so.status !== "Waiting Payment" && so.backendStatus !== "Waiting Payment")
-      && (so.status !== "Completed" && so.backendStatus !== "Completed");
+    if (isUnpriced(so)) {
+      return true;
+    }
 
-    return productionCanRunBeforePricing;
+    const hasNoInvoice = !hasInvoiceCandidate(so);
+    const notFinalized = so.backendStatus !== "Waiting Payment"
+      && so.backendStatus !== "Completed"
+      && so.backendStatus !== "Cancelled"
+      && so.status !== "Waiting Payment"
+      && so.status !== "Completed"
+      && so.status !== "Rejected";
+
+    const designReady = so.backendDesignStatus === "Approved";
+    const isStandardProduct = !so.designLink && !so.customerDrawingUrl && !so.designReference;
+
+    if (hasNoInvoice && notFinalized && (designReady || isStandardProduct)) {
+      return true;
+    }
+
+    return false;
   };
 
   // Status that indicates SO is ready for Costing (after SPV Engineering approval)
   const waitingPricingSO = salesOrders.filter(so => 
-    isWaitingPricing(so) || (historyStatuses.includes(so.status) && isUnpriced(so))
+    isWaitingPricing(so) 
+    || (historyStatuses.includes(so.status) && isUnpriced(so))
+    || so.backendStatus === "Waiting Pricing"
   ).map(so => ({
     ...so,
     isQuotation: false

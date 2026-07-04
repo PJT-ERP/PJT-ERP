@@ -27,9 +27,12 @@ public sealed class SalesOrder
     public DateTime? ApprovedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public decimal? EstimatedAmount { get; set; }
     public List<SalesOrderItem> Items { get; set; } = [];
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
     public List<SalesOrderDesignRevision> DesignRevisions { get; set; } = [];
+    public List<string> ProductionPhotos { get; set; } = new();
+    public List<string> QcPhotos { get; set; } = new();
 }
 
 public static class SalesOrderStatuses

@@ -40,6 +40,13 @@ export const qcApi = {
     return response.data;
   },
 
+  async uploadPhotos(files: File[]) {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    const response = await apiClient.post<string[]>('/api/v1/qc/inspections/upload', formData);
+    return response.data;
+  },
+
   async uploadResult(inspectionId: string, request: UploadQcResultPayload) {
     const response = await apiClient.put<QcInspectionDto>(
       `/api/v1/qc/inspections/${inspectionId}/result`,

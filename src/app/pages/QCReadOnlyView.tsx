@@ -64,13 +64,26 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
             </div>
           )}
 
+          {so.productionPhotos && so.productionPhotos.length > 0 && (
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Hasil Produksi ({so.productionPhotos.length})</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {so.productionPhotos.map((p, i) => (
+                  <div key={i} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <img src={p} alt={`Production Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {so.qcPhotos && so.qcPhotos.length > 0 && (
             <div>
-              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti ({so.qcPhotos.length})</p>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti QC ({so.qcPhotos.length})</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                 {so.qcPhotos.map((p, i) => (
                   <div key={i} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <ImageIcon size={20} style={{ color: S.secondary }} />
+                    <img src={p} alt={`QC Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 ))}
               </div>

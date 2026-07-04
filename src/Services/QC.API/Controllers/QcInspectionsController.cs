@@ -41,4 +41,19 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("upload")]
+    [Authorize(Roles = "Admin,Engineering Supervisor")]
+    public async Task<ActionResult<UploadQcPhotosResponse>> UploadPhotos(
+        [FromForm] IFormFileCollection files,
+        CancellationToken cancellationToken)
+    {
+        if (files is null || files.Count == 0)
+        {
+            return BadRequest(new { message = "No files were uploaded." });
+        }
+
+        var urls = await inspectionService.UploadPhotosAsync(files, cancellationToken);
+        return Ok(new UploadQcPhotosResponse { Urls = urls });
+    }
 }

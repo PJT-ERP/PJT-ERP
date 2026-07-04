@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace PJT_ERP.QC.Api.Application.Inspections;
 
 public sealed record QcInspectionDto(
@@ -31,3 +33,13 @@ public sealed record UploadQcResultRequest(
     List<string> QcPhotos,
     string? Notes,
     string Decision);
+
+public sealed record UploadQcPhotosRequest
+{
+    public List<IFormFile> Files { get; init; } = new();
+}
+
+public sealed record UploadQcPhotosResponse
+{
+    public required IReadOnlyCollection<string> Urls { get; init; }
+}

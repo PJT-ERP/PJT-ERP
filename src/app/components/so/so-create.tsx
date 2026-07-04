@@ -651,28 +651,69 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           generalNotes: selectedSo.notes || "",
         }));
 
-        const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
-        let materials: any[] = [];
-        if (matchedProduct) {
-          materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
-            id: b.inventoryItemId,
-            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-            specification: "",
-            quantity: String(b.quantity),
-            unit: b.unit,
-          })) : [];
-        }
+        if (selectedSo.items && selectedSo.items.length > 0) {
+          const totalItemQty = selectedSo.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+          const totalEstimated = selectedSo.estimatedAmount || 0;
 
-        setRepeatProducts([{
-          ...emptyProduct(),
-          type: matchedProduct ? "existing" : "custom",
-          productName: matchedProduct ? matchedProduct.label : selectedSo.description,
-          customName: selectedSo.description,
-          quantity: String(selectedSo.quantity),
-          unit: selectedSo.unit,
-          unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
-          materials,
-        }]);
+          const mappedProducts = selectedSo.items.map((item: any, idx: number) => {
+            const itemPartNumber = item.partNumber || item.productPartNumber || "";
+            const matchedProduct = catalogProductOptions.find(p => p.id === item.productId)
+              || (itemPartNumber ? catalogProductOptions.find(p => p.partNumber === itemPartNumber) : undefined)
+              || catalogProductOptions.find(p => p.label.includes(item.productName || itemPartNumber));
+
+            let materials: any[] = [];
+            if (matchedProduct) {
+              materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+                id: b.inventoryItemId,
+                name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                specification: "",
+                quantity: String(b.quantity),
+                unit: b.unit,
+              })) : [];
+            }
+
+            let unitPrice = item.unitPrice || 0;
+            if (unitPrice === 0 && totalItemQty > 0 && totalEstimated > 0 && (item.quantity || 0) > 0) {
+              unitPrice = Math.floor((totalEstimated * (item.quantity || 1)) / totalItemQty);
+            }
+
+            return {
+              ...emptyProduct(),
+              type: matchedProduct ? "existing" : "custom",
+              productId: item.productId || matchedProduct?.id || "",
+              productName: matchedProduct ? matchedProduct.label : (item.productName || itemPartNumber || selectedSo.description || `Item ${idx + 1}`),
+              customName: item.productName || selectedSo.description,
+              quantity: String(item.quantity || 1),
+              unit: item.unit || "PCS",
+              unitPrice,
+              materials,
+            };
+          });
+          setRepeatProducts(mappedProducts);
+        } else {
+          const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+          let materials: any[] = [];
+          if (matchedProduct) {
+            materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+              id: b.inventoryItemId,
+              name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+              specification: "",
+              quantity: String(b.quantity),
+              unit: b.unit,
+            })) : [];
+          }
+
+          setRepeatProducts([{
+            ...emptyProduct(),
+            type: matchedProduct ? "existing" : "custom",
+            productName: matchedProduct ? matchedProduct.label : selectedSo.description,
+            customName: selectedSo.description,
+            quantity: String(selectedSo.quantity),
+            unit: selectedSo.unit,
+            unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+            materials,
+          }]);
+        }
       }
     }
   }, [orderType, repeatForm.previousSoId, salesOrders, repeatProducts.length, catalogProductOptions]);
@@ -807,6 +848,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     targetDate: string,
     customerDrawingUrl: string,
     rows: ProductRow[],
+    designStatus?: string,
   ) => {
     let maxPrd = 0;
     productCatalog.forEach(p => {
@@ -835,7 +877,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       targetDate,
       customerDrawingUrl: customerDrawingUrl || null,
       designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
-      designStatus: rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved",
+      designStatus: designStatus ?? (rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved"),
       items,
     };
 
@@ -921,7 +963,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       });
       const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
-      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
+      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts, "Approved");
 
 
       if (repeatForm.estimatedAmount) {

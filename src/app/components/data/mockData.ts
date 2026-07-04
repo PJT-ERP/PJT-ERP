@@ -68,6 +68,7 @@ export interface SalesOrder {
   qcStatus?: 'Go' | 'NoGo';
   qcNotes?: string;
   qcPhotos?: string[];
+  productionPhotos?: string[];
   qcAt?: string;
   completedAt?: string;
   isRework?: boolean;

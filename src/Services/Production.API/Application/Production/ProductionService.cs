@@ -90,6 +90,7 @@ public sealed class ProductionService(
         }
 
         var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
+        var estimatedAmount = request.Items.Sum(item => item.Qty * item.UnitPrice);
         var order = new SalesOrder
         {
             SoNumber = soNumber,
@@ -103,12 +104,15 @@ public sealed class ProductionService(
             Status = NormalizeDesignStatus(request.DesignStatus) == "Approved" ? "Waiting Pricing" : SalesOrderStatuses.Draft,
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
+            EstimatedAmount = estimatedAmount,
             DesignWorkerUserId = designWorker?.UserId,
             DesignWorkerName = designWorker?.Name,
             ProductionWorkerUserId = productionWorker?.UserId,
             ProductionWorkerName = productionWorker?.Name,
             QcReviewerUserId = qcReviewer?.UserId,
             QcReviewerName = qcReviewer?.Name,
+            ProductionPhotos = new List<string>(),
+            QcPhotos = new List<string>(),
             Items = request.Items.Select(item =>
             {
                 var product = products[item.ProductId];
@@ -830,8 +834,11 @@ public sealed class ProductionService(
             productionOrder?.PauseReason,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
+            order.EstimatedAmount,
             order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
-            order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray());
+            order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray(),
+            order.ProductionPhotos,
+            order.QcPhotos);
     }
 
     private static SalesOrderItemDto ToDto(SalesOrderItem item)

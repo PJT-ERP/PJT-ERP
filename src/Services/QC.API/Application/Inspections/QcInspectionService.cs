@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
 using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.QC.Api.Domain.Entities;
 using PJT_ERP.QC.Api.Infrastructure.Persistence;
@@ -6,7 +7,7 @@ using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.QC.Api.Application.Inspections;
 
-public sealed class QcInspectionService(QcContext db, IEventPublisher eventPublisher) : IQcInspectionService
+public sealed class QcInspectionService(QcContext db, IEventPublisher eventPublisher, IWebHostEnvironment? env = null) : IQcInspectionService
 {
     public async Task<IReadOnlyCollection<QcInspectionDto>> ListAsync(CancellationToken cancellationToken)
     {
@@ -52,10 +53,47 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
         inspection.UpdatedAtUtc = now;
 
         await eventPublisher.PublishAsync(
-            new QcCheckCompletedEvent(inspection.Id, inspection.ProductionOrderId, decision, now),
+            new QcCheckCompletedEvent(
+                inspection.Id,
+                inspection.ProductionOrderId,
+                decision,
+                now,
+                inspection.ProductionPhotos,
+                inspection.QcPhotos),
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(inspection);
+    }
+
+    public async Task<IReadOnlyCollection<string>> UploadPhotosAsync(IFormFileCollection files, CancellationToken cancellationToken)
+    {
+        if (files is null || files.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var urls = new List<string>();
+        var uploadsFolder = Path.Combine(
+            env?.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "qc-photos");
+
+        Directory.CreateDirectory(uploadsFolder);
+
+        foreach (var file in files)
+        {
+            if (file.Length == 0) continue;
+
+            var extension = Path.GetExtension(file.FileName);
+            var uniqueFileName = $"qc-{Guid.NewGuid():N}{extension}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream, cancellationToken);
+
+            urls.Add($"/qc-photos/{uniqueFileName}");
+        }
+
+        return urls;
     }
 
     private static void EnsureInspectionCanBeReviewed(QcInspection inspection)

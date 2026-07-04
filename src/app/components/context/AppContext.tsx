@@ -711,6 +711,9 @@ function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: 
       changedAt: r.changedAtUtc
     })),
     completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
+    qcPhotos: order.qcPhotos || undefined,
+    productionPhotos: order.productionPhotos || undefined,
+    estimatedAmount: order.estimatedAmount ?? order.items.reduce((sum, item) => sum + ((item as any).unitPrice || 0) * (item.qty || 0), 0) ?? undefined,
     pauseReason: (order as any).pauseReason || undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
     assignedTo: order.productionWorkerUserId || undefined,

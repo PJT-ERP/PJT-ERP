@@ -725,11 +725,24 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     </div>
                   </>
                 )}
+                {(order.productionPhotos && order.productionPhotos.length > 0) && (
+                  <>
+                    <div style={{ height: 1, background: "#F8FAFC" }} />
+                    <div>
+                      <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Hasil Produksi</p>
+                      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                        {order.productionPhotos.map((photo, i) => (
+                          <img key={i} src={photo} alt={`Production Photo ${i + 1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
                 {order.qcPhotos && order.qcPhotos.length > 0 && (
                   <>
                     <div style={{ height: 1, background: "#F8FAFC" }} />
                     <div>
-                      <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
+                      <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti QC</p>
                       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
                         {order.qcPhotos.map((photo, i) => (
                           <img key={i} src={photo} alt={`QC Photo ${i + 1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />

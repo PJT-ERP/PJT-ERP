@@ -120,13 +120,26 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
             </div>
           )}
 
+          {so.productionPhotos && so.productionPhotos.length > 0 && (
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Hasil Produksi ({so.productionPhotos.length})</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {so.productionPhotos.map((p, i) => (
+                  <div key={i} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <img src={p} alt={`Production Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {so.qcPhotos && so.qcPhotos.length > 0 && (
             <div>
-              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti ({so.qcPhotos.length})</p>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti QC ({so.qcPhotos.length})</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                 {so.qcPhotos.map((p, i) => (
                   <div key={i} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <ImageIcon size={20} style={{ color: S.secondary }} />
+                    <img src={p} alt={`QC Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 ))}
               </div>
@@ -160,17 +173,18 @@ function QCInspectionModal({
   const qcFileInputRef = useRef<HTMLInputElement>(null);
   const customer = customers.find(c => c.code === so.customerId);
 
-  const [productionPhotos, setProductionPhotos] = useState<{ name: string; url: string }[]>([]);
-  const [qcPhotos, setQcPhotos] = useState<{ name: string; url: string }[]>([]);
+  const [productionPhotos, setProductionPhotos] = useState<{ file: File; url: string }[]>([]);
+  const [qcPhotos, setQcPhotos] = useState<{ file: File; url: string }[]>([]);
   const [notes, setNotes] = useState('');
   const [result, setResult] = useState<'Go' | 'NoGo' | ''>('');
   const [done, setDone] = useState(false);
 
   const handleProductionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    files.forEach(file => {
-      const url = URL.createObjectURL(file);
-      setProductionPhotos(prev => [...prev, { name: file.name, url }]);
+    const newPhotos = files.map(file => ({ file, url: URL.createObjectURL(file), name: file.name }));
+    setProductionPhotos(prev => {
+      prev.forEach(p => URL.revokeObjectURL(p.url));
+      return [...prev, ...newPhotos];
     });
     e.target.value = '';
   };
@@ -184,9 +198,10 @@ function QCInspectionModal({
 
   const handleQcFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    files.forEach(file => {
-      const url = URL.createObjectURL(file);
-      setQcPhotos(prev => [...prev, { name: file.name, url }]);
+    const newPhotos = files.map(file => ({ file, url: URL.createObjectURL(file), name: file.name }));
+    setQcPhotos(prev => {
+      prev.forEach(p => URL.revokeObjectURL(p.url));
+      return [...prev, ...newPhotos];
     });
     e.target.value = '';
   };
@@ -236,11 +251,16 @@ function QCInspectionModal({
     }
 
     try {
+      const [productionPhotoUrls, qcPhotoUrls] = await Promise.all([
+        qcApi.uploadPhotos(productionPhotos.map(p => p.file)),
+        qcApi.uploadPhotos(qcPhotos.map(p => p.file)),
+      ]);
+
       const updatedInspection = await qcApi.uploadResult(inspection.id, {
         reviewerUserId,
         reviewerName: currentUser?.name || inspection.assignedReviewerName || "QC Reviewer",
-        productionPhotos: productionPhotos.map(p => p.name),
-        qcPhotos: qcPhotos.map(p => p.name),
+        productionPhotos: productionPhotoUrls,
+        qcPhotos: qcPhotoUrls,
         notes: notes || null,
         decision: result,
       });
@@ -258,7 +278,8 @@ function QCInspectionModal({
         qcNotes: notes,
         qcAt: new Date().toISOString(),
         completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: qcPhotos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.url),
+        productionPhotos: productionPhotos.map(p => p.url),
       });
     } else {
       updateSalesOrder(so.id, {
@@ -266,7 +287,8 @@ function QCInspectionModal({
         qcStatus: 'NoGo',
         qcNotes: notes,
         qcAt: new Date().toISOString(),
-        qcPhotos: qcPhotos.map(p => p.name),
+        qcPhotos: qcPhotos.map(p => p.url),
+        productionPhotos: productionPhotos.map(p => p.url),
         isRework: true,
       });
     }
