@@ -1,18 +1,84 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { PlayCircle, AlertTriangle, FileWarning } from "lucide-react";
+import { PlayCircle, AlertTriangle, FileWarning, Loader2 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
-import { masterDataApi } from "../../../services/masterDataApi";
-import { S, getBackendSalesOrderId } from "../ProductionHelpers";
+import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
+import { S, getBackendSalesOrderId, getMaterialOptions } from "../ProductionHelpers";
+
+interface StockIssue {
+  itemName: string;
+  required: number;
+  available: number;
+}
 
 export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser, productCatalog, refreshBackendData } = useApp();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [stockIssues, setStockIssues] = useState<StockIssue[] | null>(null);
+  const [bomStockCache, setBomStockCache] = useState<Awaited<ReturnType<typeof masterDataApi.getBomStock>> | null>(null);
+  const [checkingStock, setCheckingStock] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkBomStock() {
+      try {
+        const productIds = (so.items || [])
+          .map(item => (item as any).productId)
+          .filter((id): id is string => !!id);
+
+        if (productIds.length === 0) {
+          setStockIssues([]);
+          setCheckingStock(false);
+          return;
+        }
+
+        const bomStocks = await masterDataApi.getBomStock(productIds);
+        if (cancelled) return;
+
+        setBomStockCache(bomStocks);
+
+        const issues: StockIssue[] = [];
+        for (const soItem of (so.items || [])) {
+          const soProductId = (soItem as any).productId;
+          const bomStock = bomStocks.find(bs => bs.productId === soProductId);
+          if (!bomStock?.items?.length) continue;
+
+          const productQty = (soItem as any).qty || soItem.quantity || 1;
+          for (const item of bomStock.items) {
+            const required = item.bomQuantity * productQty;
+            const available = item.currentStock;
+            if (available < required) {
+              const existing = issues.find(i => i.itemName === item.inventoryItemName);
+              if (existing) {
+                existing.required += required;
+              } else {
+                issues.push({
+                  itemName: item.inventoryItemName,
+                  required,
+                  available,
+                });
+              }
+            }
+          }
+        }
+        if (!cancelled) setStockIssues(issues);
+      } catch (err) {
+        console.warn("Failed to check BOM stock for start production", err);
+      } finally {
+        if (!cancelled) setCheckingStock(false);
+      }
+    }
+    void checkBomStock();
+    return () => { cancelled = true; };
+  }, [so.items, so.id]);
+
+  const hasStockIssues = stockIssues && stockIssues.length > 0;
+  const canStart = !isSubmitting && !checkingStock && !hasStockIssues;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,21 +104,20 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
       });
 
       try {
-        const products = await masterDataApi.listProducts();
-        const deductionItems: { inventoryItemId: string; quantity: number }[] = [];
-        for (const soItem of (so.items || [])) {
-          const product = products.find(p => p.id === (soItem as any).productId);
-          if (product?.bomItems) {
-            for (const bomItem of product.bomItems) {
-              deductionItems.push({
-                inventoryItemId: bomItem.inventoryItemId,
-                quantity: bomItem.quantity * ((soItem as any).qty || 1),
-              });
+        if (bomStockCache) {
+          const deductionItems: { inventoryItemId: string; quantity: number }[] = [];
+          for (const soItem of (so.items || [])) {
+            const bomStock = bomStockCache.find(bs => bs.productId === (soItem as any).productId);
+            if (bomStock?.items) {
+              const productQty = (soItem as any).qty || soItem.quantity || 1;
+              for (const item of bomStock.items) {
+                deductionItems.push({ inventoryItemId: item.inventoryItemId, quantity: item.bomQuantity * productQty });
+              }
             }
           }
-        }
-        if (deductionItems.length > 0) {
-          await masterDataApi.deductBomMaterials({ salesOrderId, items: deductionItems });
+          if (deductionItems.length > 0) {
+            await masterDataApi.deductBomMaterials({ salesOrderId, items: deductionItems });
+          }
         }
       } catch {
         // BOM deduction is non-critical; proceed even if it fails
@@ -130,6 +195,41 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
             </div>
           )}
 
+          {checkingStock && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px", background: "#F1F5F9", borderRadius: 8, color: S.secondary, fontSize: "13px" }}>
+              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Memeriksa ketersediaan material...
+            </div>
+          )}
+
+          {hasStockIssues && (
+            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#B91C1C", fontSize: "13px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ marginTop: 2, flexShrink: 0 }}><AlertTriangle size={16} /></div>
+                <div>
+                  <strong>Stok Material Tidak Cukup</strong>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", lineHeight: "1.4" }}>Material berikut tidak mencukupi untuk memulai produksi:</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginLeft: 24 }}>
+                {stockIssues!.map(issue => (
+                  <div key={issue.itemName} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                    <span style={{ fontWeight: 500 }}>{issue.itemName}</span>
+                    <span>Butuh <strong>{issue.required}</strong> / Tersedia <strong style={{ color: "#DC2626" }}>{issue.available}</strong></span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => { onClose(); navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues! } }); }}
+                  style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <FileWarning size={14} /> Buat Material Request
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, lineHeight: "1.5" }}>
               {so.status === 'Paused' && so.pauseReason === 'Mesin Rusak' ? (
@@ -148,8 +248,9 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
           </div>
           <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-            <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.65 : 1 }}>
-              <PlayCircle size={16} /> {isSubmitting ? "Menyimpan..." : (so.status === 'Paused' ? "Lanjutkan Produksi" : "Konfirmasi Mulai")}
+            <button type="submit" disabled={!canStart} style={{ flex: 1, padding: "10px", background: canStart ? S.cyan : "#D1D5DB", border: "none", color: canStart ? "#fff" : "#9CA3AF", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: canStart ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: canStart ? 1 : 0.7 }}>
+              {checkingStock ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <PlayCircle size={16} />}
+              {checkingStock ? "Memeriksa Stok..." : isSubmitting ? "Menyimpan..." : hasStockIssues ? "Material Tidak Cukup" : (so.status === 'Paused' ? "Lanjutkan Produksi" : "Konfirmasi Mulai")}
             </button>
           </div>
         </form>

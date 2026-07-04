@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { Trash2, Plus, ChevronLeft, CheckCircle } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { PurchasingUrgency, SalesOrder } from "../../components/data/mockData";
@@ -208,6 +208,8 @@ function MaterialAutocomplete({
 export function ProductionMaterialRequestPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefillStockIssues = (location.state as any)?.stockIssues as Array<{ itemName: string; required: number; available: number }> | undefined;
   const { salesOrders, currentUser, refreshBackendData, purchasingRequests } = useApp();
   
   const so = salesOrders.find(s => s.id === id || s.backendId === id);
@@ -235,6 +237,22 @@ export function ProductionMaterialRequestPage() {
   // Fetch BOM data directly from API to avoid race conditions with context state
   useEffect(() => {
     if (!so) return;
+
+    // If stock issues were passed from the production start modal, pre-fill from those
+    if (prefillStockIssues && prefillStockIssues.length > 0) {
+      setItems(prefillStockIssues.map(issue => ({
+        materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}`,
+        itemName: issue.itemName,
+        specification: "",
+        quantity: String(issue.required),
+        maxQuantity: issue.required,
+        unit: "pcs",
+        urgency: "Urgent" as PurchasingUrgency,
+        purchaseCategory: "Project",
+      })));
+      setNotes(`Auto-generated dari pengecekan stok — material tidak mencukupi untuk memulai produksi.`);
+      return;
+    }
 
     // Jika sudah ada MR (misalnya ditolak dan dikembalikan), gunakan item dari MR tersebut
     if (request && request.items && request.items.length > 0) {

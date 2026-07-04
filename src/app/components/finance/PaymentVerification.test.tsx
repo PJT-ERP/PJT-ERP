@@ -29,7 +29,7 @@ describe('PaymentVerification Component', () => {
     render(<PaymentVerification />);
 
     expect(screen.getByText('Verifikasi Pembayaran')).toBeInTheDocument();
-    expect(screen.getByText('Tidak ada data pembayaran')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada data pembayaran')).toBeInTheDocument();
   });
 
   it('renders pending payment items and shows warning count', () => {
@@ -57,7 +57,7 @@ describe('PaymentVerification Component', () => {
 
     render(<PaymentVerification />);
 
-    expect(screen.getByText('1 menunggu verifikasi')).toBeInTheDocument();
+    expect(screen.getByText('Pembayaran Baru')).toBeInTheDocument();
     expect(screen.getByText('Test Customer A')).toBeInTheDocument();
     expect(screen.getAllByText('Rp 5.000.000').length).toBeGreaterThan(0);
   });

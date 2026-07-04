@@ -274,14 +274,13 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
   }
 
   // Allow production to run in parallel with pricing
-  // if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
-  //   return "Waiting Pricing";
-  // }
+  if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
+    return "Waiting Pricing";
+  }
 
-  // Allow production to run in parallel with payment
-  // if (order.status === "WaitingPayment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
-  //   return "Waiting Payment";
-  // }
+  if (order.status === "WaitingPayment" || order.status === "Waiting Payment" || order.status === "Menunggu Invoice DP" || order.status === "Menunggu Pembayaran") {
+    return "Waiting Payment";
+  }
 
   if (order.productionStatus === "Finished") {
     return "QC";

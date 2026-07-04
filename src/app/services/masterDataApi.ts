@@ -158,6 +158,24 @@ export const masterDataApi = {
     updateProductBom: async (id: string, request: { bomItems: { inventoryItemId: string; quantity: number }[] }): Promise<void> => {
         await apiClient.put(`/api/v1/master-data/products/${id}/bom`, request);
     },
+    getBomStock: async (productIds: string[]): Promise<Array<{
+        productId: string;
+        partNumber?: string;
+        description?: string;
+        items: Array<{
+            inventoryItemId: string;
+            inventoryItemCode: string;
+            inventoryItemName: string;
+            bomQuantity: number;
+            currentStock: number;
+            unit: string;
+        }>;
+    }>> => {
+        if (productIds.length === 0) return [];
+        const ids = productIds.join(',');
+        const response = await apiClient.get(`/api/v1/master-data/products/bom-stock?ids=${ids}`);
+        return response.data;
+    },
     listProducts: async (): Promise<Array<{
         id: string;
         partNumber: string;

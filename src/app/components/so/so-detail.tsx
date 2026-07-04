@@ -497,7 +497,29 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   <div style={{ padding: "10px", minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.productName}</p>
                     <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>Kode Produk: {item.productCode}</p>
-                    {item.notes && <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>}
+                    {(() => {
+                      if (!item.notes) return null;
+                      let bomMaterials: { name?: string; spec?: string; specification?: string; quantity?: number; unit?: string }[] | null = null;
+                      try {
+                        const parsed = JSON.parse(item.notes);
+                        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
+                          bomMaterials = parsed;
+                        }
+                      } catch { /* not JSON, render as plain text */ }
+                      if (bomMaterials) {
+                        return (
+                          <div style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748B", background: "#F8FAFC", borderRadius: 4, padding: "6px 8px" }}>
+                            <span style={{ fontWeight: 600, color: "#94A3B8" }}>BOM: </span>
+                            {bomMaterials.map((m, i) => (
+                              <span key={i}>
+                                {m.name || m.specification}{m.quantity && ` (${m.quantity} ${m.unit || ''})`}{i < bomMaterials!.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>;
+                    })()}
                     {(item as any).designReference === "INTERNAL_DESIGN" && (
                       <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#F59E0B", display: "flex", alignItems: "center", gap: 4 }}>
                         <FileText size={10} /> Engineering akan desain ulang

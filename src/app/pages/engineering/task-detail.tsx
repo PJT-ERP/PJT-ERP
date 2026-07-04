@@ -286,13 +286,40 @@ export function EngineeringTaskDetailPage() {
           const isStandardProduct = !!productInCatalog?.bomItems?.length;
           if (!isStandardProduct) {
             const mats = itemMaterials[item.id] || [];
-            const bomItems = mats
-              .filter(m => m.inventoryItemId && m.quantity > 0)
-              .map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
-              
-            if (bomItems.length > 0) {
+            if (mats.length === 0) continue;
+
+            // Auto-create any manually-typed materials as inventory items first
+            const resolvedBomItems: { inventoryItemId: string; quantity: number }[] = [];
+            for (const m of mats) {
+              if (!m.name?.trim() || !(m.quantity > 0)) continue;
+              let invId = m.inventoryItemId;
+              if (!invId) {
+                try {
+                  const created = await masterDataApi.createInventoryItem({
+                    code: `MAT-${m.name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 16)}`,
+                    name: m.name.trim(),
+                    category: 'Engineering',
+                    unit: m.unit || 'pcs',
+                    currentStock: 0,
+                    minStock: 0,
+                    maxStock: 0,
+                    reorderPoint: 0,
+                    location: '',
+                    supplierName: '',
+                    unitPrice: 0,
+                  });
+                  invId = created.id;
+                } catch (err) {
+                  console.warn(`Failed to auto-create inventory item for "${m.name}"`, err);
+                  continue;
+                }
+              }
+              resolvedBomItems.push({ inventoryItemId: invId, quantity: m.quantity });
+            }
+
+            if (resolvedBomItems.length > 0) {
               try {
-                await salesApi.updateProductBom(item.productId, { bomItems });
+                await salesApi.updateProductBom(item.productId, { bomItems: resolvedBomItems });
               } catch (err) {
                 console.warn(`Failed to attach BOM to custom product ${item.productId}`, err);
               }

@@ -2,21 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import { SalesOrder } from "../../data/mockData";
 import { S, StatusBadge, getDrawingUrl, getMaterialOptions, getBackendSalesOrderId } from "../ProductionHelpers";
-import { productionApi, SalesOrderMaterialTrackingDto } from "../../../services/productionApi";
 import { isGuid } from "../../../services/backendIds";
 
 export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { purchasingRequests } = useApp();
   const materials = getMaterialOptions(so);
   const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
-  const [materialTracking, setMaterialTracking] = useState<SalesOrderMaterialTrackingDto | null>(null);
+  const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
 
   useEffect(() => {
     const salesOrderId = getBackendSalesOrderId(so);
     if (isGuid(salesOrderId)) {
-      productionApi.getSalesOrderMaterialTracking(salesOrderId)
-        .then(setMaterialTracking)
-        .catch(() => setMaterialTracking(null));
+      import("../../../services/productionApi").then(({ productionApi }) =>
+        productionApi.getSalesOrderMaterialTracking(salesOrderId)
+          .then(d => setMaterialTracking(d as any))
+          .catch(() => setMaterialTracking(null))
+      );
     }
   }, [so]);
   return (
@@ -85,22 +86,22 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
               <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Belum ada data BOM.</p>
             )}
           </div>
-          {materialTracking && materialTracking.items.length > 0 && (
+          {materialTracking && Array.isArray(materialTracking.items) && materialTracking.items.length > 0 && (
             <div>
               <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Material Tracking</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {materialTracking.items.flatMap(item =>
-                  item.materialRequirements.map((mr, i) => (
-                    <div key={`${item.productId}-${i}`} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
+                {materialTracking.items.flatMap((item: any) =>
+                  (item.materialRequirements || []).map((mr: any, i: number) => (
+                    <div key={`${item.productId || i}-${i}`} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontWeight: 600, color: S.slate }}>{mr.inventoryItemName}</span>
-                        <span style={{ fontSize: "11px", color: S.secondary }}>{mr.inventoryItemCode}</span>
+                        <span style={{ fontWeight: 600, color: S.slate }}>{mr.inventoryItemName || '-'}</span>
+                        <span style={{ fontSize: "11px", color: S.secondary }}>{mr.inventoryItemCode || ''}</span>
                       </div>
                       <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "12px", color: S.secondary }}>
-                        <span>Dibutuhkan: {mr.requiredQty}</span>
-                        <span>Stok: {mr.stockOnHand}</span>
-                        <span style={{ color: mr.stockOnHand < mr.requiredQty ? "#DC2626" : "#16A34A", fontWeight: 500 }}>
-                          {mr.stockOnHand < mr.requiredQty ? '⚠ Kurang' : '✓ Cukup'}
+                        <span>Dibutuhkan: {mr.requiredQty ?? '-'}</span>
+                        <span>Stok: {mr.stockOnHand ?? '-'}</span>
+                        <span style={{ color: (mr.stockOnHand ?? 0) < (mr.requiredQty ?? 0) ? "#DC2626" : "#16A34A", fontWeight: 500 }}>
+                          {((mr.stockOnHand ?? 0) < (mr.requiredQty ?? 0)) ? 'Kurang' : 'Cukup'}
                         </span>
                       </div>
                     </div>

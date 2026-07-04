@@ -3,6 +3,7 @@ import { SalesOrder, Customer, User, PurchasingRequest, PurchasingStatus } from 
 import { salesApi, ProductDto } from "../../../services/salesApi";
 import { purchasingApi } from "../../../services/purchasingApi";
 import { productionApi } from "../../../services/productionApi";
+import { qcApi } from "../../../services/qcApi";
 import { isGuid, toBackendUserId, BACKEND_USER_IDS_BY_LOCAL_ID } from "../../../services/backendIds";
 import { mapSalesOrderDto, mapPurchaseRequestDto } from "./dataMappers";
 
@@ -122,7 +123,28 @@ export async function syncUpdateSalesOrder(
     }
 
     if (updates.qcStatus === "Go" || updates.qcStatus === "NoGo") {
-      // Missing qcApi integration due to missing inspectionId logic
+      try {
+        const inspections = await qcApi.listInspections();
+        const inspection = inspections.find(insp => insp.salesOrderNumber === so.id || insp.salesOrderNumber === so.soNumber);
+        if (inspection) {
+          await qcApi.uploadResult(inspection.id, {
+            reviewerUserId: toBackendUserId(currentUser) || currentUser?.id || "",
+            reviewerName: currentUser?.name || "QC Reviewer",
+            productionPhotos: updates.productionPhotos || [],
+            qcPhotos: updates.qcPhotos || [],
+            notes: updates.qcNotes || null,
+            decision: updates.qcStatus,
+          });
+          setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? {
+            ...item,
+            qcStatus: updates.qcStatus,
+            qcAt: new Date().toISOString(),
+            qcNotes: updates.qcNotes ?? item.qcNotes,
+          } : item));
+        }
+      } catch (err) {
+        console.warn("Failed to sync QC result to backend.", err);
+      }
     }
 
     if (updates.customerDrawingUrl !== undefined) {
