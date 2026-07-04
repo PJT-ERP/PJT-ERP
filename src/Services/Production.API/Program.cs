@@ -23,6 +23,7 @@ builder.Services.AddDbContext<ProductionContext>(options =>
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ProductionContext>());
 builder.Services.AddScoped<IProductionService, ProductionService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddHttpClient<IMasterDataClient, MasterDataClient>(client =>
 {

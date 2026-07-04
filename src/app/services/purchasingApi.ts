@@ -95,6 +95,7 @@ export interface CreatePurchaseRequestPayload {
   salesOrderNumber?: string | null;
   projectName?: string | null;
   items: Array<{
+    id?: string;
     materialRequirementId?: string | null;
     salesOrderId?: string | null;
     salesOrderNumber?: string | null;

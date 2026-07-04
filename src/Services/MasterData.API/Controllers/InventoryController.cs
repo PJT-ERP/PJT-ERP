@@ -47,7 +47,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost("deduct-bom")]
-    [Authorize(Roles = "Admin,Production")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Production")]
     public async Task<IActionResult> DeductBom(DeductBomStockRequest request, CancellationToken cancellationToken)
     {
         try

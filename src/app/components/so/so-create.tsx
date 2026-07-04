@@ -469,9 +469,10 @@ function ProductLineItem({ row, index, total, productOptions, onChange, onRemove
             </Select>
             {row.designId === "customer" ? (
               <div style={{ marginTop: 8 }}>
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="URL Gambar/Referensi (Opsional)" value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value })} />
+                <Label text="URL Gambar/Referensi" required />
+                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://link-referensi-desain..." value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value })} required />
                 <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Kosongkan jika pelanggan akan mengirimkan desain menyusul (Engineering akan menunggu).
+                  *Wajib diisi agar Tim Engineering dapat merancang desain dan menyelesaikan BOM.
                 </p>
               </div>
             ) : row.designId === "none" ? (
@@ -863,6 +864,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     setIsSubmitting(true);
     try {
+      const missingDesignUrl = products.some(p => p.type === "custom" && p.designId === "customer" && !p.customerDesignUrl?.trim());
+      if (missingDesignUrl) {
+        window.alert("Mohon lengkapi URL Referensi Desain untuk produk custom yang menggunakan referensi pelanggan.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const customerId = await ensureCustomerId({
         code: customerForm.customerCode,
         company: customerForm.company,
@@ -897,6 +905,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
     setIsSubmitting(true);
     try {
+      const missingDesignUrl = repeatProducts.some(p => p.type === "custom" && p.designId === "customer" && !p.customerDesignUrl?.trim());
+      if (missingDesignUrl) {
+        window.alert("Mohon lengkapi URL Referensi Desain untuk produk custom yang menggunakan referensi pelanggan.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const customerId = await ensureCustomerId({
         code: selectedCustomer.code,
         company: selectedCustomer.name,
@@ -908,7 +923,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
       const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
-
 
 
       if (repeatForm.estimatedAmount) {

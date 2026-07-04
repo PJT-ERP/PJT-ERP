@@ -25,7 +25,7 @@ builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddPgmqEventBus<PurchasingContext>(builder.Configuration, options =>
 {
     options.QueueName = "pjt_purchasing_events";
-    options.FanOutQueues = ["pjt_production_events"];
+    options.FanOutQueues = ["pjt_production_events", "pjt_masterdata_events"];
 })
     .WithReceiver()
     .AddSubscription<SalesOrderConfirmedEvent, SalesOrderConfirmedEventHandler>()

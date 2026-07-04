@@ -216,7 +216,7 @@ export function EngineeringTasksPage() {
               (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
               qut.designAssignedTo === currentUser?.name ||
               qut.designAssignedName === currentUser?.name;
-            const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcDecision;
+            const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcStatus;
             
             const isWaitingReview = qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval';
             const canWork = isPreProduction && isAssignedToCurrentUser && qut.backendDesignStatus !== 'Approved' && !isWaitingReview;
@@ -256,7 +256,7 @@ export function EngineeringTasksPage() {
               </span>
               <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500 }}>{qut.deadline}</span>
               <div>
-                <StatusBadge status={qut.status} />
+                <StatusBadge status={activeTab === 'completed' ? 'Design Selesai' : qut.status} />
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {canWork && (

@@ -242,6 +242,7 @@ export interface PurchasingRequest {
   urgency: PurchasingUrgency;
   notes: string;
   requestedBy: string;
+  requestedByUserId?: string;
   requestedAt: string;
   status: PurchasingStatus;
   supplier?: string;

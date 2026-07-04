@@ -22,6 +22,7 @@ type MaterialOption = {
   key: string;
   itemName: string;
   specification: string;
+  quantity?: number;
 };
 
 function parseMaterialText(value?: string | null): MaterialOption[] {
@@ -50,11 +51,11 @@ function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   const options: MaterialOption[] = [];
   const seen = new Set<string>();
 
-  const addOption = (item: string, spec: string) => {
+  const addOption = (item: string, spec: string, quantity?: number) => {
     const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
-      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim() });
+      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim(), quantity });
     }
   };
 
@@ -67,7 +68,8 @@ function getMaterialOptions(so: SalesOrder): MaterialOption[] {
       
       // Ignore obvious dummy test inputs
       if (itemName && itemName.toLowerCase() !== "pppp") {
-        addOption(itemName, specification);
+        const quantity = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
+        addOption(itemName, specification, isNaN(quantity) ? undefined : quantity);
         hasValidEngineerMaterials = true;
       }
     });
@@ -211,13 +213,129 @@ export function ProductionMaterialRequestPage() {
   const so = salesOrders.find(s => s.id === id || s.backendId === id);
   const request = purchasingRequests.find(pr => pr.salesOrderId === id || pr.salesOrderId === so?.backendId);
   
-  const materialOptions = so ? getMaterialOptions(so) : [];
-
   const [realInventoryItems, setRealInventoryItems] = useState<InventoryItemDto[]>([]);
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [hasAppliedDeficit, setHasAppliedDeficit] = useState(false);
+
+  const [items, setItems] = useState<Array<{
+    materialKey: string;
+    itemName: string;
+    specification: string;
+    quantity: string;
+    unit: string;
+    urgency: PurchasingUrgency;
+    purchaseCategory: string;
+  }>>([]);
+
+  // Fetch BOM data directly from API to avoid race conditions with context state
+  useEffect(() => {
+    if (!so) return;
+    const soItems = so.items ?? [];
+    const productIds = [...new Set((soItems as any[]).map((i: any) => i.productId).filter(Boolean))];
+
+    if (productIds.length === 0) {
+      // Fallback to legacy so.materials
+      const mats = getMaterialOptions(so);
+      if (mats.length > 0) {
+        setItems(mats.map(m => ({
+          materialKey: m.key,
+          itemName: m.itemName,
+          specification: m.specification,
+          quantity: m.quantity ? String(m.quantity) : "1",
+          unit: "pcs",
+          urgency: "Urgent" as PurchasingUrgency,
+          purchaseCategory: "Project",
+        })));
+      } else {
+        setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+      }
+      return;
+    }
+
+    masterDataApi.listProducts().then(products => {
+      const productsById = new Map(products.map(p => [p.id, p]));
+      const materialsByKey = new Map<string, { materialKey: string; itemName: string; specification: string; quantity: number; unit: string; urgency: PurchasingUrgency; purchaseCategory: string }>();
+
+      (soItems as any[]).forEach((soItem: any) => {
+        const product = productsById.get(soItem.productId);
+        if (!product || !product.bomItems || product.bomItems.length === 0) return;
+
+        const itemQty = Number(soItem.quantity || soItem.qty || 1);
+        product.bomItems.forEach((bomItem: any) => {
+          const bomQty = Number(bomItem.quantity || 0);
+          if (bomQty <= 0) return;
+          const key = bomItem.inventoryItemId || `${bomItem.inventoryItemName}|${bomItem.unit}`;
+          const total = bomQty * Math.max(itemQty, 1);
+
+          if (materialsByKey.has(key)) {
+            materialsByKey.get(key)!.quantity += total;
+          } else {
+            materialsByKey.set(key, {
+              materialKey: key,
+              itemName: bomItem.inventoryItemName,
+              specification: bomItem.inventoryItemCode || "",
+              quantity: total,
+              unit: bomItem.unit || "pcs",
+              urgency: "Urgent" as PurchasingUrgency,
+              purchaseCategory: "Project",
+            });
+          }
+        });
+      });
+
+      if (materialsByKey.size > 0) {
+        setItems(Array.from(materialsByKey.values()).map(m => ({ ...m, quantity: String(m.quantity) })));
+      } else {
+        // No BOM found for products — fallback to legacy
+        const mats = getMaterialOptions(so);
+        if (mats.length > 0) {
+          setItems(mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" })));
+        } else {
+          setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+        }
+      }
+    }).catch(() => {
+      const mats = getMaterialOptions(so);
+      setItems(mats.length > 0
+        ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+        : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
+      );
+    });
+  }, [so?.id]);
 
   useEffect(() => {
     masterDataApi.listInventory().then(setRealInventoryItems).catch(console.error);
   }, []);
+
+  // After inventory loads, apply deficit (required - in stock), only once
+  useEffect(() => {
+    if (realInventoryItems.length === 0 || items.length === 0 || hasAppliedDeficit) return;
+    // Only apply deficit when we have real named items (not blank rows)
+    if (items.every(item => !item.itemName.trim())) return;
+    
+    setItems(prevItems => {
+      const newItems = prevItems.map(item => {
+        if (!item.itemName.trim()) return item;
+        const invItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
+        if (invItem) {
+          const required = Number(item.quantity);
+          const inStock = invItem.currentStock || 0;
+          const deficit = Math.max(0, required - inStock);
+          return { ...item, quantity: String(deficit) };
+        }
+        return item;
+      }).filter(item => !item.itemName.trim() || Number(item.quantity) > 0);
+
+      if (newItems.length === 0) {
+        return [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }];
+      }
+      return newItems;
+    });
+    setHasAppliedDeficit(true);
+  }, [realInventoryItems, hasAppliedDeficit, items.length]);
 
   const mergedOptions = realInventoryItems.map(p => ({
     id: p.id,
@@ -228,44 +346,6 @@ export function ProductionMaterialRequestPage() {
     spec: (p as any).specification || p.description || ""
   }));
 
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
-  const [items, setItems] = useState([
-    {
-      materialKey: "",
-      itemName: "",
-      specification: "",
-      quantity: "1",
-      unit: "pcs",
-      urgency: "Urgent" as PurchasingUrgency,
-      purchaseCategory: "Project",
-    },
-  ]);
-
-  useEffect(() => {
-    if (so) {
-      const options = getMaterialOptions(so);
-      
-      const firstMaterial = options[0];
-      if (firstMaterial && items[0].materialKey === "") {
-        setItems([
-          {
-            materialKey: firstMaterial.key || "",
-            itemName: firstMaterial.itemName || "",
-            specification: firstMaterial.specification || "",
-            quantity: "1",
-            unit: "pcs",
-            urgency: "Urgent",
-            purchaseCategory: "Project",
-          },
-        ]);
-      }
-    }
-  }, [so]);
-
   if (!so) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
@@ -274,6 +354,7 @@ export function ProductionMaterialRequestPage() {
       </div>
     );
   }
+
 
   const updateItem = (index: number, key: keyof typeof items[number], value: string) => {
     setItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
@@ -296,14 +377,9 @@ export function ProductionMaterialRequestPage() {
   };
 
   const selectMaterial = (index: number, materialKey: string) => {
-    const selected = materialOptions.find(option => option.key === materialKey);
+    // materialKey is used when the user picks from the autocomplete dropdown
     setItems(prev => prev.map((item, itemIndex) => itemIndex === index
-      ? {
-          ...item,
-          materialKey,
-          itemName: selected?.itemName || "",
-          specification: selected?.specification || "",
-        }
+      ? { ...item, materialKey }
       : item));
   };
 
@@ -382,7 +458,7 @@ export function ProductionMaterialRequestPage() {
       <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
           <button 
-            onClick={() => navigate("/erp/production")} 
+            onClick={() => { window.location.href = '/erp/production'; }} 
             style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: S.white, border: `1px solid ${S.border}`, borderRadius: "8px", cursor: "pointer", color: S.slate, fontSize: "14px", fontWeight: 500, marginBottom: "20px", padding: "8px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", transition: "all 0.2s", alignSelf: "flex-start" }}
             onMouseEnter={e => { e.currentTarget.style.background = S.bg; e.currentTarget.style.borderColor = "#CBD5E1"; }}
             onMouseLeave={e => { e.currentTarget.style.background = S.white; e.currentTarget.style.borderColor = S.border; }}
@@ -402,7 +478,7 @@ export function ProductionMaterialRequestPage() {
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
                 Pengajuan MR untuk {so.id} telah dikirim ke Supervisor untuk direview sebelum diteruskan ke tim Purchasing.
               </p>
-              <button onClick={() => navigate('/erp/production')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
+              <button onClick={() => { window.location.href = '/erp/production'; }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
             </div>
           ) : (
             <>

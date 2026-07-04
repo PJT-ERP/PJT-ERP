@@ -659,10 +659,10 @@ public sealed class ProductionService(
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
         
-        var firstItem = salesOrder.Items.FirstOrDefault();
-        if (firstItem != null)
+        // Deduct BOM stock per each SO item with its own quantity (not just the first item with total qty)
+        foreach (var soItem in salesOrder.Items)
         {
-            await masterDataClient.DeductBomStockAsync(firstItem.ProductId, productionOrder.OrderQty, cancellationToken);
+            await masterDataClient.DeductBomStockAsync(soItem.ProductId, soItem.Qty, cancellationToken);
         }
 
         StartProduction(productionOrder, request, DateTime.UtcNow);

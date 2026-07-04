@@ -29,7 +29,10 @@ export function usePurchasingData(enabled = true) {
       if (reqRes.status === "fulfilled") setMaterialRequirements(reqRes.value);
       else setMaterialRequirements([]);
 
-      if (prRes.status === "fulfilled") setPurchaseRequests(prRes.value);
+      if (prRes.status === "fulfilled") {
+        const validPRs = prRes.value.filter(r => r.status !== "Submitted" && r.status !== "SupervisorRejected");
+        setPurchaseRequests(validPRs);
+      }
       else setPurchaseRequests([]);
 
       if (supRes.status === "fulfilled") setSuppliers(supRes.value);

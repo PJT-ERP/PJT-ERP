@@ -59,7 +59,7 @@ export function CreateInvoice() {
   // Combine backend candidates with local SOs that bypassed costing or were priced during production
   const localBypassedCandidates = salesOrders
     .filter(so => 
-      (['Waiting Pricing', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'QC', 'Completed'].includes(so.status)) && 
+      (['Pending Design', 'Waiting Pricing', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'QC', 'Completed'].includes(so.status)) && 
       (so.items?.some((i: any) => i.unitPrice && i.unitPrice > 0) || (so.estimatedAmount && so.estimatedAmount > 0))
     )
     .map(so => ({
