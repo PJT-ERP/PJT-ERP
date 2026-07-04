@@ -180,18 +180,26 @@ export function EngineeringTaskDetailPage() {
 
   const overallBom = useMemo(() => {
     const agg: Record<string, Material> = {};
-    Object.values(bomPerProduct).forEach(bom => {
+    // Build a map of productId -> SO item quantity so we can multiply BOM qty × order qty
+    const itemQtyByProductId: Record<string, number> = {};
+    qut?.items?.forEach((item: any) => {
+      itemQtyByProductId[item.productId] = Number(item.quantity || item.qty || 1);
+    });
+
+    Object.entries(bomPerProduct).forEach(([productId, bom]) => {
+      const orderQty = itemQtyByProductId[productId] ?? 1;
       bom.forEach(m => {
         const key = m.inventoryItemId || m.name.toLowerCase();
+        const totalQty = m.quantity * Math.max(orderQty, 1);
         if (!agg[key]) {
-          agg[key] = { ...m, id: key };
+          agg[key] = { ...m, id: key, quantity: totalQty };
         } else {
-          agg[key].quantity += m.quantity;
+          agg[key].quantity += totalQty;
         }
       });
     });
     return Object.values(agg);
-  }, [bomPerProduct]);
+  }, [bomPerProduct, qut?.items]);
 
   if (!qut) {
     return (

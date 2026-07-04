@@ -218,7 +218,7 @@ export function ERPLayout() {
         if (so.status === 'Rejected') {
           notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
         }
-        if (so.status === 'Completed' || so.status === 'Finished') {
+        if (so.status === 'Completed') {
           const notifId = `so-comp-${so.id}`;
           if (!dismissedNotifIds.includes(notifId)) {
             notifs.push({ id: notifId, type: 'success', title: 'Pesanan Selesai', desc: `SO ${so.id} telah selesai diproduksi dan lunas.`, targetPath: `/erp/so/detail/${so.id}`, isDismissible: true });
