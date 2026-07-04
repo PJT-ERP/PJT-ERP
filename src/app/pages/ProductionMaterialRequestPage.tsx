@@ -218,7 +218,6 @@ export function ProductionMaterialRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [hasAppliedDeficit, setHasAppliedDeficit] = useState(false);
 
   const [items, setItems] = useState<Array<{
     materialKey: string;
@@ -233,6 +232,24 @@ export function ProductionMaterialRequestPage() {
   // Fetch BOM data directly from API to avoid race conditions with context state
   useEffect(() => {
     if (!so) return;
+
+    // Jika sudah ada MR (misalnya ditolak dan dikembalikan), gunakan item dari MR tersebut
+    if (request && request.items && request.items.length > 0) {
+      setItems(request.items.map((m: any, idx: number) => ({
+        materialKey: `req-${idx}`,
+        itemName: m.itemName || "",
+        specification: m.specification || m.size || "",
+        quantity: String(m.quantity || m.qty || 1),
+        unit: m.unit || "pcs",
+        urgency: m.urgency || "Urgent",
+        purchaseCategory: m.purchaseCategory || "Project",
+      })));
+      if (request.notes) {
+        setNotes(request.notes);
+      }
+      return;
+    }
+
     const soItems = so.items ?? [];
     const productIds = [...new Set((soItems as any[]).map((i: any) => i.productId).filter(Boolean))];
 
@@ -304,38 +321,11 @@ export function ProductionMaterialRequestPage() {
         : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
       );
     });
-  }, [so?.id]);
+  }, [so?.id, request?.id]);
 
   useEffect(() => {
     masterDataApi.listInventory().then(setRealInventoryItems).catch(console.error);
   }, []);
-
-  // After inventory loads, apply deficit (required - in stock), only once
-  useEffect(() => {
-    if (realInventoryItems.length === 0 || items.length === 0 || hasAppliedDeficit) return;
-    // Only apply deficit when we have real named items (not blank rows)
-    if (items.every(item => !item.itemName.trim())) return;
-    
-    setItems(prevItems => {
-      const newItems = prevItems.map(item => {
-        if (!item.itemName.trim()) return item;
-        const invItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
-        if (invItem) {
-          const required = Number(item.quantity);
-          const inStock = invItem.currentStock || 0;
-          const deficit = Math.max(0, required - inStock);
-          return { ...item, quantity: String(deficit) };
-        }
-        return item;
-      }).filter(item => !item.itemName.trim() || Number(item.quantity) > 0);
-
-      if (newItems.length === 0) {
-        return [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }];
-      }
-      return newItems;
-    });
-    setHasAppliedDeficit(true);
-  }, [realInventoryItems, hasAppliedDeficit, items.length]);
 
   const mergedOptions = realInventoryItems.map(p => ({
     id: p.id,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../components/data/mockData";
 import { salesApi } from "../services/salesApi";
@@ -136,7 +137,7 @@ export function EngineeringTaskDetailPage() {
   const qut = salesOrders.find(so => so.id === id);
 
   const [designLink, setDesignLink] = useState('');
-  const [materials, setMaterials] = useState<{ id: string; name: string; quantity: number; unit: string; spec?: string }[]>([]);
+  const [itemMaterials, setItemMaterials] = useState<Record<string, any[]>>({});
   const [step, setStep] = useState<'upload' | 'confirm' | 'done' | 'reject' | 'rejected'>('upload');
   const [rejectReason, setRejectReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,11 +156,22 @@ export function EngineeringTaskDetailPage() {
     if (qut && !isInitialized.current) {
       const initialDesignLink = qut.designLink ?? (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '');
       setDesignLink(initialDesignLink);
-      setMaterials(qut.materials ?? []);
+      
+      const boms = qut.bomsPerItem || {};
+      const initialMaterials: Record<string, any[]> = {};
+      
+      if (Object.keys(boms).length === 0 && qut.materials && qut.materials.length > 0 && qut.items && qut.items.length > 0) {
+        initialMaterials[qut.items[0].id] = qut.materials; // Fallback for old SOs
+      } else {
+        qut.items?.forEach(item => {
+          initialMaterials[item.id] = boms[item.id] || [];
+        });
+      }
+      
+      setItemMaterials(initialMaterials);
       setLocalRejectionReason(qut.rejectionReason);
       isInitialized.current = true;
     } else if (qut && isInitialized.current) {
-      // Always keep rejection reason up to date
       setLocalRejectionReason(qut.rejectionReason);
     }
   }, [qut]);
@@ -199,9 +211,24 @@ export function EngineeringTaskDetailPage() {
 
   const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
 
-  const addMaterial = () => setMaterials([...materials, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'pcs', spec: '' }]);
-  const removeMaterial = (id: string) => setMaterials(materials.filter(m => m.id !== id));
-  const updateMaterial = (mId: string, field: string, value: any) => setMaterials(prev => prev.map(m => m.id === mId ? { ...m, [field]: value } : m));
+  const addMaterial = (itemId: string) => {
+    setItemMaterials(prev => ({
+      ...prev,
+      [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: '', quantity: 0, unit: '', spec: '', inventoryItemId: '' }]
+    }));
+  };
+  const removeMaterial = (itemId: string, mId: string) => {
+    setItemMaterials(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).filter(m => m.id !== mId)
+    }));
+  };
+  const updateMaterial = (itemId: string, mId: string, field: string, value: any) => {
+    setItemMaterials(prev => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).map(m => m.id === mId ? { ...m, [field]: value } : m)
+    }));
+  };
 
   const handleForward = async () => {
     if (!canProcess) return;
@@ -229,32 +256,55 @@ export function EngineeringTaskDetailPage() {
           drawingFileUrl: designLink
         });
         
-        if (materials && materials.length > 0) {
-          try {
-             const serializedMaterials = JSON.stringify(materials);
-             const updatedItems = qut.items?.map((it, idx) => ({
+        const updatedItems = qut.items?.map(it => {
+            const mats = itemMaterials[it.id];
+            const hasMats = mats && mats.length > 0;
+            return {
                 salesOrderItemId: it.id,
                 productId: it.productId,
                 qty: it.quantity,
-                notes: idx === 0 ? serializedMaterials : it.notes
-             })) || [];
-             if (updatedItems.length > 0) {
+                notes: hasMats ? JSON.stringify(mats) : ""
+            };
+        }) || [];
+        
+        if (updatedItems.length > 0) {
+            try {
                 await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
-             }
-          } catch(e) {
-             console.warn("Failed to update BOM on backend", e);
-          }
+            } catch(e) {
+                console.warn("Failed to update BOM on backend", e);
+            }
         }
       }
 
       if (isDoingSpvApproval) {
         setCompletedAsSpv(true);
         await refreshBackendData();
+        
+        // Save BOM to Master Data for Custom Products after SPV APPROVAL
+        for (const item of qut.items || []) {
+          const productInCatalog = productCatalog.find(p => p.id === item.productId);
+          const isStandardProduct = !!productInCatalog?.bomItems?.length;
+          if (!isStandardProduct) {
+            const mats = itemMaterials[item.id] || [];
+            const bomItems = mats
+              .filter(m => m.inventoryItemId && m.quantity > 0)
+              .map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
+              
+            if (bomItems.length > 0) {
+              try {
+                await salesApi.updateProductBom(item.productId, { bomItems });
+              } catch (err) {
+                console.warn(`Failed to attach BOM to custom product ${item.productId}`, err);
+              }
+            }
+          }
+        }
       } else if (isDoingWorkerSubmission) {
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
-          materials,
+          materials: Object.values(itemMaterials).flat(),
+          bomsPerItem: itemMaterials,
           status: 'Waiting Spv Approval',
           backendDesignStatus: 'WaitingApproval',
         });
@@ -288,18 +338,19 @@ export function EngineeringTaskDetailPage() {
       });
 
       // Save BOM to backend so it's not lost when rejected
-      if (materials && materials.length > 0) {
-        try {
-           const serializedMaterials = JSON.stringify(materials);
-           const updatedItems = qut.items?.map((it, idx) => ({
+      const updatedItems = qut.items?.map(it => {
+          const mats = itemMaterials[it.id];
+          const hasMats = mats && mats.length > 0;
+          return {
               salesOrderItemId: it.id,
               productId: it.productId,
               qty: it.quantity,
-              notes: idx === 0 ? serializedMaterials : it.notes
-           })) || [];
-           if (updatedItems.length > 0) {
-              await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
-           }
+              notes: hasMats ? JSON.stringify(mats) : ""
+          };
+      }) || [];
+      if (updatedItems.length > 0) {
+        try {
+           await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
         } catch(e) {
            console.warn("Failed to update BOM on backend", e);
         }
@@ -311,7 +362,8 @@ export function EngineeringTaskDetailPage() {
         backendDesignStatus: 'RevisionRequired',
         notes: rejectReason,
         rejectionReason: rejectReason,
-        materials,
+        materials: Object.values(itemMaterials).flat(),
+        bomsPerItem: itemMaterials,
         designLink
       });
       if (isDoingSpvApproval) {
@@ -325,6 +377,29 @@ export function EngineeringTaskDetailPage() {
       setIsSubmitting(false);
     }
   };
+
+  const hasDuplicateMaterials = qut.items?.some(item => {
+    const mats = itemMaterials[item.id] || [];
+    const productInCatalog = productCatalog.find(p => p.id === item.productId);
+    const isStandardProduct = !!productInCatalog?.bomItems?.length;
+    const standardBomItems = productInCatalog?.bomItems || [];
+    
+    // Check duplicates inside mats
+    const hasInternalDupe = mats.some((m, idx) => {
+      return mats.findIndex(x => {
+        if (x.inventoryItemId && m.inventoryItemId) return x.inventoryItemId === m.inventoryItemId;
+        return x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+      }) !== idx;
+    });
+    
+    // Check duplicates against standard BOM
+    const hasStandardDupe = isStandardProduct && mats.some(m => standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
+    
+    return hasInternalDupe || hasStandardDupe;
+  }) || false;
+
+  const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
+  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials;
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
@@ -485,49 +560,113 @@ export function EngineeringTaskDetailPage() {
               </div>
               
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, marginTop: 24 }}>
+                <div style={{ marginBottom: 16, marginTop: 24 }}>
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Bill of Materials (BOM) <span style={{ color: "#EF4444" }}>*</span></label>
-                  {canProcess && !isDoingSpvApproval && !isWaitingCustomerDesign && (
-                    <button onClick={addMaterial} style={{ padding: "8px 16px", background: "rgba(200,16,46,0.05)", color: S.cyan, border: `1px solid rgba(200,16,46,0.1)`, borderRadius: 6, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(200,16,46,0.1)"} onMouseLeave={e => e.currentTarget.style.background = "rgba(200,16,46,0.05)"}>
-                      <Plus size={16} /> Tambah Material
-                    </button>
-                  )}
                 </div>
-                {materials.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px 20px", color: S.secondary, fontSize: "14px", background: "#F8FAFC", borderRadius: 8, border: `1px dashed #CBD5E1` }}>
-                    Daftar material masih kosong. {canProcess && 'Wajib menambahkan minimal 1 material.'}
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {materials.map(m => (
-                      <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 16, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-                        <MaterialAutocomplete 
-                          value={m.name} 
-                          onChange={val => updateMaterial(m.id, 'name', val)}
-                          onSelectProduct={p => {
-                            updateMaterial(m.id, 'name', p.name);
-                            updateMaterial(m.id, 'unit', p.unit);
-                          }}
-                          options={inventoryItems}
-                          disabled={!canProcess || isWaitingCustomerDesign} 
-                        />
-                        <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(m.id, 'spec', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC" }} />
-                        <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || isWaitingCustomerDesign} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
-                        <input
-                          type="text"
-                          value={m.unit}
-                          readOnly
-                          style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
-                        />
-                        {canProcess && !isWaitingCustomerDesign && (
-                          <button onClick={() => removeMaterial(m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {qut.items?.map(item => {
+                    const mats = itemMaterials[item.id] || [];
+                    const productInCatalog = productCatalog.find(p => p.id === item.productId);
+                    const isStandardProduct = !!productInCatalog?.bomItems?.length;
+                    const standardBomItems = productInCatalog?.bomItems || [];
+                    
+                    return (
+                      <div key={item.id} style={{ border: `1px solid ${S.border}`, borderRadius: 8, overflow: "hidden" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                          <span style={{ fontSize: "13.5px", color: S.slate, fontWeight: 600 }}>
+                            {item.productName || item.partNumber || "Custom Product"} <span style={{ color: S.secondary, fontWeight: 400 }}>({item.quantity} {item.unit})</span>
+                          </span>
+                          {canProcess && !isDoingSpvApproval && !isWaitingCustomerDesign && (
+                            <button onClick={() => addMaterial(item.id)} style={{ padding: "6px 12px", background: "#fff", color: S.cyan, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.color = S.cyan; }} onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.cyan; }}>
+                              <Plus size={14} /> {isStandardProduct ? "Tambahan Khusus" : "Tambah Material"}
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div style={{ padding: 16, background: "#fff" }}>
+                          {isStandardProduct && standardBomItems.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: mats.length > 0 ? 16 : 0 }}>
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                BOM Master Data (Otomatis)
+                              </div>
+                              {standardBomItems.map((bom, idx) => (
+                                <div key={idx} style={{ display: "flex", gap: 12, alignItems: "center", background: "#F8FAFC", padding: "10px 12px", borderRadius: 6, border: `1px solid ${S.border}` }}>
+                                  <div style={{ flex: 1.5, fontSize: "13.5px", color: S.slate, fontWeight: 500 }}>
+                                    {bom.inventoryItemName || bom.inventoryItemCode}
+                                  </div>
+                                  <div style={{ width: 80, fontSize: "13.5px", color: S.slate, textAlign: "right", fontWeight: 600 }}>
+                                    {bom.quantity}
+                                  </div>
+                                  <div style={{ width: 100, fontSize: "13.5px", color: S.secondary, textAlign: "center" }}>
+                                    {bom.unit}
+                                  </div>
+                                  <div style={{ width: 34 }}></div>
+                                </div>
+                              ))}
+                              {mats.length === 0 && !isDoingSpvApproval && (
+                                <div style={{ fontSize: "12.5px", color: S.secondary, marginTop: 8, fontStyle: "italic" }}>
+                                  * Tekan "Tambahan Khusus" jika ada material ekstra di luar BOM Master Data ini.
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {mats.length === 0 ? (
+                            !isStandardProduct && (
+                              <div style={{ textAlign: "center", padding: "30px 20px", color: S.secondary, fontSize: "13.5px", background: "#fff", borderRadius: 8 }}>
+                                {isDoingSpvApproval ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}
+                              </div>
+                            )
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: -4, marginTop: isStandardProduct ? 8 : 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                {isStandardProduct ? "Material Tambahan (Khusus SO Ini)" : "BOM Custom"}
+                              </div>
+                              {mats.map(m => (
+                                <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                                  <MaterialAutocomplete 
+                                    value={m.name} 
+                                    onChange={val => updateMaterial(item.id, m.id, 'name', val)}
+                                    onSelectProduct={p => {
+                                      const isDuplicateInCustom = mats.some(mat => mat.id !== m.id && mat.inventoryItemId === p.id);
+                                      const isDuplicateInStandard = isStandardProduct && standardBomItems.some(bom => bom.inventoryItemId === p.id);
+                                      
+                                      if (isDuplicateInCustom || isDuplicateInStandard) {
+                                        toast.warning(`Material "${p.name}" sudah ada di dalam daftar BOM. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
+                                          duration: 5000,
+                                        });
+                                      }
+                                      
+                                      updateMaterial(item.id, m.id, 'name', p.name);
+                                      updateMaterial(item.id, m.id, 'unit', p.unit);
+                                      updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
+                                    }}
+                                    options={inventoryItems}
+                                    disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval} 
+                                  />
+                                  <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval) ? "#fff" : "#F8FAFC" }} />
+                                  <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
+                                  <input
+                                    type="text"
+                                    value={m.unit}
+                                    readOnly
+                                    style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                                  />
+                                  {canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval && (
+                                    <button onClick={() => removeMaterial(item.id, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                      <Trash2 size={18} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -558,8 +697,9 @@ export function EngineeringTaskDetailPage() {
                   </button>
                 )}
                 {canProcess && (
-                  <button onClick={() => setStep('confirm')} disabled={(!designLink.trim() || materials.length === 0 || materials.some(m => !m.name.trim() || m.quantity <= 0)) || isSubmitting || isWaitingCustomerDesign}
-                    style={{ flex: 2, padding: "14px", background: isWaitingCustomerDesign ? "#FCA5A5" : S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: isWaitingCustomerDesign ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s, transform 0.1s", opacity: ((designLink.trim() && materials.length > 0 && materials.every(m => m.name.trim() && m.quantity > 0)) && !isSubmitting && !isWaitingCustomerDesign) ? 1 : 0.5 }}
+                  <button onClick={() => setStep('confirm')} disabled={isSubmitDisabled}
+                    style={{ flex: 2, padding: "14px", background: isSubmitDisabled ? "#FCA5A5" : S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: isSubmitDisabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s, transform 0.1s", opacity: !isSubmitDisabled ? 1 : 0.5 }}
+                    title={hasDuplicateMaterials ? "Terdapat material duplikat di dalam BOM. Mohon periksa kembali." : ""}
                     onMouseDown={e => { if(!e.currentTarget.disabled) e.currentTarget.style.transform = "scale(0.98)" }}
                     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}

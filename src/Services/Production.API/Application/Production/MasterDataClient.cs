@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Http;
+using System.Net.Http.Headers;
 
 using Microsoft.AspNetCore.Http;
 using System.Net.Http.Headers;
@@ -7,10 +9,21 @@ namespace PJT_ERP.Production.Api.Application.Production;
 
 public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor httpContextAccessor) : IMasterDataClient
 {
+    private void AttachAuthorizationHeader()
+    {
+        var authHeader = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = authHeader["Bearer ".Length..].Trim();
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
     public async Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken)
     {
         try
         {
+            AttachAuthorizationHeader();
             var response = await httpClient.GetAsync($"api/v1/master-data/customers/{id}", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
@@ -29,6 +42,7 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
     {
         try
         {
+            AttachAuthorizationHeader();
             var response = await httpClient.GetAsync($"api/v1/master-data/products/{id}", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
@@ -43,41 +57,39 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
-    private void SetAuthorizationHeader()
-    {
-        var token = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
-        if (!string.IsNullOrEmpty(token) && token.StartsWith("Bearer "))
-        {
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Substring("Bearer ".Length).Trim());
-        }
-    }
-
     public async Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken)
     {
-        SetAuthorizationHeader();
+        AttachAuthorizationHeader();
         var request = new { ProductId = productId, ProductionQuantity = quantity };
         var response =
             await httpClient.PostAsJsonAsync("api/v1/master-data/inventory/deduct-bom", request, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            ErrorResponse? error = null;
+            string errorMessage = $"Failed to deduct BOM stock due to insufficient inventory or unauthorized access. Status Code: {response.StatusCode}";
             try
             {
                 if (response.Content.Headers.ContentType?.MediaType == "application/json")
                 {
-                    error =
-                        await response.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: cancellationToken);
+                    var error = await response.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: cancellationToken);
+                    if (error != null && !string.IsNullOrWhiteSpace(error.Message))
+                    {
+                        errorMessage = error.Message;
+                    }
+                }
+                else
+                {
+                    var rawContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(rawContent) && rawContent.Length < 200)
+                    {
+                        errorMessage = rawContent;
+                    }
                 }
             }
-            catch (System.Text.Json.JsonException)
+            catch
             {
                 // Ignored, fallback to default error message
             }
-
-            var errorMessage =
-                error?.Message ??
-                $"Failed to deduct BOM stock due to insufficient inventory or unauthorized access. Status Code: {response.StatusCode}";
             throw new InvalidOperationException(errorMessage);
         }
     }

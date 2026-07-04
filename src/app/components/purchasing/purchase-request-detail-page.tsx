@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, AlertTriangle, X, Plus, Clock, AlertCircle } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
@@ -12,7 +12,6 @@ import {
 } from "./material-requests-page";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
-
 import { masterDataApi, InventoryItemDto } from "../../services/masterDataApi";
 
 const formatRp = (val: string | number) => {
@@ -21,6 +20,112 @@ const formatRp = (val: string | number) => {
   if (isNaN(num)) return "";
   return new Intl.NumberFormat("id-ID").format(num);
 };
+
+function SupplierAutocomplete({
+  value,
+  onChange,
+  onSelectSupplier,
+  options,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectSupplier: (supplierName: string) => void;
+  options: any[];
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 280) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
+
+  const filtered = options.filter(p => 
+    p.name.toLowerCase().includes((value || '').toLowerCase()) || 
+    p.code.toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", width: "100%", display: "flex", flexDirection: "column" }}>
+      <input
+        value={value}
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onFocus={() => { setIsFocused(true); setIsOpen(true); }}
+        onBlur={() => {
+          setIsFocused(false);
+          if (value && !options.some(p => p.name.toLowerCase() === value.toLowerCase())) {
+            onChange("");
+          }
+        }}
+        placeholder="Ketik untuk cari supplier..."
+        disabled={disabled}
+        className="w-full text-sm h-8 rounded border border-slate-300 pl-2 pr-8 outline-none focus:border-blue-500 bg-white"
+        style={{
+          boxSizing: "border-box", 
+          backgroundColor: disabled ? "#F8FAFC" : "#fff",
+          transition: "border 0.2s, box-shadow 0.2s",
+          boxShadow: isFocused ? `0 0 0 3px rgba(59, 130, 246, 0.1)` : "none",
+        }}
+      />
+
+      {isOpen && !disabled && filtered.length > 0 && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, zIndex: 50,
+          ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
+          background: "#fff", border: `1px solid #e2e8f0`,
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          maxHeight: 280, overflowY: "auto", overflowX: "hidden"
+        }}>
+          {filtered.map(p => (
+            <div 
+              key={p.id || p.code || p.name}
+              onMouseDown={e => {
+                e.preventDefault(); // Prevent blur
+                onSelectSupplier(p.name);
+                setIsOpen(false);
+              }}
+              style={{
+                padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid #f1f5f9`,
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F1F5F9"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = "#fff"}
+            >
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: "#334155" }}>{p.name}</div>
+              <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: 4 }}>
+                {p.code} | Kategori: {p.category}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,8 +143,7 @@ export function PurchaseRequestDetailPage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
-  const [suppliers, setSuppliers] = useState<{ id: string, name: string }[]>([]);
-
+  const [suppliersList, setSuppliersList] = useState<any[]>([]);
 
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
   const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
@@ -56,24 +160,24 @@ export function PurchaseRequestDetailPage() {
           masterDataApi.listSuppliers(),
           masterDataApi.listInventory()
         ]);
-        setSuppliers(suppliersData);
+        setSuppliersList(suppliersData);
         setInventoryItems(invData);
+        const supNames = suppliersData.map(s => s.name);
 
         const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
         if (req && req.status !== "Submitted" && req.status !== "SupervisorRejected") {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {
-            const isCustom = item.supplierName ? !suppliersData.some(s => s.name === item.supplierName) : false;
+            const isCustom = item.supplierName ? !supNames.includes(item.supplierName) : false;
             const invItem = invData.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
             
             let uPrice = "";
-            if (invItem && invItem.unitPrice > 0) {
-              uPrice = String(invItem.unitPrice);
-            } else if (item.estimatedPrice && item.qty) {
+            if (item.estimatedPrice && item.qty) {
               uPrice = String(Math.round(item.estimatedPrice / item.qty));
+            } else if (invItem && invItem.unitPrice > 0 && item.supplierName && invItem.supplierName === item.supplierName) {
+              uPrice = String(invItem.unitPrice);
             }
-            
             initData[item.itemId] = {
               supplierName: item.supplierName || "",
               estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "",
@@ -290,7 +394,7 @@ export function PurchaseRequestDetailPage() {
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Daftar Item ({detail.items.length} item)
             </p>
-            <div className="rounded border border-slate-200 overflow-hidden">
+            <div className="rounded border border-slate-200 overflow-visible">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
@@ -311,14 +415,7 @@ export function PurchaseRequestDetailPage() {
                     <tr key={i} className="border-b border-slate-100 last:border-0">
                       <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
                       <td className="p-3 text-sm font-medium text-slate-900">
-                        {canEditPricing ? (
-                          <input
-                            type="text"
-                            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
-                            value={pricingData[item.itemId]?.itemName !== undefined ? pricingData[item.itemId]?.itemName : item.name}
-                            onChange={(e) => setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { supplierName: item.supplierName || "", estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "", qty: String(item.qty) }), itemName: e.target.value } }))}
-                          />
-                        ) : item.name}
+                        {item.name}
                       </td>
                       <td className="p-3 text-sm font-semibold text-slate-900">
                         {canEditPricing ? (
@@ -337,45 +434,31 @@ export function PurchaseRequestDetailPage() {
                       {canEditPricing ? (
                         <>
                           <td className="p-2">
-                            {pricingData[item.itemId]?.isCustomSupplier ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
-                                  placeholder="Nama supplier..."
-                                  value={pricingData[item.itemId]?.supplierName || ""}
-                                  onChange={(e) => setPricingData(prev => ({ ...prev, [item.itemId]: { ...prev[item.itemId], supplierName: e.target.value } }))}
-                                />
-                                <button 
-                                  onClick={() => setPricingData(prev => ({ ...prev, [item.itemId]: { ...prev[item.itemId], isCustomSupplier: false, supplierName: "" } }))}
-                                  className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100"
-                                  title="Pilih dari daftar"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ) : (
-                              <Select
-                                value={pricingData[item.itemId]?.supplierName || undefined}
-                                onValueChange={(val) => {
-                                  if (val === "LAINNYA") {
-                                    setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { estimatedPrice: "" }), isCustomSupplier: true, supplierName: "" } }));
-                                  } else {
-                                    setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { estimatedPrice: "" }), supplierName: val } }));
-                                  }
+                              <SupplierAutocomplete
+                                value={pricingData[item.itemId]?.supplierName || ""}
+                                onChange={(val) => {
+                                  setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { estimatedPrice: "" }), supplierName: val } }));
                                 }}
-                              >
-                                <SelectTrigger className="w-full text-sm h-8">
-                                  <SelectValue placeholder="Pilih Supplier" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {suppliers.map(sup => (
-                                    <SelectItem key={sup.id} value={sup.name}>{sup.name}</SelectItem>
-                                  ))}
-                                  <SelectItem value="LAINNYA">Lainnya (Tulis manual)...</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
+                                onSelectSupplier={(val) => {
+                                  const invItem = inventoryItems.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                                  let newUnitPrice = pricingData[item.itemId]?.unitPrice || "";
+                                  
+                                  // Auto-fill price if the selected supplier matches the master data's primary supplier
+                                  if (invItem && invItem.unitPrice > 0 && invItem.supplierName === val) {
+                                    newUnitPrice = String(invItem.unitPrice);
+                                  }
+
+                                  setPricingData(prev => ({ 
+                                    ...prev, 
+                                    [item.itemId]: { 
+                                      ...(prev[item.itemId] || { estimatedPrice: "" }), 
+                                      supplierName: val,
+                                      unitPrice: newUnitPrice
+                                    } 
+                                  }));
+                                }}
+                                options={suppliersList}
+                              />
                           </td>
                           <td className="p-2">
                             <div className="relative flex items-center">
