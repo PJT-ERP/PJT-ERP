@@ -208,23 +208,131 @@ export function ProductionMaterialRequestPage() {
   const so = salesOrders.find(s => s.id === id || s.backendId === id);
   const request = purchasingRequests.find(pr => pr.salesOrderId === id || pr.salesOrderId === so?.backendId);
   
-  const materialOptions = so ? getMaterialOptions(so) : [];
-
   const [realInventoryItems, setRealInventoryItems] = useState<InventoryItemDto[]>([]);
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [hasAppliedDeficit, setHasAppliedDeficit] = useState(false);
+
+  const [items, setItems] = useState<Array<{
+    materialKey: string;
+    itemName: string;
+    specification: string;
+    quantity: string;
+    unit: string;
+    urgency: PurchasingUrgency;
+    purchaseCategory: string;
+  }>>([]);
+
+  // Fetch BOM data directly from API to avoid race conditions with context state
+  useEffect(() => {
+    if (!so) return;
+    const soItems = so.items ?? [];
+    const productIds = [...new Set((soItems as any[]).map((i: any) => i.productId).filter(Boolean))];
+
+    if (productIds.length === 0) {
+      // Fallback to legacy so.materials
+      const mats = getMaterialOptions(so);
+      if (mats.length > 0) {
+        setItems(mats.map(m => ({
+          materialKey: m.key,
+          itemName: m.itemName,
+          specification: m.specification,
+          quantity: m.quantity ? String(m.quantity) : "1",
+          unit: "pcs",
+          urgency: "Urgent" as PurchasingUrgency,
+          purchaseCategory: "Project",
+        })));
+      } else {
+        setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+      }
+      return;
+    }
+
+    masterDataApi.listProducts().then(products => {
+      const productsById = new Map(products.map(p => [p.id, p]));
+      const materialsByKey = new Map<string, { materialKey: string; itemName: string; specification: string; quantity: number; unit: string; urgency: PurchasingUrgency; purchaseCategory: string }>();
+
+      (soItems as any[]).forEach((soItem: any) => {
+        const product = productsById.get(soItem.productId);
+        if (!product || !product.bomItems || product.bomItems.length === 0) return;
+
+        const itemQty = Number(soItem.quantity || soItem.qty || 1);
+        product.bomItems.forEach((bomItem: any) => {
+          const bomQty = Number(bomItem.quantity || 0);
+          if (bomQty <= 0) return;
+          const key = bomItem.inventoryItemId || `${bomItem.inventoryItemName}|${bomItem.unit}`;
+          const total = bomQty * Math.max(itemQty, 1);
+
+          if (materialsByKey.has(key)) {
+            materialsByKey.get(key)!.quantity += total;
+          } else {
+            materialsByKey.set(key, {
+              materialKey: key,
+              itemName: bomItem.inventoryItemName,
+              specification: bomItem.inventoryItemCode || "",
+              quantity: total,
+              unit: bomItem.unit || "pcs",
+              urgency: "Urgent" as PurchasingUrgency,
+              purchaseCategory: "Project",
+            });
+          }
+        });
+      });
+
+      if (materialsByKey.size > 0) {
+        setItems(Array.from(materialsByKey.values()).map(m => ({ ...m, quantity: String(m.quantity) })));
+      } else {
+        // No BOM found for products — fallback to legacy
+        const mats = getMaterialOptions(so);
+        if (mats.length > 0) {
+          setItems(mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" })));
+        } else {
+          setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+        }
+      }
+    }).catch(() => {
+      const mats = getMaterialOptions(so);
+      setItems(mats.length > 0
+        ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+        : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
+      );
+    });
+  }, [so?.id]);
 
   useEffect(() => {
     masterDataApi.listInventory().then(setRealInventoryItems).catch(console.error);
   }, []);
 
+  // After inventory loads, apply deficit (required - in stock), only once
+  useEffect(() => {
+    if (realInventoryItems.length === 0 || items.length === 0 || hasAppliedDeficit) return;
+    // Only apply deficit when we have real named items (not blank rows)
+    if (items.every(item => !item.itemName.trim())) return;
+    
+    setItems(prevItems => {
+      const newItems = prevItems.map(item => {
+        if (!item.itemName.trim()) return item;
+        const invItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
+        if (invItem) {
+          const required = Number(item.quantity);
+          const inStock = invItem.currentStock || 0;
+          const deficit = Math.max(0, required - inStock);
+          return { ...item, quantity: String(deficit) };
+        }
+        return item;
+      }).filter(item => !item.itemName.trim() || Number(item.quantity) > 0);
+
+      if (newItems.length === 0) {
+        return [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }];
+      }
+      return newItems;
+    });
+    setHasAppliedDeficit(true);
+  }, [realInventoryItems, hasAppliedDeficit, items.length]);
+
   const mergedOptions = [
-    ...materialOptions.map((m, i) => ({
-      id: `bom-${i}`,
-      name: m.itemName,
-      code: "BOM",
-      currentStock: "-",
-      unit: "pcs",
-      spec: m.specification
-    })),
     ...realInventoryItems.map(p => ({
       id: p.id,
       name: p.name,
@@ -234,77 +342,6 @@ export function ProductionMaterialRequestPage() {
     }))
   ];
 
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
-  const [items, setItems] = useState(() => {
-    if (materialOptions.length > 0) {
-      return materialOptions.map((m) => ({
-        materialKey: m.key,
-        itemName: m.itemName,
-        specification: m.specification,
-        quantity: m.quantity ? String(m.quantity) : "1",
-        unit: "pcs",
-        urgency: "Urgent" as PurchasingUrgency,
-        purchaseCategory: "Project",
-      }));
-    }
-    return [];
-  });
-
-  // Track if we've applied the initial inventory deficit calculation
-  const [hasAppliedDeficit, setHasAppliedDeficit] = useState(false);
-
-  useEffect(() => {
-    // If materialOptions updates (e.g. products load from backend), sync items if we haven't applied deficit yet
-    // or if items is currently empty.
-    if (materialOptions.length > 0 && (items.length === 0 || !hasAppliedDeficit)) {
-      setItems(materialOptions.map((m) => ({
-        materialKey: m.key,
-        itemName: m.itemName,
-        specification: m.specification,
-        quantity: m.quantity ? String(m.quantity) : "1",
-        unit: "pcs",
-        urgency: "Urgent" as PurchasingUrgency,
-        purchaseCategory: "Project",
-      })));
-    }
-  }, [materialOptions, hasAppliedDeficit]);
-
-  useEffect(() => {
-    if (realInventoryItems.length > 0 && materialOptions.length > 0 && !hasAppliedDeficit) {
-      setItems(prevItems => {
-        const newItems = prevItems.map(item => {
-          const inventoryItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
-          if (inventoryItem) {
-            const originalRequired = materialOptions.find(m => m.key === item.materialKey)?.quantity || 1;
-            const currentStock = inventoryItem.currentStock || 0;
-            const deficit = Math.max(0, Number(originalRequired) - currentStock);
-            return { ...item, quantity: String(deficit) };
-          }
-          return item;
-        }).filter(item => Number(item.quantity) > 0);
-
-        // If filtering leaves us with nothing, but we had items, just show an empty row so the user isn't stuck
-        if (newItems.length === 0) {
-           return [{
-             materialKey: "",
-             itemName: "",
-             specification: "",
-             quantity: "1",
-             unit: "pcs",
-             urgency: "Urgent" as PurchasingUrgency,
-             purchaseCategory: "Project",
-           }];
-        }
-        return newItems;
-      });
-      setHasAppliedDeficit(true);
-    }
-  }, [realInventoryItems, materialOptions, hasAppliedDeficit]);
-
   if (!so) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
@@ -313,6 +350,7 @@ export function ProductionMaterialRequestPage() {
       </div>
     );
   }
+
 
   const updateItem = (index: number, key: keyof typeof items[number], value: string) => {
     setItems(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
@@ -335,14 +373,9 @@ export function ProductionMaterialRequestPage() {
   };
 
   const selectMaterial = (index: number, materialKey: string) => {
-    const selected = materialOptions.find(option => option.key === materialKey);
+    // materialKey is used when the user picks from the autocomplete dropdown
     setItems(prev => prev.map((item, itemIndex) => itemIndex === index
-      ? {
-          ...item,
-          materialKey,
-          itemName: selected?.itemName || "",
-          specification: selected?.specification || "",
-        }
+      ? { ...item, materialKey }
       : item));
   };
 
