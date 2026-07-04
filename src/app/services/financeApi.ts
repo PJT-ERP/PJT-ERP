@@ -278,6 +278,25 @@ export const financeApi = {
     return response.data;
   },
 
+  async getInvoice(id: string) {
+    const response = await apiClient.get<InvoiceDto>(`/api/v1/finance/invoices/${id}`);
+    return response.data;
+  },
+
+  async getInvoicePdfBlob(invoiceId: string) {
+    const response = await apiClient.get(`/api/v1/finance/invoices/${invoiceId}/pdf`, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+
+  async getCollectionLetterPdfBlob(invoiceId: string) {
+    const response = await apiClient.post(`/api/v1/finance/invoices/${invoiceId}/collection-letter/pdf`, null, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+
   async getOpeningBalance() {
     const response = await apiClient.get<number>('/api/v1/finance/settings/opening-balance');
     return response.data;

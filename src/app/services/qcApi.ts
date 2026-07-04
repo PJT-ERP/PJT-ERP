@@ -54,4 +54,9 @@ export const qcApi = {
     );
     return response.data;
   },
+
+  async getInspection(id: string) {
+    const response = await apiClient.get<QcInspectionDto>(`/api/v1/qc/inspections/${id}`);
+    return response.data;
+  },
 };

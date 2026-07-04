@@ -58,6 +58,35 @@ export interface PublicProductionTrackingDto {
   }>;
 }
 
+export interface ExecutiveDashboardDto {
+  totalOrders: number;
+  inProgress: number;
+  completed: number;
+  paused: number;
+  waitingQC: number;
+  overdueCount: number;
+}
+
+export interface SalesOrderMaterialTrackingDto {
+  salesOrderId: string;
+  soNumber: string;
+  items: Array<{
+    productId: string;
+    productPartNumber: string;
+    productDescription: string;
+    qty: number;
+    materialRequirements: Array<{
+      materialRequirementId: string;
+      inventoryItemId: string;
+      inventoryItemCode: string;
+      inventoryItemName: string;
+      requiredQty: number;
+      stockOnHand: number;
+      status: string;
+    }>;
+  }>;
+}
+
 export interface SubmitProductionMaterialRequestPayload {
   requestedByUserId: string;
   requesterName: string;
@@ -166,6 +195,18 @@ export const productionApi = {
     const response = await apiClient.put(
       `/api/v1/production/sales-orders/${salesOrderId}/design-status`,
       request,
+    );
+    return response.data;
+  },
+
+  async getExecutiveDashboard() {
+    const response = await apiClient.get<ExecutiveDashboardDto>('/api/v1/production/dashboard/executive');
+    return response.data;
+  },
+
+  async getSalesOrderMaterialTracking(salesOrderId: string) {
+    const response = await apiClient.get<SalesOrderMaterialTrackingDto>(
+      `/api/v1/purchasing/sales-orders/${salesOrderId}/material-tracking`,
     );
     return response.data;
   },

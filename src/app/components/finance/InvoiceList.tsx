@@ -332,7 +332,21 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
           {/* Actions */}
           <div className="flex gap-3 pt-3 border-t border-slate-200/60 relative z-10">
             <button
-              onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice.id}/pdf?inline=true`, '_blank')}
+              onClick={async () => {
+                try {
+                  const blob = await financeApi.getInvoicePdfBlob(invoice.id);
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `${invoice.invoiceNumber}.pdf`);
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch {
+                  alert('Gagal mengunduh PDF invoice.');
+                }
+              }}
               className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg ${invoice.status === 'OVERDUE' ? 'bg-gradient-to-r from-red-600 to-rose-600 shadow-red-600/20 hover:from-red-700 hover:to-rose-700' : 'bg-gradient-to-r from-red-600 to-red-700 shadow-red-600/20 hover:from-red-700 hover:to-red-800'}`}
             >
               <Printer size={16} />
