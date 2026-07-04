@@ -467,9 +467,7 @@ export function FinancePurchasingApproval() {
                     className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm"
                   >
                     <option value="" disabled>-- Pilih Akun Bank --</option>
-                    <option value="BCA">Bank BCA - Operasional</option>
-                    <option value="Mandiri">Bank Mandiri - Proyek</option>
-                    <option value="Cash">Kas Kecil (Petty Cash)</option>
+                    <option value="BCA">BCA 8820748299 a/n PT. PRATAMA JAYA TEKINDO</option>
                   </select>
                 </div>
                 

@@ -169,8 +169,11 @@ export function PurchaseRequestDetailPage() {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {
-            const isCustom = item.supplierName ? !supNames.includes(item.supplierName) : false;
+
             const invItem = invData.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+            const actualSupplierName = item.supplierName && item.supplierName.trim() !== "-" ? item.supplierName : null;
+            const supplierToUse = actualSupplierName || (invItem?.supplierName) || "";
+            const isCustom = supplierToUse ? !suppliersData.some(s => s.name === supplierToUse) : false;
             
             let uPrice = "";
             if (item.estimatedPrice && item.qty) {
@@ -179,7 +182,7 @@ export function PurchaseRequestDetailPage() {
               uPrice = String(invItem.unitPrice);
             }
             initData[item.itemId] = {
-              supplierName: item.supplierName || "",
+              supplierName: supplierToUse,
               estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "",
               unitPrice: uPrice,
               isCustomSupplier: isCustom,

@@ -636,9 +636,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 <>
                   <div style={{ height: 1, background: "#F8FAFC" }} />
                   <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
                     {isEditMode ? (
                       <>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
+                          {order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain"}
+                        </p>
                         <input
                           type="text"
                           placeholder="https://... (Opsional)"
@@ -654,11 +656,13 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                         )}
                       </>
                     ) : order.designId === "none" && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain</p>
                         <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B", fontWeight: 600 }}>Menunggu desain dari tim Engineering</p>
                       </div>
                     ) : !order.customerDrawingUrl && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
                         <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
                         {currentUser?.role !== 'Engineering' && (
                           <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
@@ -666,10 +670,30 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                           </button>
                         )}
                       </div>
+                    ) : order.customerDrawingUrl && order.designLink && order.customerDrawingUrl !== order.designLink ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain (Customer)</p>
+                          <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                            {order.customerDrawingUrl}
+                          </a>
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain (Engineering)</p>
+                          <a href={order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                            {order.designLink}
+                          </a>
+                        </div>
+                      </div>
                     ) : order.customerDrawingUrl || order.designLink ? (
-                      <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                        {order.customerDrawingUrl || order.designLink}
-                      </a>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
+                          {order.designLink ? "Link Desain (Engineering)" : (order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain")}
+                        </p>
+                        <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                          {order.customerDrawingUrl || order.designLink}
+                        </a>
+                      </div>
                     ) : (
                       <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
                     )}
@@ -1213,8 +1237,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Bank Tujuan</label>
               <select required value={bankName} onChange={e => setBankName(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none" }}>
                 <option value="">Pilih Bank...</option>
-                <option value="BCA">BCA - PT Pratama Jaya (1234567890)</option>
-                <option value="Mandiri">Mandiri - PT Pratama Jaya (0987654321)</option>
+                <option value="BCA">BCA - PT. PRATAMA JAYA TEKINDO (8820748299)</option>
               </select>
             </div>
 

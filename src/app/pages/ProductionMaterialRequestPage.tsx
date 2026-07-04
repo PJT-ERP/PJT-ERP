@@ -224,10 +224,13 @@ export function ProductionMaterialRequestPage() {
     itemName: string;
     specification: string;
     quantity: string;
+    maxQuantity?: number;
     unit: string;
     urgency: PurchasingUrgency;
     purchaseCategory: string;
   }>>([]);
+
+  const [bomOptions, setBomOptions] = useState<any[]>([]);
 
   // Fetch BOM data directly from API to avoid race conditions with context state
   useEffect(() => {
@@ -256,12 +259,14 @@ export function ProductionMaterialRequestPage() {
     if (productIds.length === 0) {
       // Fallback to legacy so.materials
       const mats = getMaterialOptions(so);
+      setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
       if (mats.length > 0) {
         setItems(mats.map(m => ({
           materialKey: m.key,
           itemName: m.itemName,
           specification: m.specification,
           quantity: m.quantity ? String(m.quantity) : "1",
+          maxQuantity: m.quantity,
           unit: "pcs",
           urgency: "Urgent" as PurchasingUrgency,
           purchaseCategory: "Project",
@@ -303,21 +308,26 @@ export function ProductionMaterialRequestPage() {
         });
       });
 
-      if (materialsByKey.size > 0) {
-        setItems(Array.from(materialsByKey.values()).map(m => ({ ...m, quantity: String(m.quantity) })));
+      const uniqueBom = Array.from(materialsByKey.values());
+      setBomOptions(uniqueBom.map(m => ({ id: m.materialKey, name: m.itemName, code: m.specification || 'BOM', unit: m.unit, currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
+
+      if (uniqueBom.length > 0) {
+        setItems(uniqueBom.map(m => ({ ...m, quantity: String(m.quantity), maxQuantity: m.quantity })));
       } else {
         // No BOM found for products — fallback to legacy
         const mats = getMaterialOptions(so);
+        setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
         if (mats.length > 0) {
-          setItems(mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" })));
+          setItems(mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" })));
         } else {
           setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
         }
       }
     }).catch(() => {
       const mats = getMaterialOptions(so);
+      setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
       setItems(mats.length > 0
-        ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+        ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
         : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
       );
     });
@@ -356,6 +366,7 @@ export function ProductionMaterialRequestPage() {
       itemName: "",
       specification: "",
       quantity: "1",
+      maxQuantity: undefined,
       unit: "pcs",
       urgency: "Normal",
       purchaseCategory: "Project",
@@ -528,20 +539,30 @@ export function ProductionMaterialRequestPage() {
                       {/* Row 1: Nama Item & Kategori */}
                       <div style={{ display: "flex", gap: 12 }}>
                         <div style={{ flex: 2 }}>
-                          <MaterialAutocomplete
-                            value={item.itemName}
-                            onChange={val => updateItem(index, "itemName", val)}
-                            onSelectProduct={p => {
-                              updateItem(index, "itemName", p.name);
-                              if (p.code !== "BOM") {
+                          <select
+                            value={item.materialKey || item.itemName}
+                            onChange={e => {
+                              const p = bomOptions.find(o => o.id === e.target.value || o.name === e.target.value);
+                              if (p) {
+                                updateItem(index, "materialKey", p.id);
+                                updateItem(index, "itemName", p.name);
                                 updateItem(index, "unit", p.unit);
-                              }
-                              if (p.spec) {
-                                updateItem(index, "specification", p.spec);
+                                updateItem(index, "maxQuantity", String(p.maxQuantity));
+                                if (p.spec) {
+                                  updateItem(index, "specification", p.spec);
+                                }
+                              } else {
+                                updateItem(index, "materialKey", "");
+                                updateItem(index, "itemName", "");
                               }
                             }}
-                            options={mergedOptions}
-                          />
+                            style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", outline: "none", fontFamily: S.font, background: "#fff" }}
+                          >
+                            <option value="">Pilih Material BOM...</option>
+                            {bomOptions.map(o => (
+                              <option key={o.id} value={o.id}>{o.name} {o.spec ? `(${o.spec})` : ''}</option>
+                            ))}
+                          </select>
                         </div>
                         <div style={{ flex: 1, minWidth: 150 }}>
                           <select
@@ -569,16 +590,27 @@ export function ProductionMaterialRequestPage() {
                             style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: "#F8FAFC", color: S.secondary }}
                           />
                         </div>
-                        <div style={{ width: 80 }}>
+                        <div style={{ width: 80, position: "relative" }}>
                           <input
                             type="number"
                             min="1"
+                            max={item.maxQuantity}
                             value={item.quantity}
-                            onChange={e => updateItem(index, "quantity", e.target.value)}
+                            onChange={e => {
+                              const val = Number(e.target.value);
+                              if (item.maxQuantity && val > item.maxQuantity) {
+                                updateItem(index, "quantity", String(item.maxQuantity));
+                              } else {
+                                updateItem(index, "quantity", e.target.value);
+                              }
+                            }}
                             placeholder="Qty"
                             required
                             style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }}
                           />
+                          {item.maxQuantity && (
+                            <div style={{ position: "absolute", bottom: -18, left: 4, fontSize: "10px", color: S.secondary, whiteSpace: "nowrap" }}>Max: {item.maxQuantity}</div>
+                          )}
                         </div>
                         <div style={{ width: 100 }}>
                           <select
@@ -587,14 +619,9 @@ export function ProductionMaterialRequestPage() {
                             disabled={true}
                             style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", boxSizing: "border-box", color: S.secondary, WebkitAppearance: "none", MozAppearance: "none", appearance: "none" }}
                           >
-                            <option value="pcs">pcs</option>
-                            <option value="kg">kg</option>
-                            <option value="meter">meter</option>
-                            <option value="lembar">lembar</option>
-                            <option value="batang">batang</option>
-                            {!["pcs", "kg", "meter", "lembar", "batang"].includes(item.unit) && item.unit && (
-                              <option value={item.unit}>{item.unit}</option>
-                            )}
+                            {Array.from(new Set(["pcs", "kg", "meter", "lembar", "batang", "roll", "set", "box", "pack", item.unit])).filter(Boolean).map(u => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
                           </select>
                         </div>
                         <div style={{ width: 130 }}>

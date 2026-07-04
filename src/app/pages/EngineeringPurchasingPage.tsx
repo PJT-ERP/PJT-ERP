@@ -241,8 +241,14 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
     : [{ itemName: pr.itemName, specification: pr.specification, quantity: pr.quantity, unit: pr.unit }];
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const canEdit = (currentUser?.role === 'Engineering Worker' || currentUser?.role === 'Engineering Supervisor')
+  
+  const canEditWorker = (currentUser?.role === 'Engineering' || currentUser?.role === 'Engineering Worker')
+    && (pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Ditolak');
+    
+  const canEditSpv = isSpv
     && (pr.backendStatus === 'Submitted' || pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Pending' || pr.status === 'Ditolak');
+
+  const canEdit = canEditWorker || canEditSpv;
 
   if (successAction) return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -967,7 +973,7 @@ export function EngineeringPurchasingPage() {
             setEditRequest(null);
           }}
           onSuccess={(updatedItems) => {
-            if (editRequest) {
+            if (isSpv && editRequest) {
               const newReq = { ...editRequest };
               if (updatedItems && updatedItems.length > 0) {
                 newReq.items = updatedItems;
@@ -975,6 +981,9 @@ export function EngineeringPurchasingPage() {
                 newReq.itemName = updatedItems[0].itemName;
               }
               setSelected(newReq);
+            } else {
+              // Do not re-select the request so the modal closes and the user can see it moved to 'Menunggu SPV'
+              setEditRequest(null);
             }
           }}
         />
