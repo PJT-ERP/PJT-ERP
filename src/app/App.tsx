@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AppProvider } from "./components/context/AppContext";
+import { Toaster } from "./components/ui/sonner";
 
 import HomePage from "./pages/HomePage";
 import { Login } from "./pages/Login";
@@ -99,6 +100,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      <Toaster position="top-center" richColors />
     </AppProvider>
   );
 }

@@ -153,7 +153,12 @@ function MaterialAutocomplete({
           setIsOpen(true);
         }}
         onFocus={() => { setIsFocused(true); setIsOpen(true); }}
-        onBlur={() => setIsFocused(false)}
+        onBlur={() => {
+          setIsFocused(false);
+          if (value && !options.some(p => p.name.toLowerCase() === value.toLowerCase())) {
+            onChange("");
+          }
+        }}
         placeholder="Ketik manual atau pilih dari daftar..."
         disabled={disabled}
         style={{
@@ -213,7 +218,6 @@ export function ProductionMaterialRequestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [hasAppliedDeficit, setHasAppliedDeficit] = useState(false);
 
   const [items, setItems] = useState<Array<{
     materialKey: string;
@@ -228,6 +232,24 @@ export function ProductionMaterialRequestPage() {
   // Fetch BOM data directly from API to avoid race conditions with context state
   useEffect(() => {
     if (!so) return;
+
+    // Jika sudah ada MR (misalnya ditolak dan dikembalikan), gunakan item dari MR tersebut
+    if (request && request.items && request.items.length > 0) {
+      setItems(request.items.map((m: any, idx: number) => ({
+        materialKey: `req-${idx}`,
+        itemName: m.itemName || "",
+        specification: m.specification || m.size || "",
+        quantity: String(m.quantity || m.qty || 1),
+        unit: m.unit || "pcs",
+        urgency: m.urgency || "Urgent",
+        purchaseCategory: m.purchaseCategory || "Project",
+      })));
+      if (request.notes) {
+        setNotes(request.notes);
+      }
+      return;
+    }
+
     const soItems = so.items ?? [];
     const productIds = [...new Set((soItems as any[]).map((i: any) => i.productId).filter(Boolean))];
 
@@ -299,48 +321,20 @@ export function ProductionMaterialRequestPage() {
         : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
       );
     });
-  }, [so?.id]);
+  }, [so?.id, request?.id]);
 
   useEffect(() => {
     masterDataApi.listInventory().then(setRealInventoryItems).catch(console.error);
   }, []);
 
-  // After inventory loads, apply deficit (required - in stock), only once
-  useEffect(() => {
-    if (realInventoryItems.length === 0 || items.length === 0 || hasAppliedDeficit) return;
-    // Only apply deficit when we have real named items (not blank rows)
-    if (items.every(item => !item.itemName.trim())) return;
-    
-    setItems(prevItems => {
-      const newItems = prevItems.map(item => {
-        if (!item.itemName.trim()) return item;
-        const invItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
-        if (invItem) {
-          const required = Number(item.quantity);
-          const inStock = invItem.currentStock || 0;
-          const deficit = Math.max(0, required - inStock);
-          return { ...item, quantity: String(deficit) };
-        }
-        return item;
-      }).filter(item => !item.itemName.trim() || Number(item.quantity) > 0);
-
-      if (newItems.length === 0) {
-        return [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }];
-      }
-      return newItems;
-    });
-    setHasAppliedDeficit(true);
-  }, [realInventoryItems, hasAppliedDeficit, items.length]);
-
-  const mergedOptions = [
-    ...realInventoryItems.map(p => ({
-      id: p.id,
-      name: p.name,
-      code: p.code,
-      currentStock: p.currentStock || 0,
-      unit: p.unit || "pcs"
-    }))
-  ];
+  const mergedOptions = realInventoryItems.map(p => ({
+    id: p.id,
+    name: p.name,
+    code: p.code,
+    currentStock: p.currentStock || 0,
+    unit: p.unit || "pcs",
+    spec: (p as any).specification || p.description || ""
+  }));
 
   if (!so) {
     return (
@@ -388,7 +382,15 @@ export function ProductionMaterialRequestPage() {
     purchaseCategory: item.purchaseCategory,
   }));
 
-  const canSubmit = parsedItems.every(item => item.itemName && Number.isFinite(item.quantity) && item.quantity > 0);
+  const uniqueItemNames = new Set(parsedItems.filter(item => item.itemName).map(item => item.itemName));
+  const hasDuplicates = parsedItems.filter(item => item.itemName).length !== uniqueItemNames.size;
+
+  const canSubmit = parsedItems.every(item => 
+    item.itemName && 
+    mergedOptions.some(opt => opt.name === item.itemName) &&
+    Number.isFinite(item.quantity) && 
+    item.quantity > 0
+  ) && !hasDuplicates;
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -498,6 +500,12 @@ export function ProductionMaterialRequestPage() {
                   </div>
                 )}
 
+                {hasDuplicates && (
+                  <div style={{ padding: "12px 16px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, color: "#92400E", fontSize: "13.5px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>⚠️</span> Terdapat material yang duplikat / sama persis. Harap gabungkan quantity-nya menjadi 1 baris item saja.
+                  </div>
+                )}
+
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.slate }}>Daftar Material <span style={{ color: "#EF4444" }}>*</span></h3>
                   <button type="button" onClick={addItem} style={{ padding: "8px 14px", background: "#FEF2F2", color: S.cyan, border: "none", borderRadius: 6, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.backgroundColor = "#FEE2E2"} onMouseLeave={e => e.currentTarget.style.backgroundColor = "#FEF2F2"}>
@@ -557,7 +565,8 @@ export function ProductionMaterialRequestPage() {
                             value={item.specification}
                             onChange={e => updateItem(index, "specification", e.target.value)}
                             placeholder="Spesifikasi / ukuran..."
-                            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }}
+                            disabled={true}
+                            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: "#F8FAFC", color: S.secondary }}
                           />
                         </div>
                         <div style={{ width: 80 }}>
@@ -575,8 +584,8 @@ export function ProductionMaterialRequestPage() {
                           <select
                             value={item.unit}
                             onChange={e => updateItem(index, "unit", e.target.value)}
-                            disabled
-                            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F1F5F9", boxSizing: "border-box", color: S.slate, cursor: "not-allowed" }}
+                            disabled={true}
+                            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", boxSizing: "border-box", color: S.secondary, WebkitAppearance: "none", MozAppearance: "none", appearance: "none" }}
                           >
                             <option value="pcs">pcs</option>
                             <option value="kg">kg</option>

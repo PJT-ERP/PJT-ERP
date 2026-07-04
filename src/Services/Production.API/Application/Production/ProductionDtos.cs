@@ -33,7 +33,8 @@ public sealed record UpdateSalesOrderDesignStatusRequest(
     Guid? ReviewedByUserId,
     string? ReviewerName,
     string? DesignReference = null,
-    string? CustomerDrawingUrl = null);
+    string? CustomerDrawingUrl = null,
+    string? Notes = null);
 
 public sealed record UpdateCustomerDrawingUrlRequest(
     string? CustomerDrawingUrl,
@@ -54,6 +55,7 @@ public sealed record SalesOrderDto(
     Guid? DesignApprovedByUserId,
     string? DesignApprovedByName,
     DateTime? DesignApprovedAtUtc,
+    string? RejectionReason,
     DateOnly SoDate,
     DateOnly? TargetDate,
     Guid? DesignWorkerUserId,

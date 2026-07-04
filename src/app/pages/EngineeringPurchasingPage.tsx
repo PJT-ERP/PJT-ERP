@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Plus, ShoppingCart, CheckCircle, X, Search, ChevronDown, Trash2, Edit2 } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "../components/context/AppContext";
 import { PurchasingRequest, PurchasingItem, PurchasingUrgency, PurchasingStatus } from "../components/data/mockData";
 import { purchasingApi } from "../services/purchasingApi";
@@ -34,10 +35,11 @@ const UNITS = ['PCS', 'BTG', 'LBR', 'KG', 'MTR', 'LOT', 'SET'];
 
 // ─── Searchable SO Combobox ──────────────────────────────────────────────────
 
-function SOCombobox({ value, onChange, options }: {
+function SOCombobox({ value, onChange, options, disabled }: {
   value: string;
   onChange: (v: string) => void;
   options: { id: string; label: string }[];
+  disabled?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -68,10 +70,10 @@ function SOCombobox({ value, onChange, options }: {
       <div
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px",
-          border: `1px solid ${S.border}`, borderRadius: 8, cursor: "pointer", background: S.white,
+          border: `1px solid ${S.border}`, borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer", background: disabled ? "#F8FAFC" : S.white,
           fontFamily: S.font, fontSize: "13.5px"
         }}
-        onClick={() => setOpen(true)}
+        onClick={() => !disabled && setOpen(true)}
       >
         {open ? (
           <>
@@ -91,7 +93,7 @@ function SOCombobox({ value, onChange, options }: {
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: value ? S.slate : S.secondary }}>
               {value ? selectedLabel : '— Tanpa referensi SO —'}
             </span>
-            <ChevronDown size={14} style={{ color: S.secondary, flexShrink: 0 }} />
+            {!disabled && <ChevronDown size={14} style={{ color: S.secondary, flexShrink: 0 }} />}
           </>
         )}
       </div>
@@ -472,7 +474,7 @@ function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose
 
 // ─── Form Modal ──────────────────────────────────────────────────────────────
 
-interface ItemDraft {
+export interface ItemDraft {
   itemId?: string;
   materialRequirementId?: string | null;
   salesOrderId?: string | null;
@@ -485,7 +487,7 @@ interface ItemDraft {
   unit: string;
 }
 
-function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () => void; editRequest?: PurchasingRequest | null, onSuccess?: (items?: PurchasingItem[]) => void }) {
+export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () => void; editRequest?: PurchasingRequest | null, onSuccess?: (items?: PurchasingItem[]) => void }) {
   const { salesOrders, currentUser, refreshBackendData } = useApp();
   const [soId, setSoId] = useState(editRequest?.soId || '');
   const [urgency, setUrgency] = useState<PurchasingUrgency>(editRequest?.urgency || 'Normal');
@@ -546,7 +548,9 @@ function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () 
     setItems(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const canSubmit = items.every(it => it.itemName.trim() && it.quantity && parseInt(it.quantity) > 0);
+  const validItems = items.filter(it => it.itemName.trim());
+  const hasDuplicates = new Set(validItems.map(it => it.itemName.trim().toLowerCase())).size !== validItems.length;
+  const canSubmit = items.every(it => it.itemName.trim() && it.quantity && parseInt(it.quantity) > 0) && !hasDuplicates;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -657,12 +661,13 @@ function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: "span 2" }}>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Referensi SO (Opsional)</label>
-                <SOCombobox value={soId} onChange={setSoId} options={soOptions} />
+                <SOCombobox value={soId} onChange={setSoId} options={soOptions} disabled={currentUser?.role === 'Engineering Supervisor'} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Urgensi</label>
                 <select value={urgency} onChange={e => setUrgency(e.target.value as PurchasingUrgency)}
-                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}>
+                  disabled={currentUser?.role === 'Engineering Supervisor'}
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: currentUser?.role === 'Engineering Supervisor' ? "#F8FAFC" : S.white, cursor: currentUser?.role === 'Engineering Supervisor' ? "not-allowed" : "pointer", appearance: currentUser?.role === 'Engineering Supervisor' ? "none" : "auto", WebkitAppearance: currentUser?.role === 'Engineering Supervisor' ? "none" : "auto" }}>
                   <option>Normal</option><option>Urgent</option><option>Critical</option>
                 </select>
               </div>
@@ -703,6 +708,14 @@ function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () 
                       value={item.itemName}
                       onChange={(val) => updateItem(idx, 'itemName', val)}
                       onSelectProduct={(p) => {
+                        const isDuplicate = items.some((it, i) => i !== idx && (it.itemId === p.id || it.itemName.trim().toLowerCase() === p.name.trim().toLowerCase()));
+                        if (isDuplicate) {
+                          toast.warning(`Material "${p.name}" sudah ada di dalam daftar. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
+                            position: "top-center",
+                            duration: 4000,
+                          });
+                          return;
+                        }
                         updateItem(idx, 'itemId', p.id);
                         updateItem(idx, 'itemName', p.name);
                         updateItem(idx, 'unit', p.unit);
@@ -730,17 +743,12 @@ function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () 
                         placeholder="Qty *"
                         style={{ flex: 1, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
-                      <select
+                      <input
+                        type="text"
                         value={item.unit}
-                        onChange={e => updateItem(idx, 'unit', e.target.value)}
-                        disabled
-                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F1F5F9", color: S.slate, cursor: "not-allowed" }}
-                      >
-                        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                        {!UNITS.includes(item.unit) && item.unit && (
-                          <option value={item.unit}>{item.unit}</option>
-                        )}
-                      </select>
+                        readOnly
+                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                      />
                     </div>
                   </div>
                 ))}

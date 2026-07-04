@@ -25,6 +25,8 @@ builder.Services.AddScoped<IProductionService, ProductionService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddHttpClient<IMasterDataClient, MasterDataClient>(client =>
 {
     var address = builder.Configuration["MasterDataApi__Address"] ?? "http://masterdata-api:8080/";

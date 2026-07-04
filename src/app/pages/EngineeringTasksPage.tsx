@@ -196,7 +196,7 @@ export function EngineeringTasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1.2fr 1.5fr 130px 100px 160px 110px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "100px 1.1fr 1.1fr 160px 100px 160px 110px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
           {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Deadline", "Status", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
@@ -218,11 +218,12 @@ export function EngineeringTasksPage() {
               qut.designAssignedName === currentUser?.name;
             const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcStatus;
             
-            const canWork = isPreProduction && isAssignedToCurrentUser && qut.backendDesignStatus !== 'Approved';
+            const isWaitingReview = qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval';
+            const canWork = isPreProduction && isAssignedToCurrentUser && qut.backendDesignStatus !== 'Approved' && !isWaitingReview;
             // Review button: only when design is waiting for supervisor approval
-            const canReview = isPreProduction && isSpv && currentUser?.role !== 'Admin' && (qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval');
+            const canReview = isPreProduction && isSpv && currentUser?.role !== 'Admin' && isWaitingReview;
             // Assign button: only when design hasn't started yet
-            const canAssign = isPreProduction && isSpv && currentUser?.role !== 'Admin' && qut.backendDesignStatus !== 'Approved';
+            const canAssign = isPreProduction && isSpv && currentUser?.role !== 'Admin' && qut.backendDesignStatus !== 'Approved' && !isWaitingReview;
 
             return (
             <div
@@ -231,7 +232,7 @@ export function EngineeringTasksPage() {
                 navigate(`/erp/engineer-tasks/${qut.id}`);
               }}
               style={{
-                display: "grid", gridTemplateColumns: "100px 1.2fr 1.5fr 130px 100px 160px 110px", alignItems: "center",
+                display: "grid", gridTemplateColumns: "100px 1.1fr 1.1fr 160px 100px 160px 110px", alignItems: "center",
                 padding: "10px 18px", cursor: "pointer",
                 borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
                 transition: "background 0.1s",
@@ -275,7 +276,7 @@ export function EngineeringTasksPage() {
                       event.stopPropagation();
                       setAssignModalQUT(qut);
                     }}
-                    style={{ fontSize: "11px", background: canWork ? S.white : "#C8102E", color: canWork ? S.slate : "#fff", border: canWork ? `1px solid ${S.border}` : "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    style={{ fontSize: "11px", background: canWork ? S.white : S.cyan, color: canWork ? S.slate : "#fff", border: canWork ? `1px solid ${S.border}` : "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
                   </button>
@@ -287,7 +288,7 @@ export function EngineeringTasksPage() {
                       event.stopPropagation();
                       navigate(`/erp/engineer-tasks/${qut.id}`);
                     }}
-                    style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    style={{ fontSize: "11px", background: "#F59E0B", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     Review
                   </button>

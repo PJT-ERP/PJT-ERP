@@ -92,6 +92,7 @@ export interface SalesOrder {
   productName?: string;
   isQuotation?: boolean;
   designRevisions?: { version: number, url: string, changedAt: string, changedBy: string }[];
+  bomsPerItem?: Record<string, any[]>;
 }
 
 export const ENGINEERING_DESIGNS: any[] = [];

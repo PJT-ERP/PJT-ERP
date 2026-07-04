@@ -218,7 +218,7 @@ export function EngineeringPage() {
             </div>
 
             {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
               {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
                 <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
@@ -243,7 +243,7 @@ export function EngineeringPage() {
                       }
                     }}
                     style={{
-                      display: "grid", gridTemplateColumns: "120px 1.2fr 1.5fr 130px 140px", alignItems: "center",
+                      display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", alignItems: "center",
                       padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
                       borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
                       transition: "background 0.1s",
