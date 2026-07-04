@@ -6,7 +6,10 @@ using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.Production.Api.Application.Production;
 
-public sealed class ProductionService(ProductionContext db, IEventPublisher eventPublisher) : IProductionService
+public sealed class ProductionService(
+    ProductionContext db, 
+    IEventPublisher eventPublisher,
+    IMasterDataClient masterDataClient) : IProductionService
 {
     public async Task<IReadOnlyCollection<SalesOrderDto>> ListSalesOrdersAsync(CancellationToken cancellationToken)
     {
@@ -28,38 +31,62 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
         var qcReviewer = NormalizeAssignment(request.QcReviewer, "QC reviewer");
 
-        CustomerReplica? customer = null;
-        for (int i = 0; i < 5; i++)
-        {
-            customer = await db.CustomerReplicas
-                .AsNoTracking()
-                .FirstOrDefaultAsync(replica => replica.Id == request.CustomerId && replica.IsActive, cancellationToken);
-            
-            if (customer is not null) break;
-            await Task.Delay(1500, cancellationToken);
-        }
-
+        var customer = await db.CustomerReplicas.FirstOrDefaultAsync(replica => replica.Id == request.CustomerId, cancellationToken);
         if (customer is null)
         {
-            throw new InvalidOperationException("Customer has not been replicated from MasterData yet.");
+            var masterCustomer = await masterDataClient.GetCustomerAsync(request.CustomerId, cancellationToken)
+                ?? throw new InvalidOperationException("Customer was not found in MasterData API.");
+
+            customer = new CustomerReplica
+            {
+                Id = masterCustomer.Id,
+                Code = masterCustomer.Code,
+                Name = masterCustomer.Name,
+                Email = masterCustomer.Email,
+                IsActive = masterCustomer.IsActive,
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+            await db.CustomerReplicas.AddAsync(customer, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        else if (!customer.IsActive)
+        {
+            throw new InvalidOperationException("Customer is not active.");
         }
 
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
-        Dictionary<Guid, ProductReplica> products = new();
-        for (int i = 0; i < 5; i++)
+        var products = await db.ProductReplicas
+            .Where(replica => productIds.Contains(replica.Id))
+            .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+
+        var missingProductIds = productIds.Except(products.Keys).ToArray();
+        if (missingProductIds.Length > 0)
         {
-            products = await db.ProductReplicas
-                .AsNoTracking()
-                .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
-                .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+            foreach (var missingId in missingProductIds)
+            {
+                var masterProduct = await masterDataClient.GetProductAsync(missingId, cancellationToken)
+                    ?? throw new InvalidOperationException($"Product {missingId} was not found in MasterData API.");
+
+                var product = new ProductReplica
+                {
+                    Id = masterProduct.Id,
+                    PartNumber = masterProduct.PartNumber,
+                    Description = masterProduct.Description,
+                    Unit = masterProduct.Unit,
+                    MaterialSpec = masterProduct.MaterialSpec,
+                    IsActive = masterProduct.IsActive,
+                    UpdatedAtUtc = DateTime.UtcNow
+                };
                 
-            if (products.Count == productIds.Length) break;
-            await Task.Delay(1500, cancellationToken);
+                await db.ProductReplicas.AddAsync(product, cancellationToken);
+                products[missingId] = product;
+            }
+            await db.SaveChangesAsync(cancellationToken);
         }
 
-        if (products.Count != productIds.Length)
+        foreach (var product in products.Values)
         {
-            throw new InvalidOperationException("One or more products have not been replicated from MasterData yet.");
+            if (!product.IsActive) throw new InvalidOperationException($"Product {product.PartNumber} is not active.");
         }
 
         var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
@@ -93,7 +120,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     ProductMaterialSpec = product.MaterialSpec,
                     Qty = item.Qty,
                     UnitPrice = item.UnitPrice,
-                    Notes = NormalizeOptional(item.Notes)
+                    Notes = NormalizeOptional(item.Notes),
+                    DesignReference = NormalizeOptional(item.DesignReference),
+                    CustomerDrawingUrl = NormalizeOptionalUrl(item.CustomerDrawingUrl, "Customer drawing URL")
                 };
             }).ToList()
         };
@@ -178,21 +207,38 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
         db.SalesOrderItems.RemoveRange(salesOrder.Items);
         
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
-        Dictionary<Guid, ProductReplica> products = new();
-        for (int i = 0; i < 5; i++)
+        var products = await db.ProductReplicas
+            .Where(replica => productIds.Contains(replica.Id))
+            .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+
+        var missingProductIds = productIds.Except(products.Keys).ToArray();
+        if (missingProductIds.Length > 0)
         {
-            products = await db.ProductReplicas
-                .AsNoTracking()
-                .Where(replica => productIds.Contains(replica.Id) && replica.IsActive)
-                .ToDictionaryAsync(replica => replica.Id, cancellationToken);
+            foreach (var missingId in missingProductIds)
+            {
+                var masterProduct = await masterDataClient.GetProductAsync(missingId, cancellationToken)
+                    ?? throw new InvalidOperationException($"Product {missingId} was not found in MasterData API.");
+
+                var product = new ProductReplica
+                {
+                    Id = masterProduct.Id,
+                    PartNumber = masterProduct.PartNumber,
+                    Description = masterProduct.Description,
+                    Unit = masterProduct.Unit,
+                    MaterialSpec = masterProduct.MaterialSpec,
+                    IsActive = masterProduct.IsActive,
+                    UpdatedAtUtc = DateTime.UtcNow
+                };
                 
-            if (products.Count == productIds.Length) break;
-            await Task.Delay(1500, cancellationToken);
+                await db.ProductReplicas.AddAsync(product, cancellationToken);
+                products[missingId] = product;
+            }
+            await db.SaveChangesAsync(cancellationToken);
         }
 
-        if (products.Count != productIds.Length)
+        foreach (var product in products.Values)
         {
-            throw new InvalidOperationException("One or more products have not been replicated from MasterData yet.");
+            if (!product.IsActive) throw new InvalidOperationException($"Product {product.PartNumber} is not active.");
         }
 
         salesOrder.Items = request.Items.Select(item => new SalesOrderItem
@@ -604,6 +650,13 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
 
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
+        
+        // Deduct BOM stock per each SO item with its own quantity (not just the first item with total qty)
+        foreach (var soItem in salesOrder.Items)
+        {
+            await masterDataClient.DeductBomStockAsync(soItem.ProductId, soItem.Qty, cancellationToken);
+        }
+
         StartProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.Status = SalesOrderStatuses.InProduction;
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
@@ -846,7 +899,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                     item.ProductId,
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.DesignReference,
+                    item.CustomerDrawingUrl))
                 .ToArray());
     }
 
@@ -877,7 +932,9 @@ public sealed class ProductionService(ProductionContext db, IEventPublisher even
                 .Select(item => new PublicProductionTrackingItemDto(
                     item.ProductPartNumber,
                     item.ProductDescription,
-                    item.Qty))
+                    item.Qty,
+                    item.DesignReference,
+                    item.CustomerDrawingUrl))
                 .ToArray());
     }
 

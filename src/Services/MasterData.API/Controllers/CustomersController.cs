@@ -15,6 +15,21 @@ public sealed class CustomersController(ICatalogService catalogService) : Contro
         return Ok(await catalogService.ListCustomersAsync(cancellationToken));
     }
 
+    [HttpGet("next-code")]
+    public async Task<ActionResult<object>> GetNextCode(CancellationToken cancellationToken)
+    {
+        var code = await catalogService.PreviewNextCustomerCodeAsync(cancellationToken);
+        return Ok(new { code });
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CustomerDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var customer = await catalogService.GetCustomerAsync(id, cancellationToken);
+        if (customer is null) return NotFound();
+        return Ok(customer);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Owner,Sales,Sales Order")]
     public async Task<ActionResult<CustomerDto>> Create(CreateCustomerRequest request, CancellationToken cancellationToken)

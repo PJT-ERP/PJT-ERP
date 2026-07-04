@@ -13,13 +13,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 
-const SUPPLIERS = [
-  "PT Maju Jaya",
-  "Toko Besi Makmur",
-  "CV Sumber Teknik",
-  "PT Surya Logam",
-  "Toko Elektrik Indah"
-];
+import { masterDataApi, InventoryItemDto } from "../../services/masterDataApi";
 
 const formatRp = (val: string | number) => {
   if (!val) return "";
@@ -38,11 +32,13 @@ export function PurchaseRequestDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionError, setActionError] = useState("");
   
-  const [pricingData, setPricingData] = useState<Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }>>({});
+  const [pricingData, setPricingData] = useState<Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }>>({});
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
   const [isSavingPricing, setIsSavingPricing] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
+  const [suppliers, setSuppliers] = useState<{ id: string, name: string }[]>([]);
 
 
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
@@ -55,16 +51,33 @@ export function PurchaseRequestDetailPage() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await purchasingApi.listPurchaseRequests();
+        const [data, suppliersData, invData] = await Promise.all([
+          purchasingApi.listPurchaseRequests(),
+          masterDataApi.listSuppliers(),
+          masterDataApi.listInventory()
+        ]);
+        setSuppliers(suppliersData);
+        setInventoryItems(invData);
+
         const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
-        if (req) {
+        if (req && req.status !== "Submitted" && req.status !== "SupervisorRejected") {
           const mr = mapPurchaseRequestToMr(req);
-          const initData: Record<string, { supplierName: string, estimatedPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
+          const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {
-            const isCustom = item.supplierName ? !SUPPLIERS.includes(item.supplierName) : false;
+            const isCustom = item.supplierName ? !suppliersData.some(s => s.name === item.supplierName) : false;
+            const invItem = invData.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+            
+            let uPrice = "";
+            if (invItem && invItem.unitPrice > 0) {
+              uPrice = String(invItem.unitPrice);
+            } else if (item.estimatedPrice && item.qty) {
+              uPrice = String(Math.round(item.estimatedPrice / item.qty));
+            }
+            
             initData[item.itemId] = {
               supplierName: item.supplierName || "",
               estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "",
+              unitPrice: uPrice,
               isCustomSupplier: isCustom,
               itemName: item.name || "",
               qty: item.qty ? String(item.qty) : "",
@@ -92,12 +105,12 @@ export function PurchaseRequestDetailPage() {
       const matName = p.itemName !== undefined ? p.itemName : item.name;
       const qtyVal = Number(p.qty !== undefined ? p.qty : item.qty);
       const sup = p.supplierName !== undefined ? p.supplierName : item.supplierName;
-      const price = Number(p.estimatedPrice !== undefined ? p.estimatedPrice : item.estimatedPrice);
+      const uPrice = Number(p.unitPrice);
 
       if (!matName || !String(matName).trim()) missingFields.push(`Tolong lengkapi Nama Material pada item ${item.code}`);
       if (!qtyVal || qtyVal <= 0 || isNaN(qtyVal)) missingFields.push(`Tolong isi Quantity pada item ${item.code} (minimal 1)`);
       if (!sup || !String(sup).trim() || sup === "Pilih Supplier") missingFields.push(`Tolong pilih Toko / Supplier untuk item ${item.code}`);
-      if (!price || price <= 0 || isNaN(price)) missingFields.push(`Tolong isi Estimasi Harga untuk item ${item.code}`);
+      if (!uPrice || uPrice <= 0 || isNaN(uPrice)) missingFields.push(`Tolong isi Harga Satuan untuk item ${item.code}`);
     });
 
     if (missingFields.length > 0) {
@@ -116,16 +129,44 @@ export function PurchaseRequestDetailPage() {
       const backendReq = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === detail.id || r.id === detail.id);
       if (!backendReq) throw new Error("PR not found in backend");
 
-      const promises = detail.items.map(item => {
+      const promises = detail.items.map(async item => {
         const p = pricingData[item.itemId];
-        if (!p?.supplierName && !p?.estimatedPrice && !p?.itemName && !p?.qty) return Promise.resolve(); // Skip if nothing
+        if (!p) return Promise.resolve();
         
-        return purchasingApi.updatePurchaseRequestItemInfo(backendReq.id, item.itemId, {
-          supplierName: p?.supplierName || null,
-          estimatedPrice: Number(p?.estimatedPrice) || null,
-          itemName: p?.itemName || null,
-          qty: Number(p?.qty) || null,
+        const matName = p.itemName !== undefined ? p.itemName : item.name;
+        const qtyVal = Number(p.qty !== undefined ? p.qty : item.qty);
+        const uPrice = Number(p.unitPrice);
+        const estimatedPrice = uPrice > 0 && qtyVal > 0 ? uPrice * qtyVal : null;
+        
+        const updatePr = purchasingApi.updatePurchaseRequestItemInfo(backendReq.id, item.itemId, {
+          supplierName: p.supplierName || null,
+          estimatedPrice: estimatedPrice,
+          itemName: p.itemName || null,
+          qty: qtyVal || null,
         });
+
+        const invItem = inventoryItems.find(i => i.name.toLowerCase().trim() === matName.toLowerCase().trim());
+        if (invItem && invItem.unitPrice !== uPrice && uPrice > 0) {
+          try {
+            await masterDataApi.updateInventoryItem(invItem.id, {
+               code: invItem.code,
+               name: invItem.name,
+               category: invItem.category,
+               unit: invItem.unit,
+               currentStock: invItem.currentStock,
+               minStock: invItem.minStock,
+               maxStock: invItem.maxStock,
+               reorderPoint: invItem.reorderPoint,
+               location: invItem.location,
+               supplierName: invItem.supplierName,
+               unitPrice: uPrice
+            });
+          } catch(e) {
+             console.error("Failed to update inventory unit price", e);
+          }
+        }
+        
+        return updatePr;
       });
       await Promise.all(promises);
 
@@ -259,6 +300,7 @@ export function PurchaseRequestDetailPage() {
                     {(canEditPricing || detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || detail.items.some(i => i.supplierName || i.estimatedPrice)) && (
                       <>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Supplier (Toko)</th>
+                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Satuan</th>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Perkiraan</th>
                       </>
                     )}
@@ -327,8 +369,8 @@ export function PurchaseRequestDetailPage() {
                                   <SelectValue placeholder="Pilih Supplier" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {SUPPLIERS.map(sup => (
-                                    <SelectItem key={sup} value={sup}>{sup}</SelectItem>
+                                  {suppliers.map(sup => (
+                                    <SelectItem key={sup.id} value={sup.name}>{sup.name}</SelectItem>
                                   ))}
                                   <SelectItem value="LAINNYA">Lainnya (Tulis manual)...</SelectItem>
                                 </SelectContent>
@@ -340,20 +382,24 @@ export function PurchaseRequestDetailPage() {
                               <span className="absolute left-2 text-sm text-slate-400">Rp</span>
                               <input
                                 type="text"
-                                className="w-full rounded border border-slate-300 pl-7 pr-2 py-1.5 text-sm outline-none focus:border-blue-500"
+                                className="w-full rounded border border-slate-300 pl-7 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 text-right"
                                 placeholder="0"
-                                value={formatRp(pricingData[item.itemId]?.estimatedPrice || "")}
+                                value={formatRp(pricingData[item.itemId]?.unitPrice || "")}
                                 onChange={(e) => {
                                   const rawVal = e.target.value.replace(/\D/g, "");
-                                  setPricingData(prev => ({ ...prev, [item.itemId]: { ...prev[item.itemId], estimatedPrice: rawVal } }));
+                                  setPricingData(prev => ({ ...prev, [item.itemId]: { ...prev[item.itemId], unitPrice: rawVal } }));
                                 }}
                               />
                             </div>
+                          </td>
+                          <td className="p-3 text-sm text-slate-900 text-right font-medium">
+                            {formatRp(Number(pricingData[item.itemId]?.unitPrice || 0) * Number(pricingData[item.itemId]?.qty || item.qty || 0))}
                           </td>
                         </>
                       ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || item.supplierName || item.estimatedPrice) ? (
                         <>
                           <td className="p-3 text-sm text-slate-900">{item.supplierName || "-"}</td>
+                          <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice && item.qty ? formatRp(Math.round(item.estimatedPrice / item.qty)) : "-"}</td>
                           <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
                         </>
                       ) : null}

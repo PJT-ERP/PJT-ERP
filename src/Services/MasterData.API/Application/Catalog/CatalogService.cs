@@ -27,9 +27,13 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
 
     public async Task<CustomerDto> CreateCustomerAsync(CreateCustomerRequest request, CancellationToken cancellationToken)
     {
+        var code = string.IsNullOrWhiteSpace(request.Code)
+            ? await GenerateSequentialCodeAsync("CUST-", db.Customers.Where(c => c.Code.StartsWith("CUST-")).Select(c => c.Code), cancellationToken)
+            : request.Code.Trim().ToUpperInvariant();
+
         var customer = new Customer
         {
-            Code = request.Code.Trim().ToUpperInvariant(),
+            Code = code,
             Name = request.Name.Trim(),
             Address = request.Address,
             ContactPerson = request.ContactPerson,
@@ -142,7 +146,7 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
     public async Task<ProductDto> CreateProductAsync(CreateProductRequest request, CancellationToken cancellationToken)
     {
         var partNumber = string.IsNullOrWhiteSpace(request.PartNumber) 
-            ? $"PRD-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpperInvariant()}" 
+            ? await GenerateSequentialCodeAsync("PRD-", db.Products.Where(p => p.PartNumber.StartsWith("PRD-")).Select(p => p.PartNumber), cancellationToken)
             : request.PartNumber.Trim().ToUpperInvariant();
 
         var product = new Product
@@ -371,9 +375,13 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
 
     public async Task<SupplierDto> CreateSupplierAsync(CreateSupplierRequest request, CancellationToken cancellationToken)
     {
+        var code = string.IsNullOrWhiteSpace(request.Code)
+            ? await GenerateSequentialCodeAsync("SUP-", db.Suppliers.Where(s => s.Code.StartsWith("SUP-")).Select(s => s.Code), cancellationToken)
+            : request.Code.Trim().ToUpperInvariant();
+
         var supplier = new Supplier
         {
-            Code = request.Code.Trim().ToUpperInvariant(),
+            Code = code,
             Name = request.Name.Trim(),
             Type = request.Type.Trim(),
             Category = request.Category.Trim(),
@@ -512,5 +520,77 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
             supplier.CreatedAtUtc,
             supplier.UpdatedAtUtc
         );
+    }
+
+    public async Task<CustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var customer = await db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+        if (customer is null) return null;
+
+        return new CustomerDto(
+            customer.Id,
+            customer.Code,
+            customer.Name,
+            customer.Address,
+            customer.ContactPerson,
+            customer.Email,
+            customer.Phone,
+            customer.IsActive);
+    }
+
+    public async Task<ProductDto?> GetProductAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var product = await db.Products
+            .AsNoTracking()
+            .Include(p => p.BomItems)
+            .ThenInclude(b => b.InventoryItem)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (product is null) return null;
+
+        return new ProductDto(
+            product.Id, 
+            product.PartNumber, 
+            product.Description, 
+            product.Unit, 
+            product.MaterialSpec, 
+            product.IsActive, 
+            product.BomItems.Select(b => new ProductBomItemDto(
+                b.Id,
+                b.InventoryItemId,
+                b.InventoryItem.Code,
+                b.InventoryItem.Name,
+                b.Quantity,
+                b.InventoryItem.Unit)).ToList(),
+            product.CreatedAtUtc, 
+            product.UpdatedAtUtc);
+    }
+
+    private async Task<string> GenerateSequentialCodeAsync(string prefix, IQueryable<string> existingCodesQuery, CancellationToken cancellationToken)
+    {
+        var existingCodes = await existingCodesQuery.ToListAsync(cancellationToken);
+        
+        var max = 0;
+        foreach (var code in existingCodes)
+        {
+            if (code.Length <= prefix.Length) continue;
+            var numberStr = code[prefix.Length..];
+            if (int.TryParse(numberStr, out var number) && number > max)
+            {
+                max = number;
+            }
+        }
+
+        return $"{prefix}{(max + 1):000}";
+    }
+
+    public async Task<string> PreviewNextCustomerCodeAsync(CancellationToken cancellationToken)
+    {
+        return await GenerateSequentialCodeAsync("CUST-", db.Customers.Select(c => c.Code), cancellationToken);
+    }
+
+    public async Task<string> PreviewNextSupplierCodeAsync(CancellationToken cancellationToken)
+    {
+        return await GenerateSequentialCodeAsync("SUP-", db.Suppliers.Select(s => s.Code), cancellationToken);
     }
 }

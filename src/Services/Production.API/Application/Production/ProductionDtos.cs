@@ -14,7 +14,7 @@ public sealed record CreateSalesOrderRequest(
     string? DesignReference = null,
     string? DesignStatus = null);
 
-public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes);
+public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes, string? DesignReference = null, string? CustomerDrawingUrl = null);
 
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? DesignWorker,
@@ -87,7 +87,9 @@ public sealed record SalesOrderItemDto(
     string ProductDescription,
     int Qty,
     decimal UnitPrice,
-    string? Notes);
+    string? Notes,
+    string? DesignReference = null,
+    string? CustomerDrawingUrl = null);
 
 public sealed record SalesOrderProductionProgressDto(
     Guid SalesOrderId,
@@ -135,7 +137,9 @@ public sealed record SalesOrderProductionProgressItemDto(
     Guid ProductId,
     string ProductPartNumber,
     string ProductDescription,
-    int Qty);
+    int Qty,
+    string? DesignReference = null,
+    string? CustomerDrawingUrl = null);
 
 public sealed record PublicProductionTrackingDto(
     string SoNumber,
@@ -157,7 +161,9 @@ public sealed record PublicProductionTrackingDto(
 public sealed record PublicProductionTrackingItemDto(
     string ProductPartNumber,
     string ProductDescription,
-    int Qty);
+    int Qty,
+    string? DesignReference = null,
+    string? CustomerDrawingUrl = null);
 
 public sealed record LookupSalesOrderTrackingRequest(string TrackingCode);
 

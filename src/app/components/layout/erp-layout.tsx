@@ -218,7 +218,7 @@ export function ERPLayout() {
         if (so.status === 'Rejected') {
           notifs.push({ id: so.id, type: 'alert', title: 'SO Ditolak / Direvisi', desc: `SO ${so.id} dikembalikan untuk direvisi.`, targetPath: `/erp/so/detail/${so.id}` });
         }
-        if (so.status === 'Completed' || so.status === 'Finished') {
+        if (so.status === 'Completed') {
           const notifId = `so-comp-${so.id}`;
           if (!dismissedNotifIds.includes(notifId)) {
             notifs.push({ id: notifId, type: 'success', title: 'Pesanan Selesai', desc: `SO ${so.id} telah selesai diproduksi dan lunas.`, targetPath: `/erp/so/detail/${so.id}`, isDismissible: true });
@@ -303,7 +303,14 @@ export function ERPLayout() {
         }
       });
     } else if (role === 'Finance') {
-      salesOrders.filter(so => so.status === 'Waiting Pricing').forEach(so => {
+      salesOrders.filter(so => {
+        if (so.status === 'Waiting Pricing' || so.backendStatus === 'Waiting Pricing') return true;
+        const hasInvoice = invoices.some(inv => inv.soNumber === so.soNumber);
+        return so.backendDesignStatus === "Approved"
+          && so.status !== "Waiting Payment" && so.backendStatus !== "Waiting Payment"
+          && so.status !== "Completed" && so.backendStatus !== "Completed"
+          && !hasInvoice;
+      }).forEach(so => {
         notifs.push({ id: so.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS & buat Invoice untuk SO ${so.id}.`, targetPath: '/erp/finance/costing' });
       });
       payments.filter(p => p.status === 'PENDING').forEach(payment => {

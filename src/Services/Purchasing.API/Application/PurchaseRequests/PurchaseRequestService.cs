@@ -1187,7 +1187,7 @@ public sealed class PurchaseRequestService(PurchasingContext db, IEventPublisher
 
     private async Task<string> GenerateNumberAsync(CancellationToken cancellationToken)
     {
-        var prefix = $"MR-{DateTime.UtcNow:yyyy}-";
+        var prefix = "PR-";
         var existingNumbers = await db.PurchaseRequests
             .AsNoTracking()
             .Where(request => request.PrNumber.StartsWith(prefix))

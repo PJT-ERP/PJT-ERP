@@ -93,6 +93,8 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(item => item.Qty).HasColumnName("qty");
             builder.Property(item => item.UnitPrice).HasColumnName("unit_price");
             builder.Property(item => item.Notes).HasColumnName("notes");
+            builder.Property(item => item.DesignReference).HasMaxLength(255).HasColumnName("design_reference");
+            builder.Property(item => item.CustomerDrawingUrl).HasMaxLength(1000).HasColumnName("customer_drawing_url");
             builder.Property(item => item.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(item => item.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });

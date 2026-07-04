@@ -43,38 +43,15 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
     setErrorMessage("");
 
     if (!supplier) {
-      const fetchAndSetCode = async () => {
-        try {
-          const suppliers = await masterDataApi.listSuppliers();
-          let maxSeq = 0;
-          for (const s of suppliers) {
-            if (s.code && s.code.startsWith("SUP-")) {
-              const seq = parseInt(s.code.substring(4), 10);
-              if (!isNaN(seq) && seq > maxSeq) {
-                maxSeq = seq;
-              }
-            }
-          }
-          const nextSeq = maxSeq + 1;
-          setFormData({
-            ...emptyForm,
-            code: `SUP-${nextSeq.toString().padStart(4, '0')}`
-          });
-        } catch (error) {
-          console.error("Failed to fetch suppliers for code generation", error);
-          setFormData({
-            ...emptyForm,
-            code: `SUP-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}` // Fallback
-          });
-        }
-      };
-      
-      // Initialize with temporary loading or default code
       setFormData({
         ...emptyForm,
-        code: "SUP-..."
+        code: "Memuat..."
       });
-      fetchAndSetCode();
+      masterDataApi.getNextSupplierCode().then(res => {
+        setFormData(f => ({ ...f, code: res.code }));
+      }).catch(() => {
+        setFormData(f => ({ ...f, code: "Otomatis" }));
+      });
       return;
     }
 
@@ -174,7 +151,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Kode Supplier <span className="text-[#C8102E]">*</span></Label>
-              <Input id="code" name="code" value={formData.code} onChange={handleChange} required disabled placeholder="Auto-generated" />
+              <Input id="code" name="code" value={formData.code} onChange={handleChange} disabled placeholder="Auto-generated" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">Nama Perusahaan <span className="text-[#C8102E]">*</span></Label>

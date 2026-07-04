@@ -1,13 +1,13 @@
-name: Deploy VPS
+name: Deploy Dev VPS
 
 on:
   push:
     branches:
-      - main
+      - dev
   workflow_dispatch:
 
 concurrency:
-  group: production-vps
+  group: dev-vps
   cancel-in-progress: false
 
 env:
@@ -16,11 +16,11 @@ env:
   VPS_HOST: ${{ secrets.VPS_HOST }}
   VPS_USER: ${{ secrets.VPS_USER || 'root' }}
   VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
-  VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/pjt-erp' }}
+  VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/pjt-erp' }}/dev
 
 jobs:
   deploy:
-    name: Build and deploy
+    name: Build and deploy Dev
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 30
 
@@ -109,8 +109,8 @@ jobs:
           mv "$APP_DIR.release" "$APP_DIR/current"
 
           cd "$APP_DIR/current"
-          docker compose -f docker-compose.prod.yml build
-          docker compose -f docker-compose.prod.yml up -d --remove-orphans
-          docker compose -f docker-compose.prod.yml ps
+          docker compose -f docker-compose.dev.yml -p dev build
+          docker compose -f docker-compose.dev.yml -p dev up -d --remove-orphans
+          docker compose -f docker-compose.dev.yml -p dev ps
           docker image prune -f
           EOF

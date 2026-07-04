@@ -38,6 +38,7 @@ export interface Customer {
 export interface SalesOrder {
   id: string;
   backendId?: string;
+  backendStatus?: string;
   soNumber?: string;
   customerId: string;
   customerName?: string;
@@ -54,6 +55,7 @@ export interface SalesOrder {
   createdBy: string;
   createdAt: string;
   designLink?: string;
+  designReference?: string | null;
   backendDesignStatus?: string;
   submittedAt?: string;
   approvedAt?: string;
@@ -240,6 +242,7 @@ export interface PurchasingRequest {
   urgency: PurchasingUrgency;
   notes: string;
   requestedBy: string;
+  requestedByUserId?: string;
   requestedAt: string;
   status: PurchasingStatus;
   supplier?: string;

@@ -213,10 +213,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
               <label className={labelClass}>Reorder Point <span className="text-[#C8102E]">*</span></label>
               <input type="number" required value={formData.reorderPoint === 0 ? "" : formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
             </div>
-            <div>
-              <label className={labelClass}>Min Stock <span className="text-[#C8102E]">*</span></label>
-              <input type="number" required value={formData.minStock === 0 ? "" : formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
-            </div>
+
             <div>
               <label className={labelClass}>Max Stock <span className="text-[#C8102E]">*</span></label>
               <input type="number" required value={formData.maxStock === 0 ? "" : formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
@@ -235,10 +232,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
                 placeholder="0" 
               />
             </div>
-            <div>
-              <label className={labelClass}>Lokasi Penyimpanan <span className="text-[#C8102E]">*</span></label>
-              <input required value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className={inputClass} placeholder="Rak A1" />
-            </div>
+
             <div className="col-span-2">
               <label className={labelClass}>Nama Supplier Default <span className="text-[#C8102E]">*</span></label>
               <select required value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} className={inputClass}>
@@ -485,8 +479,8 @@ export function InventoryPage() {
         <div className="rounded-lg overflow-hidden flex flex-col h-full" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #f1f5f9" }}>
             <Truck size={14} style={{ color: "#0891b2" }} />
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#1F1F1F", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Material Masuk
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em", flex: 1 }}>
+              Dalam Perjalanan (ETA)
             </p>
             <span className="ml-auto rounded-full flex items-center justify-center text-white" style={{ width: 18, height: 18, background: "#0891b2", fontSize: 10, fontWeight: 700 }}>
               {incomingItems.length}
@@ -590,7 +584,7 @@ export function InventoryPage() {
                 <TH className="hidden xl:table-cell" right>Maks</TH>
                 <TH className="hidden lg:table-cell w-36">Level Stok</TH>
                 <TH>Status</TH>
-                <TH className="hidden md:table-cell">Material Masuk</TH>
+                <TH className="hidden md:table-cell">Sedang Dipesan (ETA)</TH>
                 <TH className="hidden xl:table-cell">Lokasi</TH>
                 <TH className="hidden sm:table-cell" right>Nilai Stok</TH>
                 <TH right>Aksi</TH>
