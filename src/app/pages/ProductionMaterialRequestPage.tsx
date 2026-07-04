@@ -251,33 +251,59 @@ export function ProductionMaterialRequestPage() {
         purchaseCategory: "Project",
       }));
     }
-    return [
-      {
-        materialKey: "",
-        itemName: "",
-        specification: "",
-        quantity: "1",
+    return [];
+  });
+
+  // Track if we've applied the initial inventory deficit calculation
+  const [hasAppliedDeficit, setHasAppliedDeficit] = useState(false);
+
+  useEffect(() => {
+    // If materialOptions updates (e.g. products load from backend), sync items if we haven't applied deficit yet
+    // or if items is currently empty.
+    if (materialOptions.length > 0 && (items.length === 0 || !hasAppliedDeficit)) {
+      setItems(materialOptions.map((m) => ({
+        materialKey: m.key,
+        itemName: m.itemName,
+        specification: m.specification,
+        quantity: m.quantity ? String(m.quantity) : "1",
         unit: "pcs",
         urgency: "Urgent" as PurchasingUrgency,
         purchaseCategory: "Project",
-      }
-    ];
-  });
+      })));
+    }
+  }, [materialOptions, hasAppliedDeficit]);
 
   useEffect(() => {
-    if (realInventoryItems.length > 0 && materialOptions.length > 0) {
-      setItems(prevItems => prevItems.map(item => {
-        const inventoryItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
-        if (inventoryItem) {
-          const originalRequired = materialOptions.find(m => m.key === item.materialKey)?.quantity || 1;
-          const currentStock = inventoryItem.currentStock || 0;
-          const deficit = Math.max(0, Number(originalRequired) - currentStock);
-          return { ...item, quantity: String(deficit) };
+    if (realInventoryItems.length > 0 && materialOptions.length > 0 && !hasAppliedDeficit) {
+      setItems(prevItems => {
+        const newItems = prevItems.map(item => {
+          const inventoryItem = realInventoryItems.find(i => i.name.toLowerCase().trim() === item.itemName.toLowerCase().trim());
+          if (inventoryItem) {
+            const originalRequired = materialOptions.find(m => m.key === item.materialKey)?.quantity || 1;
+            const currentStock = inventoryItem.currentStock || 0;
+            const deficit = Math.max(0, Number(originalRequired) - currentStock);
+            return { ...item, quantity: String(deficit) };
+          }
+          return item;
+        }).filter(item => Number(item.quantity) > 0);
+
+        // If filtering leaves us with nothing, but we had items, just show an empty row so the user isn't stuck
+        if (newItems.length === 0) {
+           return [{
+             materialKey: "",
+             itemName: "",
+             specification: "",
+             quantity: "1",
+             unit: "pcs",
+             urgency: "Urgent" as PurchasingUrgency,
+             purchaseCategory: "Project",
+           }];
         }
-        return item;
-      }).filter(item => Number(item.quantity) > 0));
+        return newItems;
+      });
+      setHasAppliedDeficit(true);
     }
-  }, [realInventoryItems, materialOptions]);
+  }, [realInventoryItems, materialOptions, hasAppliedDeficit]);
 
   if (!so) {
     return (
