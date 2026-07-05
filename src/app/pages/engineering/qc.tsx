@@ -148,11 +148,11 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {so.productionPhotos && so.productionPhotos.length > 0 && (
+            {(inspection?.productionPhotos ?? so.productionPhotos) && (inspection?.productionPhotos ?? so.productionPhotos)!.length > 0 && (
               <div>
-                <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Hasil Produksi ({so.productionPhotos.length})</p>
+                <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Hasil Produksi ({(inspection?.productionPhotos ?? so.productionPhotos)!.length})</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                  {so.productionPhotos.map((p, i) => (
+                  {(inspection?.productionPhotos ?? so.productionPhotos)!.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
                       <img src={p} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
                     </div>
@@ -161,11 +161,11 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
               </div>
             )}
 
-            {so.qcPhotos && so.qcPhotos.length > 0 && (
+            {(inspection?.qcPhotos ?? so.qcPhotos) && (inspection?.qcPhotos ?? so.qcPhotos)!.length > 0 && (
               <div>
-                <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti ({so.qcPhotos.length})</p>
+                <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 8px" }}>Foto Bukti ({(inspection?.qcPhotos ?? so.qcPhotos)!.length})</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                  {so.qcPhotos.map((p, i) => (
+                  {(inspection?.qcPhotos ?? so.qcPhotos)!.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
                       <img src={p} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
                     </div>
@@ -289,8 +289,8 @@ function QCInspectionModal({
       const updatedInspection = await qcApi.uploadResult(inspection.id, {
         reviewerUserId,
         reviewerName: currentUser?.name || inspection.assignedReviewerName || "QC Reviewer",
-        productionPhotos: productionPhotoUrls,
-        qcPhotos: qcPhotoUrls,
+        productionPhotos: productionPhotoUrls.urls,
+        qcPhotos: qcPhotoUrls.urls,
         notes: notes || null,
         decision: result,
       });

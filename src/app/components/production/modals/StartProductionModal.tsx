@@ -12,6 +12,8 @@ interface StockIssue {
   itemName: string;
   required: number;
   available: number;
+  bomQty: number;
+  productQty: number;
 }
 
 export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
@@ -61,6 +63,8 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
                   itemName: item.inventoryItemName,
                   required,
                   available,
+                  bomQty: item.bomQuantity,
+                  productQty,
                 });
               }
             }
@@ -185,7 +189,7 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
                 <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
                   <button
                     type="button"
-                    onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                    onClick={() => navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues || [] } })}
                     style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                   >
                     <FileWarning size={14} /> Buat Material Request
@@ -214,7 +218,7 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
                 {stockIssues!.map(issue => (
                   <div key={issue.itemName} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                     <span style={{ fontWeight: 500 }}>{issue.itemName}</span>
-                    <span>Butuh <strong>{issue.required}</strong> / Tersedia <strong style={{ color: "#DC2626" }}>{issue.available}</strong></span>
+                    <span>Butuh <strong>{issue.required}</strong> ({issue.bomQty}/unit × {issue.productQty} pcs) / Tersedia <strong style={{ color: "#DC2626" }}>{issue.available}</strong></span>
                   </div>
                 ))}
               </div>

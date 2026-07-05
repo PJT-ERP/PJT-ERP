@@ -40,7 +40,7 @@ public sealed class ProductsController(ICatalogService catalogService, IInventor
     }
 
     [HttpPut("{id}/bom")]
-    [Authorize(Roles = "Admin,Owner,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Engineering Worker,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult> UpdateBom(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken)
     {
         await catalogService.UpdateProductBomAsync(id, request, cancellationToken);

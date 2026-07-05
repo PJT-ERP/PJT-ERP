@@ -212,6 +212,10 @@ export function ProductionMaterialRequestPage() {
   const prefillStockIssues = (location.state as any)?.stockIssues as Array<{ itemName: string; required: number; available: number }> | undefined;
   const { salesOrders, currentUser, refreshBackendData, purchasingRequests } = useApp();
   
+  const prefillRef = React.useRef(prefillStockIssues);
+  if (prefillStockIssues && prefillStockIssues.length > 0) {
+    prefillRef.current = prefillStockIssues;
+  }
   const so = salesOrders.find(s => s.id === id || s.backendId === id);
   const request = purchasingRequests.find(pr => pr.salesOrderId === id || pr.salesOrderId === so?.backendId);
   
@@ -234,13 +238,19 @@ export function ProductionMaterialRequestPage() {
 
   const [bomOptions, setBomOptions] = useState<any[]>([]);
 
+  // Always fetch inventory for the material dropdown regardless of prefill mode
+  useEffect(() => {
+    masterDataApi.listInventory().then(setRealInventoryItems).catch(console.error);
+  }, []);
+
   // Fetch BOM data directly from API to avoid race conditions with context state
   useEffect(() => {
     if (!so) return;
 
     // If stock issues were passed from the production start modal, pre-fill from those
-    if (prefillStockIssues && prefillStockIssues.length > 0) {
-      setItems(prefillStockIssues.map(issue => ({
+    const prefill = prefillRef.current;
+    if (prefill && prefill.length > 0) {
+      const mapped = prefill.map(issue => ({
         materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}`,
         itemName: issue.itemName,
         specification: "",
@@ -249,6 +259,16 @@ export function ProductionMaterialRequestPage() {
         unit: "pcs",
         urgency: "Urgent" as PurchasingUrgency,
         purchaseCategory: "Project",
+      }));
+      setItems(mapped);
+      setBomOptions(mapped.map(m => ({
+        id: m.materialKey,
+        name: m.itemName,
+        code: '',
+        currentStock: 0,
+        unit: m.unit,
+        spec: m.specification,
+        maxQuantity: m.maxQuantity,
       })));
       setNotes(`Auto-generated dari pengecekan stok — material tidak mencukupi untuk memulai produksi.`);
       return;
