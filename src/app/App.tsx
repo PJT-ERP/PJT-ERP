@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AppProvider } from "./components/context/AppContext";
+import { Toaster } from "./components/ui/sonner";
 
 import HomePage from "./pages/HomePage";
 import { Login } from "./pages/Login";
@@ -20,21 +21,21 @@ import { FinancePurchasingApproval } from "./components/finance/FinancePurchasin
 import { FinancePrDetail } from "./components/finance/FinancePrDetail";
 import { FinancePoDetail } from "./components/finance/FinancePoDetail";
 
-import { AdminPage } from "./pages/AdminPage";
-import { AdminProductsPage } from "./pages/AdminProductsPage";
+import { AdminPage } from "./pages/admin";
+import { AdminProductsPage } from "./pages/admin/products";
 import { SuppliersPage } from "./components/purchasing/suppliers-page";
-import { LandingPageEditor } from "./pages/LandingPageEditor";
-import { EngineeringTasksPage } from "./pages/EngineeringTasksPage";
-import { EngineeringTaskDetailPage } from "./pages/EngineeringTaskDetailPage";
-import { EngineeringPage } from "./pages/EngineeringPage";
-import { EngineeringPurchasingPage } from "./pages/EngineeringPurchasingPage";
-import { EngineeringQCPage } from "./pages/EngineeringQCPage";
-import { OwnerApprovalPage } from "./pages/OwnerApprovalPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { CustomerAnalyticsPage } from "./pages/CustomerAnalyticsPage";
-import { ProductionPage } from "./pages/ProductionPage";
-import { ProductionMaterialRequestPage } from "./pages/ProductionMaterialRequestPage";
-import { QCPage } from "./pages/QCPage";
+import { LandingPageEditor } from "./pages/admin/landing-editor";
+import { EngineeringTasksPage } from "./pages/engineering/tasks";
+import { EngineeringTaskDetailPage } from "./pages/engineering/task-detail";
+import { EngineeringPage } from "./pages/engineering";
+import { EngineeringPurchasingPage } from "./pages/engineering/purchasing";
+import { EngineeringQCPage } from "./pages/engineering/qc";
+import { OwnerApprovalPage } from "./pages/owner/approvals";
+import { DashboardPage } from "./pages/dashboard";
+import { CustomerAnalyticsPage } from "./pages/sales/analytics";
+import { ProductionPage } from "./pages/Production";
+import { ProductionMaterialRequestPage } from "./pages/Production/material-request";
+import { QCPage } from "./pages/qc";
 
 const financeRoutes = [
   { path: "dashboard", element: <FinanceDashboard /> },
@@ -99,6 +100,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      <Toaster position="top-center" richColors />
     </AppProvider>
   );
 }

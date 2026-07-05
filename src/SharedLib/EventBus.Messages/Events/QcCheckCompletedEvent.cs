@@ -4,4 +4,6 @@ public record QcCheckCompletedEvent(
     Guid QcInspectionId,
     Guid ProductionOrderId,
     string Decision,
-    DateTime CheckedAtUtc) : IntegrationEvent;
+    DateTime CheckedAtUtc,
+    IReadOnlyCollection<string> ProductionPhotos,
+    IReadOnlyCollection<string> QcPhotos) : IntegrationEvent;

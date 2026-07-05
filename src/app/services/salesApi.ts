@@ -103,6 +103,9 @@ export interface SalesOrderDto {
     designReference?: string | null;
     customerDrawingUrl?: string | null;
   }>;
+  qcPhotos?: string[] | null;
+  productionPhotos?: string[] | null;
+  estimatedAmount?: number | null;
 }
 
 export interface CreateSalesOrderRequest {

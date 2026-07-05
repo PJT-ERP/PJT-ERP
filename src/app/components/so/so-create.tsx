@@ -3,12 +3,19 @@ import {
   Plus, RefreshCw, ChevronLeft, CheckCircle2,
   User, Building2, Phone, Mail, MapPin,
   Package, Hash, Calendar, FileText, Search,
-  ChevronRight, Trash2, GripVertical,
-  Layers, Link as LinkIcon, DollarSign
+  ChevronRight,
+  Layers, DollarSign
 } from "lucide-react";
-import { ENGINEERING_DESIGNS } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import { salesApi } from "../../services/salesApi";
+import {
+  Label, Input, CurrencyInput, Textarea, Select,
+  SearchableCustomerSelect, SectionCard, Grid2
+} from "./create/FormHelpers";
+import {
+  ProductRow, ProductOption, emptyProduct,
+  ProductLineItem, AddProductBtn
+} from "./create/ProductLineItem";
 
 interface SOCreateProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -19,71 +26,17 @@ type OrderType = "new" | "repeat" | null;
 
 const S = {
   font: "Inter, sans-serif",
-  primary: "#C8102E", // Brand red
-  slate: "#1F1F1F", // Darker slate (slate-900)
-  secondary: "#475569", // Darker secondary text (slate-600)
-  border: "#CBD5E1", // Darker border (slate-300) for visibility
-  bg: "#F1F5F9", // Slightly darker bg (slate-100)
-  bgHover: "#E2E8F0", // slate-200
+  primary: "#C8102E",
+  slate: "#1F1F1F",
+  secondary: "#475569",
+  border: "#CBD5E1",
+  bg: "#F1F5F9",
+  bgHover: "#E2E8F0",
   white: "#FFFFFF",
   red: "#EF4444",
-  cyan: "#C8102E", // Map cyan to primary brand red to fix undefined references
+  cyan: "#C8102E",
 };
 
-// ─── Product line item ────────────────────────────────────────────────────────
-interface BOMItem {
-  id: string;
-  name: string;
-  specification: string;
-  quantity: string;
-  unit: string;
-}
-
-interface ProductRow {
-  id: string;
-  type: "existing" | "custom";
-  productName: string;
-  customName: string;
-  designId?: string;
-  materials: BOMItem[];
-  quantity: string;
-  unit: string;
-  notes: string;
-  customerDesignUrl?: string;
-  unitPrice?: number;
-  materialSpec?: string | null;
-}
-
-interface ProductOption {
-  id: string;
-  label: string;
-  partNumber: string;
-  unit: string;
-  materialSpec?: string | null;
-  bomItems?: { inventoryItemId: string; inventoryItemCode: string; inventoryItemName: string; quantity: number; unit: string; }[];
-}
-
-const emptyProduct = (): ProductRow => ({
-  id: crypto.randomUUID(),
-  type: "existing",
-  productName: "",
-  customName: "",
-  designId: "",
-  materials: [],
-  quantity: "",
-  unit: "pcs",
-  notes: "",
-  unitPrice: 0,
-  materialSpec: null,
-});
-
-function addDaysIso(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next.toISOString().split("T")[0];
-}
-
-// ─── Customer form ────────────────────────────────────────────────────────────
 interface CustomerForm {
   customerCode: string;
   customerName: string;
@@ -104,482 +57,12 @@ interface RepeatForm {
   estimatedAmount?: number;
 }
 
-// ─── Primitive UI helpers ─────────────────────────────────────────────────────
-function Label({ text, required }: { text: string; required?: boolean }) {
-  return (
-    <label style={{ display: "block", fontSize: "11.5px", fontWeight: 500, color: "#475569", marginBottom: 4, fontFamily: S.font }}>
-      {text}{required && <span style={{ color: S.red, marginLeft: 2 }}>*</span>}
-    </label>
-  );
+function addDaysIso(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next.toISOString().split("T")[0];
 }
 
-function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div style={{ position: "relative" }}>
-      {icon && (
-        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none", display: "flex" }}>
-          {icon}
-        </span>
-      )}
-      <input
-        {...props}
-        style={{
-          width: "100%", boxSizing: "border-box",
-          background: focused ? S.white : "#FAFAFA",
-          border: `1px solid ${focused ? S.primary : S.border}`,
-          borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
-          fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
-          boxShadow: focused ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-          ...props.style,
-        }}
-        onFocus={e => { setFocused(true); props.onFocus?.(e); }}
-        onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-      />
-    </div>
-  );
-}
-
-function CurrencyInput({ value, onChange, icon, ...props }: any) {
-  const [focused, setFocused] = useState(false);
-
-  const formatNumber = (val: number | undefined) => {
-    if (val === undefined || val === null || isNaN(val) || val === 0) return "";
-    return val.toLocaleString("id-ID");
-  };
-
-  const [displayValue, setDisplayValue] = useState(formatNumber(value));
-
-  React.useEffect(() => {
-    if (!focused) {
-      setDisplayValue(formatNumber(value));
-    }
-  }, [value, focused]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawVal = e.target.value.replace(/[^0-9]/g, '');
-    setDisplayValue(rawVal ? Number(rawVal).toLocaleString("id-ID") : "");
-    onChange(Number(rawVal));
-  };
-
-  return (
-    <div style={{ position: "relative" }}>
-      {icon && (
-        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none", display: "flex" }}>
-          {icon}
-        </span>
-      )}
-      <input
-        {...props}
-        type="text"
-        value={displayValue}
-        onChange={handleChange}
-        style={{
-          width: "100%", boxSizing: "border-box",
-          background: focused ? S.white : "#FAFAFA",
-          border: `1px solid ${focused ? S.primary : S.border}`,
-          borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
-          fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
-          boxShadow: focused ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-          ...props.style,
-        }}
-        onFocus={(e: any) => { setFocused(true); props.onFocus?.(e); }}
-        onBlur={(e: any) => { setFocused(false); props.onBlur?.(e); }}
-      />
-    </div>
-  );
-}
-
-function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { rows?: number }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <textarea
-      {...props}
-      rows={props.rows ?? 2}
-      style={{
-        width: "100%", boxSizing: "border-box",
-        background: focused ? S.white : "#FAFAFA",
-        border: `1px solid ${focused ? S.primary : S.border}`,
-        borderRadius: 4, padding: "7px 10px",
-        fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none", resize: "none",
-        boxShadow: focused ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-        transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-        ...props.style,
-      }}
-      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
-      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-    />
-  );
-}
-
-function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <select
-      {...props}
-      style={{
-        width: "100%", boxSizing: "border-box",
-        background: focused ? S.white : "#FAFAFA",
-        border: `1px solid ${focused ? S.primary : S.border}`,
-        borderRadius: 4, padding: "7px 10px",
-        fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none", cursor: "pointer",
-        boxShadow: focused ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-        transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-        ...props.style,
-      }}
-      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
-      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-    >
-      {children}
-    </select>
-  );
-}
-
-function SearchableCustomerSelect({ customers, value, onChange }: { customers: any[]; value: string; onChange: (val: string) => void }) {
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const wrapperRef = React.useRef<HTMLDivElement>(null);
-
-  const selectedCustomer = customers.find(c => c.code === value);
-  const displayValue = open ? search : (selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.code})` : "");
-
-  const filtered = customers.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.code.toLowerCase().includes(search.toLowerCase()) ||
-    (c.contactPerson && c.contactPerson.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  React.useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div ref={wrapperRef} style={{ position: "relative", width: "100%" }}>
-      <div style={{ position: "relative" }}>
-        <input
-          type="text"
-          placeholder="Cari nama, kode, atau PIC pelanggan..."
-          value={displayValue}
-          onChange={e => {
-            setSearch(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => {
-            setSearch("");
-            setOpen(true);
-          }}
-          style={{
-            width: "100%", boxSizing: "border-box",
-            background: open ? S.white : "#FAFAFA",
-            border: `1px solid ${open ? S.primary : S.border}`,
-            borderRadius: 4, padding: "7px 10px 7px 30px",
-            fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
-            boxShadow: open ? `0 0 0 2px ${S.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-            transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-          }}
-        />
-        <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none" }} />
-      </div>
-      {open && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 220, overflowY: "auto" }}>
-          {filtered.length === 0 ? (
-            <div style={{ padding: "12px", fontSize: "12px", color: S.secondary, textAlign: "center" }}>Pelanggan tidak ditemukan</div>
-          ) : (
-            filtered.map(c => (
-              <div
-                key={c.code}
-                onClick={() => {
-                  onChange(c.code);
-                  setSearch("");
-                  setOpen(false);
-                }}
-                style={{ padding: "8px 12px", fontSize: "12.5px", color: S.slate, cursor: "pointer", borderBottom: `1px solid ${S.bg}` }}
-                onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <div style={{ fontWeight: 500, color: S.slate }}>{c.name}</div>
-                <div style={{ fontSize: "11px", color: S.secondary, display: "flex", gap: 8, marginTop: 2 }}>
-                  <span style={{ color: S.primary, fontWeight: 500 }}>{c.code}</span>
-                  {c.contactPerson && <span>· PIC: {c.contactPerson}</span>}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SectionCard({ title, icon, children, action }: {
-  title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
-}) {
-  return (
-    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: S.bg, borderTopLeftRadius: 5, borderTopRightRadius: 5 }}>
-        <span style={{ color: S.primary }}>{icon}</span>
-        <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate, fontFamily: S.font, flex: 1 }}>{title}</span>
-        {action}
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
-    </div>
-  );
-}
-
-function Grid2({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-      {children}
-    </div>
-  );
-}
-
-// ─── Product Line Item ────────────────────────────────────────────────────────
-interface ProductRowProps {
-  row: ProductRow;
-  index: number;
-  total: number;
-  productOptions: ProductOption[];
-  onChange: (updated: ProductRow) => void;
-  onRemove: () => void;
-}
-
-function ProductLineItem({ row, index, total, productOptions, onChange, onRemove }: ProductRowProps) {
-  const isCustom = row.type === "custom";
-
-  return (
-    <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden", background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", transition: "border-color 0.12s" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-        <GripVertical size={13} style={{ color: "#CBD5E1", cursor: "grab", flexShrink: 0 }} />
-        <span style={{ width: 20, height: 20, borderRadius: "50%", background: S.cyan, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, flexShrink: 0 }}>
-          {index + 1}
-        </span>
-        <span style={{ fontSize: "12px", fontWeight: 500, color: S.slate, flex: 1 }}>
-          {isCustom ? (row.customName || "Produk Custom") : (row.productName || "Pilih Produk")}
-        </span>
-
-        {/* Type toggle */}
-        <div style={{ display: "flex", background: "#E2E8F0", padding: "4px", borderRadius: "8px", flexShrink: 0, boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)" }}>
-          {(["existing", "custom"] as const).map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => onChange({ ...row, type: t })}
-              style={{
-                padding: "4px 16px", border: "none", cursor: "pointer", borderRadius: "6px",
-                fontSize: "11.5px", fontWeight: row.type === t ? 600 : 500, fontFamily: S.font,
-                background: row.type === t ? S.white : "transparent",
-                color: row.type === t ? S.slate : "#64748B",
-                boxShadow: row.type === t ? "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)" : "none",
-                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-            >
-              {t === "existing" ? "Terdaftar" : "Custom"}
-            </button>
-          ))}
-        </div>
-
-        {total > 1 && (
-          <button
-            type="button"
-            title="Hapus produk ini"
-            onClick={onRemove}
-            style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 4, background: "transparent", cursor: "pointer", color: "#CBD5E1", transition: "background 0.12s, color 0.12s", flexShrink: 0 }}
-            onMouseEnter={e => { (e.currentTarget).style.background = "#FEF2F2"; (e.currentTarget).style.color = S.red; }}
-            onMouseLeave={e => { (e.currentTarget).style.background = "transparent"; (e.currentTarget).style.color = "#CBD5E1"; }}
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
-      </div>
-
-      {/* Fields */}
-      <div style={{ padding: 14 }}>
-        <div style={{ marginBottom: 10 }}>
-          <Label text={isCustom ? "Nama Produk (Manual)" : "Nama Produk"} required />
-          {isCustom ? (
-            <Input placeholder="Ketik nama produk custom..." value={row.customName} onChange={e => onChange({ ...row, customName: e.target.value })} required />
-          ) : (
-            <Select value={row.productName} onChange={e => {
-              const pName = e.target.value;
-              const selected = productOptions.find(product => product.label === pName);
-              onChange({
-                ...row,
-                productName: pName,
-                designId: "",
-                unit: selected?.unit.toLowerCase() || row.unit,
-                materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
-                  id: b.inventoryItemId,
-                  name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-                  specification: "",
-                  quantity: String(b.quantity),
-                  unit: b.unit,
-                })) : [],
-              });
-            }} required>
-              <option value="">— Pilih produk —</option>
-              {productOptions.map(product => (
-                <option key={product.id} value={product.label}>{product.label}</option>
-              ))}
-            </Select>
-          )}
-        </div>
-
-        {isCustom && (
-          <div style={{ marginBottom: 10 }}>
-            <Label text="Sumber Desain / ID Desain" />
-            <Select
-              value={row.designId}
-              onChange={e => {
-                const selectedDesignId = e.target.value;
-                if (selectedDesignId === "none" || selectedDesignId === "" || selectedDesignId === "customer") {
-                  onChange({ ...row, designId: selectedDesignId, materials: [] });
-                } else {
-                  const design = ENGINEERING_DESIGNS.find(d => d.id === selectedDesignId);
-                  onChange({
-                    ...row,
-                    designId: selectedDesignId,
-                    materials: design ? design.materials.map((m: any) => ({
-                      id: m.id,
-                      name: m.name,
-                      specification: m.spec || "",
-                      quantity: String(m.quantity),
-                      unit: m.unit
-                    })) : []
-                  });
-                }
-              }}
-            >
-              <option value="">— Pilih Sumber Desain —</option>
-              <option value="none">Buatkan desain baru (oleh Tim Engineering)</option>
-              <option value="customer">Pelanggan memiliki referensi desain sendiri</option>
-              {ENGINEERING_DESIGNS.filter(d => d.status === "Approved").map(d => (
-                <option key={d.id} value={d.id}>{d.id} - {d.name} (Desain Tersimpan)</option>
-              ))}
-            </Select>
-            {row.designId === "customer" ? (
-              <div style={{ marginTop: 8 }}>
-                <Label text="URL Gambar/Referensi" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://link-referensi-desain..." value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value })} required />
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Wajib diisi agar Tim Engineering dapat merancang desain dan menyelesaikan BOM.
-                </p>
-              </div>
-            ) : row.designId === "none" ? (
-              <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                *Tim Engineering akan merancang desain dari awal berdasarkan catatan/kebutuhan.
-              </p>
-            ) : null}
-          </div>
-        )}
-
-        {row.materialSpec && (
-          <div style={{ marginBottom: 16, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6, padding: 12 }}>
-            <Label text="Catatan Spesifikasi (Material Spec)" />
-            <div style={{ marginTop: 4, fontSize: "12px", color: S.slate, whiteSpace: "pre-wrap", fontFamily: S.font }}>
-              {row.materialSpec}
-            </div>
-          </div>
-        )}
-
-        {row.materials && row.materials.length > 0 && (
-          <div style={{ marginBottom: 16, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6, padding: 12 }}>
-            <Label text="Bill of Materials (BOM) — Read Only" />
-            <div style={{ overflowX: "auto", marginTop: 8 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: S.font }}>
-                <thead>
-                  <tr style={{ background: "#E2E8F0", textAlign: "left", color: S.secondary }}>
-                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Material</th>
-                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Spesifikasi</th>
-                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, textAlign: "right" }}>Qty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {row.materials.map((mat: any, i) => {
-                    const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
-                    return (
-                      <tr key={mat.id}>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{totalQty} {mat.unit}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p style={{ margin: "6px 0 0", fontSize: "10px", color: S.secondary, fontStyle: "italic" }}>
-              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}.
-            </p>
-          </div>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "120px 90px 150px 1fr", gap: 10 }}>
-          <div>
-            <Label text="Jumlah (Qty)" required />
-            <Input icon={<Hash size={11} />} type="number" min="1" placeholder="0" value={row.quantity} onChange={e => onChange({ ...row, quantity: e.target.value })} required />
-          </div>
-          <div>
-            <Label text="Satuan" />
-            {!isCustom && row.productName ? (
-              <div style={{
-                width: "100%", boxSizing: "border-box",
-                background: "#F1F5F9", border: "1px solid #CBD5E1",
-                borderRadius: 4, padding: "7px 10px",
-                fontSize: "12.5px", color: "#475569", fontFamily: S.font,
-              }}>
-                {row.unit}
-              </div>
-            ) : (
-              <Select value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
-                {["pcs", "unit", "batang", "lembar", "kg", "ton", "set", "roll", "meter", "liter"].map(u => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </Select>
-            )}
-          </div>
-          <div>
-            <Label text="Harga Satuan (Rp)" />
-            <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 11 }}>Rp</span>} placeholder="0" value={row.unitPrice || 0} onChange={(val: number) => onChange({ ...row, unitPrice: val })} />
-          </div>
-          <div>
-            <Label text="Catatan Produk" />
-            <Input placeholder="Toleransi, treatment, kemasan..." value={row.notes} onChange={e => onChange({ ...row, notes: e.target.value })} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Add Product Button ───────────────────────────────────────────────────────
-function AddProductBtn({ onClick, color = S.cyan }: { onClick: () => void; color?: string }) {
-  const borderAlpha = color === S.cyan ? "rgba(200,16,46,0.25)" : "rgba(99,102,241,0.25)";
-  const bgAlpha = color === S.cyan ? "rgba(200,16,46,0.06)" : "rgba(99,102,241,0.06)";
-  const bgHover = color === S.cyan ? "rgba(200,16,46,0.12)" : "rgba(99,102,241,0.12)";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 4, border: `1px solid ${borderAlpha}`, background: bgAlpha, color, fontSize: "11.5px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
-      onMouseEnter={e => (e.currentTarget.style.background = bgHover)}
-      onMouseLeave={e => (e.currentTarget.style.background = bgAlpha)}
-    >
-      <Plus size={12} /> Tambah Produk
-    </button>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const { customers, productCatalog, salesOrders, refreshBackendData, updateSalesOrder } = useApp();
   const catalogProductOptions = productCatalog.map(product => ({
@@ -651,28 +134,68 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           generalNotes: selectedSo.notes || "",
         }));
 
-        const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
-        let materials: any[] = [];
-        if (matchedProduct) {
-          materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
-            id: b.inventoryItemId,
-            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-            specification: "",
-            quantity: String(b.quantity),
-            unit: b.unit,
-          })) : [];
-        }
+        if (selectedSo.items && selectedSo.items.length > 0) {
+          const totalItemQty = selectedSo.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+          const totalEstimated = selectedSo.estimatedAmount || 0;
 
-        setRepeatProducts([{
-          ...emptyProduct(),
-          type: matchedProduct ? "existing" : "custom",
-          productName: matchedProduct ? matchedProduct.label : selectedSo.description,
-          customName: selectedSo.description,
-          quantity: String(selectedSo.quantity),
-          unit: selectedSo.unit,
-          unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
-          materials,
-        }]);
+          const mappedProducts = selectedSo.items.map((item: any, idx: number) => {
+            const itemPartNumber = item.partNumber || item.productPartNumber || "";
+            const matchedProduct = catalogProductOptions.find(p => p.id === item.productId)
+              || (itemPartNumber ? catalogProductOptions.find(p => p.partNumber === itemPartNumber) : undefined)
+              || catalogProductOptions.find(p => p.label.includes(item.productName || itemPartNumber));
+
+            let materials: any[] = [];
+            if (matchedProduct) {
+              materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+                id: b.inventoryItemId,
+                name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                specification: "",
+                quantity: String(b.quantity),
+                unit: b.unit,
+              })) : [];
+            }
+
+            let unitPrice = item.unitPrice || 0;
+            if (unitPrice === 0 && totalItemQty > 0 && totalEstimated > 0 && (item.quantity || 0) > 0) {
+              unitPrice = Math.floor((totalEstimated * (item.quantity || 1)) / totalItemQty);
+            }
+
+            return {
+              ...emptyProduct(),
+              type: (matchedProduct ? "existing" : "custom") as "existing" | "custom",
+              productName: matchedProduct ? matchedProduct.label : (item.productName || itemPartNumber || selectedSo.description || `Item ${idx + 1}`),
+              customName: item.productName || selectedSo.description,
+              quantity: String(item.quantity || 1),
+              unit: item.unit || "PCS",
+              unitPrice,
+              materials,
+            } as ProductRow;
+          });
+          setRepeatProducts(mappedProducts);
+        } else {
+          const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+          let materials: any[] = [];
+          if (matchedProduct) {
+            materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
+              id: b.inventoryItemId,
+              name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+              specification: "",
+              quantity: String(b.quantity),
+              unit: b.unit,
+            })) : [];
+          }
+
+          setRepeatProducts([{
+            ...emptyProduct(),
+            type: matchedProduct ? "existing" : "custom",
+            productName: matchedProduct ? matchedProduct.label : selectedSo.description,
+            customName: selectedSo.description,
+            quantity: String(selectedSo.quantity),
+            unit: selectedSo.unit,
+            unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+            materials,
+          }]);
+        }
       }
     }
   }, [orderType, repeatForm.previousSoId, salesOrders, repeatProducts.length, catalogProductOptions]);
@@ -689,9 +212,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       import("../../services/salesApi").then(({ salesApi }) => {
         salesApi.getNextCustomerCode().then(res => {
           setCustomerForm(f => ({ ...f, customerCode: res.code }));
-        }).catch(() => {
-          // Ignore error, it will just fallback to Otomatis
-        });
+        }).catch(() => {});
       });
     }
   }, [isExistingCustomer, isEdit, orderType]);
@@ -727,35 +248,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       estimatedAmount: selectedSo?.estimatedAmount || 0,
       generalNotes: selectedSo?.notes || "",
     });
-    if (selectedSo) {
-      const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
-      let materials: any[] = [];
-      if (matchedProduct) {
-        materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
-          id: b.inventoryItemId,
-          name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-          specification: "",
-          quantity: String(b.quantity),
-          unit: b.unit,
-        })) : [];
-      }
-
-      setRepeatProducts([{
-        ...emptyProduct(),
-        type: matchedProduct ? "existing" : "custom",
-        productName: matchedProduct ? matchedProduct.label : selectedSo.description,
-        customName: selectedSo.description,
-        quantity: String(selectedSo.quantity),
-        unit: selectedSo.unit,
-        unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
-        materials,
-      }]);
-    } else {
-      setRepeatProducts([]);
-    }
+    setRepeatProducts([]);
   };
-
-
 
   const ensureCustomerId = async (input: {
     code: string;
@@ -807,6 +301,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     targetDate: string,
     customerDrawingUrl: string,
     rows: ProductRow[],
+    designStatus?: string,
   ) => {
     let maxPrd = 0;
     productCatalog.forEach(p => {
@@ -835,18 +330,16 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       targetDate,
       customerDrawingUrl: customerDrawingUrl || null,
       designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
-      designStatus: rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved",
+      designStatus: designStatus ?? (rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved"),
       items,
     };
 
-    // Retry loop untuk menangani eventual consistency (replikasi PGMQ dari MasterData ke Production)
     let lastError: any;
     for (let i = 0; i < 6; i++) {
       try {
         return await salesApi.createSalesOrder(payload);
       } catch (error: any) {
         lastError = error;
-        // Tunggu 2.5 detik sebelum mencoba lagi agar replika MasterData punya waktu sinkronisasi
         await new Promise(resolve => setTimeout(resolve, 2500));
       }
     }
@@ -890,7 +383,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
     } catch (error: any) {
-      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      if (error?.response?.status === 401) return;
       console.error(error);
       window.alert("Gagal membuat Sales Order di backend. Cek data customer, produk, dan URL gambar.");
     } finally {
@@ -921,8 +414,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       });
       const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
       const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
-      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts);
-
+      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts, "Approved");
 
       if (repeatForm.estimatedAmount) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
@@ -932,7 +424,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
     } catch (error: any) {
-      if (error?.response?.status === 401) return; // apiClient will handle redirect
+      if (error?.response?.status === 401) return;
       console.error(error);
       window.alert("Gagal membuat Repeat Order di backend.");
     } finally {
@@ -940,9 +432,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
-
-
-  // ─── Success screen ──────────────────────────────────────────────────────────
   if (submitted) {
     const totalItems = orderType === "repeat"
       ? repeatProducts.length
@@ -992,7 +481,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button onClick={handleBack}
           style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", transition: "background 0.12s, color 0.12s", flexShrink: 0 }}
@@ -1015,7 +503,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </div>
       </div>
 
-      {/* Step breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
         {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Pesanan Baru", "Submit"].map((step, i) => {
           const active = (i === 0 && !orderType) || (i === 1 && !!orderType);
@@ -1031,7 +518,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         })}
       </div>
 
-      {/* ── Step 1: Choose order type ─────────────────────────────────────────── */}
       {!orderType && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, maxWidth: 860 }}>
           {[
@@ -1053,7 +539,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </div>
       )}
 
-      {/* ── New Order Form ────────────────────────────────────────────────────── */}
       {orderType === "new" && (
         <form onSubmit={handleNewOrderSubmit}
           style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1195,7 +680,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </form>
       )}
 
-      {/* ── Repeat Order Form ─────────────────────────────────────────────────── */}
       {orderType === "repeat" && (
         <form onSubmit={handleRepeatOrderSubmit}
           style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1303,7 +787,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </div>
         </form>
       )}
-
 
     </div>
   );

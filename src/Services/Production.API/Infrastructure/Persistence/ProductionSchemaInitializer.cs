@@ -32,6 +32,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_status character varying(50) NOT NULL DEFAULT 'PendingDesign';
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS rejection_reason character varying(1000);
             
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS unit_price numeric NOT NULL DEFAULT 0;
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS design_reference character varying(255);
@@ -45,6 +46,9 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_worker_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_reviewer_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_reviewer_name character varying(160);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_photos text[] DEFAULT ARRAY[]::text[];
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_photos text[] DEFAULT ARRAY[]::text[];
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS estimated_amount numeric;
 
             UPDATE sales_orders
             SET design_status = 'PendingDesign'

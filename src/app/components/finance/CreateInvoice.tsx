@@ -206,8 +206,8 @@ export function CreateInvoice() {
               },
             ],
         bankName: 'BCA',
-        bankAccountName: 'PT Pratama Jaya',
-        bankAccountNumber: '1234567890',
+        bankAccountName: 'PT. PRATAMA JAYA TEKINDO',
+        bankAccountNumber: '8820748299',
         fallbackCandidate: {
           salesOrderNumber: activeCandidate!.salesOrderNumber,
           customerId: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activeCandidate!.customerId) 
@@ -598,13 +598,13 @@ export function CreateInvoice() {
                 <p className="text-sm font-bold text-slate-800 mb-3">Informasi Pembayaran</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 inline-block shadow-sm">
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Transfer Ke:</p>
-                  <p className="text-lg font-black text-red-800 tracking-tight">Bank BCA - 1234567890</p>
-                  <p className="text-sm font-semibold text-slate-700">a/n PT Pratama Jaya</p>
+                  <p className="text-lg font-black text-red-800 tracking-tight">Bank BCA - 8820748299</p>
+                  <p className="text-sm font-semibold text-slate-700">a/n PT. PRATAMA JAYA TEKINDO</p>
                 </div>
               </div>
               <div className="text-left sm:text-right">
                 <p className="text-sm text-slate-500 font-semibold mb-1">Terima kasih atas kerja sama Anda.</p>
-                <p className="text-[11px] text-slate-400 font-medium">Dokumen ini dihasilkan oleh Sistem ERP PT Pratama Jaya<br className="hidden sm:block"/>dan sah tanpa tanda tangan fisik.</p>
+                <p className="text-[11px] text-slate-400 font-medium">Dokumen ini dihasilkan oleh Sistem ERP PT. PRATAMA JAYA TEKINDO<br className="hidden sm:block"/>dan sah tanpa tanda tangan fisik.</p>
               </div>
             </div>
 

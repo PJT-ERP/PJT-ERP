@@ -27,3 +27,7 @@ letsencrypt/
 
 docker-compose.*.override.yml
 !docker-compose.override.yml
+
+.kilo/
+kilo.json
+AGENTS.md

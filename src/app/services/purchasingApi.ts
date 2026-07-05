@@ -231,4 +231,17 @@ export const purchasingApi = {
     );
     return response.data;
   },
+
+  async getPurchaseRequest(id: string) {
+    const response = await apiClient.get<PurchaseRequestDto>(`/api/v1/purchasing/purchase-requests/${id}`);
+    return response.data;
+  },
+
+  async updateMaterialRequirementStock(id: string, data: { currentStock: number, minimumStock: number, unit: string }) {
+    const response = await apiClient.put<MaterialRequirementDto>(
+      `/api/v1/purchasing/material-requirements/${id}/stock`,
+      data,
+    );
+    return response.data;
+  },
 };

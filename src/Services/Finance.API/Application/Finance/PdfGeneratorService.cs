@@ -120,8 +120,8 @@ public static class PdfGeneratorService
                     c.Item().PaddingTop(5).Background(Colors.Grey.Lighten4).Padding(10).Column(bc =>
                     {
                         bc.Item().Text("Transfer Ke:").FontSize(9).Bold().FontColor(Colors.Grey.Medium);
-                        bc.Item().Text($"{invoice.BankName ?? "Bank BCA"} - {invoice.BankAccountNumber ?? "1234567890"}").FontSize(14).Bold().FontColor(Colors.Red.Darken3);
-                        bc.Item().Text($"a/n {invoice.BankAccountName ?? "PT Pratama Jaya"}").FontSize(11).SemiBold().FontColor(Colors.Grey.Darken2);
+                        bc.Item().Text($"{invoice.BankName ?? "Bank BCA"} - {invoice.BankAccountNumber ?? "8820748299"}").FontSize(14).Bold().FontColor(Colors.Red.Darken3);
+                        bc.Item().Text($"a/n {invoice.BankAccountName ?? "PT. PRATAMA JAYA TEKINDO"}").FontSize(11).SemiBold().FontColor(Colors.Grey.Darken2);
                     });
                 });
 

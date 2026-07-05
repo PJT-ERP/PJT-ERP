@@ -45,23 +45,18 @@ export function FinanceCosting() {
     )
   );
   const isWaitingPricing = (so: any) => {
+    if (so.status === "Completed" || so.status === "Rejected" || so.status === "Cancelled") {
+      return false;
+    }
     if (so.backendStatus === "Waiting Pricing" || so.status === "Waiting Pricing") {
       return true;
     }
-
-    // For custom products (backendDesignStatus === "Approved"), they skip "Waiting Pricing"
-    // or run in parallel with production.
-    const productionCanRunBeforePricing = so.backendDesignStatus === "Approved"
-      && !hasInvoiceCandidate(so)
-      && (so.status !== "Waiting Payment" && so.backendStatus !== "Waiting Payment")
-      && (so.status !== "Completed" && so.backendStatus !== "Completed");
-
-    return productionCanRunBeforePricing;
+    return false;
   };
 
   // Status that indicates SO is ready for Costing (after SPV Engineering approval)
   const waitingPricingSO = salesOrders.filter(so => 
-    isWaitingPricing(so) || (historyStatuses.includes(so.status) && isUnpriced(so))
+    isWaitingPricing(so)
   ).map(so => ({
     ...so,
     isQuotation: false

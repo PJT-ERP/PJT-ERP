@@ -220,28 +220,7 @@ export function FinancePoDetail() {
         </div>
 
         <div className="px-6 py-6 print:py-2 space-y-6 print:space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:gap-4">
-            {/* Info Rekening */}
-            <div className="rounded-md p-5 print:p-2 bg-red-50 print:bg-transparent border border-red-100 print:border-none">
-              <p className="text-xs font-bold text-[#C8102E] uppercase tracking-wider mb-3 flex items-center gap-2">
-                <DollarSign size={14} /> Informasi Rekening Pembayaran
-              </p>
-              <div className="space-y-1">
-                {(() => {
-                  const supp = suppliers.find((s: SupplierDto) => s.code === detail.supplierCode);
-                  if (supp && supp.bankAccount) {
-                    return (
-                      <>
-                        <p className="text-lg font-bold text-slate-900 m-0">{supp.bankName} - {supp.bankAccount}</p>
-                        <p className="text-sm text-slate-600 m-0">a.n. {detail.supplier} {supp.bankBranch ? `(${supp.bankBranch})` : ''}</p>
-                      </>
-                    );
-                  }
-                  return <p className="text-sm font-semibold text-slate-800 m-0">(Bank tidak terdaftar di Vendor Master)</p>;
-                })()}
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 gap-6 print:gap-4">
             {/* Info Tagihan */}
             <div className="rounded-md p-5 print:p-2 bg-slate-50 print:bg-transparent border border-slate-200 print:border-none">
               <div className="grid grid-cols-2 gap-4">
@@ -323,9 +302,7 @@ export function FinancePoDetail() {
                       className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm"
                     >
                       <option value="" disabled>-- Pilih Akun Bank --</option>
-                      <option value="BCA">Bank BCA - Operasional</option>
-                      <option value="Mandiri">Bank Mandiri - Proyek</option>
-                      <option value="Cash">Kas Kecil (Petty Cash)</option>
+                      <option value="BCA">BCA 8820748299 a/n PT. PRATAMA JAYA TEKINDO</option>
                     </select>
                   </div>
                   <div>

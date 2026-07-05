@@ -10,19 +10,11 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
-
 import { useFinanceData } from "../finance/useFinanceData";
-import { mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
-import { financeApi } from "../../services/financeApi";
-
-const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
-  paid: { label: "Paid", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
-  verified: { label: "Verified", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
-  waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
-  not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
-  pending_verification: { label: "Menunggu Verifikasi", textColor: "#C8102E", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#C8102E" },
-  overdue: { label: "Overdue", textColor: "#B91C1C", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#DC2626" },
-};
+import { mergeSalesOrderInvoice } from "./invoice-sync";
+import { ImagePreviewModal } from "./detail/ImagePreviewModal";
+import { InvoiceSection } from "./detail/InvoiceSection";
+import { SOPrintView } from "./detail/SOPrintView";
 
 interface SODetailProps {
   orderId: string;
@@ -44,20 +36,6 @@ const S = {
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';
 }
-
-const todayInputValue = () => {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 10);
-};
-
-const parseCurrencyAmount = (value: string) => {
-  const normalized = value
-    .replace(/[^\d,.-]/g, "") // Allow minus, dot, comma, digit
-    .replace(/\./g, "")       // Remove dots (assuming they are thousand separators)
-    .replace(",", ".");       // Convert comma to dot for decimal
-  return Math.round((Number(normalized) || 0) * 100) / 100;
-};
 
 const formatCurrency = (value?: number | null) => {
   if (!value || value <= 0) return "-";
@@ -94,7 +72,6 @@ function InfoRow({ icon, label, value, isEdit, onChange, type = "text" }: { icon
   );
 }
 
-// ─── Action button with hover ──────────────────────────────────────────────────
 function ActionBtn({ icon, label, bg, color, border, onClick }: {
   icon: React.ReactNode; label: string;
   bg: string; color: string; border?: string;
@@ -122,9 +99,50 @@ function ActionBtn({ icon, label, bg, color, border, onClick }: {
   );
 }
 
+function InfoCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+        <span style={{ color: S.cyan }}>{icon}</span>
+        <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{title}</span>
+      </div>
+      <div style={{ padding: 16 }}>{children}</div>
+    </div>
+  );
+}
+
+function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; label: string; primary?: boolean; onClick?: () => void }) {
+  const [hov, setHov] = useState(false);
+  const [active, setActive] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseDown={() => setActive(true)}
+      onMouseUp={() => setActive(false)}
+      onMouseLeave={() => { setHov(false); setActive(false); }}
+      onMouseEnter={() => setHov(true)}
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        padding: "6px 12px", borderRadius: 4,
+        border: primary ? "none" : `1px solid ${S.border}`,
+        background: primary ? (hov ? "#0EA5CF" : S.cyan) : (hov ? S.bg : S.white),
+        color: primary ? "#fff" : hov ? S.slate : S.secondary,
+        fontSize: "12.5px", fontWeight: primary ? 500 : 400,
+        cursor: "pointer", fontFamily: S.font, transition: "all 0.1s",
+        transform: active ? "scale(0.96)" : "scale(1)",
+        boxShadow: active ? "none" : primary ? "0 1px 2px rgba(0,0,0,0.1)" : "0 1px 2px rgba(0,0,0,0.03)",
+        ...(active && primary ? { filter: "brightness(0.9)" } : {}),
+      }}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
   const { invoices, payments } = useFinanceData();
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
@@ -193,7 +211,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         customerDrawingUrl: order?.customerDrawingUrl || order?.designLink || "",
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode]);
 
   const handleAction = async (action: string) => {
@@ -336,8 +353,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     <>
       <div className="print-hide" style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
 
-
-      {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
@@ -369,7 +384,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       </div>
 
-      {/* ── Workflow Pipeline ─────────────────────────────────────────────────── */}
       {order.status !== "Rejected" && (
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "18px 20px" }}>
           <p style={{ margin: "0 0 16px", fontSize: "11px", fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -440,13 +454,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       )}
 
-      {/* ── Main content grid ─────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 14 }} className="detail-grid">
 
-        {/* ── Left column ──────────────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
 
-          {/* Customer info */}
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.contactPerson || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
@@ -459,7 +470,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           </InfoCard>
 
-          {/* Product info */}
           <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 14 }}>
               <InfoRow icon={<Hash size={11} />} label="No. PO" value={order.soNumber || order.id} isEdit={false} />
@@ -487,7 +497,29 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   <div style={{ padding: "10px", minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.productName}</p>
                     <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>Kode Produk: {item.productCode}</p>
-                    {item.notes && <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>}
+                    {(() => {
+                      if (!item.notes) return null;
+                      let bomMaterials: { name?: string; spec?: string; specification?: string; quantity?: number; unit?: string }[] | null = null;
+                      try {
+                        const parsed = JSON.parse(item.notes);
+                        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
+                          bomMaterials = parsed;
+                        }
+                      } catch { /* not JSON, render as plain text */ }
+                      if (bomMaterials) {
+                        return (
+                          <div style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748B", background: "#F8FAFC", borderRadius: 4, padding: "6px 8px" }}>
+                            <span style={{ fontWeight: 600, color: "#94A3B8" }}>BOM: </span>
+                            {bomMaterials.map((m, i) => (
+                              <span key={i}>
+                                {m.name || m.specification}{m.quantity && ` (${m.quantity} ${m.unit || ''})`}{i < bomMaterials!.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>;
+                    })()}
                     {(item as any).designReference === "INTERNAL_DESIGN" && (
                       <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#F59E0B", display: "flex", alignItems: "center", gap: 4 }}>
                         <FileText size={10} /> Engineering akan desain ulang
@@ -495,7 +527,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     )}
                     {(item as any).customerDrawingUrl && (
                       <p style={{ margin: "3px 0 0", fontSize: "11px", color: S.cyan, display: "flex", alignItems: "center", gap: 4 }}>
-                        <LinkIcon size={10} /> 
+                        <LinkIcon size={10} />
                         <a href={(item as any).customerDrawingUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           Lihat Referensi Klien
                         </a>
@@ -516,7 +548,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             )}
           </InfoCard>
 
-          {/* Bill of Materials */}
           <InfoCard title="Bill of Materials (Kebutuhan Bahan)" icon={<Box size={13} />}>
             {(displayMaterials && displayMaterials.length > 0) ? (
               <div style={{ overflowX: "auto" }}>
@@ -544,8 +575,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             )}
           </InfoCard>
 
-
-          {/* Jadwal Eksekusi Produksi */}
           {(order.startTime || order.endTime) && (
             <InfoCard title="Jadwal Eksekusi Produksi" icon={<Clock size={13} />}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -572,12 +601,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </InfoCard>
           )}
 
-          {/* Invoice Information — read-only for SO staff */}
           <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} invoicePayments={invoicePayments} />
 
-
-
-          {/* Edit Actions */}
           {isEditMode && (
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
               <button type="button" onClick={() => setIsEditMode(false)}
@@ -598,10 +623,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
         </div>
 
-        {/* ── Right column ──────────────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-          {/* Key order info — compact, non-redundant */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
               <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Info Order</p>
@@ -635,9 +658,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 <>
                   <div style={{ height: 1, background: "#F8FAFC" }} />
                   <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
                     {isEditMode ? (
                       <>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
+                          {order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain"}
+                        </p>
                         <input
                           type="text"
                           placeholder="https://... (Opsional)"
@@ -653,11 +678,13 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                         )}
                       </>
                     ) : order.designId === "none" && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain</p>
                         <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B", fontWeight: 600 }}>Menunggu desain dari tim Engineering</p>
                       </div>
                     ) : !order.customerDrawingUrl && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
                         <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
                         {currentUser?.role !== 'Engineering' && (
                           <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
@@ -665,10 +692,30 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                           </button>
                         )}
                       </div>
+                    ) : order.customerDrawingUrl && order.designLink && order.customerDrawingUrl !== order.designLink ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain (Customer)</p>
+                          <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                            {order.customerDrawingUrl}
+                          </a>
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain (Engineering)</p>
+                          <a href={order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                            {order.designLink}
+                          </a>
+                        </div>
+                      </div>
                     ) : order.customerDrawingUrl || order.designLink ? (
-                      <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                        {order.customerDrawingUrl || order.designLink}
-                      </a>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
+                          {order.designLink ? "Link Desain (Engineering)" : (order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain")}
+                        </p>
+                        <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                          {order.customerDrawingUrl || order.designLink}
+                        </a>
+                      </div>
                     ) : (
                       <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
                     )}
@@ -700,7 +747,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           </div>
 
-          {/* ── Laporan Quality Control (QC) ── */}
           {order.qcStatus && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -725,15 +771,29 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                     </div>
                   </>
                 )}
+                {order.productionPhotos && order.productionPhotos.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Hasil Produksi</p>
+                    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                    {order.productionPhotos.map((photo, i) => (
+                      <div key={i} onClick={() => setPreviewPhoto(photo)} style={{ width: 80, height: 60, borderRadius: 4, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", flexShrink: 0 }}>
+                        <img src={photo} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                      </div>
+                    ))}
+                    </div>
+                  </div>
+                )}
                 {order.qcPhotos && order.qcPhotos.length > 0 && (
                   <>
                     <div style={{ height: 1, background: "#F8FAFC" }} />
                     <div>
                       <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
                       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                        {order.qcPhotos.map((photo, i) => (
-                          <img key={i} src={photo} alt={`QC Photo ${i + 1}`} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: `1px solid ${S.border}` }} />
-                        ))}
+                      {order.qcPhotos.map((photo, i) => (
+                        <div key={i} onClick={() => setPreviewPhoto(photo)} style={{ width: 80, height: 60, borderRadius: 4, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
+                          <img src={photo} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                        </div>
+                      ))}
                       </div>
                     </div>
                   </>
@@ -742,7 +802,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
-          {/* ── Action Panel (Sales Validation) ── */}
           {(currentUser?.role === 'Sales' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && (order.status === 'Waiting Client Approval') && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FFFBEB" }}>
@@ -761,7 +820,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
-          {/* ── Action Panel (Finance Pricing) ── */}
           {(currentUser?.role === 'Finance' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Waiting Pricing' && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
@@ -780,7 +838,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
-          {/* ── Action Panel (Engineering Supervisor Assign) ── */}
           {(currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
@@ -802,7 +859,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
-          {/* ── Action Panel (Engineering Supervisor Approve) ── */}
           {(currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Waiting Spv Approval' && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
@@ -818,7 +874,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
-          {/* ── Action Panel (Engineer Upload) ── */}
           {(currentUser?.role === 'Engineering' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering') && (
             <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
               <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
@@ -838,7 +893,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           )}
 
-          {/* ── End-to-End History (Jejak Rekam Proyek) ── */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
               <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>End-to-End History</p>
@@ -889,542 +943,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       </div>
       </div>
+      {previewPhoto && <ImagePreviewModal src={previewPhoto} onClose={() => setPreviewPhoto(null)} />}
       <SOPrintView order={order} customer={customer} displayMaterials={displayMaterials} currentUser={currentUser} />
     </>
-  );
-}
-
-// ─── InvoiceSection ───────────────────────────────────────────────────────────
-function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }: { invoice?: SalesOrder["invoice"]; pendingPaymentProof: boolean; invoicePayments: any[] }) {
-  const status = (invoice?.status ?? "not_created") as SalesInvoiceStatus;
-  const cfg = invoiceStatusConfig[status];
-  const hasInvoice = status !== "not_created" && !!invoice?.invoiceNumber;
-
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [paymentReported, setPaymentReported] = useState(false);
-  const hasPendingPaymentProof = pendingPaymentProof || paymentReported;
-
-  return (
-    <>
-      <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Receipt size={13} style={{ color: S.cyan }} />
-            <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>Informasi Invoice</span>
-            <span style={{ fontSize: "10px", color: "#94A3B8", background: "#F1F5F9", border: "1px solid #E2E8F0", borderRadius: 3, padding: "1px 6px" }}>
-              Read-only
-            </span>
-          </div>
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            padding: "2px 8px", borderRadius: 4,
-            border: `1px solid ${cfg.borderColor}`,
-            background: cfg.bgColor, color: cfg.textColor,
-            fontSize: "11px", fontWeight: 500,
-          }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
-            {hasPendingPaymentProof ? "Menunggu Verifikasi Finance" : cfg.label}
-          </span>
-        </div>
-
-        <div style={{ padding: 16 }}>
-          {!hasInvoice ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#F8FAFC", borderRadius: 4, border: "1px solid #E2E8F0" }}>
-              <Receipt size={16} style={{ color: "#94A3B8", flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary }}>
-                Invoice belum dibuat. Finance akan menerbitkan invoice setelah SO disetujui.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 16 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. Invoice</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{invoice!.invoiceNumber}</p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Invoice</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.invoiceDate}</p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Jatuh Tempo</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate }}>{invoice!.dueDate}</p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Total Keseluruhan</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.slate, fontWeight: 600 }}>
-                    Rp {invoice!.amount.toLocaleString("id-ID")}
-                  </p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Telah Dibayar</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#059669", fontWeight: 600 }}>
-                    Rp {(invoice!.paidAmount || 0).toLocaleString("id-ID")}
-                  </p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Sisa Tagihan</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#DC2626", fontWeight: 600 }}>
-                    Rp {Math.max((invoice!.amount || 0) - (invoice!.paidAmount || 0), 0).toLocaleString("id-ID")}
-                  </p>
-                </div>
-                {invoice!.paymentDate && (
-                  <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Bayar (Terakhir)</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "13px", color: "#22C55E" }}>{invoice!.paymentDate}</p>
-                  </div>
-                )}
-              </div>
-
-              {invoice?.paymentSchedules && invoice.paymentSchedules.length > 1 && (
-                <div style={{ marginTop: 6, marginBottom: 16, paddingTop: 16, borderTop: `1px dashed ${S.border}` }}>
-                  <p style={{ margin: "0 0 10px", fontSize: "11px", fontWeight: 600, color: S.slate, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Jadwal / Tahapan Penagihan</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {invoice.paymentSchedules.map((schedule: any, idx: number) => {
-                      const amt = Math.round((invoice!.amount * schedule.percentage) / 100);
-                      return (
-                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", background: "#F1F5F9", padding: "8px 12px", borderRadius: "6px" }}>
-                          <div>
-                            <span style={{ fontWeight: 600, color: S.slate }}>{schedule.label}</span>
-                            <span style={{ color: "#64748B", marginLeft: 8 }}>• Jatuh tempo: {schedule.dueDate}</span>
-                          </div>
-                          <span style={{ fontWeight: 700, color: S.cyan }}>Rp {amt.toLocaleString("id-ID")}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {invoice?.rejectedPayments && invoice.rejectedPayments.length > 0 && !hasPendingPaymentProof && status !== "paid" && status !== "verified" && (
-                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>
-                  <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#B91C1C", display: "flex", alignItems: "center", gap: 6 }}>
-                    <AlertTriangle size={14} /> Laporan Pembayaran Terakhir Ditolak
-                  </p>
-                  <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#991B1B" }}>
-                    Catatan Finance: <strong>{invoice.rejectedPayments[invoice.rejectedPayments.length - 1].reason}</strong>
-                  </p>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#DC2626" }}>
-                    Silakan unggah ulang bukti transfer yang valid.
-                  </p>
-                </div>
-              )}
-
-              {/* Payment History */}
-              {invoicePayments.length > 0 && (
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${S.border}`, paddingBottom: 4 }}>
-                  <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: S.slate }}>Riwayat Pembayaran</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {invoicePayments.map(payment => (
-                      <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: S.bg, borderRadius: 6, border: `1px solid ${S.border}` }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate }}>{formatCurrency(payment.amount)}</p>
-                          <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>{payment.paymentDate} • {payment.bankName}</p>
-                        </div>
-                        <div>
-                          {payment.status === "VERIFIED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#DCFCE7", color: "#16A34A" }}>Verified</span>}
-                          {payment.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEF3C7", color: "#D97706" }}>Pending</span>}
-                          {payment.status === "REJECTED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626" }}>Ditolak</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Action buttons */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 12, borderTop: `1px solid ${S.border}` }}>
-                <InvoiceBtn icon={<Eye size={12} />} label="Lihat Invoice" onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf?inline=true`, '_blank')} />
-                <InvoiceBtn icon={<Download size={12} />} label="Download PDF" onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${invoice!.invoiceId}/pdf`;
-                  link.download = `Invoice-${invoice!.invoiceNumber}.pdf`;
-                  link.click();
-                }} />
-                {(status === "waiting" || status === "verified") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
-                  <div style={{ marginLeft: "auto" }}>
-                    <InvoiceBtn
-                      icon={<Upload size={12} />}
-                      label="Lapor Pembayaran"
-                      primary
-                      onClick={() => setShowUploadModal(true)}
-                    />
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {showUploadModal && (() => {
-        let defaultAmount = invoice?.amount || 0;
-        if (invoice?.paymentSchedules && invoice.paymentSchedules.length > 0) {
-          const remaining = Math.max((invoice.amount || 0) - (invoice.paidAmount || 0), 0);
-          let runningTotal = 0;
-          for (const schedule of invoice.paymentSchedules) {
-            runningTotal += schedule.amount;
-            if (runningTotal > (invoice.paidAmount || 0)) {
-              defaultAmount = Math.min(runningTotal - (invoice.paidAmount || 0), remaining);
-              break;
-            }
-          }
-        }
-        return (
-          <ReportPaymentModal
-            invoiceId={invoice?.invoiceId}
-            invoiceNumber={invoice?.invoiceNumber || ""}
-            amount={defaultAmount}
-            onClose={() => setShowUploadModal(false)}
-            onSubmit={() => {
-              setPaymentReported(true);
-              setShowUploadModal(false);
-            }}
-          />
-        );
-      })()}
-    </>
-  );
-}
-
-function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [bankName, setBankName] = useState("");
-  const [amountText, setAmountText] = useState(amount > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : "");
-  const [paymentDate, setPaymentDate] = useState(todayInputValue());
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-
-  const handleProofFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setProofFile(null);
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setProofFile(null);
-      setError("Ukuran bukti transfer maksimal 5MB.");
-      return;
-    }
-
-    setProofFile(file);
-    setError("");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const numericAmount = parseCurrencyAmount(amountText);
-    if (!invoiceId) {
-      setError("Invoice belum tersambung ke backend.");
-      return;
-    }
-    if (numericAmount <= 0) {
-      setError("Nominal transfer harus lebih dari 0.");
-      return;
-    }
-    if (!proofFile) {
-      setError("Bukti transfer wajib diupload.");
-      return;
-    }
-
-    try {
-      setError("");
-      setIsUploading(true);
-      await financeApi.submitPaymentProof(invoiceId, {
-        paymentDate,
-        amount: numericAmount,
-        bankName,
-        bankReference: null,
-        proofFile: proofFile,
-        notes: notes.trim() || null,
-      });
-      onSubmit();
-    } catch (err) {
-      console.warn("Failed to submit payment proof.", err);
-      setError("Gagal mengirim bukti bayar ke Finance.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} onClick={onClose} />
-      <div style={{ position: "relative", background: "#fff", borderRadius: 12, width: "100%", maxWidth: 450, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", overflow: "hidden", fontFamily: S.font }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: "16px", color: S.slate }}>Lapor Pembayaran</h2>
-            <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>Invoice {invoiceNumber}</p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary }}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ padding: 20 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Bank Tujuan</label>
-              <select required value={bankName} onChange={e => setBankName(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none" }}>
-                <option value="">Pilih Bank...</option>
-                <option value="BCA">BCA - PT Pratama Jaya (1234567890)</option>
-                <option value="Mandiri">Mandiri - PT Pratama Jaya (0987654321)</option>
-              </select>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Nominal Transfer</label>
-                <input required type="text" value={amountText} onChange={e => setAmountText(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Tanggal Bayar</label>
-                <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Upload Bukti Transfer</label>
-              <div style={{
-                position: "relative",
-                border: proofFile ? "1px solid #10B981" : "1px dashed #CBD5E1",
-                borderRadius: 8,
-                padding: 24,
-                textAlign: "center",
-                background: proofFile ? "#ECFDF5" : "#F8FAFC",
-                transition: "all 0.2s ease"
-              }}>
-                {proofFile ? (
-                  <>
-                    <CheckCircle2 size={28} style={{ color: "#10B981", margin: "0 auto 8px" }} />
-                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#065F46" }}>File Berhasil Dipilih</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#047857" }}>{proofFile.name}</p>
-                    <p style={{ margin: "8px 0 0", fontSize: "10px", color: "#10B981", fontStyle: "italic" }}>Klik untuk mengubah file</p>
-                  </>
-                ) : (
-                  <>
-                    <Upload size={24} style={{ color: "#94A3B8", margin: "0 auto 8px" }} />
-                    <p style={{ margin: 0, fontSize: "12px", color: S.slate }}>Klik untuk memilih file PDF / Gambar</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>Max ukuran file 5MB</p>
-                  </>
-                )}
-                <input required type="file" accept=".pdf,image/*" onChange={handleProofFileChange} style={{ opacity: 0, position: "absolute", inset: 0, cursor: "pointer", width: "100%", height: "100%" }} />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Catatan Tambahan (Opsional)</label>
-              <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box", resize: "none" }} placeholder="Misal: Sudah ditransfer atas nama Budi..." />
-            </div>
-          </div>
-
-          {error && <p style={{ margin: "12px 0 0", color: "#DC2626", fontSize: "12px" }}>{error}</p>}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "1px solid #E2E8F0", background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>
-              Batal
-            </button>
-            <button type="submit" disabled={isUploading} style={{ flex: 1, padding: "10px", borderRadius: 6, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", opacity: isUploading ? 0.7 : 1 }}>
-              {isUploading ? "Mengunggah..." : "Kirim Bukti Bayar"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function InvoiceBtn({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick?: () => void; primary?: boolean }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6,
-        border: primary ? "none" : `1px solid ${hov ? "#CBD5E1" : S.border}`,
-        background: primary ? (hov ? "#C8102E" : "#3B82F6") : (hov ? S.bg : S.white),
-        color: primary ? "#fff" : (hov ? S.slate : S.secondary),
-        fontSize: "12.5px", fontWeight: primary ? 500 : 400,
-        cursor: "pointer", fontFamily: S.font, transition: "all 0.1s",
-        boxShadow: primary ? "0 1px 2px rgba(0,0,0,0.05)" : "none"
-      }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
-// ─── InfoCard ──────────────────────────────────────────────────────────────────
-function InfoCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-        <span style={{ color: S.cyan }}>{icon}</span>
-        <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{title}</span>
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
-    </div>
-  );
-}
-
-// ─── HeaderBtn ────────────────────────────────────────────────────────────────
-function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; label: string; primary?: boolean; onClick?: () => void }) {
-  const [hov, setHov] = useState(false);
-  const [active, setActive] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      onMouseLeave={() => { setHov(false); setActive(false); }}
-      onMouseEnter={() => setHov(true)}
-      style={{
-        display: "flex", alignItems: "center", gap: 5,
-        padding: "6px 12px", borderRadius: 4,
-        border: primary ? "none" : `1px solid ${S.border}`,
-        background: primary ? (hov ? "#0EA5CF" : S.cyan) : (hov ? S.bg : S.white),
-        color: primary ? "#fff" : hov ? S.slate : S.secondary,
-        fontSize: "12.5px", fontWeight: primary ? 500 : 400,
-        cursor: "pointer", fontFamily: S.font, transition: "all 0.1s",
-        transform: active ? "scale(0.96)" : "scale(1)",
-        boxShadow: active ? "none" : primary ? "0 1px 2px rgba(0,0,0,0.1)" : "0 1px 2px rgba(0,0,0,0.03)",
-        ...(active && primary ? { filter: "brightness(0.9)" } : {}),
-      }}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
-// ─── SOPrintView ──────────────────────────────────────────────────────────────
-function SOPrintView({ order, customer, displayMaterials, currentUser }: { order: any, customer: any, displayMaterials: any[], currentUser: any }) {
-  if (!order) return null;
-  const createdBy = order.createdBy === "backend" ? (currentUser?.name || "Sales Staff") : (order.createdBy || "Sales Staff");
-
-  return (
-    <div className="hidden print:block print:w-full print:border-none print:shadow-none print:m-0 print:bg-white print:text-slate-900 bg-white">
-      {/* Professional Sales Order Header */}
-      <div className="px-6 pt-10 pb-6 border-b-2 border-slate-800">
-        <div className="flex justify-between items-start">
-          <div className="flex gap-6 items-center">
-            <img src="/pjt-logo-new.png" alt="PT. Pratama Jaya Logo" className="h-20 w-auto object-contain flex-shrink-0" />
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA</h2>
-              <p className="text-sm text-slate-500 mt-1 leading-relaxed">Kawasan Industri MM2100<br/>Cikarang Barat, Bekasi 17530<br/>sales@pratamajaya.co.id</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <h2 className="text-4xl font-black text-slate-200 tracking-widest uppercase mb-2">SALES ORDER</h2>
-            <p className="text-sm font-bold text-slate-800">SO No: {order.id}</p>
-            <p className="text-sm text-slate-600">Tgl. Cetak: {new Date().toLocaleDateString('id-ID')}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Ditujukan Kepada / Detail Order */}
-      <div className="flex px-6 py-8 justify-between">
-        <div className="w-1/2 pr-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ditujukan Kepada:</h3>
-          <p className="font-bold text-slate-900 text-lg">{customer?.company || customer?.name}</p>
-          <p className="text-sm text-slate-600 mt-1">Up. {customer?.name}</p>
-          <p className="text-sm text-slate-600">{customer?.address || "-"}</p>
-          <p className="text-sm text-slate-600">Telp: {customer?.phone || "-"}</p>
-        </div>
-        <div className="w-1/3 border-l-2 border-slate-100 pl-6">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Detail Order:</h3>
-          <p className="text-sm text-slate-600 mb-1">Status: <strong className="text-slate-900">{order.status}</strong></p>
-          <p className="text-sm text-slate-600 mb-1">Tgl. SO: <strong className="text-slate-900">{order.createdAt}</strong></p>
-          <p className="text-sm text-slate-600 mb-1">Deadline: <strong className="text-slate-900">{order.deadline}</strong></p>
-        </div>
-      </div>
-
-      {/* Items table */}
-      <div className="px-6 py-2">
-        <p className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-          Daftar Pesanan
-        </p>
-        <div className="rounded border border-slate-200 overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-12">No</th>
-                <th className="p-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Produk / Material</th>
-                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Qty</th>
-                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Harga Satuan</th>
-                <th className="p-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Total Harga</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.items?.length > 0 ? (
-                order.items.map((item: any, idx: number) => (
-                  <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="p-3 text-xs text-slate-500 font-mono">{idx + 1}</td>
-                    <td className="p-3 text-sm font-medium text-slate-900">
-                      <div>{item.productDescription || order.description}</div>
-                      <div className="text-xs text-slate-500 font-normal mt-0.5">Part No: {item.productPartNumber || order.partNumber}</div>
-                    </td>
-                    <td className="p-3 text-sm font-semibold text-right text-slate-900">{item.qty || order.quantity} {item.unit || order.unit}</td>
-                    <td className="p-3 text-sm text-right text-slate-700">Rp {((item.totalPrice || order.estimatedAmount || 0) / (item.qty || order.quantity || 1)).toLocaleString('id-ID')}</td>
-                    <td className="p-3 text-sm text-right font-bold text-slate-900">Rp {(item.totalPrice || order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="p-3 text-xs text-slate-500 font-mono">1</td>
-                  <td className="p-3 text-sm font-medium text-slate-900">
-                    <div>{order.description}</div>
-                    <div className="text-xs text-slate-500 font-normal mt-0.5">Part No: {order.partNumber}</div>
-                  </td>
-                  <td className="p-3 text-sm font-semibold text-right text-slate-900">{order.quantity} {order.unit}</td>
-                  <td className="p-3 text-sm text-right text-slate-700">Rp {((order.estimatedAmount || 0) / (order.quantity || 1)).toLocaleString('id-ID')}</td>
-                  <td className="p-3 text-sm text-right font-bold text-slate-900">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 border-t border-slate-200">
-                <td colSpan={4} className="p-3 text-right text-sm font-bold text-slate-700 uppercase tracking-wider">GRAND TOTAL</td>
-                <td className="p-3 text-right text-base font-black text-blue-700">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-
-      <div className="px-6 py-4 space-y-6">
-        {displayMaterials && displayMaterials.length > 0 && (
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spesifikasi Material:</h4>
-            <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
-              {displayMaterials.map((mat: any, i: number) => (
-                <li key={i}>{mat.name} - {mat.spec} ({mat.quantity} {mat.unit})</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {order.notes && (
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Catatan:</h4>
-            <div className="text-sm text-slate-600 bg-slate-50 p-3 border border-slate-200 rounded whitespace-pre-wrap">{order.notes}</div>
-          </div>
-        )}
-      </div>
-
-      {/* PRINT ONLY: Signatures */}
-      <div className="flex mt-16 justify-end px-10 pb-10">
-        <div className="text-center">
-          <p className="text-sm font-medium text-slate-800 mb-20">Dibuat Oleh,</p>
-          <div className="w-48 border-b border-slate-400 mx-auto"></div>
-          <p className="text-sm font-bold text-slate-900 mt-2">{createdBy}</p>
-          <p className="text-xs text-slate-500">Sales Department</p>
-        </div>
-      </div>
-    </div>
   );
 }

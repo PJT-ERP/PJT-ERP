@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PJT_ERP.Production.Api.Infrastructure.Persistence;
@@ -11,6 +12,7 @@ using PJT_ERP.Production.Api.Infrastructure.Persistence;
 namespace PJT_ERP.Production.Api.Migrations
 {
     [DbContext(typeof(ProductionContext))]
+    [Migration("20260704171223_AddEstimatedAmountToSalesOrder")]
     partial class ProductionContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
@@ -296,6 +298,10 @@ namespace PJT_ERP.Production.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("design_worker_user_id");
 
+                    b.Property<decimal?>("EstimatedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("estimated_amount");
+
                     b.Property<string>("ProductionWorkerName")
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)")
@@ -313,6 +319,14 @@ namespace PJT_ERP.Production.Api.Migrations
                     b.Property<Guid?>("QcReviewerUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("qc_reviewer_user_id");
+
+                    b.Property<List<string>>("ProductionPhotos")
+                        .HasColumnType("text[]")
+                        .HasColumnName("production_photos");
+
+                    b.Property<List<string>>("QcPhotos")
+                        .HasColumnType("text[]")
+                        .HasColumnName("qc_photos");
 
                     b.Property<DateOnly>("SoDate")
                         .HasColumnType("date")
