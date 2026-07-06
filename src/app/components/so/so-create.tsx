@@ -248,32 +248,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       estimatedAmount: selectedSo?.estimatedAmount || 0,
       generalNotes: selectedSo?.notes || "",
     });
-    if (selectedSo) {
-      const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
-      let materials: any[] = [];
-      if (matchedProduct) {
-        materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
-          id: b.inventoryItemId,
-          name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-          specification: "",
-          quantity: String(b.quantity),
-          unit: b.unit,
-        })) : [];
-      }
-
-      setRepeatProducts([{
-        ...emptyProduct(),
-        type: matchedProduct ? "existing" : "custom",
-        productName: matchedProduct ? matchedProduct.label : selectedSo.description,
-        customName: selectedSo.description,
-        quantity: String(selectedSo.quantity),
-        unit: selectedSo.unit,
-        unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
-        materials,
-      }]);
-    } else {
-      setRepeatProducts([]);
-    }
+    setRepeatProducts([]);
   };
 
   const ensureCustomerId = async (input: {

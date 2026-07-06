@@ -126,12 +126,12 @@ export async function syncUpdateSalesOrder(
       try {
         const inspections = await qcApi.listInspections();
         const inspection = inspections.find(insp => insp.salesOrderNumber === so.id || insp.salesOrderNumber === so.soNumber);
-        if (inspection) {
+        if (inspection && !inspection.decision) {
           await qcApi.uploadResult(inspection.id, {
             reviewerUserId: toBackendUserId(currentUser) || currentUser?.id || "",
             reviewerName: currentUser?.name || "QC Reviewer",
-            productionPhotos: updates.productionPhotos || [],
-            qcPhotos: updates.qcPhotos || [],
+            productionPhotos: Array.isArray(updates.productionPhotos) ? updates.productionPhotos : updates.productionPhotos ? [updates.productionPhotos] : [],
+            qcPhotos: Array.isArray(updates.qcPhotos) ? updates.qcPhotos : updates.qcPhotos ? [updates.qcPhotos] : [],
             notes: updates.qcNotes || null,
             decision: updates.qcStatus,
           });
@@ -140,6 +140,8 @@ export async function syncUpdateSalesOrder(
             qcStatus: updates.qcStatus,
             qcAt: new Date().toISOString(),
             qcNotes: updates.qcNotes ?? item.qcNotes,
+            qcPhotos: updates.qcPhotos ?? item.qcPhotos,
+            productionPhotos: updates.productionPhotos ?? item.productionPhotos,
           } : item));
         }
       } catch (err) {
