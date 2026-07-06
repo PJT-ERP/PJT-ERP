@@ -155,9 +155,9 @@ export function EngineeringTaskDetailPage() {
   
   useEffect(() => {
     if (qut && !isInitialized.current) {
-      const salesInputtedUrl = qut.customerDrawingUrl || qut.designLink || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
-      setDesignLink(salesInputtedUrl);
-      setIsEditingLink(!salesInputtedUrl);
+      const initialDesignLink = qut.designLink || qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
+      setDesignLink(initialDesignLink);
+      setIsEditingLink(!initialDesignLink);
       
       const boms = qut.bomsPerItem || {};
       const initialMaterials: Record<string, any[]> = {};
@@ -252,10 +252,7 @@ export function EngineeringTaskDetailPage() {
             designReference: designLink,
             drawingFileUrl: designLink
           });
-          await salesApi.updateCustomerDrawing(backendId, {
-            customerDrawingUrl: designLink,
-            updatedByName: currentUser?.name || 'Engineering'
-          });
+          // Removed overwriting of customerDrawingUrl
         } catch (e) {
           console.warn("Failed to update design link on backend", e);
         }
@@ -342,7 +339,6 @@ export function EngineeringTaskDetailPage() {
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
-          customerDrawingUrl: designLink,
           materials: Object.values(itemMaterials).flat(),
           bomsPerItem: itemMaterials,
           status: 'Waiting Pricing',
@@ -353,7 +349,6 @@ export function EngineeringTaskDetailPage() {
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
-          customerDrawingUrl: designLink,
           materials: Object.values(itemMaterials).flat(),
           bomsPerItem: itemMaterials,
           status: 'Waiting Spv Approval',
@@ -579,9 +574,9 @@ export function EngineeringTaskDetailPage() {
                   <div style={{ flex: "1 1 250px" }}>
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Link Referensi Desain dari Sales:</span>
                     <div style={{ fontSize: "13.5px", background: "#F8FAFC", padding: "12px 16px", borderRadius: 6, border: `1px solid ${S.border}`, minHeight: 60, display: "flex", alignItems: "center", wordBreak: "break-all" }}>
-                      {(qut.customerDrawingUrl || qut.designLink || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl) ? (
-                        <a href={qut.customerDrawingUrl || qut.designLink || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, textDecoration: "none" }}>
-                          ↗️ {qut.customerDrawingUrl || qut.designLink || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl}
+                      {(qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl) ? (
+                        <a href={qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, textDecoration: "none" }}>
+                          ↗️ {qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl}
                         </a>
                       ) : (
                         <span style={{color: S.secondary, fontStyle: "italic"}}>Tidak ada link referensi dari Sales.</span>
@@ -612,30 +607,8 @@ export function EngineeringTaskDetailPage() {
               )}
 
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ marginBottom: 8 }}>
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
-                  {canProcess && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingLink(!isEditingLink)}
-                      style={{
-                        padding: "6px 12px",
-                        background: isEditingLink ? "#F8FAFC" : "#EFF6FF",
-                        color: isEditingLink ? S.slate : S.cyan,
-                        border: `1px solid ${isEditingLink ? S.border : "#BFDBFE"}`,
-                        borderRadius: 6,
-                        fontSize: "12.5px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      {isEditingLink ? "🔒 Selesai Edit / Readonly" : "✏️ Edit Link"}
-                    </button>
-                  )}
                 </div>
                 
                 <div style={{ display: "flex", gap: 8 }}>
@@ -679,13 +652,36 @@ export function EngineeringTaskDetailPage() {
                         whiteSpace: "nowrap"
                       }}
                     >
-                      ↗️ Buka Link
+                      Buka Link
                     </a>
+                  )}
+                  {canProcess && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingLink(!isEditingLink)}
+                      style={{
+                        padding: "0 16px",
+                        background: isEditingLink ? "#F8FAFC" : "#fff",
+                        color: isEditingLink ? S.slate : S.cyan,
+                        border: `1px solid ${S.border}`,
+                        borderRadius: 8,
+                        fontSize: "13.5px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.2s",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {isEditingLink ? "Selesai Edit" : "Edit Link"}
+                    </button>
                   )}
                 </div>
                 {!isEditingLink && designLink && (
                   <p style={{ fontSize: "12px", color: S.secondary, margin: "6px 0 0", fontStyle: "italic" }}>
-                    * Link ini dimunculkan dalam mode abu-abu (readonly) dari Sales/Customer. Klik tombol <strong>"✏️ Edit Link"</strong> di sebelah kanan atas jika ingin mengubahnya.
+                    * Link ini dimunculkan dalam mode abu-abu (readonly) dari Sales/Customer. Klik tombol <strong>"Edit Link"</strong> di sebelah kanan jika ingin mengubahnya.
                   </p>
                 )}
               </div>

@@ -406,53 +406,79 @@ function QCInspectionModal({
 
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", maxHeight: "70vh" }}>
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <div style={{ marginBottom: 6 }}>
               <label style={{ fontSize: "13px", color: S.slate, fontWeight: 600 }}>Link Desain / Gambar SO</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <DrawingLink so={{ ...so, customerDrawingUrl: drawingLink, designLink: drawingLink }} inspection={{ ...inspection, customerDrawingUrl: drawingLink } as any} />
-                <button
-                  type="button"
-                  onClick={() => setIsEditingLink(!isEditingLink)}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="url"
+                placeholder="https://drive.google.com/..."
+                value={drawingLink}
+                onChange={e => setDrawingLink(e.target.value)}
+                readOnly={!isEditingLink}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  border: `1px solid ${isEditingLink ? S.cyan : S.border}`,
+                  borderRadius: 8,
+                  fontSize: "13.5px",
+                  fontFamily: S.font,
+                  outline: "none",
+                  boxSizing: "border-box",
+                  backgroundColor: !isEditingLink ? "#F8FAFC" : "#fff",
+                  color: !isEditingLink ? S.secondary : S.slate,
+                  cursor: !isEditingLink ? "default" : "text"
+                }}
+                onFocus={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.cyan; }}
+                onBlur={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.border; }}
+              />
+              {!isEditingLink && drawingLink && (
+                <a
+                  href={drawingLink}
+                  target="_blank"
+                  rel="noreferrer"
                   style={{
-                    padding: "4px 10px",
-                    background: isEditingLink ? "#F8FAFC" : "#EFF6FF",
-                    color: isEditingLink ? S.slate : S.cyan,
-                    border: `1px solid ${isEditingLink ? S.border : "#BFDBFE"}`,
-                    borderRadius: 6,
-                    fontSize: "12px",
+                    padding: "0 16px",
+                    background: S.cyan,
+                    color: "#fff",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textDecoration: "none",
+                    fontSize: "13.5px",
                     fontWeight: 600,
-                    cursor: "pointer"
+                    whiteSpace: "nowrap"
                   }}
                 >
-                  {isEditingLink ? "🔒 Selesai Edit / Readonly" : "✏️ Edit Link"}
-                </button>
-              </div>
+                  Buka Link
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsEditingLink(!isEditingLink)}
+                style={{
+                  padding: "0 16px",
+                  background: isEditingLink ? "#F8FAFC" : "#fff",
+                  color: isEditingLink ? S.slate : S.cyan,
+                  border: `1px solid ${S.border}`,
+                  borderRadius: 8,
+                  fontSize: "13.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {isEditingLink ? "Selesai Edit" : "Edit Link"}
+              </button>
             </div>
-            <input
-              type="url"
-              placeholder="https://drive.google.com/..."
-              value={drawingLink}
-              onChange={e => setDrawingLink(e.target.value)}
-              readOnly={!isEditingLink}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                border: `1px solid ${isEditingLink ? S.cyan : S.border}`,
-                borderRadius: 8,
-                fontSize: "13.5px",
-                fontFamily: S.font,
-                outline: "none",
-                boxSizing: "border-box",
-                backgroundColor: !isEditingLink ? "#F8FAFC" : "#fff",
-                color: !isEditingLink ? S.secondary : S.slate,
-                cursor: !isEditingLink ? "default" : "text"
-              }}
-              onFocus={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.cyan; }}
-              onBlur={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.border; }}
-            />
             {!isEditingLink && drawingLink && (
-              <p style={{ fontSize: "11px", color: S.secondary, margin: "4px 0 0", fontStyle: "italic" }}>
-                * Link dimunculkan dalam mode abu-abu (readonly). Klik tombol <strong>"✏️ Edit Link"</strong> di atas jika ingin mengubahnya.
+              <p style={{ fontSize: "11.5px", color: S.secondary, margin: "6px 0 0", fontStyle: "italic" }}>
+                * Link dimunculkan dalam mode abu-abu (readonly). Klik tombol <strong>"Edit Link"</strong> di sebelah kanan jika ingin mengubahnya.
               </p>
             )}
           </div>
