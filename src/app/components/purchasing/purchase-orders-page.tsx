@@ -97,10 +97,12 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
         const poNumber = item.poNumber!;
         const existing = byPo.get(poNumber);
         const totalPrice = item.totalPrice ?? item.estimatedPrice ?? 0;
-        let rcv = item.purchaseStatus === "Received" ? item.qty : 0;
-        const rcvPart = (item.purchaseNotes || "").split(" | ").find(p => p.trim().startsWith("RCV:"));
-        if (rcvPart) {
-          rcv = Number(rcvPart.replace("RCV:", "").trim());
+        let rcv = 0;
+        const rcvParts = (item.purchaseNotes || "").split(" | ").filter(p => p.trim().startsWith("RCV:"));
+        if (rcvParts.length > 0) {
+          rcv = rcvParts.reduce((sum, p) => sum + Number(p.replace("RCV:", "").trim()), 0);
+        } else if (item.purchaseStatus === "Received") {
+          rcv = item.qty;
         }
 
         const poItem: POItem = {
