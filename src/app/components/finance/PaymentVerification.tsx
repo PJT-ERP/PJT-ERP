@@ -238,9 +238,15 @@ export function PaymentVerification() {
                       <p className="font-bold text-slate-800">{invoice.customerName}</p>
                       <p className="text-sm text-slate-500">{invoice.invoiceNumber}</p>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
-                      <AlertTriangle size={12} /> Overdue
-                    </span>
+                    {invoice.dueDate && invoice.dueDate < todayStr ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                        <AlertTriangle size={12} /> Overdue
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        <Clock size={12} /> Menunggu
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-2 text-xs text-slate-500">
                     <div className="flex justify-between">

@@ -149,7 +149,9 @@ export function PurchaseRequestDetailPage() {
   const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
   const canEditPricing = isPurchasingOrAdmin && 
     detail?.backendStatus !== "FinanceApproved" && 
-    detail?.backendStatus !== "Completed";
+    detail?.backendStatus !== "Processing" &&
+    detail?.backendStatus !== "Completed" &&
+    !(detail?.backendStatus === "SupervisorApproved" && detail?.isReadyForFinance);
 
   useEffect(() => {
     const loadData = async () => {
@@ -172,7 +174,7 @@ export function PurchaseRequestDetailPage() {
 
             const invItem = invData.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
             const actualSupplierName = item.supplierName && item.supplierName.trim() !== "-" ? item.supplierName : null;
-            const supplierToUse = actualSupplierName || (invItem?.supplierName) || "";
+            const supplierToUse = actualSupplierName || "";
             const isCustom = supplierToUse ? !suppliersData.some(s => s.name === supplierToUse) : false;
             
             let uPrice = "";
@@ -404,11 +406,11 @@ export function PurchaseRequestDetailPage() {
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Kode</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Material</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Qty</th>
-                    {(canEditPricing || detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || detail.items.some(i => i.supplierName || i.estimatedPrice)) && (
+                    {(canEditPricing || detail.backendStatus === "FinanceApproved" || detail.backendStatus === "Processing" || detail.backendStatus === "Completed" || detail.isReadyForFinance || detail.items.some(i => i.supplierName || i.estimatedPrice)) && (
                       <>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Supplier (Toko)</th>
-                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Satuan</th>
-                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Perkiraan</th>
+                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Harga Satuan</th>
+                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Harga Perkiraan</th>
                       </>
                     )}
                   </tr>
@@ -417,22 +419,11 @@ export function PurchaseRequestDetailPage() {
                   {detail.items.map((item, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-0">
                       <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
-                      <td className="p-3 text-sm font-medium text-slate-900">
+                      <td className="p-3 text-sm text-slate-900">
                         {item.name}
                       </td>
-                      <td className="p-3 text-sm font-semibold text-slate-900">
-                        {canEditPricing ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min="1"
-                              className="w-20 rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
-                              value={pricingData[item.itemId]?.qty !== undefined ? pricingData[item.itemId]?.qty : item.qty}
-                              onChange={(e) => setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { supplierName: item.supplierName || "", estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "", itemName: item.name }), qty: e.target.value } }))}
-                            />
-                            <span>{item.unit}</span>
-                          </div>
-                        ) : `${item.qty} ${item.unit}`}
+                      <td className="p-3 text-sm text-slate-900">
+                        {item.qty} {item.unit}
                       </td>
                       {canEditPricing ? (
                         <>
@@ -468,7 +459,7 @@ export function PurchaseRequestDetailPage() {
                               <span className="absolute left-2 text-sm text-slate-400">Rp</span>
                               <input
                                 type="text"
-                                className="w-full rounded border border-slate-300 pl-7 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 text-right"
+                                className="w-full rounded border border-slate-300 pl-7 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 text-left"
                                 placeholder="0"
                                 value={formatRp(pricingData[item.itemId]?.unitPrice || "")}
                                 onChange={(e) => {
@@ -478,15 +469,15 @@ export function PurchaseRequestDetailPage() {
                               />
                             </div>
                           </td>
-                          <td className="p-3 text-sm text-slate-900 text-right font-medium">
+                          <td className="p-3 text-sm text-slate-900 text-left">
                             {formatRp(Number(pricingData[item.itemId]?.unitPrice || 0) * Number(pricingData[item.itemId]?.qty || item.qty || 0))}
                           </td>
                         </>
-                      ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || item.supplierName || item.estimatedPrice) ? (
+                      ) : (detail.backendStatus === "FinanceApproved" || detail.backendStatus === "Processing" || detail.backendStatus === "Completed" || detail.isReadyForFinance || item.supplierName || item.estimatedPrice) ? (
                         <>
                           <td className="p-3 text-sm text-slate-900">{item.supplierName || "-"}</td>
-                          <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice && item.qty ? formatRp(Math.round(item.estimatedPrice / item.qty)) : "-"}</td>
-                          <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
+                          <td className="p-3 text-sm text-slate-900 text-left">{item.estimatedPrice && item.qty ? formatRp(Math.round(item.estimatedPrice / item.qty)) : "-"}</td>
+                          <td className="p-3 text-sm text-slate-900 text-left">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
                         </>
                       ) : null}
                     </tr>
@@ -546,7 +537,7 @@ export function PurchaseRequestDetailPage() {
             </div>
           )}
 
-          {detail.items.some(i => !!i.poNumber) ? (
+          {detail.items.some(i => !!i.poNumber) || detail.backendStatus === "Processing" || detail.backendStatus === "Completed" ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-blue-50 border border-blue-200">
                 <CheckCircle2 size={18} className="text-blue-600 shrink-0 mt-0.5" />
