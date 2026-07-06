@@ -677,8 +677,11 @@ export function EngineeringTaskDetailPage() {
                                   <input
                                     type="text"
                                     value={m.unit}
-                                    readOnly
-                                    style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                                    readOnly={!!m.inventoryItemId}
+                                    placeholder="pcs"
+                                    onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
+                                    disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
+                                    style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: m.inventoryItemId ? "#F8FAFC" : (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: m.inventoryItemId ? S.secondary : S.slate, cursor: m.inventoryItemId ? "not-allowed" : "text", textAlign: "center" }}
                                   />
                                   {canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval && (
                                     <button onClick={() => removeMaterial(item.id, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>

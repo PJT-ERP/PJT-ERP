@@ -96,7 +96,7 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   const seen = new Set<string>();
 
   const addOption = (item: string, spec: string) => {
-    const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
+    const key = `${item.toLowerCase().replace(/[^a-z0-9]/g, '')}|${spec.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
       options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim() });
@@ -121,15 +121,6 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   }
 
   parseMaterialText(so.material).forEach(m => addOption(m.itemName, m.specification));
-
-  if (Array.isArray(so.items)) {
-    so.items.forEach((item: any) => {
-      const itemName = String(item?.productName || item?.productDescription || item?.partNumber || "").trim();
-      if (itemName) {
-        addOption(itemName, "");
-      }
-    });
-  }
 
   if (options.length === 0 && so.description) {
     addOption(so.description, so.spec || "");
