@@ -207,6 +207,9 @@ function QCInspectionModal({
   const [qcPhotos, setQcPhotos] = useState<{ file: File; url: string }[]>([]);
   const [notes, setNotes] = useState('');
   const [result, setResult] = useState<'Go' | 'NoGo' | ''>('');
+  const initialUrl = inspection?.customerDrawingUrl || so.customerDrawingUrl || so.designLink || so.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || '';
+  const [drawingLink, setDrawingLink] = useState(initialUrl);
+  const [isEditingLink, setIsEditingLink] = useState(!initialUrl);
   const [done, setDone] = useState(false);
 
   const handleProductionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,6 +313,8 @@ function QCInspectionModal({
         completedAt: new Date().toISOString().split('T')[0],
         qcPhotos: qcPhotos.map(p => p.url),
         productionPhotos: productionPhotos.map(p => p.url),
+        customerDrawingUrl: drawingLink,
+        designLink: drawingLink,
       });
     } else {
       updateSalesOrder(so.id, {
@@ -320,28 +325,8 @@ function QCInspectionModal({
         qcPhotos: qcPhotos.map(p => p.url),
         productionPhotos: productionPhotos.map(p => p.url),
         isRework: true,
-      });
-    }
-
-    if (result === 'Go') {
-      updateSalesOrder(so.id, {
-        status: 'Completed',
-        qcStatus: 'Go',
-        qcNotes: notes,
-        qcAt: new Date().toISOString(),
-        completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: qcPhotos.map(p => p.url),
-        productionPhotos: productionPhotos.map(p => p.url),
-      });
-    } else {
-      updateSalesOrder(so.id, {
-        status: 'Ready for Production',
-        qcStatus: 'NoGo',
-        qcNotes: notes,
-        qcAt: new Date().toISOString(),
-        qcPhotos: qcPhotos.map(p => p.url),
-        productionPhotos: productionPhotos.map(p => p.url),
-        isRework: true,
+        customerDrawingUrl: drawingLink,
+        designLink: drawingLink,
       });
     }
     setDone(true);
@@ -378,7 +363,57 @@ function QCInspectionModal({
         </div>
 
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", maxHeight: "70vh" }}>
-          <DrawingLink so={so} inspection={inspection} />
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={{ fontSize: "13px", color: S.slate, fontWeight: 600 }}>Link Desain / Gambar SO</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <DrawingLink so={{ ...so, customerDrawingUrl: drawingLink, designLink: drawingLink }} inspection={{ ...inspection, customerDrawingUrl: drawingLink } as any} />
+                <button
+                  type="button"
+                  onClick={() => setIsEditingLink(!isEditingLink)}
+                  style={{
+                    padding: "4px 10px",
+                    background: isEditingLink ? "#F8FAFC" : "#EFF6FF",
+                    color: isEditingLink ? S.slate : S.cyan,
+                    border: `1px solid ${isEditingLink ? S.border : "#BFDBFE"}`,
+                    borderRadius: 6,
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  {isEditingLink ? "🔒 Selesai Edit / Readonly" : "✏️ Edit Link"}
+                </button>
+              </div>
+            </div>
+            <input
+              type="url"
+              placeholder="https://drive.google.com/..."
+              value={drawingLink}
+              onChange={e => setDrawingLink(e.target.value)}
+              readOnly={!isEditingLink}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                border: `1px solid ${isEditingLink ? S.cyan : S.border}`,
+                borderRadius: 8,
+                fontSize: "13.5px",
+                fontFamily: S.font,
+                outline: "none",
+                boxSizing: "border-box",
+                backgroundColor: !isEditingLink ? "#F8FAFC" : "#fff",
+                color: !isEditingLink ? S.secondary : S.slate,
+                cursor: !isEditingLink ? "default" : "text"
+              }}
+              onFocus={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.cyan; }}
+              onBlur={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.border; }}
+            />
+            {!isEditingLink && drawingLink && (
+              <p style={{ fontSize: "11px", color: S.secondary, margin: "4px 0 0", fontStyle: "italic" }}>
+                * Link dimunculkan dalam mode abu-abu (readonly). Klik tombol <strong>"✏️ Edit Link"</strong> di atas jika ingin mengubahnya.
+              </p>
+            )}
+          </div>
 
           {/* Photo Upload */}
           <div>
@@ -397,7 +432,7 @@ function QCInspectionModal({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 12 }}>
                 {productionPhotos.map((photo, idx) => (
                   <div key={idx} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", background: S.bg }}>
-                    <img src={photo.url} alt={photo.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={photo.url} alt={photo.file.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     <div style={{ position: "absolute", top: 4, right: 4 }}>
                       <button onClick={(e) => { e.stopPropagation(); removeProductionPhoto(idx); }} style={{ padding: 4, background: "#EF4444", color: "#fff", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex" }}>
                         <Trash2 size={12} />
@@ -425,7 +460,7 @@ function QCInspectionModal({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 12 }}>
                 {qcPhotos.map((photo, idx) => (
                   <div key={idx} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden", background: S.bg }}>
-                    <img src={photo.url} alt={photo.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={photo.url} alt={photo.file.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     <div style={{ position: "absolute", top: 4, right: 4 }}>
                       <button onClick={(e) => { e.stopPropagation(); removeQcPhoto(idx); }} style={{ padding: 4, background: "#EF4444", color: "#fff", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex" }}>
                         <Trash2 size={12} />
