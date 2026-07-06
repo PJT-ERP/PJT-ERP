@@ -266,7 +266,8 @@ export function InventoryPage() {
   const [filterCat, setFilterCat] = useState("all");
   const [showAllCritical, setShowAllCritical] = useState(false);
   const [criticalPage, setCriticalPage] = useState(1);
-  const criticalPerPage = 10;
+  const [invPage, setInvPage] = useState(1);
+  const perPage = 10;
   const [filterStatus, setFilterStatus] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
@@ -350,7 +351,8 @@ export function InventoryPage() {
   });
 
   const criticalItems = inventory.filter((i) => getStatus(i) === "critical");
-  const criticalTotalPages = Math.ceil(criticalItems.length / criticalPerPage);
+  const criticalTotalPages = Math.ceil(criticalItems.length / perPage);
+  const invTotalPages = Math.ceil(filtered.length / perPage);
   const lowItems = inventory.filter((i) => getStatus(i) === "low");
   const incomingItems = inventory.filter((i) => !!i.incoming);
   const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
@@ -431,7 +433,7 @@ export function InventoryPage() {
             </p>
           </div>
           <div className="divide-y" style={{ borderColor: "#f1f5f9" }}>
-            {criticalItems.slice((criticalPage - 1) * criticalPerPage, criticalPage * criticalPerPage).map((item) => (
+            {criticalItems.slice((criticalPage - 1) * perPage, criticalPage * perPage).map((item) => (
               <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{item.name}</p>
@@ -547,13 +549,13 @@ export function InventoryPage() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setInvPage(1); }}
             placeholder="Cari kode, nama, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
-        <Select value={filterCat} onValueChange={setFilterCat}>
+        <Select value={filterCat} onValueChange={(v) => { setFilterCat(v); setInvPage(1); }}>
           <SelectTrigger className="h-9 w-44 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <SelectValue placeholder="Semua Kategori" />
           </SelectTrigger>
@@ -612,7 +614,7 @@ export function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => {
+              {filtered.slice((invPage - 1) * perPage, invPage * perPage).map((item) => {
                 const status = getStatus(item);
                 const sc = statusCfg[status];
                 const pct = item.maxStock > 0 ? Math.min(100, Math.round((item.currentStock / item.maxStock) * 100)) : 0;
@@ -715,9 +717,23 @@ export function InventoryPage() {
           </table>
         </div>
 
+        {invTotalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 px-4 py-2" style={{ borderTop: "1px solid #f1f5f9" }}>
+            <button onClick={() => setInvPage(p => Math.max(1, p - 1))} disabled={invPage === 1}
+              style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: invPage === 1 ? "#d4d4d8" : "#C8102E", cursor: invPage === 1 ? "default" : "pointer", fontWeight: 600 }}>‹</button>
+            {Array.from({ length: invTotalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setInvPage(p)}
+                style={{ minWidth: 22, height: 22, padding: "0 4px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none",
+                  background: p === invPage ? "#C8102E" : "transparent", color: p === invPage ? "#fff" : "#475569", cursor: "pointer" }}>{p}</button>
+            ))}
+            <button onClick={() => setInvPage(p => Math.min(invTotalPages, p + 1))} disabled={invPage >= invTotalPages}
+              style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: invPage >= invTotalPages ? "#d4d4d8" : "#C8102E", cursor: invPage >= invTotalPages ? "default" : "pointer", fontWeight: 600 }}>›</button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
           <p style={{ fontSize: 11, color: "#94a3b8" }}>
-            Menampilkan {filtered.length} dari {inventory.length} item
+            Menampilkan {Math.min(invPage * perPage, filtered.length)} dari {filtered.length} item
           </p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
             Nilai total stok: {formatRp(filtered.reduce((s, i) => s + i.currentStock * i.unitPrice, 0))}
