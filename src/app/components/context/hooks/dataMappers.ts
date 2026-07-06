@@ -141,7 +141,7 @@ export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], pro
     createdAt: order.soDate,
     designReference: order.designReference,
     designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
-    designLink: order.drawingFileUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
+    designLink: order.drawingFileUrl || order.customerDrawingUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
     startTime: order.startedAtUtc || undefined,
     endTime: order.finishedAtUtc || undefined,
     qcStatus: mapQcDecision(order.qcDecision),
