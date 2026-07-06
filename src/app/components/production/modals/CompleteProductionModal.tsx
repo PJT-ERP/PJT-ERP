@@ -12,14 +12,15 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
   const [endDate, setEndDate] = useState(today);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lateReason, setLateReason] = useState("");
+  const [earlyReason, setEarlyReason] = useState("");
 
-  let canFinish = true;
+  let isEarly = false;
   let hMinus3Str = "";
   let deadlineStrFormatted = "";
   if (so.deadline) {
     const deadlineDate = new Date(so.deadline);
     if (!isNaN(deadlineDate.getTime())) {
-      deadlineStrFormatted = deadlineDate.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
+      deadlineStrFormatted = deadlineDate.toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
       const hMinus3 = new Date(deadlineDate);
       hMinus3.setDate(deadlineDate.getDate() - 3);
       hMinus3.setHours(0, 0, 0, 0);
@@ -27,7 +28,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
       const todayDate = new Date();
       todayDate.setHours(0, 0, 0, 0);
 
-      canFinish = todayDate >= hMinus3;
+      isEarly = todayDate < hMinus3;
 
       hMinus3Str = hMinus3.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
     }
@@ -48,7 +49,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || !canFinish || (isLate && !lateReason.trim())) return;
+    if (isSubmitting || (isLate && !lateReason.trim()) || (isEarly && !earlyReason.trim())) return;
     const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
     const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
     const workerUserId = currentUserGuid || assignedWorkerGuid || "";
@@ -98,7 +99,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
                 </div>
               </div>
               <div>
-                <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "12.5px", color: S.slate }}>Alasan Keterlambatan:</p>
+                <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "12.5px", color: S.slate }}>Alasan Keterlambatan: <span style={{ color: "#DC2626" }}>*</span></p>
                 <textarea
                   value={lateReason}
                   onChange={e => setLateReason(e.target.value)}
@@ -109,12 +110,31 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
               </div>
             </>
           )}
-          {!canFinish ? (
-            <div style={{ padding: "12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#991B1B", fontSize: "13.5px", lineHeight: "1.5" }}>
-              <AlertTriangle size={14} style={{ display: 'inline', marginTop: -2 }} /> Deadline pesanan ini adalah <strong>{deadlineStrFormatted}</strong>. <br />
-              Tombol baru dapat diklik mulai H-3, yaitu pada <strong>{hMinus3Str}</strong>.
-            </div>
-          ) : (
+          {isEarly && (
+            <>
+              <div style={{ padding: "10px 12px", background: "#FFFBEB", border: "1px solid #FEF3C7", borderRadius: 8, color: "#92400E", fontSize: "13px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ marginTop: 2, flexShrink: 0 }}><AlertTriangle size={16} /></div>
+                <div>
+                  <strong>Penyelesaian Lebih Awal</strong>
+                  <p style={{ margin: "2px 0 0", fontSize: "13px" }}>
+                    Produksi ini selesai lebih cepat dari estimasi (sebelum <strong>{deadlineStrFormatted}</strong>). Pastikan semua tahap selesai dan siap masuk QC.
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p style={{ margin: "0 0 6px", fontWeight: 600, fontSize: "12.5px", color: S.slate }}>Alasan Selesai Lebih Cepat: <span style={{ color: "#DC2626" }}>*</span></p>
+                <textarea
+                  value={earlyReason}
+                  onChange={e => setEarlyReason(e.target.value)}
+                  placeholder="Contoh: Pekerjaan selesai lebih cepat karena mesin kosong..."
+                  rows={2}
+                  style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
+                />
+              </div>
+            </>
+          )}
+
+          {!isEarly && !isLate && (
             <div>
               <p style={{ fontSize: "13.5px", color: S.slate, margin: 0, lineHeight: "1.5" }}>
                 Apakah Anda yakin ingin menyelesaikan produksi untuk pesanan ini? <br />
@@ -123,18 +143,12 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
             </div>
           )}
 
-          {!canFinish ? (
-            <div style={{ display: "flex", paddingTop: 8 }}>
-              <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Mengerti</button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-              <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-              <button type="submit" disabled={isSubmitting || (isLate && !lateReason.trim())} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting || (isLate && !lateReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting || (isLate && !lateReason.trim()) ? 0.65 : 1 }}>
-                <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
-              </button>
-            </div>
-          )}
+          <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
+            <button type="submit" disabled={isSubmitting || (isLate && !lateReason.trim()) || (isEarly && !earlyReason.trim())} style={{ flex: 1, padding: "10px", background: "#16A34A", border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: isSubmitting || (isLate && !lateReason.trim()) || (isEarly && !earlyReason.trim()) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting || (isLate && !lateReason.trim()) || (isEarly && !earlyReason.trim()) ? 0.65 : 1 }}>
+              <CheckSquare size={16} /> {isSubmitting ? "Menyimpan..." : "Selesai Produksi"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

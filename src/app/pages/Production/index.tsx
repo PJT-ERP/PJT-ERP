@@ -383,12 +383,8 @@ export function ProductionPage() {
                   daysLate = Math.round((tDate.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24));
                 }
 
-                const hMinus3 = new Date(dDate);
-                hMinus3.setDate(dDate.getDate() - 3);
-                hMinus3.setHours(0, 0, 0, 0);
                 const todayDate = new Date();
                 todayDate.setHours(0, 0, 0, 0);
-                canFinish = todayDate >= hMinus3;
               }
               const mrState = getMaterialRequestState(so);
 
@@ -457,7 +453,7 @@ export function ProductionPage() {
                             if (so.status === 'Paused') return;
                             setCompleteModal(so);
                           }}
-                          style={{ padding: "8px 16px", background: !canFinish ? "#D1D5DB" : "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
+                          style={{ padding: "8px 16px", background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
                           <CheckSquare size={14} /> Selesai Produksi
                         </button>
                       </>

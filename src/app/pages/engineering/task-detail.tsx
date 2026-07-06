@@ -761,7 +761,8 @@ export function EngineeringTaskDetailPage() {
                                       
                                       if (isDuplicateInCustom || isDuplicateInStandard) {
                                         toast.warning(`Material "${p.name}" sudah ada di dalam daftar BOM. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
-                                          duration: 5000,
+                                          duration: Infinity,
+                                          closeButton: true,
                                         });
                                       }
                                       

@@ -258,6 +258,20 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     return matchQ && matchS;
   });
 
+  const sorted = [...filtered].sort((a, b) => {
+    const aClosed = a.deliveryStatus === "Closed" || a.deliveryStatus === "Cancelled";
+    const bClosed = b.deliveryStatus === "Closed" || b.deliveryStatus === "Cancelled";
+    if (!aClosed && bClosed) return -1;
+    if (aClosed && !bClosed) return 1;
+
+    const aUnpaid = a.paymentStatus === "Unpaid";
+    const bUnpaid = b.paymentStatus === "Unpaid";
+    if (aUnpaid && !bUnpaid) return -1;
+    if (!aUnpaid && bUnpaid) return 1;
+
+    return b.id.localeCompare(a.id);
+  });
+
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -267,7 +281,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const exportPOs = () => {
     downloadCsv("purchase-orders.csv", [
       ["PO", "MR", "Supplier", "Delivery Status", "Payment Status", "Due Date", "Total"],
-      ...filtered.map(po => [
+      ...sorted.map(po => [
         po.id,
         po.requestRefs.join(" / "),
         po.supplier,
@@ -382,7 +396,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((po) => {
+              {sorted.map((po) => {
                 const dc = deliveryCfg[po.deliveryStatus] || { bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8", pct: 0 };
                 const fc = po.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : po.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
                 const isExp = expanded.has(po.id);
