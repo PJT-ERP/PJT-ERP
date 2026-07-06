@@ -663,10 +663,14 @@ public sealed partial class ProductionService(
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder, request.WorkerUserId, isPrivileged);
         
-        // Deduct BOM stock per each SO item with its own quantity (not just the first item with total qty)
-        foreach (var soItem in salesOrder.Items)
+        // Deduct BOM stock atomically for all SO items using bulk API
+        var deductItems = salesOrder.Items
+            .Select(soItem => new DeductBomStockRequestItem(soItem.ProductId, soItem.Qty))
+            .ToList();
+        
+        if (deductItems.Count > 0)
         {
-            await masterDataClient.DeductBomStockAsync(soItem.ProductId, soItem.Qty, cancellationToken);
+            await masterDataClient.DeductBomStockBulkAsync(deductItems, cancellationToken);
         }
 
         StartProduction(productionOrder, request, DateTime.UtcNow);

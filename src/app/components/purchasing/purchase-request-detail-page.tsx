@@ -579,7 +579,7 @@ export function PurchaseRequestDetailPage() {
                 </div>
               )}
             </div>
-          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") ? (
+          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.backendStatus === "Processing") && detail.hasUnorderedItems ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200">
                 <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />

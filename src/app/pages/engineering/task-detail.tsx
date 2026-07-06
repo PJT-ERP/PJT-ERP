@@ -761,7 +761,8 @@ export function EngineeringTaskDetailPage() {
                                       
                                       if (isDuplicateInCustom || isDuplicateInStandard) {
                                         toast.warning(`Material "${p.name}" sudah ada di dalam daftar BOM. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
-                                          duration: 5000,
+                                          duration: Infinity,
+                                          closeButton: true,
                                         });
                                       }
                                       
@@ -774,15 +775,32 @@ export function EngineeringTaskDetailPage() {
                                   />
                                   <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC" }} />
                                   <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
-                                  <input
-                                    type="text"
-                                    value={m.unit}
-                                    readOnly={!!m.inventoryItemId}
-                                    placeholder="pcs"
-                                    onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
-                                    disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
-                                    style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: m.inventoryItemId ? "#F8FAFC" : (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: m.inventoryItemId ? S.secondary : S.slate, cursor: m.inventoryItemId ? "not-allowed" : "text", textAlign: "center" }}
-                                  />
+                                  {!m.inventoryItemId ? (
+                                    <select
+                                      value={m.unit || 'pcs'}
+                                      onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
+                                      disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
+                                      style={{ width: 100, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || isWaitingCustomerDesign || isDoingSpvApproval) ? "not-allowed" : "pointer" }}
+                                    >
+                                      <option value="pcs">Pcs</option>
+                                      <option value="unit">Unit</option>
+                                      <option value="set">Set</option>
+                                      <option value="kg">Kg</option>
+                                      <option value="meter">Meter</option>
+                                      <option value="liter">Liter</option>
+                                      <option value="roll">Roll</option>
+                                      <option value="lembar">Lembar</option>
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={m.unit}
+                                      readOnly
+                                      placeholder="pcs"
+                                      disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
+                                      style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                                    />
+                                  )}
                                   {canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) && (
                                     <button onClick={() => removeMaterial(item.id, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                       <Trash2 size={18} />

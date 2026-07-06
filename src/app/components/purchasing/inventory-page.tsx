@@ -297,16 +297,34 @@ export function InventoryPage() {
     const incomingByName = new Map<string, IncomingShipment>();
     purchaseRequests.forEach(pr => {
       pr.items.forEach(item => {
-        if (item.purchaseStatus === "Ordered" || item.purchaseStatus === "Approved") {
+        if (item.purchaseStatus === "Ordered") {
           const poNumber = item.poNumber || pr.prNumber;
           const eta = item.expectedArrivalDate ? new Date(item.expectedArrivalDate).toLocaleDateString("id-ID") : "Hari ini";
-          incomingByName.set(item.itemName.toLowerCase(), {
-            po: poNumber,
-            supplier: item.supplierName || item.suggestedSupplier || "Supplier",
-            eta,
-            qty: item.qty,
-            unit: "pcs"
-          });
+          const key = item.itemName.toLowerCase();
+          const existing = incomingByName.get(key);
+          if (existing) {
+            const pos = new Set(existing.po.split(", "));
+            pos.add(poNumber);
+            existing.po = Array.from(pos).join(", ");
+
+            const suppliers = new Set(existing.supplier.split(", "));
+            const newSup = item.supplierName || item.suggestedSupplier || "Supplier";
+            suppliers.add(newSup);
+            existing.supplier = Array.from(suppliers).join(", ");
+
+            existing.qty += item.qty;
+            if (existing.eta !== eta) {
+              existing.eta = "Beberapa pengiriman";
+            }
+          } else {
+            incomingByName.set(key, {
+              po: poNumber,
+              supplier: item.supplierName || item.suggestedSupplier || "Supplier",
+              eta,
+              qty: item.qty,
+              unit: "pcs"
+            });
+          }
         }
       });
     });

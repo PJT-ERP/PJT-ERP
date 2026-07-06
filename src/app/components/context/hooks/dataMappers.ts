@@ -29,7 +29,12 @@ export function canLoadPurchaseRequests(role?: UserRole | null) {
 
 export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = []): SalesOrder["materials"] {
   const legacyMaterials: any[] = [];
+  const productsById = new Map(products.map(product => [product.id, product]));
+
   order.items.forEach(item => {
+    const product = productsById.get(item.productId);
+    if (product?.bomItems && product.bomItems.length > 0) return;
+
     if (!item.notes?.startsWith("[")) return;
 
     try {
@@ -49,7 +54,6 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
     }
   });
 
-  const productsById = new Map(products.map(product => [product.id, product]));
   const materialsByKey = new Map<string, any>();
 
   // Add legacy materials

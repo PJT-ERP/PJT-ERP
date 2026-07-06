@@ -129,14 +129,14 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   };
 
   const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
-    ["FinanceApproved", "Approved"].includes(request.status) &&
-    request.items.some(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+    ["FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    request.items.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
   ), [purchaseRequests]);
 
   const availableMaterials = useMemo(() => {
     const selected = eligibleRequests.find(request => request.id === selectedRequestId);
     return selected?.items
-      .filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+      .filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
       .map(item => item.itemName) || [];
   }, [eligibleRequests, selectedRequestId]);
 
@@ -165,28 +165,13 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     }));
   };
 
-  const applySelectedRequest = (requestId: string) => {
-    setMessage(null);
-    setSelectedRequestId(requestId);
-    const request = eligibleRequests.find(item => item.id === requestId);
-    if (!request) {
-      setRequestRefs("");
-      setSoNumber("");
-      setItems([emptyItem()]);
-      return;
-    }
+  const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
 
-    const openItems = request.items.filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
-    setRequestRefs(request.prNumber.replace(/^MR-/, "PR-"));
-    setSoNumber(request.salesOrderNumber || "Non-project");
-    setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+  const updateItemsForSupplier = (request: any, selectedSupplier: string) => {
+    const openItems = request.items.filter((item: any) => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
+    const supplierItems = openItems.filter((item: any) => !selectedSupplier || item.supplierName === selectedSupplier);
     
-    const firstSupplier = openItems.find(item => item.supplierName)?.supplierName || "";
-    setSupplier(firstSupplier);
-    
-    const supplierItems = openItems.filter(item => !firstSupplier || item.supplierName === firstSupplier);
-    
-    setItems(supplierItems.map(item => {
+    setItems(supplierItems.map((item: any) => {
       let extractedCode = "";
       let extractedName = item.itemName;
       
@@ -221,6 +206,32 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
       };
     }));
+  };
+
+  const applySelectedRequest = (requestId: string) => {
+    setMessage(null);
+    setSelectedRequestId(requestId);
+    const request = eligibleRequests.find(item => item.id === requestId);
+    if (!request) {
+      setRequestRefs("");
+      setSoNumber("");
+      setItems([emptyItem()]);
+      setAvailableSuppliers([]);
+      return;
+    }
+
+    const openItems = request.items.filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
+    setRequestRefs(request.prNumber.replace(/^MR-/, "PR-"));
+    setSoNumber(request.salesOrderNumber || "Non-project");
+    setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+    
+    const uniqueSuppliers = Array.from(new Set(openItems.map(item => item.supplierName).filter(Boolean))) as string[];
+    setAvailableSuppliers(uniqueSuppliers);
+    
+    const firstSupplier = uniqueSuppliers[0] || "";
+    setSupplier(firstSupplier);
+    
+    updateItemsForSupplier(request, firstSupplier);
   };
 
   useEffect(() => {
@@ -338,7 +349,29 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
           <div className="space-y-1.5 md:col-span-2">
             <FieldLabel>Supplier *</FieldLabel>
-            <input value={supplier} readOnly placeholder="Supplier akan otomatis terisi dari PR" className={inputClass("cursor-not-allowed text-slate-500 bg-slate-50")} />
+            {availableSuppliers.length > 1 ? (
+              <>
+                <select
+                  value={supplier}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                    const selected = e.target.value;
+                    setSupplier(selected);
+                    const req = eligibleRequests.find(r => r.id === selectedRequestId);
+                    if (req) updateItemsForSupplier(req, selected);
+                  }}
+                  className={inputClass()}
+                >
+                  {availableSuppliers.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-amber-600 mt-1">
+                  PR ini memiliki {availableSuppliers.length} supplier berbeda. Pilih supplier untuk memfilter item PO.
+                </p>
+              </>
+            ) : (
+              <input value={supplier} readOnly placeholder="Supplier akan otomatis terisi dari PR" className={inputClass("cursor-not-allowed text-slate-500 bg-slate-50")} />
+            )}
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No Permintaan / PR *</FieldLabel>
@@ -526,21 +559,41 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                   <CheckCircle2 className="w-4 h-4" />
                   Lihat Daftar Purchase Order
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreatedPoDetails(null);
-                    setItems([emptyItem()]);
-                    setSupplier("");
-                    setSoNumber("");
-                    setRequestRefs("");
-                    setSelectedRequestId("");
-                    setDueDate("");
-                  }}
-                  className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-medium rounded-lg border border-slate-200 transition cursor-pointer"
-                >
-                  Buat PO Lainnya
-                </button>
+                {(() => {
+                  const remainingReq = eligibleRequests.find(r => r.id === selectedRequestId);
+                  const remainingUnorderedItems = remainingReq ? remainingReq.items.filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected") : [];
+                  if (remainingUnorderedItems.length > 0) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatedPoDetails(null);
+                          applySelectedRequest(selectedRequestId);
+                        }}
+                        className="w-full py-3 px-4 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-700 font-medium rounded-lg border border-amber-200 transition cursor-pointer"
+                      >
+                        Lanjut Buat PO untuk Sisa Item ({remainingUnorderedItems.length})
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatedPoDetails(null);
+                        setItems([emptyItem()]);
+                        setSupplier("");
+                        setSoNumber("");
+                        setRequestRefs("");
+                        setSelectedRequestId("");
+                        setDueDate("");
+                      }}
+                      className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-medium rounded-lg border border-slate-200 transition cursor-pointer"
+                    >
+                      Buat PO Lainnya
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
