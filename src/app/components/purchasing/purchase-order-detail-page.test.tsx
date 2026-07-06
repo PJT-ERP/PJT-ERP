@@ -105,7 +105,7 @@ describe('PurchaseOrderDetailPage', () => {
         'mr-1',
         'item-1',
         expect.objectContaining({
-          purchaseNotes: undefined
+          purchaseNotes: "RCV:10"
         })
       );
       // Assert that we also call refresh logic
