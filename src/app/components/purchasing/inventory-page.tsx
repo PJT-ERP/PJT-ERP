@@ -264,6 +264,9 @@ export function InventoryPage() {
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
+  const [showAllCritical, setShowAllCritical] = useState(false);
+  const [criticalPage, setCriticalPage] = useState(1);
+  const criticalPerPage = 10;
   const [filterStatus, setFilterStatus] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
@@ -347,6 +350,7 @@ export function InventoryPage() {
   });
 
   const criticalItems = inventory.filter((i) => getStatus(i) === "critical");
+  const criticalTotalPages = Math.ceil(criticalItems.length / criticalPerPage);
   const lowItems = inventory.filter((i) => getStatus(i) === "low");
   const incomingItems = inventory.filter((i) => !!i.incoming);
   const totalValue = inventory.reduce((s, i) => s + i.currentStock * i.unitPrice, 0);
@@ -427,7 +431,7 @@ export function InventoryPage() {
             </p>
           </div>
           <div className="divide-y" style={{ borderColor: "#f1f5f9" }}>
-            {criticalItems.map((item) => (
+            {criticalItems.slice((criticalPage - 1) * criticalPerPage, criticalPage * criticalPerPage).map((item) => (
               <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#1F1F1F" }}>{item.name}</p>
@@ -442,6 +446,25 @@ export function InventoryPage() {
               </div>
             ))}
           </div>
+          {criticalTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 px-4 py-2" style={{ borderTop: "1px solid #fca5a5" }}>
+              <button onClick={() => setCriticalPage(p => Math.max(1, p - 1))} disabled={criticalPage === 1}
+                style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: criticalPage === 1 ? "#d4d4d8" : "#dc2626", cursor: criticalPage === 1 ? "default" : "pointer", fontWeight: 600 }}>
+                ‹
+              </button>
+              {Array.from({ length: criticalTotalPages }, (_, i) => i + 1).map(p => (
+                <button key={p} onClick={() => setCriticalPage(p)}
+                  style={{ minWidth: 22, height: 22, padding: "0 4px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none",
+                    background: p === criticalPage ? "#dc2626" : "transparent", color: p === criticalPage ? "#fff" : "#991b1b", cursor: "pointer" }}>
+                  {p}
+                </button>
+              ))}
+              <button onClick={() => setCriticalPage(p => Math.min(criticalTotalPages, p + 1))} disabled={criticalPage >= criticalTotalPages}
+                style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: criticalPage >= criticalTotalPages ? "#d4d4d8" : "#dc2626", cursor: criticalPage >= criticalTotalPages ? "default" : "pointer", fontWeight: 600 }}>
+                ›
+              </button>
+            </div>
+          )}
           {criticalItems.length === 0 && (
             <div className="flex items-center justify-center py-8">
               <p style={{ fontSize: 13, color: "#94a3b8" }}>Tidak ada stok kritis</p>

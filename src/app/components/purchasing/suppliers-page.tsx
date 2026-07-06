@@ -405,6 +405,8 @@ export function SuppliersPage() {
   const { currentUser } = useApp();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [supplierPage, setSupplierPage] = useState(1);
+  const perPage = 10;
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierDto | null>(null);
@@ -614,7 +616,7 @@ export function SuppliersPage() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setSupplierPage(1); }}
             placeholder="Cari nama, kode, kategori, kota..."
             className="w-full rounded-md border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#C8102E]/20"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
@@ -624,7 +626,7 @@ export function SuppliersPage() {
           {["all", "Active", "On Hold", "Inactive"].map((s) => (
             <button
               key={s}
-              onClick={() => setFilterStatus(s)}
+              onClick={() => { setFilterStatus(s); setSupplierPage(1); }}
               className="rounded-md px-3 py-1.5 transition-colors"
               style={{
                 fontSize: 12, fontWeight: 500,
@@ -657,7 +659,7 @@ export function SuppliersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => {
+              {filtered.slice((supplierPage - 1) * perPage, supplierPage * perPage).map((s) => {
                 const sc = statusCfg[s.status];
                 return (
                   <tr
@@ -738,6 +740,19 @@ export function SuppliersPage() {
             </tbody>
           </table>
         </div>
+        {filtered.length > perPage && (
+          <div className="flex items-center justify-center gap-1 px-4 py-2" style={{ borderTop: "1px solid #f1f5f9" }}>
+            <button onClick={() => setSupplierPage(p => Math.max(1, p - 1))} disabled={supplierPage === 1}
+              style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: supplierPage === 1 ? "#d4d4d8" : "#C8102E", cursor: supplierPage === 1 ? "default" : "pointer", fontWeight: 600 }}>‹</button>
+            {Array.from({ length: Math.ceil(filtered.length / perPage) }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setSupplierPage(p)}
+                style={{ minWidth: 22, height: 22, padding: "0 4px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none",
+                  background: p === supplierPage ? "#C8102E" : "transparent", color: p === supplierPage ? "#fff" : "#475569", cursor: "pointer" }}>{p}</button>
+            ))}
+            <button onClick={() => setSupplierPage(p => Math.min(Math.ceil(filtered.length / perPage), p + 1))} disabled={supplierPage >= Math.ceil(filtered.length / perPage)}
+              style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: supplierPage >= Math.ceil(filtered.length / perPage) ? "#d4d4d8" : "#C8102E", cursor: supplierPage >= Math.ceil(filtered.length / perPage) ? "default" : "pointer", fontWeight: 600 }}>›</button>
+          </div>
+        )}
         <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
           <p style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} supplier ditemukan</p>
           <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
