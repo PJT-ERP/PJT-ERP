@@ -149,13 +149,15 @@ export function EngineeringTaskDetailPage() {
   }, []);
 
   const [localRejectionReason, setLocalRejectionReason] = useState<string | undefined>(undefined);
+  const [isEditingLink, setIsEditingLink] = useState(false);
 
   const isInitialized = React.useRef(false);
   
   useEffect(() => {
     if (qut && !isInitialized.current) {
-      const initialDesignLink = qut.designLink ?? (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '');
+      const initialDesignLink = qut.designLink || qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
       setDesignLink(initialDesignLink);
+      setIsEditingLink(!initialDesignLink);
       
       const boms = qut.bomsPerItem || {};
       const initialMaterials: Record<string, any[]> = {};
@@ -187,7 +189,7 @@ export function EngineeringTaskDetailPage() {
   }
 
   const customer = customers.find(c => c.code === qut.customerId);
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
   
   const currentUserBackendId = toBackendUserId(currentUser);
@@ -196,16 +198,16 @@ export function EngineeringTaskDetailPage() {
     (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
     qut.designAssignedTo === currentUser?.name ||
     qut.designAssignedName === currentUser?.name;
-  const isDoingWorkerSubmission = isAssignedToCurrentUser && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
+  const isDoingWorkerSubmission = (isAssignedToCurrentUser || isSpv) && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
   const isDoingSpvApproval = isSpv && isPendingSpv;
 
-  let canProcess = isDoingWorkerSubmission || isDoingSpvApproval;
+  let canProcess = isDoingWorkerSubmission || isDoingSpvApproval || isSpv;
   
   // Strictly prevent any processing if it has moved past the engineering phase
-  if (['In Production', 'Ready for Production', 'QC', 'Completed'].includes(qut.status)) {
+  if (['Waiting Pricing', 'Waiting Finance Approval', 'Waiting Payment', 'Waiting Client Approval', 'In Production', 'Ready for Production', 'QC', 'Completed', 'Closed'].includes(qut.status) || qut.backendDesignStatus === 'Approved' || qut.designApprovedAt) {
     canProcess = false;
   }
-  if (qut.backendDesignStatus === 'Approved' && !isDoingWorkerSubmission) {
+  if (qut.backendDesignStatus === 'Approved' && !isDoingWorkerSubmission && !isSpv) {
     canProcess = false;
   }
 
@@ -243,6 +245,38 @@ export function EngineeringTaskDetailPage() {
         return;
       }
 
+      // Always save drawing URL and BOM items to backend first!
+      if (designLink && designLink.trim() !== '') {
+        try {
+          await salesApi.submitSalesOrderDesign(backendId, {
+            designReference: designLink,
+            drawingFileUrl: designLink
+          });
+          // Removed overwriting of customerDrawingUrl
+        } catch (e) {
+          console.warn("Failed to update design link on backend", e);
+        }
+      }
+
+      const updatedItems = qut.items?.map(it => {
+        const mats = itemMaterials[it.id];
+        const hasMats = mats && mats.length > 0;
+        return {
+          salesOrderItemId: it.id,
+          productId: it.productId,
+          qty: it.quantity,
+          notes: hasMats ? JSON.stringify(mats) : (it.notes || "")
+        };
+      }) || [];
+
+      if (updatedItems.length > 0) {
+        try {
+          await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
+        } catch (e) {
+          console.warn("Failed to update BOM on backend", e);
+        }
+      }
+
       if (isDoingSpvApproval) {
         await salesApi.updateSalesOrderDesignStatus(backendId, {
           designStatus: 'Approved',
@@ -250,30 +284,6 @@ export function EngineeringTaskDetailPage() {
           reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
           reviewerName: currentUser?.name || ''
         });
-      } else if (isDoingWorkerSubmission) {
-        await salesApi.submitSalesOrderDesign(backendId, {
-          designReference: designLink,
-          drawingFileUrl: designLink
-        });
-        
-        const updatedItems = qut.items?.map(it => {
-            const mats = itemMaterials[it.id];
-            const hasMats = mats && mats.length > 0;
-            return {
-                salesOrderItemId: it.id,
-                productId: it.productId,
-                qty: it.quantity,
-                notes: hasMats ? JSON.stringify(mats) : ""
-            };
-        }) || [];
-        
-        if (updatedItems.length > 0) {
-            try {
-                await salesApi.updateSalesOrderItems(backendId, { items: updatedItems });
-            } catch(e) {
-                console.warn("Failed to update BOM on backend", e);
-            }
-        }
       }
 
       if (isDoingSpvApproval) {
@@ -326,7 +336,16 @@ export function EngineeringTaskDetailPage() {
             }
           }
         }
-      } else if (isDoingWorkerSubmission) {
+        updateSalesOrder(qut.id, {
+          designLink,
+          designId: designLink,
+          materials: Object.values(itemMaterials).flat(),
+          bomsPerItem: itemMaterials,
+          status: 'Waiting Pricing',
+          backendDesignStatus: 'Approved',
+          designApprovedAt: new Date().toISOString().split('T')[0]
+        });
+      } else if (isDoingWorkerSubmission || isSpv) {
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
@@ -534,8 +553,8 @@ export function EngineeringTaskDetailPage() {
                 <p style={{ fontSize: "15px", color: S.slate, fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: 6 }}>Instruksi / Referensi dari Sales</p>
 
 
-                <div style={{ display: "flex", gap: 32 }}>
-                  <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 250px" }}>
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Daftar Item / Produk:</span>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {qut.items?.map((item, idx) => (
@@ -546,10 +565,22 @@ export function EngineeringTaskDetailPage() {
                       ))}
                     </div>
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: "1 1 250px" }}>
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Catatan Pesanan / Spesifikasi:</span>
                     <div style={{ fontSize: "14px", color: S.slate, background: "#F8FAFC", padding: "12px 16px", borderRadius: 6, border: `1px solid ${S.border}`, minHeight: 60, whiteSpace: "pre-wrap" }}>
                       {qut.notes || <span style={{color: S.secondary, fontStyle: "italic"}}>Tidak ada catatan khusus.</span>}
+                    </div>
+                  </div>
+                  <div style={{ flex: "1 1 250px" }}>
+                    <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Link Referensi Desain dari Sales:</span>
+                    <div style={{ fontSize: "13.5px", background: "#F8FAFC", padding: "12px 16px", borderRadius: 6, border: `1px solid ${S.border}`, minHeight: 60, display: "flex", alignItems: "center", wordBreak: "break-all" }}>
+                      {(qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl) ? (
+                        <a href={qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, textDecoration: "none" }}>
+                          ↗️ {qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl}
+                        </a>
+                      ) : (
+                        <span style={{color: S.secondary, fontStyle: "italic"}}>Tidak ada link referensi dari Sales.</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -576,14 +607,83 @@ export function EngineeringTaskDetailPage() {
               )}
 
               <div>
-                <label style={{ display: "block", fontSize: "14px", color: S.slate, fontWeight: 600, marginBottom: 8 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
-                <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                  disabled={!canProcess || isDoingSpvApproval || isWaitingCustomerDesign}
-                  style={{ width: "100%", padding: "14px 16px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: (!canProcess || isDoingSpvApproval || isWaitingCustomerDesign) ? "#F8FAFC" : "#fff", transition: "border 0.2s" }}
-                  onFocus={e => e.currentTarget.style.borderColor = S.cyan}
-                  onBlur={e => e.currentTarget.style.borderColor = S.border}
-                />
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
+                </div>
+                
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
+                    placeholder="https://drive.google.com/..."
+                    readOnly={!isEditingLink}
+                    disabled={!canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))}
+                    style={{
+                      flex: 1,
+                      padding: "14px 16px",
+                      border: `1px solid ${isEditingLink ? S.cyan : S.border}`,
+                      borderRadius: 8,
+                      fontSize: "14px",
+                      fontFamily: S.font,
+                      outline: "none",
+                      boxSizing: "border-box",
+                      backgroundColor: (!isEditingLink || !canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))) ? "#F8FAFC" : "#fff",
+                      color: !isEditingLink ? S.secondary : S.slate,
+                      cursor: !isEditingLink ? "default" : "text",
+                      transition: "all 0.2s"
+                    }}
+                    onFocus={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.cyan; }}
+                    onBlur={e => { if (isEditingLink) e.currentTarget.style.borderColor = S.border; }}
+                  />
+                  {designLink && !isEditingLink && (
+                    <a
+                      href={designLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        padding: "0 16px",
+                        background: S.cyan,
+                        color: "#fff",
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        textDecoration: "none",
+                        fontSize: "13.5px",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      Buka Link
+                    </a>
+                  )}
+                  {canProcess && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingLink(!isEditingLink)}
+                      style={{
+                        padding: "0 16px",
+                        background: isEditingLink ? "#F8FAFC" : "#fff",
+                        color: isEditingLink ? S.slate : S.cyan,
+                        border: `1px solid ${S.border}`,
+                        borderRadius: 8,
+                        fontSize: "13.5px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.2s",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {isEditingLink ? "Selesai Edit" : "Edit Link"}
+                    </button>
+                  )}
+                </div>
+                {!isEditingLink && designLink && (
+                  <p style={{ fontSize: "12px", color: S.secondary, margin: "6px 0 0", fontStyle: "italic" }}>
+                    * Link ini dimunculkan dalam mode abu-abu (readonly) dari Sales/Customer. Klik tombol <strong>"Edit Link"</strong> di sebelah kanan jika ingin mengubahnya.
+                  </p>
+                )}
               </div>
               
               <div>
@@ -604,7 +704,7 @@ export function EngineeringTaskDetailPage() {
                           <span style={{ fontSize: "13.5px", color: S.slate, fontWeight: 600 }}>
                             {item.productName || item.partNumber || "Custom Product"} <span style={{ color: S.secondary, fontWeight: 400 }}>({item.quantity} {item.unit})</span>
                           </span>
-                          {canProcess && !isDoingSpvApproval && !isWaitingCustomerDesign && (
+                          {canProcess && (isSpv || (!isDoingSpvApproval && !isWaitingCustomerDesign)) && (
                             <button onClick={() => addMaterial(item.id)} style={{ padding: "6px 12px", background: "#fff", color: S.cyan, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.color = S.cyan; }} onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.cyan; }}>
                               <Plus size={14} /> {isStandardProduct ? "Tambahan Khusus" : "Tambah Material"}
                             </button>
@@ -631,7 +731,7 @@ export function EngineeringTaskDetailPage() {
                                   <div style={{ width: 34 }}></div>
                                 </div>
                               ))}
-                              {mats.length === 0 && !isDoingSpvApproval && (
+                              {mats.length === 0 && (isSpv || !isDoingSpvApproval) && (
                                 <div style={{ fontSize: "12.5px", color: S.secondary, marginTop: 8, fontStyle: "italic" }}>
                                   * Tekan "Tambahan Khusus" jika ada material ekstra di luar BOM Master Data ini.
                                 </div>
@@ -642,7 +742,7 @@ export function EngineeringTaskDetailPage() {
                           {mats.length === 0 ? (
                             !isStandardProduct && (
                               <div style={{ textAlign: "center", padding: "30px 20px", color: S.secondary, fontSize: "13.5px", background: "#fff", borderRadius: 8 }}>
-                                {isDoingSpvApproval ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}
+                                {(isDoingSpvApproval && !isSpv) ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}
                               </div>
                             )
                           ) : (
@@ -670,10 +770,10 @@ export function EngineeringTaskDetailPage() {
                                       updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
                                     }}
                                     options={inventoryItems}
-                                    disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval} 
+                                    disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} 
                                   />
-                                  <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval) ? "#fff" : "#F8FAFC" }} />
-                                  <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
+                                  <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC" }} />
+                                  <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
                                   <input
                                     type="text"
                                     value={m.unit}
@@ -683,7 +783,7 @@ export function EngineeringTaskDetailPage() {
                                     disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
                                     style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: m.inventoryItemId ? "#F8FAFC" : (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: m.inventoryItemId ? S.secondary : S.slate, cursor: m.inventoryItemId ? "not-allowed" : "text", textAlign: "center" }}
                                   />
-                                  {canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval && (
+                                  {canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) && (
                                     <button onClick={() => removeMaterial(item.id, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                       <Trash2 size={18} />
                                     </button>
