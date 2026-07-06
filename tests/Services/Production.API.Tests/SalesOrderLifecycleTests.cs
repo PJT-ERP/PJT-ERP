@@ -327,5 +327,6 @@ public sealed class SalesOrderLifecycleTests
         public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken ct) { RequestedCustomerIds.Add(id); return Task.FromResult<MasterDataCustomerDto?>(new MasterDataCustomerDto(id, "CUST-HTTP", "PT HTTP", "http@test.com", true)); }
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) { RequestedProductIds.Add(id); return Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-HTTP", "HTTP Desc", "pcs", "HTTP Spec", true)); }
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

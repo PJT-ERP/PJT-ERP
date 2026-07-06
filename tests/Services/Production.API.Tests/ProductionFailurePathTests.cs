@@ -230,5 +230,6 @@ public sealed class ProductionFailurePathTests
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-STUB", "Stub", "pcs", null, true));
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
