@@ -33,16 +33,25 @@ const emptyItem = (): FormItem => ({
   name: "",
   spec: "",
   qty: "",
-  unit: "pcs",
+  unit: "",
   totalPrice: "",
 });
 
 const formatRp = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
 function FieldLabel({ children }: FieldLabelProps) {
+  let content = children;
+  if (typeof children === 'string' && children.endsWith(" *")) {
+    content = (
+      <>
+        {children.slice(0, -2)} <span className="text-[#C8102E]">*</span>
+      </>
+    );
+  }
+
   return (
     <label className="block text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500">
-      {children}
+      {content}
     </label>
   );
 }
@@ -106,8 +115,8 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [poCategory, setPoCategory] = useState("Consumable");
   const [dueDate, setDueDate] = useState("");
-  const [terms, setTerms] = useState("Cash");
-  const [shippingAddress, setShippingAddress] = useState("Gudang Utama - Jl. Industri No. 1, Bekasi");
+  const [terms, setTerms] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -197,7 +206,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         }
       }
 
-      let spec = item.size || item.notes || "";
+      let spec = item.size || "";
       if (spec.trim().toUpperCase() === extractedCode.trim().toUpperCase() || spec === "-") {
         spec = "";
       }
@@ -231,18 +240,20 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     const hasInvalidItem = items.some(item => !item.requestItemId || Number(item.totalPrice) <= 0);
     setMessage(null);
 
-    if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
+    if (!request || !supplier || !dueDate || !terms || !shippingAddress.trim() || hasInvalidItem || isSubmitting) {
       console.log("Validation Failed:", {
         requestFound: !!request,
         supplier,
         dueDate,
+        terms,
+        shippingAddress,
         hasInvalidItem,
         items,
         isSubmitting
       });
       setMessage({
         type: "error",
-        text: `Validasi gagal! ${!request ? 'PR belum dipilih.' : ''} ${!supplier ? 'Supplier kosong.' : ''} ${!dueDate ? 'Tgl kosong.' : ''} ${hasInvalidItem ? 'Ada item yang tidak valid (pastikan kode, nama, qty > 0, total > 0, dan id request item ada).' : ''}`,
+        text: `Validasi gagal! ${!request ? 'PR belum dipilih.' : ''} ${!supplier ? 'Supplier kosong.' : ''} ${!dueDate ? 'Tgl kosong.' : ''} ${!terms ? 'Termin belum dipilih.' : ''} ${!shippingAddress.trim() ? 'Alamat pengiriman kosong.' : ''} ${hasInvalidItem ? 'Ada item yang tidak valid (pastikan kode, nama, qty > 0, total > 0, dan id request item ada).' : ''}`,
       });
       return;
     }
@@ -369,14 +380,15 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <input type="date" value={dueDate} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setDueDate)(e.target.value)} className={inputClass()} />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Terms</FieldLabel>
+            <FieldLabel>Terms *</FieldLabel>
             <select value={terms} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateField(setTerms)(e.target.value)} className={inputClass()}>
+              <option value="" disabled>Pilih Termin</option>
               {TERMS.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5 md:col-span-1">
-            <FieldLabel>Alamat Pengiriman</FieldLabel>
-            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} />
+            <FieldLabel>Alamat Pengiriman *</FieldLabel>
+            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} placeholder="Masukkan alamat pengiriman..." />
           </div>
         </div>
       </section>
@@ -399,19 +411,19 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <div key={index} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-12">
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Kode Item *</FieldLabel>
-                <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Nama Material *</FieldLabel>
-                <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} placeholder="Nama material / consumable / tools" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
-                <input value={item.spec} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input value={item.spec} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Qty *</FieldLabel>
-                <input value={item.qty} readOnly title="Qty telah disetujui dan tidak dapat diubah" onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" placeholder="0" className={inputClass("text-right cursor-not-allowed opacity-80")} />
+                <input value={item.qty} readOnly title="Qty telah disetujui dan tidak dapat diubah" onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" className={inputClass("text-right cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
@@ -429,7 +441,6 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                       const rawVal = e.target.value.replace(/\D/g, "");
                       updateItem(index, "totalPrice", rawVal);
                     }}
-                    placeholder="0"
                     title="Total harga telah disetujui Finance dan tidak dapat diubah"
                     className={inputClass("text-right pl-8 cursor-not-allowed opacity-80")}
                   />

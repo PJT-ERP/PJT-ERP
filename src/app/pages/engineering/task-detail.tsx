@@ -309,7 +309,7 @@ export function EngineeringTaskDetailPage() {
               if (!invId) {
                 try {
                   const created = await masterDataApi.createInventoryItem({
-                    code: `MAT-${m.name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 16)}`,
+                    code: "",
                     name: m.name.trim(),
                     category: 'Engineering',
                     unit: m.unit || 'pcs',

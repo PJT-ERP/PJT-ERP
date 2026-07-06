@@ -98,7 +98,7 @@ export function ERPLayout() {
     || currentUser?.role === "Sales";
   const canReadSupplierPayments = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
   const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments);
-  const { purchaseRequests: backendPurchaseRequests } = usePurchasingData(currentUser?.role === 'Finance');
+  const { purchaseRequests: backendPurchaseRequests, suppliers: purchasingSuppliers } = usePurchasingData(currentUser?.role === 'Finance');
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
 
   const location = useLocation();
@@ -319,7 +319,7 @@ export function ERPLayout() {
       purchasingRequests.filter(pr => pr.backendStatus === 'SupervisorApproved').forEach(pr => {
         notifs.push({ id: pr.id, type: 'alert', title: 'Persetujuan Anggaran', desc: `Purchase Request ${pr.id} menunggu persetujuan anggaran.`, targetPath: '/erp/finance/approval-po' });
       });
-      const allPos = mapPurchaseRequestsToPos(backendPurchaseRequests, supplierPayments || []);
+      const allPos = mapPurchaseRequestsToPos(backendPurchaseRequests, supplierPayments || [], purchasingSuppliers || []);
       const paymentPos = allPos.filter(po => po.items.length > 0 && calcTotal(po.items) > 0);
       paymentPos.filter(p => p.paymentStatus !== 'Paid').forEach(po => {
         notifs.push({ id: po.id, type: 'warning', title: 'Tagihan Supplier (AP)', desc: `Tagihan ${po.id} dari ${po.supplier} menunggu pembayaran.`, targetPath: '/erp/finance/approval-po' });

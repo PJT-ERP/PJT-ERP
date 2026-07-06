@@ -416,8 +416,8 @@ export function SuppliersPage() {
   const { suppliers, purchaseRequests, supplierPayments, isLoading, refresh } = usePurchasingData();
 
   const allPos = useMemo(() => {
-    return mapPurchaseRequestsToPos(purchaseRequests || [], supplierPayments || []);
-  }, [purchaseRequests, supplierPayments]);
+    return mapPurchaseRequestsToPos(purchaseRequests || [], supplierPayments || [], suppliers);
+  }, [purchaseRequests, supplierPayments, suppliers]);
 
   const enhancedSuppliers = useMemo(() => {
     return (suppliers as any[]).map(s => {

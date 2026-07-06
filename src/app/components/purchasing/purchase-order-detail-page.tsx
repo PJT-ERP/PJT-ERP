@@ -22,12 +22,12 @@ export function PurchaseOrderDetailPage() {
   const id = rawId ? decodeURIComponent(rawId) : "";
   const navigate = useNavigate();
   const { refreshBackendData } = useApp();
-  const { purchaseRequests, supplierPayments, isLoading: isDataLoading, refresh } = usePurchasingData();
+  const { purchaseRequests, supplierPayments, suppliers, isLoading: isDataLoading, refresh } = usePurchasingData();
 
   const [isReceiving, setIsReceiving] = useState(false);
   const [receiveItemState, setReceiveItemState] = useState<POItem | null>(null);
 
-  const pos = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments), [purchaseRequests, supplierPayments]);
+  const pos = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
   const detail = useMemo(() => {
     if (!id && !rawId) return null;
     const cleanId = (id || rawId || "").trim();
@@ -60,7 +60,8 @@ export function PurchaseOrderDetailPage() {
         receiveItemState.purchaseRequestItemId,
         {
           receivedDate: date,
-          purchaseNotes: notes || undefined,
+          purchaseNotes: (receiveItemState.rawNotes ? receiveItemState.rawNotes + " | " : "") + `RCV:${qtyReceived}` + (notes ? ` | NOTE:${notes}` : ""),
+          receivedQty: qtyReceived,
         }
       );
       

@@ -224,6 +224,7 @@ export const purchasingApi = {
   async receivePurchaseRequestItem(purchaseRequestId: string, itemId: string, request: {
     receivedDate: string;
     purchaseNotes?: string | null;
+    receivedQty?: number;
   }) {
     const response = await apiClient.put<PurchaseRequestDto>(
       `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/items/${itemId}/receive`,

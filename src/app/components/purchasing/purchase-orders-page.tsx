@@ -37,6 +37,7 @@ export interface POItem {
   unit: string;
   totalPrice: number;
   received: number;
+  rawNotes?: string;
 }
 
 export interface PO {
@@ -86,7 +87,7 @@ export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / 
 export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = []): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = []): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -96,17 +97,24 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
         const poNumber = item.poNumber!;
         const existing = byPo.get(poNumber);
         const totalPrice = item.totalPrice ?? item.estimatedPrice ?? 0;
+        let rcv = item.purchaseStatus === "Received" ? item.qty : 0;
+        const rcvPart = (item.purchaseNotes || "").split(" | ").find(p => p.trim().startsWith("RCV:"));
+        if (rcvPart) {
+          rcv = Number(rcvPart.replace("RCV:", "").trim());
+        }
+
         const poItem: POItem = {
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
           code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
-          spec: item.size || item.notes || "-",
+          spec: item.size || "-",
           qty: item.qty,
           unit: "pcs",
           totalPrice,
-          received: item.purchaseStatus === "Received" ? item.qty : 0,
+          received: rcv,
+          rawNotes: item.purchaseNotes || undefined,
         };
 
         if (existing) {
@@ -122,21 +130,28 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           return;
         }
 
+        const supplierName = item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan";
+        const foundSupplier = suppliers.find(s => s.name === supplierName);
+
+        const parts = (item.purchaseNotes || "").split(" | ");
+        const extractedTerms = parts.length >= 1 && parts[0].trim() ? parts[0].trim() : "Net 14";
+        const extractedAddress = parts.length >= 2 ? parts[1].trim() : "Alamat belum diset";
+
         byPo.set(poNumber, {
           id: poNumber,
-          supplier: item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan",
-          supplierCode: "SUP-BACKEND",
+          supplier: supplierName,
+          supplierCode: foundSupplier ? foundSupplier.code : "SUP-BACKEND",
           contact: "-",
           contactPhone: "-",
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
           deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
           paymentStatus: payments.some(p => p.poNumber === poNumber) ? "Paid" : "Unpaid",
-          paymentTerms: "Net 14",
+          paymentTerms: extractedTerms,
           requestRefs: [request.prNumber],
           soRefs: item.salesOrderNumber ? [item.salesOrderNumber] : [],
           category: (item.purchaseCategory || "Project") as PO["category"],
-          shippingAddress: "Gudang Utama - PT Pratama Jaya Tekindo",
+          shippingAddress: extractedAddress,
           notes: item.purchaseNotes || item.notes || "",
           financeApproval: request.financeReviewedAtUtc
             ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
@@ -225,8 +240,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const { purchaseRequests, supplierPayments } = usePurchasingData();
-  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments), [purchaseRequests, supplierPayments]);
+  const { purchaseRequests, supplierPayments, suppliers } = usePurchasingData();
+  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
