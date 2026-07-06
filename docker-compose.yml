@@ -74,6 +74,8 @@ services:
     environment: *api-environment
     ports:
       - "127.0.0.1:5004:8080"
+    volumes:
+      - pjt_qc_photos:/app/wwwroot/qc-photos
     depends_on:
       db:
         condition: service_healthy
@@ -146,3 +148,4 @@ services:
 volumes:
   pjt_db:
   pjt_finance_proofs:
+  pjt_qc_photos:

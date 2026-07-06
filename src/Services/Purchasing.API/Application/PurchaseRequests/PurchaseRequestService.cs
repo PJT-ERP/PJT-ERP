@@ -549,7 +549,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                 purchaseRequest.PrNumber,
                 purchaseItem.Id,
                 purchaseItem.ItemName,
-                purchaseItem.Qty,
+                request.ReceivedQty ?? purchaseItem.Qty,
                 request.ReceivedDate),
             cancellationToken);
 

@@ -5,36 +5,36 @@ import { useApp } from '../../context/AppContext';
 
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
 
+vi.mock('../../../services/salesApi', () => ({
+  salesApi: {
+    getNextCustomerCode: vi.fn().mockResolvedValue({ code: 'CUST-001' }),
+  },
+}));
+
 const mockNavigate = vi.fn();
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.mocked(useApp).mockReturnValue({
-    customers: [],
-    productCatalog: [],
-    salesOrders: [],
-    currentUser: { id: 'u1', role: 'Sales', name: 'Sales' },
-    users: [],
-    updateSalesOrder: vi.fn(),
-    refreshBackendData: vi.fn().mockResolvedValue(undefined),
-    purchasingRequests: [],
-  } as any);
-});
-
 describe('SOCreate — error states', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useApp).mockReturnValue({
+      customers: [],
+      productCatalog: [],
+      salesOrders: [],
+      currentUser: { id: 'u1', role: 'Sales', name: 'Sales' },
+      users: [],
+      updateSalesOrder: vi.fn(),
+      refreshBackendData: vi.fn().mockResolvedValue(undefined),
+      purchasingRequests: [],
+    } as any);
+  });
+
   it('renders empty state without crashing when no product catalog', () => {
     render(<SOCreate onNavigate={mockNavigate} />);
     expect(screen.getByText('Pesanan Baru (New Order)')).toBeInTheDocument();
     expect(screen.getByText('Repeat Order')).toBeInTheDocument();
   });
 
-  it('shows Pesanan Baru form with submit button disabled for empty form', async () => {
-    vi.mock('../../../services/salesApi', () => ({
-      salesApi: {
-        getNextCustomerCode: vi.fn().mockResolvedValue({ code: 'CUST-001' }),
-      },
-    }));
-
+  it('shows Pesanan Baru form with submit button', async () => {
     render(<SOCreate onNavigate={mockNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
 
@@ -45,12 +45,6 @@ describe('SOCreate — error states', () => {
   });
 
   it('shows Kode Pelanggan as Auto-generated', async () => {
-    vi.mock('../../../services/salesApi', () => ({
-      salesApi: {
-        getNextCustomerCode: vi.fn().mockResolvedValue({ code: 'CUST-020' }),
-      },
-    }));
-
     render(<SOCreate onNavigate={mockNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
 

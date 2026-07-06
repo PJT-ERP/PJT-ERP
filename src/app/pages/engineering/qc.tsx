@@ -4,6 +4,7 @@ import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor, calcProductionDuration } from "../../components/data/mockData";
 import { qcApi } from "../../services/qcApi";
 import type { QcInspectionDto } from "../../services/qcApi";
+import { BASE_URL } from "../../services/apiClient";
 import { QCReadOnlyView } from "../QCReadOnlyView";
 import { toBackendUserId } from "../../services/backendIds";
 
@@ -18,6 +19,11 @@ const S = {
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
 };
+
+const getFullUrl = (url: string) => 
+  url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:') 
+    ? url 
+    : `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);
@@ -83,7 +89,7 @@ function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void 
         </div>
         <div className="p-8 text-center bg-slate-100/50 overflow-y-auto flex-1">
           <div className="max-w-xl mx-auto bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
-            <img src={src} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" onError={(e) => { e.currentTarget.src = `https://placehold.co/800x600?text=${encodeURIComponent(src.split('/').pop() || 'Image')}` }} />
+            <img src={getFullUrl(src)} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" onError={(e) => { e.currentTarget.src = `https://placehold.co/800x600?text=${encodeURIComponent(src.split('/').pop() || 'Image')}` }} />
           </div>
           <p className="text-xs text-slate-500 mt-2">Ini adalah representasi visual foto QC yang diunggah.</p>
         </div>
@@ -154,7 +160,7 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                   {(inspection?.productionPhotos ?? so.productionPhotos)!.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                      <img src={p} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                      <img src={getFullUrl(p)} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
                     </div>
                   ))}
                 </div>
@@ -167,7 +173,7 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                   {(inspection?.qcPhotos ?? so.qcPhotos)!.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                      <img src={p} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                      <img src={getFullUrl(p)} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
                     </div>
                   ))}
                 </div>
@@ -186,6 +192,44 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
     </div>
   );
 }
+
+const compressImage = (file: File, maxWidth = 1024): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) return resolve(file);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(new File([blob], file.name, { type: file.type, lastModified: Date.now() }));
+            } else {
+              resolve(file);
+            }
+          },
+          file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+          0.7
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
 
 function QCInspectionModal({
   so,
@@ -209,13 +253,12 @@ function QCInspectionModal({
   const [result, setResult] = useState<'Go' | 'NoGo' | ''>('');
   const [done, setDone] = useState(false);
 
-  const handleProductionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductionFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    const newPhotos = files.map(file => ({ file, url: URL.createObjectURL(file) }));
-    setProductionPhotos(prev => {
-      prev.forEach(p => URL.revokeObjectURL(p.url));
-      return [...prev, ...newPhotos];
-    });
+    if (files.length === 0) return;
+    const compressedFiles = await Promise.all(files.map(f => compressImage(f)));
+    const newPhotos = compressedFiles.map(file => ({ file, url: URL.createObjectURL(file) }));
+    setProductionPhotos(prev => [...prev, ...newPhotos]);
     e.target.value = '';
   };
 
@@ -226,13 +269,12 @@ function QCInspectionModal({
     });
   };
 
-  const handleQcFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleQcFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    const newPhotos = files.map(file => ({ file, url: URL.createObjectURL(file) }));
-    setQcPhotos(prev => {
-      prev.forEach(p => URL.revokeObjectURL(p.url));
-      return [...prev, ...newPhotos];
-    });
+    if (files.length === 0) return;
+    const compressedFiles = await Promise.all(files.map(f => compressImage(f)));
+    const newPhotos = compressedFiles.map(file => ({ file, url: URL.createObjectURL(file) }));
+    setQcPhotos(prev => [...prev, ...newPhotos]);
     e.target.value = '';
   };
 
@@ -281,10 +323,9 @@ function QCInspectionModal({
     }
 
     try {
-      const [productionPhotoUrls, qcPhotoUrls] = await Promise.all([
-        qcApi.uploadPhotos(productionPhotos.map(p => p.file)),
-        qcApi.uploadPhotos(qcPhotos.map(p => p.file)),
-      ]);
+      // Upload sequentially to avoid backend concurrency issues or timeout
+      const productionPhotoUrls = await qcApi.uploadPhotos(productionPhotos.map(p => p.file));
+      const qcPhotoUrls = await qcApi.uploadPhotos(qcPhotos.map(p => p.file));
 
       const updatedInspection = await qcApi.uploadResult(inspection.id, {
         reviewerUserId,
@@ -295,9 +336,10 @@ function QCInspectionModal({
         decision: result,
       });
       await onSaved(updatedInspection);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to submit QC result to backend.", error);
-      alert("Gagal submit hasil QC ke backend. Cek assignment reviewer atau koneksi API.");
+      const msg = error?.response?.data?.message || error?.response?.data?.title || error?.message || "Unknown error";
+      alert(`Gagal submit hasil QC ke backend. Detail: ${msg}`);
       return;
     }
 

@@ -219,7 +219,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        const nextStatus = (order.customerDrawingUrl || order.designLink) ? 'Ready for Production' : 'Pending Design';
+        const nextStatus = 'Pending Design';
         updateSalesOrder(orderId, { status: nextStatus });
       } else if (action === 'reject') {
         updateSalesOrder(orderId, { status: 'Rejected' });

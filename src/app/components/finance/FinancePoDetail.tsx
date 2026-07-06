@@ -58,7 +58,7 @@ export function FinancePoDetail() {
           masterDataApi.listSuppliers()
         ]);
         setSuppliers(suppliersRes);
-        const pos = mapPurchaseRequestsToPos(requests, paymentsRes);
+        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes);
         const po = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (po) {
           setDetail(po);
@@ -103,7 +103,7 @@ export function FinancePoDetail() {
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
       const paymentsRes = await financeApi.listSupplierPayments();
-      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes);
+      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers);
       const refreshedPo = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (refreshedPo) {
           setDetail(refreshedPo);

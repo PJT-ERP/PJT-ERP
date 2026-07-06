@@ -77,7 +77,7 @@ public sealed record ProcessPurchaseItemRequest(
 
 public sealed record RejectPurchaseItemRequest(string? RejectionReason);
 
-public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? PurchaseNotes);
+public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? PurchaseNotes, int? ReceivedQty = null);
 
 public sealed record UpdateMaterialStockInfoRequest(int StockOnHand, string? StockNotes);
 
