@@ -17,18 +17,21 @@ public sealed class PgmqOutboxProcessor<TContext>(
         {
             try
             {
-                await ProcessBatchAsync(stoppingToken);
+                var count = await ProcessBatchAsync(stoppingToken);
+                if (count == 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "PGMQ outbox processor failed. Retrying soon.");
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
-
-            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
     }
 
-    private async Task ProcessBatchAsync(CancellationToken cancellationToken)
+    private async Task<int> ProcessBatchAsync(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TContext>();
@@ -65,5 +68,7 @@ public sealed class PgmqOutboxProcessor<TContext>(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+        
+        return messages.Count;
     }
 }

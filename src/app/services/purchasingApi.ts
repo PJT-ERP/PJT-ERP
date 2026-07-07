@@ -245,4 +245,9 @@ export const purchasingApi = {
     );
     return response.data;
   },
+
+  async previewNextPoNumber() {
+    const response = await apiClient.get<string>('/api/v1/purchasing/purchase-requests/next-po-number');
+    return response.data;
+  },
 };

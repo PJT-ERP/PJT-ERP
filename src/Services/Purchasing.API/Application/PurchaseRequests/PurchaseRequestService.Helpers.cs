@@ -537,7 +537,7 @@ public sealed partial class PurchaseRequestService
             return;
         }
 
-        purchaseRequest.Status = purchaseRequest.SupervisorReviewedAtUtc.HasValue
+        purchaseRequest.Status = purchaseRequest.SupervisorReviewedAtUtc.HasValue || (purchaseRequest.SalesOrderId == null && string.IsNullOrWhiteSpace(purchaseRequest.SalesOrderNumber))
             ? PurchaseRequestStatuses.SupervisorApproved
             : PurchaseRequestStatuses.Submitted;
         purchaseRequest.RejectionReason = null;

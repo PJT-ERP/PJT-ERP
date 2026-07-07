@@ -209,7 +209,13 @@ export function ProductionMaterialRequestPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const prefillStockIssues = (location.state as any)?.stockIssues as Array<{ itemName: string; required: number; available: number }> | undefined;
+  const prefillStockIssues = (location.state as any)?.stockIssues as Array<{ 
+    itemName: string; 
+    required: number; 
+    available: number;
+    specs?: Array<{ spec: string; quantity: number }>;
+  }> | undefined;
+
   const { salesOrders, currentUser, refreshBackendData, purchasingRequests } = useApp();
   
   const prefillRef = React.useRef(prefillStockIssues);
@@ -250,16 +256,36 @@ export function ProductionMaterialRequestPage() {
     // If stock issues were passed from the production start modal, pre-fill from those
     const prefill = prefillRef.current;
     if (prefill && prefill.length > 0) {
-      const mapped = prefill.map(issue => ({
-        materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}`,
-        itemName: issue.itemName,
-        specification: "",
-        quantity: String(issue.required),
-        maxQuantity: issue.required,
-        unit: "pcs",
-        urgency: "Urgent" as PurchasingUrgency,
-        purchaseCategory: "Project",
-      }));
+      let hasMultipleSpecs = false;
+      const mapped = prefill.flatMap(issue => {
+        const missingQty = Math.max(0, issue.required - (issue.available || 0));
+        
+        if (issue.specs && issue.specs.length > 0) {
+          if (issue.specs.length > 1) hasMultipleSpecs = true;
+          return issue.specs.map((s, idx) => ({
+            materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}-${idx}`,
+            itemName: issue.itemName,
+            specification: s.spec,
+            // If there's only 1 spec, we know exactly the missing amount. Otherwise, dump the full req amount for them to adjust.
+            quantity: String(issue.specs!.length === 1 ? missingQty : s.quantity),
+            maxQuantity: issue.specs!.length === 1 ? missingQty : s.quantity,
+            unit: "pcs",
+            urgency: "Urgent" as PurchasingUrgency,
+            purchaseCategory: "Project",
+          }));
+        }
+
+        return [{
+          materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}`,
+          itemName: issue.itemName,
+          specification: "",
+          quantity: String(missingQty),
+          maxQuantity: missingQty,
+          unit: "pcs",
+          urgency: "Urgent" as PurchasingUrgency,
+          purchaseCategory: "Project",
+        }];
+      });
       setItems(mapped);
       setBomOptions(mapped.map(m => ({
         id: m.materialKey,
@@ -270,7 +296,12 @@ export function ProductionMaterialRequestPage() {
         spec: m.specification,
         maxQuantity: m.maxQuantity,
       })));
-      setNotes(`Auto-generated dari pengecekan stok — material tidak mencukupi untuk memulai produksi.`);
+      
+      if (hasMultipleSpecs) {
+        setNotes(`Auto-generated dari pengecekan stok. Terdapat beberapa spesifikasi berbeda untuk material yang kurang. Silakan hapus atau sesuaikan kuantitas untuk spesifikasi yang benar-benar perlu dibeli.`);
+      } else {
+        setNotes(`Auto-generated dari pengecekan stok — material tidak mencukupi untuk memulai produksi.`);
+      }
       return;
     }
 
@@ -431,7 +462,7 @@ export function ProductionMaterialRequestPage() {
     purchaseCategory: item.purchaseCategory,
   }));
 
-  const uniqueItemNames = new Set(parsedItems.filter(item => item.itemName).map(item => item.itemName));
+  const uniqueItemNames = new Set(parsedItems.filter(item => item.itemName).map(item => item.itemName + '|' + item.specification));
   const hasDuplicates = parsedItems.filter(item => item.itemName).length !== uniqueItemNames.size;
 
   const canSubmit = parsedItems.every(item => 

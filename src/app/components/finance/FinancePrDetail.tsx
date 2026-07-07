@@ -171,7 +171,12 @@ export function FinancePrDetail() {
                   {detail.items.map((item, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                       <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
-                      <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
+                      <td className="p-3 text-sm font-medium text-slate-900">
+                        <div>{item.name}</div>
+                        {item.spec && item.spec !== "-" && (
+                          <div className="text-xs text-slate-500 font-normal mt-0.5">Spesifikasi: {item.spec}</div>
+                        )}
+                      </td>
                       <td className="p-3 text-sm font-semibold text-slate-900 text-right">{item.qty} {item.unit}</td>
                       <td className="p-3 text-sm text-slate-600">{item.supplierName || "-"}</td>
                       <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice / (item.qty || 1)) : "-"}</td>

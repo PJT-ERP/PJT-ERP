@@ -98,13 +98,13 @@ public sealed class PurchaseRequestServiceTests
             new MaterialRequestSubmittedEvent(
                 salesOrderId,
                 "SO-001",
-                Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                "PJT|SO|001",
+                Guid.NewGuid(),
+                null,
                 workerUserId,
-                "Engineering Worker",
-                new DateOnly(2026, 6, 11),
-                "SO-001",
-                "Material shortage before production start.",
+                "Worker A",
+                new DateOnly(2026, 7, 1),
+                "Project",
+                "Test notes",
                 [
                     new MaterialRequestSubmittedItem(
                         null,
@@ -136,6 +136,64 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(workerUserId, request.RequestedByUserId);
         Assert.Equal(2, request.Items.Count);
         Assert.Contains(request.Items, item => item.ItemName == "Coolant" && item.PurchaseCategory == PurchaseItemCategories.Consumable);
+    }
+
+    [Fact]
+    public async Task MaterialRequestSubmittedEventHandler_allows_same_material_different_sizes_and_receives_them()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var handler = new MaterialRequestSubmittedEventHandler(service);
+        var salesOrderId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+        var workerUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        // 1. Submit Material Request with SAME item name but DIFFERENT sizes
+        await handler.Handle(
+            new MaterialRequestSubmittedEvent(
+                salesOrderId,
+                "SO-999",
+                Guid.NewGuid(),
+                null,
+                workerUserId,
+                "Worker A",
+                new DateOnly(2026, 7, 1),
+                "Project",
+                "Test notes",
+                [
+                    new MaterialRequestSubmittedItem(null, null, "Aluminium", "100x50", 1, "Normal", null, "For side panel", "Project"),
+                    new MaterialRequestSubmittedItem(null, null, "Aluminium", "200x300", 2, "Normal", null, "For back panel", "Project")
+                ]),
+            CancellationToken.None);
+
+        var request = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
+        Assert.Equal(2, request.Items.Count);
+        
+        var item1 = request.Items.Single(i => i.Size == "100x50");
+        var item2 = request.Items.Single(i => i.Size == "200x300");
+        
+        Assert.Equal("Aluminium", item1.ItemName);
+        Assert.Equal("Aluminium", item2.ItemName);
+
+        // 2. Process, Order, and Receive them
+        await service.ReviewAsync(request.Id, new ReviewPurchaseRequest(workerUserId, PurchaseRequestStatuses.Approved, null, "Supervisor"), CancellationToken.None);
+        
+        // Process both items (sets supplier and prices)
+        await service.ProcessPurchaseItemAsync(request.Id, item1.Id, new ProcessPurchaseItemRequest("PT Alu", new DateOnly(2026, 7, 10), null, 1000, null), CancellationToken.None);
+        await service.ProcessPurchaseItemAsync(request.Id, item2.Id, new ProcessPurchaseItemRequest("PT Alu", new DateOnly(2026, 7, 10), null, 2000, null), CancellationToken.None);
+        
+        await service.ReviewAsync(request.Id, new ReviewPurchaseRequest(workerUserId, PurchaseRequestStatuses.Approved, null, "Finance"), CancellationToken.None);
+        
+        // Order both items
+        await service.UpdatePurchaseItemInfoAsync(request.Id, item1.Id, new UpdatePurchaseItemInfoRequest(null, new DateOnly(2026, 7, 10), null, null, PurchaseItemStatuses.Ordered, null, "PO-999"), CancellationToken.None);
+        await service.UpdatePurchaseItemInfoAsync(request.Id, item2.Id, new UpdatePurchaseItemInfoRequest(null, new DateOnly(2026, 7, 10), null, null, PurchaseItemStatuses.Ordered, null, "PO-999"), CancellationToken.None);
+        
+        // Receive both items (Terima barang)
+        var receivedDto = await service.ReceivePurchaseItemAsync(request.Id, item1.Id, new ReceivePurchaseItemRequest(new DateOnly(2026, 7, 12), "Received 100x50", 1), CancellationToken.None);
+        receivedDto = await service.ReceivePurchaseItemAsync(request.Id, item2.Id, new ReceivePurchaseItemRequest(new DateOnly(2026, 7, 12), "Received 200x300", 2), CancellationToken.None);
+
+        var finalRequest = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
+        Assert.All(finalRequest.Items, i => Assert.Equal(PurchaseItemStatuses.Received, i.PurchaseStatus));
+        Assert.Equal(PurchaseRequestStatuses.Completed, finalRequest.Status);
     }
 
     [Fact]
@@ -466,6 +524,139 @@ public sealed class PurchaseRequestServiceTests
         var linkedItem = Assert.Single(Assert.Single(tracking.Requirements).PurchaseItems);
         Assert.Equal(PurchaseItemStatuses.Received, linkedItem.PurchaseStatus);
         Assert.Equal("Supplier A", linkedItem.SupplierName);
+    }
+
+    [Fact]
+    public async Task ProcessPurchaseItemAsync_multiple_items_different_suppliers_creates_different_pos()
+    {
+        await using var db = CreateDbContext();
+        
+        var requirement1 = await SeedRequirementAsync(db);
+        var requirement2 = new MaterialRequirement
+        {
+            SalesOrderId = requirement1.SalesOrderId,
+            SalesOrder = requirement1.SalesOrder,
+            SalesOrderNumber = requirement1.SalesOrderNumber,
+            ProductionOrderId = Guid.Parse("22222222-2222-2222-2222-222222222223"),
+            SpkNumber = "SO-001",
+            BarcodeUid = "PJT|SO|002",
+            ProductId = Guid.Parse("44444444-4444-4444-4444-444444444445"),
+            ProductPartNumber = "PART-002",
+            ProductDescription = "Bearing",
+            MaterialSpec = "Steel",
+            RequiredQty = 10,
+            ProjectName = "SO-001"
+        };
+        db.MaterialRequirements.Add(requirement2);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                "Engineering Worker",
+                null,
+                null,
+                null,
+                [
+                    new CreatePurchaseRequestItem(requirement1.Id, null, null, null, "", null, 5, "Supplier A", "Need material 1", "Normal"),
+                    new CreatePurchaseRequestItem(requirement2.Id, null, null, null, "", null, 10, "Supplier B", "Need material 2", "Normal")
+                ]),
+            CancellationToken.None);
+
+        purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
+        var item1Id = purchaseRequest.Items.First(i => i.MaterialRequirementId == requirement1.Id).Id;
+        var item2Id = purchaseRequest.Items.First(i => i.MaterialRequirementId == requirement2.Id).Id;
+
+        var processed = await service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            item1Id,
+            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 25), "PO-2026-001", 1_000_000m, null),
+            CancellationToken.None);
+            
+        processed = await service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            item2Id,
+            new ProcessPurchaseItemRequest("Supplier B", new DateOnly(2026, 5, 26), "PO-2026-002", 500_000m, null),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.Processing, processed!.Status);
+        
+        var item1 = processed.Items.First(i => i.Id == item1Id);
+        var item2 = processed.Items.First(i => i.Id == item2Id);
+        
+        Assert.Equal("Supplier A", item1.SupplierName);
+        Assert.Equal("PO-2026-001", item1.PoNumber);
+        Assert.Equal(PurchaseItemStatuses.Ordered, item1.PurchaseStatus);
+        
+        Assert.Equal("Supplier B", item2.SupplierName);
+        Assert.Equal("PO-2026-002", item2.PoNumber);
+        Assert.Equal(PurchaseItemStatuses.Ordered, item2.PurchaseStatus);
+    }
+
+    [Fact]
+    public async Task CreateAsync_manual_pr_without_so_skips_supervisor_but_requires_finance_approval()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+
+        // 1. Create a manual PR (No SalesOrderId, no requirement link)
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("99999999-9999-9999-9999-999999999999"),
+                "Office Admin",
+                null, // No SO
+                null,
+                null,
+                [
+                    new CreatePurchaseRequestItem(null, null, null, null, "Office Supplies - A4 Paper", null, 10, "Gramedia", "Need for printer", "Normal")
+                ]),
+            CancellationToken.None);
+
+        // Assert that it skipped Supervisor and went straight to SupervisorApproved
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+
+        // 2. Purchasing processes the item (adds price and PO)
+        var processed = await service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("Gramedia", new DateOnly(2026, 6, 1), "PO-MANUAL-001", 500_000m, null),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.Processing, processed!.Status);
+
+        // 3. Trying to receive the item before Finance approves should fail
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReceivePurchaseItemAsync(
+            processed.Id,
+            itemId,
+            new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Should fail"),
+            CancellationToken.None));
+
+        // 4. Finance approves the PR
+        var financeReviewed = await service.ReviewAsync(
+            processed.Id,
+            new ReviewPurchaseRequest(
+                Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                "Accept",
+                null,
+                "Finance"),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed!.Status);
+
+        // 5. Now it can be received
+        var received = await service.ReceivePurchaseItemAsync(
+            financeReviewed.Id,
+            itemId,
+            new ReceivePurchaseItemRequest(new DateOnly(2026, 6, 1), "Received normally"),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.Completed, received!.Status);
+        Assert.Equal(PurchaseItemStatuses.Received, received.Items.First().PurchaseStatus);
     }
 
     private static PurchaseRequestService CreateService(

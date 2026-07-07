@@ -269,7 +269,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
       return;
     }
 
-    const poNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+    const poNumber = await purchasingApi.previewNextPoNumber();
 
     try {
       setIsSubmitting(true);
@@ -462,7 +462,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 <FieldLabel>Satuan</FieldLabel>
                 <input value={item.unit} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3 cursor-not-allowed opacity-80")} />
               </div>
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Total Harga *</FieldLabel>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 text-slate-400 text-sm">Rp</span>
@@ -483,16 +483,6 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                     Harga satuan: {formatRp(Number(item.totalPrice) / Number(item.qty))}
                   </div>
                 )}
-              </div>
-              <div className="pt-[20px] md:col-span-1">
-                <button
-                  onClick={() => removeItem(index)}
-                  disabled={items.length === 1}
-                  className="flex h-[38px] w-full items-center justify-center rounded border border-red-100 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
-                  title="Hapus item"
-                >
-                  <Trash2 size={15} />
-                </button>
               </div>
             </div>
           ))}

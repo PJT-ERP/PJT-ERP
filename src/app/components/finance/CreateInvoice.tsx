@@ -269,9 +269,16 @@ export function CreateInvoice() {
             <button onClick={() => navigate('/erp/finance/invoices')} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap">
               Lihat Invoice
             </button>
-            <button onClick={() => {
+            <button onClick={async () => {
               if (createdInvoice) {
-                window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/finance/invoices/${createdInvoice.id}/pdf?inline=true`, '_blank');
+                try {
+                  const blob = await financeApi.getInvoicePdfBlob(createdInvoice.id);
+                  const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                  window.open(url, '_blank');
+                  setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+                } catch {
+                  alert('Gagal mencetak PDF invoice.');
+                }
               }
             }} className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm">
               <Printer size={16} /> Cetak Invoice

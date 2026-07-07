@@ -93,7 +93,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       : "Medium";
 
   return {
-    id: request.prNumber.replace(/^MR-/, "PR-"),
+    id: request.prNumber,
     backendId: request.id,
     backendStatus: request.status,
     requestor: request.requesterName,

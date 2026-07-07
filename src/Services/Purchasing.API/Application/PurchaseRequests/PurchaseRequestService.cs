@@ -63,16 +63,21 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         }
 
         var firstRequirement = materialRequirements.Values.FirstOrDefault();
+        var resolvedSalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId;
+        var resolvedSalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber;
+        
         var purchaseRequest = new PurchaseRequest
         {
             PrNumber = await GenerateNumberAsync(cancellationToken),
             RequestDate = request.RequestDate,
             RequestedByUserId = request.RequestedByUserId,
             RequesterName = request.RequesterName.Trim(),
-            SalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId,
-            SalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber,
+            SalesOrderId = resolvedSalesOrderId,
+            SalesOrderNumber = resolvedSalesOrderNumber,
             ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName,
-            Status = PurchaseRequestStatuses.Submitted,
+            Status = resolvedSalesOrderId == null && string.IsNullOrWhiteSpace(resolvedSalesOrderNumber)
+                ? PurchaseRequestStatuses.SupervisorApproved
+                : PurchaseRequestStatuses.Submitted,
             Items = request.Items.Select(item =>
             {
                 materialRequirements.TryGetValue(item.MaterialRequirementId ?? Guid.Empty, out var requirement);
@@ -175,7 +180,9 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseRequest.SalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId;
         purchaseRequest.SalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber;
         purchaseRequest.ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName;
-        purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+        purchaseRequest.Status = purchaseRequest.SalesOrderId == null && string.IsNullOrWhiteSpace(purchaseRequest.SalesOrderNumber)
+            ? PurchaseRequestStatuses.SupervisorApproved
+            : PurchaseRequestStatuses.Submitted;
         purchaseRequest.ReviewedByUserId = null;
         purchaseRequest.ReviewedAtUtc = null;
         purchaseRequest.RejectionReason = null;
@@ -648,5 +655,14 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             receivedPercent,
             updatedAtUtc,
             requirements.Select(ToDto).ToArray());
+    }
+
+    public async Task<string> PreviewNextPoNumberAsync(CancellationToken cancellationToken)
+    {
+        var existing = await db.PurchaseRequestItems
+            .Where(item => item.PoNumber != null && item.PoNumber!.StartsWith("PO-"))
+            .Select(item => item.PoNumber!)
+            .ToListAsync(cancellationToken);
+        return $"PO-{NextSequence(existing, "PO-"):000}";
     }
 }
