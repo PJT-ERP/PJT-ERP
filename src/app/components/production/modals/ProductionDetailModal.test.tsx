@@ -35,8 +35,8 @@ describe('ProductionDetailModal', () => {
   it('renders custom BOM specifications even when Material Tracking data is loaded', async () => {
     const so = {
       id: 'SO-123',
-      backendId: '11111111-2222-3333-4444-555555555555',
-      status: 'Ready',
+      backendId: '11111111-2222-3333-8444-555555555555',
+      status: 'Produksi',
       customerName: 'Test Customer',
       materials: [
         { itemName: 'Kayu', specification: '100x50' },
@@ -46,7 +46,7 @@ describe('ProductionDetailModal', () => {
 
     // Simulate material tracking data being loaded (which previously hid the BOM section)
     vi.mocked(productionApi.getSalesOrderMaterialTracking).mockResolvedValue({
-      salesOrderId: '11111111-2222-3333-4444-555555555555',
+      salesOrderId: '11111111-2222-3333-8444-555555555555',
       items: [
         {
           productId: 'PROD-1',
@@ -61,7 +61,7 @@ describe('ProductionDetailModal', () => {
 
     // Wait for the async useEffect to trigger the API mock
     await waitFor(() => {
-      expect(productionApi.getSalesOrderMaterialTracking).toHaveBeenCalledWith('11111111-2222-3333-4444-555555555555');
+      expect(productionApi.getSalesOrderMaterialTracking).toHaveBeenCalledWith('11111111-2222-3333-8444-555555555555');
     });
 
     // The BOM header should always be present
