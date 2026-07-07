@@ -726,8 +726,8 @@ export function EngineeringTaskDetailPage() {
                     const standardBomItems = productInCatalog?.bomItems || [];
                     
                     return (
-                      <div key={item.id} style={{ border: `1px solid ${S.border}`, borderRadius: 8, overflow: "hidden" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+                      <div key={item.id} style={{ border: `1px solid ${S.border}`, borderRadius: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>
                           <span style={{ fontSize: "13.5px", color: S.slate, fontWeight: 600 }}>
                             {item.productName || item.partNumber || "Custom Product"} <span style={{ color: S.secondary, fontWeight: 400 }}>({item.quantity} {item.unit})</span>
                           </span>
@@ -777,8 +777,8 @@ export function EngineeringTaskDetailPage() {
                               <div style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: -4, marginTop: isStandardProduct ? 8 : 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                 {isStandardProduct ? "Material Tambahan (Khusus SO Ini)" : "BOM Custom"}
                               </div>
-                              {mats.map(m => (
-                                <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                              {mats.map((m, idx) => (
+                                <div key={m.id} style={{ position: "relative", zIndex: 100 - idx, display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
                                   <MaterialAutocomplete 
                                     value={m.name} 
                                     onChange={val => updateMaterial(item.id, m.id, 'name', val)}
