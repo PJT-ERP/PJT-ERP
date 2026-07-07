@@ -90,6 +90,8 @@ services:
         ENTRY_DLL: QC.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_dev_qc_photos:/app/wwwroot/qc-photos
     depends_on:
       db:
         condition: service_healthy
@@ -175,3 +177,4 @@ services:
 
 volumes:
   pjt_dev_db:
+  pjt_dev_qc_photos:
