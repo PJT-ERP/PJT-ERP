@@ -85,7 +85,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
 
   const validItems = items.filter(it => it.itemName.trim());
   const hasDuplicates = new Set(validItems.map(it => it.itemName.trim().toLowerCase())).size !== validItems.length;
-  const canSubmit = items.every(it => it.itemName.trim() && it.quantity && parseInt(it.quantity) > 0) && !hasDuplicates;
+  const canSubmit = items.every(it => it.itemName.trim() && it.purchaseCategory && it.quantity && parseInt(it.quantity) > 0) && !hasDuplicates;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +133,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
           urgency,
           purchaseCategory: selectedSo ? "Project" : item.purchaseCategory || "Consumable",
         })),
+        requireSupervisorApproval: true,
       };
 
       if (editRequest?.backendId) {
@@ -266,6 +267,17 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                     />
 
                     <div style={{ display: "flex", gap: 8 }}>
+                      <select
+                        value={item.purchaseCategory || ""}
+                        onChange={e => updateItem(idx, 'purchaseCategory', e.target.value)}
+                        required
+                        style={{ flex: 1, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
+                      >
+                        <option value="" disabled>Kategori *</option>
+                        {["Asset", "Consumable", "Tools", "Project", "Maintenance"].map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
                       <input
                         type="number"
                         required
@@ -273,13 +285,13 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         value={item.quantity}
                         onChange={e => updateItem(idx, 'quantity', e.target.value)}
                         placeholder="Qty *"
-                        style={{ flex: 1, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
+                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
                       <input
                         type="text"
                         value={item.unit}
                         readOnly
-                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                        style={{ width: 80, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
                       />
                     </div>
                   </div>

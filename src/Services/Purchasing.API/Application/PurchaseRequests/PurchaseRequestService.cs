@@ -75,9 +75,11 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             SalesOrderId = resolvedSalesOrderId,
             SalesOrderNumber = resolvedSalesOrderNumber,
             ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName,
-            Status = resolvedSalesOrderId == null && string.IsNullOrWhiteSpace(resolvedSalesOrderNumber)
-                ? PurchaseRequestStatuses.SupervisorApproved
-                : PurchaseRequestStatuses.Submitted,
+            Status = request.RequireSupervisorApproval
+                ? PurchaseRequestStatuses.Submitted
+                : (resolvedSalesOrderId == null && string.IsNullOrWhiteSpace(resolvedSalesOrderNumber)
+                    ? PurchaseRequestStatuses.SupervisorApproved
+                    : PurchaseRequestStatuses.Submitted),
             Items = request.Items.Select(item =>
             {
                 materialRequirements.TryGetValue(item.MaterialRequirementId ?? Guid.Empty, out var requirement);
