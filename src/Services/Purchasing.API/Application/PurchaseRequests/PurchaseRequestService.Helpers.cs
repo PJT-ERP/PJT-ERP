@@ -416,7 +416,8 @@ public sealed partial class PurchaseRequestService
     private static string NormalizePurchaseCategory(
         string? category,
         Guid? materialRequirementId,
-        Guid? salesOrderId)
+        Guid? salesOrderId,
+        string itemName)
     {
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -432,7 +433,7 @@ public sealed partial class PurchaseRequestService
             var value when value.Equals(PurchaseItemCategories.Tools, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Tools,
             var value when value.Equals(PurchaseItemCategories.Project, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Project,
             var value when value.Equals(PurchaseItemCategories.Maintenance, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Maintenance,
-            _ => throw new InvalidOperationException("Purchase category must be Asset, Consumable, Tools, Project, or Maintenance.")
+            _ => throw new InvalidOperationException($"Purchase category must be Asset, Consumable, Tools, Project, or Maintenance. Received: '{category}' for item '{itemName}'")
         };
     }
 

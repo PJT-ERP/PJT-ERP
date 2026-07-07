@@ -251,8 +251,17 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         }
                         updateItem(idx, 'itemId', p.id);
                         updateItem(idx, 'itemName', p.name);
-                        updateItem(idx, 'unit', p.unit);
-                        if (p.category) updateItem(idx, 'purchaseCategory', p.category);
+                        if (p.spec) updateItem(idx, 'specification', p.spec);
+                        if (p.unit) updateItem(idx, 'unit', p.unit);
+                        if (p.category) {
+                          const validCategories = ["Asset", "Consumable", "Tools", "Project", "Maintenance"];
+                          if (validCategories.includes(p.category)) {
+                            updateItem(idx, 'purchaseCategory', p.category);
+                          } else {
+                            // Don't overwrite with an invalid category from Master Data
+                            updateItem(idx, 'purchaseCategory', "");
+                          }
+                        }
                       }}
                       options={inventoryItems}
                       disabled={false}

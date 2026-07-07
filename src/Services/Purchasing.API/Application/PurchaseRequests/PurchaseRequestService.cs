@@ -95,7 +95,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                     Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
                     Qty = item.Qty,
                     Urgency = NormalizeUrgency(item.Urgency),
-                    PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId),
+                    PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId, item.ItemName),
                     TotalPrice = NormalizePrice(item.TotalPrice, "Total price"),
                     SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier),
                     Notes = NormalizeOptional(item.Notes),
@@ -219,7 +219,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             purchaseItem.Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec;
             purchaseItem.Qty = item.Qty;
             purchaseItem.Urgency = NormalizeUrgency(item.Urgency);
-            purchaseItem.PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId);
+            purchaseItem.PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId, item.ItemName);
             purchaseItem.SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier);
             purchaseItem.SupplierName = null;
             purchaseItem.PoNumber = null;
