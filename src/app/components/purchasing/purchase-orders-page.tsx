@@ -430,7 +430,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                           <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: dc.dot }} />
                         <div>
                           <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
-                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.requestRefs.join(", ")}</p>
+                            <p style={{ fontSize: 10, color: "#94a3b8" }}>
+                              {po.soRefs && po.soRefs.length > 0 ? po.soRefs.join(", ") : po.requestRefs.join(", ")}
+                            </p>
                         </div>
                         </div>
                       </TD>

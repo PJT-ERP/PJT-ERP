@@ -109,6 +109,7 @@ export interface CreatePurchaseRequestPayload {
     purchaseCategory?: 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | string | null;
     totalPrice?: number | null;
   }>;
+  requireSupervisorApproval?: boolean;
 }
 
 export const purchasingApi = {

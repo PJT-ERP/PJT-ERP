@@ -7,7 +7,8 @@ public sealed record CreatePurchaseRequest(
     Guid? SalesOrderId,
     string? SalesOrderNumber,
     string? ProjectName,
-    IReadOnlyCollection<CreatePurchaseRequestItem> Items);
+    IReadOnlyCollection<CreatePurchaseRequestItem> Items,
+    bool RequireSupervisorApproval = false);
 
 public sealed record CreatePurchaseRequestItem(
     Guid? MaterialRequirementId,
