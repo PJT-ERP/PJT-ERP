@@ -417,7 +417,7 @@ public sealed partial class PurchaseRequestService
         string? category,
         Guid? materialRequirementId,
         Guid? salesOrderId,
-        string itemName)
+        string itemName = "")
     {
         if (string.IsNullOrWhiteSpace(category))
         {
