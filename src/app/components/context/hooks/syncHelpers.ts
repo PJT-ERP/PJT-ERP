@@ -161,6 +161,20 @@ export async function syncUpdateSalesOrder(
       }
     }
 
+    if (updates.designLink !== undefined) {
+      try {
+        await productionApi.uploadEngineeringDrawing(backendId, {
+          drawingFileUrl: updates.designLink,
+          drawingRef: updates.designLink,
+          uploadedByUserId: toBackendUserId(currentUser) || currentUser?.id || crypto.randomUUID(),
+          uploaderName: currentUser?.name || "System"
+        });
+        // We do not overwrite context immediately here because updateSalesOrderItems or others might also run and map the latest DTO
+      } catch (err) {
+        console.warn("Failed to update design link in backend.", err);
+      }
+    }
+
     if (updates.backendDesignStatus === "RevisionRequired" || updates.status === "Revision Required") {
       try {
         const updated = await salesApi.updateSalesOrderDesignStatus(backendId, {
