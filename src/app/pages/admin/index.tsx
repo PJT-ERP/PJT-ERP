@@ -214,7 +214,7 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
                 <input style={inputStyle} type="text" placeholder="PT / CV ..." value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
               </div>
               <div>
-                <label style={labelStyle}>Nama Pelanggan <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
+                <label style={labelStyle}>Nama Kontak (PIC) <span style={{ color: "#EF4444", marginLeft: 2 }}>*</span></label>
                 <input style={inputStyle} type="text" placeholder="Nama kontak" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} required onFocus={e => { e.currentTarget.style.borderColor = S.cyan; e.currentTarget.style.background = S.white; }} onBlur={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.background = "#FAFAFA"; }} />
               </div>
               <div>

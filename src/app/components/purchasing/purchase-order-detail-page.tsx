@@ -22,7 +22,7 @@ export function PurchaseOrderDetailPage() {
   const id = rawId ? decodeURIComponent(rawId) : "";
   const navigate = useNavigate();
   const { refreshBackendData } = useApp();
-  const { purchaseRequests, supplierPayments, suppliers, isLoading: isDataLoading, refresh } = usePurchasingData();
+  const { purchaseRequests, supplierPayments, suppliers, inventoryItems, isLoading: isDataLoading, refresh } = usePurchasingData();
 
   const [isReceiving, setIsReceiving] = useState(false);
   const [receiveItemState, setReceiveItemState] = useState<POItem | null>(null);
@@ -171,15 +171,19 @@ export function PurchaseOrderDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {detail.items.map((item, i) => (
+                {detail.items.map((item, i) => {
+                  const invItem = inventoryItems.find((inv: any) => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                  const actualCode = invItem ? invItem.code : item.code;
+                  return (
                   <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                    <td className="p-3 text-xs text-slate-500 font-mono">{item.code}</td>
+                    <td className="p-3 text-xs text-slate-500 font-mono">{actualCode}</td>
                     <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
                     <td className="p-3 text-sm font-semibold text-right text-slate-900">{item.qty} {item.unit}</td>
                     <td className="p-3 text-sm text-right text-slate-700">{formatRp(calcUnitPrice(item))}</td>
                     <td className="p-3 text-sm text-right font-bold text-slate-900">{formatRp(item.totalPrice)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -307,14 +311,18 @@ export function PurchaseOrderDetailPage() {
                 </thead>
                 <tbody>
                   {detail.items.map((item, i) => {
+                    const invItem = inventoryItems.find((inv: any) => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                    const actualCode = invItem ? invItem.code : item.code;
+                    const isSpecActuallyCode = invItem && invItem.code && item.spec && item.spec.toLowerCase().trim() === invItem.code.toLowerCase().trim();
+
                     const canReceive = detail.financeApproval === "Approved";
                     const isReceived = item.purchaseStatus === "Received";
                     
                     return (
                       <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                        <td className="p-3 text-xs text-slate-500 font-mono">{item.code}</td>
+                        <td className="p-3 text-xs text-slate-500 font-mono">{actualCode}</td>
                         <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
-                        <td className="p-3 text-xs text-slate-500">{item.spec}</td>
+                        <td className="p-3 text-xs text-slate-500">{item.spec && item.spec !== "-" && !isSpecActuallyCode ? item.spec : "-"}</td>
                         <td className="p-3 text-sm font-medium text-right text-slate-900">{item.qty} {item.unit}</td>
                         <td className="p-3 text-sm font-semibold text-right" style={{ color: isReceived ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
                           {item.received} {item.unit}

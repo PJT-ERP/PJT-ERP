@@ -252,6 +252,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filtered = purchaseOrders.filter((p) => {
     const q = search.toLowerCase();
@@ -278,6 +280,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
 
     return b.id.localeCompare(a.id);
   });
+
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
+  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
@@ -362,13 +367,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             placeholder="Cari No. PO, supplier, No. MR, SO, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
+        <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setCurrentPage(1); }}>
           <SelectTrigger className="h-9 w-40 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <Filter size={12} className="mr-1" />
             <SelectValue placeholder="Status" />
@@ -403,7 +408,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((po) => {
+              {paginated.map((po) => {
                 const dc = deliveryCfg[po.deliveryStatus] || { bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8", pct: 0 };
                 const fc = po.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : po.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
                 const isExp = expanded.has(po.id);
@@ -430,7 +435,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                           <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: dc.dot }} />
                         <div>
                           <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
-                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.requestRefs.join(", ")}</p>
+                            <p style={{ fontSize: 10, color: "#94a3b8" }}>
+                              {po.soRefs && po.soRefs.length > 0 ? po.soRefs.join(", ") : po.requestRefs.join(", ")}
+                            </p>
                         </div>
                         </div>
                       </TD>

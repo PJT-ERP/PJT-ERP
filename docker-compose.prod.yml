@@ -94,6 +94,8 @@ services:
         ENTRY_DLL: QC.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_qc_photos:/app/wwwroot/qc-photos
     expose:
       - "8080"
     depends_on:
@@ -202,5 +204,6 @@ services:
 
 volumes:
   pjt_prod_db:
+  pjt_qc_photos:
   npm_data:
   npm_letsencrypt:

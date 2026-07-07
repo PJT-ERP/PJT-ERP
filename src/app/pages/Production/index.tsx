@@ -425,11 +425,18 @@ export function ProductionPage() {
                       <>
                         {so.status === 'Paused' ? (
                           <>
-                            <button onClick={() => setStartModal(so)}
-                              style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                              <PlayCircle size={14} /> Lanjutkan Produksi
-                            </button>
-                            {so.pauseReason?.toLowerCase().includes("material") && (mrState === 'none' || mrState === 'completed') && (
+                            {so.pauseReason?.toLowerCase().includes("material") && (mrState === 'requested' || mrState === 'finance_pending' || mrState === 'approved') ? (
+                              <button disabled title="Menunggu MR selesai diproses"
+                                style={{ padding: "8px 16px", background: "#E5E7EB", color: "#9CA3AF", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", gap: 6 }}>
+                                <Clock size={14} /> Menunggu Material
+                              </button>
+                            ) : (
+                              <button onClick={() => setStartModal(so)}
+                                style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                                <PlayCircle size={14} /> Lanjutkan Produksi
+                              </button>
+                            )}
+                            {so.pauseReason?.toLowerCase().includes("material") && mrState === 'none' && (
                               <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                                 style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                                 <Package size={14} /> Req. Material Kurang

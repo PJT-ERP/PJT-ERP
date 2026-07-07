@@ -17,8 +17,10 @@ export function ProductsPage() {
   const { productCatalog, refreshBackendData } = useApp();
   const { inventoryItems } = usePurchasingData();
   const [search, setSearch] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState<ProductDto | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
+  const [selectedProduct, setSelectedProduct] = useState<ProductDto | null>(null);
   const [isEditingBom, setIsEditingBom] = useState(false);
   const [bomItems, setBomItems] = useState<{ inventoryItemId: string; quantity: string }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,6 +29,9 @@ export function ProductsPage() {
     p.partNumber.toLowerCase().includes(search.toLowerCase()) || 
     p.description.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleEditBom = (p: ProductDto) => {
     setSelectedProduct(p);
@@ -49,53 +54,52 @@ export function ProductsPage() {
     if (!selectedProduct) return;
     try {
       setIsSaving(true);
-      const formattedItems = bomItems
-        .filter(b => b.inventoryItemId && Number(b.quantity) > 0)
-        .map(b => ({ inventoryItemId: b.inventoryItemId, quantity: Number(b.quantity) }));
-      
-      await salesApi.updateProductBom(selectedProduct.id, { bomItems: formattedItems });
+      const parsedItems = bomItems.filter(b => b.inventoryItemId && Number(b.quantity) > 0).map(b => ({
+        inventoryItemId: b.inventoryItemId,
+        quantity: Number(b.quantity)
+      }));
+      await salesApi.updateProductBom(selectedProduct.id, { bomItems: parsedItems });
       await refreshBackendData();
       setIsEditingBom(false);
-    } catch (e) {
-      alert("Gagal menyimpan BOM");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save BOM");
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div style={{ padding: "20px 32px", fontFamily: S.font }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, color: S.slate, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            <Package size={22} style={{ color: S.primary }} /> Master Produk & BOM
-          </h2>
-          <p style={{ margin: "4px 0 0", color: S.secondary, fontSize: "14px" }}>
-            Kelola daftar Finished Goods dan Standard Bill of Materials (BOM)
-          </p>
-        </div>
+    <div style={{ padding: 32, maxWidth: 1200, margin: "0 auto", fontFamily: S.font }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: S.slate, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Package style={{ color: S.primary }} />
+          Master Produk & BOM
+        </h1>
+        <p style={{ margin: 0, color: S.secondary, fontSize: "14px" }}>
+          Kelola daftar Finished Goods dan Standard Bill of Materials (BOM)
+        </p>
       </div>
 
-      <div style={{ display: "flex", gap: 20 }}>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
         {/* LIST */}
         <div style={{ flex: 1, background: S.white, borderRadius: 12, border: `1px solid ${S.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-          <div style={{ padding: 16, borderBottom: `1px solid ${S.border}`, display: "flex", gap: 12, background: "#F8FAFC" }}>
-            <div style={{ flex: 1, position: "relative" }}>
-              <input
-                type="text"
-                placeholder="Cari part number atau nama produk..."
+          <div style={{ padding: 20, borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ position: "relative", maxWidth: 400 }}>
+              <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
+              <input 
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px 8px 36px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13px", outline: "none" }}
+                onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                placeholder="Cari part number atau nama produk..."
+                style={{ width: "100%", padding: "10px 12px 10px 36px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", outline: "none" }}
               />
-              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
             </div>
           </div>
           
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", color: S.slate }}>
               <thead>
-                <tr style={{ background: "#F1F5F9", textAlign: "left", color: S.slate }}>
+                <tr style={{ background: "#F8FAFC", borderBottom: `2px solid ${S.border}`, textAlign: "left", color: S.secondary, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   <th style={{ padding: "12px 16px", fontWeight: 600 }}>Part Number</th>
                   <th style={{ padding: "12px 16px", fontWeight: 600 }}>Deskripsi Produk</th>
                   <th style={{ padding: "12px 16px", fontWeight: 600 }}>Satuan</th>
@@ -104,7 +108,7 @@ export function ProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(p => (
+                {paginated.map(p => (
                   <tr key={p.id} style={{ borderBottom: `1px solid ${S.border}` }}>
                     <td style={{ padding: "12px 16px", fontWeight: 500 }}>{p.partNumber}</td>
                     <td style={{ padding: "12px 16px" }}>{p.description}</td>
@@ -131,6 +135,27 @@ export function ProductsPage() {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div style={{ padding: "12px 20px", borderTop: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", color: S.secondary }}>
+              <span>Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} dari {filtered.length} produk</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: "6px 12px", border: `1px solid ${S.border}`, borderRadius: 6, background: currentPage === 1 ? "#F8FAFC" : S.white, cursor: currentPage === 1 ? "not-allowed" : "pointer", color: S.slate }}
+                >
+                  Sebelumnya
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: "6px 12px", border: `1px solid ${S.border}`, borderRadius: 6, background: currentPage === totalPages ? "#F8FAFC" : S.white, cursor: currentPage === totalPages ? "not-allowed" : "pointer", color: S.slate }}
+                >
+                  Selanjutnya
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* BOM EDITOR */}

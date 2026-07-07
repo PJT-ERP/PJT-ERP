@@ -30,9 +30,10 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
     let cancelled = false;
     async function checkBomStock() {
       try {
-        // Bypass stock checking if resuming from a non-material pause
+        // Bypass stock checking if resuming
         // Because the materials were already allocated/checked when production first started
-        if (so.status === "Paused" && !so.pauseReason?.toLowerCase().includes("material")) {
+        // and any material shortage is handled manually by the operator.
+        if (so.status === "Paused") {
           setStockIssues([]);
           setCheckingStock(false);
           return;
@@ -137,13 +138,20 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
 
     try {
       setIsSubmitting(true);
-      await productionApi.startProduction(salesOrderId, {
-        workerUserId,
-        workerName: currentUser?.name || so.assignedName || "Engineering",
-      });
+      if (so.status === 'Paused') {
+        await productionApi.resumeProduction(salesOrderId, {
+          workerUserId,
+          workerName: currentUser?.name || so.assignedName || "Engineering",
+        });
+      } else {
+        await productionApi.startProduction(salesOrderId, {
+          workerUserId,
+          workerName: currentUser?.name || so.assignedName || "Engineering",
+        });
+      }
 
       try {
-        if (bomStockCache) {
+        if (bomStockCache && so.status !== 'Paused') {
           const deductionItems: { inventoryItemId: string; quantity: number }[] = [];
           for (const soItem of (so.items || [])) {
             const bomStock = bomStockCache.find(bs => bs.productId === (soItem as any).productId);

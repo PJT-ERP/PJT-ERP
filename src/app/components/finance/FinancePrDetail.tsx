@@ -24,6 +24,7 @@ export function FinancePrDetail() {
   const { currentUser, refreshBackendData } = useApp();
   
   const [detail, setDetail] = useState<MR | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -37,7 +38,11 @@ export function FinancePrDetail() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await purchasingApi.listPurchaseRequests();
+        const [data, invData] = await Promise.all([
+          purchasingApi.listPurchaseRequests(),
+          import("../../services/masterDataApi").then(m => m.masterDataApi.listInventory())
+        ]);
+        setInventoryItems(invData);
         const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
         if (req) {
           setDetail(mapPurchaseRequestToMr(req));
@@ -168,21 +173,27 @@ export function FinancePrDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.items.map((item, i) => (
+                  {detail.items.map((item, i) => {
+                    const invItem = inventoryItems.find(inv => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                    const actualCode = invItem ? invItem.code : item.code;
+                    const isSpecActuallyCode = invItem && invItem.code && item.spec && item.spec.toLowerCase().trim() === invItem.code.toLowerCase().trim();
+                    
+                    return (
                     <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                      <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
+                      <td className="p-3 text-xs text-slate-600 font-mono">{actualCode}</td>
                       <td className="p-3 text-sm font-medium text-slate-900">
                         <div>{item.name}</div>
-                        {item.spec && item.spec !== "-" && (
+                        {item.spec && item.spec !== "-" && !isSpecActuallyCode ? (
                           <div className="text-xs text-slate-500 font-normal mt-0.5">Spesifikasi: {item.spec}</div>
-                        )}
+                        ) : null}
                       </td>
                       <td className="p-3 text-sm font-semibold text-slate-900 text-right">{item.qty} {item.unit}</td>
                       <td className="p-3 text-sm text-slate-600">{item.supplierName || "-"}</td>
                       <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice / (item.qty || 1)) : "-"}</td>
                       <td className="p-3 text-sm text-slate-900 text-right font-bold">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

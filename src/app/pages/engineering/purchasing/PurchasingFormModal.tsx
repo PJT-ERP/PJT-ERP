@@ -84,7 +84,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
   };
 
   const validItems = items.filter(it => it.itemName.trim());
-  const hasDuplicates = new Set(validItems.map(it => it.itemName.trim().toLowerCase())).size !== validItems.length;
+  const hasDuplicates = new Set(validItems.map(it => `${it.itemName.trim().toLowerCase()}|${(it.specification || "").trim().toLowerCase()}`)).size !== validItems.length;
   const canSubmit = items.every(it => it.itemName.trim() && it.purchaseCategory && it.quantity && parseInt(it.quantity) > 0) && !hasDuplicates;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -241,9 +241,12 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                       value={item.itemName}
                       onChange={(val) => updateItem(idx, 'itemName', val)}
                       onSelectProduct={(p) => {
-                        const isDuplicate = items.some((it, i) => i !== idx && (it.itemId === p.id || it.itemName.trim().toLowerCase() === p.name.trim().toLowerCase()));
+                        const isDuplicate = items.some((it, i) => i !== idx && 
+                          (it.itemId === p.id || it.itemName.trim().toLowerCase() === p.name.trim().toLowerCase()) && 
+                          (it.specification || "").trim().toLowerCase() === (p.spec || "").trim().toLowerCase()
+                        );
                         if (isDuplicate) {
-                          toast.warning(`Material "${p.name}" sudah ada di dalam daftar. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
+                          toast.warning(`Material "${p.name}" dengan spesifikasi tersebut sudah ada di dalam daftar.`, {
                             position: "top-center",
                             duration: 4000,
                           });

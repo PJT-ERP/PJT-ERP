@@ -147,7 +147,7 @@ function CustomerModal({ state, onSave, onClose }: {
                 <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
               </div>
               <div>
-                <ModalLabel text="Nama Pelanggan" required />
+                <ModalLabel text="Nama Kontak (PIC)" required />
                 <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required />
               </div>
               <div>

@@ -179,11 +179,6 @@ export function PurchaseRequestDetailPage() {
             let uPrice = "";
             if (item.estimatedPrice && item.qty) {
               uPrice = String(Math.round(item.estimatedPrice / item.qty));
-            } else if (invItem && invItem.unitPrice > 0) {
-              uPrice = String(invItem.unitPrice);
-              if (!supplierToUse && invItem.supplierName) {
-                supplierToUse = invItem.supplierName;
-              }
             }
             
             const isCustom = supplierToUse ? !suppliersData.some(s => s.name === supplierToUse) : false;
@@ -259,7 +254,7 @@ export function PurchaseRequestDetailPage() {
         });
 
         const invItem = inventoryItems.find(i => i.name.toLowerCase().trim() === matName.toLowerCase().trim());
-        if (invItem && invItem.unitPrice !== uPrice && uPrice > 0) {
+        if (invItem && uPrice > 0 && (invItem.unitPrice !== uPrice || invItem.supplierName !== p.supplierName)) {
           try {
             await masterDataApi.updateInventoryItem(invItem.id, {
                code: invItem.code,
@@ -271,7 +266,7 @@ export function PurchaseRequestDetailPage() {
                maxStock: invItem.maxStock,
                reorderPoint: invItem.reorderPoint,
                location: invItem.location,
-               supplierName: invItem.supplierName,
+               supplierName: p.supplierName || invItem.supplierName,
                unitPrice: uPrice
             });
           } catch(e) {
@@ -421,12 +416,17 @@ export function PurchaseRequestDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.items.map((item, i) => (
+                  {detail.items.map((item, i) => {
+                    const invItem = inventoryItems.find(inv => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                    const actualCode = invItem ? invItem.code : item.code;
+                    const isSpecActuallyCode = item.spec && actualCode && item.spec.trim().toUpperCase() === actualCode.trim().toUpperCase();
+
+                    return (
                     <tr key={i} className="border-b border-slate-100 last:border-0">
-                      <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
+                      <td className="p-3 text-xs text-slate-600 font-mono">{actualCode}</td>
                       <td className="p-3 text-sm text-slate-900">
                         <div className="font-medium">{item.name}</div>
-                        {item.spec && item.spec !== "-" && (
+                        {item.spec && item.spec !== "-" && !isSpecActuallyCode && (
                           <div className="text-xs text-slate-500 mt-0.5">Spesifikasi: {item.spec}</div>
                         )}
                       </td>
@@ -445,9 +445,14 @@ export function PurchaseRequestDetailPage() {
                                   const invItem = inventoryItems.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
                                   let newUnitPrice = pricingData[item.itemId]?.unitPrice || "";
                                   
-                                  // Auto-fill price if the selected supplier matches the master data's primary supplier
-                                  if (invItem && invItem.unitPrice > 0 && invItem.supplierName === val) {
-                                    newUnitPrice = String(invItem.unitPrice);
+                                  if (invItem && invItem.unitPrice > 0) {
+                                    if (invItem.supplierName === val) {
+                                      // Auto-fill price if the selected supplier matches the master data's primary supplier
+                                      newUnitPrice = String(invItem.unitPrice);
+                                    } else if (newUnitPrice === String(invItem.unitPrice)) {
+                                      // Clear it if they switch to a supplier that doesn't match the auto-filled price
+                                      newUnitPrice = "";
+                                    }
                                   }
 
                                   setPricingData(prev => ({ 
@@ -489,7 +494,8 @@ export function PurchaseRequestDetailPage() {
                         </>
                       ) : null}
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>
