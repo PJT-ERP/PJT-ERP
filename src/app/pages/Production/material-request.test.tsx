@@ -1,12 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ProductionMaterialRequestPage } from './material-request';
 import { useApp } from '../../components/context/AppContext';
+import { masterDataApi } from '../../services/masterDataApi';
 
 vi.mock('../../components/context/AppContext', () => ({
   useApp: vi.fn(),
+}));
+
+vi.mock('../../services/masterDataApi', () => ({
+  masterDataApi: {
+    listInventory: vi.fn().mockResolvedValue([]),
+    createPurchaseRequest: vi.fn(),
+  }
 }));
 
 // Mock react-router so we can pass location state
@@ -92,8 +100,8 @@ describe('ProductionMaterialRequestPage', () => {
     );
 
     // It should render two rows for Aluminium, one for each spec
-    const rows = screen.getAllByDisplayValue('Aluminium');
-    expect(rows).toHaveLength(2);
+    expect(screen.getByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Aluminium (200x300)')).toBeInTheDocument();
 
     // It should render the specifications
     expect(screen.getByDisplayValue('100x50')).toBeInTheDocument();
@@ -133,9 +141,8 @@ describe('ProductionMaterialRequestPage', () => {
       </MemoryRouter>
     );
 
-    // It should render one row for Besi
-    const rows = screen.getAllByDisplayValue('Besi');
-    expect(rows).toHaveLength(1);
+    // It should render one row for Besi with its spec in the dropdown
+    expect(screen.getByDisplayValue('Besi (5mm)')).toBeInTheDocument();
 
     // It should render the specification
     expect(screen.getByDisplayValue('5mm')).toBeInTheDocument();

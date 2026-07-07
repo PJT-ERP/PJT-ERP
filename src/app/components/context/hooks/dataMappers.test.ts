@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mapBomsPerItem } from './dataMappers';
-import { SalesOrderDto } from '../../../../services/salesApi';
+import { SalesOrderDto } from '../../../services/salesApi';
 
 describe('dataMappers - mapBomsPerItem', () => {
   it('correctly parses JSON array from notes into bomsPerItem', () => {
