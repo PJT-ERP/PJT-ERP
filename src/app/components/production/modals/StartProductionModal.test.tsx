@@ -67,7 +67,7 @@ describe('StartProductionModal', () => {
     });
   });
 
-  it('does perform stock check when resuming a material paused production', async () => {
+  it('bypasses stock check when resuming a material paused production as well', async () => {
     const so = {
       id: 'SO-123',
       status: 'Paused',
@@ -88,12 +88,14 @@ describe('StartProductionModal', () => {
       </MemoryRouter>
     );
     
-    // It should check stock
-    expect(masterDataApi.getBomStock).toHaveBeenCalledWith(['PROD-1']);
+    // Stock check is bypassed for ALL paused productions — materials were already
+    // allocated/checked at first start and shortages are handled manually.
+    expect(masterDataApi.getBomStock).not.toHaveBeenCalled();
 
-    // It should show material insufficient
+    // The submit button should be enabled and say "Lanjutkan Produksi"
     await waitFor(() => {
-      expect(screen.getByText('Stok Material Tidak Cukup')).toBeInTheDocument();
+      expect(screen.getAllByText('Lanjutkan Produksi').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Stok Material Tidak Cukup')).not.toBeInTheDocument();
     });
   });
 
