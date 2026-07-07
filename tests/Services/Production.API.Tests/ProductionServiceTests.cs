@@ -558,5 +558,10 @@ public sealed class ProductionServiceTests
         {
             return Task.CompletedTask;
         }
+
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

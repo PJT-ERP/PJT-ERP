@@ -33,16 +33,25 @@ const emptyItem = (): FormItem => ({
   name: "",
   spec: "",
   qty: "",
-  unit: "pcs",
+  unit: "",
   totalPrice: "",
 });
 
 const formatRp = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
 function FieldLabel({ children }: FieldLabelProps) {
+  let content = children;
+  if (typeof children === 'string' && children.endsWith(" *")) {
+    content = (
+      <>
+        {children.slice(0, -2)} <span className="text-[#C8102E]">*</span>
+      </>
+    );
+  }
+
   return (
     <label className="block text-[10px] font-bold uppercase tracking-[0.07em] text-slate-500">
-      {children}
+      {content}
     </label>
   );
 }
@@ -106,8 +115,8 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [poCategory, setPoCategory] = useState("Consumable");
   const [dueDate, setDueDate] = useState("");
-  const [terms, setTerms] = useState("Cash");
-  const [shippingAddress, setShippingAddress] = useState("Gudang Utama - Jl. Industri No. 1, Bekasi");
+  const [terms, setTerms] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<FormItem[]>([emptyItem()]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,14 +129,14 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   };
 
   const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
-    ["FinanceApproved", "Approved"].includes(request.status) &&
-    request.items.some(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+    ["FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    request.items.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
   ), [purchaseRequests]);
 
   const availableMaterials = useMemo(() => {
     const selected = eligibleRequests.find(request => request.id === selectedRequestId);
     return selected?.items
-      .filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
+      .filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
       .map(item => item.itemName) || [];
   }, [eligibleRequests, selectedRequestId]);
 
@@ -156,28 +165,13 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     }));
   };
 
-  const applySelectedRequest = (requestId: string) => {
-    setMessage(null);
-    setSelectedRequestId(requestId);
-    const request = eligibleRequests.find(item => item.id === requestId);
-    if (!request) {
-      setRequestRefs("");
-      setSoNumber("");
-      setItems([emptyItem()]);
-      return;
-    }
+  const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
 
-    const openItems = request.items.filter(item => item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
-    setRequestRefs(request.prNumber.replace(/^MR-/, "PR-"));
-    setSoNumber(request.salesOrderNumber || "Non-project");
-    setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+  const updateItemsForSupplier = (request: any, selectedSupplier: string) => {
+    const openItems = request.items.filter((item: any) => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
+    const supplierItems = openItems.filter((item: any) => !selectedSupplier || item.supplierName === selectedSupplier);
     
-    const firstSupplier = openItems.find(item => item.supplierName)?.supplierName || "";
-    setSupplier(firstSupplier);
-    
-    const supplierItems = openItems.filter(item => !firstSupplier || item.supplierName === firstSupplier);
-    
-    setItems(supplierItems.map(item => {
+    setItems(supplierItems.map((item: any) => {
       let extractedCode = "";
       let extractedName = item.itemName;
       
@@ -197,7 +191,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         }
       }
 
-      let spec = item.size || item.notes || "";
+      let spec = item.size || "";
       if (spec.trim().toUpperCase() === extractedCode.trim().toUpperCase() || spec === "-") {
         spec = "";
       }
@@ -212,6 +206,32 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
       };
     }));
+  };
+
+  const applySelectedRequest = (requestId: string) => {
+    setMessage(null);
+    setSelectedRequestId(requestId);
+    const request = eligibleRequests.find(item => item.id === requestId);
+    if (!request) {
+      setRequestRefs("");
+      setSoNumber("");
+      setItems([emptyItem()]);
+      setAvailableSuppliers([]);
+      return;
+    }
+
+    const openItems = request.items.filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected");
+    setRequestRefs(request.prNumber.replace(/^MR-/, "PR-"));
+    setSoNumber(request.salesOrderNumber || "Non-project");
+    setPoCategory(openItems[0]?.purchaseCategory || "Consumable");
+    
+    const uniqueSuppliers = Array.from(new Set(openItems.map(item => item.supplierName).filter(Boolean))) as string[];
+    setAvailableSuppliers(uniqueSuppliers);
+    
+    const firstSupplier = uniqueSuppliers[0] || "";
+    setSupplier(firstSupplier);
+    
+    updateItemsForSupplier(request, firstSupplier);
   };
 
   useEffect(() => {
@@ -231,23 +251,25 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     const hasInvalidItem = items.some(item => !item.requestItemId || Number(item.totalPrice) <= 0);
     setMessage(null);
 
-    if (!request || !supplier || !dueDate || hasInvalidItem || isSubmitting) {
+    if (!request || !supplier || !dueDate || !terms || !shippingAddress.trim() || hasInvalidItem || isSubmitting) {
       console.log("Validation Failed:", {
         requestFound: !!request,
         supplier,
         dueDate,
+        terms,
+        shippingAddress,
         hasInvalidItem,
         items,
         isSubmitting
       });
       setMessage({
         type: "error",
-        text: `Validasi gagal! ${!request ? 'PR belum dipilih.' : ''} ${!supplier ? 'Supplier kosong.' : ''} ${!dueDate ? 'Tgl kosong.' : ''} ${hasInvalidItem ? 'Ada item yang tidak valid (pastikan kode, nama, qty > 0, total > 0, dan id request item ada).' : ''}`,
+        text: `Validasi gagal! ${!request ? 'PR belum dipilih.' : ''} ${!supplier ? 'Supplier kosong.' : ''} ${!dueDate ? 'Tgl kosong.' : ''} ${!terms ? 'Termin belum dipilih.' : ''} ${!shippingAddress.trim() ? 'Alamat pengiriman kosong.' : ''} ${hasInvalidItem ? 'Ada item yang tidak valid (pastikan kode, nama, qty > 0, total > 0, dan id request item ada).' : ''}`,
       });
       return;
     }
 
-    const poNumber = `PO-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+    const poNumber = await purchasingApi.previewNextPoNumber();
 
     try {
       setIsSubmitting(true);
@@ -327,7 +349,29 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-4">
           <div className="space-y-1.5 md:col-span-2">
             <FieldLabel>Supplier *</FieldLabel>
-            <input value={supplier} readOnly placeholder="Supplier akan otomatis terisi dari PR" className={inputClass("cursor-not-allowed text-slate-500 bg-slate-50")} />
+            {availableSuppliers.length > 1 ? (
+              <>
+                <select
+                  value={supplier}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                    const selected = e.target.value;
+                    setSupplier(selected);
+                    const req = eligibleRequests.find(r => r.id === selectedRequestId);
+                    if (req) updateItemsForSupplier(req, selected);
+                  }}
+                  className={inputClass()}
+                >
+                  {availableSuppliers.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-amber-600 mt-1">
+                  PR ini memiliki {availableSuppliers.length} supplier berbeda. Pilih supplier untuk memfilter item PO.
+                </p>
+              </>
+            ) : (
+              <input value={supplier} readOnly placeholder="Supplier akan otomatis terisi dari PR" className={inputClass("cursor-not-allowed text-slate-500 bg-slate-50")} />
+            )}
           </div>
           <div className="space-y-1.5">
             <FieldLabel>No Permintaan / PR *</FieldLabel>
@@ -369,14 +413,15 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <input type="date" value={dueDate} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setDueDate)(e.target.value)} className={inputClass()} />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Terms</FieldLabel>
+            <FieldLabel>Terms *</FieldLabel>
             <select value={terms} onChange={(e: ChangeEvent<HTMLSelectElement>) => updateField(setTerms)(e.target.value)} className={inputClass()}>
+              <option value="" disabled>Pilih Termin</option>
               {TERMS.map(item => <option key={item} value={item}>{item}</option>)}
             </select>
           </div>
           <div className="space-y-1.5 md:col-span-1">
-            <FieldLabel>Alamat Pengiriman</FieldLabel>
-            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} />
+            <FieldLabel>Alamat Pengiriman *</FieldLabel>
+            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} placeholder="Masukkan alamat pengiriman..." />
           </div>
         </div>
       </section>
@@ -399,25 +444,25 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
             <div key={index} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-12">
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Kode Item *</FieldLabel>
-                <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} placeholder="MAT-001" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Nama Material *</FieldLabel>
-                <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} placeholder="Nama material / consumable / tools" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
-                <input value={item.spec} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} placeholder="4x4x2mm, 6m" className={inputClass("cursor-not-allowed opacity-80")} />
+                <input value={item.spec} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "spec", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Qty *</FieldLabel>
-                <input value={item.qty} readOnly title="Qty telah disetujui dan tidak dapat diubah" onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" placeholder="0" className={inputClass("text-right cursor-not-allowed opacity-80")} />
+                <input value={item.qty} readOnly title="Qty telah disetujui dan tidak dapat diubah" onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "qty", e.target.value)} type="number" className={inputClass("text-right cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-1">
                 <FieldLabel>Satuan</FieldLabel>
                 <input value={item.unit} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3 cursor-not-allowed opacity-80")} />
               </div>
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5 md:col-span-3">
                 <FieldLabel>Total Harga *</FieldLabel>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 text-slate-400 text-sm">Rp</span>
@@ -429,7 +474,6 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                       const rawVal = e.target.value.replace(/\D/g, "");
                       updateItem(index, "totalPrice", rawVal);
                     }}
-                    placeholder="0"
                     title="Total harga telah disetujui Finance dan tidak dapat diubah"
                     className={inputClass("text-right pl-8 cursor-not-allowed opacity-80")}
                   />
@@ -439,16 +483,6 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                     Harga satuan: {formatRp(Number(item.totalPrice) / Number(item.qty))}
                   </div>
                 )}
-              </div>
-              <div className="pt-[20px] md:col-span-1">
-                <button
-                  onClick={() => removeItem(index)}
-                  disabled={items.length === 1}
-                  className="flex h-[38px] w-full items-center justify-center rounded border border-red-100 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
-                  title="Hapus item"
-                >
-                  <Trash2 size={15} />
-                </button>
               </div>
             </div>
           ))}
@@ -515,21 +549,41 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                   <CheckCircle2 className="w-4 h-4" />
                   Lihat Daftar Purchase Order
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreatedPoDetails(null);
-                    setItems([emptyItem()]);
-                    setSupplier("");
-                    setSoNumber("");
-                    setRequestRefs("");
-                    setSelectedRequestId("");
-                    setDueDate("");
-                  }}
-                  className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-medium rounded-lg border border-slate-200 transition cursor-pointer"
-                >
-                  Buat PO Lainnya
-                </button>
+                {(() => {
+                  const remainingReq = eligibleRequests.find(r => r.id === selectedRequestId);
+                  const remainingUnorderedItems = remainingReq ? remainingReq.items.filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected") : [];
+                  if (remainingUnorderedItems.length > 0) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatedPoDetails(null);
+                          applySelectedRequest(selectedRequestId);
+                        }}
+                        className="w-full py-3 px-4 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-700 font-medium rounded-lg border border-amber-200 transition cursor-pointer"
+                      >
+                        Lanjut Buat PO untuk Sisa Item ({remainingUnorderedItems.length})
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatedPoDetails(null);
+                        setItems([emptyItem()]);
+                        setSupplier("");
+                        setSoNumber("");
+                        setRequestRefs("");
+                        setSelectedRequestId("");
+                        setDueDate("");
+                      }}
+                      className="w-full py-3 px-4 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-medium rounded-lg border border-slate-200 transition cursor-pointer"
+                    >
+                      Buat PO Lainnya
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>

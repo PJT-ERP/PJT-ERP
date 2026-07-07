@@ -109,8 +109,8 @@ jobs:
           mv "$APP_DIR.release" "$APP_DIR/current"
 
           cd "$APP_DIR/current"
-          docker compose -f docker-compose.prod.yml build
-          docker compose -f docker-compose.prod.yml up -d --remove-orphans
-          docker compose -f docker-compose.prod.yml ps
+          docker compose -p pjt-prod -f docker-compose.prod.yml build
+          docker compose -p pjt-prod -f docker-compose.prod.yml up -d --remove-orphans
+          docker compose -p pjt-prod -f docker-compose.prod.yml ps
           docker image prune -f
           EOF

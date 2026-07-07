@@ -37,7 +37,7 @@ export function FinancePurchasingApproval() {
     if (!purchaseRequests || purchaseRequests.length === 0) return;
     
     try {
-      const allPos = mapPurchaseRequestsToPos(purchaseRequests, supplierPayments);
+      const allPos = mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers);
       const paymentPos = allPos.filter(po => po.items.length > 0 && calcTotal(po.items) > 0);
       paymentPos.sort((a, b) => {
         if (a.paymentStatus === "Unpaid" && b.paymentStatus !== "Unpaid") return -1;
@@ -217,7 +217,7 @@ export function FinancePurchasingApproval() {
                           )}
                         </td>
                         <td className="px-5 py-4 text-center">
-                          {mr.backendStatus !== "FinanceApproved" && mr.financeApproval !== "Approved" && mr.backendStatus !== "Completed" ? (
+                          {mr.backendStatus !== "FinanceApproved" && mr.financeApproval !== "Approved" && mr.backendStatus !== "Completed" && mr.backendStatus !== "FinanceRejected" && mr.backendStatus !== "Rejected" ? (
                             <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
                               <CheckCircle2 size={14} /> Review
                             </button>

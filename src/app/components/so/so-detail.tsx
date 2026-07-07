@@ -15,6 +15,7 @@ import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
 import { SOPrintView } from "./detail/SOPrintView";
+import { apiClient, BASE_URL } from "../../services/apiClient";
 
 interface SODetailProps {
   orderId: string;
@@ -31,6 +32,12 @@ const S = {
   border: "#E2E8F0",
   bg: "#F8FAFC",
   white: "#FFFFFF",
+};
+
+const getFullUrl = (url: string) => {
+  if (!url || url === 'undefined' || url === 'null') return '';
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  return `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 function isGo(value?: string | null) {
@@ -219,7 +226,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        const nextStatus = (order.customerDrawingUrl || order.designLink) ? 'Ready for Production' : 'Pending Design';
+        const nextStatus = 'Pending Design';
         updateSalesOrder(orderId, { status: nextStatus });
       } else if (action === 'reject') {
         updateSalesOrder(orderId, { status: 'Rejected' });
@@ -772,28 +779,36 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                   </>
                 )}
                 {order.productionPhotos && order.productionPhotos.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
+                  <div>
                     <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Hasil Produksi</p>
-                    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                    {order.productionPhotos.map((photo, i) => (
-                      <div key={i} onClick={() => setPreviewPhoto(photo)} style={{ width: 80, height: 60, borderRadius: 4, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", flexShrink: 0 }}>
-                        <img src={photo} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 80px)", gap: 8 }}>
+                    {order.productionPhotos.map((photo, i) => {
+                      const fullPhoto = getFullUrl(photo);
+                      if (!fullPhoto) return null;
+                      return (
+                      <div key={i} onClick={() => setPreviewPhoto(fullPhoto)} style={{ width: 80, height: 60, background: S.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
+                        <img src={fullPhoto} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
                       </div>
-                    ))}
+                      );
+                    })}
                     </div>
                   </div>
                 )}
                 {order.qcPhotos && order.qcPhotos.length > 0 && (
                   <>
-                    <div style={{ height: 1, background: "#F8FAFC" }} />
+                    <div style={{ height: 1, background: "#F8FAFC", margin: "8px 0" }} />
                     <div>
                       <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
-                      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                      {order.qcPhotos.map((photo, i) => (
-                        <div key={i} onClick={() => setPreviewPhoto(photo)} style={{ width: 80, height: 60, borderRadius: 4, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                          <img src={photo} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 80px)", gap: 8 }}>
+                      {order.qcPhotos.map((photo, i) => {
+                        const fullPhoto = getFullUrl(photo);
+                        if (!fullPhoto) return null;
+                        return (
+                        <div key={i} onClick={() => setPreviewPhoto(fullPhoto)} style={{ width: 80, height: 60, background: S.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
+                          <img src={fullPhoto} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
                         </div>
-                      ))}
+                        );
+                      })}
                       </div>
                     </div>
                   </>

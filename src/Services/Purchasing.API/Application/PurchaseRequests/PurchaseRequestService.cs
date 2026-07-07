@@ -63,16 +63,23 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         }
 
         var firstRequirement = materialRequirements.Values.FirstOrDefault();
+        var resolvedSalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId;
+        var resolvedSalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber;
+        
         var purchaseRequest = new PurchaseRequest
         {
             PrNumber = await GenerateNumberAsync(cancellationToken),
             RequestDate = request.RequestDate,
             RequestedByUserId = request.RequestedByUserId,
             RequesterName = request.RequesterName.Trim(),
-            SalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId,
-            SalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber,
+            SalesOrderId = resolvedSalesOrderId,
+            SalesOrderNumber = resolvedSalesOrderNumber,
             ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName,
-            Status = PurchaseRequestStatuses.Submitted,
+            Status = request.RequireSupervisorApproval
+                ? PurchaseRequestStatuses.Submitted
+                : (resolvedSalesOrderId == null && string.IsNullOrWhiteSpace(resolvedSalesOrderNumber)
+                    ? PurchaseRequestStatuses.SupervisorApproved
+                    : PurchaseRequestStatuses.Submitted),
             Items = request.Items.Select(item =>
             {
                 materialRequirements.TryGetValue(item.MaterialRequirementId ?? Guid.Empty, out var requirement);
@@ -88,7 +95,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                     Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
                     Qty = item.Qty,
                     Urgency = NormalizeUrgency(item.Urgency),
-                    PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId),
+                    PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId, item.ItemName),
                     TotalPrice = NormalizePrice(item.TotalPrice, "Total price"),
                     SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier),
                     Notes = NormalizeOptional(item.Notes),
@@ -175,7 +182,9 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseRequest.SalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId;
         purchaseRequest.SalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber;
         purchaseRequest.ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName;
-        purchaseRequest.Status = PurchaseRequestStatuses.Submitted;
+        purchaseRequest.Status = purchaseRequest.SalesOrderId == null && string.IsNullOrWhiteSpace(purchaseRequest.SalesOrderNumber)
+            ? PurchaseRequestStatuses.SupervisorApproved
+            : PurchaseRequestStatuses.Submitted;
         purchaseRequest.ReviewedByUserId = null;
         purchaseRequest.ReviewedAtUtc = null;
         purchaseRequest.RejectionReason = null;
@@ -210,7 +219,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             purchaseItem.Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec;
             purchaseItem.Qty = item.Qty;
             purchaseItem.Urgency = NormalizeUrgency(item.Urgency);
-            purchaseItem.PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId);
+            purchaseItem.PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId, item.ItemName);
             purchaseItem.SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier);
             purchaseItem.SupplierName = null;
             purchaseItem.PoNumber = null;
@@ -345,7 +354,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseItem.TotalPrice = requestedTotalPrice ?? purchaseItem.TotalPrice;
         purchaseItem.PurchaseCategory = request.PurchaseCategory is null
             ? purchaseItem.PurchaseCategory
-            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId);
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName);
         purchaseItem.PurchaseDate = effectivePurchaseDate;
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate ?? purchaseItem.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = request.ReceivedDate ?? purchaseItem.ReceivedDate;
@@ -443,7 +452,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseItem.TotalPrice = totalPrice;
         purchaseItem.PurchaseCategory = request.PurchaseCategory is null
             ? purchaseItem.PurchaseCategory
-            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId);
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName);
         purchaseItem.PurchaseDate = DateOnly.FromDateTime(now);
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = null;
@@ -549,7 +558,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                 purchaseRequest.PrNumber,
                 purchaseItem.Id,
                 purchaseItem.ItemName,
-                purchaseItem.Qty,
+                request.ReceivedQty ?? purchaseItem.Qty,
                 request.ReceivedDate),
             cancellationToken);
 
@@ -648,5 +657,14 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             receivedPercent,
             updatedAtUtc,
             requirements.Select(ToDto).ToArray());
+    }
+
+    public async Task<string> PreviewNextPoNumberAsync(CancellationToken cancellationToken)
+    {
+        var existing = await db.PurchaseRequestItems
+            .Where(item => item.PoNumber != null && item.PoNumber!.StartsWith("PO-"))
+            .Select(item => item.PoNumber!)
+            .ToListAsync(cancellationToken);
+        return $"PO-{NextSequence(existing, "PO-"):000}";
     }
 }

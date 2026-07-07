@@ -9,11 +9,11 @@ public sealed class PurchaseItemReceivedEventHandler(MasterDataContext db) : IIn
 {
     public async Task Handle(PurchaseItemReceivedEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        // Try to find the item in inventory by its exact name, or if the name contains the item code
+        var searchName = integrationEvent.ItemName.Trim().ToLower();
         var inventoryItem = await db.InventoryItems
             .FirstOrDefaultAsync(item => 
-                item.Name == integrationEvent.ItemName || 
-                integrationEvent.ItemName.Contains(item.Code), cancellationToken);
+                item.Name.ToLower() == searchName || 
+                searchName.Contains(item.Code.ToLower()), cancellationToken);
 
         if (inventoryItem is not null)
         {

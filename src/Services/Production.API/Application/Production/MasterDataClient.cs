@@ -94,5 +94,42 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
+    public async Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
+    {
+        AttachAuthorizationHeader();
+        var request = new { Items = items };
+        var response =
+            await httpClient.PostAsJsonAsync("api/v1/master-data/inventory/deduct-bom-bulk", request, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorMessage = $"Failed to deduct BOM stock due to insufficient inventory or unauthorized access. Status Code: {response.StatusCode}";
+            try
+            {
+                if (response.Content.Headers.ContentType?.MediaType == "application/json")
+                {
+                    var error = await response.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: cancellationToken);
+                    if (error != null && !string.IsNullOrWhiteSpace(error.Message))
+                    {
+                        errorMessage = error.Message;
+                    }
+                }
+                else
+                {
+                    var rawContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(rawContent) && rawContent.Length < 200)
+                    {
+                        errorMessage = rawContent;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignored, fallback to default error message
+            }
+            throw new InvalidOperationException(errorMessage);
+        }
+    }
+
     private record ErrorResponse(string Message);
 }

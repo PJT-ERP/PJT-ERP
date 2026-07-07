@@ -217,7 +217,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                   <tr style={{ background: "#E2E8F0", textAlign: "left", color: S.secondary }}>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Material</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Spesifikasi</th>
-                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, textAlign: "right" }}>Qty</th>
+                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, textAlign: "right" }}>Total Dibutuhkan</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -235,7 +235,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               </table>
             </div>
             <p style={{ margin: "6px 0 0", fontSize: "10px", color: S.secondary, fontStyle: "italic" }}>
-              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}.
+              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}. Total dihitung: Qty per unit × Jumlah produk.
             </p>
           </div>
         )}

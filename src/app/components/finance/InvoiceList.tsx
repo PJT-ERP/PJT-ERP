@@ -335,16 +335,11 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
               onClick={async () => {
                 try {
                   const blob = await financeApi.getInvoicePdfBlob(invoice.id);
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.setAttribute('download', `${invoice.invoiceNumber}.pdf`);
-                  document.body.appendChild(link);
-                  link.click();
-                  link.remove();
-                  window.URL.revokeObjectURL(url);
+                  const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+                  window.open(url, '_blank');
+                  setTimeout(() => window.URL.revokeObjectURL(url), 10000);
                 } catch {
-                  alert('Gagal mengunduh PDF invoice.');
+                  alert('Gagal mencetak PDF invoice.');
                 }
               }}
               className={`flex-1 flex items-center justify-center gap-2 text-white text-sm font-semibold rounded-xl py-2 transition-all shadow-lg ${invoice.status === 'OVERDUE' ? 'bg-gradient-to-r from-red-600 to-rose-600 shadow-red-600/20 hover:from-red-700 hover:to-rose-700' : 'bg-gradient-to-r from-red-600 to-red-700 shadow-red-600/20 hover:from-red-700 hover:to-red-800'}`}

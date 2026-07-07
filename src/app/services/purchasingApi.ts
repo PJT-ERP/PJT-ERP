@@ -109,6 +109,7 @@ export interface CreatePurchaseRequestPayload {
     purchaseCategory?: 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | string | null;
     totalPrice?: number | null;
   }>;
+  requireSupervisorApproval?: boolean;
 }
 
 export const purchasingApi = {
@@ -224,6 +225,7 @@ export const purchasingApi = {
   async receivePurchaseRequestItem(purchaseRequestId: string, itemId: string, request: {
     receivedDate: string;
     purchaseNotes?: string | null;
+    receivedQty?: number;
   }) {
     const response = await apiClient.put<PurchaseRequestDto>(
       `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/items/${itemId}/receive`,
@@ -242,6 +244,11 @@ export const purchasingApi = {
       `/api/v1/purchasing/material-requirements/${id}/stock`,
       data,
     );
+    return response.data;
+  },
+
+  async previewNextPoNumber() {
+    const response = await apiClient.get<string>('/api/v1/purchasing/purchase-requests/next-po-number');
     return response.data;
   },
 };

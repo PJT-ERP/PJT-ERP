@@ -84,8 +84,8 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
   };
 
   const validItems = items.filter(it => it.itemName.trim());
-  const hasDuplicates = new Set(validItems.map(it => it.itemName.trim().toLowerCase())).size !== validItems.length;
-  const canSubmit = items.every(it => it.itemName.trim() && it.quantity && parseInt(it.quantity) > 0) && !hasDuplicates;
+  const hasDuplicates = new Set(validItems.map(it => `${it.itemName.trim().toLowerCase()}|${(it.specification || "").trim().toLowerCase()}`)).size !== validItems.length;
+  const canSubmit = items.every(it => it.itemName.trim() && it.purchaseCategory && it.quantity && parseInt(it.quantity) > 0) && !hasDuplicates;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +133,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
           urgency,
           purchaseCategory: selectedSo ? "Project" : item.purchaseCategory || "Consumable",
         })),
+        requireSupervisorApproval: true,
       };
 
       if (editRequest?.backendId) {
@@ -240,9 +241,12 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                       value={item.itemName}
                       onChange={(val) => updateItem(idx, 'itemName', val)}
                       onSelectProduct={(p) => {
-                        const isDuplicate = items.some((it, i) => i !== idx && (it.itemId === p.id || it.itemName.trim().toLowerCase() === p.name.trim().toLowerCase()));
+                        const isDuplicate = items.some((it, i) => i !== idx && 
+                          (it.itemId === p.id || it.itemName.trim().toLowerCase() === p.name.trim().toLowerCase()) && 
+                          (it.specification || "").trim().toLowerCase() === (p.spec || "").trim().toLowerCase()
+                        );
                         if (isDuplicate) {
-                          toast.warning(`Material "${p.name}" sudah ada di dalam daftar. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
+                          toast.warning(`Material "${p.name}" dengan spesifikasi tersebut sudah ada di dalam daftar.`, {
                             position: "top-center",
                             duration: 4000,
                           });
@@ -250,8 +254,17 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         }
                         updateItem(idx, 'itemId', p.id);
                         updateItem(idx, 'itemName', p.name);
-                        updateItem(idx, 'unit', p.unit);
-                        if (p.category) updateItem(idx, 'purchaseCategory', p.category);
+                        if (p.spec) updateItem(idx, 'specification', p.spec);
+                        if (p.unit) updateItem(idx, 'unit', p.unit);
+                        if (p.category) {
+                          const validCategories = ["Asset", "Consumable", "Tools", "Project", "Maintenance"];
+                          if (validCategories.includes(p.category)) {
+                            updateItem(idx, 'purchaseCategory', p.category);
+                          } else {
+                            // Don't overwrite with an invalid category from Master Data
+                            updateItem(idx, 'purchaseCategory', "");
+                          }
+                        }
                       }}
                       options={inventoryItems}
                       disabled={false}
@@ -266,6 +279,17 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                     />
 
                     <div style={{ display: "flex", gap: 8 }}>
+                      <select
+                        value={item.purchaseCategory || ""}
+                        onChange={e => updateItem(idx, 'purchaseCategory', e.target.value)}
+                        required
+                        style={{ flex: 1, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
+                      >
+                        <option value="" disabled>Kategori *</option>
+                        {["Asset", "Consumable", "Tools", "Project", "Maintenance"].map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
                       <input
                         type="number"
                         required
@@ -273,13 +297,13 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         value={item.quantity}
                         onChange={e => updateItem(idx, 'quantity', e.target.value)}
                         placeholder="Qty *"
-                        style={{ flex: 1, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
+                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
                       <input
                         type="text"
                         value={item.unit}
                         readOnly
-                        style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                        style={{ width: 80, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
                       />
                     </div>
                   </div>

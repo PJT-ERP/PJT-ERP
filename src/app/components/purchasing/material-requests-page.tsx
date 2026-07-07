@@ -93,7 +93,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
       : "Medium";
 
   return {
-    id: request.prNumber.replace(/^MR-/, "PR-"),
+    id: request.prNumber,
     backendId: request.id,
     backendStatus: request.status,
     requestor: request.requesterName,
@@ -482,7 +482,7 @@ export function MaterialRequestsPage() {
                         >
                           <Clock size={12} /> Tunggu Finance
                         </button>
-                      ) : mr.backendStatus === "FinanceApproved" && mr.hasUnorderedItems && canCreatePo ? (
+                      ) : (mr.backendStatus === "FinanceApproved" || mr.backendStatus === "Processing") && mr.financeApproval === "Approved" && mr.hasUnorderedItems && canCreatePo ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}

@@ -37,6 +37,7 @@ export interface POItem {
   unit: string;
   totalPrice: number;
   received: number;
+  rawNotes?: string;
 }
 
 export interface PO {
@@ -86,7 +87,7 @@ export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / 
 export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = []): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = []): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -96,17 +97,26 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
         const poNumber = item.poNumber!;
         const existing = byPo.get(poNumber);
         const totalPrice = item.totalPrice ?? item.estimatedPrice ?? 0;
+        let rcv = 0;
+        const rcvParts = (item.purchaseNotes || "").split(" | ").filter(p => p.trim().startsWith("RCV:"));
+        if (rcvParts.length > 0) {
+          rcv = rcvParts.reduce((sum, p) => sum + Number(p.replace("RCV:", "").trim()), 0);
+        } else if (item.purchaseStatus === "Received") {
+          rcv = item.qty;
+        }
+
         const poItem: POItem = {
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
           code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
-          spec: item.size || item.notes || "-",
+          spec: item.size || "-",
           qty: item.qty,
           unit: "pcs",
           totalPrice,
-          received: item.purchaseStatus === "Received" ? item.qty : 0,
+          received: rcv,
+          rawNotes: item.purchaseNotes || undefined,
         };
 
         if (existing) {
@@ -122,21 +132,33 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           return;
         }
 
+        const supplierName = item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan";
+        const foundSupplier = suppliers.find(s => 
+          s.name.trim().toLowerCase() === supplierName.trim().toLowerCase() ||
+          s.code.trim().toLowerCase() === supplierName.trim().toLowerCase()
+        );
+
+        const parts = (item.purchaseNotes || "").split(" | ");
+        const extractedTerms = parts.length >= 1 && parts[0].trim() ? parts[0].trim() : "Net 14";
+        const extractedAddress = parts.length >= 2 ? parts[1].trim() : "Alamat belum diset";
+
+        const primaryContact = foundSupplier?.contacts?.find((c: any) => c.isPrimary) || foundSupplier?.contacts?.[0];
+
         byPo.set(poNumber, {
           id: poNumber,
-          supplier: item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan",
-          supplierCode: "SUP-BACKEND",
-          contact: "-",
-          contactPhone: "-",
+          supplier: foundSupplier ? foundSupplier.name : supplierName,
+          supplierCode: foundSupplier ? foundSupplier.code : "SUP-BACKEND",
+          contact: primaryContact ? primaryContact.name : "-",
+          contactPhone: primaryContact?.phone || "-",
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
           deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
           paymentStatus: payments.some(p => p.poNumber === poNumber) ? "Paid" : "Unpaid",
-          paymentTerms: "Net 14",
+          paymentTerms: extractedTerms,
           requestRefs: [request.prNumber],
           soRefs: item.salesOrderNumber ? [item.salesOrderNumber] : [],
           category: (item.purchaseCategory || "Project") as PO["category"],
-          shippingAddress: "Gudang Utama - PT Pratama Jaya Tekindo",
+          shippingAddress: extractedAddress,
           notes: item.purchaseNotes || item.notes || "",
           financeApproval: request.financeReviewedAtUtc
             ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
@@ -225,11 +247,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const { purchaseRequests, supplierPayments } = usePurchasingData();
-  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments), [purchaseRequests, supplierPayments]);
+  const { purchaseRequests, supplierPayments, suppliers } = usePurchasingData();
+  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filtered = purchaseOrders.filter((p) => {
     const q = search.toLowerCase();
@@ -243,6 +267,23 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     return matchQ && matchS;
   });
 
+  const sorted = [...filtered].sort((a, b) => {
+    const aClosed = a.deliveryStatus === "Closed" || a.deliveryStatus === "Cancelled";
+    const bClosed = b.deliveryStatus === "Closed" || b.deliveryStatus === "Cancelled";
+    if (!aClosed && bClosed) return -1;
+    if (aClosed && !bClosed) return 1;
+
+    const aUnpaid = a.paymentStatus === "Unpaid";
+    const bUnpaid = b.paymentStatus === "Unpaid";
+    if (aUnpaid && !bUnpaid) return -1;
+    if (!aUnpaid && bUnpaid) return 1;
+
+    return b.id.localeCompare(a.id);
+  });
+
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
+  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -252,7 +293,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const exportPOs = () => {
     downloadCsv("purchase-orders.csv", [
       ["PO", "MR", "Supplier", "Delivery Status", "Payment Status", "Due Date", "Total"],
-      ...filtered.map(po => [
+      ...sorted.map(po => [
         po.id,
         po.requestRefs.join(" / "),
         po.supplier,
@@ -326,13 +367,13 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             placeholder="Cari No. PO, supplier, No. MR, SO, kategori..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-red-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
+        <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setCurrentPage(1); }}>
           <SelectTrigger className="h-9 w-40 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <Filter size={12} className="mr-1" />
             <SelectValue placeholder="Status" />
@@ -367,7 +408,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((po) => {
+              {paginated.map((po) => {
                 const dc = deliveryCfg[po.deliveryStatus] || { bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8", pct: 0 };
                 const fc = po.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : po.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
                 const isExp = expanded.has(po.id);
@@ -394,7 +435,9 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                           <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: dc.dot }} />
                         <div>
                           <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 12 }}>{po.id}</p>
-                            <p style={{ fontSize: 10, color: "#94a3b8" }}>{po.requestRefs.join(", ")}</p>
+                            <p style={{ fontSize: 10, color: "#94a3b8" }}>
+                              {po.soRefs && po.soRefs.length > 0 ? po.soRefs.join(", ") : po.requestRefs.join(", ")}
+                            </p>
                         </div>
                         </div>
                       </TD>

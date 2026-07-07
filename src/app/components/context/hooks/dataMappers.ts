@@ -29,7 +29,12 @@ export function canLoadPurchaseRequests(role?: UserRole | null) {
 
 export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = []): SalesOrder["materials"] {
   const legacyMaterials: any[] = [];
+  const productsById = new Map(products.map(product => [product.id, product]));
+
   order.items.forEach(item => {
+    const product = productsById.get(item.productId);
+    if (product?.bomItems && product.bomItems.length > 0) return;
+
     if (!item.notes?.startsWith("[")) return;
 
     try {
@@ -49,7 +54,6 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
     }
   });
 
-  const productsById = new Map(products.map(product => [product.id, product]));
   const materialsByKey = new Map<string, any>();
 
   // Add legacy materials
@@ -141,7 +145,7 @@ export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], pro
     createdAt: order.soDate,
     designReference: order.designReference,
     designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
-    designLink: order.drawingFileUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
+    designLink: order.drawingFileUrl || order.customerDrawingUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
     startTime: order.startedAtUtc || undefined,
     endTime: order.finishedAtUtc || undefined,
     qcStatus: mapQcDecision(order.qcDecision),

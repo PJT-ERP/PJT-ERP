@@ -7,7 +7,8 @@ public sealed record CreatePurchaseRequest(
     Guid? SalesOrderId,
     string? SalesOrderNumber,
     string? ProjectName,
-    IReadOnlyCollection<CreatePurchaseRequestItem> Items);
+    IReadOnlyCollection<CreatePurchaseRequestItem> Items,
+    bool RequireSupervisorApproval = false);
 
 public sealed record CreatePurchaseRequestItem(
     Guid? MaterialRequirementId,
@@ -77,7 +78,7 @@ public sealed record ProcessPurchaseItemRequest(
 
 public sealed record RejectPurchaseItemRequest(string? RejectionReason);
 
-public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? PurchaseNotes);
+public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? PurchaseNotes, int? ReceivedQty = null);
 
 public sealed record UpdateMaterialStockInfoRequest(int StockOnHand, string? StockNotes);
 

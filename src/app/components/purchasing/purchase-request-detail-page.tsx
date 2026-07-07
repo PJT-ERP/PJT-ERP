@@ -149,7 +149,9 @@ export function PurchaseRequestDetailPage() {
   const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
   const canEditPricing = isPurchasingOrAdmin && 
     detail?.backendStatus !== "FinanceApproved" && 
-    detail?.backendStatus !== "Completed";
+    detail?.backendStatus !== "Processing" &&
+    detail?.backendStatus !== "Completed" &&
+    !(detail?.backendStatus === "SupervisorApproved" && detail?.isReadyForFinance);
 
   useEffect(() => {
     const loadData = async () => {
@@ -164,7 +166,7 @@ export function PurchaseRequestDetailPage() {
         setInventoryItems(invData);
         const supNames = suppliersData.map(s => s.name);
 
-        const req = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
+        const req = data.find(r => r.prNumber === id || r.id === id);
         if (req && req.status !== "Submitted" && req.status !== "SupervisorRejected") {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
@@ -172,15 +174,14 @@ export function PurchaseRequestDetailPage() {
 
             const invItem = invData.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
             const actualSupplierName = item.supplierName && item.supplierName.trim() !== "-" ? item.supplierName : null;
-            const supplierToUse = actualSupplierName || (invItem?.supplierName) || "";
-            const isCustom = supplierToUse ? !suppliersData.some(s => s.name === supplierToUse) : false;
+            let supplierToUse = actualSupplierName || "";
             
             let uPrice = "";
             if (item.estimatedPrice && item.qty) {
               uPrice = String(Math.round(item.estimatedPrice / item.qty));
-            } else if (invItem && invItem.unitPrice > 0 && item.supplierName && invItem.supplierName === item.supplierName) {
-              uPrice = String(invItem.unitPrice);
             }
+            
+            const isCustom = supplierToUse ? !suppliersData.some(s => s.name === supplierToUse) : false;
             initData[item.itemId] = {
               supplierName: supplierToUse,
               estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "",
@@ -231,9 +232,9 @@ export function PurchaseRequestDetailPage() {
     setIsSavingPricing(true);
     setActionError("");
     try {
-      // Find the backend ID (since detail.id is like PR-123 but we might need the UUID)
+      // Find the backend ID (since detail.id is the prNumber, but we might need the UUID)
       const data = await purchasingApi.listPurchaseRequests();
-      const backendReq = data.find(r => r.prNumber.replace(/^MR-/, "PR-") === detail.id || r.id === detail.id);
+      const backendReq = data.find(r => r.prNumber === detail.id || r.id === detail.id);
       if (!backendReq) throw new Error("PR not found in backend");
 
       const promises = detail.items.map(async item => {
@@ -253,7 +254,7 @@ export function PurchaseRequestDetailPage() {
         });
 
         const invItem = inventoryItems.find(i => i.name.toLowerCase().trim() === matName.toLowerCase().trim());
-        if (invItem && invItem.unitPrice !== uPrice && uPrice > 0) {
+        if (invItem && uPrice > 0 && (invItem.unitPrice !== uPrice || invItem.supplierName !== p.supplierName)) {
           try {
             await masterDataApi.updateInventoryItem(invItem.id, {
                code: invItem.code,
@@ -265,7 +266,7 @@ export function PurchaseRequestDetailPage() {
                maxStock: invItem.maxStock,
                reorderPoint: invItem.reorderPoint,
                location: invItem.location,
-               supplierName: invItem.supplierName,
+               supplierName: p.supplierName || invItem.supplierName,
                unitPrice: uPrice
             });
           } catch(e) {
@@ -278,13 +279,14 @@ export function PurchaseRequestDetailPage() {
       await Promise.all(promises);
 
       await refreshBackendData();
-      
+
       // Reload current data
       const refreshedData = await purchasingApi.listPurchaseRequests();
-      const refreshedReq = refreshedData.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
+      const refreshedReq = refreshedData.find(r => r.prNumber === id || r.id === id);
       if (refreshedReq) setDetail(mapPurchaseRequestToMr(refreshedReq));
-      
+
       setShowSuccessDialog(true);
+      setTimeout(() => navigate("/erp/purchasing/requests"), 1500);
     } catch (err: any) {
       console.error(err);
       setActionError(err?.response?.data?.message || err?.message || "Gagal menyimpan harga. Silakan coba lagi.");
@@ -300,13 +302,13 @@ export function PurchaseRequestDetailPage() {
       await purchasingApi.reviewPurchaseRequest(detail.backendId, {
         reviewedByUserId: currentUser.id,
         decision,
-        reviewStage: 'Finance',
-        rejectionReason: decision === 'Reject' ? window.prompt("Alasan Penolakan:") || "Ditolak oleh Finance" : undefined
+        reviewStage: detail.backendStatus === 'Submitted' ? 'Supervisor' : 'Finance',
+        rejectionReason: decision === 'Reject' ? window.prompt("Alasan Penolakan:") || "Ditolak" : undefined
       });
       await refreshBackendData();
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
-      const refreshedReq = refreshedData.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
+      const refreshedReq = refreshedData.find(r => r.prNumber === id || r.id === id);
       if (refreshedReq) setDetail(mapPurchaseRequestToMr(refreshedReq));
     } catch (error) {
       console.warn('Failed to review PR.', error);
@@ -404,35 +406,32 @@ export function PurchaseRequestDetailPage() {
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Kode</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Material</th>
                     <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Qty</th>
-                    {(canEditPricing || detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || detail.items.some(i => i.supplierName || i.estimatedPrice)) && (
+                    {(canEditPricing || detail.backendStatus === "FinanceApproved" || detail.backendStatus === "Processing" || detail.backendStatus === "Completed" || detail.isReadyForFinance || detail.items.some(i => i.supplierName || i.estimatedPrice)) && (
                       <>
                         <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Supplier (Toko)</th>
-                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Satuan</th>
-                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-right">Harga Perkiraan</th>
+                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Harga Satuan</th>
+                        <th className="text-xs font-bold text-slate-500 uppercase tracking-wider p-3 text-left">Harga Perkiraan</th>
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.items.map((item, i) => (
+                  {detail.items.map((item, i) => {
+                    const invItem = inventoryItems.find(inv => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                    const actualCode = invItem ? invItem.code : item.code;
+                    const isSpecActuallyCode = item.spec && actualCode && item.spec.trim().toUpperCase() === actualCode.trim().toUpperCase();
+
+                    return (
                     <tr key={i} className="border-b border-slate-100 last:border-0">
-                      <td className="p-3 text-xs text-slate-600 font-mono">{item.code}</td>
-                      <td className="p-3 text-sm font-medium text-slate-900">
-                        {item.name}
+                      <td className="p-3 text-xs text-slate-600 font-mono">{actualCode}</td>
+                      <td className="p-3 text-sm text-slate-900">
+                        <div className="font-medium">{item.name}</div>
+                        {item.spec && item.spec !== "-" && !isSpecActuallyCode && (
+                          <div className="text-xs text-slate-500 mt-0.5">Spesifikasi: {item.spec}</div>
+                        )}
                       </td>
-                      <td className="p-3 text-sm font-semibold text-slate-900">
-                        {canEditPricing ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min="1"
-                              className="w-20 rounded border border-slate-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500"
-                              value={pricingData[item.itemId]?.qty !== undefined ? pricingData[item.itemId]?.qty : item.qty}
-                              onChange={(e) => setPricingData(prev => ({ ...prev, [item.itemId]: { ...(prev[item.itemId] || { supplierName: item.supplierName || "", estimatedPrice: item.estimatedPrice ? String(item.estimatedPrice) : "", itemName: item.name }), qty: e.target.value } }))}
-                            />
-                            <span>{item.unit}</span>
-                          </div>
-                        ) : `${item.qty} ${item.unit}`}
+                      <td className="p-3 text-sm text-slate-900">
+                        {item.qty} {item.unit}
                       </td>
                       {canEditPricing ? (
                         <>
@@ -446,9 +445,14 @@ export function PurchaseRequestDetailPage() {
                                   const invItem = inventoryItems.find(i => i.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
                                   let newUnitPrice = pricingData[item.itemId]?.unitPrice || "";
                                   
-                                  // Auto-fill price if the selected supplier matches the master data's primary supplier
-                                  if (invItem && invItem.unitPrice > 0 && invItem.supplierName === val) {
-                                    newUnitPrice = String(invItem.unitPrice);
+                                  if (invItem && invItem.unitPrice > 0) {
+                                    if (invItem.supplierName === val) {
+                                      // Auto-fill price if the selected supplier matches the master data's primary supplier
+                                      newUnitPrice = String(invItem.unitPrice);
+                                    } else if (newUnitPrice === String(invItem.unitPrice)) {
+                                      // Clear it if they switch to a supplier that doesn't match the auto-filled price
+                                      newUnitPrice = "";
+                                    }
                                   }
 
                                   setPricingData(prev => ({ 
@@ -468,7 +472,7 @@ export function PurchaseRequestDetailPage() {
                               <span className="absolute left-2 text-sm text-slate-400">Rp</span>
                               <input
                                 type="text"
-                                className="w-full rounded border border-slate-300 pl-7 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 text-right"
+                                className="w-full rounded border border-slate-300 pl-7 pr-2 py-1.5 text-sm outline-none focus:border-blue-500 text-left"
                                 placeholder="0"
                                 value={formatRp(pricingData[item.itemId]?.unitPrice || "")}
                                 onChange={(e) => {
@@ -478,19 +482,20 @@ export function PurchaseRequestDetailPage() {
                               />
                             </div>
                           </td>
-                          <td className="p-3 text-sm text-slate-900 text-right font-medium">
+                          <td className="p-3 text-sm text-slate-900 text-left">
                             {formatRp(Number(pricingData[item.itemId]?.unitPrice || 0) * Number(pricingData[item.itemId]?.qty || item.qty || 0))}
                           </td>
                         </>
-                      ) : (detail.backendStatus === "FinanceApproved" || detail.isReadyForFinance || item.supplierName || item.estimatedPrice) ? (
+                      ) : (detail.backendStatus === "FinanceApproved" || detail.backendStatus === "Processing" || detail.backendStatus === "Completed" || detail.isReadyForFinance || item.supplierName || item.estimatedPrice) ? (
                         <>
                           <td className="p-3 text-sm text-slate-900">{item.supplierName || "-"}</td>
-                          <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice && item.qty ? formatRp(Math.round(item.estimatedPrice / item.qty)) : "-"}</td>
-                          <td className="p-3 text-sm text-slate-900 text-right font-medium">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
+                          <td className="p-3 text-sm text-slate-900 text-left">{item.estimatedPrice && item.qty ? formatRp(Math.round(item.estimatedPrice / item.qty)) : "-"}</td>
+                          <td className="p-3 text-sm text-slate-900 text-left">{item.estimatedPrice ? formatRp(item.estimatedPrice) : "-"}</td>
                         </>
                       ) : null}
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>
@@ -546,7 +551,7 @@ export function PurchaseRequestDetailPage() {
             </div>
           )}
 
-          {detail.items.some(i => !!i.poNumber) ? (
+          {detail.items.some(i => !!i.poNumber) || detail.backendStatus === "Processing" || detail.backendStatus === "Completed" ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-blue-50 border border-blue-200">
                 <CheckCircle2 size={18} className="text-blue-600 shrink-0 mt-0.5" />
@@ -588,7 +593,7 @@ export function PurchaseRequestDetailPage() {
                 </div>
               )}
             </div>
-          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") ? (
+          ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.backendStatus === "Processing") && detail.hasUnorderedItems ? (
             <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
               <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200">
                 <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />

@@ -85,7 +85,7 @@ export function EngineeringTasksPage() {
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
   
-  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Rejected'];
+  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'];
   
   const pendingSalesOrders = salesOrders.filter(so => engineeringStatuses.includes(so.status) || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired' || so.backendDesignStatus === 'WaitingApproval');
   const completedSalesOrders = salesOrders.filter(so => 

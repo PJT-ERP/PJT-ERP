@@ -45,10 +45,10 @@ export function FinanceCosting() {
     )
   );
   const isWaitingPricing = (so: any) => {
-    if (so.status === "Completed" || so.status === "Rejected" || so.status === "Cancelled") {
+    if (so.status === "Rejected" || so.status === "Cancelled" || so.status === "Ditolak" || so.status === "Dibatalkan") {
       return false;
     }
-    if (so.backendStatus === "Waiting Pricing" || so.status === "Waiting Pricing") {
+    if (so.backendStatus === "Waiting Pricing" || so.status === "Waiting Pricing" || isUnpriced(so)) {
       return true;
     }
     return false;
@@ -114,6 +114,11 @@ export function FinanceCosting() {
         unitPrice: itemPrices[item.productId] || 0
       }));
 
+      const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
+      const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production"].includes(selectedItem.status);
+      const newStatus = preserveStatus ? selectedItem.status : "Waiting Payment";
+      const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || "Waiting Payment") : "Waiting Payment";
+
       try {
         // Backend integration
         await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
@@ -126,16 +131,18 @@ export function FinanceCosting() {
         // Local state update for smooth UX
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Waiting Payment",
-          backendStatus: "Waiting Payment",
+          estimatedAmount: totalPriced,
+          status: newStatus,
+          backendStatus: newBackendStatus,
         });
       } catch (error) {
         console.error("Failed to update pricing to backend", error);
         alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Waiting Payment",
-          backendStatus: "Waiting Payment",
+          estimatedAmount: totalPriced,
+          status: newStatus,
+          backendStatus: newBackendStatus,
         });
       }
       

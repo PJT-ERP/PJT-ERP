@@ -87,28 +87,55 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
             )}
           </div>
           {materialTracking && Array.isArray(materialTracking.items) && materialTracking.items.length > 0 && (
-            <div>
-              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Material Tracking</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {materialTracking.items.flatMap((item: any) =>
-                  (item.materialRequirements || []).map((mr: any, i: number) => (
-                    <div key={`${item.productId || i}-${i}`} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontWeight: 600, color: S.slate }}>{mr.inventoryItemName || '-'}</span>
-                        <span style={{ fontSize: "11px", color: S.secondary }}>{mr.inventoryItemCode || ''}</span>
+            (() => {
+              const deduped = new Map<string, { itemName: string; itemCode: string; requiredQty: number; stockOnHand: number }>();
+              for (const item of materialTracking.items) {
+                for (const mr of (item.materialRequirements || [])) {
+                  const key = (mr.inventoryItemName || '').trim().toLowerCase();
+                  const existing = deduped.get(key);
+                  if (existing) {
+                    existing.requiredQty += mr.requiredQty ?? 0;
+                    if (!existing.itemCode && mr.inventoryItemCode) existing.itemCode = mr.inventoryItemCode;
+                    if (mr.stockOnHand != null) existing.stockOnHand = Math.min(existing.stockOnHand, mr.stockOnHand);
+                  } else {
+                    deduped.set(key, {
+                      itemName: mr.inventoryItemName || '-',
+                      itemCode: mr.inventoryItemCode || '',
+                      requiredQty: mr.requiredQty ?? 0,
+                      stockOnHand: mr.stockOnHand ?? 0,
+                    });
+                  }
+                }
+              }
+              const entries = Array.from(deduped.values());
+              return entries.length > 0 ? (
+                <div>
+                  <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Material Tracking</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {entries.map((mr, i) => (
+                      <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, color: S.slate }}>{mr.itemName}</span>
+                          <span style={{ fontSize: "11px", color: S.secondary }}>{mr.itemCode || ''}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "12px", color: S.secondary }}>
+                          <span>Dibutuhkan: {mr.requiredQty}</span>
+                          <span>Stok: {mr.stockOnHand}</span>
+                          <span style={{ color: mr.stockOnHand < mr.requiredQty ? "#DC2626" : "#16A34A", fontWeight: 500 }}>
+                            {mr.stockOnHand < mr.requiredQty ? 'Kurang' : 'Cukup'}
+                          </span>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "12px", color: S.secondary }}>
-                        <span>Dibutuhkan: {mr.requiredQty ?? '-'}</span>
-                        <span>Stok: {mr.stockOnHand ?? '-'}</span>
-                        <span style={{ color: (mr.stockOnHand ?? 0) < (mr.requiredQty ?? 0) ? "#DC2626" : "#16A34A", fontWeight: 500 }}>
-                          {((mr.stockOnHand ?? 0) < (mr.requiredQty ?? 0)) ? 'Kurang' : 'Cukup'}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Material Tracking</p>
+                  <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Tidak ada data material.</p>
+                </div>
+              );
+            })()
           )}
         </div>
       </div>

@@ -51,7 +51,7 @@ export function EngineeringPage() {
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
     .filter(so => {
-      const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Pricing', 'Waiting Payment', 'Rejected'];
+      const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required'];
       return engineeringStatuses.includes(so.status);
     })
     .map(so => ({ ...so, isQuotation: false } as any));
@@ -111,9 +111,9 @@ export function EngineeringPage() {
       const prodOrders = salesOrders.filter(so => so.assignedTo === worker.id);
       return {
         name: worker.name.split(" ")[0],
-        designActive: designOrders.filter(so => !["Completed", "Rejected", "Waiting Spv Approval"].includes(so.status)).length,
+        designActive: designOrders.filter(so => ["Pending Design", "Revision Required"].includes(so.status)).length,
         designReview: designOrders.filter(so => so.status === "Waiting Spv Approval").length,
-        prodActive: prodOrders.filter(so => !["Completed", "Rejected", "QC"].includes(so.status)).length,
+        prodActive: prodOrders.filter(so => ["Ready for Production", "In Production"].includes(so.status)).length,
         prodQC: prodOrders.filter(so => so.status === "QC").length,
       };
     });

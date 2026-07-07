@@ -60,4 +60,19 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("deduct-bom-bulk")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Production")]
+    public async Task<IActionResult> DeductBomBulk(BulkDeductBomStockRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.DeductBomStockBulkAsync(request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
