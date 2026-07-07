@@ -417,7 +417,7 @@ public sealed partial class PurchaseRequestService
         string? category,
         Guid? materialRequirementId,
         Guid? salesOrderId,
-        string itemName)
+        string? itemName = null)
     {
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -433,7 +433,7 @@ public sealed partial class PurchaseRequestService
             var value when value.Equals(PurchaseItemCategories.Tools, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Tools,
             var value when value.Equals(PurchaseItemCategories.Project, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Project,
             var value when value.Equals(PurchaseItemCategories.Maintenance, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Maintenance,
-            _ => throw new InvalidOperationException($"Purchase category must be Asset, Consumable, Tools, Project, or Maintenance. Received: '{category}' for item '{itemName}'")
+            _ => throw new InvalidOperationException($"Purchase category must be Asset, Consumable, Tools, Project, or Maintenance. Received: '{category}'" + (string.IsNullOrWhiteSpace(itemName) ? "" : $" for item '{itemName}'"))
         };
     }
 

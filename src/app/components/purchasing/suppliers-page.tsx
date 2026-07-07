@@ -78,17 +78,29 @@ interface Supplier {
 
 const calculateSupplierHistory = (supplierPos: PO[]) => {
   const monthPairs = [
-    { label: "Jan", aliases: ["Jan", "01/"] },
-    { label: "Feb", aliases: ["Feb", "02/"] },
-    { label: "Mar", aliases: ["Mar", "03/"] },
-    { label: "Apr", aliases: ["Apr", "04/"] },
-    { label: "May", aliases: ["May", "Mei", "05/"] },
-    { label: "Jun", aliases: ["Jun", "06/"] }
+    { label: "Jan", idx: 0, aliases: ["Jan", "01/", "-01-", "-01", ".01.", "2026-01"] },
+    { label: "Feb", idx: 1, aliases: ["Feb", "02/", "-02-", "-02", ".02.", "2026-02"] },
+    { label: "Mar", idx: 2, aliases: ["Mar", "03/", "-03-", "-03", ".03.", "2026-03"] },
+    { label: "Apr", idx: 3, aliases: ["Apr", "04/", "-04-", "-04", ".04.", "2026-04"] },
+    { label: "May", idx: 4, aliases: ["May", "Mei", "05/", "-05-", "-05", ".05.", "2026-05"] },
+    { label: "Jun", idx: 5, aliases: ["Jun", "06/", "-06-", "-06", ".06.", "2026-06"] },
+    { label: "Jul", idx: 6, aliases: ["Jul", "07/", "-07-", "-07", ".07.", "2026-07"] },
+    { label: "Aug", idx: 7, aliases: ["Aug", "Ags", "08/", "-08-", "-08", ".08.", "2026-08"] },
+    { label: "Sep", idx: 8, aliases: ["Sep", "09/", "-09-", "-09", ".09.", "2026-09"] },
+    { label: "Oct", idx: 9, aliases: ["Oct", "Okt", "10/", "-10-", "-10", ".10.", "2026-10"] },
+    { label: "Nov", idx: 10, aliases: ["Nov", "11/", "-11-", "-11", ".11.", "2026-11"] },
+    { label: "Dec", idx: 11, aliases: ["Dec", "Des", "12/", "-12-", "-12", ".12.", "2026-12"] }
   ];
   return monthPairs.map(mp => {
     const posInMonth = supplierPos.filter(po => {
       if (!po.orderDate) return false;
-      return mp.aliases.some(alias => po.orderDate.includes(alias));
+      if (mp.aliases.some(alias => po.orderDate.includes(alias))) return true;
+      try {
+        const d = new Date(po.orderDate);
+        return !isNaN(d.getTime()) && d.getMonth() === mp.idx;
+      } catch {
+        return false;
+      }
     });
     const value = posInMonth.reduce((sum, po) => sum + calcTotal(po.items), 0);
     return {
@@ -422,7 +434,34 @@ export function SuppliersPage() {
   }, [purchaseRequests, supplierPayments, suppliers]);
 
   const enhancedSuppliers = useMemo(() => {
-    return (suppliers as any[]).map(s => {
+    const existingNames = new Set((suppliers as any[]).map(s => (s.name || "").toLowerCase().trim()));
+    const backendSuppliers: any[] = [];
+    
+    allPos.forEach(po => {
+      if (!po || !po.supplier) return;
+      const nameKey = po.supplier.toLowerCase().trim();
+      if (!existingNames.has(nameKey) && nameKey !== "supplier belum ditentukan") {
+        existingNames.add(nameKey);
+        backendSuppliers.push({
+          id: `backend-${po.supplierCode || nameKey}`,
+          code: po.supplierCode || "SUP-BACKEND",
+          name: po.supplier,
+          category: po.items?.[0]?.name ? "Logam & Material" : "General Supply",
+          city: "Jakarta",
+          address: "Alamat terdaftar di PO",
+          phone: "-",
+          email: "-",
+          status: "Active",
+          paymentTerms: "Net 14",
+          since: "2026",
+          contacts: [{ name: "Contact Person", phone: "-", email: "-", isPrimary: true }]
+        });
+      }
+    });
+
+    const combinedList = [...(suppliers as any[]), ...backendSuppliers];
+
+    return combinedList.map(s => {
       const supplierPos = allPos.filter(po => {
         if (!po) return false;
         return po.supplierCode === s.code ||
