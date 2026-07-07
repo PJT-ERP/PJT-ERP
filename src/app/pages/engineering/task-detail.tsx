@@ -258,6 +258,52 @@ export function EngineeringTaskDetailPage() {
         }
       }
 
+      // RESOLVE INVENTORY ITEMS FOR ALL MATERIALS FIRST BEFORE SAVING TO BACKEND!
+      // This ensures that the specs array has the correct inventoryItemId when saved to notes.
+      let currentInv: any[] = [];
+      try { currentInv = await masterDataApi.listInventory(); } catch(e) {}
+
+      for (const item of qut.items || []) {
+        const mats = itemMaterials[item.id] || [];
+        if (mats.length === 0) continue;
+
+        for (const m of mats) {
+          if (!m.name?.trim() || !(m.quantity > 0)) continue;
+          let invId = m.inventoryItemId;
+          
+          if (!invId) {
+            // Check if an item with the exact same name already exists (case-insensitive)
+            const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+            if (existingItem) {
+              invId = existingItem.id;
+            } else {
+              try {
+                const created = await masterDataApi.createInventoryItem({
+                  code: "",
+                  name: m.name.trim(),
+                  category: 'Engineering',
+                  unit: m.unit || 'pcs',
+                  currentStock: 0,
+                  minStock: 0,
+                  maxStock: 0,
+                  reorderPoint: 0,
+                  location: '',
+                  supplierName: '',
+                  unitPrice: 0,
+                });
+                invId = created.id;
+                currentInv.push(created); // add to local list so next item can find it
+              } catch (err) {
+                console.warn(`Failed to auto-create inventory item for "${m.name}"`, err);
+                continue;
+              }
+            }
+          }
+          // CRITICAL: save the resolved inventory ID back to the local object so bomsPerItem has it
+          m.inventoryItemId = invId;
+        }
+      }
+
       const updatedItems = qut.items?.map(it => {
         const mats = itemMaterials[it.id];
         const hasMats = mats && mats.length > 0;
@@ -298,33 +344,11 @@ export function EngineeringTaskDetailPage() {
             const mats = itemMaterials[item.id] || [];
             if (mats.length === 0) continue;
 
-            // Auto-create any manually-typed materials as inventory items first
             const resolvedBomItems: { inventoryItemId: string; quantity: number }[] = [];
             for (const m of mats) {
-              if (!m.name?.trim() || !(m.quantity > 0)) continue;
-              let invId = m.inventoryItemId;
-              if (!invId) {
-                try {
-                  const created = await masterDataApi.createInventoryItem({
-                    code: "",
-                    name: m.name.trim(),
-                    category: 'Engineering',
-                    unit: m.unit || 'pcs',
-                    currentStock: 0,
-                    minStock: 0,
-                    maxStock: 0,
-                    reorderPoint: 0,
-                    location: '',
-                    supplierName: '',
-                    unitPrice: 0,
-                  });
-                  invId = created.id;
-                } catch (err) {
-                  console.warn(`Failed to auto-create inventory item for "${m.name}"`, err);
-                  continue;
-                }
+              if (m.inventoryItemId && m.quantity > 0) {
+                resolvedBomItems.push({ inventoryItemId: m.inventoryItemId, quantity: m.quantity });
               }
-              resolvedBomItems.push({ inventoryItemId: invId, quantity: m.quantity });
             }
 
             if (resolvedBomItems.length > 0) {
@@ -430,15 +454,18 @@ export function EngineeringTaskDetailPage() {
     const isStandardProduct = !!productInCatalog?.bomItems?.length;
     const standardBomItems = productInCatalog?.bomItems || [];
     
-    // Check duplicates inside mats
+    // Check duplicates inside mats, including specification
     const hasInternalDupe = mats.some((m, idx) => {
       return mats.findIndex(x => {
-        if (x.inventoryItemId && m.inventoryItemId) return x.inventoryItemId === m.inventoryItemId;
-        return x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
+          ? x.inventoryItemId === m.inventoryItemId 
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+        const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
+        return isSameItem && isSameSpec;
       }) !== idx;
     });
     
-    // Check duplicates against standard BOM
+    // Check duplicates against standard BOM (standard BOM doesn't have spec, so just check inventoryItemId)
     const hasStandardDupe = isStandardProduct && mats.some(m => standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
     
     return hasInternalDupe || hasStandardDupe;
@@ -756,11 +783,14 @@ export function EngineeringTaskDetailPage() {
                                     value={m.name} 
                                     onChange={val => updateMaterial(item.id, m.id, 'name', val)}
                                     onSelectProduct={p => {
-                                      const isDuplicateInCustom = mats.some(mat => mat.id !== m.id && mat.inventoryItemId === p.id);
+                                      const isDuplicateInCustom = mats.some(mat => {
+                                        const isSameSpec = (mat.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
+                                        return mat.id !== m.id && mat.inventoryItemId === p.id && isSameSpec;
+                                      });
                                       const isDuplicateInStandard = isStandardProduct && standardBomItems.some(bom => bom.inventoryItemId === p.id);
                                       
                                       if (isDuplicateInCustom || isDuplicateInStandard) {
-                                        toast.warning(`Material "${p.name}" sudah ada di dalam daftar BOM. Mohon periksa kembali agar tidak terjadi duplikasi.`, {
+                                        toast.warning(`Material "${p.name}" dengan spesifikasi yang sama sudah ada di dalam daftar BOM. Mohon periksa kembali.`, {
                                           duration: Infinity,
                                           closeButton: true,
                                         });

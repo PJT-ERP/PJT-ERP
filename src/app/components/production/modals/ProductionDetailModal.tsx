@@ -71,23 +71,21 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
               </p>
             )}
           </div>
-          {!materialTracking?.items?.length && (
-            <div>
-              <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
-              {materials.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {materials.map((m, i) => (
-                    <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
-                      <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
-                      {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Belum ada data BOM.</p>
-              )}
-            </div>
-          )}
+          <div>
+            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
+            {materials.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {materials.map((m, i) => (
+                  <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
+                    <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
+                    {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Belum ada data BOM.</p>
+            )}
+          </div>
           {materialTracking && Array.isArray(materialTracking.items) && materialTracking.items.length > 0 && (
             (() => {
               const deduped = new Map<string, { itemName: string; itemCode: string; requiredQty: number; stockOnHand: number }>();

@@ -185,7 +185,7 @@ export function DashboardPage() {
             {[...taskNeedSourcing, ...taskReadyForPo].slice(0, 5).map(pr => {
               const isReady = calculateIsReadyForPo(pr);
               return (
-                <div key={pr.id} className="p-5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer" onClick={() => navigate(`/erp/purchasing/requests/${pr.id}`)}>
+                <div key={pr.id} className="p-5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer" onClick={() => navigate(`/erp/purchasing/requests/${pr.prNumber}`)}>
                   <div className="flex items-center gap-4">
                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isReady ? 'bg-blue-100' : 'bg-amber-100'}`}>
                       {isReady ? <CheckSquare size={17} className="text-blue-600" /> : <Search size={17} className="text-amber-600" />}

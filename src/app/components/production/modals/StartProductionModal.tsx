@@ -14,6 +14,7 @@ interface StockIssue {
   available: number;
   bomQty: number;
   productQty: number;
+  specs?: Array<{ spec: string; quantity: number }>;
 }
 
 export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
@@ -29,6 +30,14 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
     let cancelled = false;
     async function checkBomStock() {
       try {
+        // Bypass stock checking if resuming from a non-material pause
+        // Because the materials were already allocated/checked when production first started
+        if (so.status === "Paused" && !so.pauseReason?.toLowerCase().includes("material")) {
+          setStockIssues([]);
+          setCheckingStock(false);
+          return;
+        }
+
         const productIds = (so.items || [])
           .map(item => (item as any).productId)
           .filter((id): id is string => !!id);
@@ -47,17 +56,42 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
         const issues: StockIssue[] = [];
         for (const soItem of (so.items || [])) {
           const soProductId = (soItem as any).productId;
+          const soItemId = soItem.id;
+          const customBoms = so.bomsPerItem?.[soItemId] || [];
           const bomStock = bomStocks.find(bs => bs.productId === soProductId);
           if (!bomStock?.items?.length) continue;
 
-          const productQty = (soItem as any).qty || soItem.quantity || 1;
+          // Aggregate bomStock.items by inventoryItemId to prevent duplicate specs and correctly sum quantities
+          const aggregatedItems = new Map<string, typeof bomStock.items[0]>();
           for (const item of bomStock.items) {
+            const existing = aggregatedItems.get(item.inventoryItemId);
+            if (existing) {
+              existing.bomQuantity += item.bomQuantity;
+            } else {
+              aggregatedItems.set(item.inventoryItemId, { ...item });
+            }
+          }
+
+          const productQty = (soItem as any).qty || soItem.quantity || 1;
+          for (const item of aggregatedItems.values()) {
             const required = item.bomQuantity * productQty;
             const available = item.currentStock;
+            
+            // Extract matching specifications for this specific master item
+            const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
+            const specs = matchingCustomBoms.map(cb => ({
+              spec: cb.spec || "",
+              quantity: (cb.quantity || 1) * productQty
+            }));
+            
             if (available < required) {
               const existing = issues.find(i => i.itemName === item.inventoryItemName);
               if (existing) {
                 existing.required += required;
+                if (specs.length > 0) {
+                  // Only add specs if they aren't already present for this exact item
+                  existing.specs = [...(existing.specs || []), ...specs];
+                }
               } else {
                 issues.push({
                   itemName: item.inventoryItemName,
@@ -65,6 +99,7 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
                   available,
                   bomQty: item.bomQuantity,
                   productQty,
+                  specs: specs.length > 0 ? specs : undefined
                 });
               }
             }

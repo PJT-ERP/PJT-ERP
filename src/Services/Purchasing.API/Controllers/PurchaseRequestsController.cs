@@ -9,6 +9,13 @@ namespace PJT_ERP.Purchasing.Api.Controllers;
 [Route("api/v1/purchasing/purchase-requests")]
 public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseRequestService) : ControllerBase
 {
+    [HttpGet("next-po-number")]
+    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Purchasing,Owner")]
+    public async Task<ActionResult<string>> PreviewNextPoNumber(CancellationToken cancellationToken)
+    {
+        return Ok(await purchaseRequestService.PreviewNextPoNumberAsync(cancellationToken));
+    }
+
     [HttpGet]
     [Authorize(Roles = "Admin,Finance,Engineering Worker,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<IReadOnlyCollection<PurchaseRequestDto>>> List(

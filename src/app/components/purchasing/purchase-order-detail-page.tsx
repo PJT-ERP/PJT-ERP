@@ -132,6 +132,7 @@ export function PurchaseOrderDetailPage() {
               <h2 className="text-4xl font-black text-slate-200 tracking-widest uppercase mb-2">PURCHASE ORDER</h2>
               <p className="text-sm font-bold text-slate-800">PO Number: {detail.id}</p>
               <p className="text-sm text-slate-600">Tanggal PO: {detail.orderDate}</p>
+              {detail.soRefs?.length > 0 && <p className="text-sm text-slate-600">Referensi SO: <span className="font-mono text-slate-700 font-medium">{detail.soRefs.join(", ")}</span></p>}
             </div>
           </div>
         </div>
@@ -148,7 +149,7 @@ export function PurchaseOrderDetailPage() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informasi Pesanan:</h3>
             <p className="text-sm text-slate-600 mb-1">Termin: <strong className="text-slate-900">{detail.paymentTerms}</strong></p>
             <p className="text-sm text-slate-600 mb-1">Jatuh Tempo: <strong className="text-slate-900">{detail.dueDate}</strong></p>
-            <p className="text-sm text-slate-600">Referensi PR: <strong className="text-slate-900">{detail.requestRefs.join(", ")}</strong></p>
+            <p className="text-sm text-slate-600">Referensi SO: <strong className="text-slate-900">{detail.soRefs?.join(", ") || '-'}</strong></p>
           </div>
         </div>
 

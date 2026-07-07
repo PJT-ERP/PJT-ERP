@@ -133,18 +133,23 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
         }
 
         const supplierName = item.supplierName || item.suggestedSupplier || "Supplier belum ditentukan";
-        const foundSupplier = suppliers.find(s => s.name === supplierName);
+        const foundSupplier = suppliers.find(s => 
+          s.name.trim().toLowerCase() === supplierName.trim().toLowerCase() ||
+          s.code.trim().toLowerCase() === supplierName.trim().toLowerCase()
+        );
 
         const parts = (item.purchaseNotes || "").split(" | ");
         const extractedTerms = parts.length >= 1 && parts[0].trim() ? parts[0].trim() : "Net 14";
         const extractedAddress = parts.length >= 2 ? parts[1].trim() : "Alamat belum diset";
 
+        const primaryContact = foundSupplier?.contacts?.find((c: any) => c.isPrimary) || foundSupplier?.contacts?.[0];
+
         byPo.set(poNumber, {
           id: poNumber,
-          supplier: supplierName,
+          supplier: foundSupplier ? foundSupplier.name : supplierName,
           supplierCode: foundSupplier ? foundSupplier.code : "SUP-BACKEND",
-          contact: "-",
-          contactPhone: "-",
+          contact: primaryContact ? primaryContact.name : "-",
+          contactPhone: primaryContact?.phone || "-",
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
           deliveryStatus: mapDeliveryStatus(item.purchaseStatus),

@@ -115,6 +115,42 @@ public sealed class FinanceServiceTests
     }
 
     [Fact]
+    public async Task RecordPaymentAsync_multiple_payments_until_fully_paid()
+    {
+        await using var db = CreateDbContext();
+        var invoice = await CreateInvoiceAsync(db);
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new FinanceService(db, null!, eventPublisher);
+
+        // 1. Pay DP (50%)
+        await service.RecordPaymentAsync(
+            invoice.Id,
+            new RecordPaymentRequest(new DateOnly(2026, 6, 10), 166_500, "DP received"),
+            CancellationToken.None);
+
+        // 2. Pay remaining balance (50%)
+        var fullyPaidInvoice = await service.RecordPaymentAsync(
+            invoice.Id,
+            new RecordPaymentRequest(new DateOnly(2026, 6, 20), 166_500, "Full payment received"),
+            CancellationToken.None);
+
+        Assert.NotNull(fullyPaidInvoice);
+        Assert.Equal(333_000m, fullyPaidInvoice.PaidAmount);
+        Assert.Equal(100m, fullyPaidInvoice.PaymentPercent);
+        Assert.Equal("Paid", fullyPaidInvoice.Status);
+        
+        Assert.All(fullyPaidInvoice.PaymentSchedules, schedule => Assert.True(schedule.IsPaid));
+
+        var recordedEvents = eventPublisher.PublishedEvents.OfType<InvoicePaymentRecordedEvent>().ToList();
+        Assert.Equal(2, recordedEvents.Count);
+        
+        var lastEvent = recordedEvents.Last();
+        Assert.Equal(333_000m, lastEvent.PaidAmount);
+        Assert.Equal(100m, lastEvent.PaymentPercent);
+        Assert.True(lastEvent.IsFullyPaid);
+    }
+
+    [Fact]
     public async Task RecordPaymentAsync_ignores_duplicate_payment_submission()
     {
         await using var db = CreateDbContext();

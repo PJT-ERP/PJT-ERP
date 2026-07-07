@@ -122,9 +122,10 @@ export function CreatePurchaseRequestPage() {
       });
       await refreshBackendData();
       navigate("/erp/purchasing/requests");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create manual purchase request.", error);
-      setDialogMsg({ title: "Gagal Membuat PR", message: "Gagal membuat PR di backend. Cek response API untuk detail." });
+      const backendMsg = error?.response?.data?.message || error?.response?.data?.title || error?.message || "Unknown error";
+      setDialogMsg({ title: "Gagal Membuat PR", message: backendMsg });
     } finally {
       setIsSubmitting(false);
     }
