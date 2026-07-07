@@ -354,7 +354,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseItem.TotalPrice = requestedTotalPrice ?? purchaseItem.TotalPrice;
         purchaseItem.PurchaseCategory = request.PurchaseCategory is null
             ? purchaseItem.PurchaseCategory
-            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId);
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName);
         purchaseItem.PurchaseDate = effectivePurchaseDate;
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate ?? purchaseItem.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = request.ReceivedDate ?? purchaseItem.ReceivedDate;
@@ -452,7 +452,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseItem.TotalPrice = totalPrice;
         purchaseItem.PurchaseCategory = request.PurchaseCategory is null
             ? purchaseItem.PurchaseCategory
-            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId);
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName);
         purchaseItem.PurchaseDate = DateOnly.FromDateTime(now);
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = null;
