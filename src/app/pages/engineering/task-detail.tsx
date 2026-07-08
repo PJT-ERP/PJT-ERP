@@ -185,6 +185,27 @@ export function EngineeringTaskDetailPage() {
     }
   }, [qut]);
 
+  const newMaterials = React.useMemo(() => {
+    const result: { name: string; spec: string }[] = [];
+    const seen = new Set<string>();
+    for (const item of qut?.items || []) {
+      const mats = itemMaterials[item.id] || [];
+      for (const m of mats) {
+        if (!m.name?.trim()) continue;
+        const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
+        if (seen.has(key)) continue;
+        const matchedByName = inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+        // Material is "new" if: no inventoryItemId, OR the ID doesn't match any existing item by name
+        const isNew = !m.inventoryItemId || !matchedByName || matchedByName.id !== m.inventoryItemId;
+        if (isNew) {
+          seen.add(key);
+          result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
+        }
+      }
+    }
+    return result;
+  }, [qut?.items, itemMaterials, inventoryItems]);
+
   if (!qut) {
     return (
       <div style={{ padding: "40px", textAlign: "center", fontFamily: S.font }}>
@@ -472,44 +493,58 @@ export function EngineeringTaskDetailPage() {
     
     // Check duplicates inside mats, including specification
     const hasInternalDupe = mats.some((m, idx) => {
+      if (!m.name.trim()) return false;
       return mats.findIndex(x => {
         const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
           ? x.inventoryItemId === m.inventoryItemId 
-          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase();
         const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
         return isSameItem && isSameSpec;
       }) !== idx;
     });
     
     // Check duplicates against standard BOM (standard BOM doesn't have spec, so just check inventoryItemId)
-    const hasStandardDupe = isStandardProduct && mats.some(m => standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
+    const hasStandardDupe = isStandardProduct && mats.some(m => !!m.inventoryItemId && standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
     
     return hasInternalDupe || hasStandardDupe;
   }) || false;
 
-  const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
-  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials;
+  const hasCategoryConflict = qut?.items?.some(item => {
+    const mats = itemMaterials[item.id] || [];
+    return mats.some(m => {
+      if (!m.name.trim()) return false;
+      return mats.some(x => {
+        if (x.id === m.id) return false;
+        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
+          ? x.inventoryItemId === m.inventoryItemId 
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+        return isSameItem && x.category !== m.category;
+      });
+    });
+  }) || false;
 
-  const newMaterials = React.useMemo(() => {
-    const result: { name: string; spec: string }[] = [];
-    const seen = new Set<string>();
-    for (const item of qut.items || []) {
-      const mats = itemMaterials[item.id] || [];
-      for (const m of mats) {
-        if (!m.name?.trim()) continue;
-        const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
-        if (seen.has(key)) continue;
-        const matchedByName = inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-        // Material is "new" if: no inventoryItemId, OR the ID doesn't match any existing item by name
-        const isNew = !m.inventoryItemId || !matchedByName || matchedByName.id !== m.inventoryItemId;
-        if (isNew) {
-          seen.add(key);
-          result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
-        }
-      }
+  const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
+  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict;
+
+  const prevDuplicate = React.useRef(false);
+  const prevCategoryConflict = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasDuplicateMaterials && !prevDuplicate.current) {
+      toast.warning("Terdapat material duplikat dengan spesifikasi yang sama persis di dalam daftar BOM. Mohon periksa kembali.", {
+        duration: Infinity,
+        closeButton: true,
+      });
     }
-    return result;
-  }, [qut.items, itemMaterials, inventoryItems]);
+    if (hasCategoryConflict && !prevCategoryConflict.current) {
+      toast.warning("Material yang sama tidak boleh memiliki kategori yang berbeda di dalam satu BOM. Mohon samakan kategorinya.", {
+        duration: Infinity,
+        closeButton: true,
+      });
+    }
+    prevDuplicate.current = hasDuplicateMaterials;
+    prevCategoryConflict.current = hasCategoryConflict;
+  }, [hasDuplicateMaterials, hasCategoryConflict]);
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
@@ -835,25 +870,12 @@ export function EngineeringTaskDetailPage() {
                               <div style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: -4, marginTop: isStandardProduct ? 8 : 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                 {isStandardProduct ? "Material Tambahan (Khusus SO Ini)" : "BOM Custom"}
                               </div>
-                              {mats.map((m, idx) => (
-                                <div key={m.id} style={{ position: "relative", zIndex: 100 - idx, display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                              {mats.map((m) => (
+                                <div key={m.id} style={{ position: "relative", display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
                                   <MaterialAutocomplete 
                                     value={m.name} 
                                     onChange={val => updateMaterial(item.id, m.id, 'name', val)}
                                     onSelectProduct={p => {
-                                      const isDuplicateInCustom = mats.some(mat => {
-                                        const isSameSpec = (mat.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
-                                        return mat.id !== m.id && mat.inventoryItemId === p.id && isSameSpec;
-                                      });
-                                      const isDuplicateInStandard = isStandardProduct && standardBomItems.some(bom => bom.inventoryItemId === p.id);
-                                      
-                                      if (isDuplicateInCustom || isDuplicateInStandard) {
-                                        toast.warning(`Material "${p.name}" dengan spesifikasi yang sama sudah ada di dalam daftar BOM. Mohon periksa kembali.`, {
-                                          duration: Infinity,
-                                          closeButton: true,
-                                        });
-                                      }
-                                      
                                       updateMaterial(item.id, m.id, 'name', p.name);
                                       updateMaterial(item.id, m.id, 'unit', p.unit);
                                       updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
@@ -951,7 +973,7 @@ export function EngineeringTaskDetailPage() {
                 {canProcess && (
                   <button onClick={() => setStep('confirm')} disabled={isSubmitDisabled}
                     style={{ flex: 2, padding: "14px", background: isSubmitDisabled ? "#FCA5A5" : S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: isSubmitDisabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s, transform 0.1s", opacity: !isSubmitDisabled ? 1 : 0.5 }}
-                    title={hasDuplicateMaterials ? "Terdapat material duplikat di dalam BOM. Mohon periksa kembali." : ""}
+                    title={hasDuplicateMaterials ? "Terdapat material duplikat di dalam BOM. Mohon periksa kembali." : hasCategoryConflict ? "Material yang sama tidak boleh memiliki kategori yang berbeda." : ""}
                     onMouseDown={e => { if(!e.currentTarget.disabled) e.currentTarget.style.transform = "scale(0.98)" }}
                     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
