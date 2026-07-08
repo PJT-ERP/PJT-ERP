@@ -181,7 +181,7 @@ export function FinancePurchasingApproval() {
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Cari No. PR, Departemen..."
+                   placeholder="Cari No. PR, SO Referensi..."
                   className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
                 />
               </div>
@@ -192,7 +192,7 @@ export function FinancePurchasingApproval() {
                   <tr>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PR</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Est. Anggaran</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
@@ -205,7 +205,7 @@ export function FinancePurchasingApproval() {
                       <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
                         <td className="px-5 py-4 text-slate-600">{mr.date}</td>
                         <td className="px-5 py-4 font-medium text-slate-800">{mr.id}</td>
-                        <td className="px-5 py-4 text-slate-600">{mr.department}</td>
+                        <td className="px-5 py-4 text-slate-600">{mr.soRef || mr.department || "-"}</td>
                         <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalEst)}</td>
                         <td className="px-5 py-4 text-center">
                           {mr.backendStatus === "FinanceApproved" || mr.financeApproval === "Approved" ? (

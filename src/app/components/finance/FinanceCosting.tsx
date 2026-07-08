@@ -73,6 +73,7 @@ export function FinanceCosting() {
 
   const filteredList = activeList.filter(item => 
     (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (item.soNumber || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.customerId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.customerName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
