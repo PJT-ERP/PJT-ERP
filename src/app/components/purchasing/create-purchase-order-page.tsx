@@ -16,6 +16,7 @@ interface FormItem {
   qty: string;
   unit: string;
   totalPrice: string;
+  category: string;
 }
 
 interface FieldLabelProps {
@@ -35,6 +36,7 @@ const emptyItem = (): FormItem => ({
   qty: "",
   unit: "",
   totalPrice: "",
+  category: "",
 });
 
 const formatRp = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
@@ -204,6 +206,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         qty: String(item.qty),
         unit: unit,
         totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
+        category: invItem?.category || item.purchaseCategory || item.category || "Consumable",
       };
     }));
   };
@@ -446,9 +449,13 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 <FieldLabel>Kode Item *</FieldLabel>
                 <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
-              <div className="space-y-1.5 md:col-span-3">
+              <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Nama Material *</FieldLabel>
                 <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <FieldLabel>Kategori</FieldLabel>
+                <input value={item.category} readOnly className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
@@ -462,7 +469,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 <FieldLabel>Satuan</FieldLabel>
                 <input value={item.unit} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3 cursor-not-allowed opacity-80")} />
               </div>
-              <div className="space-y-1.5 md:col-span-3">
+              <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Total Harga *</FieldLabel>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 text-slate-400 text-sm">Rp</span>

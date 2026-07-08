@@ -16,6 +16,7 @@ import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
 import { SOPrintView } from "./detail/SOPrintView";
 import { apiClient, BASE_URL } from "../../services/apiClient";
+import { ImageWithFallback } from "../figma/ImageWithFallback";
 
 interface SODetailProps {
   orderId: string;
@@ -789,7 +790,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                       if (!fullPhoto) return null;
                       return (
                       <div key={i} onClick={() => setPreviewPhoto(fullPhoto)} style={{ width: 80, height: 60, background: S.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                        <img src={fullPhoto} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                        <ImageWithFallback src={fullPhoto} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
                       );
                     })}
@@ -807,7 +808,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                         if (!fullPhoto) return null;
                         return (
                         <div key={i} onClick={() => setPreviewPhoto(fullPhoto)} style={{ width: 80, height: 60, background: S.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                          <img src={fullPhoto} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
+                          <ImageWithFallback src={fullPhoto} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         </div>
                         );
                       })}
