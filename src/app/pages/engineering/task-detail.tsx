@@ -185,6 +185,28 @@ export function EngineeringTaskDetailPage() {
     }
   }, [qut]);
 
+  const newMaterials = React.useMemo(() => {
+    const result: { name: string; spec: string }[] = [];
+    if (!qut) return result;
+    const seen = new Set<string>();
+    for (const item of qut.items || []) {
+      const mats = itemMaterials[item.id] || [];
+      for (const m of mats) {
+        if (!m.name?.trim()) continue;
+        const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
+        if (seen.has(key)) continue;
+        const matchedByName = inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+        // Material is "new" if: no inventoryItemId, OR the ID doesn't match any existing item by name
+        const isNew = !m.inventoryItemId || !matchedByName || matchedByName.id !== m.inventoryItemId;
+        if (isNew) {
+          seen.add(key);
+          result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
+        }
+      }
+    }
+    return result;
+  }, [qut, itemMaterials, inventoryItems]);
+
   if (!qut) {
     return (
       <div style={{ padding: "40px", textAlign: "center", fontFamily: S.font }}>
@@ -490,26 +512,7 @@ export function EngineeringTaskDetailPage() {
   const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
   const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials;
 
-  const newMaterials = React.useMemo(() => {
-    const result: { name: string; spec: string }[] = [];
-    const seen = new Set<string>();
-    for (const item of qut.items || []) {
-      const mats = itemMaterials[item.id] || [];
-      for (const m of mats) {
-        if (!m.name?.trim()) continue;
-        const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
-        if (seen.has(key)) continue;
-        const matchedByName = inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-        // Material is "new" if: no inventoryItemId, OR the ID doesn't match any existing item by name
-        const isNew = !m.inventoryItemId || !matchedByName || matchedByName.id !== m.inventoryItemId;
-        if (isNew) {
-          seen.add(key);
-          result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
-        }
-      }
-    }
-    return result;
-  }, [qut.items, itemMaterials, inventoryItems]);
+
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
