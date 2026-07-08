@@ -224,11 +224,7 @@ export const financeApi = {
     if (request.notes) formData.append('notes', request.notes);
     if (request.proofFile) formData.append('proofFile', request.proofFile);
 
-    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, formData);
     return response.data;
   },
 
@@ -270,11 +266,7 @@ export const financeApi = {
     if (request.notes) formData.append('notes', request.notes);
     if (request.proofFile) formData.append('proofFile', request.proofFile);
 
-    const response = await apiClient.post<SupplierPaymentDto>('/api/v1/finance/supplier-payments', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await apiClient.post<SupplierPaymentDto>('/api/v1/finance/supplier-payments', formData);
     return response.data;
   },
 

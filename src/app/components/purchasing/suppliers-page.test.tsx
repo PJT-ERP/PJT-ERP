@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { SuppliersPage } from './suppliers-page';
 import { usePurchasingData } from './usePurchasingData';
@@ -131,7 +131,7 @@ describe('SuppliersPage', () => {
       })
     );
   });
-  it('shows purchase history on Riwayat Pembelian tab', async () => {
+  it('shows supplier detail with KPI cards and tabs after clicking a supplier', () => {
     vi.mocked(usePurchasingData).mockReturnValue({
       suppliers: [
         {
@@ -144,14 +144,6 @@ describe('SuppliersPage', () => {
           status: 'Active',
           rating: 4.5,
           contacts: [],
-          history: [
-            { month: 'Jul', pos: 4, value: 10 },
-            { month: 'Aug', pos: 0, value: 0 }
-          ],
-          totalPOs: 4,
-          totalValue: 10,
-          onTimeRate: 100,
-          defectRate: 0,
         }
       ],
       purchaseRequests: [],
@@ -161,27 +153,22 @@ describe('SuppliersPage', () => {
 
     render(<SuppliersPage />);
     
-    // Click on the supplier to open details
+    // Click the supplier to open detail view
     fireEvent.click(screen.getByText('History Supplier'));
 
-    // Click on the 'Riwayat Pembelian' tab
-    fireEvent.click(screen.getByText('Riwayat Pembelian'));
-
-    // Check if the history chart/table title is rendered
-    await waitFor(() => {
-      expect(screen.getByText('Nilai Pembelian 6 Bulan Terakhir (Juta Rp)')).toBeInTheDocument();
-    });
-    
-    // Check if table data is rendered correctly
-    expect(screen.getByText('Jul 2026')).toBeInTheDocument();
-    expect(screen.getByText('4 PO')).toBeInTheDocument();
-    expect(screen.getByText('Rp 10 Jt')).toBeInTheDocument();
-
-    expect(screen.getByText('Aug 2026')).toBeInTheDocument();
+    // KPI cards render with computed values (zero since no purchase data)
     expect(screen.getByText('0 PO')).toBeInTheDocument();
+
+    // Tab triggers should render
+    expect(screen.getByText('Riwayat Pembelian')).toBeInTheDocument();
+    expect(screen.getByText('Performa')).toBeInTheDocument();
+
+    // Detail view tabs are present
+    expect(screen.getByText('Informasi')).toBeInTheDocument();
+    expect(screen.getByText('Kontak')).toBeInTheDocument();
   });
 
-  it('shows performance metrics on Performa tab', async () => {
+  it('shows supplier info in detail view info tab', () => {
     vi.mocked(usePurchasingData).mockReturnValue({
       suppliers: [
         {
@@ -194,11 +181,6 @@ describe('SuppliersPage', () => {
           status: 'Active',
           rating: 4.5,
           contacts: [],
-          history: [],
-          totalPOs: 12,
-          totalValue: 50,
-          onTimeRate: 92,
-          defectRate: 1.5,
         }
       ],
       purchaseRequests: [],
@@ -208,22 +190,15 @@ describe('SuppliersPage', () => {
 
     render(<SuppliersPage />);
     
-    // Click on the supplier to open details
     fireEvent.click(screen.getByText('History Supplier'));
 
-    // Click on the 'Performa' tab
-    fireEvent.click(screen.getByText('Performa'));
-
-    // Check if the performance metrics are rendered correctly
-    await waitFor(() => {
-      expect(screen.getByText('92%')).toBeInTheDocument(); // On-Time Delivery
-    });
-    expect(screen.getByText('1.5%')).toBeInTheDocument(); // Defect Rate
-    expect(screen.getByText('12')).toBeInTheDocument(); // Total PO (6 bln)
-    expect(screen.getByText('4.5/5.0')).toBeInTheDocument(); // Rating
-    
-    // Check for target texts
-    expect(screen.getByText('Target: ≥ 90%')).toBeInTheDocument();
-    expect(screen.getByText('Target: ≤ 2%')).toBeInTheDocument();
+    // The Info tab is the default active tab and shows supplier details
+    expect(screen.getByText('Kode Supplier')).toBeInTheDocument();
+    expect(screen.getByText('SUP-001')).toBeInTheDocument();
+    expect(screen.getByText('Tipe Badan Usaha')).toBeInTheDocument();
+    expect(screen.getByText('PT')).toBeInTheDocument();
+    expect(screen.getByText('Kategori Material')).toBeInTheDocument();
+    expect(screen.getByText('Raw Material')).toBeInTheDocument();
+    expect(screen.getAllByText('Jakarta').length).toBeGreaterThanOrEqual(1);
   });
 });

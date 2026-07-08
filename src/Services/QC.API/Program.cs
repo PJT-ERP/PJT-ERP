@@ -49,7 +49,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=31536000,immutable");
+    }
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

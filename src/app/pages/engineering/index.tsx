@@ -113,6 +113,7 @@ export function EngineeringPage() {
         name: worker.name.split(" ")[0],
         designActive: designOrders.filter(so => ["Pending Design", "Revision Required"].includes(so.status)).length,
         designReview: designOrders.filter(so => so.status === "Waiting Spv Approval").length,
+        designCompleted: designOrders.filter(so => !["Pending Design", "Revision Required", "Waiting Spv Approval"].includes(so.status)).length,
         prodActive: prodOrders.filter(so => ["Ready for Production", "In Production"].includes(so.status)).length,
         prodQC: prodOrders.filter(so => so.status === "QC").length,
       };
@@ -166,7 +167,8 @@ export function EngineeringPage() {
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={80} />
                   <Tooltip />
                   <Bar dataKey="designActive" name="Desain Aktif" stackId="a" fill="#3B82F6" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="designReview" name="Menunggu Review" stackId="a" fill="#8B5CF6" radius={[0, 3, 3, 0]} />
+                  <Bar dataKey="designReview" name="Menunggu Review" stackId="a" fill="#8B5CF6" />
+                  <Bar dataKey="designCompleted" name="Desain Selesai" stackId="a" fill="#22C55E" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

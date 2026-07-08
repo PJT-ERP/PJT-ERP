@@ -120,6 +120,8 @@ services:
         ENTRY_DLL: Finance.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_dev_finance_proofs:/app/wwwroot/proofs
     depends_on:
       db:
         condition: service_healthy
@@ -178,3 +180,4 @@ services:
 volumes:
   pjt_dev_db:
   pjt_dev_qc_photos:
+  pjt_dev_finance_proofs:

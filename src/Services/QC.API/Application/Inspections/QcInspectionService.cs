@@ -4,6 +4,9 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.QC.Api.Domain.Entities;
 using PJT_ERP.QC.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Infrastructure.Messaging;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace PJT_ERP.QC.Api.Application.Inspections;
 
@@ -83,12 +86,30 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
         {
             if (file.Length == 0) continue;
 
-            var extension = Path.GetExtension(file.FileName);
-            var uniqueFileName = $"qc-{Guid.NewGuid():N}{extension}";
+            var uniqueFileName = $"qc-{Guid.NewGuid():N}.webp";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream, cancellationToken);
+            try
+            {
+                using var image = await Image.LoadAsync(file.OpenReadStream(), cancellationToken);
+                image.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(1200, 1200),
+                    Mode = ResizeMode.Max
+                }));
+
+                var encoder = new WebpEncoder { Quality = 75 };
+                await image.SaveAsWebpAsync(filePath, encoder, cancellationToken);
+            }
+            catch (UnknownImageFormatException)
+            {
+                // Fallback for non-image files or formats ImageSharp can't read
+                var extension = Path.GetExtension(file.FileName);
+                uniqueFileName = $"qc-{Guid.NewGuid():N}{extension}";
+                filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                await using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream, cancellationToken);
+            }
 
             urls.Add($"/qc-photos/{uniqueFileName}");
         }

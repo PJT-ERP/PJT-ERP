@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search } from "lucide-react";
+import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, X } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder } from "../../components/data/mockData";
 
@@ -14,6 +14,8 @@ const S = {
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
 };
+
+import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
 
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';
@@ -35,7 +37,7 @@ function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void 
         </div>
         <div className="p-8 text-center bg-slate-100/50 overflow-y-auto flex-1">
           <div className="max-w-xl mx-auto bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
-            <img src={src} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" onError={(e) => { e.currentTarget.src = `https://placehold.co/800x600?text=${encodeURIComponent(src.split('/').pop() || 'Image')}` }} />
+            <ImageWithFallback src={src} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" />
           </div>
           <p className="text-xs text-slate-500 mt-2">Ini adalah representasi visual foto QC yang diunggah.</p>
         </div>
@@ -106,7 +108,7 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                   {so.productionPhotos.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                      <img src={p} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                      <ImageWithFallback src={p} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                   ))}
                 </div>
@@ -119,7 +121,7 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                   {so.qcPhotos.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                      <img src={p} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                      <ImageWithFallback src={p} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                   ))}
                 </div>
