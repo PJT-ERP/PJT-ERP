@@ -229,13 +229,10 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
                         <p className="text-sm font-medium text-slate-700 text-center">{pendingPayment.proofFileName || 'File Bukti Transfer'}</p>
                         <button 
                           onClick={() => {
-                            let baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
-                            if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+                            // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
                             let proofPath = pendingPayment.proofFileUrl!;
-                            if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
-                            
-                            const fullUrl = pendingPayment.proofFileUrl!.startsWith('http') ? pendingPayment.proofFileUrl! : `${baseUrl}${proofPath}`;
-                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                            if (!proofPath.startsWith('/') && !proofPath.startsWith('http')) proofPath = '/' + proofPath;
+                            window.open(proofPath, '_blank', 'noopener,noreferrer');
                           }}
                           className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-700 shadow-sm transition-colors flex items-center gap-2"
                         >
@@ -304,13 +301,10 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
                         {vp.proofFileUrl && (
                           <button 
                             onClick={() => {
-                              let baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
-                              if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+                              // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
                               let proofPath = vp.proofFileUrl!;
-                              if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
-                              
-                              const fullUrl = vp.proofFileUrl!.startsWith('http') ? vp.proofFileUrl! : `${baseUrl}${proofPath}`;
-                              window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                              if (!proofPath.startsWith('/') && !proofPath.startsWith('http')) proofPath = '/' + proofPath;
+                              window.open(proofPath, '_blank', 'noopener,noreferrer');
                             }}
                             className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-md text-[11px] font-semibold text-slate-700 shadow-sm transition-colors flex items-center gap-1.5 flex-shrink-0"
                           >
