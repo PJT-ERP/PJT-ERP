@@ -91,12 +91,14 @@ describe('PaymentVerification Component', () => {
       fireEvent.click(verifyActionBtn); // Opens modal
     }
 
-    // Wait for modal to open and find the internal Verifikasi button
-    const modalVerifyBtn = await screen.findByRole('button', { name: /Verifikasi/i }, { timeout: 1000 });
-    const exactVerifyBtn = screen.getAllByRole('button', { name: /Verifikasi/i }).find(btn => btn.textContent?.trim() === 'Verifikasi');
-    if (exactVerifyBtn) {
-      fireEvent.click(exactVerifyBtn); // Enters verify mode
-    }
+    // Wait for modal to open
+    const modalTitle = await screen.findByText('Detail Pembayaran');
+    expect(modalTitle).toBeInTheDocument();
+
+    const allVerifikasiBtns = screen.getAllByRole('button', { name: 'Verifikasi' });
+    // The button inside the modal is the last one rendered in the DOM
+    const exactVerifyBtn = allVerifikasiBtns[allVerifikasiBtns.length - 1];
+    fireEvent.click(exactVerifyBtn); // Enters verify mode
 
     // Wait for confirmation button to appear
     const confirmBtn = await screen.findByRole('button', { name: /Ya, Verifikasi/i });
