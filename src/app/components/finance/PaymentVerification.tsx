@@ -70,6 +70,7 @@ export function PaymentVerification() {
       const rem = getRemainingAmount(invoice);
       if (rem <= 0) return false;
       if (hasRecordedPayment(invoice)) return false;
+      if (pendingPayments.some(p => p.invoiceId === invoice.id)) return false;
       return true;
     })
     .sort((a, b) => {
