@@ -129,7 +129,7 @@ export function EngineeringPage() {
       const designOrders = salesOrders.filter(so => so.designAssignedTo === worker.id);
       const prodOrders = salesOrders.filter(so => so.assignedTo === worker.id);
       return {
-        name: worker.name.split(" ")[0],
+        name: worker.name,
         designActive: designOrders.filter(so => ["Pending Design", "Revision Required"].includes(so.status)).length,
         designReview: designOrders.filter(so => so.status === "Waiting Spv Approval").length,
         designCompleted: designOrders.filter(so => !["Pending Design", "Revision Required", "Waiting Spv Approval"].includes(so.status)).length,
@@ -183,7 +183,7 @@ export function EngineeringPage() {
                 <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={80} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
                   <Tooltip />
                   <Bar dataKey="designActive" name="Desain Aktif" stackId="a" fill="#3B82F6" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="designReview" name="Menunggu Review" stackId="a" fill="#8B5CF6" />
@@ -208,7 +208,7 @@ export function EngineeringPage() {
                 <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={80} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
                   <Tooltip />
                   <Bar dataKey="prodActive" name="Produksi Aktif" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" radius={[0, 3, 3, 0]} />

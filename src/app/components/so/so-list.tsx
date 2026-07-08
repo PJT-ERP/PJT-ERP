@@ -102,18 +102,18 @@ function FilterDropdown({
         onBlur={() => setFocused(false)}
         style={{
           appearance: "none",
-          background: active ? "rgba(200,16,46,0.06)" : S.white,
-          border: `1px solid ${focused ? S.cyan : active ? S.cyan : S.border}`,
+          background: S.white,
+          border: `1px solid ${focused ? S.secondary : S.border}`,
           borderRadius: 4, padding: "6px 26px 6px 10px",
-          fontSize: "12px", color: active ? S.cyan : S.secondary,
-          fontWeight: active ? 500 : 400,
+          fontSize: "12px", color: S.secondary,
+          fontWeight: 400,
           cursor: "pointer", fontFamily: S.font, outline: "none",
           transition: "border-color 0.12s, background 0.12s, color 0.12s",
         }}
       >
         {children}
       </select>
-      <svg width="10" height="10" viewBox="0 0 10 10" style={{ position: "absolute", right: 8, pointerEvents: "none", color: active ? S.cyan : "#94A3B8" }} fill="none">
+      <svg width="10" height="10" viewBox="0 0 10 10" style={{ position: "absolute", right: 8, pointerEvents: "none", color: "#94A3B8" }} fill="none">
         <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>
@@ -182,7 +182,9 @@ export function SOList({ onNavigate }: SOListProps) {
     const matchSearch = !search ||
       o.id.toLowerCase().includes(q) ||
       cName.toLowerCase().includes(q) ||
-      o.description.toLowerCase().includes(q);
+      o.description.toLowerCase().includes(q) ||
+      o.createdAt.includes(q) ||
+      o.deadline.includes(q);
     return matchSearch &&
       (statusFilter === "all" || o.status === statusFilter) &&
       (customerFilter === "all" || o.customerId === customerFilter) &&
@@ -239,7 +241,7 @@ export function SOList({ onNavigate }: SOListProps) {
           <p style={{ color: S.secondary, fontSize: "12.5px", marginTop: 2 }}>
             {salesOrders.length} order terdaftar
             {filtered.length !== salesOrders.length && (
-              <span style={{ color: S.cyan }}> · {filtered.length} ditampilkan</span>
+              <span style={{ color: "#C8102E" }}> · {filtered.length} ditampilkan</span>
             )}
           </p>
         </div>
@@ -300,11 +302,11 @@ export function SOList({ onNavigate }: SOListProps) {
           {/* Active filter badge */}
           {hasActiveFilters && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: 4, background: "rgba(200,16,46,0.08)", border: "1px solid rgba(200,16,46,0.25)" }}>
-              <SlidersHorizontal size={11} style={{ color: S.cyan }} />
-              <span style={{ fontSize: "11.5px", color: S.cyan, fontWeight: 500 }}>{activeFilterCount} filter aktif</span>
+              <SlidersHorizontal size={11} style={{ color: "#C8102E" }} />
+              <span style={{ fontSize: "11.5px", color: "#C8102E", fontWeight: 500 }}>{activeFilterCount} filter aktif</span>
               <button
                 onClick={resetAll}
-                style={{ color: S.cyan, background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}
+                style={{ color: "#C8102E", background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}
                 title="Hapus semua filter"
               >
                 <X size={11} />
@@ -320,7 +322,7 @@ export function SOList({ onNavigate }: SOListProps) {
                 display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 28, borderRadius: 4, border: "none", cursor: "pointer",
                 background: viewMode === "table" ? S.white : "transparent",
                 boxShadow: viewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                color: viewMode === "table" ? S.cyan : S.secondary,
+                color: viewMode === "table" ? "#C8102E" : S.secondary,
                 transition: "all 0.2s"
               }}
               title="Tampilan Tabel"
@@ -333,7 +335,7 @@ export function SOList({ onNavigate }: SOListProps) {
                 display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 28, borderRadius: 4, border: "none", cursor: "pointer",
                 background: viewMode === "card" ? S.white : "transparent",
                 boxShadow: viewMode === "card" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                color: viewMode === "card" ? S.cyan : S.secondary,
+                color: viewMode === "card" ? "#C8102E" : S.secondary,
                 transition: "all 0.2s"
               }}
               title="Tampilan Kartu"
@@ -366,34 +368,19 @@ export function SOList({ onNavigate }: SOListProps) {
 
           <div style={{
             display: "flex", alignItems: "center", gap: 6,
-            border: `1px solid ${dateFilter ? S.cyan : S.border}`,
-            background: dateFilter ? "rgba(200,16,46,0.06)" : S.white,
+            border: `1px solid ${S.border}`,
+            background: S.white,
             borderRadius: 4, padding: "5px 10px", transition: "border-color 0.12s",
           }}>
-            <span style={{ fontSize: "11px", color: dateFilter ? S.cyan : "#94A3B8", fontFamily: S.font, fontWeight: 500, flexShrink: 0 }}>Bulan:</span>
+            <span style={{ fontSize: "11px", color: "#94A3B8", fontFamily: S.font, fontWeight: 500, flexShrink: 0 }}>Bulan:</span>
             <input
               type="month"
               value={dateFilter}
               onChange={e => { setDateFilter(e.target.value); setPage(1); }}
-              style={{ background: "transparent", border: "none", outline: "none", fontSize: "12px", color: dateFilter ? S.cyan : S.secondary, fontFamily: S.font, cursor: "pointer" }}
+              style={{ background: "transparent", border: "none", outline: "none", fontSize: "12px", color: S.secondary, fontFamily: S.font, cursor: "pointer" }}
             />
-            {dateFilter && (
-              <button onClick={() => { setDateFilter(""); setPage(1); }} style={{ color: S.cyan, background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}>
-                <X size={11} />
-              </button>
-            )}
           </div>
 
-          {hasActiveFilters && (
-            <button
-              onClick={resetAll}
-              style={{ fontSize: "12px", color: "#EF4444", background: "none", border: "none", cursor: "pointer", fontFamily: S.font, transition: "opacity 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = "0.7")}
-              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-            >
-              Hapus semua
-            </button>
-          )}
         </div>
       </div>
 

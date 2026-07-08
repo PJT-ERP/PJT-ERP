@@ -173,43 +173,44 @@ export function FinanceCosting() {
       </div>
 
       {/* Toolbar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", background: S.bg, padding: 4, borderRadius: 8, border: `1px solid ${S.border}` }}>
-          <button
-            onClick={() => setActiveTab('queue')}
-            style={{
-              padding: "8px 16px", borderRadius: 6, border: "none",
-              background: activeTab === 'queue' ? S.white : "transparent",
-              color: activeTab === 'queue' ? S.slate : S.secondary,
-              fontWeight: activeTab === 'queue' ? 600 : 500, fontSize: "13px", cursor: "pointer",
-              boxShadow: activeTab === 'queue' ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-              display: "flex", alignItems: "center", gap: 6
-            }}
-          >
-            <List size={14} /> Antrean ({waitingPricingSO.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            style={{
-              padding: "8px 16px", borderRadius: 6, border: "none",
-              background: activeTab === 'history' ? S.white : "transparent",
-              color: activeTab === 'history' ? S.slate : S.secondary,
-              fontWeight: activeTab === 'history' ? 600 : 500, fontSize: "13px", cursor: "pointer",
-              boxShadow: activeTab === 'history' ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-              display: "flex", alignItems: "center", gap: 6
-            }}
-          >
-            <History size={14} /> Riwayat
-          </button>
-        </div>
-        <div style={{ position: "relative", width: 300 }}>
+      <div style={{ display: "flex", gap: "12px", alignItems: "center", background: S.white, border: `1px solid ${S.border}`, padding: "6px 8px", borderRadius: 10 }}>
+        <button
+          onClick={() => setActiveTab('queue')}
+          style={{
+            padding: "8px 16px", borderRadius: 6, border: "none",
+            background: activeTab === 'queue' ? S.bg : "transparent",
+            color: activeTab === 'queue' ? S.slate : S.secondary,
+            fontWeight: activeTab === 'queue' ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 6,
+            transition: "all 0.2s"
+          }}
+        >
+          <List size={14} /> Antrean ({waitingPricingSO.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          style={{
+            padding: "8px 16px", borderRadius: 6, border: "none",
+            background: activeTab === 'history' ? S.bg : "transparent",
+            color: activeTab === 'history' ? S.slate : S.secondary,
+            fontWeight: activeTab === 'history' ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 6,
+            transition: "all 0.2s"
+          }}
+        >
+          <History size={14} /> Riwayat
+        </button>
+
+        <div style={{ width: "1px", height: "28px", background: S.border }} />
+
+        <div style={{ position: "relative", flex: 1 }}>
           <Search size={18} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
           <input 
             type="text" 
             placeholder="Cari No. SO atau Pelanggan..." 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px 10px 38px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none" }}
+            style={{ width: "100%", padding: "8px 12px 8px 38px", border: `1px solid ${S.border}`, background: S.bg, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none" }}
           />
         </div>
       </div>
