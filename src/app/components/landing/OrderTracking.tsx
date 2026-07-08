@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Search, Package, User, Hash, Calendar, CheckCircle2, Clock, AlertCircle, Loader2, BoxIcon } from "lucide-react";
 import { productionApi, type PublicProductionTrackingDto } from "../../services/productionApi";
+import { BarcodeScannerModal } from "../common/BarcodeScannerModal";
+import { QrCode } from "lucide-react";
 
 type StatusKey =
   | "draft"
@@ -175,6 +177,7 @@ export function OrderTracking() {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const doTrack = async (idToTrack: string) => {
     const trimmed = idToTrack.trim().toUpperCase();
@@ -324,6 +327,22 @@ export function OrderTracking() {
                 <Search className="w-4 h-4" />
               )}
               {loading ? "Searching..." : "Track Order"}
+            </button>
+            <button
+              onClick={() => setShowScanner(true)}
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all hover:opacity-90 active:scale-95"
+              style={{
+                backgroundColor: "#F1F5F9",
+                color: "#1F1F1F",
+                border: "1px solid #E2E8F0",
+                fontFamily: "Inter, sans-serif",
+                fontSize: "15px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              title="Scan Barcode / QR Code"
+            >
+              <QrCode className="w-5 h-5" />
             </button>
           </div>
 
@@ -477,6 +496,17 @@ export function OrderTracking() {
           )}
         </div>
       </div>
+      
+      {showScanner && (
+        <BarcodeScannerModal
+          onClose={() => setShowScanner(false)}
+          onScan={(barcode) => {
+            setShowScanner(false);
+            setSoInput(barcode);
+            doTrack(barcode);
+          }}
+        />
+      )}
     </section>
   );
 }

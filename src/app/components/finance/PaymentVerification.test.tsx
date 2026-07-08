@@ -87,7 +87,15 @@ describe('PaymentVerification Component', () => {
 
     const verifyBtns = screen.getAllByRole('button', { name: /Verifikasi/i });
     const verifyActionBtn = verifyBtns.find(btn => btn.textContent?.includes('Verifikasi') && !btn.textContent?.includes('Menunggu'));
-    verifyActionBtn?.click();
+    verifyActionBtn?.click(); // Opens modal
+
+    // Inside modal, click Verifikasi to enter verify mode
+    const modalVerifyBtn = screen.getAllByRole('button', { name: /Verifikasi/i }).find(btn => btn.textContent?.trim() === 'Verifikasi');
+    modalVerifyBtn?.click();
+
+    // Click confirmation button
+    const confirmBtn = screen.getByRole('button', { name: /Ya, Verifikasi/i });
+    confirmBtn.click();
 
     expect(financeApi.verifyPaymentProof).toHaveBeenCalledWith('pay-1');
   });

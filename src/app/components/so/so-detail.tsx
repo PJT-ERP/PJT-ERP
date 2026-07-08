@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Clock,
   Activity, Printer, Edit, Copy,
   AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye, Upload, X, Box, Plus, Link as LinkIcon
+  Receipt, Download, Eye, Upload, X, Box, Plus, Link as LinkIcon, QrCode
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
@@ -15,8 +15,9 @@ import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
 import { SOPrintView } from "./detail/SOPrintView";
-import { apiClient, BASE_URL } from "../../services/apiClient";
+import apiClient, { BASE_URL } from "../../services/apiClient";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface SODetailProps {
   orderId: string;
@@ -324,6 +325,18 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       </div>
     );
   }
+
+  const downloadQR = () => {
+    const canvas = document.getElementById("so-qr-canvas") as HTMLCanvasElement;
+    if (!canvas) return;
+    const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    let downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = `QR_${order.id}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
 
   const cfg = getStatusColor(order.status as SOStatus);
   const productLines = (order.items && order.items.length > 0)
@@ -910,6 +923,46 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               </div>
             </div>
           )}
+
+          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+            <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+              <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate, display: "flex", alignItems: "center", gap: 6 }}>
+                <QrCode size={14} /> Pelacakan QR Code
+              </p>
+            </div>
+            <div style={{ padding: "14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              {(() => {
+                const formattedId = (order.backendId || order.id).replace(/-/g, '');
+                const dateStr = (order.createdAt || new Date().toISOString()).substring(0, 10).replace(/-/g, '');
+                const barcode = `PJT|SO|${dateStr}|${formattedId}`;
+                return (
+                  <>
+                    <QRCodeCanvas id="so-qr-canvas" value={barcode} size={130} level="M" />
+                    <p style={{ fontSize: "10px", color: S.secondary, fontFamily: "monospace", margin: 0, wordBreak: "break-all", textAlign: "center" }}>
+                      {barcode}
+                    </p>
+                    <button
+                      onClick={downloadQR}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        width: "100%", padding: "8px", borderRadius: 4,
+                        border: `1px solid ${S.border}`, background: "#fff",
+                        color: S.slate, fontSize: "12px", fontWeight: 500,
+                        cursor: "pointer", marginTop: 4, transition: "background 0.2s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#F1F5F9"}
+                      onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                    >
+                      <Download size={14} /> Download QR Code
+                    </button>
+                    <p style={{ margin: 0, fontSize: "10px", color: "#94A3B8", textAlign: "center" }}>
+                      Kirimkan QR ini ke pelanggan untuk melacak progres di halaman utama.
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
 
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
             <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>

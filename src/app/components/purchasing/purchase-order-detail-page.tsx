@@ -116,22 +116,24 @@ export function PurchaseOrderDetailPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm po-print-area print:border-none print:rounded-none print:shadow-none print:overflow-visible">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm po-print-area print:border-none print:rounded-none print:shadow-none print:overflow-visible print:min-h-[100vh]">
         {/* PRINT ONLY: Professional PO Header - Invoice Style */}
-        <div className="hidden print:flex flex-col px-12 pt-14 pb-12 min-h-[99vh]">
-          <div className="flex justify-between items-start mb-20">
+        <div className="hidden print:flex flex-col px-6 pt-10 pb-6">
+          <div className="flex justify-between items-start mb-10">
             <div className="flex items-center gap-6">
-              <img src="/pjt-logo-new.png" alt="Logo PT Pratama Jaya" className="w-28 h-28 object-contain" />
+              <img src="/pjt-logo-new.png" alt="Logo PT Pratama Jaya" className="h-20 w-auto object-contain flex-shrink-0" />
               <div>
-                <h1 className="text-4xl font-bold text-slate-900 mb-1.5">PT. PRATAMA JAYA</h1>
-                <p className="text-base text-slate-500 leading-relaxed">Kawasan Industri MM2100</p>
-                <p className="text-base text-slate-500 leading-relaxed">Cikarang Barat, Bekasi 17530</p>
-                <p className="text-base text-slate-500 leading-relaxed">finance@pratamajaya.co.id</p>
+                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-1">PT. PRATAMA JAYA</h1>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Kawasan Industri MM2100<br/>
+                  Cikarang Barat, Bekasi 17530<br/>
+                  finance@pratamajaya.co.id
+                </p>
               </div>
             </div>
             <div className="text-right">
-              <h2 className="text-5xl font-bold text-slate-200 tracking-widest uppercase mb-8">PURCHASE ORDER</h2>
-              <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-2.5 text-base justify-end text-slate-500">
+              <h2 className="text-3xl font-black text-slate-200 tracking-widest uppercase mb-4">PURCHASE ORDER</h2>
+              <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm justify-end text-slate-500">
                 <span className="text-right">Nomor PO:</span>
                 <span className="font-bold text-slate-900 text-right">{detail.id}</span>
                 <span className="text-right">Tanggal Terbit:</span>
@@ -148,22 +150,22 @@ export function PurchaseOrderDetailPage() {
             </div>
           </div>
 
-          <div className="mb-14">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">PEMESANAN KEPADA (VENDOR)</h3>
-            <p className="font-bold text-slate-900 text-xl mb-1">{detail.supplier}</p>
-            <p className="text-base text-slate-600">Attn: {detail.contact || "-"}</p>
-            <p className="text-base text-slate-600">Telp: {detail.contactPhone || "-"}</p>
+          <div className="mb-8">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">PEMESANAN KEPADA (VENDOR)</h3>
+            <p className="font-bold text-slate-900 text-lg mb-1">{detail.supplier}</p>
+            <p className="text-sm text-slate-600">Attn: {detail.contact || "-"}</p>
+            <p className="text-sm text-slate-600">Telp: {detail.contactPhone || "-"}</p>
           </div>
 
           {/* Minimalist Table */}
-          <table className="w-full border-collapse mb-12">
+          <table className="w-full border-collapse mb-6">
             <thead>
               <tr>
-                <th className="py-4 text-left text-base font-bold text-slate-900 border-b-2 border-slate-900 w-[15%]">Kode</th>
-                <th className="py-4 text-left text-base font-bold text-slate-900 border-b-2 border-slate-900">Deskripsi Barang</th>
-                <th className="py-4 text-center text-base font-bold text-slate-900 border-b-2 border-slate-900 w-[15%]">Qty</th>
-                <th className="py-4 text-right text-base font-bold text-slate-900 border-b-2 border-slate-900 w-[20%]">Harga Satuan</th>
-                <th className="py-4 text-right text-base font-bold text-slate-900 border-b-2 border-slate-900 w-[20%]">Total</th>
+                <th className="py-3 text-left text-sm font-bold text-slate-900 border-b-2 border-slate-900 w-[15%]">Kode</th>
+                <th className="py-3 text-left text-sm font-bold text-slate-900 border-b-2 border-slate-900">Deskripsi Barang</th>
+                <th className="py-3 text-center text-sm font-bold text-slate-900 border-b-2 border-slate-900 w-[15%]">Qty</th>
+                <th className="py-3 text-right text-sm font-bold text-slate-900 border-b-2 border-slate-900 w-[20%]">Harga Satuan</th>
+                <th className="py-3 text-right text-sm font-bold text-slate-900 border-b-2 border-slate-900 w-[20%]">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -172,11 +174,11 @@ export function PurchaseOrderDetailPage() {
                 const actualCode = invItem ? invItem.code : item.code;
                 return (
                   <tr key={i}>
-                    <td className="py-5 text-base text-slate-500 font-mono border-b border-slate-200">{actualCode}</td>
-                    <td className="py-5 text-base font-medium text-slate-900 border-b border-slate-200">{item.name}</td>
-                    <td className="py-5 text-base text-center text-slate-900 border-b border-slate-200">{item.qty} {item.unit}</td>
-                    <td className="py-5 text-base text-right text-slate-700 border-b border-slate-200">{formatRp(calcUnitPrice(item))}</td>
-                    <td className="py-5 text-base font-bold text-slate-900 text-right border-b border-slate-200">{formatRp(item.totalPrice)}</td>
+                    <td className="py-3 text-sm text-slate-500 font-mono border-b border-slate-200">{actualCode}</td>
+                    <td className="py-3 text-sm font-medium text-slate-900 border-b border-slate-200">{item.name}</td>
+                    <td className="py-3 text-sm text-center text-slate-900 border-b border-slate-200">{item.qty} {item.unit}</td>
+                    <td className="py-3 text-sm text-right text-slate-700 border-b border-slate-200">{formatRp(calcUnitPrice(item))}</td>
+                    <td className="py-3 text-sm font-bold text-slate-900 text-right border-b border-slate-200">{formatRp(item.totalPrice)}</td>
                   </tr>
                 );
               })}
@@ -187,15 +189,15 @@ export function PurchaseOrderDetailPage() {
           </table>
 
           {/* Footer Totals & Info */}
-          <div className="flex justify-between items-start mb-10">
+          <div className="flex justify-between items-start mb-6">
             <div className="w-1/2 pr-16">
-              <h3 className="text-base font-bold text-slate-900 mb-4">Informasi Pemesanan</h3>
-              <div className="bg-slate-50 p-5 rounded-lg text-base border border-slate-100">
-                <div className="grid grid-cols-[160px_auto] gap-3 mb-3">
+              <h3 className="text-sm font-bold text-slate-900 mb-3">Informasi Pemesanan</h3>
+              <div className="bg-slate-50 p-3 rounded-lg text-sm border border-slate-100">
+                <div className="grid grid-cols-[140px_auto] gap-2 mb-2">
                   <span className="text-slate-500">Termin Pembayaran:</span>
                   <span className="font-medium text-slate-900">{detail.paymentTerms}</span>
                 </div>
-                <div className="grid grid-cols-[160px_auto] gap-3">
+                <div className="grid grid-cols-[140px_auto] gap-2">
                   <span className="text-slate-500">Status Pengiriman:</span>
                   <span className="font-medium text-slate-900">{detail.deliveryStatus}</span>
                 </div>
@@ -203,26 +205,22 @@ export function PurchaseOrderDetailPage() {
             </div>
             
             <div className="w-[45%]">
-              <div className="flex justify-between items-center py-3 px-4">
-                <span className="text-base text-slate-600 font-medium">Subtotal</span>
-                <span className="text-base font-bold text-slate-900">{formatRp(calcTotal(detail.items))}</span>
+              <div className="flex justify-between items-center py-2 px-3">
+                <span className="text-sm text-slate-600 font-medium">Subtotal</span>
+                <span className="text-sm font-bold text-slate-900">{formatRp(calcTotal(detail.items))}</span>
               </div>
-              <div className="flex justify-between items-center py-5 px-5 bg-slate-50 rounded-lg border border-slate-100 mt-2">
-                <span className="text-lg font-bold text-slate-900">Grand Total</span>
-                <span className="text-2xl font-bold text-slate-900">{formatRp(calcTotal(detail.items))}</span>
+              <div className="flex justify-between items-center py-3 px-4 bg-slate-50 rounded-lg border border-slate-100 mt-2">
+                <span className="text-base font-bold text-slate-900">Grand Total</span>
+                <span className="text-xl font-bold text-slate-900">{formatRp(calcTotal(detail.items))}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-auto pt-20 flex justify-between">
+          <div className="mt-20 flex justify-end">
             <div className="text-center">
-              <p className="text-sm text-slate-500 mb-24">Terima kasih atas kerja sama Anda.</p>
-              <div className="text-xs text-slate-400">Dokumen ini dihasilkan oleh Sistem ERP PT Pratama Jaya</div>
-            </div>
-            <div className="text-center">
-              <p className="text-base text-slate-600 mb-24">Hormat Kami,</p>
-              <p className="text-base font-bold text-slate-900">PT PRATAMA JAYA</p>
-              <p className="text-sm text-slate-500 mt-1.5">Purchasing Department</p>
+              <p className="text-sm text-slate-600 mb-24">Hormat Kami,</p>
+              <p className="text-sm font-bold text-slate-900">PT PRATAMA JAYA</p>
+              <p className="text-xs text-slate-500 mt-1">Purchasing Department</p>
             </div>
           </div>
         </div>

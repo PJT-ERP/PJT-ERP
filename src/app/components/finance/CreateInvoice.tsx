@@ -96,7 +96,7 @@ export function CreateInvoice() {
   });
 
   // Filter out already invoiced SOs
-  const invoicedSoNumbers = new Set(invoices.map(inv => inv.soNumber));
+  const invoicedSoNumbers = new Set((invoices || []).map(inv => inv.soNumber));
   allCandidates = allCandidates.filter(c => !invoicedSoNumbers.has(c.salesOrderNumber) && c.status !== 'Invoiced');
 
   const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO);
