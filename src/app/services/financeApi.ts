@@ -224,7 +224,9 @@ export const financeApi = {
     if (request.notes) formData.append('notes', request.notes);
     if (request.proofFile) formData.append('proofFile', request.proofFile);
 
-    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, formData);
+    const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, formData, {
+      timeout: 120000,
+    });
     return response.data;
   },
 
@@ -266,7 +268,9 @@ export const financeApi = {
     if (request.notes) formData.append('notes', request.notes);
     if (request.proofFile) formData.append('proofFile', request.proofFile);
 
-    const response = await apiClient.post<SupplierPaymentDto>('/api/v1/finance/supplier-payments', formData);
+    const response = await apiClient.post<SupplierPaymentDto>('/api/v1/finance/supplier-payments', formData, {
+      timeout: 120000,
+    });
     return response.data;
   },
 

@@ -64,14 +64,13 @@ export function FinancePoDetail() {
           setDetail(po);
           const payment = paymentsRes.find(p => p.poNumber === po.id);
           if (payment?.proofFileUrl) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+            // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
             const url = payment.proofFileUrl.startsWith('http') 
               ? payment.proofFileUrl 
-              : `${baseUrl}${payment.proofFileUrl}`;
+              : payment.proofFileUrl;
             setProofFileUrl(url);
           } else if (payment?.proofFileName) {
-            // Mock URL for display
-            setProofFileUrl(`/assets/uploads/${payment.proofFileName}`);
+            setProofFileUrl(`/proofs/${payment.proofFileName}`);
           }
         } else {
           setDetail(null);
@@ -109,13 +108,13 @@ export function FinancePoDetail() {
           setDetail(refreshedPo);
           const payment = paymentsRes.find(p => p.poNumber === refreshedPo.id);
           if (payment?.proofFileUrl) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+            // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
             const url = payment.proofFileUrl.startsWith('http') 
               ? payment.proofFileUrl 
-              : `${baseUrl}${payment.proofFileUrl}`;
+              : payment.proofFileUrl;
             setProofFileUrl(url);
           } else if (payment?.proofFileName) {
-            setProofFileUrl(`/assets/uploads/${payment.proofFileName}`);
+            setProofFileUrl(`/proofs/${payment.proofFileName}`);
           }
         }
     } catch (error) {

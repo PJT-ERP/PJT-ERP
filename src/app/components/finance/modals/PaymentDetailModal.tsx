@@ -26,11 +26,11 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 
   const getFullProofUrl = () => {
     if (!payment.proofFileUrl) return '';
-    let baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000';
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+    if (payment.proofFileUrl.startsWith('http')) return payment.proofFileUrl;
+    // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
     let proofPath = payment.proofFileUrl;
     if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
-    return payment.proofFileUrl.startsWith('http') ? payment.proofFileUrl : `${baseUrl}${proofPath}`;
+    return proofPath;
   };
 
   const openProof = () => {
