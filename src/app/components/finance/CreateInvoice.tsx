@@ -34,7 +34,7 @@ const newItem = (): LineItem => ({
 export function CreateInvoice() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { invoiceCandidates, refresh } = useFinanceData();
+  const { invoiceCandidates, invoices, refresh } = useFinanceData();
   const { salesOrders } = useApp();
 
   const [selectedSO, setSelectedSO] = useState(searchParams.get('so') || '');
@@ -88,14 +88,18 @@ export function CreateInvoice() {
     }));
 
   // Merge unique candidates
-  const allCandidates = [...invoiceCandidates];
+  let allCandidates = [...invoiceCandidates];
   localBypassedCandidates.forEach(local => {
     if (!allCandidates.find(c => c.salesOrderId === local.salesOrderId)) {
       allCandidates.push(local as any);
     }
   });
 
-  const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO && candidate.status !== 'Invoiced');
+  // Filter out already invoiced SOs
+  const invoicedSoNumbers = new Set(invoices.map(inv => inv.soNumber));
+  allCandidates = allCandidates.filter(c => !invoicedSoNumbers.has(c.salesOrderNumber) && c.status !== 'Invoiced');
+
+  const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO);
   
   // Unified data for display
   const displayCustomer = activeCandidate ? {
