@@ -18,7 +18,7 @@ export function ProductsPage() {
   const { inventoryItems } = usePurchasingData();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 10; // Force reload
   
   const [selectedProduct, setSelectedProduct] = useState<ProductDto | null>(null);
   const [isEditingBom, setIsEditingBom] = useState(false);

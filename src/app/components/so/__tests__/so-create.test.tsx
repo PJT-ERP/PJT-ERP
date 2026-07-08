@@ -35,7 +35,18 @@ describe('SOCreate Component', () => {
     vi.mocked(useApp).mockReturnValue({
       customers: [{ code: 'CUST-001', name: 'PT Maju Jaya', contactPerson: 'Budi', phone: '0812', email: 'budi@maju.com', address: 'Jakarta', contact: 'budi@maju.com' }],
       productCatalog: mockProductCatalog,
-      salesOrders: [],
+      salesOrders: [
+        {
+          id: 'so-1',
+          soNumber: 'SO-2026-001',
+          customerId: 'CUST-001',
+          description: 'Test Repeat',
+          estimatedAmount: 5000,
+          items: [
+            { productId: 'prod-1', productName: 'PART-001', qty: 10, unitPrice: 0 }
+          ]
+        }
+      ],
       currentUser: { id: 'u1', role: 'Sales', name: 'Sales Staff' },
       users: [],
       updateSalesOrder: vi.fn(),
@@ -91,5 +102,31 @@ describe('SOCreate Component', () => {
     render(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => expect(screen.getByText('Penetapan Harga')).toBeInTheDocument());
+  });
+  it('autofills unit price (harga satuan) for repeat orders', async () => {
+    render(<SOCreate onNavigate={onNavigate} />);
+    
+    // Select Repeat Order
+    fireEvent.click(screen.getByText('Repeat Order'));
+    
+    // Ensure customer is selected
+    const customerSelect = screen.getByPlaceholderText('Cari nama, kode, atau PIC pelanggan...');
+    fireEvent.change(customerSelect, { target: { value: 'CUST-001' } });
+    fireEvent.click(screen.getByText('PT Maju Jaya')); // Select the dropdown option
+    
+    // Select previous SO
+    const soSelect = await screen.findByText('— Pilih SO untuk di-repeat —');
+    fireEvent.change(soSelect.closest('select')!, { target: { value: 'so-1' } });
+    
+    // Look for the autofilled inputs (Quantity and Unit Price)
+    // The mock data has totalEstimated = 5000, totalItemQty = 10 -> unit price = 500
+    await waitFor(() => {
+      const inputs = screen.getAllByRole('textbox'); // actually qty and price might be type="number" or handled by CurrencyInput
+      const qtyInputs = screen.getAllByDisplayValue('10');
+      const priceInputs = screen.getAllByDisplayValue('500');
+      
+      expect(qtyInputs.length).toBeGreaterThan(0);
+      expect(priceInputs.length).toBeGreaterThan(0);
+    });
   });
 });

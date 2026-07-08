@@ -115,7 +115,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const [repeatForm, setRepeatForm] = useState<RepeatForm>({
-    customerId: initialData?.customerId || "", previousSoId: initialData?.soId || "", deadline: today, generalNotes: "", estimatedAmount: 0
+    customerId: initialData?.customerId || "", previousSoId: initialData?.soId || "", deadline: "", generalNotes: "", estimatedAmount: 0
   });
 
   const [repeatProducts, setRepeatProducts] = useState<ProductRow[]>([]);
@@ -237,7 +237,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     setSubmitted(false); setOrderType(null); setGeneratedSONumber("");
     setIsExistingCustomer(false);
     setCustomerForm({ customerCode: "", customerName: "", company: "", phone: "", email: "", address: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
-    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: today, generalNotes: "", estimatedAmount: 0 });
+    setProducts([emptyProduct()]); setRepeatForm({ customerId: "", previousSoId: "", deadline: "", generalNotes: "", estimatedAmount: 0 });
     setRepeatProducts([]);
   };
 

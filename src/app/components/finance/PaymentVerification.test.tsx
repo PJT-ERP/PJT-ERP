@@ -91,4 +91,54 @@ describe('PaymentVerification Component', () => {
 
     expect(financeApi.verifyPaymentProof).toHaveBeenCalledWith('pay-1');
   });
+
+  it('calls financeApi.rejectPaymentProof when Tolak flow is completed in modal', async () => {
+    const mockRefresh = vi.fn();
+    vi.mocked(useFinanceData).mockReturnValue({
+      payments: [
+        {
+          id: 'pay-2',
+          invoiceId: 'inv-2',
+          invoiceNumber: 'INV-1002',
+          customerName: 'Test Customer B',
+          paymentDate: '2026-06-11',
+          amount: 2000000,
+          status: 'PENDING',
+        }
+      ],
+      invoices: [],
+      refresh: mockRefresh,
+      isLoading: false,
+    } as any);
+
+    const { financeApi } = await import('../../services/financeApi');
+    const { fireEvent, waitFor } = await import('@testing-library/react');
+    
+    render(<PaymentVerification />);
+
+    // Click the card to open the modal
+    const cardTitle = screen.getByText('Test Customer B');
+    fireEvent.click(cardTitle);
+
+    // Modal should be open. Wait for it.
+    const modalTitle = await screen.findByText('Detail Pembayaran');
+    expect(modalTitle).toBeInTheDocument();
+
+    // Click Tolak in the modal.
+    const allTolakBtns2 = await screen.findAllByRole('button', { name: /Tolak/i });
+    fireEvent.click(allTolakBtns2[allTolakBtns2.length - 1]);
+    
+    // Now textarea should be visible
+    const reasonInput = await screen.findByPlaceholderText(/wajib diisi/i);
+    fireEvent.change(reasonInput, { target: { value: 'Bukti transfer buram' } });
+
+    // Click confirm
+    const confirmBtn = screen.getByRole('button', { name: /Konfirmasi Penolakan/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(financeApi.rejectPaymentProof).toHaveBeenCalledWith('pay-2', 'Bukti transfer buram');
+      expect(mockRefresh).toHaveBeenCalled();
+    });
+  });
 });
