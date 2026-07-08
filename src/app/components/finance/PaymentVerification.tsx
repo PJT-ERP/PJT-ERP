@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon:
 export function PaymentVerification() {
   const { payments: financePayments, invoices, refresh, isLoading } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
-  const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL' | 'OVERDUE'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState<Invoice | null>(null);
@@ -92,7 +92,9 @@ export function PaymentVerification() {
     ? unpaidInvoices
     : filterStatus === 'PENDING'
       ? unpaidMenunggu
-      : [];
+      : filterStatus === 'OVERDUE'
+        ? unpaidOverdue
+        : [];
 
   const displayedPendingPayments = (filterStatus === 'ALL' || filterStatus === 'PENDING')
     ? pendingPayments
@@ -141,6 +143,7 @@ export function PaymentVerification() {
           {[
             { key: 'ALL', label: 'Semua' },
             { key: 'PENDING', label: 'Menunggu' },
+            { key: 'OVERDUE', label: 'Overdue' },
             { key: 'VERIFIED', label: 'Terverifikasi' },
             { key: 'REJECTED', label: 'Ditolak' },
           ].map((tab) => {
@@ -148,13 +151,15 @@ export function PaymentVerification() {
               ? paymentData.length + unpaidInvoices.length
               : tab.key === 'PENDING'
                 ? paymentData.filter(p => p.status === 'PENDING').length + unpaidMenunggu.length
-                : paymentData.filter(p => p.status === tab.key).length;
+                : tab.key === 'OVERDUE'
+                  ? unpaidOverdue.length
+                  : paymentData.filter(p => p.status === tab.key).length;
                 
             const isActive = filterStatus === tab.key;
             return (
               <button
                 key={tab.key}
-                onClick={() => setFilterStatus(tab.key as PaymentStatus | 'ALL')}
+                onClick={() => setFilterStatus(tab.key as PaymentStatus | 'ALL' | 'OVERDUE')}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
                   isActive
                     ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-200'
