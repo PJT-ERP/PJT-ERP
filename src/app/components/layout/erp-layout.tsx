@@ -112,7 +112,15 @@ export function ERPLayout() {
 
   // Create breadcrumb from URL path
   const paths = location.pathname.split("/").filter(Boolean);
-  const breadcrumb = paths.slice(1); // skip "erp"
+  const breadcrumb = paths.slice(1).map(crumb => {
+    if (crumb.length >= 10) { // Enough to match UUIDs or backend IDs
+      const so = salesOrders?.find(s => s.backendId === crumb || s.id.replace(/-/g, '') === crumb || s.id === crumb);
+      if (so) return so.id;
+      const pr = purchasingRequests?.find(p => p.backendId === crumb || p.id === crumb);
+      if (pr) return pr.id;
+    }
+    return crumb;
+  });
 
   const SidebarContent = () => (
     <>
