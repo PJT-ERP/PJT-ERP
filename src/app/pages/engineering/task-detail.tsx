@@ -17,7 +17,7 @@ const S = {
   border: "#E2E8F0",
   bg: "#F8FAFC",
   white: "#FFFFFF",
-  cardBorder: "#E2E8F0",
+  cardBorder: "#E2E8F0", // Force reload for category dropdown
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -144,6 +144,13 @@ export function EngineeringTaskDetailPage() {
   const [completedAsSpv, setCompletedAsSpv] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
 
+  const existingCategories = React.useMemo(() => {
+    const standardCats = ['Project', 'Consumable', 'Tools', 'Asset', 'Maintenance'];
+    const cats = new Set([...standardCats, ...inventoryItems.map(i => i.category).filter(Boolean)]);
+    return Array.from(cats);
+  }, [inventoryItems]);
+  const defaultCategory = 'Project';
+
   useEffect(() => {
     masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
   }, []);
@@ -213,10 +220,11 @@ export function EngineeringTaskDetailPage() {
 
   const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
 
+
   const addMaterial = (itemId: string) => {
     setItemMaterials(prev => ({
       ...prev,
-      [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: '', quantity: 0, unit: '', spec: '', inventoryItemId: '' }]
+      [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: '', quantity: 0, unit: '', spec: '', inventoryItemId: '', category: defaultCategory }]
     }));
   };
   const removeMaterial = (itemId: string, mId: string) => {
@@ -281,7 +289,7 @@ export function EngineeringTaskDetailPage() {
                 const created = await masterDataApi.createInventoryItem({
                   code: "",
                   name: m.name.trim(),
-                  category: 'Engineering',
+                  category: m.category || 'Engineering',
                   unit: m.unit || 'pcs',
                   currentStock: 0,
                   minStock: 0,
@@ -806,21 +814,33 @@ export function EngineeringTaskDetailPage() {
                                   <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC" }} />
                                   <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
                                   {!m.inventoryItemId ? (
-                                    <select
-                                      value={m.unit || 'pcs'}
-                                      onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
-                                      disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
-                                      style={{ width: 100, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || isWaitingCustomerDesign || isDoingSpvApproval) ? "not-allowed" : "pointer" }}
-                                    >
-                                      <option value="pcs">Pcs</option>
-                                      <option value="unit">Unit</option>
-                                      <option value="set">Set</option>
-                                      <option value="kg">Kg</option>
-                                      <option value="meter">Meter</option>
-                                      <option value="liter">Liter</option>
-                                      <option value="roll">Roll</option>
-                                      <option value="lembar">Lembar</option>
-                                    </select>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      <select
+                                        value={m.category || defaultCategory}
+                                        onChange={e => updateMaterial(item.id, m.id, 'category', e.target.value)}
+                                        disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
+                                        style={{ width: 130, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || isWaitingCustomerDesign || isDoingSpvApproval) ? "not-allowed" : "pointer" }}
+                                      >
+                                        {existingCategories.map(cat => (
+                                          <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        value={m.unit || 'pcs'}
+                                        onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
+                                        disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
+                                        style={{ width: 90, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || isWaitingCustomerDesign || isDoingSpvApproval) ? "not-allowed" : "pointer" }}
+                                      >
+                                        <option value="pcs">Pcs</option>
+                                        <option value="unit">Unit</option>
+                                        <option value="set">Set</option>
+                                        <option value="kg">Kg</option>
+                                        <option value="meter">Meter</option>
+                                        <option value="liter">Liter</option>
+                                        <option value="roll">Roll</option>
+                                        <option value="lembar">Lembar</option>
+                                      </select>
+                                    </div>
                                   ) : (
                                     <input
                                       type="text"
