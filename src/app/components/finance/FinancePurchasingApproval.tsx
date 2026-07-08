@@ -259,6 +259,7 @@ export function FinancePurchasingApproval() {
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Tagihan</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status Pembayaran</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
@@ -272,6 +273,7 @@ export function FinancePurchasingApproval() {
                         <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
                         <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
                         <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
+                        <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
                         <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
                         <td className="px-5 py-4 text-center">
                           {po.paymentStatus !== 'Paid' ? (
@@ -292,9 +294,9 @@ export function FinancePurchasingApproval() {
                       </tr>
                     );
                   })}
-                  {filteredPos.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td></tr>
-                  )}
+                    {filteredPos.length === 0 && (
+                      <tr><td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td></tr>
+                    )}
                 </tbody>
               </table>
             </div>

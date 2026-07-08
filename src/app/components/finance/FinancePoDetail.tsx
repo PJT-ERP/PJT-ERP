@@ -209,6 +209,7 @@ export function FinancePoDetail() {
             </div>
             <p className="text-sm text-slate-500 m-0">
               Supplier: <strong>{detail.supplier}</strong> · Tgl Order: {detail.orderDate}
+              {detail.soRefs?.length > 0 && <span className="ml-2">· SO: <strong>{detail.soRefs.join(", ")}</strong></span>}
             </p>
           </div>
           
@@ -231,10 +232,16 @@ export function FinancePoDetail() {
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Termin Pembayaran</p>
                    <p className="text-sm text-slate-900 mt-1 font-bold">{detail.paymentTerms}</p>
                  </div>
-                 <div className="col-span-2">
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Referensi</p>
-                   <p className="text-sm text-slate-900 mt-1 font-medium">{detail.requestRefs.join(", ")}</p>
-                 </div>
+                  <div className="col-span-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Referensi PR</p>
+                    <p className="text-sm text-slate-900 mt-1 font-medium">{detail.requestRefs.join(", ")}</p>
+                  </div>
+                  {detail.soRefs?.length > 0 && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Referensi SO</p>
+                    <p className="text-sm text-slate-900 mt-1 font-medium">{detail.soRefs.join(", ")}</p>
+                  </div>
+                  )}
               </div>
             </div>
           </div>
