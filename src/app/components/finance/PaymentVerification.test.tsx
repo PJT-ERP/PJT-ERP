@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PaymentVerification } from './PaymentVerification';
 import { useFinanceData } from './useFinanceData';
@@ -87,7 +87,22 @@ describe('PaymentVerification Component', () => {
 
     const verifyBtns = screen.getAllByRole('button', { name: /Verifikasi/i });
     const verifyActionBtn = verifyBtns.find(btn => btn.textContent?.includes('Verifikasi') && !btn.textContent?.includes('Menunggu'));
-    verifyActionBtn?.click();
+    if (verifyActionBtn) {
+      fireEvent.click(verifyActionBtn); // Opens modal
+    }
+
+    // Wait for modal to open
+    const modalTitle = await screen.findByText('Detail Pembayaran');
+    expect(modalTitle).toBeInTheDocument();
+
+    const allVerifikasiBtns = screen.getAllByRole('button', { name: 'Verifikasi' });
+    // The button inside the modal is the last one rendered in the DOM
+    const exactVerifyBtn = allVerifikasiBtns[allVerifikasiBtns.length - 1];
+    fireEvent.click(exactVerifyBtn); // Enters verify mode
+
+    // Wait for confirmation button to appear
+    const confirmBtn = await screen.findByRole('button', { name: /Ya, Verifikasi/i });
+    fireEvent.click(confirmBtn);
 
     expect(financeApi.verifyPaymentProof).toHaveBeenCalledWith('pay-1');
   });

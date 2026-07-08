@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon:
 export function PaymentVerification() {
   const { payments: financePayments, invoices, refresh, isLoading } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
-  const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL' | 'OVERDUE'>('ALL');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState<Invoice | null>(null);
@@ -70,6 +70,7 @@ export function PaymentVerification() {
       const rem = getRemainingAmount(invoice);
       if (rem <= 0) return false;
       if (hasRecordedPayment(invoice)) return false;
+      if (pendingPayments.some(p => p.invoiceId === invoice.id)) return false;
       return true;
     })
     .sort((a, b) => {
@@ -84,6 +85,21 @@ export function PaymentVerification() {
       return next;
     });
   };
+
+  const unpaidMenunggu = unpaidInvoices.filter(inv => !inv.dueDate || inv.dueDate >= todayStr);
+  const unpaidOverdue = unpaidInvoices.filter(inv => inv.dueDate && inv.dueDate < todayStr);
+
+  const displayedUnpaidInvoices = filterStatus === 'ALL'
+    ? unpaidInvoices
+    : filterStatus === 'PENDING'
+      ? unpaidMenunggu
+      : filterStatus === 'OVERDUE'
+        ? unpaidOverdue
+        : [];
+
+  const displayedPendingPayments = (filterStatus === 'ALL' || filterStatus === 'PENDING')
+    ? pendingPayments
+    : [];
 
   const historyPayments = filteredPayments.filter(payment => payment.status !== 'PENDING');
 
@@ -128,15 +144,23 @@ export function PaymentVerification() {
           {[
             { key: 'ALL', label: 'Semua' },
             { key: 'PENDING', label: 'Menunggu' },
+            { key: 'OVERDUE', label: 'Overdue' },
             { key: 'VERIFIED', label: 'Terverifikasi' },
             { key: 'REJECTED', label: 'Ditolak' },
           ].map((tab) => {
-            const count = tab.key === 'ALL' ? paymentData.length : paymentData.filter(p => p.status === tab.key).length;
+            const count = tab.key === 'ALL' 
+              ? paymentData.length + unpaidInvoices.length
+              : tab.key === 'PENDING'
+                ? paymentData.filter(p => p.status === 'PENDING').length + unpaidMenunggu.length
+                : tab.key === 'OVERDUE'
+                  ? unpaidOverdue.length
+                  : paymentData.filter(p => p.status === tab.key).length;
+                
             const isActive = filterStatus === tab.key;
             return (
               <button
                 key={tab.key}
-                onClick={() => setFilterStatus(tab.key as PaymentStatus | 'ALL')}
+                onClick={() => setFilterStatus(tab.key as PaymentStatus | 'ALL' | 'OVERDUE')}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
                   isActive
                     ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-200'
@@ -155,17 +179,17 @@ export function PaymentVerification() {
         </div>
 
         {/* Pending Payments Section */}
-        {pendingPayments.length > 0 && (
+        {displayedPendingPayments.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                 <h2 className="text-lg font-bold text-slate-900">Pembayaran Baru</h2>
-                <span className="text-sm text-slate-400">({pendingPayments.length})</span>
+                <span className="text-sm text-slate-400">({displayedPendingPayments.length})</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingPayments.map(payment => (
+              {displayedPendingPayments.map(payment => (
                 <div
                   key={payment.id}
                   onClick={() => setSelectedPayment(payment)}
@@ -183,7 +207,7 @@ export function PaymentVerification() {
                   <div className="space-y-2 text-xs text-slate-500">
                     <div className="flex justify-between">
                       <span>Invoice</span>
-                      <span className="font-medium text-slate-700">{payment.invoiceNumber}</span>
+                      <span className="font-medium text-slate-700">{payment.invoiceNumber}{payment.soNumber ? ` (${payment.soNumber})` : ''}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tanggal Bayar</span>
@@ -199,7 +223,7 @@ export function PaymentVerification() {
                   </div>
                   <div className="mt-4 flex gap-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); void handleVerify(payment.id); }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedPayment(payment); }}
                       className="flex-1 flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg py-2.5 text-xs font-bold transition-colors"
                     >
                       <CheckCircle2 size={13} /> Verifikasi
@@ -218,17 +242,17 @@ export function PaymentVerification() {
         )}
 
         {/* Unpaid Invoices Section */}
-        {unpaidInvoices.length > 0 && (
+        {displayedUnpaidInvoices.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                 <h2 className="text-lg font-bold text-slate-900">Invoice Belum Dibayar</h2>
-                <span className="text-sm text-slate-400">({unpaidInvoices.length})</span>
+                <span className="text-sm text-slate-400">({displayedUnpaidInvoices.length})</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {unpaidInvoices.map(invoice => (
+              {displayedUnpaidInvoices.map(invoice => (
                 <div
                   key={invoice.id}
                   className="group bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-red-300 hover:shadow-md p-5 cursor-pointer transition-all duration-200"
@@ -236,7 +260,7 @@ export function PaymentVerification() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="font-bold text-slate-800">{invoice.customerName}</p>
-                      <p className="text-sm text-slate-500">{invoice.invoiceNumber}</p>
+                      <p className="text-sm text-slate-500">{invoice.invoiceNumber}{invoice.soNumber ? ` • ${invoice.soNumber}` : ''}</p>
                     </div>
                     {invoice.dueDate && invoice.dueDate < todayStr ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
@@ -308,7 +332,7 @@ export function PaymentVerification() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800 text-sm truncate">{payment.customerName}</p>
-                        <p className="text-xs text-slate-400 truncate">{payment.invoiceNumber} • {formatDate(payment.paymentDate)}</p>
+                        <p className="text-xs text-slate-400 truncate">{payment.invoiceNumber}{payment.soNumber ? ` • ${payment.soNumber}` : ''} • {formatDate(payment.paymentDate)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -325,7 +349,7 @@ export function PaymentVerification() {
         )}
 
         {/* Empty State */}
-        {paymentData.length === 0 && (
+        {paymentData.length === 0 && unpaidInvoices.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <ShieldCheck size={32} className="text-slate-300" />

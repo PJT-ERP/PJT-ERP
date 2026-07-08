@@ -112,7 +112,15 @@ export function ERPLayout() {
 
   // Create breadcrumb from URL path
   const paths = location.pathname.split("/").filter(Boolean);
-  const breadcrumb = paths.slice(1); // skip "erp"
+  const breadcrumb = paths.slice(1).map(crumb => {
+    if (crumb.length >= 10) { // Enough to match UUIDs or backend IDs
+      const so = salesOrders?.find(s => s.backendId === crumb || s.id.replace(/-/g, '') === crumb || s.id === crumb);
+      if (so) return so.id;
+      const pr = purchasingRequests?.find(p => p.backendId === crumb || p.id === crumb);
+      if (pr) return pr.id;
+    }
+    return crumb;
+  });
 
   const SidebarContent = () => (
     <>
@@ -359,7 +367,7 @@ export function ERPLayout() {
       {/* Slide-over Notifikasi */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col border-l border-slate-200",
+          "fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col border-l border-slate-200 print:hidden",
           isNotifOpen ? "translate-x-0" : "translate-x-full"
         )}
       >

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../../components/data/mockData";
 import { salesApi } from "../../services/salesApi";
 import { masterDataApi, InventoryItemDto } from "../../services/masterDataApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 
 const S = {
   font: "Inter, sans-serif",
@@ -75,7 +76,7 @@ function MaterialAutocomplete({
   );
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column" }}>
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column", zIndex: isOpen ? 999 : "auto" }}>
       <input
         value={value}
         onChange={e => {
@@ -98,10 +99,10 @@ function MaterialAutocomplete({
       />
       {isOpen && !disabled && filtered.length > 0 && (
         <div style={{
-          position: "absolute", left: 0, right: 0, zIndex: 50,
+          position: "absolute", left: 0, right: 0, zIndex: 999,
           ...(direction === 'down' ? { top: "100%", marginTop: 4 } : { bottom: "100%", marginBottom: 4 }),
           background: "#fff", border: `1px solid ${S.border}`,
-          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+          borderRadius: 8, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)",
           maxHeight: 280, overflowY: "auto", overflowX: "hidden"
         }}>
           {filtered.map(p => (
@@ -134,7 +135,7 @@ export function EngineeringTaskDetailPage() {
   const navigate = useNavigate();
   const { salesOrders, updateSalesOrder, customers, currentUser, refreshBackendData, productCatalog } = useApp();
   
-  const qut = salesOrders.find(so => so.id === id);
+  const qut = salesOrders.find(so => so.id === id || so.backendId === id || so.id.replace(/-/g, '') === id);
 
   const [designLink, setDesignLink] = useState('');
   const [itemMaterials, setItemMaterials] = useState<Record<string, any[]>>({});
@@ -184,6 +185,92 @@ export function EngineeringTaskDetailPage() {
       setLocalRejectionReason(qut.rejectionReason);
     }
   }, [qut]);
+
+  const newMaterials = React.useMemo(() => {
+    const result: { name: string; spec: string }[] = [];
+    if (!qut) return result;
+    const seen = new Set<string>();
+    for (const item of qut.items || []) {
+      const mats = itemMaterials[item.id] || [];
+      for (const m of mats) {
+        if (!m.name?.trim()) continue;
+        const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
+        if (seen.has(key)) continue;
+        const matchedByName = inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+        // Material is "new" if: no inventoryItemId, OR the ID doesn't match any existing item by name
+        const isNew = !m.inventoryItemId || !matchedByName || matchedByName.id !== m.inventoryItemId;
+        if (isNew) {
+          seen.add(key);
+          result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
+        }
+      }
+    }
+    return result;
+  }, [qut, itemMaterials, inventoryItems]);
+
+  const hasDuplicateMaterials = qut?.items?.some(item => {
+    const mats = itemMaterials[item.id] || [];
+    const productInCatalog = productCatalog.find(p => p.id === item.productId);
+    const isStandardProduct = !!productInCatalog?.bomItems?.length;
+    const standardBomItems = productInCatalog?.bomItems || [];
+    
+    // Check duplicates inside mats, including specification
+    const hasInternalDupe = mats.some((m, idx) => {
+      if (!m.name.trim()) return false;
+      return mats.findIndex(x => {
+        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
+          ? x.inventoryItemId === m.inventoryItemId 
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase();
+        const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
+        return isSameItem && isSameSpec;
+      }) !== idx;
+    });
+    
+    return hasInternalDupe;
+  }) || false;
+
+  const hasCategoryConflict = qut?.items?.some(item => {
+    const mats = itemMaterials[item.id] || [];
+    return mats.some(m => {
+      if (!m.name.trim()) return false;
+      return mats.some(x => {
+        if (x.id === m.id) return false;
+        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
+          ? x.inventoryItemId === m.inventoryItemId 
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+        return isSameItem && x.category !== m.category;
+      });
+    });
+  }) || false;
+
+  const prevDuplicate = React.useRef(false);
+  const prevCategoryConflict = React.useRef(false);
+
+  // Determine if the current user can process this task
+  const isEditable = qut && (
+    qut.status === 'Pending Design' || 
+    qut.status === 'Revision Required' || 
+    (qut.status === 'Waiting Pricing' && (currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv')))
+  );
+
+  React.useEffect(() => {
+    if (isEditable) {
+      if (hasDuplicateMaterials && !prevDuplicate.current) {
+        toast.warning("Terdapat material duplikat dengan spesifikasi yang sama persis di dalam daftar BOM. Mohon periksa kembali.", {
+          duration: Infinity,
+          closeButton: true,
+        });
+      }
+      if (hasCategoryConflict && !prevCategoryConflict.current) {
+        toast.warning("Material yang sama tidak boleh memiliki kategori yang berbeda di dalam satu BOM. Mohon samakan kategorinya.", {
+          duration: Infinity,
+          closeButton: true,
+        });
+      }
+    }
+    prevDuplicate.current = hasDuplicateMaterials;
+    prevCategoryConflict.current = hasCategoryConflict;
+  }, [hasDuplicateMaterials, hasCategoryConflict, isEditable]);
 
   if (!qut) {
     return (
@@ -236,7 +323,15 @@ export function EngineeringTaskDetailPage() {
   const updateMaterial = (itemId: string, mId: string, field: string, value: any) => {
     setItemMaterials(prev => ({
       ...prev,
-      [itemId]: (prev[itemId] || []).map(m => m.id === mId ? { ...m, [field]: value } : m)
+      [itemId]: (prev[itemId] || []).map(m => {
+        if (m.id !== mId) return m;
+        // If the user edits the name manually, clear the inventoryItemId
+        // so the system re-checks whether this is a new or existing material.
+        if (field === 'name' && m.name !== value && m.inventoryItemId) {
+          return { ...m, name: value, inventoryItemId: '' };
+        }
+        return { ...m, [field]: value };
+      })
     }));
   };
 
@@ -456,31 +551,9 @@ export function EngineeringTaskDetailPage() {
     }
   };
 
-  const hasDuplicateMaterials = qut.items?.some(item => {
-    const mats = itemMaterials[item.id] || [];
-    const productInCatalog = productCatalog.find(p => p.id === item.productId);
-    const isStandardProduct = !!productInCatalog?.bomItems?.length;
-    const standardBomItems = productInCatalog?.bomItems || [];
-    
-    // Check duplicates inside mats, including specification
-    const hasInternalDupe = mats.some((m, idx) => {
-      return mats.findIndex(x => {
-        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
-          ? x.inventoryItemId === m.inventoryItemId 
-          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
-        const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
-        return isSameItem && isSameSpec;
-      }) !== idx;
-    });
-    
-    // Check duplicates against standard BOM (standard BOM doesn't have spec, so just check inventoryItemId)
-    const hasStandardDupe = isStandardProduct && mats.some(m => standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
-    
-    return hasInternalDupe || hasStandardDupe;
-  }) || false;
-
   const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
-  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials;
+  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict;
+
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
@@ -516,10 +589,10 @@ export function EngineeringTaskDetailPage() {
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
+                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance & Produksi)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk pembuatan Invoice, dan Supervisor sudah dapat memulai proses produksi.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={() => navigate('/erp/engineer-tasks')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
             </div>
@@ -562,6 +635,27 @@ export function EngineeringTaskDetailPage() {
                   {isDoingSpvApproval ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
                 </p>
               </div>
+              {newMaterials.length > 0 && (
+                <div style={{ background: "#FEF2F2", border: "2px solid #EF4444", borderRadius: 8, padding: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontSize: "20px" }}>⚠️</span>
+                    <p style={{ color: "#991B1B", fontSize: "14px", fontWeight: 700, margin: 0 }}>
+                      Material Baru Akan Dibuat ({newMaterials.length})
+                    </p>
+                  </div>
+                  <p style={{ color: "#7F1D1D", fontSize: "13px", margin: "0 0 12px", lineHeight: 1.5 }}>
+                    BOM ini mengandung material yang belum terdaftar di database dan akan otomatis dibuat sebagai entri baru.
+                    <strong> Harap periksa kembali — mungkin material sudah ada dengan nama yang berbeda.</strong>
+                  </p>
+                  <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #FECACA", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
+                    {newMaterials.map((m, i) => (
+                      <div key={i} style={{ fontSize: "12px", color: "#991B1B", padding: "4px 0", borderBottom: i < newMaterials.length - 1 ? "1px solid #FECACA" : "none" }}>
+                        {m.name}{m.spec ? ` (Spec: ${m.spec})` : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, display: "flex", flexDirection: "column", gap: 16, fontSize: "14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Customer</span><span style={{ color: S.slate, fontWeight: 500 }}>{customer?.name}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Qty</span><span style={{ color: S.slate, fontWeight: 500 }}>{qut.quantity} {qut.unit}</span></div>
@@ -575,12 +669,56 @@ export function EngineeringTaskDetailPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Info Grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.quantity} {qut.unit}</p></div>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.deadline}</p></div>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.createdAt.substring(0, 10)}</p></div>
+              
+              {/* Top Banner: QR & Basic Info */}
+              <div style={{ display: "flex", gap: 20 }}>
+                {/* Info Grid */}
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.quantity} {qut.unit}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.deadline || "-"}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.createdAt?.substring(0, 10) || "-"}</p></div>
+                </div>
+
+                {/* QR Code Card */}
+                <div style={{ background: S.white, padding: "20px", borderRadius: 8, border: `1px solid ${S.border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minWidth: 160 }}>
+                  {(() => {
+                    // Generate barcode UID: PJT|SO|yyyyMMdd|{id}
+                    const formattedId = (qut.backendId || qut.id).replace(/-/g, '');
+                    const dateStr = (qut.createdAt || new Date().toISOString()).substring(0, 10).replace(/-/g, '');
+                    const barcode = `PJT|SO|${dateStr}|${formattedId}`;
+                    return (
+                      <>
+                        <QRCodeCanvas id="so-qr-code" value={barcode} size={100} level="M" />
+                        <span style={{ fontSize: "10px", color: S.secondary, fontFamily: "monospace", textAlign: "center", wordBreak: "break-all" }}>
+                          {barcode}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const canvas = document.getElementById("so-qr-code") as HTMLCanvasElement;
+                            if (canvas) {
+                              const url = canvas.toDataURL("image/png");
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `QR-${qut.id}.png`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "6px", background: S.bg,
+                            border: `1px solid ${S.border}`, padding: "6px 12px", borderRadius: "6px",
+                            cursor: "pointer", color: S.slate, fontSize: "12px", fontWeight: 500,
+                            marginTop: "4px"
+                          }}
+                        >
+                          <Download size={14} /> Download QR
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               
               {/* Referensi Sales */}
@@ -785,28 +923,19 @@ export function EngineeringTaskDetailPage() {
                               <div style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: -4, marginTop: isStandardProduct ? 8 : 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                 {isStandardProduct ? "Material Tambahan (Khusus SO Ini)" : "BOM Custom"}
                               </div>
-                              {mats.map((m, idx) => (
-                                <div key={m.id} style={{ position: "relative", zIndex: 100 - idx, display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                              {mats.map((m) => (
+                                <div key={m.id} style={{ position: "relative", display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
                                   <MaterialAutocomplete 
                                     value={m.name} 
                                     onChange={val => updateMaterial(item.id, m.id, 'name', val)}
                                     onSelectProduct={p => {
-                                      const isDuplicateInCustom = mats.some(mat => {
-                                        const isSameSpec = (mat.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
-                                        return mat.id !== m.id && mat.inventoryItemId === p.id && isSameSpec;
-                                      });
-                                      const isDuplicateInStandard = isStandardProduct && standardBomItems.some(bom => bom.inventoryItemId === p.id);
-                                      
-                                      if (isDuplicateInCustom || isDuplicateInStandard) {
-                                        toast.warning(`Material "${p.name}" dengan spesifikasi yang sama sudah ada di dalam daftar BOM. Mohon periksa kembali.`, {
-                                          duration: Infinity,
-                                          closeButton: true,
-                                        });
-                                      }
-                                      
                                       updateMaterial(item.id, m.id, 'name', p.name);
                                       updateMaterial(item.id, m.id, 'unit', p.unit);
                                       updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
+                                      // Auto-sync category from master data so same material always has same category
+                                      if (p.category) {
+                                        updateMaterial(item.id, m.id, 'category', p.category);
+                                      }
                                     }}
                                     options={inventoryItems}
                                     disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} 
@@ -897,7 +1026,7 @@ export function EngineeringTaskDetailPage() {
                 {canProcess && (
                   <button onClick={() => setStep('confirm')} disabled={isSubmitDisabled}
                     style={{ flex: 2, padding: "14px", background: isSubmitDisabled ? "#FCA5A5" : S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: isSubmitDisabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s, transform 0.1s", opacity: !isSubmitDisabled ? 1 : 0.5 }}
-                    title={hasDuplicateMaterials ? "Terdapat material duplikat di dalam BOM. Mohon periksa kembali." : ""}
+                    title={hasDuplicateMaterials ? "Terdapat material duplikat di dalam BOM. Mohon periksa kembali." : hasCategoryConflict ? "Material yang sama tidak boleh memiliki kategori yang berbeda." : ""}
                     onMouseDown={e => { if(!e.currentTarget.disabled) e.currentTarget.style.transform = "scale(0.98)" }}
                     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}

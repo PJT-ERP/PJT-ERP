@@ -1,0 +1,46 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+WORKDIR /src
+ENV NUGET_XMLDOC_MODE=skip
+
+# Copy the solution file and all project files
+COPY ["PtPjtErp.sln", "./"]
+COPY ["NuGet.config", "./"]
+
+COPY ["src/ApiGateways/Web.Gateway/Web.Gateway.csproj", "src/ApiGateways/Web.Gateway/"]
+COPY ["src/Services/Finance.API/Finance.API.csproj", "src/Services/Finance.API/"]
+COPY ["src/Services/Identity.API/Identity.API.csproj", "src/Services/Identity.API/"]
+COPY ["src/Services/MasterData.API/MasterData.API.csproj", "src/Services/MasterData.API/"]
+COPY ["src/Services/Production.API/Production.API.csproj", "src/Services/Production.API/"]
+COPY ["src/Services/Purchasing.API/Purchasing.API.csproj", "src/Services/Purchasing.API/"]
+COPY ["src/Services/QC.API/QC.API.csproj", "src/Services/QC.API/"]
+
+COPY ["src/SharedLib/EventBus.Messages/EventBus.Messages.csproj", "src/SharedLib/EventBus.Messages/"]
+COPY ["src/SharedLib/Shared.Auth/Shared.Auth.csproj", "src/SharedLib/Shared.Auth/"]
+COPY ["src/SharedLib/Shared.Infrastructure/Shared.Infrastructure.csproj", "src/SharedLib/Shared.Infrastructure/"]
+COPY ["src/SharedLib/Shared.Logging/Shared.Logging.csproj", "src/SharedLib/Shared.Logging/"]
+
+COPY ["tests/Identity.API.Tests/Identity.API.Tests.csproj", "tests/Identity.API.Tests/"]
+COPY ["tests/MasterData.API.Tests/MasterData.API.Tests.csproj", "tests/MasterData.API.Tests/"]
+COPY ["tests/Services/Finance.API.Tests/Finance.API.Tests.csproj", "tests/Services/Finance.API.Tests/"]
+COPY ["tests/Services/Production.API.Tests/Production.API.Tests.csproj", "tests/Services/Production.API.Tests/"]
+COPY ["tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj", "tests/Services/Purchasing.API.Tests/"]
+COPY ["tests/Services/QC.API.Tests/QC.API.Tests.csproj", "tests/Services/QC.API.Tests/"]
+
+# Restore all projects at once
+RUN dotnet restore "PtPjtErp.sln" --disable-parallel
+
+# Copy the rest of the source code
+COPY . .
+
+# Publish the specified project
+ARG PROJECT_PATH
+RUN dotnet publish ${PROJECT_PATH} -c Release -o /app/publish /p:UseAppHost=false --no-restore
+
+# Final runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
+WORKDIR /app
+COPY --from=build /app/publish .
+
+ARG ENTRY_DLL
+ENV ENTRY_DLL=${ENTRY_DLL}
+ENTRYPOINT ["sh", "-c", "dotnet $ENTRY_DLL"]

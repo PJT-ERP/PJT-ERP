@@ -217,6 +217,11 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
                 <div className="flex items-center gap-2">
                   <Clock size={16} className="text-amber-600" />
                   <p className="text-sm font-bold text-amber-900">Menunggu Verifikasi</p>
+                  {pendingPayment.salesOrderNumber && (
+                    <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">
+                      SO: {pendingPayment.salesOrderNumber}
+                    </span>
+                  )}
                 </div>
                 <span className="text-xs bg-amber-200 text-amber-900 px-2.5 py-1 rounded-md font-bold">{formatIDR(pendingPayment.amount)}</span>
               </div>
@@ -288,7 +293,7 @@ function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerificati
                     <div className="flex items-center justify-between p-3 border-b border-emerald-100 bg-emerald-100/30">
                       <div>
                         <p className="text-xs font-semibold text-emerald-800">{vp.bankName || vp.paymentMethod} - {formatIDR(vp.amount)}</p>
-                        <p className="text-[10px] text-emerald-600 mt-0.5">{formatDate(vp.paymentDate)}</p>
+                        <p className="text-[10px] text-emerald-600 mt-0.5">{formatDate(vp.paymentDate)}{vp.salesOrderNumber ? ` \u00b7 SO: ${vp.salesOrderNumber}` : ''}</p>
                       </div>
                       <span className="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded font-medium shadow-sm">LUNAS</span>
                     </div>
