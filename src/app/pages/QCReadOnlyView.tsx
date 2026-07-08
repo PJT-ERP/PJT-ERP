@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { type SalesOrder } from "../components/data/mockData";
 import { toBackendUserId } from "../services/backendIds";
@@ -17,10 +17,12 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const getFullUrl = (url: string) => 
-  url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:') 
-    ? url 
-    : `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+const getFullUrl = (url: string) => {
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${path}`;
+};
 
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';

@@ -37,7 +37,9 @@ const S = {
 const getFullUrl = (url: string) => {
   if (!url || url === 'undefined' || url === 'null') return '';
   if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-  return `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${path}`;
 };
 
 function isGo(value?: string | null) {
