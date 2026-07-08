@@ -103,8 +103,8 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     status,
     soRef: request.salesOrderNumber || undefined,
     category: (firstItem?.purchaseCategory || "Project") as MR["category"],
-    urgency: request.items.map(item => item.notes).filter(Boolean).join("; "),
-    notes: request.items.map(item => item.notes).filter(Boolean).join("; ") || request.projectName || "",
+    urgency: Array.from(new Set(request.items.map(item => item.notes).filter(Boolean))).join("; "),
+    notes: Array.from(new Set(request.items.map(item => item.notes).filter(Boolean))).join("; ") || request.projectName || "",
     approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
     approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
     rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
@@ -436,7 +436,11 @@ export function MaterialRequestsPage() {
                     </TD>
                     <TD className="hidden sm:table-cell">
                       <p style={{ fontWeight: 500, color: "#1F1F1F" }}>{mr.requestor}</p>
-                      <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.soRef ?? "Non-project"} · {mr.department}</p>
+                      <p style={{ fontSize: 11, color: "#94a3b8" }}>
+                        {mr.soRef ?? "Non-project"}
+                        {mr.department && mr.soRef && mr.department.trim() !== mr.soRef.trim() && ` · ${mr.department}`}
+                        {mr.department && !mr.soRef && ` · ${mr.department}`}
+                      </p>
                     </TD>
                     <TD className="hidden md:table-cell">
                       <span style={{ color: "#475569" }}>{mr.date}</span>
