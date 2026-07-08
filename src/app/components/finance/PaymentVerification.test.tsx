@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PaymentVerification } from './PaymentVerification';
 import { useFinanceData } from './useFinanceData';
@@ -87,15 +87,20 @@ describe('PaymentVerification Component', () => {
 
     const verifyBtns = screen.getAllByRole('button', { name: /Verifikasi/i });
     const verifyActionBtn = verifyBtns.find(btn => btn.textContent?.includes('Verifikasi') && !btn.textContent?.includes('Menunggu'));
-    verifyActionBtn?.click(); // Opens modal
+    if (verifyActionBtn) {
+      fireEvent.click(verifyActionBtn); // Opens modal
+    }
 
-    // Inside modal, click Verifikasi to enter verify mode
-    const modalVerifyBtn = screen.getAllByRole('button', { name: /Verifikasi/i }).find(btn => btn.textContent?.trim() === 'Verifikasi');
-    modalVerifyBtn?.click();
+    // Wait for modal to open and find the internal Verifikasi button
+    const modalVerifyBtn = await screen.findByRole('button', { name: /Verifikasi/i }, { timeout: 1000 });
+    const exactVerifyBtn = screen.getAllByRole('button', { name: /Verifikasi/i }).find(btn => btn.textContent?.trim() === 'Verifikasi');
+    if (exactVerifyBtn) {
+      fireEvent.click(exactVerifyBtn); // Enters verify mode
+    }
 
-    // Click confirmation button
-    const confirmBtn = screen.getByRole('button', { name: /Ya, Verifikasi/i });
-    confirmBtn.click();
+    // Wait for confirmation button to appear
+    const confirmBtn = await screen.findByRole('button', { name: /Ya, Verifikasi/i });
+    fireEvent.click(confirmBtn);
 
     expect(financeApi.verifyPaymentProof).toHaveBeenCalledWith('pay-1');
   });

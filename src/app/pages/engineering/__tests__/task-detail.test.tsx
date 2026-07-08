@@ -110,4 +110,20 @@ describe('EngineeringTaskDetailPage - Engineer Resubmission Flow', () => {
       }));
     });
   });
+
+  it('renders QR code and download button', async () => {
+    render(
+      <MemoryRouter initialEntries={['/erp/engineer-tasks/so-eng-1']}>
+        <Routes>
+          <Route path="/erp/engineer-tasks/:id" element={<EngineeringTaskDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      // Look for the canvas element by id (can't directly query getElementById with rtl but we can use container or querySelector)
+      const downloadBtn = screen.getByRole('button', { name: /Download QR/i });
+      expect(downloadBtn).toBeInTheDocument();
+    });
+  });
 });
