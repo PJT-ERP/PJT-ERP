@@ -128,6 +128,8 @@ services:
         ENTRY_DLL: Finance.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_finance_proofs:/app/wwwroot/proofs
     expose:
       - "8080"
     depends_on:
@@ -205,5 +207,6 @@ services:
 volumes:
   pjt_prod_db:
   pjt_qc_photos:
+  pjt_finance_proofs:
   npm_data:
   npm_letsencrypt:
