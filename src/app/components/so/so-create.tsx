@@ -135,7 +135,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         }));
 
         if (selectedSo.items && selectedSo.items.length > 0) {
-          const totalItemQty = selectedSo.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+          const totalItemQty = selectedSo.items.reduce((sum: number, item: any) => sum + (item.quantity || item.qty || 0), 0);
           const totalEstimated = selectedSo.estimatedAmount || 0;
 
           const mappedProducts = selectedSo.items.map((item: any, idx: number) => {
@@ -150,14 +150,15 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 id: b.inventoryItemId,
                 name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
                 specification: "",
-                quantity: String(b.quantity),
+                quantity: String(b.quantity || b.qty),
                 unit: b.unit,
               })) : [];
             }
 
+            const itemQty = item.quantity || item.qty || 1;
             let unitPrice = item.unitPrice || 0;
-            if (unitPrice === 0 && totalItemQty > 0 && totalEstimated > 0 && (item.quantity || 0) > 0) {
-              unitPrice = Math.floor((totalEstimated * (item.quantity || 1)) / totalItemQty);
+            if (unitPrice === 0 && totalItemQty > 0 && totalEstimated > 0) {
+              unitPrice = Math.floor(totalEstimated / totalItemQty);
             }
 
             return {
@@ -165,7 +166,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               type: (matchedProduct ? "existing" : "custom") as "existing" | "custom",
               productName: matchedProduct ? matchedProduct.label : (item.productName || itemPartNumber || selectedSo.description || `Item ${idx + 1}`),
               customName: item.productName || selectedSo.description,
-              quantity: String(item.quantity || 1),
+              quantity: String(itemQty),
               unit: item.unit || "PCS",
               unitPrice,
               materials,
