@@ -31,6 +31,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/proofs': 'http://localhost:5000',
+      '/qc-photos': 'http://localhost:5000',
+    }
+  },
   test: {
     globals: true,
     environment: 'jsdom',

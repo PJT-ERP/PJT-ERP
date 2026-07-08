@@ -223,7 +223,7 @@ export function PaymentVerification() {
                   </div>
                   <div className="mt-4 flex gap-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); void handleVerify(payment.id); }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedPayment(payment); }}
                       className="flex-1 flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg py-2.5 text-xs font-bold transition-colors"
                     >
                       <CheckCircle2 size={13} /> Verifikasi
