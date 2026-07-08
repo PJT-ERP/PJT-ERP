@@ -672,6 +672,14 @@ export function EngineeringTaskDetailPage() {
               
               {/* Top Banner: QR & Basic Info */}
               <div style={{ display: "flex", gap: 20 }}>
+                {/* Info Grid */}
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.quantity} {qut.unit}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.deadline || "-"}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.createdAt?.substring(0, 10) || "-"}</p></div>
+                </div>
+
                 {/* QR Code Card */}
                 <div style={{ background: S.white, padding: "20px", borderRadius: 8, border: `1px solid ${S.border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minWidth: 160 }}>
                   {(() => {
@@ -710,14 +718,6 @@ export function EngineeringTaskDetailPage() {
                       </>
                     );
                   })()}
-                </div>
-
-                {/* Info Grid */}
-                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
-                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
-                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.quantity} {qut.unit}</p></div>
-                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.deadline || "-"}</p></div>
-                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.createdAt?.substring(0, 10) || "-"}</p></div>
                 </div>
               </div>
               
