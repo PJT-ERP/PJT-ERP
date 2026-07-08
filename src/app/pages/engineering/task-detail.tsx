@@ -493,17 +493,18 @@ export function EngineeringTaskDetailPage() {
     
     // Check duplicates inside mats, including specification
     const hasInternalDupe = mats.some((m, idx) => {
+      if (!m.name.trim()) return false;
       return mats.findIndex(x => {
         const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
           ? x.inventoryItemId === m.inventoryItemId 
-          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase();
         const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
         return isSameItem && isSameSpec;
       }) !== idx;
     });
     
     // Check duplicates against standard BOM (standard BOM doesn't have spec, so just check inventoryItemId)
-    const hasStandardDupe = isStandardProduct && mats.some(m => standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
+    const hasStandardDupe = isStandardProduct && mats.some(m => !!m.inventoryItemId && standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
     
     return hasInternalDupe || hasStandardDupe;
   }) || false;
@@ -524,6 +525,26 @@ export function EngineeringTaskDetailPage() {
 
   const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
   const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict;
+
+  const prevDuplicate = React.useRef(false);
+  const prevCategoryConflict = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasDuplicateMaterials && !prevDuplicate.current) {
+      toast.warning("Terdapat material duplikat dengan spesifikasi yang sama persis di dalam daftar BOM. Mohon periksa kembali.", {
+        duration: Infinity,
+        closeButton: true,
+      });
+    }
+    if (hasCategoryConflict && !prevCategoryConflict.current) {
+      toast.warning("Material yang sama tidak boleh memiliki kategori yang berbeda di dalam satu BOM. Mohon samakan kategorinya.", {
+        duration: Infinity,
+        closeButton: true,
+      });
+    }
+    prevDuplicate.current = hasDuplicateMaterials;
+    prevCategoryConflict.current = hasCategoryConflict;
+  }, [hasDuplicateMaterials, hasCategoryConflict]);
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
@@ -855,19 +876,6 @@ export function EngineeringTaskDetailPage() {
                                     value={m.name} 
                                     onChange={val => updateMaterial(item.id, m.id, 'name', val)}
                                     onSelectProduct={p => {
-                                      const isDuplicateInCustom = mats.some(mat => {
-                                        const isSameSpec = (mat.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
-                                        return mat.id !== m.id && mat.inventoryItemId === p.id && isSameSpec;
-                                      });
-                                      const isDuplicateInStandard = isStandardProduct && standardBomItems.some(bom => bom.inventoryItemId === p.id);
-                                      
-                                      if (isDuplicateInCustom || isDuplicateInStandard) {
-                                        toast.warning(`Material "${p.name}" dengan spesifikasi yang sama sudah ada di dalam daftar BOM. Mohon periksa kembali.`, {
-                                          duration: Infinity,
-                                          closeButton: true,
-                                        });
-                                      }
-                                      
                                       updateMaterial(item.id, m.id, 'name', p.name);
                                       updateMaterial(item.id, m.id, 'unit', p.unit);
                                       updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
