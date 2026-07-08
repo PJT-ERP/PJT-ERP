@@ -36,44 +36,110 @@ section[class*="bg-white"][class*="rounded"] {
 
 @media print {
   @page {
-    size: auto;
-    margin: 0mm;
+    size: A4;
+    margin: 0;
   }
-  html, body, #root {
-    background-color: white !important;
-    height: auto !important;
-    min-height: auto !important;
-  }
+
   body {
-    margin: 1cm;
+    padding: 15mm 20mm !important;
+    box-sizing: border-box !important;
+    background: white !important;
   }
-  /* Remove fixed heights and set white background on layout wrappers to prevent extra pages */
-  #root > div, main {
-    background-color: white !important;
-    height: auto !important;
-    min-height: auto !important;
+
+  body * {
+    visibility: hidden;
   }
-  .print-hide, .print-hide * {
-    display: none !important;
+
+  .po-print-area, .po-print-area * {
+    visibility: visible;
   }
-  .print-only {
-    display: block !important;
-  }
-  /* Hide typical layout elements like sidebar */
-  aside, nav, header {
-    display: none !important;
-  }
-  /* Remove shadows and borders for cleaner print */
-  [class*="shadow"] {
+
+  .po-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    border: none !important;
     box-shadow: none !important;
   }
-  /* Hide scrollbars which can render as a thin line on the right */
+
+  /* Hide scrollbars */
   ::-webkit-scrollbar {
     display: none !important;
   }
+
+  /* Kill ALL shadows globally */
   * {
+    box-shadow: none !important;
+    text-shadow: none !important;
     overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Hide sidebar, topbar, notifications, overlays */
+  aside, nav, header,
+  .print-hide, .print-hide *,
+  [class*="fixed"][class*="z-50"],
+  [class*="fixed"][class*="z-40"] {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Make the flex wrapper act like a simple block */
+  #root > div,
+  #root > div > div {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    background: white !important;
+    overflow: visible !important;
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Main content area — full width, no constraints */
+  main, [class*="flex-1"][class*="flex-col"] {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: static !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  /* PO detail page wrapper */
+  main > div {
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Remove all borders from print-designated elements */
+  .print\:border-none,
+  [class*="border"][class*="rounded"] {
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Show print-only elements */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Hide scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
   }
 }

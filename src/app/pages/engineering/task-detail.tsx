@@ -582,10 +582,10 @@ export function EngineeringTaskDetailPage() {
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
+                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance & Produksi)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk pembuatan Invoice, dan Supervisor sudah dapat memulai proses produksi.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={() => navigate('/erp/engineer-tasks')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
             </div>

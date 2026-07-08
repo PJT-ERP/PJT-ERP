@@ -183,7 +183,7 @@ export function PaymentVerification() {
                   <div className="space-y-2 text-xs text-slate-500">
                     <div className="flex justify-between">
                       <span>Invoice</span>
-                      <span className="font-medium text-slate-700">{payment.invoiceNumber}</span>
+                      <span className="font-medium text-slate-700">{payment.invoiceNumber}{payment.soNumber ? ` (${payment.soNumber})` : ''}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Tanggal Bayar</span>
@@ -236,7 +236,7 @@ export function PaymentVerification() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="font-bold text-slate-800">{invoice.customerName}</p>
-                      <p className="text-sm text-slate-500">{invoice.invoiceNumber}</p>
+                      <p className="text-sm text-slate-500">{invoice.invoiceNumber}{invoice.soNumber ? ` • ${invoice.soNumber}` : ''}</p>
                     </div>
                     {invoice.dueDate && invoice.dueDate < todayStr ? (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
@@ -308,7 +308,7 @@ export function PaymentVerification() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800 text-sm truncate">{payment.customerName}</p>
-                        <p className="text-xs text-slate-400 truncate">{payment.invoiceNumber} • {formatDate(payment.paymentDate)}</p>
+                        <p className="text-xs text-slate-400 truncate">{payment.invoiceNumber}{payment.soNumber ? ` • ${payment.soNumber}` : ''} • {formatDate(payment.paymentDate)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
