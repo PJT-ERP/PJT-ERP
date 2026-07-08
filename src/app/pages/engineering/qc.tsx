@@ -20,10 +20,12 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const getFullUrl = (url: string) => 
-  url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:') 
-    ? url 
-    : `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+const getFullUrl = (url: string) => {
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${path}`;
+};
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);
