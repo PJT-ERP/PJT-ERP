@@ -85,6 +85,19 @@ export function PaymentVerification() {
     });
   };
 
+  const unpaidMenunggu = unpaidInvoices.filter(inv => !inv.dueDate || inv.dueDate >= todayStr);
+  const unpaidOverdue = unpaidInvoices.filter(inv => inv.dueDate && inv.dueDate < todayStr);
+
+  const displayedUnpaidInvoices = filterStatus === 'ALL'
+    ? unpaidInvoices
+    : filterStatus === 'PENDING'
+      ? unpaidMenunggu
+      : [];
+
+  const displayedPendingPayments = (filterStatus === 'ALL' || filterStatus === 'PENDING')
+    ? pendingPayments
+    : [];
+
   const historyPayments = filteredPayments.filter(payment => payment.status !== 'PENDING');
 
   return (
@@ -131,7 +144,12 @@ export function PaymentVerification() {
             { key: 'VERIFIED', label: 'Terverifikasi' },
             { key: 'REJECTED', label: 'Ditolak' },
           ].map((tab) => {
-            const count = tab.key === 'ALL' ? paymentData.length : paymentData.filter(p => p.status === tab.key).length;
+            const count = tab.key === 'ALL' 
+              ? paymentData.length + unpaidInvoices.length
+              : tab.key === 'PENDING'
+                ? paymentData.filter(p => p.status === 'PENDING').length + unpaidMenunggu.length
+                : paymentData.filter(p => p.status === tab.key).length;
+                
             const isActive = filterStatus === tab.key;
             return (
               <button
@@ -155,17 +173,17 @@ export function PaymentVerification() {
         </div>
 
         {/* Pending Payments Section */}
-        {pendingPayments.length > 0 && (
+        {displayedPendingPayments.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
                 <h2 className="text-lg font-bold text-slate-900">Pembayaran Baru</h2>
-                <span className="text-sm text-slate-400">({pendingPayments.length})</span>
+                <span className="text-sm text-slate-400">({displayedPendingPayments.length})</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingPayments.map(payment => (
+              {displayedPendingPayments.map(payment => (
                 <div
                   key={payment.id}
                   onClick={() => setSelectedPayment(payment)}
@@ -218,17 +236,17 @@ export function PaymentVerification() {
         )}
 
         {/* Unpaid Invoices Section */}
-        {unpaidInvoices.length > 0 && (
+        {displayedUnpaidInvoices.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                 <h2 className="text-lg font-bold text-slate-900">Invoice Belum Dibayar</h2>
-                <span className="text-sm text-slate-400">({unpaidInvoices.length})</span>
+                <span className="text-sm text-slate-400">({displayedUnpaidInvoices.length})</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {unpaidInvoices.map(invoice => (
+              {displayedUnpaidInvoices.map(invoice => (
                 <div
                   key={invoice.id}
                   className="group bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-red-300 hover:shadow-md p-5 cursor-pointer transition-all duration-200"
@@ -325,7 +343,7 @@ export function PaymentVerification() {
         )}
 
         {/* Empty State */}
-        {paymentData.length === 0 && (
+        {paymentData.length === 0 && unpaidInvoices.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <ShieldCheck size={32} className="text-slate-300" />
