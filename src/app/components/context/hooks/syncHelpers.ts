@@ -194,7 +194,7 @@ export async function syncUpdateSalesOrder(
         const primaryItem = so.items?.[0];
         if (primaryItem) {
           const updated = await salesApi.updateSalesOrderItems(backendId, {
-            items: so.items.map((it, idx) => ({
+            items: (so.items || []).map((it, idx) => ({
               salesOrderItemId: it.id,
               productId: it.productId,
               qty: it.quantity,

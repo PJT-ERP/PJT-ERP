@@ -57,8 +57,8 @@ export function FinancePurchasingApproval() {
                mr.backendStatus === "Approved" ||
                mr.status === "Approved" ||
                mr.isReadyForFinance === true ||
-               mr.status === "Waiting for Finance Approval" ||
-               mr.status === "Revision Needed";
+               (mr.status as string) === "Waiting for Finance Approval" ||
+               (mr.status as string) === "Revision Needed";
       });
       
       pendingMrs.sort((a, b) => {
