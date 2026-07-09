@@ -469,7 +469,7 @@ export function ProductionMaterialRequestPage() {
     code: p.code,
     currentStock: p.currentStock || 0,
     unit: p.unit || "pcs",
-    spec: (p as any).specification || p.description || ""
+    spec: (p as any).specification || (p as any).description || ""
   }));
 
   if (!so) {

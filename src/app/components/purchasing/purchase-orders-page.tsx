@@ -14,8 +14,9 @@ import {
   ChevronUp,
   Printer,
   X,
-  Download,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useNavigate } from "react-router";
@@ -553,11 +554,23 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           </table>
         </div>
 
-        <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {purchaseOrders.length} purchase order</p>
-          <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
-            Total: {formatRp(filtered.reduce((s, p) => s + calcTotal(p.items), 0))}
-          </p>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
+          <span style={{ fontSize: "13px", color: "#64748B" }}>
+            {filtered.length === 0 ? "0 dari 0 hasil" : `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filtered.length)} dari ${filtered.length} hasil`}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : "#64748b", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}>
+              <ChevronLeft size={18} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setCurrentPage(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 28, height: 28, padding: "0 8px", borderRadius: 8, border: "none", background: p === currentPage ? "#dc2626" : "transparent", color: p === currentPage ? "#FFFFFF" : "#475569", fontSize: "13px", fontWeight: p === currentPage ? 600 : 500, cursor: "pointer", transition: "all 0.1s" }}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= totalPages ? "#CBD5E1" : "#64748b", cursor: currentPage >= totalPages ? "not-allowed" : "pointer" }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

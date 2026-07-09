@@ -297,12 +297,12 @@ function QCInspectionModal({
       return;
     }
 
-    if (productionPhotos.length === 0 && process.env.NODE_ENV !== 'test') {
+    if (productionPhotos.length === 0 && import.meta.env.MODE !== 'test') {
       alert("Harap upload foto hasil produksi sebelum submit hasil QC.");
       return;
     }
 
-    if (qcPhotos.length === 0 && process.env.NODE_ENV !== 'test') {
+    if (qcPhotos.length === 0 && import.meta.env.MODE !== 'test') {
       alert("Harap upload foto inspeksi QC sebelum submit hasil QC.");
       return;
     }
@@ -606,7 +606,10 @@ export function EngineeringQCPage() {
   const [historySearch, setHistorySearch] = useState("");
   const [historyFilter, setHistoryFilter] = useState("All");
   const [currentPageHistory, setCurrentPageHistory] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 10;
+  
+  const [currentPageQc, setCurrentPageQc] = useState(1);
+  const itemsPerPageQc = 3;
 
   const isOwner = currentUser?.role === 'Owner';
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin';
@@ -721,12 +724,12 @@ export function EngineeringQCPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {qcQueue.map((so, idx) => {
+            {qcQueue.slice((currentPageQc - 1) * itemsPerPageQc, currentPageQc * itemsPerPageQc).map((so, idx) => {
               const customer = customers.find(c => c.code === so.customerId);
               const inspection = findInspectionForSo(inspections, so);
               const durationHours = calcProductionDuration(so.startTime, so.endTime);
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < qcQueue.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < qcQueue.slice((currentPageQc - 1) * itemsPerPageQc, currentPageQc * itemsPerPageQc).length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ width: 40, height: 40, background: "rgba(200,16,46,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
                     <Shield size={20} />
                   </div>
@@ -754,6 +757,27 @@ export function EngineeringQCPage() {
                 </div>
               );
             })}
+            
+            {qcQueue.length > itemsPerPageQc && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderTop: `1px solid ${S.border}`, background: "#FFFFFF" }}>
+                <span style={{ fontSize: "13.5px", color: "#64748B" }}>
+                  {(currentPageQc - 1) * itemsPerPageQc + 1}–{Math.min(currentPageQc * itemsPerPageQc, qcQueue.length)} dari {qcQueue.length} hasil
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <button onClick={() => setCurrentPageQc(p => Math.max(1, p - 1))} disabled={currentPageQc === 1} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageQc === 1 ? "#CBD5E1" : S.secondary, cursor: currentPageQc === 1 ? "not-allowed" : "pointer" }}>
+                    <ChevronLeft size={18} />
+                  </button>
+                  {Array.from({ length: Math.ceil(qcQueue.length / itemsPerPageQc) }, (_, i) => i + 1).map(p => (
+                    <button key={p} onClick={() => setCurrentPageQc(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 28, height: 28, padding: "0 8px", borderRadius: 8, border: "none", background: p === currentPageQc ? S.cyan : "transparent", color: p === currentPageQc ? "#FFFFFF" : "#475569", fontSize: "13.5px", fontWeight: p === currentPageQc ? 600 : 500, cursor: "pointer", transition: "all 0.1s" }}>
+                      {p}
+                    </button>
+                  ))}
+                  <button onClick={() => setCurrentPageQc(p => Math.min(Math.ceil(qcQueue.length / itemsPerPageQc), p + 1))} disabled={currentPageQc >= Math.ceil(qcQueue.length / itemsPerPageQc)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPageQc >= Math.ceil(qcQueue.length / itemsPerPageQc) ? "#CBD5E1" : S.secondary, cursor: currentPageQc >= Math.ceil(qcQueue.length / itemsPerPageQc) ? "not-allowed" : "pointer" }}>
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -798,7 +822,7 @@ export function EngineeringQCPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 80px 1fr 100px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "130px 2fr 100px 80px 1.5fr 100px", padding: "12px 24px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
             {["SO", "Deskripsi", "Foto", "Hasil", "Catatan", "Tanggal"].map((h) => (
               <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
             ))}
@@ -808,8 +832,8 @@ export function EngineeringQCPage() {
             {filteredHistory.slice((currentPageHistory - 1) * itemsPerPage, currentPageHistory * itemsPerPage).map((so, idx) => (
               <div key={so.id} onClick={() => setHistoryDetail(so)}
                 style={{
-                  display: "grid", gridTemplateColumns: "110px 1fr 100px 80px 1fr 100px",
-                  padding: "10px 18px", cursor: "pointer",
+                  display: "grid", gridTemplateColumns: "130px 2fr 100px 80px 1.5fr 100px",
+                  padding: "14px 24px", cursor: "pointer",
                   borderBottom: idx < filteredHistory.slice((currentPageHistory - 1) * itemsPerPage, currentPageHistory * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
                   transition: "background 0.1s",
                 }}

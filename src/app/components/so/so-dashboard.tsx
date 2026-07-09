@@ -347,9 +347,9 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             </div>
 
             {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "10px 18px", background: S.cyan, borderBottom: `1px solid ${S.border}` }}>
               {["No. SO", "Pelanggan", "Produk", "Qty", "Status"].map((h) => (
-                <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+                <span key={h} style={{ color: S.white, fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
 
