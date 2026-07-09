@@ -87,7 +87,7 @@ export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / 
 export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = []): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = [], inventoryItems: any[] = []): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -109,7 +109,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
-          code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          code: inventoryItems.find(inv => inv.name?.toLowerCase() === item.itemName?.toLowerCase())?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
           spec: item.size || "-",
           qty: item.qty,
@@ -247,8 +247,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const { purchaseRequests, supplierPayments, suppliers } = usePurchasingData();
-  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
+  const { purchaseRequests, supplierPayments, suppliers, inventoryItems } = usePurchasingData();
+  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers, inventoryItems), [purchaseRequests, supplierPayments, suppliers, inventoryItems]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());

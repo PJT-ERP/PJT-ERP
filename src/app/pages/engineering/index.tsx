@@ -135,6 +135,7 @@ export function EngineeringPage() {
         designCompleted: designOrders.filter(so => !["Pending Design", "Revision Required", "Waiting Spv Approval"].includes(so.status)).length,
         prodActive: prodOrders.filter(so => ["Ready for Production", "In Production"].includes(so.status)).length,
         prodQC: prodOrders.filter(so => so.status === "QC").length,
+        prodCompleted: prodOrders.filter(so => so.status === "Completed").length,
       };
     });
 
@@ -211,7 +212,8 @@ export function EngineeringPage() {
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={80} />
                   <Tooltip />
                   <Bar dataKey="prodActive" name="Produksi Aktif" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" radius={[0, 3, 3, 0]} />
+                  <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" />
+                  <Bar dataKey="prodCompleted" name="Produksi Selesai" stackId="a" fill="#10B981" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

@@ -17,6 +17,12 @@ export function AdminProductsPage() {
   const { productCatalog, refreshBackendData } = useApp();
   const { inventoryItems } = usePurchasingData();
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
   
   const [isAdding, setIsAdding] = useState(false);
   const [isEditingId, setIsEditingId] = useState<string | null>(null);
@@ -50,6 +56,9 @@ export function AdminProductsPage() {
     p.partNumber.toLowerCase().includes(search.toLowerCase()) || 
     p.description.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleEdit = (p: ProductDto) => {
     setIsEditingId(p.id);
@@ -177,7 +186,7 @@ export function AdminProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
+              {paginatedData.map(p => (
                 <tr key={p.id} style={{ borderBottom: `1px solid ${S.border}` }}>
                   <td style={{ padding: "12px 16px", fontWeight: 600, color: S.primary }}>{p.partNumber}</td>
                   <td style={{ padding: "12px 16px" }}>{p.description}</td>
@@ -189,7 +198,7 @@ export function AdminProductsPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {paginatedData.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ padding: 32, textAlign: "center", color: S.secondary }}>Tidak ada data produk</td>
                 </tr>
@@ -197,6 +206,31 @@ export function AdminProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: `1px solid ${S.border}`, background: "#f8fafc" }}>
+            <span style={{ fontSize: 13, color: S.secondary }}>
+              Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} dari {filtered.length}
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                style={{ padding: "6px 12px", border: `1px solid ${S.border}`, borderRadius: 6, background: currentPage === 1 ? "#f1f5f9" : S.white, color: currentPage === 1 ? "#94a3b8" : S.slate, fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+              >
+                Sebelumnya
+              </button>
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                style={{ padding: "6px 12px", border: `1px solid ${S.border}`, borderRadius: 6, background: currentPage === totalPages ? "#f1f5f9" : S.white, color: currentPage === totalPages ? "#94a3b8" : S.slate, fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+              >
+                Selanjutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {deleteConfirm && (
