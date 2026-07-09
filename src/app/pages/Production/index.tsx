@@ -84,7 +84,7 @@ export function ProductionPage() {
 
   const isReadyForProd = (so: SalesOrder) => {
     if (so.status === 'Ready for Production') return true;
-    if (so.startTime || so.qcDecision) return false;
+    if (so.startTime || (so as any).qcDecision) return false;
     if (so.backendDesignStatus === 'Approved' && ['Waiting Pricing', 'Waiting Payment', 'Pending Design', 'Waiting Approval'].includes(so.status)) return true;
     return false;
   };

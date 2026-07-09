@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Users, TrendingUp, CalendarClock, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import React, { useState, useMemo, Fragment } from "react";
+import { Users, Activity, CalendarClock, AlertTriangle, ChevronDown, ChevronRight, DollarSign } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -25,12 +25,16 @@ function daysBetween(a: string, b: string) {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24));
 }
 
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+}
+
 const CUSTOMER_COLORS = [
   '#C8102E', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
   '#EC4899', '#14B8A6', '#F97316',
 ];
 
-// Custom bar chart — avoids recharts CategoricalChart SVG key collision bug
+// Custom bar chart
 function MiniBarChart({ data }: { data: { label: string; value: number }[] }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
@@ -45,7 +49,7 @@ function MiniBarChart({ data }: { data: { label: string; value: number }[] }) {
             <div className="w-full flex items-end" style={{ height: '120px' }}>
               <div
                 className="w-full rounded-t transition-all"
-                style={{ height: `${Math.max(pct, d.value > 0 ? 4 : 0)}%`, backgroundColor: '#C8102E' }}
+                style={{ height: `${Math.max(pct, d.value > 0 ? 4 : 0)}%`, backgroundColor: '#3B82F6' }}
               />
             </div>
             <span className="text-[10px] text-slate-400 truncate w-full text-center">{d.label}</span>
@@ -56,11 +60,11 @@ function MiniBarChart({ data }: { data: { label: string; value: number }[] }) {
   );
 }
 
-// Custom line chart — pure SVG, no recharts
+// Custom line chart for Revenue
 function MiniLineChart({ data }: { data: { label: string; value: number }[] }) {
   const W = 400;
   const H = 140;
-  const PAD = { top: 16, right: 8, bottom: 28, left: 28 };
+  const PAD = { top: 16, right: 8, bottom: 28, left: 32 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
   const max = Math.max(...data.map(d => d.value), 1);
@@ -78,6 +82,12 @@ function MiniLineChart({ data }: { data: { label: string; value: number }[] }) {
 
   const yTicks = [...new Set([0, Math.ceil(max / 2), max])];
 
+  const formatTick = (v: number) => {
+    if (v >= 1000000) return `${(v / 1000000).toFixed(0)}M`;
+    if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
+    return v;
+  };
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '160px' }}>
       {/* Grid lines */}
@@ -92,17 +102,17 @@ function MiniLineChart({ data }: { data: { label: string; value: number }[] }) {
       {/* Y axis labels */}
       {yTicks.map((v, i) => (
         <text key={`ylabel-${i}`} x={PAD.left - 4} y={py(v) + 4} textAnchor="end" fontSize={9} fill="#94A3B8">
-          {v}
+          {formatTick(v)}
         </text>
       ))}
       {/* Area fill */}
-      <polygon points={area} fill="#C8102E" fillOpacity={0.08} />
+      <polygon points={area} fill="#10B981" fillOpacity={0.08} />
       {/* Line */}
-      <polyline points={polyline} fill="none" stroke="#C8102E" strokeWidth={2} strokeLinejoin="round" />
+      <polyline points={polyline} fill="none" stroke="#10B981" strokeWidth={2} strokeLinejoin="round" />
       {/* Dots + X labels */}
       {data.map((d, i) => (
         <g key={d.label}>
-          <circle cx={px(i)} cy={py(d.value)} r={3.5} fill="#C8102E" />
+          <circle cx={px(i)} cy={py(d.value)} r={3.5} fill="#10B981" />
           <text x={px(i)} y={H - 4} textAnchor="middle" fontSize={9} fill="#94A3B8">
             {d.label}
           </text>
@@ -116,20 +126,23 @@ export function CustomerAnalyticsPage() {
   const { salesOrders, customers } = useApp();
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'completed' | 'all'>('all');
 
   const validOrders = useMemo(() =>
-    salesOrders.filter(so => so.status === 'Completed'),
-    [salesOrders]
+    viewMode === 'completed'
+      ? salesOrders.filter(so => so.status === 'Completed')
+      : salesOrders,
+    [salesOrders, viewMode]
   );
 
   const customerStats = useMemo(() => {
     return customers.map((c, idx) => {
       const orders = validOrders
-        .filter(so => so.customerId === c.code)
+        .filter(so => so.customerId === c.code || (so as any).customerCode === c.code)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
       const totalOrders = orders.length;
-      const totalQty = orders.reduce((acc, so) => acc + so.quantity, 0);
+      const totalRevenue = orders.reduce((acc, so) => acc + (so.estimatedAmount ?? 0), 0);
 
       const intervals: number[] = [];
       for (let i = 1; i < orders.length; i++) {
@@ -153,28 +166,31 @@ export function CustomerAnalyticsPage() {
       }
 
       const monthlyMap: Record<number, number> = {};
+      const monthlyRevenueMap: Record<number, number> = {};
       orders.forEach(so => {
         const key = monthKey(so.createdAt);
         monthlyMap[key] = (monthlyMap[key] ?? 0) + 1;
+        monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + (so.estimatedAmount ?? 0);
       });
 
       return {
         customer: c,
         orders,
         totalOrders,
-        totalQty,
+        totalRevenue,
         avgInterval,
         predictedDate,
         predictedMonth,
         daysUntilNext,
         isOverdue,
         monthlyMap,
+        monthlyRevenueMap,
         color: CUSTOMER_COLORS[idx % CUSTOMER_COLORS.length],
         lastOrderDate: orders.length > 0 ? orders[orders.length - 1].createdAt : null,
       };
-    }).filter(s => s.totalOrders > 0)
-      .sort((a, b) => b.totalOrders - a.totalOrders);
-  }, [customers, validOrders]);
+    }).filter(s => viewMode === 'all' || s.totalOrders > 0)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue); // Sort by revenue by default
+  }, [customers, validOrders, viewMode]);
 
   const visibleMonths = useMemo(() => {
     const months: { year: number; month: number; key: number; label: string; isFuture: boolean }[] = [];
@@ -200,100 +216,110 @@ export function CustomerAnalyticsPage() {
   const lineData = useMemo(() => {
     return historyMonths.map(m => {
       if (selectedCustomer === 'all') {
-        const total = customerStats.reduce((acc, cs) => acc + (cs.monthlyMap[m.key] ?? 0), 0);
+        const total = customerStats.reduce((acc, cs) => acc + (cs.monthlyRevenueMap[m.key] ?? 0), 0);
         return { label: m.label, value: total };
       }
       const cs = customerStats.find(c => c.customer.code === selectedCustomer);
-      return { label: m.label, value: cs ? (cs.monthlyMap[m.key] ?? 0) : 0 };
+      return { label: m.label, value: cs ? (cs.monthlyRevenueMap[m.key] ?? 0) : 0 };
     });
   }, [historyMonths, customerStats, selectedCustomer]);
 
-  const getPredictedCell = (cs: typeof customerStats[0], mk: number) => {
-    if (!cs.predictedDate) return false;
-    const pk = cs.predictedDate.getFullYear() * 100 + cs.predictedDate.getMonth();
-    return pk === mk;
-  };
-
-  const activeCustomers = customerStats.length;
-  const mostFrequent = customerStats[0];
+  const activeCustomers = customerStats.filter(c => c.totalOrders > 0).length;
+  const totalSystemRevenue = customerStats.reduce((acc, cs) => acc + cs.totalRevenue, 0);
+  
   const avgReorderDays = customerStats.filter(c => c.avgInterval !== null).length > 0
     ? Math.round(customerStats.filter(c => c.avgInterval !== null).reduce((a, c) => a + c.avgInterval!, 0) / customerStats.filter(c => c.avgInterval !== null).length)
     : 0;
+  
   const overdueCount = customerStats.filter(c => c.isOverdue).length;
   const upcomingCount = customerStats.filter(c => c.daysUntilNext !== null && c.daysUntilNext >= 0 && c.daysUntilNext <= 30).length;
 
   return (
     <div className="w-full" style={{ padding: "20px 24px" }}>
-      <div className="mb-6">
-        <h1 className="text-slate-800">Analitik Customer</h1>
-        <p className="text-sm text-slate-500">Pola pembelian dan prediksi order berikutnya berdasarkan riwayat data</p>
+      <div className="mb-6 flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div>
+          <h1 className="text-slate-800">Analitik Customer</h1>
+          <p className="text-sm text-slate-500">Ringkasan performa penjualan dan status follow-up pelanggan</p>
+        </div>
+        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0">
+          <button
+            onClick={() => setViewMode('all')}
+            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Semua Pesanan
+          </button>
+          <button
+            onClick={() => setViewMode('completed')}
+            className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === 'completed' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Selesai Saja
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-md border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between mb-3">
-            <p className="text-sm text-slate-500">Customer Aktif</p>
-            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-              <Users size={17} className="text-red-500" />
+            <p className="text-sm text-slate-500">Total Customer Aktif</p>
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+              <Users size={17} className="text-blue-500" />
             </div>
           </div>
-          <p className="text-2xl font-semibold text-slate-900 truncate">{activeCustomers}</p>
+          <p className="text-2xl font-semibold text-slate-900 truncate">{activeCustomers} <span className="text-sm font-normal text-slate-500">/ {customers.length}</span></p>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-slate-400">Total pelanggan terdaftar</p>
+            <p className="text-xs text-slate-400">Dari total pelanggan terdaftar</p>
           </div>
         </div>
         <div className="bg-white rounded-md border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between mb-3">
-            <p className="text-sm text-slate-500">Customer Teraktif</p>
-            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-              <TrendingUp size={17} className="text-red-500" />
+            <p className="text-sm text-slate-500">Total Pendapatan</p>
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <DollarSign size={17} className="text-emerald-500" />
             </div>
           </div>
-          <p className="text-lg font-semibold text-slate-900 truncate">{mostFrequent?.customer.name.split(' ').slice(0, 3).join(' ')}</p>
+          <p className="text-lg font-semibold text-slate-900 truncate">{formatCurrency(totalSystemRevenue)}</p>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-slate-400">{mostFrequent?.totalOrders} order</p>
+            <p className="text-xs text-slate-400">Berdasarkan data yang ditampilkan</p>
           </div>
         </div>
         <div className="bg-white rounded-md border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between mb-3">
             <p className="text-sm text-slate-500">Rata-rata Reorder</p>
             <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center">
-              <CalendarClock size={17} className="text-slate-700" />
+              <CalendarClock size={17} className="text-purple-600" />
             </div>
           </div>
           <p className="text-2xl font-semibold text-slate-900 truncate">{avgReorderDays} <span className="text-sm font-normal text-slate-500">hari</span></p>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-slate-400">Jarak antar pesanan</p>
+            <p className="text-xs text-slate-400">Jarak historis antar pesanan</p>
           </div>
         </div>
-        <div className={`bg-white rounded-md border p-5 shadow-sm hover:shadow-md transition-shadow ${overdueCount > 0 ? 'border-slate-300' : 'border-slate-200'}`}>
+        <div className={`bg-white rounded-md border p-5 shadow-sm hover:shadow-md transition-shadow ${overdueCount > 0 ? 'border-red-300' : 'border-slate-200'}`}>
           <div className="flex items-start justify-between mb-3">
             <p className="text-sm text-slate-500">Perlu Follow-up</p>
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${overdueCount > 0 ? 'bg-slate-100' : 'bg-green-50'}`}>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${overdueCount > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
               <AlertTriangle size={17} className={overdueCount > 0 ? 'text-red-500' : 'text-green-500'} />
             </div>
           </div>
-          <p className={`text-2xl font-semibold truncate ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount}</p>
+          <p className={`text-2xl font-semibold truncate ${overdueCount > 0 ? 'text-red-600' : 'text-green-600'}`}>{overdueCount} <span className="text-sm font-normal text-slate-500">Customer</span></p>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-slate-400">{upcomingCount} dalam 30 hari</p>
+            <p className="text-xs text-slate-400">{upcomingCount} jadwal order bulan ini</p>
           </div>
         </div>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Monthly Volume Bar */}
         <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <h3 className="text-slate-800 mb-1">Volume Order per Bulan</h3>
-          <p className="text-xs text-slate-400 mb-2">Total SO masuk per bulan (Jan–Jun 2026)</p>
+          <p className="text-xs text-slate-400 mb-2">Total pesanan (kuantitas SO) yang masuk</p>
           <MiniBarChart data={barData} />
         </div>
 
-        {/* Trend Line */}
         <div className="bg-white rounded-md shadow-sm border border-slate-200 p-5">
           <div className="flex items-center justify-between mb-1">
-            <h3 className="text-slate-800">Tren Pembelian</h3>
+            <h3 className="text-slate-800">Tren Pendapatan</h3>
             <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}
               className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20">
               <option value="all">Semua Customer</option>
@@ -304,241 +330,131 @@ export function CustomerAnalyticsPage() {
               ))}
             </select>
           </div>
-          <p className="text-xs text-slate-400 mb-2">Jumlah SO masuk tiap bulan</p>
+          <p className="text-xs text-slate-400 mb-2">Nilai pendapatan per bulan (IDR)</p>
           <MiniLineChart data={lineData} />
         </div>
       </div>
 
-      {/* Heatmap */}
-      <div className="bg-white rounded-md shadow-sm border border-slate-200 mb-6 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200 bg-slate-50">
-          <h3 className="text-slate-800">Pola Pembelian Customer</h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Intensitas order per bulan — sel <span className="inline-block w-3 h-3 rounded bg-gray-100 border border-dashed border-slate-300 align-middle mx-0.5" /> = prediksi
-          </p>
-        </div>
-        <div className="p-5 overflow-x-auto">
-          <table className="w-full text-xs min-w-[640px]">
-            <thead>
-              <tr>
-                <th className="text-left text-slate-500 pb-2 pr-4 font-normal w-40">Customer</th>
-                {visibleMonths.map(m => (
-                  <th key={m.key} className={`text-center pb-2 px-1 font-normal ${m.isFuture ? 'text-slate-300' : 'text-slate-500'}`}>
-                    {m.label}
-                    {m.isFuture && <span className="block text-[9px] text-slate-300">prediksi</span>}
-                  </th>
-                ))}
-                <th className="text-center pb-2 px-2 font-normal text-slate-500">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {customerStats.map(cs => (
-                <tr key={cs.customer.code} className="hover:bg-slate-50">
-                  <td className="py-2 pr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cs.color }} />
-                      <span className="text-slate-700 truncate max-w-[160px]" title={cs.customer.name}>
-                        {cs.customer.name}
-                      </span>
-                    </div>
-                  </td>
-                  {visibleMonths.map(m => {
-                    const count = cs.monthlyMap[m.key] ?? 0;
-                    const isPredicted = m.isFuture && getPredictedCell(cs, m.key);
-                    const intensity = count === 0 ? 0 : count === 1 ? 0.3 : count === 2 ? 0.6 : 0.9;
-
-                    if (m.isFuture) {
-                      return (
-                        <td key={m.key} className="px-1 py-2">
-                          <div className={`mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px] ${isPredicted
-                            ? 'border-2 border-dashed border-[#C8102E] bg-red-50 text-[#C8102E]'
-                            : 'bg-slate-50'
-                            }`}>
-                            {isPredicted ? '?' : ''}
-                          </div>
-                        </td>
-                      );
-                    }
-
-                    return (
-                      <td key={m.key} className="px-1 py-2">
-                        <div
-                          className="mx-auto w-8 h-7 rounded flex items-center justify-center text-[10px]"
-                          style={{
-                            backgroundColor: count > 0 ? `${cs.color}${Math.round(intensity * 255).toString(16).padStart(2, '0')}` : '#F8FAFC',
-                            color: intensity > 0.5 ? 'white' : count > 0 ? cs.color : '#CBD5E1',
-                          }}
-                        >
-                          {count > 0 ? count : ''}
-                        </div>
-                      </td>
-                    );
-                  })}
-                  <td className="px-2 py-2 text-center">
-                    <span className="text-slate-700">{cs.totalOrders}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Prediction Table */}
+      {/* Clean CRM Style Table */}
       <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b bg-slate-50">
-          <h3 className="text-slate-800">Prediksi & Riwayat per Customer</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Prediksi berdasarkan rata-rata interval antar order</p>
+          <h3 className="text-slate-800">Daftar Pelanggan & Status Riwayat</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Identifikasi pelanggan yang paling berharga dan pelanggan yang berisiko pasif</p>
         </div>
-        <div className="divide-y divide-gray-50">
-          {customerStats.map(cs => {
-            const isExpanded = expandedCustomer === cs.customer.code;
-            const predStatus = cs.avgInterval === null
-              ? 'insufficient'
-              : cs.isOverdue
-                ? 'overdue'
-                : cs.daysUntilNext! <= 30
-                  ? 'upcoming'
-                  : 'normal';
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="px-5 py-3 font-medium">Customer</th>
+                <th className="px-5 py-3 font-medium">Total Pesanan</th>
+                <th className="px-5 py-3 font-medium">Total Pendapatan</th>
+                <th className="px-5 py-3 font-medium">Order Terakhir</th>
+                <th className="px-5 py-3 font-medium">Status Reorder</th>
+                <th className="px-5 py-3 font-medium">Prediksi Order</th>
+                <th className="px-5 py-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {customerStats.map(cs => {
+                const isExpanded = expandedCustomer === cs.customer.code;
+                const predStatus = cs.avgInterval === null
+                  ? 'insufficient'
+                  : cs.isOverdue
+                    ? 'overdue'
+                    : cs.daysUntilNext! <= 30
+                      ? 'upcoming'
+                      : 'normal';
 
-            return (
-              <div key={cs.customer.code}>
-                <div
-                  className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => setExpandedCustomer(isExpanded ? null : cs.customer.code)}
-                >
-                  <div className="w-9 h-9 rounded-md flex items-center justify-center text-white text-sm shrink-0"
-                    style={{ backgroundColor: cs.color }}>
-                    {cs.customer.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-800 truncate">{cs.customer.name}</p>
-                    <p className="text-xs text-slate-400">{cs.customer.contact} · {cs.totalOrders} order</p>
-                  </div>
-                  <div className="hidden sm:block text-center w-20 shrink-0">
-                    <p className="text-[10px] text-slate-400 mb-0.5">Avg Interval</p>
-                    <p className="text-xs text-slate-600">
-                      {cs.avgInterval !== null ? `${cs.avgInterval}h` : '—'}
-                    </p>
-                  </div>
-                  <div className="hidden md:block text-center w-24 shrink-0">
-                    <p className="text-[10px] text-slate-400 mb-0.5">Order Terakhir</p>
-                    <p className="text-xs text-slate-600">{cs.lastOrderDate ?? '—'}</p>
-                  </div>
-                  <div className="text-center w-28 shrink-0">
-                    <p className="text-[10px] text-slate-400 mb-0.5">Prediksi Order</p>
-                    {predStatus === 'insufficient' ? (
-                      <span className="text-[10px] text-slate-400 bg-gray-100 px-2 py-0.5 rounded-full">Data kurang</span>
-                    ) : predStatus === 'overdue' ? (
-                      <span className="text-[10px] text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                        {cs.predictedMonth}
-                      </span>
-                    ) : predStatus === 'upcoming' ? (
-                      <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        {cs.predictedMonth}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-[#C8102E] bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
-                        {cs.predictedMonth}
-                      </span>
-                    )}
-                  </div>
-                  <div className="shrink-0 text-slate-300">
-                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="px-5 pb-4 bg-slate-50">
-                    <p className="text-xs text-slate-500 mb-2 mt-1">Riwayat Order</p>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-slate-400">
-                            <th className="text-left py-1.5 pr-4 font-normal">ID SO</th>
-                            <th className="text-left py-1.5 pr-4 font-normal">Deskripsi</th>
-                            <th className="text-left py-1.5 pr-4 font-normal">Qty</th>
-                            <th className="text-left py-1.5 pr-4 font-normal">Tanggal</th>
-                            <th className="text-left py-1.5 font-normal">Interval</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {cs.orders.map((so, idx) => {
-                            const interval = idx > 0
-                              ? daysBetween(cs.orders[idx - 1].createdAt, so.createdAt)
-                              : null;
-                            return (
-                              <tr key={so.id} className="text-slate-600">
-                                <td className="py-1.5 pr-4 font-mono text-slate-700">{so.id}</td>
-                                <td className="py-1.5 pr-4 max-w-[200px] truncate">{so.description}</td>
-                                <td className="py-1.5 pr-4">{so.quantity} {so.unit}</td>
-                                <td className="py-1.5 pr-4">{so.createdAt}</td>
-                                <td className="py-1.5">
-                                  {interval !== null
-                                    ? <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">{interval}h</span>
-                                    : <span className="text-slate-300">—</span>
-                                  }
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {cs.orders.length > 1 && (
-                      <div className="mt-3">
-                        <p className="text-xs text-slate-400 mb-1.5">Timeline pembelian</p>
-                        <div className="flex items-center gap-0 overflow-x-auto pb-1">
-                          {cs.orders.map((so, idx) => {
-                            const interval = idx > 0
-                              ? daysBetween(cs.orders[idx - 1].createdAt, so.createdAt)
-                              : null;
-                            const maxInterval = Math.max(...cs.orders.slice(1).map((_, i) =>
-                              daysBetween(cs.orders[i].createdAt, cs.orders[i + 1].createdAt)
-                            ));
-                            const width = interval ? Math.max(40, Math.round((interval / maxInterval) * 80)) : 0;
-                            return (
-                              <div key={so.id} className="flex items-center shrink-0">
-                                {interval !== null && (
-                                  <div className="flex items-center" style={{ width: `${width}px` }}>
-                                    <div className="flex-1 h-0.5 bg-gray-200" />
-                                    <span className="text-[9px] text-slate-400 mx-1 shrink-0">{interval}h</span>
-                                    <div className="flex-1 h-0.5 bg-gray-200" />
-                                  </div>
-                                )}
-                                <div className="flex flex-col items-center shrink-0">
-                                  <div className="w-3 h-3 rounded-full border-2 shrink-0"
-                                    style={{ backgroundColor: cs.color, borderColor: cs.color }} />
-                                  <span className="text-[9px] text-slate-400 mt-0.5 whitespace-nowrap">
-                                    {so.createdAt.slice(5)}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {cs.predictedDate && (
-                            <div className="flex items-center shrink-0">
-                              <div className="flex items-center" style={{ width: '60px' }}>
-                                <div className="flex-1 h-0.5 border-t-2 border-dashed border-slate-300" />
-                              </div>
-                              <div className="flex flex-col items-center shrink-0">
-                                <div className="w-3 h-3 rounded-full border-2 border-dashed shrink-0"
-                                  style={{ borderColor: cs.color, backgroundColor: 'white' }} />
-                                <span className="text-[9px] text-[#C8102E] mt-0.5 whitespace-nowrap">
-                                  {cs.predictedDate.toISOString().slice(5, 10)}?
-                                </span>
-                              </div>
-                            </div>
-                          )}
+                return (
+                  <React.Fragment key={cs.customer.code}>
+                    <tr className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setExpandedCustomer(isExpanded ? null : cs.customer.code)}>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-xs shrink-0" style={{ backgroundColor: cs.color }}>
+                            {cs.customer.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">{cs.customer.name}</p>
+                            <p className="text-xs text-slate-500">{cs.customer.contact}</p>
+                          </div>
                         </div>
-                      </div>
+                      </td>
+                      <td className="px-5 py-3 text-slate-700">{cs.totalOrders} <span className="text-xs text-slate-400">Order</span></td>
+                      <td className="px-5 py-3 font-medium text-slate-700">{formatCurrency(cs.totalRevenue)}</td>
+                      <td className="px-5 py-3 text-slate-600">{cs.lastOrderDate ?? '—'}</td>
+                      <td className="px-5 py-3">
+                        {predStatus === 'insufficient' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                            <Activity size={12} /> Data Kurang
+                          </span>
+                        ) : predStatus === 'overdue' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                            <AlertTriangle size={12} /> Perlu Follow-up
+                          </span>
+                        ) : predStatus === 'upcoming' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <CalendarClock size={12} /> Mendekati Jadwal
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Activity size={12} /> Aktif & Aman
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {cs.predictedMonth ? `${cs.predictedMonth} (Jeda: ${cs.avgInterval}h)` : '—'}
+                      </td>
+                      <td className="px-5 py-3 text-slate-400">
+                        {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      </td>
+                    </tr>
+                    
+                    {isExpanded && (
+                      <tr className="bg-slate-50">
+                        <td colSpan={7} className="px-5 py-4 border-b border-slate-100">
+                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Riwayat Transaksi Pelanggan</h4>
+                          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                            <table className="w-full text-xs text-left">
+                              <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                  <th className="px-4 py-2 font-medium text-slate-600">ID SO</th>
+                                  <th className="px-4 py-2 font-medium text-slate-600">Deskripsi</th>
+                                  <th className="px-4 py-2 font-medium text-slate-600">Status</th>
+                                  <th className="px-4 py-2 font-medium text-slate-600">Tanggal Transaksi</th>
+                                  <th className="px-4 py-2 font-medium text-slate-600 text-right">Nilai Estimasi</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {cs.orders.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="px-4 py-4 text-center text-slate-400 italic">Belum ada riwayat pesanan</td>
+                                  </tr>
+                                ) : (
+                                  cs.orders.map(so => (
+                                    <tr key={so.id} className="hover:bg-slate-50">
+                                      <td className="px-4 py-2.5 font-mono text-slate-500">{so.soNumber || so.id}</td>
+                                      <td className="px-4 py-2.5 truncate max-w-[250px]">{so.description || '-'}</td>
+                                      <td className="px-4 py-2.5">
+                                        <span className="px-2 py-0.5 rounded-full border border-slate-200 bg-slate-100 text-slate-600">
+                                          {so.status}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2.5">{so.createdAt}</td>
+                                      <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(so.estimatedAmount ?? 0)}</td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

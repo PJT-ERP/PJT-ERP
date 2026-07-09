@@ -41,7 +41,7 @@ export function PaymentVerification() {
 
   const handleReject = async (id: string, reason: string) => {
     try {
-      await financeApi.rejectPaymentProof(id, reason);
+      await financeApi.rejectPaymentProof(id, { reason });
       await refresh();
     } catch (err) {
       console.warn('Failed to reject payment proof.', err);

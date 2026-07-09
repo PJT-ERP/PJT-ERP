@@ -148,11 +148,11 @@ describe('PaymentVerification Component', () => {
     fireEvent.change(reasonInput, { target: { value: 'Bukti transfer buram' } });
 
     // Click confirm
-    const confirmBtn = screen.getByRole('button', { name: /Konfirmasi Penolakan/i });
+    const confirmBtn = await screen.findByRole('button', { name: /Konfirmasi Penolakan/i });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
-      expect(financeApi.rejectPaymentProof).toHaveBeenCalledWith('pay-2', 'Bukti transfer buram');
+      expect(financeApi.rejectPaymentProof).toHaveBeenCalledWith('pay-2', { reason: 'Bukti transfer buram' });
       expect(mockRefresh).toHaveBeenCalled();
     });
   });

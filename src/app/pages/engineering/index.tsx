@@ -145,7 +145,7 @@ export function EngineeringPage() {
       {/* Page header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h1 style={{ color: S.slate, margin: 0 }}>Engineering Dashboard</h1>
+          <h1 style={{ color: S.slate, margin: 0 }}>Supervisor Engineering Dashboard</h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             PT Pratama Jaya Tekindo · {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>

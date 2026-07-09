@@ -297,12 +297,12 @@ function QCInspectionModal({
       return;
     }
 
-    if (productionPhotos.length === 0 && process.env.NODE_ENV !== 'test') {
+    if (productionPhotos.length === 0 && import.meta.env.MODE !== 'test') {
       alert("Harap upload foto hasil produksi sebelum submit hasil QC.");
       return;
     }
 
-    if (qcPhotos.length === 0 && process.env.NODE_ENV !== 'test') {
+    if (qcPhotos.length === 0 && import.meta.env.MODE !== 'test') {
       alert("Harap upload foto inspeksi QC sebelum submit hasil QC.");
       return;
     }
