@@ -83,10 +83,11 @@ export function DashboardPage() {
   ];
 
   const workerTaskData = users
-    .filter(u => u.role === 'Engineer')
+    .filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor')
     .map(u => ({
       name: u.name,
       active: salesOrders.filter(so => so.designAssignedTo === u.id && so.status !== 'Completed' && so.status !== 'Rejected').length,
+      completed: salesOrders.filter(so => so.designAssignedTo === u.id && so.status === 'Completed').length,
       prodActive: salesOrders.filter(so => so.status === 'In Production').length, // Dummy
       prodQC: salesOrders.filter(so => so.status === 'QC').length, // Dummy
       color: `#${Math.floor(Math.random() * 16777215).toString(16)}`
@@ -233,16 +234,14 @@ export function DashboardPage() {
             <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Status Tugas Engineering</span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart layout="vertical" data={workerTaskData.sort((a, b) => b.active - a.active)} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+            <BarChart layout="vertical" data={workerTaskData.sort((a, b) => (b.active + b.completed) - (a.active + a.completed))} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }} width={80} axisLine={false} tickLine={false} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }} width={90} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} cursor={{ fill: '#F8FAFC' }} />
-              <Bar dataKey="active" name="Tugas Aktif" radius={[0, 4, 4, 0]} barSize={20}>
-                {workerTaskData.map((entry, idx) => (
-                  <Cell key={`worker-bar-${entry.name}-${idx}`} fill={entry.color} />
-                ))}
-              </Bar>
+              <Legend formatter={(value) => <span style={{ fontSize: 11, color: '#475569' }}>{value}</span>} wrapperStyle={{ paddingTop: 10 }} />
+              <Bar dataKey="active" stackId="a" name="Tugas Aktif" fill="#3B82F6" barSize={20} />
+              <Bar dataKey="completed" stackId="a" name="Sudah Selesai" fill="#94A3B8" radius={[0, 4, 4, 0]} barSize={20} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -253,12 +252,12 @@ export function DashboardPage() {
             <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Beban Kerja Tim Engineering</span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={workerTaskData} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
+            <BarChart data={workerTaskData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94A3B8' }} angle={-20} textAnchor="end" axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} cursor={{ fill: '#F8FAFC' }} />
-              <Legend formatter={(value) => <span style={{ fontSize: 11, color: '#475569' }}>{value}</span>} wrapperStyle={{ paddingTop: 20 }} />
+              <Legend formatter={(value) => <span style={{ fontSize: 11, color: '#475569' }}>{value}</span>} wrapperStyle={{ paddingTop: 10 }} />
               <Bar dataKey="active" name="Sedang Dikerjakan (Aktif)" fill="#3B82F6" radius={[4, 4, 0, 0]} />
               <Bar dataKey="completed" name="Sudah Selesai" fill="#94A3B8" radius={[4, 4, 0, 0]} />
             </BarChart>
