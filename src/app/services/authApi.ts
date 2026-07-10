@@ -12,15 +12,11 @@ export interface LoginResponseDto {
 
 export const authApi = {
   async login(email: string, password: string): Promise<LoginResponseDto> {
-    const response = await apiClient.post<LoginResponseDto>("/api/v1/auth/login", {
+    const { data } = await apiClient.post<LoginResponseDto>("/api/v1/auth/login", {
       email,
       password,
     });
-
-    const data = response.data;
-
-    if (data.accessToken) {
-      localStorage.setItem("auth_token", data.accessToken);
+    if (data.userId) {
       localStorage.setItem(
         "auth_user",
         JSON.stringify({
@@ -33,10 +29,8 @@ export const authApi = {
         })
       );
     }
-
     return data;
   },
-
   async logout(): Promise<void> {
     try {
       await apiClient.post("/api/v1/auth/logout");
@@ -45,7 +39,6 @@ export const authApi = {
       localStorage.removeItem("auth_user");
     }
   },
-
   async me(): Promise<LoginResponseDto | null> {
     try {
       const response = await apiClient.get<LoginResponseDto>("/api/v1/auth/me");

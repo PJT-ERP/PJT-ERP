@@ -164,6 +164,26 @@ public sealed class SubmitPaymentProofTests : IDisposable
             FileName = fileName;
             Length = length;
             _content = new byte[length];
+            if (length >= 3 && (fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || fileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)))
+            {
+                _content[0] = 0xFF;
+                _content[1] = 0xD8;
+                _content[2] = 0xFF;
+            }
+            else if (length >= 4 && fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                _content[0] = 0x89;
+                _content[1] = 0x50;
+                _content[2] = 0x4E;
+                _content[3] = 0x47;
+            }
+            else if (length >= 4 && fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                _content[0] = 0x25;
+                _content[1] = 0x50;
+                _content[2] = 0x44;
+                _content[3] = 0x46;
+            }
         }
 
         public string ContentType => "image/jpeg";
