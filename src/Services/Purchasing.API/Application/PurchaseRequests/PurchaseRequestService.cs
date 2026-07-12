@@ -551,14 +551,22 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             .Where(p => p.StartsWith("RCV:"))
             .Sum(p => int.TryParse(p.Replace("RCV:", "").Trim(), out var rcv) ? rcv : 0) ?? 0;
 
-        var totalReceived = Math.Max(totalParsedFromNotes, request.ReceivedQty ?? 0);
+        var isFullyReceived = false;
+        if (request.ReceivedQty.HasValue || (newNotes != null && newNotes.Contains("RCV:")))
+        {
+            isFullyReceived = Math.Max(totalParsedFromNotes, request.ReceivedQty ?? 0) >= purchaseItem.Qty;
+        }
+        else
+        {
+            isFullyReceived = true;
+        }
 
         purchaseItem.ReceivedDate = request.ReceivedDate;
         purchaseItem.PurchaseNotes = newNotes;
         purchaseItem.RejectionReason = null;
         purchaseItem.UpdatedAtUtc = now;
         
-        if (totalReceived >= purchaseItem.Qty || ((request.ReceivedQty ?? 0) >= purchaseItem.Qty && string.IsNullOrWhiteSpace(newNotes)))
+        if (isFullyReceived)
         {
             purchaseItem.PurchaseStatus = PurchaseItemStatuses.Received;
             UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Received, now);
