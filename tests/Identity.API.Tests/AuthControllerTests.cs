@@ -16,7 +16,8 @@ public class AuthControllerTests
     public AuthControllerTests()
     {
         _authServiceMock = new Mock<IAuthService>();
-        _authController = new AuthController(_authServiceMock.Object);
+        var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<AuthController>>();
+        _authController = new AuthController(_authServiceMock.Object, loggerMock.Object);
         
         // Setup HttpContext for Cookies
         var httpContext = new DefaultHttpContext();
@@ -50,7 +51,7 @@ public class AuthControllerTests
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<LoginResponse>(okResult.Value);
-        Assert.Equal("fake-jwt-token", response.AccessToken);
+        Assert.Equal(string.Empty, response.AccessToken);
 
         // Verify cookie was set
         var setCookieHeader = _authController.HttpContext.Response.Headers["Set-Cookie"].ToString();

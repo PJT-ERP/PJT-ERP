@@ -18,11 +18,16 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
     {
         var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? 
-                      ["http://localhost:3000", "http://localhost:5173"];
+                      ["http://localhost:3000", "http://localhost:5173", "https://innovation-pratama.co.id", "https://dev.innovation-pratama.co.id"];
 
         if (builder.Environment.IsDevelopment())
         {
-            policy.SetIsOriginAllowed(_ => true)
+            policy.SetIsOriginAllowed(origin =>
+                  {
+                      if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+                      var host = uri.Host;
+                      return host == "localhost" || host == "127.0.0.1" || origins.Contains(origin, StringComparer.OrdinalIgnoreCase);
+                  })
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
@@ -47,6 +52,42 @@ app.UsePjtRequestLogging();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    var method = context.Request.Method;
+    if (HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsDelete(method) || HttpMethods.IsPatch(method))
+    {
+        var hasAuthHeader = context.Request.Headers.ContainsKey("Authorization");
+        var hasCookieToken = context.Request.Cookies.ContainsKey("access_token");
+
+        if (hasCookieToken && !hasAuthHeader)
+        {
+            var hasCsrfHeader = context.Request.Headers.ContainsKey("X-Requested-With") ||
+                                context.Request.Headers.ContainsKey("X-PJT-Client");
+
+            if (!hasCsrfHeader)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("{\"error\":\"CSRF validation failed. Custom client header required for cookie-authenticated requests.\"}");
+                return;
+            }
+        }
+    }
+
+    if (!context.Request.Headers.ContainsKey("Authorization") &&
+        context.Request.Cookies.TryGetValue("access_token", out var cookieToken) &&
+        !string.IsNullOrWhiteSpace(cookieToken))
+    {
+        context.Request.Headers.Authorization = $"Bearer {cookieToken}";
+    }
+
+    context.Request.Headers["X-PJT-Gateway-Forwarded"] = "true";
+
+    await next();
+});
+
 app.MapGet("/health", () => Results.Ok(new { service = "gateway", status = "ok" })).AllowAnonymous();
 
 if (app.Environment.IsDevelopment())
