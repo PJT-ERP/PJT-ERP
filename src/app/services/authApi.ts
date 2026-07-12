@@ -17,6 +17,7 @@ export const authApi = {
       password,
     });
     if (data.userId) {
+      localStorage.setItem("auth_token", data.accessToken);
       localStorage.setItem(
         "auth_user",
         JSON.stringify({
