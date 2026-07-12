@@ -47,7 +47,7 @@ describe('PurchaseOrderDetailPage — Receive Item', () => {
     await userEvent.click(screen.getByRole('tab', { name: /Daftar Item/i }));
     await screen.findAllByText('Steel Pipe');
     await waitFor(async () => { const btn = screen.getByRole('button', { name: 'Terima Sebagian' }); expect(btn).not.toBeDisabled(); await userEvent.click(btn); });
-    await waitFor(() => expect(screen.getByText('Form Penerimaan Barang')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Form Penerimaan Barang/i)).toBeInTheDocument());
 
     const qtyInput = screen.getByRole('spinbutton');
     fireEvent.change(qtyInput, { target: { value: '5' } });
@@ -64,7 +64,7 @@ describe('PurchaseOrderDetailPage — Receive Item', () => {
     await userEvent.click(screen.getByRole('tab', { name: /Daftar Item/i }));
     await screen.findAllByText('Steel Pipe');
     await waitFor(async () => { const btn = screen.getByRole('button', { name: 'Terima Penuh' }); await userEvent.click(btn); });
-    await waitFor(() => expect(screen.getByText('Form Penerimaan Barang')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Form Penerimaan Barang/i)).toBeInTheDocument());
 
     fireEvent.submit(screen.getByRole('button', { name: /Konfirmasi Terima/i }).closest('form')!);
 
@@ -79,7 +79,7 @@ describe('PurchaseOrderDetailPage — Receive Item', () => {
     await userEvent.click(screen.getByRole('tab', { name: /Daftar Item/i }));
     await screen.findAllByText('Steel Pipe');
     await waitFor(async () => { const btn = screen.getByRole('button', { name: 'Terima Penuh' }); await userEvent.click(btn); });
-    await waitFor(() => expect(screen.getByText('Form Penerimaan Barang')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Form Penerimaan Barang/i)).toBeInTheDocument());
     fireEvent.submit(screen.getByRole('button', { name: /Konfirmasi Terima/i }).closest('form')!);
     await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
   });
