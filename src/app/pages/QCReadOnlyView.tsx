@@ -153,7 +153,7 @@ export function QCReadOnlyView() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
   const currentBackendUserId = toBackendUserId(currentUser);
   const baseOrders = isRegularEngineer 

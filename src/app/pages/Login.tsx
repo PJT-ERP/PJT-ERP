@@ -129,6 +129,8 @@ function getDefaultRouteForBackendRole(role?: string): string {
       return "/erp/dashboard";
     case "admin":
       return "/erp/finance/dashboard";
+    case "qc":
+      return "/erp/qc";
     case "sales":
     default:
       return "/erp/so";

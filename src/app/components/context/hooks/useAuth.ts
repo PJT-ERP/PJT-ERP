@@ -36,6 +36,9 @@ export function mapBackendRoleToUserRole(role?: string | null): UserRole {
     case "engineeringsupervisor":
     case "supervisorengineering":
       return "Engineering Supervisor";
+    case "qc":
+    case "qualitycontrol":
+      return "QC";
     case "sales":
     default:
       return "Sales";

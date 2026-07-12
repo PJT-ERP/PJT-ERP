@@ -6,7 +6,7 @@ import { qcApi } from "../../services/qcApi";
 import type { QcInspectionDto } from "../../services/qcApi";
 import { BASE_URL } from "../../services/apiClient";
 import { QCReadOnlyView } from "../QCReadOnlyView";
-import { toBackendUserId } from "../../services/backendIds";
+import { toBackendUserId, isGuid } from "../../services/backendIds";
 import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
 
 const S = {
@@ -38,9 +38,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function isGuid(value?: string | null): value is string {
-  return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
-}
 
 function isGo(value?: string | null) {
   return value === "Go" || value === "Pass";
@@ -136,7 +133,7 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
             <span style={{ color: S.secondary, fontSize: "12.5px" }}>{so.qcAt ? new Date(so.qcAt).toLocaleString('id-ID') : '-'}</span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <div>
               <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p>
               <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p>
@@ -144,6 +141,10 @@ function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspectio
             <div>
               <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Quantity</p>
               <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{so.quantity} {so.unit}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Diinspeksi Oleh</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{inspection?.reviewerName || 'QC Reviewer'}</p>
             </div>
           </div>
 
@@ -597,7 +598,7 @@ function QCInspectionModal({
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
-export function EngineeringQCPage() {
+export function QCInspectionsPage() {
   const { salesOrders, customers, currentUser, refreshBackendData } = useApp();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
@@ -612,7 +613,7 @@ export function EngineeringQCPage() {
   const itemsPerPageQc = 3;
 
   const isOwner = currentUser?.role === 'Owner';
-  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin';
+  const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Admin';
   const isReadOnly = (currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin') || isOwner;
 
   if (isReadOnly) {
@@ -899,7 +900,7 @@ export function EngineeringQCPage() {
   );
 }
 
-function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: SalesOrder[]): SalesOrder {
+export function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: SalesOrder[]): SalesOrder {
   const existing = salesOrders.find(order =>
     order.soNumber === inspection.salesOrderNumber ||
     order.id === inspection.salesOrderNumber ||
@@ -933,8 +934,8 @@ function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrders: Sal
     qcStatus: isGo(decision) ? "Go" : isNoGo(decision) ? "NoGo" : existing?.qcStatus,
     qcNotes: inspection.notes || existing?.qcNotes,
     qcAt: inspection.reviewedAtUtc ?? existing?.qcAt,
-    qcPhotos: inspection.qcPhotos?.length ? inspection.qcPhotos : existing?.qcPhotos,
-    productionPhotos: inspection.productionPhotos?.length ? inspection.productionPhotos : existing?.productionPhotos,
+    qcPhotos: inspection.qcPhotos ?? existing?.qcPhotos,
+    productionPhotos: inspection.productionPhotos ?? existing?.productionPhotos,
     customerDrawingUrl: inspection.customerDrawingUrl || existing?.customerDrawingUrl,
     designLink: inspection.customerDrawingUrl || existing?.designLink,
     backendDesignStatus: inspection.designReference || existing?.backendDesignStatus,

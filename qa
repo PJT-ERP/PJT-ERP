@@ -1,0 +1,20 @@
+[33mcommit 0dba6ce9a5e58f945d432749b034d7d97f63c359[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/frontend-backend-integration[m[33m)[m
+Author: Badgerbees <rapabelias@gmail.com>
+Date:   Sun Jul 12 21:14:12 2026 +0800
+
+    test(Identity.API): fix AuthController missing logger argument in tests
+
+[1mdiff --git a/tests/Identity.API.Tests/AuthControllerTests.cs b/tests/Identity.API.Tests/AuthControllerTests.cs[m
+[1mindex 4ff7183..5867e4c 100644[m
+[1m--- a/tests/Identity.API.Tests/AuthControllerTests.cs[m
+[1m+++ b/tests/Identity.API.Tests/AuthControllerTests.cs[m
+[36m@@ -16,7 +16,8 @@[m [mpublic class AuthControllerTests[m
+     public AuthControllerTests()[m
+     {[m
+         _authServiceMock = new Mock<IAuthService>();[m
+[31m-        _authController = new AuthController(_authServiceMock.Object);[m
+[32m+[m[32m        var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<AuthController>>();[m
+[32m+[m[32m        _authController = new AuthController(_authServiceMock.Object, loggerMock.Object);[m
+         [m
+         // Setup HttpContext for Cookies[m
+         var httpContext = new DefaultHttpContext();[m

@@ -63,6 +63,14 @@ public static class IdentitySeeder
             },
             new UserAccount
             {
+                Email = "qc@pjt.local",
+                Name = "Quality Control",
+                Department = "Engineering",
+                Role = "QC",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Dev123!")
+            },
+            new UserAccount
+            {
                 Email = "purchasing@pjt.local",
                 Name = "Purchasing User",
                 Department = "Purchasing",

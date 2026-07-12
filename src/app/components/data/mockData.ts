@@ -1,4 +1,4 @@
-export type UserRole = 'Sales' | 'Engineering' | 'Engineering Supervisor' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
+export type UserRole = 'Sales' | 'Engineering' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
   | 'Waiting Payment'
@@ -264,6 +264,7 @@ export function getDefaultRouteForRole(role: UserRole): string {
     Admin: '/app/admin',
     Finance: '/app/finance',
     Purchasing: '/app/purchasing',
+    QC: '/app/qc',
   };
   return map[role];
 }
