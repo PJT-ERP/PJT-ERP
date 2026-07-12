@@ -166,7 +166,7 @@ export function FinancePoDetail() {
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm print:shadow-none print:border-none">
         
         {/* PRINT ONLY: Professional Invoice Header */}
-        <div className="hidden print:block px-6 pt-10 pb-6 border-b-2 border-slate-800">
+        <div className="hidden print:block px-6 pt-10 pb-6 border-b-2 border-slate-800 print-area">
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">{detail.supplier}</h1>

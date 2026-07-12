@@ -16,6 +16,7 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
   onReject: (id: string, reason: string) => void | Promise<void>;
 }) {
   const [rejectMode, setRejectMode] = useState(false);
+  const [verifyMode, setVerifyMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
   const handleReject = () => {
@@ -174,10 +175,10 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             </div>
           )}
 
-          {payment.status === 'PENDING' && !rejectMode && (
+          {payment.status === 'PENDING' && !rejectMode && !verifyMode && (
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => { void onVerify(payment.id); onClose(); }}
+                onClick={() => setVerifyMode(true)}
                 className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors shadow-sm"
               >
                 <CheckCircle2 size={15} />
@@ -190,6 +191,27 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
                 <XCircle size={15} />
                 Tolak
               </button>
+            </div>
+          )}
+
+          {verifyMode && (
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <p className="text-sm font-semibold text-green-700">Konfirmasi Verifikasi</p>
+              <p className="text-sm text-slate-600">Apakah Anda yakin ingin memverifikasi pembayaran ini? Pastikan dana sudah masuk ke rekening.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { void onVerify(payment.id); onClose(); }}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors"
+                >
+                  Ya, Verifikasi
+                </button>
+                <button
+                  onClick={() => setVerifyMode(false)}
+                  className="px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Batal
+                </button>
+              </div>
             </div>
           )}
 

@@ -19,6 +19,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BarcodeScannerModal } from "../../components/common/BarcodeScannerModal";
+import { QrCode } from "lucide-react";
 
 const S = {
   font: "Inter, sans-serif",
@@ -45,6 +47,23 @@ function StatusBadge({ status }: { status: string }) {
 export function EngineeringPage() {
   const navigate = useNavigate();
   const { salesOrders, customers, currentUser, users } = useApp();
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handleScan = (barcode: string) => {
+    // Format: PJT|SO|20260709|c2345678...
+    const parts = barcode.split('|');
+    if (parts.length >= 4 && parts[0] === 'PJT' && parts[1] === 'SO') {
+      let soId = parts[3];
+      // Try to format it as a UUID with dashes if it has 32 chars without dashes
+      if (soId.length === 32 && !soId.includes('-')) {
+        soId = `${soId.substring(0, 8)}-${soId.substring(8, 12)}-${soId.substring(12, 16)}-${soId.substring(16, 20)}-${soId.substring(20, 32)}`;
+      }
+      setShowScanner(false);
+      navigate(`/erp/engineer-tasks/${soId}`);
+    } else {
+      alert("Barcode tidak valid. Pastikan Anda men-scan tiket Sales Order (SO).");
+    }
+  };
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
@@ -110,12 +129,13 @@ export function EngineeringPage() {
       const designOrders = salesOrders.filter(so => so.designAssignedTo === worker.id);
       const prodOrders = salesOrders.filter(so => so.assignedTo === worker.id);
       return {
-        name: worker.name.split(" ")[0],
+        name: worker.name,
         designActive: designOrders.filter(so => ["Pending Design", "Revision Required"].includes(so.status)).length,
         designReview: designOrders.filter(so => so.status === "Waiting Spv Approval").length,
         designCompleted: designOrders.filter(so => !["Pending Design", "Revision Required", "Waiting Spv Approval"].includes(so.status)).length,
         prodActive: prodOrders.filter(so => ["Ready for Production", "In Production"].includes(so.status)).length,
         prodQC: prodOrders.filter(so => so.status === "QC").length,
+        prodCompleted: prodOrders.filter(so => so.status === "Completed").length,
       };
     });
 
@@ -126,7 +146,7 @@ export function EngineeringPage() {
       {/* Page header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h1 style={{ color: S.slate, margin: 0 }}>Engineering Dashboard</h1>
+          <h1 style={{ color: S.slate, margin: 0 }}>Supervisor Engineering Dashboard</h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             PT Pratama Jaya Tekindo · {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
@@ -164,7 +184,7 @@ export function EngineeringPage() {
                 <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={80} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
                   <Tooltip />
                   <Bar dataKey="designActive" name="Desain Aktif" stackId="a" fill="#3B82F6" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="designReview" name="Menunggu Review" stackId="a" fill="#8B5CF6" />
@@ -189,10 +209,11 @@ export function EngineeringPage() {
                 <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={80} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
                   <Tooltip />
                   <Bar dataKey="prodActive" name="Produksi Aktif" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" radius={[0, 3, 3, 0]} />
+                  <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" />
+                  <Bar dataKey="prodCompleted" name="Produksi Selesai" stackId="a" fill="#10B981" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -322,8 +343,20 @@ export function EngineeringPage() {
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                onClick={() => setShowScanner(true)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  padding: "12px", borderRadius: 4, cursor: "pointer",
+                  background: S.cyan, border: `1px solid ${S.cyan}`,
+                  color: "#fff", fontSize: "13px", fontWeight: 600, fontFamily: S.font,
+                  transition: "opacity 0.1s", marginBottom: 4
+                }}
+              >
+                <QrCode size={16} /> Scan Barcode / QR Ticket
+              </button>
               {[
-                { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: true },
+                { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
                 { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Quality Control", icon: <CheckSquare size={13} />, path: "/erp/engineer-qc", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: false },
@@ -351,6 +384,12 @@ export function EngineeringPage() {
         </div>
       </div>
 
+      {showScanner && (
+        <BarcodeScannerModal
+          onClose={() => setShowScanner(false)}
+          onScan={handleScan}
+        />
+      )}
     </div>
   );
 }

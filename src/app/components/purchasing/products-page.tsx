@@ -99,18 +99,18 @@ export function ProductsPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", color: S.slate }}>
               <thead>
-                <tr style={{ background: "#F8FAFC", borderBottom: `2px solid ${S.border}`, textAlign: "left", color: S.secondary, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  <th style={{ padding: "12px 16px", fontWeight: 600 }}>Part Number</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600 }}>Deskripsi Produk</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600 }}>Satuan</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600 }}>BOM Terdaftar</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 600, textAlign: "right" }}>Aksi</th>
+                <tr style={{ background: "#F8FAFC", borderBottom: `2px solid ${S.border}`, color: S.secondary, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <th style={{ padding: "12px 16px 12px 24px", fontWeight: 600, textAlign: "left", width: "20%" }}>Part Number</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, textAlign: "left", width: "35%" }}>Deskripsi Produk</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, textAlign: "left", width: "15%" }}>Satuan</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 600, textAlign: "left", width: "15%" }}>BOM Terdaftar</th>
+                  <th style={{ padding: "12px 24px 12px 16px", fontWeight: 600, textAlign: "left", width: "15%" }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {paginated.map(p => (
                   <tr key={p.id} style={{ borderBottom: `1px solid ${S.border}` }}>
-                    <td style={{ padding: "12px 16px", fontWeight: 500 }}>{p.partNumber}</td>
+                    <td style={{ padding: "12px 16px 12px 24px", fontWeight: 500 }}>{p.partNumber}</td>
                     <td style={{ padding: "12px 16px" }}>{p.description}</td>
                     <td style={{ padding: "12px 16px" }}>{p.unit}</td>
                     <td style={{ padding: "12px 16px" }}>
@@ -120,8 +120,26 @@ export function ProductsPage() {
                         <span style={{ color: S.secondary, fontSize: "12px" }}>-</span>
                       )}
                     </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      <button onClick={() => handleEditBom(p)} style={{ background: "transparent", border: "none", color: S.primary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontSize: "12px", fontWeight: 600 }}>
+                    <td style={{ padding: "12px 24px 12px 16px", textAlign: "left" }}>
+                      <button 
+                        onClick={() => handleEditBom(p)} 
+                        style={{ 
+                          background: "#FEF2F2", 
+                          border: `1px solid #FECACA`, 
+                          color: S.primary, 
+                          borderRadius: 6,
+                          padding: "6px 12px",
+                          cursor: "pointer", 
+                          display: "inline-flex", 
+                          alignItems: "center", 
+                          gap: 6, 
+                          fontSize: "12px", 
+                          fontWeight: 600,
+                          transition: "all 0.12s"
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.borderColor = "#FCA5A5"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.borderColor = "#FECACA"; }}
+                      >
                         <Edit2 size={12} /> Kelola BOM
                       </button>
                     </td>

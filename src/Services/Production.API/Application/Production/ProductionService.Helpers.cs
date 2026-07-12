@@ -19,10 +19,25 @@ public sealed partial class ProductionService
             throw new InvalidOperationException("Tracking code is required.");
         }
 
+        Guid? parsedId = null;
+        if (normalizedTrackingCode.StartsWith("PJT|SO|", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = normalizedTrackingCode.Split('|');
+            if (parts.Length >= 4 && Guid.TryParse(parts[3], out var guid))
+            {
+                parsedId = guid;
+            }
+        }
+        else if (Guid.TryParse(normalizedTrackingCode, out var directGuid))
+        {
+            parsedId = directGuid;
+        }
+
         var query = IncludeProduction(asNoTracking ? db.SalesOrders.AsNoTracking() : db.SalesOrders);
         return await query.FirstOrDefaultAsync(
             order =>
-                order.SoNumber == normalizedTrackingCode
+                (parsedId.HasValue && order.Id == parsedId.Value)
+                || order.SoNumber == normalizedTrackingCode
                 || order.ProductionOrders.Any(productionOrder =>
                     productionOrder.BarcodeUid == normalizedTrackingCode
                     || productionOrder.PoNumber == normalizedTrackingCode),

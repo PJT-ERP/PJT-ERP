@@ -18,7 +18,7 @@ export function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; 
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
 
-  const canEditWorker = (currentUser?.role === 'Engineering' || currentUser?.role === 'Engineering Worker')
+  const canEditWorker = (currentUser?.role === 'Engineering' || (currentUser?.role as string) === 'Engineering Worker')
     && (pr.backendStatus === 'SupervisorRejected' || pr.backendStatus === 'FinanceRejected' || pr.backendStatus === 'Rejected' || pr.status === 'Ditolak');
 
   const canEditSpv = isSpv

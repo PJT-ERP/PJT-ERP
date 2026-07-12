@@ -346,51 +346,108 @@ export function ProductionMaterialRequestPage() {
       return;
     }
 
-    masterDataApi.listProducts().then(products => {
-      const productsById = new Map(products.map(p => [p.id, p]));
-      const materialsByKey = new Map<string, { materialKey: string; itemName: string; specification: string; quantity: number; unit: string; urgency: PurchasingUrgency; purchaseCategory: string }>();
+    masterDataApi.getBomStock(productIds).then(bomStocks => {
+      const issues: any[] = [];
+      for (const soItem of (soItems || [])) {
+        const soProductId = (soItem as any).productId;
+        const soItemId = soItem.id;
+        const customBoms = so.bomsPerItem?.[soItemId] || [];
+        const bomStock = bomStocks.find(bs => bs.productId === soProductId);
+        if (!bomStock?.items?.length) continue;
 
-      (soItems as any[]).forEach((soItem: any) => {
-        const product = productsById.get(soItem.productId);
-        if (!product || !product.bomItems || product.bomItems.length === 0) return;
-
-        const itemQty = Number(soItem.quantity || soItem.qty || 1);
-        product.bomItems.forEach((bomItem: any) => {
-          const bomQty = Number(bomItem.quantity || 0);
-          if (bomQty <= 0) return;
-          const key = bomItem.inventoryItemId || `${bomItem.inventoryItemName}|${bomItem.unit}`;
-          const total = bomQty * Math.max(itemQty, 1);
-
-          if (materialsByKey.has(key)) {
-            materialsByKey.get(key)!.quantity += total;
+        const aggregatedItems = new Map<string, typeof bomStock.items[0]>();
+        for (const item of bomStock.items) {
+          const existing = aggregatedItems.get(item.inventoryItemId);
+          if (existing) {
+            existing.bomQuantity += item.bomQuantity;
           } else {
-            materialsByKey.set(key, {
-              materialKey: key,
-              itemName: bomItem.inventoryItemName,
-              specification: bomItem.inventoryItemCode || "",
-              quantity: total,
-              unit: bomItem.unit || "pcs",
-              urgency: "Urgent" as PurchasingUrgency,
-              purchaseCategory: "Project",
-            });
+            aggregatedItems.set(item.inventoryItemId, { ...item });
           }
-        });
+        }
+
+        const productQty = (soItem as any).qty || soItem.quantity || 1;
+        for (const item of aggregatedItems.values()) {
+          const required = item.bomQuantity * productQty;
+          const available = item.currentStock;
+          
+          const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
+          const specs = matchingCustomBoms.map(cb => ({
+            spec: cb.spec || "",
+            quantity: (cb.quantity || 1) * productQty
+          }));
+          
+          if (available < required) {
+            const existing = issues.find(i => i.itemName === item.inventoryItemName);
+            if (existing) {
+              existing.required += required;
+              if (specs.length > 0) {
+                existing.specs = [...(existing.specs || []), ...specs];
+              }
+            } else {
+              issues.push({
+                itemName: item.inventoryItemName,
+                required,
+                available,
+                bomQty: item.bomQuantity,
+                productQty,
+                specs: specs.length > 0 ? specs : undefined
+              });
+            }
+          }
+        }
+      }
+
+      let hasMultipleSpecs = false;
+      const mapped = issues.flatMap(issue => {
+        const missingQty = Math.max(0, issue.required - (issue.available || 0));
+        
+        if (issue.specs && issue.specs.length > 0) {
+          if (issue.specs.length > 1) hasMultipleSpecs = true;
+          return issue.specs.map((s: any, idx: number) => ({
+            materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}-${idx}`,
+            itemName: issue.itemName,
+            specification: s.spec,
+            quantity: String(issue.specs!.length === 1 ? missingQty : s.quantity),
+            maxQuantity: issue.specs!.length === 1 ? missingQty : s.quantity,
+            unit: "pcs",
+            urgency: "Urgent" as PurchasingUrgency,
+            purchaseCategory: "Project",
+          }));
+        }
+
+        return [{
+          materialKey: `stock-${issue.itemName.replace(/\s/g, '_')}`,
+          itemName: issue.itemName,
+          specification: "",
+          quantity: String(missingQty),
+          maxQuantity: missingQty,
+          unit: "pcs",
+          urgency: "Urgent" as PurchasingUrgency,
+          purchaseCategory: "Project",
+        }];
       });
 
-      const uniqueBom = Array.from(materialsByKey.values());
-      setBomOptions(uniqueBom.map(m => ({ id: m.materialKey, name: m.itemName, code: m.specification || 'BOM', unit: m.unit, currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
-
-      if (uniqueBom.length > 0) {
-        setItems(uniqueBom.map(m => ({ ...m, quantity: String(m.quantity), maxQuantity: m.quantity })));
+      if (mapped.length > 0) {
+        setItems(mapped);
+        setBomOptions(mapped.map(m => ({
+          id: m.materialKey,
+          name: m.itemName,
+          code: '',
+          currentStock: 0,
+          unit: m.unit,
+          spec: m.specification,
+          maxQuantity: m.maxQuantity,
+        })));
+        
+        if (hasMultipleSpecs) {
+          setNotes(`Auto-generated dari pengecekan stok. Terdapat beberapa spesifikasi berbeda untuk material yang kurang. Silakan hapus atau sesuaikan kuantitas untuk spesifikasi yang benar-benar perlu dibeli.`);
+        } else {
+          setNotes(`Auto-generated dari pengecekan stok — material tidak mencukupi untuk memulai produksi.`);
+        }
       } else {
-        // No BOM found for products — fallback to legacy
         const mats = getMaterialOptions(so);
         setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
-        if (mats.length > 0) {
-          setItems(mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" })));
-        } else {
-          setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
-        }
+        setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
       }
     }).catch(() => {
       const mats = getMaterialOptions(so);
@@ -412,7 +469,7 @@ export function ProductionMaterialRequestPage() {
     code: p.code,
     currentStock: p.currentStock || 0,
     unit: p.unit || "pcs",
-    spec: (p as any).specification || p.description || ""
+    spec: (p as any).specification || (p as any).description || ""
   }));
 
   if (!so) {

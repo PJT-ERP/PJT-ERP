@@ -14,8 +14,9 @@ import {
   ChevronUp,
   Printer,
   X,
-  Download,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useNavigate } from "react-router";
@@ -87,7 +88,7 @@ export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / 
 export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = []): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = [], inventoryItems: any[] = []): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -109,7 +110,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
-          code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          code: inventoryItems.find(inv => inv.name?.toLowerCase() === item.itemName?.toLowerCase())?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
           spec: item.size || "-",
           qty: item.qty,
@@ -247,8 +248,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const { purchaseRequests, supplierPayments, suppliers } = usePurchasingData();
-  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
+  const { purchaseRequests, supplierPayments, suppliers, inventoryItems } = usePurchasingData();
+  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers, inventoryItems), [purchaseRequests, supplierPayments, suppliers, inventoryItems]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -553,11 +554,23 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           </table>
         </div>
 
-        <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>Menampilkan {filtered.length} dari {purchaseOrders.length} purchase order</p>
-          <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
-            Total: {formatRp(filtered.reduce((s, p) => s + calcTotal(p.items), 0))}
-          </p>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
+          <span style={{ fontSize: "13px", color: "#64748B" }}>
+            {filtered.length === 0 ? "0 dari 0 hasil" : `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filtered.length)} dari ${filtered.length} hasil`}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : "#64748b", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}>
+              <ChevronLeft size={18} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setCurrentPage(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 28, height: 28, padding: "0 8px", borderRadius: 8, border: "none", background: p === currentPage ? "#dc2626" : "transparent", color: p === currentPage ? "#FFFFFF" : "#475569", fontSize: "13px", fontWeight: p === currentPage ? 600 : 500, cursor: "pointer", transition: "all 0.1s" }}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= totalPages ? "#CBD5E1" : "#64748b", cursor: currentPage >= totalPages ? "not-allowed" : "pointer" }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

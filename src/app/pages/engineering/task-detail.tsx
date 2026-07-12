@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../../components/data/mockData";
 import { salesApi } from "../../services/salesApi";
 import { masterDataApi, InventoryItemDto } from "../../services/masterDataApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 
 const S = {
   font: "Inter, sans-serif",
@@ -134,7 +135,7 @@ export function EngineeringTaskDetailPage() {
   const navigate = useNavigate();
   const { salesOrders, updateSalesOrder, customers, currentUser, refreshBackendData, productCatalog } = useApp();
   
-  const qut = salesOrders.find(so => so.id === id);
+  const qut = salesOrders.find(so => so.id === id || so.backendId === id || so.id.replace(/-/g, '') === id);
 
   const [designLink, setDesignLink] = useState('');
   const [itemMaterials, setItemMaterials] = useState<Record<string, any[]>>({});
@@ -187,8 +188,9 @@ export function EngineeringTaskDetailPage() {
 
   const newMaterials = React.useMemo(() => {
     const result: { name: string; spec: string }[] = [];
+    if (!qut) return result;
     const seen = new Set<string>();
-    for (const item of qut?.items || []) {
+    for (const item of qut.items || []) {
       const mats = itemMaterials[item.id] || [];
       for (const m of mats) {
         if (!m.name?.trim()) continue;
@@ -204,7 +206,71 @@ export function EngineeringTaskDetailPage() {
       }
     }
     return result;
-  }, [qut?.items, itemMaterials, inventoryItems]);
+  }, [qut, itemMaterials, inventoryItems]);
+
+  const hasDuplicateMaterials = qut?.items?.some(item => {
+    const mats = itemMaterials[item.id] || [];
+    const productInCatalog = productCatalog.find(p => p.id === item.productId);
+    const isStandardProduct = !!productInCatalog?.bomItems?.length;
+    const standardBomItems = productInCatalog?.bomItems || [];
+    
+    // Check duplicates inside mats, including specification
+    const hasInternalDupe = mats.some((m, idx) => {
+      if (!m.name.trim()) return false;
+      return mats.findIndex(x => {
+        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
+          ? x.inventoryItemId === m.inventoryItemId 
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase();
+        const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
+        return isSameItem && isSameSpec;
+      }) !== idx;
+    });
+    
+    return hasInternalDupe;
+  }) || false;
+
+  const hasCategoryConflict = qut?.items?.some(item => {
+    const mats = itemMaterials[item.id] || [];
+    return mats.some(m => {
+      if (!m.name.trim()) return false;
+      return mats.some(x => {
+        if (x.id === m.id) return false;
+        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
+          ? x.inventoryItemId === m.inventoryItemId 
+          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
+        return isSameItem && x.category !== m.category;
+      });
+    });
+  }) || false;
+
+  const prevDuplicate = React.useRef(false);
+  const prevCategoryConflict = React.useRef(false);
+
+  // Determine if the current user can process this task
+  const isEditable = qut && (
+    qut.status === 'Pending Design' || 
+    qut.status === 'Revision Required' || 
+    (qut.status === 'Waiting Pricing' && (currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv')))
+  );
+
+  React.useEffect(() => {
+    if (isEditable) {
+      if (hasDuplicateMaterials && !prevDuplicate.current) {
+        toast.warning("Terdapat material duplikat dengan spesifikasi yang sama persis di dalam daftar BOM. Mohon periksa kembali.", {
+          duration: Infinity,
+          closeButton: true,
+        });
+      }
+      if (hasCategoryConflict && !prevCategoryConflict.current) {
+        toast.warning("Material yang sama tidak boleh memiliki kategori yang berbeda di dalam satu BOM. Mohon samakan kategorinya.", {
+          duration: Infinity,
+          closeButton: true,
+        });
+      }
+    }
+    prevDuplicate.current = hasDuplicateMaterials;
+    prevCategoryConflict.current = hasCategoryConflict;
+  }, [hasDuplicateMaterials, hasCategoryConflict, isEditable]);
 
   if (!qut) {
     return (
@@ -485,66 +551,9 @@ export function EngineeringTaskDetailPage() {
     }
   };
 
-  const hasDuplicateMaterials = qut.items?.some(item => {
-    const mats = itemMaterials[item.id] || [];
-    const productInCatalog = productCatalog.find(p => p.id === item.productId);
-    const isStandardProduct = !!productInCatalog?.bomItems?.length;
-    const standardBomItems = productInCatalog?.bomItems || [];
-    
-    // Check duplicates inside mats, including specification
-    const hasInternalDupe = mats.some((m, idx) => {
-      if (!m.name.trim()) return false;
-      return mats.findIndex(x => {
-        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
-          ? x.inventoryItemId === m.inventoryItemId 
-          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase();
-        const isSameSpec = (x.spec || '').trim().toLowerCase() === (m.spec || '').trim().toLowerCase();
-        return isSameItem && isSameSpec;
-      }) !== idx;
-    });
-    
-    // Check duplicates against standard BOM (standard BOM doesn't have spec, so just check inventoryItemId)
-    const hasStandardDupe = isStandardProduct && mats.some(m => !!m.inventoryItemId && standardBomItems.some(bom => bom.inventoryItemId === m.inventoryItemId));
-    
-    return hasInternalDupe || hasStandardDupe;
-  }) || false;
-
-  const hasCategoryConflict = qut?.items?.some(item => {
-    const mats = itemMaterials[item.id] || [];
-    return mats.some(m => {
-      if (!m.name.trim()) return false;
-      return mats.some(x => {
-        if (x.id === m.id) return false;
-        const isSameItem = (x.inventoryItemId && m.inventoryItemId) 
-          ? x.inventoryItemId === m.inventoryItemId 
-          : x.name.trim().toLowerCase() === m.name.trim().toLowerCase() && x.name.trim() !== '';
-        return isSameItem && x.category !== m.category;
-      });
-    });
-  }) || false;
-
   const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
   const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict;
 
-  const prevDuplicate = React.useRef(false);
-  const prevCategoryConflict = React.useRef(false);
-
-  React.useEffect(() => {
-    if (hasDuplicateMaterials && !prevDuplicate.current) {
-      toast.warning("Terdapat material duplikat dengan spesifikasi yang sama persis di dalam daftar BOM. Mohon periksa kembali.", {
-        duration: Infinity,
-        closeButton: true,
-      });
-    }
-    if (hasCategoryConflict && !prevCategoryConflict.current) {
-      toast.warning("Material yang sama tidak boleh memiliki kategori yang berbeda di dalam satu BOM. Mohon samakan kategorinya.", {
-        duration: Infinity,
-        closeButton: true,
-      });
-    }
-    prevDuplicate.current = hasDuplicateMaterials;
-    prevCategoryConflict.current = hasCategoryConflict;
-  }, [hasDuplicateMaterials, hasCategoryConflict]);
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
@@ -580,10 +589,10 @@ export function EngineeringTaskDetailPage() {
                 <CheckCircle size={32} style={{ color: "#22C55E" }} />
               </div>
               <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance)' : 'Desain Menunggu Approval Supervisor'}
+                {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance & Produksi)' : 'Desain Menunggu Approval Supervisor'}
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk penentuan harga dan pembuatan Invoice DP.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+                {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk pembuatan Invoice, dan Supervisor sudah dapat memulai proses produksi.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
               </p>
               <button onClick={() => navigate('/erp/engineer-tasks')} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
             </div>
@@ -660,12 +669,56 @@ export function EngineeringTaskDetailPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Info Grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.quantity} {qut.unit}</p></div>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.deadline}</p></div>
-                <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.createdAt.substring(0, 10)}</p></div>
+              
+              {/* Top Banner: QR & Basic Info */}
+              <div style={{ display: "flex", gap: 20 }}>
+                {/* Info Grid */}
+                <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.quantity} {qut.unit}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.deadline || "-"}</p></div>
+                  <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{qut.createdAt?.substring(0, 10) || "-"}</p></div>
+                </div>
+
+                {/* QR Code Card */}
+                <div style={{ background: S.white, padding: "20px", borderRadius: 8, border: `1px solid ${S.border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minWidth: 160 }}>
+                  {(() => {
+                    // Generate barcode UID: PJT|SO|yyyyMMdd|{id}
+                    const formattedId = (qut.backendId || qut.id).replace(/-/g, '');
+                    const dateStr = (qut.createdAt || new Date().toISOString()).substring(0, 10).replace(/-/g, '');
+                    const barcode = `PJT|SO|${dateStr}|${formattedId}`;
+                    return (
+                      <>
+                        <QRCodeCanvas id="so-qr-code" value={barcode} size={100} level="M" />
+                        <span style={{ fontSize: "10px", color: S.secondary, fontFamily: "monospace", textAlign: "center", wordBreak: "break-all" }}>
+                          {barcode}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const canvas = document.getElementById("so-qr-code") as HTMLCanvasElement;
+                            if (canvas) {
+                              const url = canvas.toDataURL("image/png");
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `QR-${qut.id}.png`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "6px", background: S.bg,
+                            border: `1px solid ${S.border}`, padding: "6px 12px", borderRadius: "6px",
+                            cursor: "pointer", color: S.slate, fontSize: "12px", fontWeight: 500,
+                            marginTop: "4px"
+                          }}
+                        >
+                          <Download size={14} /> Download QR
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               
               {/* Referensi Sales */}

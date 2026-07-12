@@ -18,7 +18,8 @@ export function useSalesOrders(
   const addSalesOrder = (data: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>): SalesOrder => {
     const next = soCounter + 1;
     setSoCounter(next);
-    const newId = `SO-2026-${String(next).padStart(3, '0')}`;
+    const currentYear = new Date().getFullYear();
+    const newId = `SO-${currentYear}-${String(next).padStart(3, '0')}`;
 
     const so: SalesOrder = {
       ...data,
