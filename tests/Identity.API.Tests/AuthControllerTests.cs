@@ -16,7 +16,8 @@ public class AuthControllerTests
     public AuthControllerTests()
     {
         _authServiceMock = new Mock<IAuthService>();
-        _authController = new AuthController(_authServiceMock.Object);
+        var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<AuthController>>();
+        _authController = new AuthController(_authServiceMock.Object, loggerMock.Object);
         
         // Setup HttpContext for Cookies
         var httpContext = new DefaultHttpContext();
