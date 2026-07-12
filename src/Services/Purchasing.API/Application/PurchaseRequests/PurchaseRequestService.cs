@@ -545,18 +545,20 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         var now = DateTime.UtcNow;
         var newNotes = NormalizeOptional(request.PurchaseNotes) ?? purchaseItem.PurchaseNotes;
         
-        var totalReceived = newNotes?
+        var totalParsedFromNotes = newNotes?
             .Split('|', StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Trim())
             .Where(p => p.StartsWith("RCV:"))
             .Sum(p => int.TryParse(p.Replace("RCV:", "").Trim(), out var rcv) ? rcv : 0) ?? 0;
+
+        var totalReceived = Math.Max(totalParsedFromNotes, request.ReceivedQty ?? 0);
 
         purchaseItem.ReceivedDate = request.ReceivedDate;
         purchaseItem.PurchaseNotes = newNotes;
         purchaseItem.RejectionReason = null;
         purchaseItem.UpdatedAtUtc = now;
         
-        if (totalReceived >= purchaseItem.Qty || (request.ReceivedQty.HasValue && request.ReceivedQty.Value >= purchaseItem.Qty && string.IsNullOrWhiteSpace(newNotes)))
+        if (totalReceived >= purchaseItem.Qty || ((request.ReceivedQty ?? 0) >= purchaseItem.Qty && string.IsNullOrWhiteSpace(newNotes)))
         {
             purchaseItem.PurchaseStatus = PurchaseItemStatuses.Received;
             UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Received, now);
