@@ -543,14 +543,32 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         }
 
         var now = DateTime.UtcNow;
+        var newNotes = NormalizeOptional(request.PurchaseNotes) ?? purchaseItem.PurchaseNotes;
+        
+        var totalReceived = newNotes?
+            .Split('|', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => p.StartsWith("RCV:"))
+            .Sum(p => int.TryParse(p.Replace("RCV:", "").Trim(), out var rcv) ? rcv : 0) ?? 0;
+
         purchaseItem.ReceivedDate = request.ReceivedDate;
-        purchaseItem.PurchaseStatus = PurchaseItemStatuses.Received;
-        purchaseItem.PurchaseNotes = NormalizeOptional(request.PurchaseNotes) ?? purchaseItem.PurchaseNotes;
+        purchaseItem.PurchaseNotes = newNotes;
         purchaseItem.RejectionReason = null;
         purchaseItem.UpdatedAtUtc = now;
+        
+        if (totalReceived >= purchaseItem.Qty || (request.ReceivedQty.HasValue && request.ReceivedQty.Value >= purchaseItem.Qty && string.IsNullOrWhiteSpace(newNotes)))
+        {
+            purchaseItem.PurchaseStatus = PurchaseItemStatuses.Received;
+            UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Received, now);
+        }
+        else
+        {
+            purchaseItem.PurchaseStatus = PurchaseItemStatuses.Ordered;
+            UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Ordered, now);
+        }
+
         purchaseRequest.UpdatedAtUtc = now;
         RefreshPurchaseRequestStatus(purchaseRequest);
-        UpdateMaterialRequirementStatus(purchaseItem, MaterialRequirementStatuses.Received, now);
 
         await eventPublisher.PublishAsync(
             new PurchaseItemReceivedEvent(
@@ -559,7 +577,8 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                 purchaseItem.Id,
                 purchaseItem.ItemName,
                 request.ReceivedQty ?? purchaseItem.Qty,
-                request.ReceivedDate),
+                request.ReceivedDate,
+                purchaseItem.PurchaseCategory),
             cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);

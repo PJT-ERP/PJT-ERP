@@ -128,7 +128,6 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           if (item.salesOrderNumber && !existing.soRefs.includes(item.salesOrderNumber)) {
             existing.soRefs.push(item.salesOrderNumber);
           }
-          existing.deliveryStatus = mergeDeliveryStatus(existing.deliveryStatus, mapDeliveryStatus(item.purchaseStatus));
           existing.paymentStatus = calcReceived(existing.items) > 0 && calcReceived(existing.items) < calcTotal(existing.items) ? "Partial" : existing.paymentStatus;
           return;
         }
@@ -153,7 +152,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           contactPhone: primaryContact?.phone || "-",
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
-          deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
+          deliveryStatus: "Open", // will be calculated below
           paymentStatus: payments.some(p => p.poNumber === poNumber) ? "Paid" : "Unpaid",
           paymentTerms: extractedTerms,
           requestRefs: [request.prNumber],
@@ -169,29 +168,29 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
       });
   });
 
+  for (const po of byPo.values()) {
+    const allCancelled = po.items.every(i => i.purchaseStatus === "Rejected");
+    const allClosed = po.items.every(i => i.purchaseStatus === "Received" || i.received >= i.qty);
+    const anyReceived = po.items.some(i => i.received > 0);
+    const anyOrdered = po.items.some(i => i.purchaseStatus === "Ordered");
+    const anyApproved = po.items.some(i => i.purchaseStatus === "Approved");
+
+    if (allCancelled) {
+      po.deliveryStatus = "Cancelled";
+    } else if (allClosed) {
+      po.deliveryStatus = "Closed";
+    } else if (anyReceived) {
+      po.deliveryStatus = "Partial";
+    } else if (anyOrdered) {
+      po.deliveryStatus = "In Transit";
+    } else if (anyApproved) {
+      po.deliveryStatus = "Confirmed";
+    } else {
+      po.deliveryStatus = "Open";
+    }
+  }
+
   return [...byPo.values()].sort((a, b) => b.id.localeCompare(a.id));
-}
-
-function mapDeliveryStatus(status: string): PO["deliveryStatus"] {
-  if (status === "Received") return "Closed";
-  if (status === "Ordered") return "In Transit";
-  if (status === "Approved") return "Confirmed";
-  if (status === "Rejected") return "Cancelled";
-  return "Open";
-}
-
-function mergeDeliveryStatus(current: PO["deliveryStatus"], next: PO["deliveryStatus"]): PO["deliveryStatus"] {
-  const rank: Record<PO["deliveryStatus"], number> = {
-    Cancelled: 0,
-    Open: 1,
-    Confirmed: 2,
-    "In Transit": 3,
-    Partial: 4,
-    Received: 5,
-    Closed: 6,
-  };
-
-  return rank[next] > rank[current] ? next : current;
 }
 
 function formatPoDate(value: string) {
@@ -516,7 +515,18 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                       <td style={{ padding: "8px 12px", fontSize: 12, color: "#64748b" }}>{item.spec}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 500 }}>{item.qty} {item.unit}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
-                                        {item.received} {item.unit}
+                                        <div className="flex flex-col items-end gap-1">
+                                          <span>{item.received} {item.unit}</span>
+                                          {item.received > 0 && (
+                                            <span 
+                                              className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700 border border-green-200"
+                                              title="Stok aktual gudang telah diperbarui"
+                                              style={{ lineHeight: 1 }}
+                                            >
+                                              <CheckCircle2 size={10} /> Masuk Gudang
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>
