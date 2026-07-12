@@ -15,9 +15,13 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  if (DEV_TOKEN && config.headers && import.meta.env.DEV) {
+  const token = localStorage.getItem('auth_token');
+  if (token && config.headers) {
+    config.headers.set('Authorization', `Bearer ${token}`);
+  } else if (DEV_TOKEN && config.headers && import.meta.env.DEV) {
     config.headers.set('Authorization', `Bearer ${DEV_TOKEN}`);
   }
+  
   if (config.data instanceof FormData && config.headers) {
     config.headers.delete('Content-Type');
   }
@@ -29,7 +33,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("auth_user"); 
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("auth_token");
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login";
       }

@@ -4,7 +4,7 @@ import { useApp } from "../../components/context/AppContext";
 import { SalesOrder } from "../../components/data/mockData";
 import { qcApi } from "../../services/qcApi";
 import type { QcInspectionDto } from "../../services/qcApi";
-import { mapInspectionToSalesOrder } from "./qc-inspections";
+import { mapInspectionToSalesOrder } from "./components/utils";
 
 const S = {
   font: "Inter, sans-serif",

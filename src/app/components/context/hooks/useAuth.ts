@@ -63,17 +63,12 @@ export function mapAuthProfileToUser(profile: StoredAuthUser): User {
 export function restoreStoredUser(): User | null {
   try {
     const storedAuthUser = localStorage.getItem(AUTH_PROFILE_KEY);
-    const hasToken = Boolean(localStorage.getItem(AUTH_TOKEN_KEY) || HAS_DEV_TOKEN);
 
-    if (storedAuthUser && hasToken) {
+    if (storedAuthUser) {
       return mapAuthProfileToUser(JSON.parse(storedAuthUser));
     }
 
-    if (!localStorage.getItem(AUTH_TOKEN_KEY) && !HAS_DEV_TOKEN) {
-      localStorage.removeItem(AUTH_USER_KEY);
-      return null;
-    }
-
+    localStorage.removeItem(AUTH_USER_KEY);
     return null;
   } catch {
     return null;
