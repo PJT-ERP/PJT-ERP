@@ -85,14 +85,14 @@ describe('PurchaseOrderDetailPage', () => {
     // The accessible name is "Terima" (text content)
     let receiveButton: HTMLElement;
     await waitFor(async () => {
-      receiveButton = screen.getByRole('button', { name: 'Terima' });
+      receiveButton = screen.getByRole('button', { name: 'Terima Penuh' });
       expect(receiveButton).not.toBeDisabled();
     });
     await userEvent.click(receiveButton!);
 
     // Wait for the receive form to appear
     await waitFor(() => {
-      expect(screen.getByText('Form Penerimaan Barang')).toBeInTheDocument();
+      expect(screen.getByText(/Form Penerimaan Barang/i)).toBeInTheDocument();
     });
 
     // Submit the form (Konfirmasi Terima)

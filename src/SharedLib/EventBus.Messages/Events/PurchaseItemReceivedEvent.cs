@@ -6,4 +6,5 @@ public sealed record PurchaseItemReceivedEvent(
     Guid PurchaseRequestItemId,
     string ItemName,
     int QuantityReceived,
-    DateOnly ReceivedDate) : IntegrationEvent;
+    DateOnly ReceivedDate,
+    string? Category = null) : IntegrationEvent;
