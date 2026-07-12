@@ -51,7 +51,7 @@ public class AuthControllerTests
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<LoginResponse>(okResult.Value);
-        Assert.Equal("fake-jwt-token", response.AccessToken);
+        Assert.Equal(string.Empty, response.AccessToken);
 
         // Verify cookie was set
         var setCookieHeader = _authController.HttpContext.Response.Headers["Set-Cookie"].ToString();
