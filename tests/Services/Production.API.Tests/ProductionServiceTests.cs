@@ -31,11 +31,11 @@ public sealed class ProductionServiceTests
     }
 
     [Theory]
-    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering Worker,Engineering Supervisor,Purchasing,QC")]
-    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering Worker,Engineering Supervisor,Owner")]
-    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering Worker,Engineering Supervisor,Owner")]
-    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering Worker,Engineering Supervisor,Owner")]
-    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering Worker,Engineering Supervisor,Owner")]
+    [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
+    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering,Engineering Supervisor,Owner")]
+    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering,Engineering Supervisor,Owner")]
+    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering,Engineering Supervisor,Owner")]
+    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering,Engineering Supervisor,Owner")]
     public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
     {
         var method = typeof(SalesOrdersController)
@@ -129,6 +129,9 @@ public sealed class ProductionServiceTests
     [Fact]
     public async Task ConfirmSalesOrderAsync_requires_engineer_assignments()
     {
+        // EnsureEngineersAssigned was removed in workflow change:
+        // MR is now submitted by SPV before operator assignment,
+        // so production worker / QC reviewer are no longer required at confirm time.
         await using var db = CreateDbContext();
         var salesOrder = CreateSalesOrder();
         salesOrder.ProductionWorkerUserId = null;
@@ -138,10 +141,9 @@ public sealed class ProductionServiceTests
 
         var service = new ProductionService(db, new RecordingEventPublisher(), new StubMasterDataClient());
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.ConfirmSalesOrderAsync(salesOrder.Id, new ConfirmSalesOrderRequest(Guid.NewGuid()), CancellationToken.None));
-
-        Assert.Contains("production worker engineer", exception.Message);
+        // Should NOT throw anymore — engineers are no longer required at confirm time
+        var result = await service.ConfirmSalesOrderAsync(salesOrder.Id, new ConfirmSalesOrderRequest(Guid.NewGuid()), CancellationToken.None);
+        Assert.NotNull(result);
     }
 
     [Fact]
