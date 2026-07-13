@@ -142,6 +142,7 @@ export async function syncUpdateSalesOrder(
             qcNotes: updates.qcNotes ?? item.qcNotes,
             qcPhotos: updates.qcPhotos ?? item.qcPhotos,
             productionPhotos: updates.productionPhotos ?? item.productionPhotos,
+            ...(updates.qcStatus === "Go" ? { status: "Completed" as any, completedAt: new Date().toISOString().split('T')[0] } : {}),
           } : item));
         }
       } catch (err) {

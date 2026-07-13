@@ -278,9 +278,11 @@ export function mapPurchasingStatus(status: string): PurchasingStatus {
 export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesOrder["status"] {
   const qcDecisionLower = order.qcDecision?.toLowerCase()?.trim();
   if (order.status === "Completed" || qcDecisionLower === "pass" || qcDecisionLower === "go") {
-    const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
-    if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
-      return "Waiting Payment";
+    if (invoices.length > 0) {
+      const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
+      if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
+        return "Waiting Payment";
+      }
     }
     return "Completed";
   }
