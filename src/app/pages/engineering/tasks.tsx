@@ -5,6 +5,7 @@ import { SalesOrder, getStatusColor } from "../../components/data/mockData";
 import { salesApi } from "../../services/salesApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
 const S = {
   font: "Inter, sans-serif",
@@ -40,6 +41,7 @@ function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () =>
       designAssignedTo: userId,
       designAssignedName: engineer?.name,
     });
+    toast.success(`Tugas ini berhasil di-assign ke ${engineer?.name}`);
     onClose();
   };
 

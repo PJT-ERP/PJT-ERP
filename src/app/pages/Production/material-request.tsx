@@ -585,7 +585,7 @@ export function ProductionMaterialRequestPage() {
       <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
           <button 
-            onClick={() => { window.location.href = '/erp/production'; }} 
+            onClick={() => { navigate('/erp/production'); }} 
             style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: S.white, border: `1px solid ${S.border}`, borderRadius: "8px", cursor: "pointer", color: S.slate, fontSize: "14px", fontWeight: 500, marginBottom: "20px", padding: "8px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", transition: "all 0.2s", alignSelf: "flex-start" }}
             onMouseEnter={e => { e.currentTarget.style.background = S.bg; e.currentTarget.style.borderColor = "#CBD5E1"; }}
             onMouseLeave={e => { e.currentTarget.style.background = S.white; e.currentTarget.style.borderColor = S.border; }}
@@ -605,7 +605,7 @@ export function ProductionMaterialRequestPage() {
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
                 Pengajuan MR untuk {so.id} telah dikirim ke Supervisor untuk direview sebelum diteruskan ke tim Purchasing.
               </p>
-              <button onClick={() => { window.location.href = '/erp/production'; }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
+              <button onClick={() => { navigate('/erp/production'); }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
             </div>
           ) : (
             <>

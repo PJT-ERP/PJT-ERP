@@ -56,7 +56,7 @@ function StatusBadge({ status }: { status: SOStatus }) {
 
 export function SODashboard({ onNavigate }: SODashboardProps) {
   const { salesOrders, customers } = useApp();
-  const { invoices, payments } = useFinanceData();
+  const { invoices, payments } = useFinanceData(true, false, false);
   const mergedSalesOrders = React.useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");

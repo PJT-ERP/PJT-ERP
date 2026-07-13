@@ -95,7 +95,9 @@ public sealed partial class ProductionService
             item.ProductDescription,
             item.Qty,
             item.UnitPrice,
-            item.Notes);
+            item.Notes,
+            item.DesignReference,
+            item.CustomerDrawingUrl);
     }
 
     private static SalesOrderProductionProgressDto ToProgressDto(SalesOrder order)
@@ -388,15 +390,13 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void EnsureAssignedWorker(ProductionOrder productionOrder, Guid workerUserId, bool isPrivileged = false)
+    private static void EnsureAssignedWorker(Guid? assignedWorkerId, Guid workerUserId, bool isPrivileged = false, string roleName = "worker")
     {
         // Privileged users (Admin, Owner, Engineering Supervisor) can bypass worker assignment check
         if (isPrivileged)
         {
             return;
         }
-
-        var assignedWorkerId = productionOrder.SalesOrder?.ProductionWorkerUserId;
 
         // If no worker is assigned yet, allow any engineering team member to submit
         if (!assignedWorkerId.HasValue)
@@ -406,7 +406,7 @@ public sealed partial class ProductionService
 
         if (assignedWorkerId.Value != workerUserId)
         {
-            throw new InvalidOperationException("Only the assigned production worker can update this sales order production.");
+            throw new InvalidOperationException($"Only the assigned {roleName} can perform this action.");
         }
     }
 

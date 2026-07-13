@@ -99,7 +99,7 @@ export function ERPLayout() {
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
   const canReadSupplierPayments = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
-  const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments);
+  const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments, canReadSupplierPayments);
   const { purchaseRequests: backendPurchaseRequests, suppliers: purchasingSuppliers } = usePurchasingData(currentUser?.role === 'Finance');
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
 

@@ -141,7 +141,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         purchaseCategory: item.purchaseCategory || null,
         code: extCode,
         name: extName,
-        spec: item.size || item.notes || "-",
+        spec: item.size || "-",
         qty: item.qty,
         unit: "pcs",
         currentStock: 0,

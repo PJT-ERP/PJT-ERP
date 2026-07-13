@@ -69,7 +69,7 @@ public class LandingPageContentDto
     public string ContactSubtitle { get; set; } = "Get Solutions for All Your Engineering Needs";
     public List<ContactLocationItemDto> ContactLocations { get; set; } = new List<ContactLocationItemDto>
     {
-        new ContactLocationItemDto { Id = "loc1", Label = "Head Office", Address = "Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya, Kec.\nPs. Kemis, Kabupaten Tangerang, Banten 15560" },
+        new ContactLocationItemDto { Id = "loc1", Label = "Head Office", Address = "Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya,\nKec. Ps. Kemis, Kabupaten Tangerang, Banten 15560" },
         new ContactLocationItemDto { Id = "loc2", Label = "Branch Office", Address = "Kawasan 3 bisnis centre,Ruko Shapire No 51 Jl. Lingkar\nTanjungpura, Tanjungpura, kec. Karawang Barat, Jawa Barat 41361" },
         new ContactLocationItemDto { Id = "loc3", Label = "Workshop 2", Address = "Pergudangan centre point Blok B5, Krian, Sidoarjo," }
     };
