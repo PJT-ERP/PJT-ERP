@@ -49,6 +49,10 @@ apiClient.interceptors.response.use(
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login";
       }
+      // Return a promise that never resolves/rejects.
+      // This prevents the calling component's catch() block from executing
+      // and showing confusing validation alerts while the page is redirecting.
+      return new Promise(() => {});
     }
     return Promise.reject(error);
   },
