@@ -350,7 +350,7 @@ export function ProductionPage() {
                             setSystemMessage({
                               tone: "error",
                               title: "Prasyarat Penugasan Belum Lengkap",
-                              message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! Anda (Supervisor) wajib menyelesaikan pembuatan BOM (${hasBom ? 'Sudah Ada' : 'Belum Ada'}) dan mengklik Ajukan Permintaan Material MR (${hasMr ? 'Sudah Diajukan' : 'Belum Diajukan'}) terlebih dahulu.`,
+                              message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! Anda (Supervisor) wajib menyelesaikan pembuatan BOM (${hasBom ? 'Sudah Ada' : 'Belum Ada'}) dan mengklik tombol "Material Kurang" (${hasMr ? 'Sudah Diajukan' : 'Belum Diajukan'}) terlebih dahulu.`,
                             });
                           } else {
                             setAssignModal(so);
