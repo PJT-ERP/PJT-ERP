@@ -58,7 +58,8 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
-    const key = legacy.inventoryItemId || `${legacy.name}|${legacy.unit}`;
+    const specKey = legacy.spec || legacy.specification || "";
+    const key = `${legacy.inventoryItemId || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);

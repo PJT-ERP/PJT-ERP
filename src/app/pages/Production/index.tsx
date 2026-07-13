@@ -43,7 +43,7 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
         <thead>
           <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
             <th style={{ padding: "6px 12px", fontWeight: 600 }}>Nama Material</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Spesifikasi / Kode</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Spesifikasi</th>
             <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>Qty / Satuan</th>
           </tr>
         </thead>
