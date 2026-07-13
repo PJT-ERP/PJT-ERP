@@ -287,8 +287,8 @@ export function QCPage() {
                   </div>
                   {!isAdmin && (
                     <div style={{ alignSelf: "center" }}>
-                      {(so.qcPhotos?.length ?? 0) > 0
-                        ? <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, fontWeight: 500 }}><ImageIcon size={14} color="#3B82F6" /> {so.qcPhotos!.length}</span>
+                      {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0)) > 0
+                        ? <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, fontWeight: 500 }}><ImageIcon size={14} color="#3B82F6" /> {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0))} foto</span>
                         : <span style={{ fontSize: "12px", color: S.border }}>—</span>
                       }
                     </div>

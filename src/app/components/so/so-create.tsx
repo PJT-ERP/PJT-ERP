@@ -380,7 +380,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
       }
 
-      await refreshBackendData();
+      refreshBackendData().catch(console.error);
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
     } catch (error: any) {
@@ -421,7 +421,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
       }
 
-      await refreshBackendData();
+      refreshBackendData().catch(console.error);
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
     } catch (error: any) {

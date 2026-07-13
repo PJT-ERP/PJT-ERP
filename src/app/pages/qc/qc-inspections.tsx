@@ -273,8 +273,8 @@ export function QCInspectionsPage() {
                 <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{so.id}</span>
                 <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{so.description}</span>
                 <div style={{ alignSelf: "center" }}>
-                  {(so.qcPhotos?.length ?? 0) > 0
-                    ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.cyan, fontWeight: 500 }}><ImageIcon size={12} /> {so.qcPhotos!.length} foto</span>
+                  {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0)) > 0
+                    ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.cyan, fontWeight: 500 }}><ImageIcon size={12} /> {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0))} foto</span>
                     : <span style={{ fontSize: "11.5px", color: S.secondary }}>—</span>
                   }
                 </div>

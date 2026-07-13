@@ -302,8 +302,8 @@ export function QCReadOnlyView() {
                   </div>
                   {!isAdmin && (
                     <div style={{ alignSelf: "center" }}>
-                      {(so.qcPhotos?.length ?? 0) > 0
-                        ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.secondary }}><ImageIcon size={11} /> {so.qcPhotos!.length}</span>
+                      {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0)) > 0
+                        ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.secondary }}><ImageIcon size={11} /> {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0))} foto</span>
                         : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>
                       }
                     </div>
