@@ -943,6 +943,7 @@ export function EngineeringTaskDetailPage() {
                                         updateMaterial(item.id, m.id, 'name', p.name);
                                         updateMaterial(item.id, m.id, 'unit', p.unit);
                                         updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
+                                        updateMaterial(item.id, m.id, 'code', p.code);
                                         // Auto-sync category from master data so same material always has same category
                                         if (p.category) {
                                           updateMaterial(item.id, m.id, 'category', p.category);

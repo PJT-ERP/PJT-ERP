@@ -33,32 +33,49 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
-    if (product?.bomItems && product.bomItems.length > 0) return;
+    // Process custom materials (notes) regardless of whether it has standard BOM
+    if (item.notes?.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(item.notes);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((material, index) => {
+            if (!material || typeof material !== "object") return;
 
-    if (!item.notes?.startsWith("[")) return;
-
-    try {
-      const parsed = JSON.parse(item.notes);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((material, index) => {
-          if (!material || typeof material !== "object") return;
-
-          legacyMaterials.push({
-            ...material,
-            id: material.id || `${item.id}-legacy-${index}`,
+            legacyMaterials.push({
+              ...material,
+              id: material.id || `${item.id}-legacy-${index}`,
+            });
           });
-        });
+        }
+      } catch {
+        // Keep older malformed notes from breaking the whole SO list.
       }
-    } catch {
-      // Keep older malformed notes from breaking the whole SO list.
     }
   });
 
   const materialsByKey = new Map<string, any>();
 
+  const overriddenInventoryItemIds = new Set<string>();
+
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
-    const key = legacy.inventoryItemId || `${legacy.name}|${legacy.unit}`;
+    // Try to find the item code from the products if it's missing
+    if (!legacy.code && legacy.inventoryItemId) {
+      for (const p of products) {
+        const match = p.bomItems?.find(b => b.inventoryItemId === legacy.inventoryItemId);
+        if (match?.inventoryItemCode) {
+          legacy.code = match.inventoryItemCode;
+          break;
+        }
+      }
+    }
+
+    if (legacy.inventoryItemId) {
+      overriddenInventoryItemIds.add(legacy.inventoryItemId);
+    }
+
+    const specKey = legacy.spec || legacy.specification || "";
+    const key = `${legacy.inventoryItemId || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);
@@ -70,6 +87,11 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
     product?.bomItems?.forEach(bomItem => {
+      // If the engineering team explicitly provided custom specs for this inventory item, skip the standard BOM entry
+      if (overriddenInventoryItemIds.has(bomItem.inventoryItemId)) {
+        return;
+      }
+
       const itemQuantity = Number(item.qty || 0);
       const bomQuantity = Number(bomItem.quantity || 0);
       if (bomQuantity <= 0) return;
@@ -88,8 +110,9 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
         id: `${item.id}-${bomItem.id || key}`,
         inventoryItemId: bomItem.inventoryItemId,
         name: bomItem.inventoryItemName,
-        spec: bomItem.inventoryItemCode,
-        specification: bomItem.inventoryItemCode,
+        code: bomItem.inventoryItemCode,
+        spec: "",
+        specification: "",
         quantity,
         unit: bomItem.unit,
       });

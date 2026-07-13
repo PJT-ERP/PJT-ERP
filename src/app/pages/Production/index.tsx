@@ -43,7 +43,8 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
         <thead>
           <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
             <th style={{ padding: "6px 12px", fontWeight: 600 }}>Nama Material</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Spesifikasi / Kode</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Kode</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Spesifikasi</th>
             <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>Qty / Satuan</th>
           </tr>
         </thead>
@@ -54,9 +55,22 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
                 {m.name || m.inventoryItemName || m.materialName || "-"}
               </td>
               <td style={{ padding: "8px 12px", color: S.secondary }}>
-                <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
-                  {m.spec || "-"}
-                </span>
+                {m.code || m.inventoryItemCode ? (
+                  <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
+                    {m.code || m.inventoryItemCode}
+                  </span>
+                ) : (
+                  <span style={{ color: "#94A3B8" }}>-</span>
+                )}
+              </td>
+              <td style={{ padding: "8px 12px", color: S.secondary }}>
+                {m.spec || m.specification ? (
+                  <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
+                    {m.spec || m.specification}
+                  </span>
+                ) : (
+                  <span style={{ color: "#94A3B8" }}>-</span>
+                )}
               </td>
               <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate, textAlign: "right" }}>
                 {m.quantity || m.qty || 0} <span style={{ color: S.secondary, fontWeight: 500 }}>{m.unit || 'pcs'}</span>
@@ -330,13 +344,33 @@ export function ProductionPage() {
                       >
                         1. Kelola BOM & Material
                       </button>
+                      
+                      {isSupervisor && mrState === 'requested' && (
+                        <button onClick={() => setReviewMrModal(so)}
+                          style={{ padding: "7px 12px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Review MR
+                        </button>
+                      )}
+                      {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                          style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Material Kurang
+                        </button>
+                      )}
+                      {mrState === 'rejected' && isSupervisor && (
+                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                          style={{ padding: "7px 12px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Ajukan Ulang MR
+                        </button>
+                      )}
+
                       <button
                         onClick={() => {
                           if (!canAssignToOperator) {
                             setSystemMessage({
                               tone: "error",
                               title: "Prasyarat Penugasan Belum Lengkap",
-                              message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! Anda (Supervisor) wajib menyelesaikan pembuatan BOM (${hasBom ? 'Sudah Ada' : 'Belum Ada'}) dan mengklik Ajukan Permintaan Material MR (${hasMr ? 'Sudah Diajukan' : 'Belum Diajukan'}) terlebih dahulu.`,
+                              message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! Anda (Supervisor) wajib menyelesaikan pembuatan BOM (${hasBom ? 'Sudah Ada' : 'Belum Ada'}) dan mengklik tombol "Material Kurang" (${hasMr ? 'Sudah Diajukan' : 'Belum Diajukan'}) terlebih dahulu.`,
                             });
                           } else {
                             setAssignModal(so);

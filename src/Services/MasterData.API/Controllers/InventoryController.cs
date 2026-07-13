@@ -47,7 +47,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost("deduct-bom")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Production")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
     public async Task<IActionResult> DeductBom(DeductBomStockRequest request, CancellationToken cancellationToken)
     {
         try
@@ -62,7 +62,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost("deduct-bom-bulk")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Production")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
     public async Task<IActionResult> DeductBomBulk(BulkDeductBomStockRequest request, CancellationToken cancellationToken)
     {
         try
