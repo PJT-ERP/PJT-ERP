@@ -179,12 +179,20 @@ export function ProductionPage() {
 
   const getMaterialRequestState = (so: SalesOrder): 'none' | 'requested' | 'finance_pending' | 'approved' | 'completed' | 'rejected' => {
     const request = getMaterialRequest(so);
-    if (!request) return hasLocalMaterialRequest(so) ? 'requested' : 'none';
+    if (!request) {
+      if (hasLocalMaterialRequest(so)) {
+        return isSupervisor ? 'finance_pending' : 'requested';
+      }
+      return 'none';
+    }
     if (request.backendStatus === 'SupervisorRejected' || request.backendStatus === 'FinanceRejected' || request.backendStatus === 'Rejected') return 'rejected';
     if (request.backendStatus === 'Completed' || request.status === 'Selesai') return 'completed';
     if (request.backendStatus === 'Processing' || request.backendStatus === 'FinanceApproved' || request.status === 'Diproses') return 'approved';
     if (request.backendStatus === 'SupervisorApproved') return 'finance_pending';
     if (request.status === 'Ditolak') return 'rejected';
+    const reqBy = request.requestedBy || (request as any).requesterName || (request as any).requestor || "";
+    const isSpvMade = reqBy.toLowerCase().includes('supervisor') || reqBy.toLowerCase().includes('spv') || reqBy === 'Admin' || reqBy === 'Owner' || isSupervisor;
+    if (isSpvMade) return 'finance_pending';
     return 'requested';
   };
 
@@ -351,10 +359,10 @@ export function ProductionPage() {
                           Review MR
                         </button>
                       )}
-                      {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                      {mrState !== 'requested' && isSupervisor && (
                         <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                           style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                          <FileWarning size={14} /> Material Kurang
+                          <FileWarning size={14} /> Material Kurang (Buat MR)
                         </button>
                       )}
                       {mrState === 'rejected' && isSupervisor && (
@@ -454,10 +462,10 @@ export function ProductionPage() {
                         Review MR
                       </button>
                     )}
-                    {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && currentUser?.role !== 'Admin' && (
+                    {mrState !== 'requested' && isSupervisor && currentUser?.role !== 'Admin' && (
                       <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                         style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        <FileWarning size={14} /> Material Kurang
+                        <FileWarning size={14} /> Material Kurang (Buat MR)
                       </button>
                     )}
                     {mrState === 'rejected' && isSupervisor && currentUser?.role !== 'Admin' && (

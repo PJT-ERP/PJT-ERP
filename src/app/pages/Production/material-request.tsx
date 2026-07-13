@@ -581,9 +581,16 @@ export function ProductionMaterialRequestPage() {
       if (isSpvUser) {
         try {
           const { purchasingApi } = await import("../../services/purchasingApi");
-          const reqs = await purchasingApi.listPurchaseRequests({ salesOrderId });
-          for (const req of reqs || []) {
-            if (req.status === 'Submitted' || req.status === 'Pending') {
+          if (result?.id) {
+            await purchasingApi.supervisorReviewPurchaseRequest(result.id, {
+              reviewedByUserId: requesterId,
+              decision: 'Accept',
+            });
+          }
+          const allReqs = await purchasingApi.listPurchaseRequests();
+          for (const req of allReqs || []) {
+            const isMatch = req.salesOrderId === salesOrderId || req.salesOrderId === so.backendId || req.salesOrderNumber === so.id || req.salesOrderNumber === so.soNumber || req.id === result?.id;
+            if (isMatch && (req.status === 'Submitted' || req.status === 'Pending')) {
               await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
                 reviewedByUserId: requesterId,
                 decision: 'Accept',

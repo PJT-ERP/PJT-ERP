@@ -27,8 +27,13 @@ export function EngineeringPurchasingPage() {
     ? purchasingRequests
     : purchasingRequests.filter(r => r.requestedBy === currentUser?.name || r.requestedBy === currentUser?.id);
 
-  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted');
-  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted');
+  const isMadeBySpv = (r: any) => {
+    const reqBy = r.requestor || r.requestedBy || (r as any).requesterName || "";
+    return reqBy.toLowerCase().includes('supervisor') || reqBy.toLowerCase().includes('spv') || reqBy === 'Admin' || reqBy === 'Owner' || r.approvedBy === 'Engineering Supervisor';
+  };
+
+  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted' && !isMadeBySpv(r));
+  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted' || isMadeBySpv(r));
 
   const totalPages = Math.ceil(otherRequests.length / itemsPerPage);
   const paginatedRequests = otherRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -38,7 +43,7 @@ export function EngineeringPurchasingPage() {
 
   const statusCount = (s: string) => {
     if (s === 'Menunggu SPV') return waitingSpvRequests.length;
-    return relevantRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
+    return relevantRequests.filter(r => (r.status === s && (r.backendStatus !== 'Submitted' || isMadeBySpv(r))) || (s === 'Diproses' && r.backendStatus === 'Submitted' && isMadeBySpv(r))).length;
   };
 
   return (
