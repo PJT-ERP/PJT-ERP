@@ -7,6 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddPjtLogging();
 builder.ConfigurePjtJwtAuthentication();
 
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
@@ -49,6 +54,7 @@ builder.Services
 var app = builder.Build();
 
 app.UsePjtRequestLogging();
+app.UseResponseCompression();
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();

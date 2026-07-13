@@ -58,7 +58,8 @@ public sealed partial class PurchaseRequestService
     {
         return query
             .Include(request => request.Items)
-            .ThenInclude(item => item.MaterialRequirement);
+            .ThenInclude(item => item.MaterialRequirement)
+            .AsSplitQuery();
     }
 
     private static IQueryable<MaterialRequirement> IncludePurchaseItems(IQueryable<MaterialRequirement> query)
