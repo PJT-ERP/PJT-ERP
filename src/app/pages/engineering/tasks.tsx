@@ -57,8 +57,6 @@ export function EngineeringTasksPage() {
     })
     .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
-  const waitingReview = pendingSalesOrders.filter(item => isSpv && (item.backendDesignStatus === 'WaitingApproval' || item.status === 'Waiting Spv Approval'));
-
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -95,54 +93,6 @@ export function EngineeringTasksPage() {
         </button>
       </div>
 
-      {isSpv && activeTab === 'pending' && (
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 8, height: 8, background: "#F59E0B", borderRadius: "50%" }}></span>
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Menunggu Review Supervisor ({waitingReview.length})</span>
-            </div>
-          </div>
-          
-          {waitingReview.length === 0 ? (
-            <div style={{ padding: "40px 20px", textAlign: "center" }}>
-              <CheckCircle size={32} style={{ color: "#22C55E", margin: "0 auto 12px" }} />
-              <p style={{ color: S.secondary, margin: "0 0 4px", fontSize: "13.5px" }}>Tidak ada desain yang perlu direview</p>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {waitingReview.map((item, idx) => {
-                const customer = customers.find(c => c.code === item.customerId);
-                const daysDiff = Math.ceil((new Date(item.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                return (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < waitingReview.length - 1 ? `1px solid ${S.border}` : "none" }}>
-                    <div style={{ width: 40, height: 40, background: "#FEF3C7", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#D97706", flexShrink: 0 }}>
-                      <Clock size={20} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{item.id}</span>
-                        <StatusBadge status={item.status} />
-                        {daysDiff <= 7 && daysDiff >= 0 && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#EA580C", borderRadius: 4, fontWeight: 500, border: "1px solid #FFEDD5" }}>{daysDiff} hari lagi</span>}
-                        {daysDiff < 0 && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>{Math.abs(daysDiff)}h terlambat</span>}
-                      </div>
-                      <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{item.description || item.partNumber || "-"}</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
-                        <span>{customer?.name || "-"}</span><span>·</span><span>{item.quantity} {item.unit}</span><span>·</span><span style={{ color: daysDiff < 0 ? "#DC2626" : S.secondary }}>Deadline: {item.deadline}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => navigate(`/erp/engineer-tasks/${item.id}`)}
-                      style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                      Review Desain
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -165,7 +115,6 @@ export function EngineeringTasksPage() {
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
             const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcStatus;
-            const isWaitingReview = qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval';
             const isApproved = qut.backendDesignStatus === 'Approved' || activeTab === 'completed' || !isPreProduction;
 
             return (
@@ -198,7 +147,7 @@ export function EngineeringTasksPage() {
                   <StatusBadge status={activeTab === 'completed' ? 'Design Selesai' : qut.status} />
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {!isApproved && !isWaitingReview && (
+                  {!isApproved && (
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
@@ -207,18 +156,6 @@ export function EngineeringTasksPage() {
                       style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                     >
                       Input CAD / Desain
-                    </button>
-                  )}
-
-                  {!isApproved && isWaitingReview && (
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        navigate(`/erp/engineer-tasks/${qut.id}`);
-                      }}
-                      style={{ fontSize: "11px", background: "#F59E0B", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                    >
-                      Review & Finalisasi
                     </button>
                   )}
 

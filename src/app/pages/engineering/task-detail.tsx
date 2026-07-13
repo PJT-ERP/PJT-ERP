@@ -469,16 +469,16 @@ export function EngineeringTaskDetailPage() {
           designLink,
           designId: designLink,
           designReference: designLink,
-          status: 'Waiting Pricing',
+          status: 'Ready for Production',
           backendDesignStatus: 'Approved',
           designApprovedAt: new Date().toISOString().split('T')[0]
         });
       } else if (isDoingWorkerSubmission || isSpv) {
         await salesApi.updateSalesOrderDesignStatus(backendId, {
-          designStatus: 'WaitingApproval',
-          notes: 'Submitted for SPV Review',
+          designStatus: 'Approved',
+          notes: 'Design Inputted & Approved by SPV (Ready for Production)',
           reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
-          reviewerName: currentUser?.name || 'Worker',
+          reviewerName: currentUser?.name || 'Supervisor',
           designReference: designLink && designLink.trim() !== '' ? designLink : undefined
         });
 
@@ -488,7 +488,7 @@ export function EngineeringTaskDetailPage() {
           designReference: designLink,
           materials: Object.values(itemMaterials).flat(),
           bomsPerItem: itemMaterials,
-          status: qut.designAssignedTo ? 'Ready for Production' : 'Waiting Pricing',
+          status: 'Ready for Production',
           backendDesignStatus: 'Approved',
           designApprovedAt: new Date().toISOString().split('T')[0]
         });
@@ -643,7 +643,7 @@ export function EngineeringTaskDetailPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 20 }}>
                 <p style={{ color: "#92400E", fontSize: "14px", margin: 0 }}>
-                  {isDoingSpvApproval ? 'Konfirmasi menyetujui desain dan BOM dari staf? SO akan masuk ke tahap Penentuan Harga oleh Finance.' : 'Konfirmasi meneruskan desain & BOM ke Supervisor untuk di-review?'}
+                  Konfirmasi menyimpan spesifikasi CAD & BOM? Desain akan disetujui langsung oleh Supervisor dan SO langsung masuk ke tahap Siap Produksi (Menunggu Penugasan Operator Produksi).
                 </p>
               </div>
               {newMaterials.length > 0 && (
@@ -1030,7 +1030,7 @@ export function EngineeringTaskDetailPage() {
               <>
                 <button onClick={() => setStep('upload')} style={{ flex: 1, padding: "14px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali</button>
                 <button onClick={handleForward} disabled={isSubmitting} style={{ flex: 1, padding: "14px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.5 : 1 }}>
-                  <Send size={18} /> {isSubmitting ? 'Memproses...' : (isDoingSpvApproval ? 'Approve & Forward' : 'Forward ke Supervisor')}
+                  <Send size={18} /> {isSubmitting ? 'Memproses...' : 'Simpan Desain & Lanjut ke Produksi'}
                 </button>
               </>
             ) : (
@@ -1048,7 +1048,7 @@ export function EngineeringTaskDetailPage() {
                     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
                     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                   >
-                    <Send size={18} /> {isDoingSpvApproval ? 'Review & Approve' : 'Submit & Forward'}
+                    <CheckCircle size={18} /> Simpan Desain & Lanjut ke Produksi
                   </button>
                 )}
               </>

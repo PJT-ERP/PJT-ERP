@@ -1,6 +1,4 @@
 import axios from 'axios';
-import axiosRetry from 'axios-retry';
-
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const DEV_TOKEN = import.meta.env.VITE_DEV_MASTER_TOKEN?.trim() || '';
 
@@ -11,19 +9,25 @@ const apiClient = axios.create({
     'X-Requested-With': 'XMLHttpRequest',
     'X-PJT-Client': 'Frontend',
   },
-  timeout: 30000, // Increased timeout to 30s for bad networks
+  timeout: 30000,
   withCredentials: true,
 });
 
-// Configure automatic retries for network errors and timeouts
-axiosRetry(apiClient, {
-  retries: 3, // Retry up to 3 times
-  retryDelay: axiosRetry.exponentialDelay, // Exponential backoff (100ms, 200ms, 400ms...)
-  retryCondition: (error) => {
-    // Retry on standard network errors (like disconnected) OR timeout (ECONNABORTED) OR 5xx server errors
-    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNABORTED';
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: any) => {
+    const config = error.config;
+    if (!config) return Promise.reject(error);
+    config.__retryCount = config.__retryCount || 0;
+    if (config.__retryCount < 3 && (!error.response || error.code === 'ECONNABORTED' || (error.response.status && error.response.status >= 500))) {
+      config.__retryCount += 1;
+      const delay = Math.pow(2, config.__retryCount) * 100;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return apiClient(config);
+    }
+    return Promise.reject(error);
   }
-});
+);
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');

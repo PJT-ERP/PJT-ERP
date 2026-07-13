@@ -561,7 +561,7 @@ export function ProductionMaterialRequestPage() {
         console.warn("Auto-confirm SO silently failed or already confirmed", e);
       }
 
-      await productionApi.submitMaterialRequest(salesOrderId, {
+      const result: any = await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,
         requesterName: currentUser?.name || so.assignedName || "Engineering",
         notes: notes || null,
@@ -577,6 +577,23 @@ export function ProductionMaterialRequestPage() {
           purchaseCategory: item.purchaseCategory,
         })),
       });
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      if (isSpvUser) {
+        try {
+          const { purchasingApi } = await import("../../services/purchasingApi");
+          const reqs = await purchasingApi.listPurchaseRequests({ salesOrderId });
+          for (const req of reqs || []) {
+            if (req.status === 'Submitted' || req.status === 'Pending') {
+              await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
+                reviewedByUserId: requesterId,
+                decision: 'Accept',
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Auto review MR by SPV failed", e);
+        }
+      }
       await refreshBackendData();
       setIsSuccess(true);
     } catch (error: unknown) {

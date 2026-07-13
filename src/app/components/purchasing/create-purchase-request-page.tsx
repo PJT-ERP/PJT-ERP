@@ -101,7 +101,7 @@ export function CreatePurchaseRequestPage() {
 
     try {
       setIsSubmitting(true);
-      await purchasingApi.createPurchaseRequest({
+      const created: any = await purchasingApi.createPurchaseRequest({
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
         requesterName: currentUser?.name || "Purchasing",
@@ -119,7 +119,18 @@ export function CreatePurchaseRequestPage() {
           urgency,
           purchaseCategory: item.category || (selectedSo ? "Project" : "Consumable"),
         })),
+        requireSupervisorApproval: false,
       });
+      if (created?.id) {
+        try {
+          await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+            reviewedByUserId: requesterId,
+            decision: 'Accept',
+          });
+        } catch (e) {
+          console.warn("Auto review manual PR failed", e);
+        }
+      }
       await refreshBackendData();
       navigate("/erp/purchasing/requests");
     } catch (error: any) {

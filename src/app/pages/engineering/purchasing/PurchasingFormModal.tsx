@@ -105,6 +105,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
     }));
     const selectedSo = salesOrders.find(order => order.id === soId || order.soNumber === soId);
     const requesterId = toBackendUserId(currentUser);
+    const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
 
     if (!requesterId) {
       alert("User lokal belum punya mapping backend untuk membuat pengajuan.");
@@ -133,17 +134,37 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
           urgency,
           purchaseCategory: selectedSo ? "Project" : item.purchaseCategory || "Consumable",
         })),
-        requireSupervisorApproval: true,
+        requireSupervisorApproval: !isSpv,
       };
 
       if (editRequest?.backendId) {
         await purchasingApi.updatePurchaseRequest(editRequest.backendId, payload);
+        if (isSpv) {
+          try {
+            await purchasingApi.supervisorReviewPurchaseRequest(editRequest.backendId, {
+              reviewedByUserId: payload.requestedByUserId || currentUser?.id || 'eng_spv',
+              decision: 'Accept'
+            });
+          } catch (e) {
+            console.warn("Auto review PR failed", e);
+          }
+        }
         await refreshBackendData();
         onSuccess?.(parsedItems);
         onClose();
         return;
       } else {
-        await purchasingApi.createPurchaseRequest(payload);
+        const created: any = await purchasingApi.createPurchaseRequest(payload);
+        if (isSpv && created?.id) {
+          try {
+            await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+              reviewedByUserId: payload.requestedByUserId || currentUser?.id || 'eng_spv',
+              decision: 'Accept'
+            });
+          } catch (e) {
+            console.warn("Auto review PR failed", e);
+          }
+        }
         await refreshBackendData();
         setDone(true);
       }
