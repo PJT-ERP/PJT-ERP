@@ -231,89 +231,99 @@ export function EngineeringPage() {
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
 
-          {/* Pre-Sales Design Queue Table */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Pencil size={14} style={{ color: S.cyan }} />
-                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
+          {isSpv ? (
+            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Pencil size={14} style={{ color: S.cyan }} />
+                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
+                </div>
               </div>
-            </div>
 
-            {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
-              {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
-                <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
-              ))}
-            </div>
-
-            {designQueue.length === 0 ? (
-              <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
-                <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                <p style={{ margin: 0 }}>{isSpv ? "Tidak ada antrean desain dari Sales." : "Tidak ada antrean desain dari Supervisor."}</p>
+              <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+                {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
+                  <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+                ))}
               </div>
-            ) : (
-              designQueue.slice(0, 10).map((so, idx) => {
-                const canOpen = isSpv ? so.status === 'Waiting Spv Approval' : so.designAssignedTo === currentUser?.id && so.status === 'Pending Design';
-                const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
 
-                return (
-                  <div
-                    key={so.id}
-                    onClick={() => {
-                      if (canOpen) {
-                        navigate('/erp/engineer-tasks');
-                      }
-                    }}
-                    style={{
-                      display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", alignItems: "center",
-                      padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
-                      borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
-                    <div>
-                      <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
-                    </div>
-                    <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
-                    <div>
-                      {so.designAssignedTo ? (
-                        <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                          {assignedName}
+              {designQueue.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
+                  <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
+                  <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
+                </div>
+              ) : (
+                designQueue.slice(0, 10).map((so, idx) => {
+                  const canOpen = so.status === 'Waiting Spv Approval';
+                  const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
+
+                  return (
+                    <div
+                      key={so.id}
+                      onClick={() => {
+                        if (canOpen) {
+                          navigate('/erp/engineer-tasks');
+                        }
+                      }}
+                      style={{
+                        display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", alignItems: "center",
+                        padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
+                        borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
+                      <div>
+                        <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
+                      </div>
+                      <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
+                      <div>
+                        <span style={{ fontSize: "11px", background: "#E0F2FE", padding: "3px 8px", borderRadius: 4, border: "1px solid #7DD3FC", color: "#0369A1", fontWeight: 600, display: "inline-block" }}>
+                          Ditangani: SPV Engineering
                         </span>
-                      ) : isSpv && currentUser?.role !== 'Admin' ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate('/erp/engineer-tasks'); }}
-                          style={{ fontSize: "11px", background: S.cyan, color: "#fff", border: "none", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 500 }}
-                        >
-                          Tugaskan
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                      )}
+                      </div>
+                      <div>
+                        <StatusBadge status={so.status} />
+                      </div>
                     </div>
-                    <div>
-                      <StatusBadge status={so.status} />
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
 
-            {designQueue.length > 10 && (
-              <div
-                onClick={() => navigate('/erp/engineer-tasks')}
-                style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
-                onMouseLeave={e => e.currentTarget.style.background = S.bg}
-              >
-                Lihat Semua Tugas Desain ({designQueue.length})
+              {designQueue.length > 10 && (
+                <div
+                  onClick={() => navigate('/erp/engineer-tasks')}
+                  style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
+                  onMouseLeave={e => e.currentTarget.style.background = S.bg}
+                >
+                  Lihat Semua Tugas Desain ({designQueue.length})
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Factory size={14} style={{ color: S.cyan }} />
+                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas & Pekerjaan Produksi Saya</span>
+                </div>
+                <button
+                  onClick={() => navigate('/erp/production')}
+                  style={{ padding: "6px 12px", background: S.cyan, color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                >
+                  Buka Modul Produksi
+                </button>
               </div>
-            )}
-          </div>
+
+              <div style={{ padding: "32px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
+                <CheckSquare size={36} style={{ color: S.cyan, margin: "0 auto 12px" }} />
+                <p style={{ margin: "0 0 4px", fontWeight: 600, color: S.slate }}>Anda Login Sebagai Engineering Worker (Operator Produksi)</p>
+                <p style={{ margin: 0, fontSize: "12.5px" }}>Seluruh antrean tugas pembuatan dan pemrosesan material Anda dikelola langsung pada modul Produksi.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right column */}
@@ -359,8 +369,8 @@ export function EngineeringPage() {
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
                 { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Quality Control", icon: <CheckSquare size={13} />, path: "/erp/engineer-qc", primary: false },
-                { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: false },
-              ].map((action) => (
+                { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: true },
+              ].filter(action => isSpv || action.path === "/erp/production").map((action) => (
                 <button
                   key={action.label}
                   onClick={() => navigate(action.path)}

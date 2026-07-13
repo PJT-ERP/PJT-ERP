@@ -26,7 +26,7 @@ vi.mock('../../../services/masterDataApi', () => ({
   }
 }));
 
-describe('EngineeringTaskDetailPage - Engineer Resubmission Flow', () => {
+describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
   const updateSalesOrderMock = vi.fn();
   
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe('EngineeringTaskDetailPage - Engineer Resubmission Flow', () => {
     
     vi.spyOn(appContext, 'useApp').mockReturnValue({
       customers: [{ code: 'CUST-1', name: 'Customer A' }],
-      currentUser: { id: 'u1', name: 'Engineer 1', role: 'Engineering' },
+      currentUser: { id: 'u1', name: 'Spv 1', role: 'Engineering Supervisor' },
       updateSalesOrder: updateSalesOrderMock,
       refreshBackendData: vi.fn(),
       productCatalog: [],
@@ -64,7 +64,7 @@ describe('EngineeringTaskDetailPage - Engineer Resubmission Flow', () => {
     } as any);
   });
 
-  it('allows engineer to see rejection reason and resubmit design', async () => {
+  it('allows supervisor to see rejection reason and resubmit design', async () => {
     render(
       <MemoryRouter initialEntries={['/erp/engineer-tasks/so-eng-1']}>
         <Routes>
@@ -105,7 +105,8 @@ describe('EngineeringTaskDetailPage - Engineer Resubmission Flow', () => {
       }));
 
       expect(updateSalesOrderMock).toHaveBeenCalledWith('so-eng-1', expect.objectContaining({
-        status: 'Waiting Spv Approval', // Goes back to Spv
+        status: 'Ready for Production', 
+        backendDesignStatus: 'Approved',
         designLink: 'https://new-design-link.com'
       }));
     });

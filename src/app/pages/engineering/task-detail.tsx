@@ -293,16 +293,15 @@ export function EngineeringTaskDetailPage() {
     (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
     qut.designAssignedTo === currentUser?.name ||
     qut.designAssignedName === currentUser?.name;
-  const isDoingWorkerSubmission = (isAssignedToCurrentUser || isSpv) && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
+  const isDoingWorkerSubmission = isSpv && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Pricing' || qut.status === 'Waiting Payment');
   const isDoingSpvApproval = isSpv && isPendingSpv;
 
-  let canProcess = isDoingWorkerSubmission || isDoingSpvApproval || isSpv;
+  let canProcess = isSpv && (isDoingWorkerSubmission || isDoingSpvApproval || qut.status === 'Pending Design' || qut.status === 'Revision Required');
   
-  // Strictly prevent any processing if it has moved past the engineering phase
   if (['Waiting Pricing', 'Waiting Finance Approval', 'Waiting Payment', 'Waiting Client Approval', 'In Production', 'Ready for Production', 'QC', 'Completed', 'Closed'].includes(qut.status) || qut.backendDesignStatus === 'Approved' || qut.designApprovedAt) {
     canProcess = false;
   }
-  if (qut.backendDesignStatus === 'Approved' && !isDoingWorkerSubmission && !isSpv) {
+  if (!isSpv) {
     canProcess = false;
   }
 
@@ -489,8 +488,9 @@ export function EngineeringTaskDetailPage() {
           designReference: designLink,
           materials: Object.values(itemMaterials).flat(),
           bomsPerItem: itemMaterials,
-          status: 'Waiting Spv Approval',
-          backendDesignStatus: 'WaitingApproval',
+          status: qut.designAssignedTo ? 'Ready for Production' : 'Waiting Pricing',
+          backendDesignStatus: 'Approved',
+          designApprovedAt: new Date().toISOString().split('T')[0]
         });
       }
       setStep('done');

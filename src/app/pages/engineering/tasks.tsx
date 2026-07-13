@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, UserPlus, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../../components/data/mockData";
 import { salesApi } from "../../services/salesApi";
@@ -30,56 +30,9 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 
-
-function AssignEngineerModal({ qut, onClose }: { qut: SalesOrder; onClose: () => void }) {
-  const { updateSalesOrder, users } = useApp();
-  const engineers = users.filter(user => user.role === 'Engineering' || user.role === 'Engineering Supervisor');
-
-  const handleAssign = (userId: string) => {
-    const engineer = engineers.find(user => user.id === userId);
-    updateSalesOrder(qut.id, {
-      designAssignedTo: userId,
-      designAssignedName: engineer?.name,
-    });
-    toast.success(`Tugas ini berhasil di-assign ke ${engineer?.name}`);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 380, padding: 24, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
-        <h2 style={{ color: S.slate, margin: "0 0 4px", fontSize: "18px" }}>Tugaskan Desain</h2>
-        <p style={{ color: S.secondary, margin: "0 0 16px", fontSize: "12.5px" }}>{qut.id} - {qut.productName}</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {engineers.map(engineer => (
-            <button
-              key={engineer.id}
-              onClick={() => handleAssign(engineer.id)}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                padding: 12,
-                borderRadius: 8,
-                border: `1px solid ${S.border}`,
-                background: S.white,
-                cursor: "pointer",
-              }}
-            >
-              <p style={{ margin: 0, color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>{engineer.name}</p>
-              <p style={{ margin: "2px 0 0", color: S.secondary, fontSize: "12px" }}>{engineer.email}</p>
-            </button>
-          ))}
-        </div>
-        <button onClick={onClose} style={{ width: "100%", marginTop: 14, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-      </div>
-    </div>
-  );
-}
-
 export function EngineeringTasksPage() {
   const { salesOrders, customers, currentUser, users } = useApp();
   const navigate = useNavigate();
-  const [assignModalQUT, setAssignModalQUT] = useState<any | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -198,7 +151,7 @@ export function EngineeringTasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1.1fr 1.1fr 160px 100px 160px 110px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "95px 1.2fr 1.2fr 210px 105px 150px 140px", gap: "14px", padding: "10px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
           {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Deadline", "Status", "Aksi"].map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
@@ -211,103 +164,77 @@ export function EngineeringTasksPage() {
           </div>
         ) : (
           queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
-            const assignedName = qut.designAssignedName || users.find(user => user.id === qut.designAssignedTo)?.name || "-";
-            const currentUserBackendId = toBackendUserId(currentUser);
-            const isAssignedToCurrentUser = 
-              qut.designAssignedTo === currentUser?.id || 
-              (currentUserBackendId && qut.designAssignedTo === currentUserBackendId) ||
-              qut.designAssignedTo === currentUser?.name ||
-              qut.designAssignedName === currentUser?.name;
             const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcStatus;
-            
             const isWaitingReview = qut.backendDesignStatus === 'WaitingApproval' || qut.status === 'Waiting Spv Approval';
-            const canWork = isPreProduction && isAssignedToCurrentUser && qut.backendDesignStatus !== 'Approved' && !isWaitingReview;
-            // Review button: only when design is waiting for supervisor approval
-            const canReview = isPreProduction && isSpv && currentUser?.role !== 'Admin' && isWaitingReview;
-            // Assign button: only when design hasn't started yet
-            const canAssign = isPreProduction && isSpv && currentUser?.role !== 'Admin' && qut.backendDesignStatus !== 'Approved' && !isWaitingReview;
+            const isApproved = qut.backendDesignStatus === 'Approved' || activeTab === 'completed' || !isPreProduction;
 
             return (
-            <div
-              key={qut.id}
-              onClick={() => {
-                navigate(`/erp/engineer-tasks/${qut.id}`);
-              }}
-              style={{
-                display: "grid", gridTemplateColumns: "100px 1.1fr 1.1fr 160px 100px 160px 110px", alignItems: "center",
-                padding: "10px 18px", cursor: "pointer",
-                borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
-                transition: "background 0.1s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
-              <div style={{ minWidth: 0, paddingRight: 10 }}>
-                <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
-              </div>
-              <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{qut.description || qut.partNumber || "-"}</span>
-              <span style={{ color: S.secondary, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                {qut.designAssignedTo ? (
-                  <span style={{ fontSize: "11px", background: S.bg, padding: "2px 6px", borderRadius: 4, border: `1px solid ${S.border}`, color: S.slate, display: "inline-block" }}>
-                    {assignedName}
+              <div
+                key={qut.id}
+                onClick={() => {
+                  navigate(`/erp/engineer-tasks/${qut.id}`);
+                }}
+                style={{
+                  display: "grid", gridTemplateColumns: "95px 1.2fr 1.2fr 210px 105px 150px 140px", gap: "14px", alignItems: "center",
+                  padding: "12px 18px", cursor: "pointer",
+                  borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
+                <div style={{ minWidth: 0, paddingRight: 6 }}>
+                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
+                </div>
+                <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 6 }}>{qut.description || qut.partNumber || "-"}</span>
+                <div style={{ minWidth: 0 }}>
+                  <span style={{ fontSize: "11px", background: "#E0F2FE", padding: "3px 8px", borderRadius: 6, border: "1px solid #7DD3FC", color: "#0369A1", fontWeight: 600, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    Ditangani: SPV Engineering
                   </span>
-                ) : (
-                  <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                )}
-              </span>
-              <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500 }}>{qut.deadline}</span>
-              <div>
-                <StatusBadge status={activeTab === 'completed' ? 'Design Selesai' : qut.status} />
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {canWork && (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigate(`/erp/engineer-tasks/${qut.id}`);
-                    }}
-                    style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Kerjakan
-                  </button>
-                )}
-                {canAssign && (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setAssignModalQUT(qut);
-                    }}
-                    style={{ fontSize: "11px", background: canWork ? S.white : S.cyan, color: canWork ? S.slate : "#fff", border: canWork ? `1px solid ${S.border}` : "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    {qut.designAssignedTo ? "Ganti" : "Tugaskan"}
-                  </button>
-                )}
+                </div>
+                <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, whiteSpace: "nowrap" }}>{qut.deadline}</span>
+                <div>
+                  <StatusBadge status={activeTab === 'completed' ? 'Design Selesai' : qut.status} />
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {!isApproved && !isWaitingReview && (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/erp/engineer-tasks/${qut.id}`);
+                      }}
+                      style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Input CAD / Desain
+                    </button>
+                  )}
 
-                {!canWork && !canAssign && canReview && (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigate(`/erp/engineer-tasks/${qut.id}`);
-                    }}
-                    style={{ fontSize: "11px", background: "#F59E0B", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Review
-                  </button>
-                )}
-                {!canWork && !canAssign && !canReview && (
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigate(`/erp/engineer-tasks/${qut.id}`);
-                    }}
-                    style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                  >
-                    Detail
-                  </button>
-                )}
+                  {!isApproved && isWaitingReview && (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/erp/engineer-tasks/${qut.id}`);
+                      }}
+                      style={{ fontSize: "11px", background: "#F59E0B", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Review & Finalisasi
+                    </button>
+                  )}
+
+                  {isApproved && (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/erp/engineer-tasks/${qut.id}`);
+                      }}
+                      style={{ fontSize: "11px", background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                    >
+                      Lihat Desain
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
             );
           })
         )}
@@ -353,8 +280,6 @@ export function EngineeringTasksPage() {
           </div>
         )}
       </div>
-
-      {assignModalQUT && <AssignEngineerModal qut={assignModalQUT} onClose={() => setAssignModalQUT(null)} />}
     </div>
   );
 }

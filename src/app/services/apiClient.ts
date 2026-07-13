@@ -1,4 +1,5 @@
 import axios from 'axios';
+import axiosRetry from 'axios-retry';
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const DEV_TOKEN = import.meta.env.VITE_DEV_MASTER_TOKEN?.trim() || '';
@@ -10,8 +11,18 @@ const apiClient = axios.create({
     'X-Requested-With': 'XMLHttpRequest',
     'X-PJT-Client': 'Frontend',
   },
-  timeout: 10000,
+  timeout: 30000, // Increased timeout to 30s for bad networks
   withCredentials: true,
+});
+
+// Configure automatic retries for network errors and timeouts
+axiosRetry(apiClient, {
+  retries: 3, // Retry up to 3 times
+  retryDelay: axiosRetry.exponentialDelay, // Exponential backoff (100ms, 200ms, 400ms...)
+  retryCondition: (error) => {
+    // Retry on standard network errors (like disconnected) OR timeout (ECONNABORTED) OR 5xx server errors
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNABORTED';
+  }
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -38,6 +49,10 @@ apiClient.interceptors.response.use(
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login";
       }
+      // Return a promise that never resolves/rejects.
+      // This prevents the calling component's catch() block from executing
+      // and showing confusing validation alerts while the page is redirecting.
+      return new Promise(() => {});
     }
     return Promise.reject(error);
   },
