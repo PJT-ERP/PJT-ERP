@@ -49,7 +49,7 @@ export interface PO {
   contactPhone: string;
   orderDate: string;
   dueDate: string;
-  deliveryStatus: "In Transit" | "Closed" | "Cancelled";
+  deliveryStatus: "Open" | "Partial" | "Confirmed" | "In Transit" | "Closed" | "Cancelled";
   paymentStatus: "Unpaid" | "Partial" | "Paid";
   paymentTerms: string;
   requestRefs: string[];

@@ -72,7 +72,7 @@ export default function App() {
             <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
             <Route path="engineer-tasks/:id" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTaskDetailPage /></ProtectedRoute>} />
             <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
-            <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
+
             <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
             <Route path="production/mr/:id" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionMaterialRequestPage /></ProtectedRoute>} />
 

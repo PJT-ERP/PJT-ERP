@@ -1,4 +1,4 @@
-export type UserRole = 'Sales' | 'Engineering' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
+export type UserRole = 'Sales' | 'Engineering' | 'Engineering Worker' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
   | 'Waiting Payment'
