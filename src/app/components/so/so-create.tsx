@@ -264,7 +264,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const backendCustomers = await salesApi.listCustomers();
     const existing = backendCustomers.find(customer => customer.code.toUpperCase() === code);
     if (existing) {
-      return existing.id;
+      return { id: existing.id, code: existing.code, isNew: false };
     }
 
     const created = await salesApi.createCustomer({
@@ -275,14 +275,14 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       email: input.email || null,
       phone: input.phone || null,
     });
-    return created.id;
+    return { id: created.id, code: created.code, isNew: true };
   };
 
   const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
     if (row.type === "existing" && row.productName) {
       const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
       if (selected) {
-        return selected.id;
+        return { id: selected.id, isNew: false };
       }
     }
 
@@ -294,7 +294,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       unit: row.unit || "pcs",
       materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
     });
-    return created.id;
+    return { id: created.id, isNew: true };
   };
 
   const createSalesOrderFromRows = async (
@@ -314,37 +314,44 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const nextPrdNum = { current: maxPrd + 1 };
 
     const items = [];
-    for (const row of rows) {
-      items.push({
-        productId: await ensureProductId(row, nextPrdNum),
-        qty: Number(row.quantity) || 1,
-        unitPrice: row.unitPrice || 0,
-        notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
-        designReference: row.type === "custom" && row.designId === "none" ? "INTERNAL_DESIGN" : null,
-        customerDrawingUrl: row.type === "custom" && row.designId === "customer" ? (row.customerDesignUrl || null) : null,
-      });
-    }
+    const newlyCreatedProductIds: string[] = [];
 
-    const payload = {
-      customerId,
-      soDate: today,
-      targetDate,
-      customerDrawingUrl: customerDrawingUrl || null,
-      designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
-      designStatus: designStatus ?? (rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved"),
-      items,
-    };
+    try {
+      for (const row of rows) {
+        const productRes = await ensureProductId(row, nextPrdNum);
+        if (productRes.isNew) newlyCreatedProductIds.push(productRes.id);
 
-    let lastError: any;
-    for (let i = 0; i < 6; i++) {
-      try {
-        return await salesApi.createSalesOrder(payload);
-      } catch (error: any) {
-        lastError = error;
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        items.push({
+          productId: productRes.id,
+          qty: Number(row.quantity) || 1,
+          unitPrice: row.unitPrice || 0,
+          notes: row.materials && row.materials.length > 0 ? JSON.stringify(row.materials) : (row.notes || null),
+          designReference: row.type === "custom" && row.designId === "none" ? "INTERNAL_DESIGN" : null,
+          customerDrawingUrl: row.type === "custom" && row.designId === "customer" ? (row.customerDesignUrl || null) : null,
+        });
       }
+
+      const payload = {
+        customerId,
+        soDate: today,
+        targetDate,
+        customerDrawingUrl: customerDrawingUrl || null,
+        designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
+        designStatus: designStatus ?? (rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved"),
+        items,
+      };
+
+      return await salesApi.createSalesOrder(payload);
+    } catch (error) {
+      for (const pid of newlyCreatedProductIds) {
+        try {
+          await salesApi.deleteProduct(pid);
+        } catch (e) {
+          console.error("Failed to rollback orphaned product", pid, e);
+        }
+      }
+      throw error;
     }
-    throw lastError;
   };
 
   const handleNewOrderSubmit = async (e: React.FormEvent) => {
@@ -364,7 +371,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         return;
       }
 
-      const customerId = await ensureCustomerId({
+      const customerRes = await ensureCustomerId({
         code: customerForm.customerCode,
         company: customerForm.company,
         customerName: customerForm.customerName,
@@ -372,17 +379,29 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         phone: customerForm.phone,
         address: customerForm.address,
       });
-      const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
-      const finalImageUrl = custProduct?.customerDesignUrl || "";
-      const created = await createSalesOrderFromRows(customerId, customerForm.deadline, finalImageUrl, products);
+      
+      try {
+        const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
+        const finalImageUrl = custProduct?.customerDesignUrl || "";
+        const created = await createSalesOrderFromRows(customerRes.id, customerForm.deadline, finalImageUrl, products);
 
-      if (customerForm.estimatedAmount) {
-        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
+        if (customerForm.estimatedAmount) {
+          updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
+        }
+
+        await refreshBackendData();
+        setGeneratedSONumber(created.soNumber);
+        setSubmitted(true);
+      } catch (error) {
+        if (customerRes.isNew) {
+          try {
+            await salesApi.deleteCustomer(customerRes.code);
+          } catch (e) {
+            console.error("Failed to rollback orphaned customer", customerRes.code, e);
+          }
+        }
+        throw error;
       }
-
-      refreshBackendData().catch(console.error);
-      setGeneratedSONumber(created.soNumber);
-      setSubmitted(true);
     } catch (error: any) {
       if (error?.response?.status === 401) return;
       console.error(error);
@@ -405,7 +424,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         return;
       }
 
-      const customerId = await ensureCustomerId({
+      const customerRes = await ensureCustomerId({
         code: selectedCustomer.code,
         company: selectedCustomer.name,
         customerName: selectedCustomer.contactPerson || selectedCustomer.name,
@@ -413,17 +432,29 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         phone: selectedCustomer.phone,
         address: selectedCustomer.address,
       });
-      const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
-      const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
-      const created = await createSalesOrderFromRows(customerId, repeatForm.deadline, finalImageUrl, repeatProducts, "Approved");
+      
+      try {
+        const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
+        const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
+        const created = await createSalesOrderFromRows(customerRes.id, repeatForm.deadline, finalImageUrl, repeatProducts, "Approved");
 
-      if (repeatForm.estimatedAmount) {
-        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
+        if (repeatForm.estimatedAmount) {
+          updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
+        }
+
+        await refreshBackendData();
+        setGeneratedSONumber(created.soNumber);
+        setSubmitted(true);
+      } catch (error) {
+        if (customerRes.isNew) {
+          try {
+            await salesApi.deleteCustomer(customerRes.code);
+          } catch (e) {
+            console.error("Failed to rollback orphaned customer", customerRes.code, e);
+          }
+        }
+        throw error;
       }
-
-      refreshBackendData().catch(console.error);
-      setGeneratedSONumber(created.soNumber);
-      setSubmitted(true);
     } catch (error: any) {
       if (error?.response?.status === 401) return;
       console.error(error);

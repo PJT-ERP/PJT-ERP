@@ -42,10 +42,10 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
         <thead>
           <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
-            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Nama Material</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Kode</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Spesifikasi</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>Qty / Satuan</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600, width: "35%" }}>Nama Material</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600, width: "20%" }}>Kode</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600, width: "30%" }}>Spesifikasi</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right", width: "15%" }}>Qty / Satuan</th>
           </tr>
         </thead>
         <tbody>
@@ -331,78 +331,77 @@ export function ProductionPage() {
               const canAssignToOperator = hasBom && hasMr;
 
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
-                      <StatusBadge status={so.status} />
-                      {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>⚠️ BOM Belum Dibuat</span>}
-                      {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>📦 Req Material Belum Diajukan</span>}
-                      {hasBom && hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>✅ Prasyarat Produksi Lengkap</span>}
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                    <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                        <StatusBadge status={so.status} />
+                        {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
+                        {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
+                        {hasBom && hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Prasyarat Produksi Lengkap</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
+                        <DrawingLinks so={so} />
+                      </div>
                     </div>
-                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
-                    <DrawingLinks so={so} />
+                    {currentUser?.role !== 'Admin' && (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        {isSupervisor && mrState === 'requested' && (
+                          <button onClick={() => setReviewMrModal(so)}
+                            style={{ padding: "7px 12px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                            Review MR
+                          </button>
+                        )}
+                        {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                          <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                            style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                            <FileWarning size={14} /> Material Kurang
+                          </button>
+                        )}
+                        {mrState === 'rejected' && isSupervisor && (
+                          <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                            style={{ padding: "7px 12px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                            <FileWarning size={14} /> Ajukan Ulang MR
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (!canAssignToOperator) {
+                              setSystemMessage({
+                                tone: "error",
+                                title: "Prasyarat Penugasan Belum Lengkap",
+                                message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! Anda (Supervisor) wajib menyelesaikan pembuatan BOM (${hasBom ? 'Sudah Ada' : 'Belum Ada'}) dan mengklik tombol "Material Kurang" (${hasMr ? 'Sudah Diajukan' : 'Belum Diajukan'}) terlebih dahulu.`,
+                              });
+                            } else {
+                              setAssignModal(so);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 14px",
+                            background: canAssignToOperator ? S.cyan : "#94A3B8",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            fontSize: "12.5px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6
+                          }}
+                        >
+                          Tugaskan Operator
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <InlineBomDisplay so={so} />
                   </div>
-                  {currentUser?.role !== 'Admin' && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", paddingTop: 2 }}>
-                      <button
-                        onClick={() => setDetailModal(so)}
-                        style={{ padding: "7px 12px", background: "#FFFFFF", border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
-                      >
-                        1. Kelola BOM & Material
-                      </button>
-                      
-                      {isSupervisor && mrState === 'requested' && (
-                        <button onClick={() => setReviewMrModal(so)}
-                          style={{ padding: "7px 12px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-                          Review MR
-                        </button>
-                      )}
-                      {mrState !== 'requested' && isSupervisor && (
-                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                          style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                          <FileWarning size={14} /> Material Kurang (Buat MR)
-                        </button>
-                      )}
-                      {mrState === 'rejected' && isSupervisor && (
-                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                          style={{ padding: "7px 12px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                          <FileWarning size={14} /> Ajukan Ulang MR
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          if (!canAssignToOperator) {
-                            setSystemMessage({
-                              tone: "error",
-                              title: "Prasyarat Penugasan Belum Lengkap",
-                              message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! Anda (Supervisor) wajib menyelesaikan pembuatan BOM (${hasBom ? 'Sudah Ada' : 'Belum Ada'}) dan mengklik tombol "Material Kurang" (${hasMr ? 'Sudah Diajukan' : 'Belum Diajukan'}) terlebih dahulu.`,
-                            });
-                          } else {
-                            setAssignModal(so);
-                          }
-                        }}
-                        style={{
-                          padding: "8px 14px",
-                          background: canAssignToOperator ? S.cyan : "#94A3B8",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 6,
-                          fontSize: "12.5px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6
-                        }}
-                      >
-                        2. Tugaskan Operator Produksi
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -428,63 +427,77 @@ export function ProductionPage() {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
               const mrState = getMaterialRequestState(so);
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 18px", borderBottom: idx < materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
-                      <StatusBadge status={so.status} />
-                      {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
-                      {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
-                      {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
-                      {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
-                      {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
-                      {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                    <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                        <StatusBadge status={so.status} />
+                        {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                        {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
+                        {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
+                        {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
+                        {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
+                        {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
+                        <span style={{ fontSize: "11.5px", background: operator !== "-" ? "#E0F2FE" : "#FEF2F2", color: operator !== "-" ? "#0369A1" : "#B91C1C", padding: "2px 8px", borderRadius: 6, border: `1px solid ${operator !== "-" ? "#7DD3FC" : "#FECACA"}`, fontWeight: 600 }}>
+                          Operator: {operator}
+                        </span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
+                        <DrawingLinks so={so} />
+                      </div>
                     </div>
-                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "11.5px", background: operator !== "-" ? "#E0F2FE" : "#FEF2F2", color: operator !== "-" ? "#0369A1" : "#B91C1C", padding: "2px 8px", borderRadius: 6, border: `1px solid ${operator !== "-" ? "#7DD3FC" : "#FECACA"}`, fontWeight: 600 }}>
-                        Ditugaskan ke: {operator}
-                      </span>
-                      <DrawingLinks so={so} />
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
+                        <button onClick={() => setReviewMrModal(so)}
+                          style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Review MR
+                        </button>
+                      )}
+                      {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && currentUser?.role !== 'Admin' && (
+                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                          style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Material Kurang
+                        </button>
+                      )}
+                      {mrState === 'rejected' && isSupervisor && currentUser?.role !== 'Admin' && (
+                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                          style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Ajukan Ulang MR
+                        </button>
+                      )}
+                      {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                        <button onClick={() => setReturnToSpvModal(so)}
+                          style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Kembalikan ke SPV
+                        </button>
+                      )}
+                      {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                        <button onClick={() => {
+                          if (mrState !== 'completed' && mrState !== 'none') {
+                            setSystemMessage({
+                              tone: "error",
+                              title: "Material Belum Lengkap",
+                              message: `Material untuk pesanan ini masih dalam proses (Status: ${mrState}). Tidak bisa memulai produksi sebelum material lengkap.`
+                            });
+                            return;
+                          }
+                          setStartModal(so);
+                        }}
+                          style={{ padding: "8px 16px", background: "#B91C1C", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <PlayCircle size={14} /> Mulai Produksi
+                        </button>
+                      )}
                     </div>
+                  </div>
+                  <div style={{ cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <InlineBomDisplay so={so} />
-
                     {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
                       <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
                         Catatan QC: {so.qcNotes}
                       </p>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start", paddingTop: 2 }}>
-                    {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
-                      <button onClick={() => setReviewMrModal(so)}
-                        style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
-                        Review MR
-                      </button>
-                    )}
-                    {mrState !== 'requested' && isSupervisor && currentUser?.role !== 'Admin' && (
-                      <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                        style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        <FileWarning size={14} /> Material Kurang (Buat MR)
-                      </button>
-                    )}
-                    {mrState === 'rejected' && isSupervisor && currentUser?.role !== 'Admin' && (
-                      <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                        style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        <FileWarning size={14} /> Ajukan Ulang MR
-                      </button>
-                    )}
-                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                      <button onClick={() => setReturnToSpvModal(so)}
-                        style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        <FileWarning size={14} /> Kembalikan ke SPV
-                      </button>
-                    )}
-                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (mrState === 'none' || mrState === 'completed') && (
-                      <button onClick={() => setStartModal(so)}
-                        style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        <PlayCircle size={14} /> Mulai Produksi
-                      </button>
                     )}
                   </div>
                 </div>
@@ -529,84 +542,89 @@ export function ProductionPage() {
               const mrState = getMaterialRequestState(so);
 
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
-                      <StatusBadge status={so.status} />
-                      {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
-                      {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
-                      {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
-                      {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
-                      {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
-                      {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
-                      {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                    <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                        <StatusBadge status={so.status} />
+                        {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
+                        {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                        {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
+                        {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
+                        {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
+                        {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
+                        {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
+                        <span style={{ fontSize: "11.5px", background: operator !== "-" ? "#E0F2FE" : "#FEF2F2", color: operator !== "-" ? "#0369A1" : "#B91C1C", padding: "2px 8px", borderRadius: 6, border: `1px solid ${operator !== "-" ? "#7DD3FC" : "#FECACA"}`, fontWeight: 600 }}>
+                          Operator: {operator}
+                        </span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
+                        {so.startTime && <span>Mulai: <strong style={{ color: S.slate }}>{new Date(so.startTime).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</strong></span>}
+                        <DrawingLinks so={so} />
+                      </div>
                     </div>
-                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "11.5px", background: operator !== "-" ? "#E0F2FE" : "#FEF2F2", color: operator !== "-" ? "#0369A1" : "#B91C1C", padding: "2px 8px", borderRadius: 6, border: `1px solid ${operator !== "-" ? "#7DD3FC" : "#FECACA"}`, fontWeight: 600 }}>
-                        Ditugaskan ke: {operator}
-                      </span>
-                      {so.startTime && <span>· Mulai: {new Date(so.startTime).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</span>}
-                      <DrawingLinks so={so} />
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
+                        <button onClick={() => setReviewMrModal(so)}
+                          style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Review MR
+                        </button>
+                      )}
+                      {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                        <>
+                          {so.status === 'Paused' ? (
+                            <>
+                              {so.pauseReason?.toLowerCase().includes("material") && (mrState === 'requested' || mrState === 'finance_pending' || mrState === 'approved') ? (
+                                <button disabled title="Menunggu MR selesai diproses"
+                                  style={{ padding: "8px 16px", background: "#E5E7EB", color: "#9CA3AF", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                                  <Clock size={14} /> Menunggu Material
+                                </button>
+                              ) : (
+                                <button onClick={() => setStartModal(so)}
+                                  style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                                  <PlayCircle size={14} /> Lanjutkan Produksi
+                                </button>
+                              )}
+                              {so.pauseReason?.toLowerCase().includes("material") && mrState === 'none' && (
+                                <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                                  style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                                  <Package size={14} /> Req. Material Kurang
+                                </button>
+                              )}
+                              {so.pauseReason?.toLowerCase().includes("material") && mrState === 'rejected' && (
+                                <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                                  style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                                  <FileWarning size={14} /> Ajukan Ulang MR
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <button onClick={() => setPauseModal(so)}
+                              style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                              <PauseCircle size={14} /> Jeda Produksi
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (so.status === 'Paused') return;
+                              setCompleteModal(so);
+                            }}
+                            style={{ padding: "8px 16px", background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                            <CheckSquare size={14} /> Selesai Produksi
+                          </button>
+                        </>
+                      )}
                     </div>
+                  </div>
+                  <div style={{ cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <InlineBomDisplay so={so} />
                     {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
                       <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
                         Catatan QC: {so.qcNotes}
                       </p>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start", paddingTop: 2 }}>
-                    {isSupervisor && mrState === 'requested' && currentUser?.role !== 'Admin' && (
-                      <button onClick={() => setReviewMrModal(so)}
-                        style={{ padding: "8px 16px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer" }}>
-                        Review MR
-                      </button>
-                    )}
-                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
-                      <>
-                        {so.status === 'Paused' ? (
-                          <>
-                            {so.pauseReason?.toLowerCase().includes("material") && (mrState === 'requested' || mrState === 'finance_pending' || mrState === 'approved') ? (
-                              <button disabled title="Menunggu MR selesai diproses"
-                                style={{ padding: "8px 16px", background: "#E5E7EB", color: "#9CA3AF", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", gap: 6 }}>
-                                <Clock size={14} /> Menunggu Material
-                              </button>
-                            ) : (
-                              <button onClick={() => setStartModal(so)}
-                                style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                                <PlayCircle size={14} /> Lanjutkan Produksi
-                              </button>
-                            )}
-                            {so.pauseReason?.toLowerCase().includes("material") && mrState === 'none' && (
-                              <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                                style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                                <Package size={14} /> Req. Material Kurang
-                              </button>
-                            )}
-                            {so.pauseReason?.toLowerCase().includes("material") && mrState === 'rejected' && (
-                              <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                                style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                                <FileWarning size={14} /> Ajukan Ulang MR
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <button onClick={() => setPauseModal(so)}
-                            style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                            <PauseCircle size={14} /> Jeda Produksi
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            if (so.status === 'Paused') return;
-                            setCompleteModal(so);
-                          }}
-                          style={{ padding: "8px 16px", background: "#16A34A", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: so.status === 'Paused' ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, opacity: so.status === 'Paused' ? 0.5 : 1 }}>
-                          <CheckSquare size={14} /> Selesai Produksi
-                        </button>
-                      </>
                     )}
                   </div>
                 </div>
@@ -635,12 +653,15 @@ export function ProductionPage() {
                 return (
                   <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 18px", borderBottom: idx < waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none", background: "#F8FAFC" }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                        <span style={{ fontFamily: "monospace", fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{so.id}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
                         <StatusBadge status={so.status} />
                       </div>
-                      <p style={{ fontSize: "13px", color: S.slate, margin: "4px 0", fontWeight: 500 }}>{customer?.name} · {so.description}</p>
-                      <InlineBomDisplay so={so} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, marginBottom: 8, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{customer?.name || so.customerId}</strong></span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
+                        <DrawingLinks so={so} />
+                      </div>
                     </div>
                   </div>
                 );
