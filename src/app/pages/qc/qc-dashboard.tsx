@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, X } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder } from "../../components/data/mockData";
+import { qcApi } from "../../services/qcApi";
+import type { QcInspectionDto } from "../../services/qcApi";
+import { mapInspectionToSalesOrder } from "./components/utils";
 
 const S = {
   font: "Inter, sans-serif",
@@ -145,30 +148,36 @@ export function QCPage() {
   const { salesOrders, customers, currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
-  const [filterResult, setFilterResult] = useState<'all' | 'Go' | 'NoGo' | 'Menunggu'>('all');
   const [qcSearch, setQcSearch] = useState('');
+  const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
 
-  const completed = salesOrders.filter(so => so.status === 'Completed');
-  const pendingQC = salesOrders.filter(so => so.status === 'QC');
-  const allQC = [...pendingQC, ...completed];
+  useEffect(() => {
+    qcApi.listInspections().then(setInspections).catch(console.error);
+  }, []);
+
+  const hasBackendInspections = inspections.length > 0;
+
+  const completed = hasBackendInspections
+    ? inspections
+        .filter(i => isGo(i.decision || i.status) || isNoGo(i.decision || i.status))
+        .map(i => mapInspectionToSalesOrder(i, salesOrders))
+    : salesOrders.filter(so => so.status === 'Completed');
+
+  const pendingQC = hasBackendInspections
+    ? inspections.filter(i => i.status === "ReadyForInspection").map(i => mapInspectionToSalesOrder(i, salesOrders))
+    : salesOrders.filter(so => so.status === 'QC');
 
   const passCount = completed.filter(s => isGo(s.qcStatus)).length;
   const failCount = completed.filter(s => isNoGo(s.qcStatus)).length;
   const passRate = completed.length > 0 ? Math.round((passCount / completed.length) * 100) : 0;
   const lateCount = completed.filter(s => s.lateReason).length;
 
-  const filtered = allQC.filter(so => {
+  const filtered = pendingQC.filter(so => {
     const cust = customers.find(c => c.code === so.customerId);
-    const matchSearch = !qcSearch ||
+    return !qcSearch ||
       so.id.toLowerCase().includes(qcSearch.toLowerCase()) ||
       so.description.toLowerCase().includes(qcSearch.toLowerCase()) ||
       (cust?.name || '').toLowerCase().includes(qcSearch.toLowerCase());
-    const matchFilter =
-      filterResult === 'all' ||
-      (filterResult === 'Menunggu' && so.status === 'QC') ||
-      (filterResult === 'Go' && isGo(so.qcStatus)) ||
-      (filterResult === 'NoGo' && isNoGo(so.qcStatus));
-    return matchSearch && matchFilter;
   });
 
   return (
@@ -183,75 +192,68 @@ export function QCPage() {
       </div>
 
       {/* KPI */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Total Selesai</p>
-          <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{completed.length}</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 12, padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+          <p style={{ color: S.secondary, fontSize: "13px", fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Selesai</p>
+          <p style={{ color: S.slate, fontSize: "32px", fontWeight: 800, margin: "8px 0 2px", lineHeight: 1 }}>{completed.length}</p>
         </div>
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go</p>
-          <p style={{ color: "#16A34A", fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{passCount}</p>
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 12, padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+          <p style={{ color: S.secondary, fontSize: "13px", fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>Total <span style={{ color: "#16A34A" }}>Go</span></p>
+          <p style={{ color: "#16A34A", fontSize: "32px", fontWeight: 800, margin: "8px 0 2px", lineHeight: 1 }}>{passCount}</p>
         </div>
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>NoGo</p>
-          <p style={{ color: "#DC2626", fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{failCount}</p>
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 12, padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+          <p style={{ color: S.secondary, fontSize: "13px", fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>Total <span style={{ color: "#DC2626" }}>NoGo</span></p>
+          <p style={{ color: "#DC2626", fontSize: "32px", fontWeight: 800, margin: "8px 0 2px", lineHeight: 1 }}>{failCount}</p>
         </div>
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>Go Rate</p>
-          <p style={{ color: "#9333EA", fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{passRate}%</p>
+        <div style={{ background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)", borderRadius: 12, padding: "20px", boxShadow: "0 4px 12px rgba(124, 58, 237, 0.2)", color: "white" }}>
+          <p style={{ fontSize: "13px", fontWeight: 600, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.9 }}>Go Rate Keseluruhan</p>
+          <p style={{ fontSize: "32px", fontWeight: 800, margin: "8px 0 2px", lineHeight: 1 }}>{passRate}%</p>
         </div>
       </div>
 
-      {/* Go Rate Bar */}
+      {/* Progress Bar Detail */}
       {completed.length > 0 && (
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, fontSize: "13.5px", fontWeight: 500 }}>
-            <span style={{ color: S.slate }}>Go Rate Keseluruhan</span>
-            <span style={{ color: passRate >= 80 ? "#16A34A" : passRate >= 60 ? "#D97706" : "#DC2626" }}>{passRate}%</span>
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 12, padding: "16px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, fontSize: "14px", fontWeight: 600 }}>
+            <span style={{ color: S.slate }}>Kesehatan Quality Control</span>
+            <span style={{ color: passRate >= 80 ? "#16A34A" : passRate >= 60 ? "#D97706" : "#DC2626" }}>{passRate >= 80 ? "Baik" : passRate >= 60 ? "Cukup" : "Buruk"}</span>
           </div>
-          <div style={{ height: 12, background: S.bg, borderRadius: 99, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${passRate}%`, background: passRate >= 80 ? "#22C55E" : passRate >= 60 ? "#F59E0B" : "#EF4444", transition: "width 0.3s ease" }} />
+          <div style={{ height: 14, background: "#F1F5F9", borderRadius: 99, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${passRate}%`, background: passRate >= 80 ? "#10B981" : passRate >= 60 ? "#F59E0B" : "#EF4444", transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)" }} />
           </div>
           {lateCount > 0 && (
-            <p style={{ display: "flex", alignItems: "center", gap: 6, margin: "12px 0 0", fontSize: "12.5px", color: "#B45309" }}>
-              <AlertTriangle size={14} /> {lateCount} order selesai terlambat dari deadline
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "16px 0 0", padding: "12px", background: "#FEF2F2", borderRadius: 8 }}>
+              <AlertTriangle size={16} color="#DC2626" />
+              <p style={{ fontSize: "13px", color: "#991B1B", margin: 0, fontWeight: 500 }}>
+                Terdapat <strong>{lateCount} order</strong> yang selesai melewati batas waktu deadline produksi.
+              </p>
+            </div>
           )}
         </div>
       )}
 
-      {/* Filter / Search */}
-      <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "12px 18px" }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-            <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
-            <input type="text" value={qcSearch} onChange={e => setQcSearch(e.target.value)} placeholder="Cari SO, Deskripsi, Customer..."
-              style={{ width: "100%", padding: "8px 12px 8px 32px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+      {/* Search Bar */}
+      <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 12, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <Search size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
+            <input type="text" value={qcSearch} onChange={e => setQcSearch(e.target.value)} placeholder="Cari SO yang menunggu inspeksi..."
+              style={{ width: "100%", padding: "10px 14px 10px 40px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }} 
+              onFocus={e => e.currentTarget.style.borderColor = S.navy}
+              onBlur={e => e.currentTarget.style.borderColor = S.border}
+            />
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(['all', 'Menunggu', 'Go', 'NoGo'] as const).map(f => {
-              const label = f === 'all' ? 'Semua' : f;
-              return (
-              <button key={f} onClick={() => setFilterResult(f)}
-                style={{
-                  padding: "6px 12px", borderRadius: 6, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", transition: "all 0.1s",
-                  background: filterResult === f ? S.navy : S.white,
-                  color: filterResult === f ? S.white : S.secondary,
-                  border: `1px solid ${filterResult === f ? S.navy : S.border}`
-                }}>
-                {label}
-              </button>
-            )})}
+          <div style={{ padding: "8px 16px", background: "#EFF6FF", color: "#1D4ED8", borderRadius: 8, fontSize: "13px", fontWeight: 600 }}>
+            {filtered.length} Menunggu Inspeksi
           </div>
-          <span style={{ fontSize: "12px", color: S.secondary }}>{filtered.length} item</span>
         </div>
       </div>
 
       {/* Table */}
-      <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "110px 140px 1fr 90px 100px 100px 90px" : "110px 140px 1fr 90px 100px 60px 100px 90px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-          {["SO", "Customer", "Deskripsi", "Deadline", "Keterlambatan", ...(!isAdmin ? ["Foto"] : []), "Hasil QC", "Tanggal"].map((h) => (
-            <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+      <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isAdmin ? "120px 150px 1fr 100px 120px 100px 100px" : "120px 150px 1fr 100px 120px 70px 100px 100px", padding: "12px 20px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+          {["SO", "Customer", "Deskripsi", "Deadline", "Status Produksi", ...(!isAdmin ? ["Foto"] : []), "Antrean", "Tanggal"].map((h) => (
+            <span key={h} style={{ color: "#64748B", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
 
@@ -268,40 +270,35 @@ export function QCPage() {
               return (
                 <div key={so.id} onClick={() => setSelectedSO(so)}
                   style={{
-                    display: "grid", gridTemplateColumns: isAdmin ? "110px 140px 1fr 90px 100px 100px 90px" : "110px 140px 1fr 90px 100px 60px 100px 90px",
-                    padding: "10px 18px", cursor: "pointer",
+                    display: "grid", gridTemplateColumns: isAdmin ? "120px 150px 1fr 100px 120px 100px 100px" : "120px 150px 1fr 100px 120px 70px 100px 100px",
+                    padding: "16px 20px", cursor: "pointer",
                     borderBottom: idx < filtered.length - 1 ? `1px solid ${S.border}` : "none",
-                    transition: "background 0.1s",
+                    transition: "all 0.2s ease",
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                  onMouseEnter={e => e.currentTarget.style.background = "#F1F5F9"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace", alignSelf: "center" }}>{so.id}</span>
-                  <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{customer?.name}</span>
-                  <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{so.description}</span>
-                  <span style={{ color: S.secondary, fontSize: "12.5px", alignSelf: "center" }}>{so.deadline}</span>
+                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 600, alignSelf: "center" }}>{so.id}</span>
+                  <span style={{ color: S.secondary, fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{customer?.name}</span>
+                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10, alignSelf: "center" }}>{so.description}</span>
+                  <span style={{ color: S.secondary, fontSize: "13px", alignSelf: "center" }}>{so.deadline}</span>
                   <div style={{ alignSelf: "center" }}>
-                    {isLate ? <span style={{ fontSize: "11.5px", color: "#D97706", display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={11} /> Terlambat</span> : <span style={{ fontSize: "11.5px", color: "#16A34A" }}>Tepat waktu</span>}
+                    {isLate ? <span style={{ fontSize: "12px", color: "#B45309", background: "#FEF3C7", padding: "4px 8px", borderRadius: 6, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} /> Terlambat</span> : <span style={{ fontSize: "12px", color: "#15803D", background: "#DCFCE7", padding: "4px 8px", borderRadius: 6, fontWeight: 500 }}>Tepat Waktu</span>}
                   </div>
                   {!isAdmin && (
                     <div style={{ alignSelf: "center" }}>
                       {(so.qcPhotos?.length ?? 0) > 0
-                        ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.secondary }}><ImageIcon size={11} /> {so.qcPhotos!.length}</span>
-                        : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>
+                        ? <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, fontWeight: 500 }}><ImageIcon size={14} color="#3B82F6" /> {so.qcPhotos!.length}</span>
+                        : <span style={{ fontSize: "12px", color: S.border }}>—</span>
                       }
                     </div>
                   )}
                   <div style={{ alignSelf: "center" }}>
-                    {so.status === 'QC' ? (
-                      <span style={{ fontSize: "11.5px", background: "#FEF3C7", color: "#D97706", padding: "2px 8px", borderRadius: 99, fontWeight: 500 }}>Menunggu</span>
-                    ) : so.qcStatus ? (
-                      <span style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, color: isGo(so.qcStatus) ? "#16A34A" : "#DC2626" }}>
-                        {isGo(so.qcStatus) ? <CheckCircle size={13} /> : <XCircle size={13} />}
-                        {isGo(so.qcStatus) ? 'Go' : 'NoGo'}
-                      </span>
-                    ) : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>}
+                    <span style={{ fontSize: "12px", background: "#F1F5F9", color: "#475569", padding: "4px 10px", borderRadius: 20, border: "1px solid #E2E8F0", fontWeight: 600, display: "inline-block", textAlign: "center" }}>
+                      Menunggu
+                    </span>
                   </div>
-                  <span style={{ color: S.secondary, fontSize: "12.5px", alignSelf: "center" }}>{so.qcAt ? new Date(so.qcAt).toLocaleDateString('id-ID') : '—'}</span>
+                  <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{so.qcAt ? new Date(so.qcAt).toLocaleDateString('id-ID') : '—'}</span>
                 </div>
               );
             })}

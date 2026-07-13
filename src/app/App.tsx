@@ -29,13 +29,13 @@ import { EngineeringTasksPage } from "./pages/engineering/tasks";
 import { EngineeringTaskDetailPage } from "./pages/engineering/task-detail";
 import { EngineeringPage } from "./pages/engineering";
 import { EngineeringPurchasingPage } from "./pages/engineering/purchasing";
-import { EngineeringQCPage } from "./pages/engineering/qc";
+import { QCInspectionsPage } from "./pages/qc/qc-inspections";
 import { OwnerApprovalPage } from "./pages/owner/approvals";
 import { DashboardPage } from "./pages/dashboard";
 import { CustomerAnalyticsPage } from "./pages/sales/analytics";
 import { ProductionPage } from "./pages/Production";
 import { ProductionMaterialRequestPage } from "./pages/Production/material-request";
-import { QCPage } from "./pages/qc";
+import { QCPage } from "./pages/qc/qc-dashboard";
 
 const financeRoutes = [
   { path: "dashboard", element: <FinanceDashboard /> },
@@ -75,7 +75,11 @@ export default function App() {
             <Route path="engineer-qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringQCPage /></ProtectedRoute>} />
             <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
             <Route path="production/mr/:id" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionMaterialRequestPage /></ProtectedRoute>} />
-            <Route path="qc" element={<ProtectedRoute allowedRoles={['Engineering', 'Engineering Worker', 'Admin', 'Owner', 'Engineering Supervisor']}><QCPage /></ProtectedRoute>} />
+
+            {/* QC: QC, Admin, Owner */}
+            <Route path="qc" element={<ProtectedRoute allowedRoles={['QC', 'Admin', 'Owner']}><QCPage /></ProtectedRoute>} />
+            <Route path="qc/dashboard" element={<ProtectedRoute allowedRoles={['QC', 'Admin', 'Owner']}><QCPage /></ProtectedRoute>} />
+            <Route path="qc/inspections" element={<ProtectedRoute allowedRoles={['QC', 'Admin', 'Owner']}><QCInspectionsPage /></ProtectedRoute>} />
 
             {/* Owner & Engineering Supervisor Approval */}
             <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><OwnerApprovalPage /></ProtectedRoute>} />

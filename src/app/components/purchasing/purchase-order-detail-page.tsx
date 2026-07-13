@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, Printer, X, Download, Eye } from "lucide-react";
@@ -25,7 +26,7 @@ export function PurchaseOrderDetailPage() {
   const { purchaseRequests, supplierPayments, suppliers, inventoryItems, isLoading: isDataLoading, refresh } = usePurchasingData();
 
   const [isReceiving, setIsReceiving] = useState(false);
-  const [receiveItemState, setReceiveItemState] = useState<POItem | null>(null);
+  const [receiveItemState, setReceiveItemState] = useState<(POItem & { isPartial?: boolean }) | null>(null);
   const [viewNotes, setViewNotes] = useState<{name: string, catatan: string} | null>(null);
 
   const pos = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
@@ -70,9 +71,10 @@ export function PurchaseOrderDetailPage() {
       await refreshBackendData();
       await loadData();
       setReceiveItemState(null);
+      toast.success("Sukses! Barang telah diterima dan stok gudang berhasil diperbarui.");
     } catch (error) {
       console.error("Failed to receive item.", error);
-      alert("Gagal menerima barang. Coba lagi nanti.");
+      toast.error("Gagal menerima barang. Coba lagi nanti.");
     } finally {
       setIsReceiving(false);
     }
@@ -340,7 +342,17 @@ export function PurchaseOrderDetailPage() {
                         <td className="p-3 text-xs text-slate-500">{item.spec && item.spec !== "-" && !isSpecActuallyCode ? item.spec : "-"}</td>
                         <td className="p-3 text-sm font-medium text-right text-slate-900">{item.qty} {item.unit}</td>
                         <td className="p-3 text-sm font-semibold text-right" style={{ color: isReceived ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
-                          {item.received} {item.unit}
+                          <div className="flex flex-col items-end gap-1">
+                            <span>{item.received} {item.unit}</span>
+                            {item.received > 0 && (
+                              <span 
+                                className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700 border border-green-200"
+                                title="Stok aktual gudang telah diperbarui"
+                              >
+                                <CheckCircle2 size={10} /> Masuk Gudang
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3 text-xs text-right text-slate-500">{formatRp(calcUnitPrice(item))}</td>
                         <td className="p-3 text-sm text-right font-bold text-slate-900">{formatRp(item.totalPrice)}</td>
@@ -360,14 +372,24 @@ export function PurchaseOrderDetailPage() {
                               );
                             })()
                           ) : (
-                            <button
-                              onClick={() => setReceiveItemState(item)}
-                              disabled={!canReceive}
-                              title={canReceive ? "Terima material" : "Menunggu approval Finance"}
-                              className="rounded border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:bg-transparent"
-                            >
-                              Terima
-                            </button>
+                            <div className="flex flex-col gap-1.5 items-center">
+                              <button
+                                onClick={() => setReceiveItemState({ ...item, isPartial: false })}
+                                disabled={!canReceive}
+                                title={canReceive ? "Terima semua material" : "Menunggu approval Finance"}
+                                className="rounded border border-green-200 px-3 py-1 text-xs font-semibold text-green-700 bg-green-50 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:bg-transparent w-full max-w-[120px]"
+                              >
+                                Terima Penuh
+                              </button>
+                              <button
+                                onClick={() => setReceiveItemState({ ...item, isPartial: true })}
+                                disabled={!canReceive}
+                                title={canReceive ? "Terima sebagian material" : "Menunggu approval Finance"}
+                                className="rounded border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-700 bg-amber-50 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:bg-transparent w-full max-w-[120px]"
+                              >
+                                Terima Sebagian
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -386,9 +408,11 @@ export function PurchaseOrderDetailPage() {
 
             {/* Receive Item Form Section (Inline) */}
             {receiveItemState && (
-              <div className="p-6 border-t border-slate-200 bg-red-50/50">
+              <div className="p-6 border-t border-slate-200 bg-slate-50">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold text-slate-900">Form Penerimaan Barang</h3>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Form Penerimaan Barang {receiveItemState.isPartial ? "(Sebagian)" : "(Penuh)"}
+                  </h3>
                   <button onClick={() => setReceiveItemState(null)} className="p-1 hover:bg-slate-200 rounded">
                     <X size={18} className="text-slate-500" />
                   </button>
@@ -400,8 +424,8 @@ export function PurchaseOrderDetailPage() {
                     <p className="text-sm font-bold text-slate-900">{receiveItemState.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jumlah Dipesan</p>
-                    <p className="text-sm font-bold text-slate-900">{receiveItemState.qty} {receiveItemState.unit}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sisa Belum Diterima</p>
+                    <p className="text-sm font-bold text-slate-900">{Math.max(0, receiveItemState.qty - receiveItemState.received)} {receiveItemState.unit}</p>
                   </div>
                 </div>
 
@@ -414,8 +438,8 @@ export function PurchaseOrderDetailPage() {
                         name="qty"
                         required
                         className="flex-1 border border-slate-300 rounded px-3 py-2 outline-none focus:border-red-500"
-                        defaultValue={receiveItemState.qty}
-                        max={receiveItemState.qty}
+                        defaultValue={receiveItemState.isPartial ? "" : Math.max(0, receiveItemState.qty - receiveItemState.received)}
+                        max={Math.max(1, receiveItemState.qty - receiveItemState.received)}
                         min={1}
                       />
                       <span className="text-sm font-medium text-slate-500">{receiveItemState.unit}</span>

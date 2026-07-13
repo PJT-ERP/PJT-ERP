@@ -76,7 +76,7 @@ function MaterialAutocomplete({
   );
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", flex: 2, display: "flex", flexDirection: "column", zIndex: isOpen ? 999 : "auto" }}>
+    <div ref={wrapperRef} style={{ position: "relative", flex: 2.5, display: "flex", flexDirection: "column", zIndex: isOpen ? 999 : "auto" }}>
       <input
         value={value}
         onChange={e => {
@@ -934,67 +934,74 @@ export function EngineeringTaskDetailPage() {
                                 {isStandardProduct ? "Material Tambahan (Khusus SO Ini)" : "BOM Custom"}
                               </div>
                               {mats.map((m) => (
-                                <div key={m.id} style={{ position: "relative", display: "flex", gap: 12, alignItems: "center", background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-                                  <MaterialAutocomplete 
-                                    value={m.name} 
-                                    onChange={val => updateMaterial(item.id, m.id, 'name', val)}
-                                    onSelectProduct={p => {
-                                      updateMaterial(item.id, m.id, 'name', p.name);
-                                      updateMaterial(item.id, m.id, 'unit', p.unit);
-                                      updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
-                                      // Auto-sync category from master data so same material always has same category
-                                      if (p.category) {
-                                        updateMaterial(item.id, m.id, 'category', p.category);
-                                      }
-                                    }}
-                                    options={inventoryItems}
-                                    disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} 
-                                  />
-                                  <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ flex: 1.5, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC" }} />
-                                  <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
-                                  {!m.inventoryItemId ? (
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                      <select
-                                        value={m.category || defaultCategory}
-                                        onChange={e => updateMaterial(item.id, m.id, 'category', e.target.value)}
-                                        disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
-                                        style={{ width: 130, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))) ? "not-allowed" : "pointer" }}
-                                      >
-                                        {existingCategories.map(cat => (
-                                          <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                      </select>
-                                      <select
-                                        value={m.unit || 'pcs'}
-                                        onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
-                                        disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
-                                        style={{ width: 90, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))) ? "not-allowed" : "pointer" }}
-                                      >
-                                        <option value="pcs">Pcs</option>
-                                        <option value="unit">Unit</option>
-                                        <option value="set">Set</option>
-                                        <option value="kg">Kg</option>
-                                        <option value="meter">Meter</option>
-                                        <option value="liter">Liter</option>
-                                        <option value="roll">Roll</option>
-                                        <option value="lembar">Lembar</option>
-                                      </select>
-                                    </div>
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      value={m.unit}
-                                      readOnly
-                                      placeholder="pcs"
-                                      disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
-                                      style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                                <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: 12, background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                                  <div style={{ position: "relative", display: "flex", gap: 12, alignItems: "center", width: "100%" }}>
+                                    <MaterialAutocomplete 
+                                      value={m.name} 
+                                      onChange={val => updateMaterial(item.id, m.id, 'name', val)}
+                                      onSelectProduct={p => {
+                                        updateMaterial(item.id, m.id, 'name', p.name);
+                                        updateMaterial(item.id, m.id, 'unit', p.unit);
+                                        updateMaterial(item.id, m.id, 'inventoryItemId', p.id);
+                                        // Auto-sync category from master data so same material always has same category
+                                        if (p.category) {
+                                          updateMaterial(item.id, m.id, 'category', p.category);
+                                        }
+                                      }}
+                                      options={inventoryItems}
+                                      disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} 
                                     />
-                                  )}
-                                  {canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) && (
-                                    <button onClick={() => removeMaterial(item.id, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                                      <Trash2 size={18} />
-                                    </button>
-                                  )}
+                                    <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => updateMaterial(item.id, m.id, 'spec', e.target.value)} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ flex: 1, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC" }} />
+                                  </div>
+                                  <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "flex-end" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <span style={{ fontSize: "12px", color: S.secondary, fontWeight: 500 }}>Qty:</span>
+                                      <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => updateMaterial(item.id, m.id, 'quantity', Number(e.target.value))} disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))} style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval))) ? "#fff" : "#F8FAFC", textAlign: "right" }} />
+                                    </div>
+                                    {!m.inventoryItemId ? (
+                                      <div style={{ display: "flex", gap: 8 }}>
+                                        <select
+                                          value={m.category || defaultCategory}
+                                          onChange={e => updateMaterial(item.id, m.id, 'category', e.target.value)}
+                                          disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
+                                          style={{ width: 130, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))) ? "not-allowed" : "pointer" }}
+                                        >
+                                          {existingCategories.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                          ))}
+                                        </select>
+                                        <select
+                                          value={m.unit || 'pcs'}
+                                          onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
+                                          disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
+                                          style={{ width: 90, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))) ? "not-allowed" : "pointer" }}
+                                        >
+                                          <option value="pcs">Pcs</option>
+                                          <option value="unit">Unit</option>
+                                          <option value="set">Set</option>
+                                          <option value="kg">Kg</option>
+                                          <option value="meter">Meter</option>
+                                          <option value="liter">Liter</option>
+                                          <option value="roll">Roll</option>
+                                          <option value="lembar">Lembar</option>
+                                        </select>
+                                      </div>
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        value={m.unit}
+                                        readOnly
+                                        placeholder="pcs"
+                                        disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
+                                        style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                                      />
+                                    )}
+                                    {canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) && (
+                                      <button onClick={() => removeMaterial(item.id, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                        <Trash2 size={18} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>

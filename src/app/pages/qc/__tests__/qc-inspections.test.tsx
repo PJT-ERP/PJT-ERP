@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EngineeringQCPage } from '../qc';
+import { QCInspectionsPage } from '../qc-inspections';
 import * as appContext from '../../../components/context/AppContext';
 import { qcApi } from '../../../services/qcApi';
 
@@ -14,7 +14,7 @@ vi.mock('../../../services/qcApi', () => ({
   }
 }));
 
-describe('EngineeringQCPage - QC Rejection Flow', () => {
+describe('QCInspectionsPage - QC Rejection Flow', () => {
   const updateSalesOrderMock = vi.fn();
   
   beforeEach(() => {
@@ -45,7 +45,7 @@ describe('EngineeringQCPage - QC Rejection Flow', () => {
   });
 
   it('allows marking an item as NoGo and sends it back to production (rework)', async () => {
-    render(<EngineeringQCPage />);
+    render(<QCInspectionsPage />);
 
     // 1. Verify the order is in the QC list
     expect(screen.getByText('so-nogo-1')).toBeInTheDocument();
