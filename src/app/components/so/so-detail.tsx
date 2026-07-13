@@ -8,6 +8,7 @@ import {
   AlertTriangle, ArrowRight, RefreshCw,
   Receipt, Download, Eye, Upload, X, Box, Plus, Link as LinkIcon, QrCode
 } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
@@ -152,7 +153,7 @@ function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; l
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
-  const { invoices, payments } = useFinanceData();
+  const { invoices, payments } = useFinanceData(true, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
@@ -240,6 +241,14 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         updateSalesOrder(orderId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
       } else if (action === 'assign_engineer') {
         updateSalesOrder(orderId, { assignedName: actionForm.engineerName });
+        toast.success(`Tugas design berhasil di-assign ke ${actionForm.engineerName}`, {
+          style: {
+            background: '#0f172a',
+            color: '#4ade80',
+            border: '1px solid #166534',
+          },
+          duration: 3000
+        });
       } else if (action === 'upload_design') {
         updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
       } else if (action === 'approve_design') {
@@ -543,19 +552,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                       }
                       return <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>;
                     })()}
-                    {(item as any).designReference === "INTERNAL_DESIGN" && (
-                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#F59E0B", display: "flex", alignItems: "center", gap: 4 }}>
-                        <FileText size={10} /> Engineering akan desain ulang
-                      </p>
-                    )}
-                    {(item as any).customerDrawingUrl && (
-                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: S.cyan, display: "flex", alignItems: "center", gap: 4 }}>
-                        <LinkIcon size={10} />
-                        <a href={(item as any).customerDrawingUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          Lihat Referensi Klien
-                        </a>
-                      </p>
-                    )}
+
                   </div>
                   <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
                   <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>
@@ -700,47 +697,42 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                           </p>
                         )}
                       </>
-                    ) : order.designId === "none" && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain</p>
-                        <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B", fontWeight: 600 }}>Menunggu desain dari tim Engineering</p>
-                      </div>
-                    ) : !order.customerDrawingUrl && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
-                        <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
-                        {currentUser?.role !== 'Engineering' && (
-                          <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
-                            <Plus size={10} /> Link Desain
-                          </button>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {order.customerDrawingUrl && (
+                          <div>
+                            <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain (Customer)</p>
+                            <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                              {order.customerDrawingUrl}
+                            </a>
+                          </div>
+                        )}
+                        {order.designLink && order.designLink !== order.customerDrawingUrl && (
+                          <div>
+                            <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain (Engineering)</p>
+                            <a href={order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+                              {order.designLink}
+                            </a>
+                          </div>
+                        )}
+                        {!order.customerDrawingUrl && !order.designLink && order.designId === "none" && (
+                          <div>
+                            <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain</p>
+                            <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B", fontWeight: 600 }}>Menunggu desain dari tim Engineering</p>
+                          </div>
+                        )}
+                        {!order.customerDrawingUrl && !order.designLink && order.designId !== "none" && (
+                          <div>
+                            <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
+                            <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
+                            {currentUser?.role !== 'Engineering' && (
+                              <button onClick={() => setIsEditMode(true)} style={{ marginTop: 6, padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
+                                <Plus size={10} /> Link Desain
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
-                    ) : order.customerDrawingUrl && order.designLink && order.customerDrawingUrl !== order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div>
-                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain (Customer)</p>
-                          <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                            {order.customerDrawingUrl}
-                          </a>
-                        </div>
-                        <div>
-                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain (Engineering)</p>
-                          <a href={order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                            {order.designLink}
-                          </a>
-                        </div>
-                      </div>
-                    ) : order.customerDrawingUrl || order.designLink ? (
-                      <div>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
-                          {order.designLink ? "Link Desain (Engineering)" : (order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain")}
-                        </p>
-                        <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                          {order.customerDrawingUrl || order.designLink}
-                        </a>
-                      </div>
-                    ) : (
-                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
                     )}
                   </div>
 

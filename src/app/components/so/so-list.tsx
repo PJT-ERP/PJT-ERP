@@ -159,7 +159,7 @@ function ActionBtn({
 // ─── Main component ───────────────────────────────────────────────────────────
 export function SOList({ onNavigate }: SOListProps) {
   const { salesOrders, customers } = useApp();
-  const { invoices, payments } = useFinanceData();
+  const { invoices, payments } = useFinanceData(true, false, false);
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");

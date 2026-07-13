@@ -216,7 +216,7 @@ export const salesApi = {
     return response.data;
   },
 
-  async updateSalesOrderDesignStatus(salesOrderId: string, request: { designStatus: string, reviewedByUserId?: string, reviewerName?: string, notes?: string }) {
+  async updateSalesOrderDesignStatus(salesOrderId: string, request: { designStatus: string, reviewedByUserId?: string, reviewerName?: string, notes?: string, designReference?: string, customerDrawingUrl?: string }) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/design-status`, request);
     return response.data;
   },
@@ -226,7 +226,7 @@ export const salesApi = {
     return response.data;
   },
 
-  async submitSalesOrderDesign(salesOrderId: string, request: { designReference: string, drawingFileUrl: string }) {
+  async submitSalesOrderDesign(salesOrderId: string, request: { designReference: string, drawingFileUrl?: string, updatedByName?: string }) {
     const response = await apiClient.post<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/submit-design`, request);
     return response.data;
   },

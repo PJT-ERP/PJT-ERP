@@ -4,6 +4,7 @@ import { SalesOrder } from "../../data/mockData";
 import { salesApi } from "../../../services/salesApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
 import { S, getBackendSalesOrderId } from "../ProductionHelpers";
+import { toast } from "sonner";
 
 export function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { users, currentUser, refreshBackendData } = useApp();
@@ -36,8 +37,15 @@ export function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: 
       } catch (confirmError) {
         console.warn("Operator assigned, but SO confirmation is not ready yet.", confirmError);
       }
-
       await refreshBackendData();
+      toast.success(`Tugas ini berhasil di-assign ke ${operator.name}`, {
+        style: {
+          background: '#0f172a',
+          color: '#4ade80',
+          border: '1px solid #166534',
+        },
+        duration: 3000
+      });
       onClose();
     } catch (error) {
       console.warn("Failed to assign operator in backend.", error);
