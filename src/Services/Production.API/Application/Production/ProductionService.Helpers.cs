@@ -390,7 +390,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void EnsureAssignedWorker(Guid? assignedWorkerId, Guid workerUserId, bool isPrivileged = false)
+    private static void EnsureAssignedWorker(Guid? assignedWorkerId, Guid workerUserId, bool isPrivileged = false, string roleName = "worker")
     {
         // Privileged users (Admin, Owner, Engineering Supervisor) can bypass worker assignment check
         if (isPrivileged)
@@ -406,7 +406,7 @@ public sealed partial class ProductionService
 
         if (assignedWorkerId.Value != workerUserId)
         {
-            throw new InvalidOperationException("Only the assigned worker can perform this action.");
+            throw new InvalidOperationException($"Only the assigned {roleName} can perform this action.");
         }
     }
 

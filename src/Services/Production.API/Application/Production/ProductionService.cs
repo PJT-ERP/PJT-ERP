@@ -182,14 +182,16 @@ public sealed partial class ProductionService(
         var newDesignRef = string.IsNullOrWhiteSpace(request.DesignReference) ? null : request.DesignReference.Trim();
         if (newDesignRef != salesOrder.DesignReference && !string.IsNullOrWhiteSpace(newDesignRef))
         {
-            salesOrder.DesignRevisions.Add(new SalesOrderDesignRevision
+            var rev = new SalesOrderDesignRevision
             {
                 SalesOrderId = salesOrder.Id,
                 Version = salesOrder.DesignRevisions.Count + 1,
                 Url = newDesignRef,
                 ChangedBy = string.IsNullOrWhiteSpace(request.UpdatedByName) ? "Engineering" : request.UpdatedByName.Trim(),
                 ChangedAtUtc = DateTime.UtcNow
-            });
+            };
+            salesOrder.DesignRevisions.Add(rev);
+            db.Entry(rev).State = EntityState.Added;
         }
 
         salesOrder.DesignReference = newDesignRef;
@@ -445,14 +447,16 @@ public sealed partial class ProductionService(
 
         if (newDesignRef != salesOrder.DesignReference && !string.IsNullOrWhiteSpace(newDesignRef))
         {
-            salesOrder.DesignRevisions.Add(new SalesOrderDesignRevision
+            var rev1 = new SalesOrderDesignRevision
             {
                 SalesOrderId = salesOrder.Id,
                 Version = salesOrder.DesignRevisions.Count + 1,
                 Url = newDesignRef,
                 ChangedBy = request.ReviewerName?.Trim() ?? "Engineering",
                 ChangedAtUtc = DateTime.UtcNow
-            });
+            };
+            salesOrder.DesignRevisions.Add(rev1);
+            db.Entry(rev1).State = EntityState.Added;
         }
         
         salesOrder.DesignReference = newDesignRef;
@@ -463,14 +467,16 @@ public sealed partial class ProductionService(
 
         if (newDrawingUrl != salesOrder.CustomerDrawingUrl && !string.IsNullOrWhiteSpace(newDrawingUrl))
         {
-            salesOrder.DesignRevisions.Add(new SalesOrderDesignRevision
+            var rev2 = new SalesOrderDesignRevision
             {
                 SalesOrderId = salesOrder.Id,
                 Version = salesOrder.DesignRevisions.Count + 1,
                 Url = newDrawingUrl,
                 ChangedBy = request.ReviewerName?.Trim() ?? "Sales",
                 ChangedAtUtc = DateTime.UtcNow
-            });
+            };
+            salesOrder.DesignRevisions.Add(rev2);
+            db.Entry(rev2).State = EntityState.Added;
         }
         
         salesOrder.CustomerDrawingUrl = newDrawingUrl;
@@ -598,7 +604,7 @@ public sealed partial class ProductionService(
             ?? throw new InvalidOperationException("Sales order must be confirmed before engineering drawings can be uploaded.");
 
         ValidateDrawingUploadRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.DesignWorkerUserId, request.UploadedByUserId, isPrivileged);
+        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.UploadedByUserId, isPrivileged, "production worker");
 
         if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.Absolute, out var drawingUri)
             || drawingUri.Scheme is not ("http" or "https"))
@@ -638,7 +644,7 @@ public sealed partial class ProductionService(
             ?? throw new InvalidOperationException("Sales order must be confirmed before material requests can be submitted.");
 
         ValidateMaterialRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.RequestedByUserId, isPrivileged);
+        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.RequestedByUserId, isPrivileged, "production worker");
 
         if (productionOrder.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
         {
@@ -694,7 +700,7 @@ public sealed partial class ProductionService(
             ?? throw new InvalidOperationException("Sales order must be confirmed before production can start.");
 
         ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged);
+        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
         
         // Deduct BOM stock atomically for all SO items using bulk API
         var deductItems = salesOrder.Items
@@ -731,7 +737,7 @@ public sealed partial class ProductionService(
             ?? throw new InvalidOperationException("Sales order must be confirmed before production can finish.");
 
         ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged);
+        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
 
         var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
         FinishProduction(productionOrder, request, DateTime.UtcNow);
@@ -773,7 +779,7 @@ public sealed partial class ProductionService(
             ?? throw new InvalidOperationException("Sales order must be confirmed before production can be paused.");
 
         ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged);
+        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
 
         PauseProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
@@ -796,7 +802,7 @@ public sealed partial class ProductionService(
         var productionOrder = GetPrimaryProductionOrder(salesOrder)
             ?? throw new InvalidOperationException("Sales order must be confirmed before production can be resumed.");
 
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged);
+        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
 
         ResumeProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
