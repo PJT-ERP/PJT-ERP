@@ -146,6 +146,7 @@ export interface AssignSalesOrderEngineersRequest {
     userId: string;
     name: string;
   } | null;
+  notes?: string;
 }
 
 export const salesApi = {

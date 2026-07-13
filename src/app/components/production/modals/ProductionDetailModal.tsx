@@ -8,7 +8,7 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
   const { purchasingRequests } = useApp();
   const materials = getMaterialOptions(so);
   const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
-  const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
+  const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; materialSpec?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
 
   useEffect(() => {
     const salesOrderId = getBackendSalesOrderId(so);
@@ -88,19 +88,22 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
           </div>
           {materialTracking && Array.isArray(materialTracking.items) && materialTracking.items.length > 0 && (
             (() => {
-              const deduped = new Map<string, { itemName: string; itemCode: string; requiredQty: number; stockOnHand: number }>();
+              const deduped = new Map<string, { itemName: string; itemCode: string; materialSpec: string; requiredQty: number; stockOnHand: number }>();
               for (const item of materialTracking.items) {
                 for (const mr of (item.materialRequirements || [])) {
-                  const key = (mr.inventoryItemName || '').trim().toLowerCase();
+                  const specStr = mr.materialSpec || '';
+                  const key = ((mr.inventoryItemName || '').trim() + '|' + (mr.inventoryItemCode || '').trim() + '|' + specStr.trim()).toLowerCase();
                   const existing = deduped.get(key);
                   if (existing) {
                     existing.requiredQty += mr.requiredQty ?? 0;
                     if (!existing.itemCode && mr.inventoryItemCode) existing.itemCode = mr.inventoryItemCode;
+                    if (!existing.materialSpec && mr.materialSpec) existing.materialSpec = mr.materialSpec;
                     if (mr.stockOnHand != null) existing.stockOnHand = Math.min(existing.stockOnHand, mr.stockOnHand);
                   } else {
                     deduped.set(key, {
                       itemName: mr.inventoryItemName || '-',
                       itemCode: mr.inventoryItemCode || '',
+                      materialSpec: mr.materialSpec || '',
                       requiredQty: mr.requiredQty ?? 0,
                       stockOnHand: mr.stockOnHand ?? 0,
                     });
@@ -116,7 +119,9 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
                       <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontWeight: 600, color: S.slate }}>{mr.itemName}</span>
-                          <span style={{ fontSize: "11px", color: S.secondary }}>{mr.itemCode || ''}</span>
+                          <span style={{ fontSize: "11px", color: S.secondary }}>
+                            {mr.materialSpec ? `${mr.itemCode ? mr.itemCode + ' - ' : ''}${mr.materialSpec}` : (mr.itemCode || '')}
+                          </span>
                         </div>
                         <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: "12px", color: S.secondary }}>
                           <span>Dibutuhkan: {mr.requiredQty}</span>

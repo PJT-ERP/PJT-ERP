@@ -80,6 +80,7 @@ export interface SalesOrderMaterialTrackingDto {
       inventoryItemId: string;
       inventoryItemCode: string;
       inventoryItemName: string;
+      materialSpec?: string;
       requiredQty: number;
       stockOnHand: number;
       status: string;

@@ -25,6 +25,7 @@ import { CompleteProductionModal } from "../../components/production/modals/Comp
 import { PaginationControl } from "../../components/production/PaginationControl";
 import { MaterialReviewModal } from "../../components/production/modals/MaterialReviewModal";
 import { ProductionDetailModal } from "../../components/production/modals/ProductionDetailModal";
+import { ReturnToSpvModal } from "../../components/production/modals/ReturnToSpvModal";
 function InlineBomDisplay({ so }: { so: SalesOrder }) {
   const materials = (so.materials && Array.isArray(so.materials) && so.materials.length > 0) ? so.materials : [];
   if (materials.length === 0) {
@@ -87,6 +88,8 @@ export function ProductionPage() {
   const [pauseModal, setPauseModal] = useState<SalesOrder | null>(null);
   const [reviewMrModal, setReviewMrModal] = useState<SalesOrder | null>(null);
   const [detailModal, setDetailModal] = useState<SalesOrder | null>(null);
+  const [returnToSpvModal, setReturnToSpvModal] = useState<SalesOrder | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ type: 'drawing' | 'mr', so: SalesOrder } | null>(null);
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
 
   const handleResume = async (so: SalesOrder) => {
@@ -429,6 +432,12 @@ export function ProductionPage() {
                         <FileWarning size={14} /> Ajukan Ulang MR
                       </button>
                     )}
+                    {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
+                      <button onClick={() => setReturnToSpvModal(so)}
+                        style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                        <FileWarning size={14} /> Kembalikan ke SPV
+                      </button>
+                    )}
                     {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (mrState === 'none' || mrState === 'completed') && (
                       <button onClick={() => setStartModal(so)}
                         style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
@@ -602,7 +611,10 @@ export function ProductionPage() {
 
       {assignModal && <AssignOperatorModal so={assignModal} onClose={() => setAssignModal(null)} />}
 
-      {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} />}
+      {startModal && <StartProductionModal so={startModal} onClose={() => setStartModal(null)} onReturnToSpv={() => {
+        setStartModal(null);
+        setReturnToSpvModal(startModal);
+      }} />}
       {completeModal && <CompleteProductionModal so={completeModal} onClose={() => setCompleteModal(null)} />}
       {pauseModal && <PauseProductionModal so={pauseModal} onClose={() => setPauseModal(null)} />}
       {reviewMrModal && (
@@ -615,6 +627,11 @@ export function ProductionPage() {
         />
       )}
       {systemMessage && <SystemMessageDialog message={systemMessage} onClose={() => setSystemMessage(null)} />}
+      
+      {returnToSpvModal && (
+        <ReturnToSpvModal so={returnToSpvModal} onClose={() => setReturnToSpvModal(null)} onSubmitted={() => setReturnToSpvModal(null)} />
+      )}
+      
       {detailModal && <ProductionDetailModal so={detailModal} onClose={() => setDetailModal(null)} />}
     </div>
   );

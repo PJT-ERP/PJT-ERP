@@ -74,7 +74,8 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       const bomQuantity = Number(bomItem.quantity || 0);
       if (bomQuantity <= 0) return;
 
-      const key = bomItem.inventoryItemId || `${bomItem.inventoryItemName}|${bomItem.unit}`;
+      const specKey = bomItem.inventoryItemCode || "";
+      const key = `${bomItem.inventoryItemId || bomItem.inventoryItemName}|${specKey}|${bomItem.unit}`;
       const existing = materialsByKey.get(key);
       const quantity = bomQuantity * Math.max(itemQuantity, 1);
 

@@ -641,13 +641,13 @@ public sealed partial class ProductionService(
             return null;
         }
 
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before material requests can be submitted.");
+        var productionOrder = GetPrimaryProductionOrder(salesOrder);
+        // Do not throw if productionOrder is null. MR can be submitted before SO is confirmed.
 
         ValidateMaterialRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.RequestedByUserId, isPrivileged, "production worker");
+        EnsureAssignedWorker(productionOrder?.SalesOrder?.ProductionWorkerUserId, request.RequestedByUserId, isPrivileged, "production worker");
 
-        if (productionOrder.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
+        if (productionOrder?.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
         {
             throw new InvalidOperationException("Finished or closed sales order production cannot receive material requests.");
         }
@@ -657,8 +657,8 @@ public sealed partial class ProductionService(
             new MaterialRequestSubmittedEvent(
                 salesOrder.Id,
                 salesOrder.SoNumber,
-                productionOrder.Id,
-                productionOrder.BarcodeUid,
+                productionOrder?.Id ?? Guid.Empty,
+                productionOrder?.BarcodeUid ?? $"PJT|SO|{now:yyyyMMdd}|{salesOrder.Id:N}",
                 request.RequestedByUserId,
                 request.RequesterName.Trim(),
                 DateOnly.FromDateTime(now),

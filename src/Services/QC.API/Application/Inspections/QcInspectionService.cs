@@ -148,9 +148,10 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             throw new InvalidOperationException("Reviewer name is required.");
         }
 
-        if (request.QcPhotos == null || request.QcPhotos.Count == 0)
+        var totalPhotos = (request.QcPhotos?.Count ?? 0) + (request.ProductionPhotos?.Count ?? 0);
+        if (totalPhotos == 0)
         {
-            throw new InvalidOperationException("At least one QC photo must be provided.");
+            throw new InvalidOperationException("At least one QC or Production photo must be provided.");
         }
     }
 

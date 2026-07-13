@@ -42,7 +42,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     }
 
     [HttpPut("{id:guid}/engineers")]
-    [Authorize(Roles = "Admin,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Owner,Engineering Worker,Engineering")]
     public async Task<ActionResult<SalesOrderDto>> AssignEngineers(Guid id, AssignSalesOrderEngineersRequest request, CancellationToken cancellationToken)
     {
         try

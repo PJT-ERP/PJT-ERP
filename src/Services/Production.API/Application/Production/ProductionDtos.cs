@@ -19,7 +19,8 @@ public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decima
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? DesignWorker,
     EngineerAssignment? ProductionWorker,
-    EngineerAssignment? QcReviewer);
+    EngineerAssignment? QcReviewer,
+    string? Notes = null);
 
 public sealed record SubmitSalesOrderDesignRequest(
     string DesignReference,

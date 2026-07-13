@@ -279,7 +279,8 @@ public sealed partial class ProductionService
 
         if (assignment.UserId == Guid.Empty)
         {
-            throw new InvalidOperationException($"{label} user id is required.");
+            // Allow unassigning by passing an empty Guid. The Name will be ignored or set to null.
+            return assignment with { Name = null };
         }
 
         if (string.IsNullOrWhiteSpace(assignment.Name))
@@ -298,34 +299,33 @@ public sealed partial class ProductionService
 
         if (designWorker is not null)
         {
-            salesOrder.DesignWorkerUserId = designWorker.UserId;
-            salesOrder.DesignWorkerName = designWorker.Name;
+            salesOrder.DesignWorkerUserId = designWorker.UserId == Guid.Empty ? null : designWorker.UserId;
+            salesOrder.DesignWorkerName = designWorker.UserId == Guid.Empty ? null : designWorker.Name;
         }
 
         if (productionWorker is not null)
         {
-            salesOrder.ProductionWorkerUserId = productionWorker.UserId;
-            salesOrder.ProductionWorkerName = productionWorker.Name;
+            salesOrder.ProductionWorkerUserId = productionWorker.UserId == Guid.Empty ? null : productionWorker.UserId;
+            salesOrder.ProductionWorkerName = productionWorker.UserId == Guid.Empty ? null : productionWorker.Name;
         }
 
         if (qcReviewer is not null)
         {
-            salesOrder.QcReviewerUserId = qcReviewer.UserId;
-            salesOrder.QcReviewerName = qcReviewer.Name;
+            salesOrder.QcReviewerUserId = qcReviewer.UserId == Guid.Empty ? null : qcReviewer.UserId;
+            salesOrder.QcReviewerName = qcReviewer.UserId == Guid.Empty ? null : qcReviewer.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Notes))
+        {
+            salesOrder.RejectionReason = request.Notes;
         }
     }
 
     private static void EnsureEngineersAssigned(SalesOrder salesOrder)
     {
-        if (!salesOrder.ProductionWorkerUserId.HasValue || string.IsNullOrWhiteSpace(salesOrder.ProductionWorkerName))
-        {
-            throw new InvalidOperationException("A production worker engineer must be assigned before the sales order is confirmed.");
-        }
-
-        if (!salesOrder.QcReviewerUserId.HasValue || string.IsNullOrWhiteSpace(salesOrder.QcReviewerName))
-        {
-            throw new InvalidOperationException("A QC reviewer engineer must be assigned before the sales order is confirmed.");
-        }
+        // Workflow change: MR is now submitted by SPV before penugasan operator.
+        // Therefore, we no longer require production worker or QC reviewer to be assigned
+        // before the sales order can be confirmed.
     }
 
     private static void EnsureDesignApproved(SalesOrder salesOrder)
