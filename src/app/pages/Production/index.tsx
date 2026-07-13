@@ -43,6 +43,7 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
         <thead>
           <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
             <th style={{ padding: "6px 12px", fontWeight: 600 }}>Nama Material</th>
+            <th style={{ padding: "6px 12px", fontWeight: 600 }}>Kode</th>
             <th style={{ padding: "6px 12px", fontWeight: 600 }}>Spesifikasi</th>
             <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right" }}>Qty / Satuan</th>
           </tr>
@@ -54,9 +55,22 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
                 {m.name || m.inventoryItemName || m.materialName || "-"}
               </td>
               <td style={{ padding: "8px 12px", color: S.secondary }}>
-                <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
-                  {m.spec || "-"}
-                </span>
+                {m.code || m.inventoryItemCode ? (
+                  <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
+                    {m.code || m.inventoryItemCode}
+                  </span>
+                ) : (
+                  <span style={{ color: "#94A3B8" }}>-</span>
+                )}
+              </td>
+              <td style={{ padding: "8px 12px", color: S.secondary }}>
+                {m.spec || m.specification ? (
+                  <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
+                    {m.spec || m.specification}
+                  </span>
+                ) : (
+                  <span style={{ color: "#94A3B8" }}>-</span>
+                )}
               </td>
               <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate, textAlign: "right" }}>
                 {m.quantity || m.qty || 0} <span style={{ color: S.secondary, fontWeight: 500 }}>{m.unit || 'pcs'}</span>

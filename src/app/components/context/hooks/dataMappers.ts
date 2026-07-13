@@ -33,24 +33,23 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
-    if (product?.bomItems && product.bomItems.length > 0) return;
+    // Process custom materials (notes) regardless of whether it has standard BOM
+    if (item.notes?.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(item.notes);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((material, index) => {
+            if (!material || typeof material !== "object") return;
 
-    if (!item.notes?.startsWith("[")) return;
-
-    try {
-      const parsed = JSON.parse(item.notes);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((material, index) => {
-          if (!material || typeof material !== "object") return;
-
-          legacyMaterials.push({
-            ...material,
-            id: material.id || `${item.id}-legacy-${index}`,
+            legacyMaterials.push({
+              ...material,
+              id: material.id || `${item.id}-legacy-${index}`,
+            });
           });
-        });
+        }
+      } catch {
+        // Keep older malformed notes from breaking the whole SO list.
       }
-    } catch {
-      // Keep older malformed notes from breaking the whole SO list.
     }
   });
 
@@ -89,8 +88,9 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
         id: `${item.id}-${bomItem.id || key}`,
         inventoryItemId: bomItem.inventoryItemId,
         name: bomItem.inventoryItemName,
-        spec: bomItem.inventoryItemCode,
-        specification: bomItem.inventoryItemCode,
+        code: bomItem.inventoryItemCode,
+        spec: "",
+        specification: "",
         quantity,
         unit: bomItem.unit,
       });
