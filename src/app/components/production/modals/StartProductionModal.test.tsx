@@ -229,10 +229,10 @@ describe('StartProductionModal', () => {
     });
   });
 
-  it('shows Kembalikan ke SPV instead of Buat Material Request for Engineering Worker', async () => {
+  it('shows Kembalikan ke SPV instead of Buat Material Request for Engineering', async () => {
     const mockReturnToSpv = vi.fn();
     vi.mocked(useApp).mockReturnValue({
-      currentUser: { role: 'Engineering Worker' },
+      currentUser: { role: 'Engineering' },
       productCatalog: [],
       refreshBackendData: vi.fn(),
     } as any);

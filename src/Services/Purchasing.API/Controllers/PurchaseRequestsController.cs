@@ -10,14 +10,14 @@ namespace PJT_ERP.Purchasing.Api.Controllers;
 public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseRequestService) : ControllerBase
 {
     [HttpGet("next-po-number")]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Purchasing,Owner")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Purchasing,Owner")]
     public async Task<ActionResult<string>> PreviewNextPoNumber(CancellationToken cancellationToken)
     {
         return Ok(await purchaseRequestService.PreviewNextPoNumberAsync(cancellationToken));
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Finance,Engineering Worker,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
+    [Authorize(Roles = "Admin,Finance,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<IReadOnlyCollection<PurchaseRequestDto>>> List(
         [FromQuery] Guid? salesOrderId,
         [FromQuery] string? status,
@@ -27,7 +27,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "Admin,Finance,Engineering Worker,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
+    [Authorize(Roles = "Admin,Finance,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
     public async Task<ActionResult<PurchaseRequestDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var result = await purchaseRequestService.GetAsync(id, cancellationToken);
@@ -35,7 +35,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult<PurchaseRequestDto>> Create(CreatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try
@@ -50,7 +50,7 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [Authorize(Roles = "Admin,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult<PurchaseRequestDto>> Update(Guid id, UpdatePurchaseRequest request, CancellationToken cancellationToken)
     {
         try

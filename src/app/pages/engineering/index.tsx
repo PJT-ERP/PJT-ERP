@@ -319,7 +319,7 @@ export function EngineeringPage() {
 
               <div style={{ padding: "32px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                 <CheckSquare size={36} style={{ color: S.cyan, margin: "0 auto 12px" }} />
-                <p style={{ margin: "0 0 4px", fontWeight: 600, color: S.slate }}>Anda Login Sebagai Engineering Worker (Operator Produksi)</p>
+                <p style={{ margin: "0 0 4px", fontWeight: 600, color: S.slate }}>Anda Login Sebagai Engineering (Operator Produksi)</p>
                 <p style={{ margin: 0, fontSize: "12.5px" }}>Seluruh antrean tugas pembuatan dan pemrosesan material Anda dikelola langsung pada modul Produksi.</p>
               </div>
             </div>
