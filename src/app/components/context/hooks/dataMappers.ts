@@ -55,8 +55,25 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
   const materialsByKey = new Map<string, any>();
 
+  const overriddenInventoryItemIds = new Set<string>();
+
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
+    // Try to find the item code from the products if it's missing
+    if (!legacy.code && legacy.inventoryItemId) {
+      for (const p of products) {
+        const match = p.bomItems?.find(b => b.inventoryItemId === legacy.inventoryItemId);
+        if (match?.inventoryItemCode) {
+          legacy.code = match.inventoryItemCode;
+          break;
+        }
+      }
+    }
+
+    if (legacy.inventoryItemId) {
+      overriddenInventoryItemIds.add(legacy.inventoryItemId);
+    }
+
     const specKey = legacy.spec || legacy.specification || "";
     const key = `${legacy.inventoryItemId || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
@@ -70,6 +87,11 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
     product?.bomItems?.forEach(bomItem => {
+      // If the engineering team explicitly provided custom specs for this inventory item, skip the standard BOM entry
+      if (overriddenInventoryItemIds.has(bomItem.inventoryItemId)) {
+        return;
+      }
+
       const itemQuantity = Number(item.qty || 0);
       const bomQuantity = Number(bomItem.quantity || 0);
       if (bomQuantity <= 0) return;

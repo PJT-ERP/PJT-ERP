@@ -344,6 +344,26 @@ export function ProductionPage() {
                       >
                         1. Kelola BOM & Material
                       </button>
+                      
+                      {isSupervisor && mrState === 'requested' && (
+                        <button onClick={() => setReviewMrModal(so)}
+                          style={{ padding: "7px 12px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Review MR
+                        </button>
+                      )}
+                      {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                          style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Material Kurang
+                        </button>
+                      )}
+                      {mrState === 'rejected' && isSupervisor && (
+                        <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
+                          style={{ padding: "7px 12px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                          <FileWarning size={14} /> Ajukan Ulang MR
+                        </button>
+                      )}
+
                       <button
                         onClick={() => {
                           if (!canAssignToOperator) {
