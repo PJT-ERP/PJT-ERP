@@ -16,7 +16,8 @@ public sealed partial class FinanceService
             .Include(invoice => invoice.Items)
             .Include(invoice => invoice.PaymentSchedules)
             .Include(invoice => invoice.Payments)
-            .Include(invoice => invoice.CollectionLetters);
+            .Include(invoice => invoice.CollectionLetters)
+            .AsSplitQuery();
     }
 
     private static IQueryable<PaymentVerificationRequest> IncludePaymentVerification(

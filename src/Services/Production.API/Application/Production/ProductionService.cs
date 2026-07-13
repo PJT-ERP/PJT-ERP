@@ -18,6 +18,7 @@ public sealed partial class ProductionService(
             .Include(order => order.Items)
             .Include(order => order.ProductionOrders)
             .Include(order => order.DesignRevisions)
+            .AsSplitQuery()
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
