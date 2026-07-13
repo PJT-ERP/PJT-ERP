@@ -90,7 +90,7 @@ describe('mapSalesOrderStatus', () => {
     expect(result).toBe('Completed');
   });
 
-  it('maps "Completed" with NO invoice to "Waiting Payment" (not queue)', () => {
+  it('maps "Completed" with NO invoice to "Completed" (trusts backend when invoices unavailable)', () => {
     const result = mapSalesOrderStatus({
       id: 'so-1',
       soNumber: 'SO-001',
@@ -104,7 +104,7 @@ describe('mapSalesOrderStatus', () => {
       designStatus: 'Approved',
     } as any);
 
-    expect(result).toBe('Waiting Payment');
+    expect(result).toBe('Completed');
   });
 
   it('maps "QC" status before QC decision returns "QC"', () => {
