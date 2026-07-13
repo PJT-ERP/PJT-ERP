@@ -100,6 +100,12 @@ describe('StartProductionModal', () => {
   });
 
   it('captures specific material specifications from bomsPerItem when there is a stock shortage', async () => {
+    vi.mocked(useApp).mockReturnValue({
+      currentUser: { role: 'Engineering Supervisor' },
+      productCatalog: [],
+      refreshBackendData: vi.fn(),
+    } as any);
+
     const mockNavigate = vi.fn();
     const { useNavigate } = await import('react-router');
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -156,6 +162,12 @@ describe('StartProductionModal', () => {
   });
 
   it('aggregates duplicate bomStock items and does not duplicate custom specifications', async () => {
+    vi.mocked(useApp).mockReturnValue({
+      currentUser: { role: 'Engineering Supervisor' },
+      productCatalog: [],
+      refreshBackendData: vi.fn(),
+    } as any);
+
     const mockNavigate = vi.fn();
     const { useNavigate } = await import('react-router');
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -215,5 +227,43 @@ describe('StartProductionModal', () => {
         ]
       }
     });
+  });
+
+  it('shows Kembalikan ke SPV instead of Buat Material Request for Engineering Worker', async () => {
+    const mockReturnToSpv = vi.fn();
+    vi.mocked(useApp).mockReturnValue({
+      currentUser: { role: 'Engineering Worker' },
+      productCatalog: [],
+      refreshBackendData: vi.fn(),
+    } as any);
+
+    const so = {
+      id: 'SO-123',
+      status: 'Ready',
+      items: [{ id: 'ITEM-1', productId: 'PROD-1', quantity: 1 }]
+    } as any;
+
+    vi.mocked(masterDataApi.getBomStock).mockResolvedValue([
+      {
+        productId: 'PROD-1',
+        items: [{ inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', bomQuantity: 2, currentStock: 0 }]
+      }
+    ] as any);
+
+    render(
+      <MemoryRouter>
+        <StartProductionModal so={so} onClose={vi.fn()} onReturnToSpv={mockReturnToSpv} />
+      </MemoryRouter>
+    );
+    
+    await waitFor(() => {
+      expect(screen.getByText('Stok Material Tidak Cukup')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Buat Material Request')).not.toBeInTheDocument();
+    const returnButton = screen.getByText('Kembalikan ke SPV');
+    returnButton.click();
+
+    expect(mockReturnToSpv).toHaveBeenCalled();
   });
 });
