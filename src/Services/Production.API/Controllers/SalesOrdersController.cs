@@ -169,7 +169,8 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var result = await productionService.UploadEngineeringDrawingAsync(id, request, cancellationToken);
+            var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
+            var result = await productionService.UploadEngineeringDrawingAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)

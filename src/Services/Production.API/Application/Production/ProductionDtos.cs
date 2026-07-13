@@ -23,7 +23,8 @@ public sealed record AssignSalesOrderEngineersRequest(
 
 public sealed record SubmitSalesOrderDesignRequest(
     string DesignReference,
-    string? DrawingFileUrl = null);
+    string? DrawingFileUrl = null,
+    string? UpdatedByName = null);
 
 public sealed record UpdateSalesOrderItemsRequest(
     IReadOnlyCollection<CreateSalesOrderItemRequest> Items);

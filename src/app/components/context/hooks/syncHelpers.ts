@@ -189,6 +189,21 @@ export async function syncUpdateSalesOrder(
       }
     }
 
+    if (updates.backendDesignStatus === "WaitingApproval" || updates.status === "Waiting Spv Approval") {
+      try {
+        const updated = await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: "WaitingApproval",
+          reviewedByUserId: toBackendUserId(currentUser) || currentUser?.id,
+          reviewerName: currentUser?.name || "System",
+          notes: updates.notes || "Submitted for Review",
+          designReference: updates.designLink && updates.designLink.trim() !== '' ? updates.designLink : undefined
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
+      } catch (err) {
+        console.warn("Failed to update design status to WaitingApproval in backend.", err);
+      }
+    }
+
     if (updates.materials !== undefined) {
       try {
         const primaryItem = so.items?.[0];

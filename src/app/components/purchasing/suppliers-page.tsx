@@ -473,8 +473,8 @@ export function SuppliersPage() {
       const totalPOs = supplierPos.length;
       const totalValue = supplierPos.reduce((sum, po) => sum + calcTotal(po.items), 0);
 
-      const completedPos = supplierPos.filter(p => p.deliveryStatus === "Received" || p.deliveryStatus === "Closed");
-      const cancelledPos = supplierPos.filter(p => p.deliveryStatus === "Cancelled");
+      const completedPos = supplierPos.filter(p => (p.deliveryStatus as string) === "Received" || (p.deliveryStatus as string) === "Closed");
+      const cancelledPos = supplierPos.filter(p => (p.deliveryStatus as string) === "Cancelled");
       const onTimeRate = totalPOs === 0 ? 0 : Math.round(((totalPOs - cancelledPos.length) / totalPOs) * 100);
 
       const allItems = supplierPos.flatMap(p => p.items);

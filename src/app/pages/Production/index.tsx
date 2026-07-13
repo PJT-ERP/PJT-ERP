@@ -32,7 +32,7 @@ export function ProductionPage() {
     || currentUser?.role === "Admin"
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
-  const { invoices } = useFinanceData(canReadFinanceData);
+  const { invoices } = useFinanceData(canReadFinanceData, false, false);
   const mergedSalesOrders = salesOrders.map(so => mergeSalesOrderInvoice(so, invoices));
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';

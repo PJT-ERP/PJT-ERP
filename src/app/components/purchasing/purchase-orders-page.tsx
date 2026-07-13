@@ -49,7 +49,7 @@ export interface PO {
   contactPhone: string;
   orderDate: string;
   dueDate: string;
-  deliveryStatus: "Open" | "Confirmed" | "In Transit" | "Partial" | "Received" | "Closed" | "Cancelled";
+  deliveryStatus: "In Transit" | "Closed" | "Cancelled";
   paymentStatus: "Unpaid" | "Partial" | "Paid";
   paymentTerms: string;
   requestRefs: string[];
@@ -66,11 +66,7 @@ const SUPPLIERS = ["CV Bintang Logam", "PT Sumber Teknik", "UD Maju Jaya", "PT I
 /* ── Status configs ────────────────────────────────────────── */
 
 export const deliveryCfg: Record<string, { bg: string; color: string; dot: string; pct: number }> = {
-  Open:       { bg: "#eff6ff", color: "#1d4ed8", dot: "#3b82f6", pct: 5 },
-  Confirmed:  { bg: "#f0fdf4", color: "#166534", dot: "#22c55e", pct: 25 },
   "In Transit": { bg: "#fffbeb", color: "#92400e", dot: "#f59e0b", pct: 60 },
-  Partial:    { bg: "#faf5ff", color: "#6b21a8", dot: "#a855f7", pct: 70 },
-  Received:   { bg: "#f0fdf4", color: "#166534", dot: "#16a34a", pct: 90 },
   Closed:     { bg: "#f1f5f9", color: "#334155", dot: "#64748b", pct: 100 },
   Cancelled:  { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", pct: 0 },
 };
@@ -129,7 +125,6 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
             existing.soRefs.push(item.salesOrderNumber);
           }
           existing.deliveryStatus = mergeDeliveryStatus(existing.deliveryStatus, mapDeliveryStatus(item.purchaseStatus));
-          existing.paymentStatus = calcReceived(existing.items) > 0 && calcReceived(existing.items) < calcTotal(existing.items) ? "Partial" : existing.paymentStatus;
           return;
         }
 
@@ -174,21 +169,15 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
 
 function mapDeliveryStatus(status: string): PO["deliveryStatus"] {
   if (status === "Received") return "Closed";
-  if (status === "Ordered") return "In Transit";
-  if (status === "Approved") return "Confirmed";
   if (status === "Rejected") return "Cancelled";
-  return "Open";
+  return "In Transit";
 }
 
 function mergeDeliveryStatus(current: PO["deliveryStatus"], next: PO["deliveryStatus"]): PO["deliveryStatus"] {
   const rank: Record<PO["deliveryStatus"], number> = {
     Cancelled: 0,
-    Open: 1,
-    Confirmed: 2,
-    "In Transit": 3,
-    Partial: 4,
-    Received: 5,
-    Closed: 6,
+    "In Transit": 1,
+    Closed: 2,
   };
 
   return rank[next] > rank[current] ? next : current;

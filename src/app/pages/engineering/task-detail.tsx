@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft, Download } from "lucide-react";
+import { Send, CheckCircle, ExternalLink, Plus, Trash2, UserPlus, ChevronLeft, Download, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor } from "../../components/data/mockData";
@@ -163,7 +163,8 @@ export function EngineeringTaskDetailPage() {
   
   useEffect(() => {
     if (qut && !isInitialized.current) {
-      const initialDesignLink = qut.designLink || qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
+      const designRef = qut.designReference !== 'INTERNAL_DESIGN' ? qut.designReference : '';
+      const initialDesignLink = designRef || qut.designLink || qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
       setDesignLink(initialDesignLink);
       setIsEditingLink(!initialDesignLink);
       
@@ -353,7 +354,8 @@ export function EngineeringTaskDetailPage() {
         try {
           await salesApi.submitSalesOrderDesign(backendId, {
             designReference: designLink,
-            drawingFileUrl: designLink
+            drawingFileUrl: designLink,
+            updatedByName: currentUser?.name || 'Engineering'
           });
           // Removed overwriting of customerDrawingUrl
         } catch (e) {
@@ -431,7 +433,8 @@ export function EngineeringTaskDetailPage() {
           designStatus: 'Approved',
           notes: 'Approved by SPV',
           reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
-          reviewerName: currentUser?.name || ''
+          reviewerName: currentUser?.name || '',
+          designReference: designLink
         });
       }
 
@@ -466,16 +469,24 @@ export function EngineeringTaskDetailPage() {
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
-          materials: Object.values(itemMaterials).flat(),
-          bomsPerItem: itemMaterials,
+          designReference: designLink,
           status: 'Waiting Pricing',
           backendDesignStatus: 'Approved',
           designApprovedAt: new Date().toISOString().split('T')[0]
         });
       } else if (isDoingWorkerSubmission || isSpv) {
+        await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: 'WaitingApproval',
+          notes: 'Submitted for SPV Review',
+          reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()),
+          reviewerName: currentUser?.name || 'Worker',
+          designReference: designLink && designLink.trim() !== '' ? designLink : undefined
+        });
+
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
+          designReference: designLink,
           materials: Object.values(itemMaterials).flat(),
           bomsPerItem: itemMaterials,
           status: 'Waiting Spv Approval',
@@ -638,7 +649,6 @@ export function EngineeringTaskDetailPage() {
               {newMaterials.length > 0 && (
                 <div style={{ background: "#FEF2F2", border: "2px solid #EF4444", borderRadius: 8, padding: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <span style={{ fontSize: "20px" }}>⚠️</span>
                     <p style={{ color: "#991B1B", fontSize: "14px", fontWeight: 700, margin: 0 }}>
                       Material Baru Akan Dibuat ({newMaterials.length})
                     </p>
@@ -947,8 +957,8 @@ export function EngineeringTaskDetailPage() {
                                       <select
                                         value={m.category || defaultCategory}
                                         onChange={e => updateMaterial(item.id, m.id, 'category', e.target.value)}
-                                        disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
-                                        style={{ width: 130, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || isWaitingCustomerDesign || isDoingSpvApproval) ? "not-allowed" : "pointer" }}
+                                        disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
+                                        style={{ width: 130, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))) ? "not-allowed" : "pointer" }}
                                       >
                                         {existingCategories.map(cat => (
                                           <option key={cat} value={cat}>{cat}</option>
@@ -957,8 +967,8 @@ export function EngineeringTaskDetailPage() {
                                       <select
                                         value={m.unit || 'pcs'}
                                         onChange={e => updateMaterial(item.id, m.id, 'unit', e.target.value)}
-                                        disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
-                                        style={{ width: 90, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && !isWaitingCustomerDesign && !isDoingSpvApproval ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || isWaitingCustomerDesign || isDoingSpvApproval) ? "not-allowed" : "pointer" }}
+                                        disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
+                                        style={{ width: 90, padding: "9px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: (canProcess && (isSpv || (!isWaitingCustomerDesign && !isDoingSpvApproval)) ? "#fff" : "#F8FAFC"), color: S.slate, cursor: (!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))) ? "not-allowed" : "pointer" }}
                                       >
                                         <option value="pcs">Pcs</option>
                                         <option value="unit">Unit</option>
@@ -976,7 +986,7 @@ export function EngineeringTaskDetailPage() {
                                       value={m.unit}
                                       readOnly
                                       placeholder="pcs"
-                                      disabled={!canProcess || isWaitingCustomerDesign || isDoingSpvApproval}
+                                      disabled={!canProcess || (!isSpv && (isWaitingCustomerDesign || isDoingSpvApproval))}
                                       style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
                                     />
                                   )}

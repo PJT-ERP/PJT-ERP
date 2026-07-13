@@ -192,7 +192,7 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
     });
 }
 
-export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
+export function useFinanceData(enabled = true, fetchSupplierPayments = true, fetchOpeningBalance = true) {
   const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
   const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
   const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
@@ -210,7 +210,7 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
         financeApi.listInvoiceCandidates(),
         financeApi.listPaymentVerifications(),
         fetchSupplierPayments ? financeApi.listSupplierPayments() : Promise.resolve([]),
-        financeApi.getOpeningBalance(),
+        fetchOpeningBalance ? financeApi.getOpeningBalance() : Promise.resolve(250_000_000),
       ]);
 
       const invoices = invoicesResult.status === 'fulfilled' ? invoicesResult.value : [];
