@@ -189,9 +189,13 @@ export function EngineeringTasksPage() {
                 </div>
                 <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 6 }}>{qut.description || qut.partNumber || "-"}</span>
                 <div style={{ minWidth: 0 }}>
-                  <span style={{ fontSize: "11px", background: "#E0F2FE", padding: "3px 8px", borderRadius: 6, border: "1px solid #7DD3FC", color: "#0369A1", fontWeight: 600, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    Ditangani: SPV Engineering
-                  </span>
+                  {qut.designAssignedName || (qut as any).designWorkerName ? (
+                    <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "4px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {qut.designAssignedName || (qut as any).designWorkerName}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                  )}
                 </div>
                 <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, whiteSpace: "nowrap" }}>{qut.deadline}</span>
                 <div>
@@ -206,7 +210,7 @@ export function EngineeringTasksPage() {
                       }}
                       style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                     >
-                      Input CAD / Desain
+                      Input Desain
                     </button>
                   )}
 

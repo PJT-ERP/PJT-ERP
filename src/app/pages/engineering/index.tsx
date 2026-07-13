@@ -120,7 +120,6 @@ export function EngineeringPage() {
     { label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" },
     { label: "Waiting Spv", count: designReviewCount, color: "#8B5CF6" },
     { label: "In Production", count: inProductionCount, color: "#3B82F6" },
-    { label: "QC", count: qcCount, color: "#C8102E" },
   ];
 
   const workerTaskData = users
@@ -171,65 +170,37 @@ export function EngineeringPage() {
         ))}
       </div>
 
-      {isSpv && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          {/* Design Workload */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px", minHeight: 260 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Pencil size={14} style={{ color: S.cyan }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Beban Kerja Desain</span>
-            </div>
-            {workerTaskData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
-                  <Tooltip />
-                  <Bar dataKey="designActive" name="Desain Aktif" stackId="a" fill="#3B82F6" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="designReview" name="Menunggu Review" stackId="a" fill="#8B5CF6" />
-                  <Bar dataKey="designCompleted" name="Desain Selesai" stackId="a" fill="#22C55E" radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: S.secondary, fontSize: 13 }}>
-                Belum ada data.
-              </div>
-            )}
-          </div>
-
-          {/* Production Workload */}
-          <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px", minHeight: 260 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Factory size={14} style={{ color: "#F59E0B" }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Beban Kerja Produksi</span>
-            </div>
-            {workerTaskData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
-                  <Tooltip />
-                  <Bar dataKey="prodActive" name="Produksi Aktif" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" />
-                  <Bar dataKey="prodCompleted" name="Produksi Selesai" stackId="a" fill="#10B981" radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: S.secondary, fontSize: 13 }}>
-                Belum ada data.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Main grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">
 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+
+          {isSpv && (
+            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px", minHeight: 260 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <Factory size={14} style={{ color: "#F59E0B" }} />
+                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Beban Kerja Produksi</span>
+              </div>
+              {workerTaskData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={workerTaskData} layout="vertical" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={true} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} width={145} />
+                    <Tooltip />
+                    <Bar dataKey="prodActive" name="Produksi Aktif" stackId="a" fill="#F59E0B" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="prodQC" name="Menunggu QC" stackId="a" fill="#22D3EE" />
+                    <Bar dataKey="prodCompleted" name="Produksi Selesai" stackId="a" fill="#10B981" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: S.secondary, fontSize: 13 }}>
+                  Belum ada data.
+                </div>
+              )}
+            </div>
+          )}
 
           {isSpv ? (
             <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
@@ -278,10 +249,14 @@ export function EngineeringPage() {
                         <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
                       </div>
                       <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
-                      <div>
-                        <span style={{ fontSize: "11px", background: "#E0F2FE", padding: "3px 8px", borderRadius: 4, border: "1px solid #7DD3FC", color: "#0369A1", fontWeight: 600, display: "inline-block" }}>
-                          Ditangani: SPV Engineering
-                        </span>
+                      <div style={{ minWidth: 0 }}>
+                        {so.designAssignedName || (so as any).designWorkerName ? (
+                          <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "4px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {so.designAssignedName || (so as any).designWorkerName}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                        )}
                       </div>
                       <div>
                         <StatusBadge status={so.status} />
@@ -368,7 +343,6 @@ export function EngineeringPage() {
               {[
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
                 { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
-                { label: "Quality Control", icon: <CheckSquare size={13} />, path: "/erp/engineer-qc", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: true },
               ].filter(action => isSpv || action.path === "/erp/production").map((action) => (
                 <button

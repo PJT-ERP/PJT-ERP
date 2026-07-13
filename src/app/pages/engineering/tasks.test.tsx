@@ -10,7 +10,7 @@ vi.mock('../../components/context/AppContext', () => ({
 }));
 
 describe('EngineeringTasksPage', () => {
-  it('renders engineering queue with Input CAD / Desain button for pending tasks', () => {
+  it('renders engineering queue with Input Desain button for pending tasks', () => {
     vi.mocked(useApp).mockReturnValue({
       quotations: [],
       customers: [],
@@ -34,6 +34,6 @@ describe('EngineeringTasksPage', () => {
     );
     expect(screen.getByText('Daftar Tugas Desain')).toBeInTheDocument();
     expect(screen.getByText('Custom Mold A')).toBeInTheDocument();
-    expect(screen.getByText('Input CAD / Desain')).toBeInTheDocument();
+    expect(screen.getByText('Input Desain')).toBeInTheDocument();
   });
 });
