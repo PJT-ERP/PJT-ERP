@@ -135,6 +135,26 @@ export function ProductionPage() {
   const [rejectModal, setRejectModal] = useState<{ type: 'drawing' | 'mr', so: SalesOrder } | null>(null);
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
 
+  const [inventory, setInventory] = React.useState<InventoryItemDto[]>([]);
+  React.useEffect(() => {
+    masterDataApi.listInventory().then(setInventory).catch(console.error);
+  }, []);
+
+  const checkMaterialShortage = (so: SalesOrder) => {
+    const materials = getMaterialOptions(so);
+    if (!materials || materials.length === 0) return false;
+    
+    return materials.some(m => {
+      const invItem = inventory.find(inv => 
+        inv.name?.toLowerCase() === m.itemName.toLowerCase() && 
+        (!m.specification || inv.specification?.toLowerCase() === m.specification.toLowerCase())
+      );
+      const reqQty = (m.quantity ?? 0) * (so.quantity || 1);
+      const stock = invItem?.currentStock ?? 0;
+      return reqQty > 0 && stock < reqQty;
+    });
+  };
+
   const handleResume = async (so: SalesOrder) => {
     const currentUserGuid = isGuid(currentUser?.id) ? currentUser!.id : toBackendUserId(currentUser);
     const assignedWorkerGuid = isGuid(so.assignedTo) ? so.assignedTo : null;
@@ -447,8 +467,8 @@ export function ProductionPage() {
               const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
               const mrState = getMaterialRequestState(so);
               const hasMr = mrState !== 'none';
-              const mrReadyForAssignment = mrState === 'completed';
-              const canAssignToOperator = hasBom && hasMr && mrReadyForAssignment;
+              const isShortage = checkMaterialShortage(so);
+              const canAssignToOperator = hasBom && !isShortage;
 
               return (
                 <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
@@ -458,12 +478,13 @@ export function ProductionPage() {
                         <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
                         {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
-                        {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
-                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap</span>}
+                        {hasBom && isShortage && !hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Kekurangan Material - MR Belum Diajukan</span>}
                         {hasBom && mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Menunggu Review SPV</span>}
                         {hasBom && (mrState === 'finance_pending' || mrState === 'approved') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DBEAFE", color: "#1E40AF", borderRadius: 4, fontWeight: 600, border: "1px solid #BFDBFE" }}>Sedang Diproses Purchasing</span>}
                         {hasBom && mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#991B1B", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>MR Ditolak</span>}
+                        {hasBom && isShortage && hasMr && mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Kekurangan Material - Stok Belum Masuk</span>}
                         {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA" }}>Dikembalikan ke SPV</span>}
+                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap - Siap Tugaskan</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -529,6 +550,7 @@ export function ProductionPage() {
             {readyToStart.slice((pageReadyToStart - 1) * itemsPerPage, pageReadyToStart * itemsPerPage).map((so, idx) => {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
               const mrState = getMaterialRequestState(so);
+              const isShortage = checkMaterialShortage(so);
               return (
                 <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < readyToStart.slice((pageReadyToStart - 1) * itemsPerPage, pageReadyToStart * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
@@ -539,7 +561,8 @@ export function ProductionPage() {
                         {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
                         {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
                         {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
-                        {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
+                        {mrState === 'completed' && isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>Kekurangan Material - Stok Belum Masuk</span>}
+                        {mrState === 'completed' && !isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                         {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
                         {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
                         {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA" }}>Dikembalikan ke SPV</span>}
@@ -649,6 +672,7 @@ export function ProductionPage() {
                 todayDate.setHours(0, 0, 0, 0);
               }
               const mrState = getMaterialRequestState(so);
+              const isShortage = checkMaterialShortage(so);
 
               return (
                 <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
@@ -661,7 +685,8 @@ export function ProductionPage() {
                         {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
                         {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
                         {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
-                        {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
+                        {mrState === 'completed' && isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>Kekurangan Material - Stok Belum Masuk</span>}
+                        {mrState === 'completed' && !isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                         {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
                         {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
                       </div>
@@ -802,7 +827,7 @@ export function ProductionPage() {
         <ReturnToSpvModal so={returnToSpvModal} onClose={() => setReturnToSpvModal(null)} onSubmitted={() => setReturnToSpvModal(null)} />
       )}
       
-      {detailModal && <ProductionDetailModal so={detailModal} onClose={() => setDetailModal(null)} />}
+      {detailModal && <ProductionDetailModal so={salesOrders.find(s => s.id === detailModal.id) || detailModal} onClose={() => setDetailModal(null)} />}
     </div>
   );
 }
