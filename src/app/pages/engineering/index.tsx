@@ -85,6 +85,10 @@ export function EngineeringPage() {
   const pendingDesignCount = designQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
   const designReviewCount = designQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
+  const myProdOrders = salesOrders
+    .filter(so => so.assignedTo === currentUser?.id && !['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Completed', 'Delivered'].includes(so.status))
+    .sort((a, b) => new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime());
+
   // Production Stats
   const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
   const qcCount = salesOrders.filter(so => so.status === 'QC').length;
@@ -145,7 +149,7 @@ export function EngineeringPage() {
       {/* Page header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h1 style={{ color: S.slate, margin: 0 }}>Supervisor Engineering Dashboard</h1>
+          <h1 style={{ color: S.slate, margin: 0 }}>{isSpv ? "Supervisor Engineering Dashboard" : "Engineering Dashboard"}</h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             PT Pratama Jaya Tekindo · {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
@@ -282,21 +286,60 @@ export function EngineeringPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Factory size={14} style={{ color: S.cyan }} />
-                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas & Pekerjaan Produksi Saya</span>
+                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pekerjaan Produksi</span>
                 </div>
-                <button
-                  onClick={() => navigate('/erp/production')}
-                  style={{ padding: "6px 12px", background: S.cyan, color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                >
-                  Buka Modul Produksi
-                </button>
               </div>
 
-              <div style={{ padding: "32px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
-                <CheckSquare size={36} style={{ color: S.cyan, margin: "0 auto 12px" }} />
-                <p style={{ margin: "0 0 4px", fontWeight: 600, color: S.slate }}>Anda Login Sebagai Engineering (Operator Produksi)</p>
-                <p style={{ margin: 0, fontSize: "12.5px" }}>Seluruh antrean tugas pembuatan dan pemrosesan material Anda dikelola langsung pada modul Produksi.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 140px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+                {["No. SO", "Pelanggan", "Produk", "Deadline", "Status"].map((h) => (
+                  <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+                ))}
               </div>
+
+              {myProdOrders.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
+                  <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
+                  <p style={{ margin: 0 }}>Tidak ada pekerjaan produksi saat ini.</p>
+                </div>
+              ) : (
+                myProdOrders.slice(0, 10).map((so, idx) => (
+                  <div
+                    key={so.id}
+                    onClick={() => navigate('/erp/production')}
+                    style={{
+                      display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 140px 140px", alignItems: "center",
+                      padding: "10px 18px", cursor: "pointer",
+                      borderBottom: idx < myProdOrders.length - 1 ? `1px solid ${S.border}` : "none",
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
+                    <div>
+                      <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
+                    </div>
+                    <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
+                    <span style={{ fontSize: "12px", color: S.secondary }}>
+                      {so.deadline ? new Date(so.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </span>
+                    <div>
+                      <StatusBadge status={so.status} />
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {myProdOrders.length > 10 && (
+                <div
+                  onClick={() => navigate('/erp/production')}
+                  style={{ padding: "12px 18px", textAlign: "center", cursor: "pointer", background: S.bg, color: S.cyan, fontSize: "12.5px", fontWeight: 600, transition: "background 0.1s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#E0F2FE"}
+                  onMouseLeave={e => e.currentTarget.style.background = S.bg}
+                >
+                  Lihat Semua Pekerjaan Produksi ({myProdOrders.length})
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -221,7 +221,7 @@ export function ProductionPage() {
 
   const getMaterialRequest = (so: SalesOrder) => {
     const backendId = getBackendSalesOrderId(so);
-    return purchasingRequests.find(request =>
+    return purchasingRequests.slice().reverse().find(request =>
       request.salesOrderId === backendId ||
       request.salesOrderId === so.backendId ||
       request.soId === so.id ||
@@ -264,10 +264,8 @@ export function ProductionPage() {
 
   const checkMaterialComplete = (so: SalesOrder) => {
     const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
-    const mrState = getMaterialRequestState(so);
-    const hasMr = mrState !== 'none';
-    const mrReadyForAssignment = mrState === 'completed';
-    return hasBom && hasMr && mrReadyForAssignment;
+    const isShortage = checkMaterialShortage(so);
+    return hasBom && !isShortage;
   };
 
   const pendingMaterialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && !checkMaterialComplete(so));
@@ -410,24 +408,25 @@ export function ProductionPage() {
               </div>
             ) : pendingMaterialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).map((so, idx) => {
               const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+              const isShortage = checkMaterialShortage(so);
               const mrState = getMaterialRequestState(so);
               const hasMr = mrState !== 'none';
               const mrReadyForAssignment = mrState === 'completed';
               const canAssignToOperator = hasBom && hasMr && mrReadyForAssignment;
 
               return (
-                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < pendingMaterialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < pendingMaterialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
                         {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
-                        {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
-                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap</span>}
+                        {hasBom && isShortage && !hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Kekurangan Material - MR Belum Diajukan</span>}
                         {hasBom && mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Menunggu Review SPV</span>}
                         {hasBom && (mrState === 'finance_pending' || mrState === 'approved') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DBEAFE", color: "#1E40AF", borderRadius: 4, fontWeight: 600, border: "1px solid #BFDBFE" }}>Sedang Diproses Purchasing</span>}
                         {hasBom && mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#991B1B", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>MR Ditolak</span>}
+                        {hasBom && isShortage && hasMr && mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Kekurangan Material - Stok Belum Masuk</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -443,7 +442,7 @@ export function ProductionPage() {
                             Review MR
                           </button>
                         )}
-                        {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                        {isShortage && (mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
                           <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/production/mr/${so.id}`); }}
                             style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                             <FileWarning size={14} /> Material Kurang
@@ -491,7 +490,7 @@ export function ProductionPage() {
               const canAssignToOperator = hasBom && !isShortage;
 
               return (
-                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -502,7 +501,7 @@ export function ProductionPage() {
                         {hasBom && mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Menunggu Review SPV</span>}
                         {hasBom && (mrState === 'finance_pending' || mrState === 'approved') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DBEAFE", color: "#1E40AF", borderRadius: 4, fontWeight: 600, border: "1px solid #BFDBFE" }}>Sedang Diproses Purchasing</span>}
                         {hasBom && mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#991B1B", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>MR Ditolak</span>}
-                        {hasBom && isShortage && hasMr && mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Kekurangan Material - Stok Belum Masuk</span>}
+                        {hasBom && isShortage && hasMr && mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Kekurangan Material - Stok Belum Masuk</span>}
                         {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA" }}>Dikembalikan ke SPV</span>}
                         {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap - Siap Tugaskan</span>}
                       </div>
@@ -572,7 +571,7 @@ export function ProductionPage() {
               const mrState = getMaterialRequestState(so);
               const isShortage = checkMaterialShortage(so);
               return (
-                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < readyToStart.slice((pageReadyToStart - 1) * itemsPerPage, pageReadyToStart * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < readyToStart.slice((pageReadyToStart - 1) * itemsPerPage, pageReadyToStart * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
@@ -581,11 +580,10 @@ export function ProductionPage() {
                         {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
                         {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
                         {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
-                        {mrState === 'completed' && isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>Kekurangan Material - Stok Belum Masuk</span>}
+                        {mrState === 'completed' && isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>Kekurangan Material - Stok Belum Masuk</span>}
                         {mrState === 'completed' && !isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                         {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
                         {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
-                        {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA" }}>Dikembalikan ke SPV</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -601,7 +599,7 @@ export function ProductionPage() {
                           Review MR
                         </button>
                       )}
-                      {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && currentUser?.role !== 'Admin' && (
+                      {isShortage && (mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && currentUser?.role !== 'Admin' && (
                         <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                           style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                           <FileWarning size={14} /> Material Kurang
@@ -642,11 +640,6 @@ export function ProductionPage() {
                     {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
                       <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
                         Catatan QC: {so.qcNotes}
-                      </p>
-                    )}
-                    {so.rejectionReason && (
-                      <p style={{ fontSize: "12px", color: "#9A3412", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FFF7ED", borderRadius: 6, border: "1px solid #FED7AA" }}>
-                        Dikembalikan: {so.rejectionReason}
                       </p>
                     )}
                   </div>
@@ -695,19 +688,23 @@ export function ProductionPage() {
               const isShortage = checkMaterialShortage(so);
 
               return (
-                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < inProduction.slice((pageInProd - 1) * itemsPerPage, pageInProd * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
                         {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
-                        {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
-                        {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
-                        {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
-                        {mrState === 'completed' && isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>Kekurangan Material - Stok Belum Masuk</span>}
-                        {mrState === 'completed' && !isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
-                        {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
+                        {so.status === 'Paused' && so.pauseReason?.toLowerCase().includes("material") && (
+                          <>
+                            {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
+                            {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
+                            {mrState === 'approved' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>MR Diproses Purchasing</span>}
+                            {mrState === 'completed' && isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>Kekurangan Material - Stok Belum Masuk</span>}
+                            {!isShortage && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 500, border: "1px solid #BBF7D0" }}>Material Lengkap</span>}
+                            {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
+                          </>
+                        )}
                         {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
@@ -727,18 +724,18 @@ export function ProductionPage() {
                       )}
                       {so.status === 'Paused' && so.pauseReason?.toLowerCase().includes("material") && (
                         <>
-                          {mrState === 'none' && (isSupervisor || (!notifiedSoIds.has(so.id) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId))) && (
+                          {isShortage && !['requested', 'finance_pending', 'approved'].includes(mrState) && (isSupervisor || (!notifiedSoIds.has(so.id) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId))) && (
                             <button 
                               onClick={() => {
                                 if (isSupervisor) {
                                   navigate(`/erp/production/mr/${so.id}`);
                                 } else {
-                                  toast.success("Notifikasi telah dikirim ke Supervisor untuk membuat Material Request ulang.", { duration: 4000 });
+                                  toast.success("Notifikasi telah dikirim ke Supervisor untuk membuat Material Request tambahan.", { duration: 4000 });
                                   setNotifiedSoIds(prev => new Set(prev).add(so.id));
                                 }
                               }}
                               style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                              <Package size={14} /> Req. Material Kurang
+                              <Package size={14} /> Req. Material Tambahan
                             </button>
                           )}
                           {mrState === 'rejected' && (isSupervisor || (!notifiedSoIds.has(so.id) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId))) && (
@@ -761,7 +758,7 @@ export function ProductionPage() {
                         <>
                           {so.status === 'Paused' ? (
                             <>
-                              {so.pauseReason?.toLowerCase().includes("material") && mrState !== 'completed' ? (
+                              {so.pauseReason?.toLowerCase().includes("material") && isShortage ? (
                                 <button disabled title="Menunggu material lengkap"
                                   style={{ padding: "8px 16px", background: "#E5E7EB", color: "#9CA3AF", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                                   <Clock size={14} /> Menunggu Material
@@ -823,7 +820,7 @@ export function ProductionPage() {
               {waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).map((so, idx) => {
                 const customer = customers.find(c => c.code === so.customerId);
                 return (
-                  <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 18px", borderBottom: idx < waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none", background: "#F8FAFC" }}>
+                  <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "24px 18px", borderBottom: idx < waitingQC.slice((pageWaitQC - 1) * itemsPerPage, pageWaitQC * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none", background: "#F8FAFC" }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                         <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
