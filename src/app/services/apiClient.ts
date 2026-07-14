@@ -50,12 +50,11 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem("auth_user");
       localStorage.removeItem("auth_token");
-      if (!window.location.pathname.includes("/login")) {
-        window.location.href = "/login";
+      const isLoginRequest = error.config?.url?.includes("/auth/login");
+      if (window.location.pathname.includes("/login") || isLoginRequest) {
+        return Promise.reject(error);
       }
-      // Return a promise that never resolves/rejects.
-      // This prevents the calling component's catch() block from executing
-      // and showing confusing validation alerts while the page is redirecting.
+      window.location.href = "/login";
       return new Promise(() => {});
     }
     return Promise.reject(error);
