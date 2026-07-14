@@ -31,6 +31,7 @@ export function QCInspectionModal({
   const [drawingLink, setDrawingLink] = useState(initialUrl);
   const [isEditingLink, setIsEditingLink] = useState(!initialUrl);
   const [done, setDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleProductionFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -65,6 +66,7 @@ export function QCInspectionModal({
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (!result) {
       alert("Pilih hasil QC (Go/NoGo) terlebih dahulu.");
       return;
@@ -101,6 +103,7 @@ export function QCInspectionModal({
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const productionPhotoUrls = await qcApi.uploadPhotos(productionPhotos.map(p => p.file));
       const qcPhotoUrls = await qcApi.uploadPhotos(qcPhotos.map(p => p.file));
@@ -118,6 +121,7 @@ export function QCInspectionModal({
       console.warn("Failed to submit QC result to backend.", error);
       const msg = error?.response?.data?.message || error?.response?.data?.title || error?.message || "Unknown error";
       alert(`Gagal submit hasil QC ke backend. Detail: ${msg}`);
+      setIsSubmitting(false);
       return;
     }
 
@@ -357,9 +361,9 @@ export function QCInspectionModal({
 
         <div style={{ display: "flex", gap: 12, padding: "16px 24px", borderTop: `1px solid ${S.border}`, flexShrink: 0 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "10px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Batal</button>
-          <button onClick={handleSubmit} disabled={!result}
-            style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", opacity: result ? 1 : 0.5 }}>
-            Submit Hasil QC
+          <button onClick={handleSubmit} disabled={!result || isSubmitting}
+            style={{ flex: 1, padding: "10px", background: S.cyan, border: "none", color: "#fff", borderRadius: 8, fontSize: "13.5px", fontWeight: 500, cursor: (!result || isSubmitting) ? "not-allowed" : "pointer", opacity: (result && !isSubmitting) ? 1 : 0.5 }}>
+            {isSubmitting ? 'Menyimpan...' : 'Submit Hasil QC'}
           </button>
         </div>
       </div>

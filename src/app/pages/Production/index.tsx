@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PlayCircle, PauseCircle, CheckSquare, Clock, Users, Package, FileWarning, ExternalLink, Plus, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Edit2 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
 import { PurchasingRequest, PurchasingUrgency, SalesOrder, getStatusColor } from "../../components/data/mockData";
 import { productionApi } from "../../services/productionApi";
@@ -30,25 +31,43 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
   const materials = (so.materials && Array.isArray(so.materials) && so.materials.length > 0) ? so.materials : [];
   
   return (
-    <div style={{ display: "flex", gap: "16px", marginTop: 12 }} onClick={e => e.stopPropagation()}>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginTop: 12 }} onClick={e => e.stopPropagation()}>
        {/* Product Box */}
        <div style={{ flex: "0 0 280px", borderRadius: 8, border: `1px solid ${S.border}`, background: "#F8FAFC", boxShadow: "0 1px 2px rgba(0,0,0,0.02)", display: "flex", flexDirection: "column", padding: "12px" }}>
          <span style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: "10px" }}>Produk</span>
-         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignContent: "flex-start" }}>
-           {(so.description || "").split(',').map((prod, i) => (
-             <div key={i} style={{ 
-               background: "#FFFFFF", 
-               border: `1px solid ${S.border}`, 
-               borderRadius: "6px", 
-               padding: "10px 12px", 
-               display: "flex", 
-               flexDirection: "column",
-               flex: "1 1 auto",
-               minWidth: "100px"
-             }}>
-               <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{prod.trim()}</span>
-             </div>
-           ))}
+         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+           {so.items && so.items.length > 0 ? (
+             so.items.map((item, i) => (
+               <div key={i} style={{ 
+                 background: "#FFFFFF", 
+                 border: `1px solid ${S.border}`, 
+                 borderRadius: "6px", 
+                 padding: "10px 12px", 
+                 display: "flex", 
+                 flexDirection: "row",
+                 justifyContent: "space-between",
+                 alignItems: "center"
+               }}>
+                 <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{item.productName || "Custom Product"}</span>
+                 {item.quantity && <span style={{ fontSize: "12px", fontWeight: 600, color: S.slate }}>{item.quantity} {item.unit}</span>}
+               </div>
+             ))
+           ) : (
+             (so.description || "").split(',').map((prod, i) => (
+               <div key={i} style={{ 
+                 background: "#FFFFFF", 
+                 border: `1px solid ${S.border}`, 
+                 borderRadius: "6px", 
+                 padding: "10px 12px", 
+                 display: "flex", 
+                 flexDirection: "row",
+                 justifyContent: "space-between",
+                 alignItems: "center"
+               }}>
+                 <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{prod.trim()}</span>
+               </div>
+             ))
+           )}
          </div>
        </div>
 
@@ -129,6 +148,7 @@ export function ProductionPage() {
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
   const [completeModal, setCompleteModal] = useState<SalesOrder | null>(null);
   const [pauseModal, setPauseModal] = useState<SalesOrder | null>(null);
+  const [notifiedSoIds, setNotifiedSoIds] = useState<Set<string>>(new Set());
   const [reviewMrModal, setReviewMrModal] = useState<SalesOrder | null>(null);
   const [detailModal, setDetailModal] = useState<SalesOrder | null>(null);
   const [returnToSpvModal, setReturnToSpvModal] = useState<SalesOrder | null>(null);
@@ -680,12 +700,44 @@ export function ProductionPage() {
                           Review MR
                         </button>
                       )}
+                      {so.status === 'Paused' && so.pauseReason?.toLowerCase().includes("material") && (
+                        <>
+                          {mrState === 'none' && (isSupervisor || (!notifiedSoIds.has(so.id) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId))) && (
+                            <button 
+                              onClick={() => {
+                                if (isSupervisor) {
+                                  navigate(`/erp/production/mr/${so.id}`);
+                                } else {
+                                  toast.success("Notifikasi telah dikirim ke Supervisor untuk membuat Material Request ulang.", { duration: 4000 });
+                                  setNotifiedSoIds(prev => new Set(prev).add(so.id));
+                                }
+                              }}
+                              style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                              <Package size={14} /> Req. Material Kurang
+                            </button>
+                          )}
+                          {mrState === 'rejected' && (isSupervisor || (!notifiedSoIds.has(so.id) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId))) && (
+                            <button 
+                              onClick={() => {
+                                if (isSupervisor) {
+                                  navigate(`/erp/production/mr/${so.id}`);
+                                } else {
+                                  toast.success("Notifikasi telah dikirim ke Supervisor untuk mengajukan ulang Material Request.", { duration: 4000 });
+                                  setNotifiedSoIds(prev => new Set(prev).add(so.id));
+                                }
+                              }}
+                              style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                              <FileWarning size={14} /> Ajukan Ulang MR
+                            </button>
+                          )}
+                        </>
+                      )}
                       {(!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId) && (
                         <>
                           {so.status === 'Paused' ? (
                             <>
-                              {so.pauseReason?.toLowerCase().includes("material") && (mrState === 'requested' || mrState === 'finance_pending' || mrState === 'approved') ? (
-                                <button disabled title="Menunggu MR selesai diproses"
+                              {so.pauseReason?.toLowerCase().includes("material") && mrState !== 'completed' ? (
+                                <button disabled title="Menunggu material lengkap"
                                   style={{ padding: "8px 16px", background: "#E5E7EB", color: "#9CA3AF", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                                   <Clock size={14} /> Menunggu Material
                                 </button>
@@ -693,18 +745,6 @@ export function ProductionPage() {
                                 <button onClick={() => setStartModal(so)}
                                   style={{ padding: "8px 16px", background: "#F59E0B", color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                                   <PlayCircle size={14} /> Lanjutkan Produksi
-                                </button>
-                              )}
-                              {so.pauseReason?.toLowerCase().includes("material") && mrState === 'none' && (
-                                <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                                  style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                                  <Package size={14} /> Req. Material Kurang
-                                </button>
-                              )}
-                              {so.pauseReason?.toLowerCase().includes("material") && mrState === 'rejected' && (
-                                <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                                  style={{ padding: "8px 16px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 8, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                                  <FileWarning size={14} /> Ajukan Ulang MR
                                 </button>
                               )}
                             </>
