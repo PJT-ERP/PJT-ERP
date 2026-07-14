@@ -163,7 +163,7 @@ export async function syncUpdateSalesOrder(
       }
     }
 
-    if (updates.designLink !== undefined) {
+    if (updates.designLink !== undefined && updates.designLink.trim() !== '') {
       try {
         await productionApi.uploadEngineeringDrawing(backendId, {
           drawingFileUrl: updates.designLink,
@@ -212,9 +212,9 @@ export async function syncUpdateSalesOrder(
         if (primaryItem) {
           const updated = await salesApi.updateSalesOrderItems(backendId, {
             items: (so.items || []).map((it, idx) => ({
-              salesOrderItemId: it.id,
               productId: it.productId,
               qty: it.quantity,
+              unitPrice: it.price || 0,
               notes: updates.bomsPerItem?.[it.id] ? JSON.stringify(updates.bomsPerItem[it.id]) : (idx === 0 && updates.materials ? JSON.stringify(updates.materials) : (it.notes || ""))
             }))
           });

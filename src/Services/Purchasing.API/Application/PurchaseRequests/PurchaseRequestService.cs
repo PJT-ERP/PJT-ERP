@@ -92,6 +92,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                     ItemName = ResolveItemName(item, requirement),
                     Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec,
                     Qty = item.Qty,
+                    Unit = !string.IsNullOrWhiteSpace(item.Unit) ? item.Unit.Trim().ToUpper() : "PCS",
                     Urgency = NormalizeUrgency(item.Urgency),
                     PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId, item.ItemName),
                     TotalPrice = NormalizePrice(item.TotalPrice, "Total price"),
@@ -214,6 +215,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             purchaseItem.ItemName = ResolveItemName(item, requirement);
             purchaseItem.Size = NormalizeOptional(item.Size) ?? requirement?.MaterialSpec;
             purchaseItem.Qty = item.Qty;
+            purchaseItem.Unit = !string.IsNullOrWhiteSpace(item.Unit) ? item.Unit.Trim().ToUpper() : "PCS";
             purchaseItem.Urgency = NormalizeUrgency(item.Urgency);
             purchaseItem.PurchaseCategory = NormalizePurchaseCategory(item.PurchaseCategory, item.MaterialRequirementId, item.SalesOrderId ?? request.SalesOrderId, item.ItemName);
             purchaseItem.SuggestedSupplier = NormalizeOptional(item.SuggestedSupplier);
@@ -282,6 +284,21 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseRequest.ReviewedByUserId = request.ReviewedByUserId;
         purchaseRequest.ReviewedAtUtc = now;
         purchaseRequest.UpdatedAtUtc = now;
+
+        if (reviewStage != PurchaseRequestReviewStages.Supervisor && decision == PurchaseRequestStatuses.Approved)
+        {
+            var adhocItems = purchaseRequest.Items
+                .Where(i => i.MaterialRequirementId == null && !i.ItemName.StartsWith("MAT-"))
+                .Select(i => new PurchaseRequestFinanceApprovedItem(i.Id, i.ItemName, i.PurchaseCategory, i.Qty, i.Unit))
+                .ToList();
+
+            if (adhocItems.Count > 0)
+            {
+                await eventPublisher.PublishAsync(
+                    new PurchaseRequestFinanceApprovedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, adhocItems),
+                    cancellationToken);
+            }
+        }
 
         await eventPublisher.PublishAsync(
             new PurchaseRequestReviewedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, purchaseRequest.Status, now),

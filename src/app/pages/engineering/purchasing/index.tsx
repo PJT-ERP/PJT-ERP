@@ -7,7 +7,7 @@ import { PurchasingFormModal } from "./PurchasingFormModal";
 import { PRDetailModal } from "./PRDetailModal";
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests, refreshBackendData, currentUser } = useApp();
+  const { purchasingRequests, refreshBackendData, currentUser, users } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
@@ -24,7 +24,14 @@ export function EngineeringPurchasingPage() {
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
 
   const relevantRequests = isSpv
-    ? purchasingRequests
+    ? purchasingRequests.filter(r => {
+        if (currentUser?.role === 'Engineering Supervisor') {
+          const requester = users.find(u => u.id === r.requestedBy || u.name === r.requestedBy);
+          if (requester?.role === 'Purchasing' || requester?.role === 'Purchasing Admin') return false;
+          if (r.requestedBy.toLowerCase().includes('purchasing')) return false;
+        }
+        return true;
+      })
     : purchasingRequests.filter(r => r.requestedBy === currentUser?.name || r.requestedBy === currentUser?.id);
 
   const isMadeBySpv = (r: any) => {

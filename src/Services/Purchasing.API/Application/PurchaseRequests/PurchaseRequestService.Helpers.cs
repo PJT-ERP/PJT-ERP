@@ -110,6 +110,7 @@ public sealed partial class PurchaseRequestService
             item.Qty,
             item.Urgency,
             item.PurchaseCategory,
+            item.Unit,
             item.SuggestedSupplier,
             item.SupplierName,
             item.PoNumber,

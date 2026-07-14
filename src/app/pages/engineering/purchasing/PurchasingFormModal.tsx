@@ -8,6 +8,7 @@ import { toBackendUserId } from "../../../services/backendIds";
 import { S } from "./constants";
 import { SOCombobox } from "./SOCombobox";
 import { PCMaterialAutocomplete } from "./PCMaterialAutocomplete";
+import { UnitCombobox } from "./UnitCombobox";
 
 export interface ItemDraft {
   itemId?: string;
@@ -201,6 +202,10 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
     .filter(s => ['Ready for Production', 'In Production', 'Pending Design', 'Revision Required', 'Waiting Approval'].includes(s.status))
     .map(s => ({ id: s.id, label: `${s.id} — ${s.description.slice(0, 40)}` }));
 
+  const uniqueUnits = Array.from(new Set(inventoryItems.map(i => i.unit?.toUpperCase()).filter(Boolean))) as string[];
+  if (!uniqueUnits.includes("PCS")) uniqueUnits.push("PCS");
+  uniqueUnits.sort();
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 600, maxHeight: "90vh", display: "flex", flexDirection: "column", fontFamily: S.font }}>
@@ -216,13 +221,12 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: "span 2" }}>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Referensi SO (Opsional)</label>
-                <SOCombobox value={soId} onChange={setSoId} options={soOptions} disabled={currentUser?.role === 'Engineering Supervisor'} />
+                <SOCombobox value={soId} onChange={setSoId} options={soOptions} disabled={false} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Urgensi</label>
                 <select value={urgency} onChange={e => setUrgency(e.target.value as PurchasingUrgency)}
-                  disabled={currentUser?.role === 'Engineering Supervisor'}
-                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: currentUser?.role === 'Engineering Supervisor' ? "#F8FAFC" : S.white, cursor: currentUser?.role === 'Engineering Supervisor' ? "not-allowed" : "pointer", appearance: currentUser?.role === 'Engineering Supervisor' ? "none" : "auto", WebkitAppearance: currentUser?.role === 'Engineering Supervisor' ? "none" : "auto" } as any}>
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white, cursor: "pointer" }}>
                   <option>Normal</option><option>Urgent</option><option>Critical</option>
                 </select>
               </div>
@@ -320,12 +324,21 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         placeholder="Qty *"
                         style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
-                      <input
-                        type="text"
-                        value={item.unit}
-                        readOnly
-                        style={{ width: 80, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
-                      />
+                      {!!item.itemId ? (
+                        <input
+                          type="text"
+                          value={item.unit}
+                          readOnly
+                          placeholder="Satuan"
+                          style={{ width: 80, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                        />
+                      ) : (
+                        <UnitCombobox
+                          value={item.unit}
+                          onChange={(val) => updateItem(idx, 'unit', val)}
+                          options={uniqueUnits}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -350,7 +363,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
               Batal
             </button>
             <button type="submit" disabled={!canSubmit || isSubmitting} style={{ padding: "10px 24px", background: "#EAB308", border: "none", borderRadius: 8, color: "#fff", fontSize: "13.5px", fontWeight: 600, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", fontFamily: S.font, opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
-              {isSubmitting ? "Menyimpan..." : (editRequest ? "Simpan Perubahan" : "Ajukan ke Supervisor")}
+              {isSubmitting ? "Menyimpan..." : (editRequest ? "Simpan Perubahan" : (currentUser?.role?.toLowerCase().includes("supervisor") ? "Buat Pengajuan" : "Ajukan ke Supervisor"))}
             </button>
           </div>
         </form>
