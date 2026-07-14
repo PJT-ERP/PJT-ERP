@@ -580,26 +580,29 @@ export function ProductionMaterialRequestPage() {
           purchaseCategory: item.purchaseCategory,
         })),
       });
-      try {
-        const { purchasingApi } = await import("../../services/purchasingApi");
-        if (result?.id) {
-          await purchasingApi.supervisorReviewPurchaseRequest(result.id, {
-            reviewedByUserId: requesterId,
-            decision: 'Accept',
-          });
-        }
-        const allReqs = await purchasingApi.listPurchaseRequests();
-        for (const req of allReqs || []) {
-          const isMatch = req.salesOrderId === salesOrderId || req.salesOrderId === so.backendId || req.salesOrderNumber === so.id || req.salesOrderNumber === so.soNumber || req.id === result?.id;
-          if (isMatch && (req.status === 'Submitted' || req.status === 'Pending')) {
-            await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      if (isSpvUser) {
+        try {
+          const { purchasingApi } = await import("../../services/purchasingApi");
+          if (result?.id) {
+            await purchasingApi.supervisorReviewPurchaseRequest(result.id, {
               reviewedByUserId: requesterId,
               decision: 'Accept',
             });
           }
+          const allReqs = await purchasingApi.listPurchaseRequests();
+          for (const req of allReqs || []) {
+            const isMatch = req.salesOrderId === salesOrderId || req.salesOrderId === so.backendId || req.salesOrderNumber === so.id || req.salesOrderNumber === so.soNumber || req.id === result?.id;
+            if (isMatch && (req.status === 'Submitted' || req.status === 'Pending')) {
+              await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
+                reviewedByUserId: requesterId,
+                decision: 'Accept',
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Auto review MR by SPV failed", e);
         }
-      } catch (e) {
-        console.warn("Auto review MR by SPV failed", e);
       }
       await refreshBackendData();
       setIsSuccess(true);

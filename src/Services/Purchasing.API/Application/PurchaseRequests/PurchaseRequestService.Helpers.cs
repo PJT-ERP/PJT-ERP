@@ -205,6 +205,7 @@ public sealed partial class PurchaseRequestService
         DateTime now)
     {
         if (purchaseRequest.Status is not PurchaseRequestStatuses.Submitted
+            and not PurchaseRequestStatuses.SupervisorApproved
             and not PurchaseRequestStatuses.FinanceRejected
             and not PurchaseRequestStatuses.Rejected)
         {

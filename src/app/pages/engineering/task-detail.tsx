@@ -448,30 +448,7 @@ export function EngineeringTaskDetailPage() {
         setCompletedAsSpv(true);
         await refreshBackendData();
         
-        // Save BOM to Master Data for Custom Products after SPV APPROVAL
-        for (const item of qut.items || []) {
-          const productInCatalog = productCatalog.find(p => p.id === item.productId);
-          const isStandardProduct = !!productInCatalog?.bomItems?.length;
-          if (!isStandardProduct) {
-            const mats = itemMaterials[item.id] || [];
-            if (mats.length === 0) continue;
-
-            const resolvedBomItems: { inventoryItemId: string; quantity: number }[] = [];
-            for (const m of mats) {
-              if (m.inventoryItemId && m.quantity > 0) {
-                resolvedBomItems.push({ inventoryItemId: m.inventoryItemId, quantity: m.quantity });
-              }
-            }
-
-            if (resolvedBomItems.length > 0) {
-              try {
-                await salesApi.updateProductBom(item.productId, { bomItems: resolvedBomItems });
-              } catch (err) {
-                console.warn(`Failed to attach BOM to custom product ${item.productId}`, err);
-              }
-            }
-          }
-        }
+// Extracted BOM saving logic to run unconditionally after any approval
         updateSalesOrder(qut.id, {
           designLink,
           designId: designLink,
@@ -500,6 +477,34 @@ export function EngineeringTaskDetailPage() {
           designApprovedAt: new Date().toISOString().split('T')[0]
         });
       }
+
+      // Save BOM to Master Data for Custom Products after ANY APPROVAL
+      for (const item of qut.items || []) {
+        // Find if this is a standard catalog product that already has a BOM
+        const productInCatalog = productCatalog.find(p => p.id === item.productId);
+        const isStandardProduct = !!productInCatalog?.bomItems?.length;
+        
+        if (!isStandardProduct) {
+          const mats = itemMaterials[item.id] || [];
+          if (mats.length === 0) continue;
+
+          const resolvedBomItems: { inventoryItemId: string; quantity: number }[] = [];
+          for (const m of mats) {
+            if (m.inventoryItemId && m.quantity > 0) {
+              resolvedBomItems.push({ inventoryItemId: m.inventoryItemId, quantity: m.quantity });
+            }
+          }
+
+          if (resolvedBomItems.length > 0) {
+            try {
+              await salesApi.updateProductBom(item.productId, { bomItems: resolvedBomItems });
+            } catch (err) {
+              console.warn(`Failed to attach BOM to custom product ${item.productId}`, err);
+            }
+          }
+        }
+      }
+
       setStep('done');
     } catch (err: any) {
       console.error(err);

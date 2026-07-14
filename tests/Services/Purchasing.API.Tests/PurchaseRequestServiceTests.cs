@@ -130,7 +130,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         var request = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
-        Assert.Equal(PurchaseRequestStatuses.Submitted, request.Status);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, request.Status);
         Assert.Equal(salesOrderId, request.SalesOrderId);
         Assert.Equal("SO-001", request.SalesOrderNumber);
         Assert.Equal(workerUserId, request.RequestedByUserId);
@@ -241,7 +241,7 @@ public sealed class PurchaseRequestServiceTests
                 [new CreatePurchaseRequestItem(requirement.Id, null, null, null, "", null, 5, "Supplier A", "Need material", "Critical")]),
             CancellationToken.None);
 
-        Assert.Equal(PurchaseRequestStatuses.Submitted, purchaseRequest.Status);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
         Assert.Equal(requirement.SalesOrderId, purchaseRequest.SalesOrderId);
         var item = Assert.Single(purchaseRequest.Items);
         Assert.Equal(requirement.Id, item.MaterialRequirementId);
@@ -284,7 +284,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         Assert.NotNull(updated);
-        Assert.Equal(PurchaseRequestStatuses.Submitted, updated.Status);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
         Assert.Null(updated.RejectionReason);
         Assert.Null(updated.SupervisorRejectionReason);
         Assert.Null(updated.FinanceRejectionReason);
