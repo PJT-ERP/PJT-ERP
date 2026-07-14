@@ -27,7 +27,9 @@ export function canLoadPurchaseRequests(role?: UserRole | null) {
     || role === "Owner";
 }
 
-export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = []): SalesOrder["materials"] {
+import { InventoryItemDto } from "../../../services/masterDataApi";
+
+export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder["materials"] {
   const legacyMaterials: any[] = [];
   const productsById = new Map(products.map(product => [product.id, product]));
 
@@ -66,6 +68,14 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
         if (match?.inventoryItemCode) {
           legacy.code = match.inventoryItemCode;
           break;
+        }
+      }
+      
+      // If still missing, try to find it in the inventory items directly
+      if (!legacy.code && inventoryItems.length > 0) {
+        const invMatch = inventoryItems.find(inv => inv.id === legacy.inventoryItemId);
+        if (invMatch?.code) {
+          legacy.code = invMatch.code;
         }
       }
     }
@@ -144,9 +154,9 @@ export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
   return bomsPerItem;
 }
 
-export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = []): SalesOrder {
+export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder {
   const primaryItem = order.items[0];
-  const materials = mapSalesOrderMaterials(order, products);
+  const materials = mapSalesOrderMaterials(order, products, inventoryItems);
   const bomsPerItem = mapBomsPerItem(order);
 
   return {

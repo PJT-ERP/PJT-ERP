@@ -60,7 +60,7 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
                     {m.code || m.inventoryItemCode}
                   </span>
                 ) : (
-                  <span style={{ color: "#94A3B8" }}>-</span>
+                  <span style={{ color: "#94A3B8", fontStyle: "italic", fontSize: "11.5px" }}>Custom</span>
                 )}
               </td>
               <td style={{ padding: "8px 12px", color: S.secondary }}>

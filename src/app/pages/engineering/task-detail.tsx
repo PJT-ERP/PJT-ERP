@@ -380,6 +380,7 @@ export function EngineeringTaskDetailPage() {
             const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
             if (existingItem) {
               invId = existingItem.id;
+              m.code = existingItem.code;
             } else {
               try {
                 const created = await masterDataApi.createInventoryItem({
@@ -396,6 +397,7 @@ export function EngineeringTaskDetailPage() {
                   unitPrice: 0,
                 });
                 invId = created.id;
+                m.code = created.code;
                 currentInv.push(created); // add to local list so next item can find it
               } catch (err) {
                 console.warn(`Failed to auto-create inventory item for "${m.name}"`, err);
@@ -405,6 +407,11 @@ export function EngineeringTaskDetailPage() {
           }
           // CRITICAL: save the resolved inventory ID back to the local object so bomsPerItem has it
           m.inventoryItemId = invId;
+          // Also ensure code is set from inventory if it was previously missing
+          if (!m.code && invId) {
+            const inv = currentInv.find(ci => ci.id === invId);
+            if (inv?.code) m.code = inv.code;
+          }
         }
       }
 
