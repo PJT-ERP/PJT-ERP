@@ -28,18 +28,45 @@ import { ProductionDetailModal } from "../../components/production/modals/Produc
 import { ReturnToSpvModal } from "../../components/production/modals/ReturnToSpvModal";
 function InlineBomDisplay({ so }: { so: SalesOrder }) {
   const materials = (so.materials && Array.isArray(so.materials) && so.materials.length > 0) ? so.materials : [];
-  if (materials.length === 0) {
-    return null;
-  }
+  
   return (
-    <div style={{ marginTop: 12, borderRadius: 8, border: `1px solid ${S.border}`, background: "#F8FAFC", overflow: "hidden" }} onClick={e => e.stopPropagation()}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 12px", background: "#F1F5F9", borderBottom: `1px solid ${S.border}`, fontSize: "11px", fontWeight: 600, color: S.slate, letterSpacing: "0.03em", textTransform: "uppercase" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Package size={13} style={{ color: S.cyan }} />
-          <span>Informasi BOM & Kebutuhan Material ({materials.length} Item)</span>
-        </div>
-      </div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+    <div style={{ display: "flex", gap: "16px", marginTop: 12 }} onClick={e => e.stopPropagation()}>
+       {/* Product Box */}
+       <div style={{ flex: "0 0 280px", borderRadius: 8, border: `1px solid ${S.border}`, background: "#F8FAFC", boxShadow: "0 1px 2px rgba(0,0,0,0.02)", display: "flex", flexDirection: "column", padding: "12px" }}>
+         <span style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: "10px" }}>Produk</span>
+         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignContent: "flex-start" }}>
+           {(so.description || "").split(',').map((prod, i) => (
+             <div key={i} style={{ 
+               background: "#FFFFFF", 
+               border: `1px solid ${S.border}`, 
+               borderRadius: "6px", 
+               padding: "10px 12px", 
+               display: "flex", 
+               flexDirection: "column",
+               flex: "1 1 auto",
+               minWidth: "100px"
+             }}>
+               <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{prod.trim()}</span>
+             </div>
+           ))}
+         </div>
+       </div>
+
+
+       {/* BOM Table */}
+       <div style={{ flex: 1, borderRadius: 8, border: `1px solid ${S.border}`, background: "#F8FAFC", overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 12px", background: "#F1F5F9", borderBottom: `1px solid ${S.border}`, fontSize: "11px", fontWeight: 600, color: S.slate, letterSpacing: "0.03em", textTransform: "uppercase" }}>
+           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+             <Package size={13} style={{ color: S.cyan }} />
+             <span>Informasi BOM & Kebutuhan Material ({materials.length} Item)</span>
+           </div>
+         </div>
+         {materials.length === 0 ? (
+           <div style={{ padding: "24px", textAlign: "center", fontSize: "13px", color: S.secondary, fontWeight: 500 }}>
+             BOM Belum Dibuat
+           </div>
+         ) : (
+           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
         <thead>
           <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
             <th style={{ padding: "6px 12px", fontWeight: 600, width: "35%" }}>Nama Material</th>
@@ -79,6 +106,8 @@ function InlineBomDisplay({ so }: { so: SalesOrder }) {
           ))}
         </tbody>
       </table>
+         )}
+       </div>
     </div>
   );
 }
@@ -136,6 +165,7 @@ export function ProductionPage() {
   const itemsPerPage = 5;
   const [pagePending, setPagePending] = useState(1);
   const [pageMaterialPrep, setPageMaterialPrep] = useState(1);
+  const [pageReadyToStart, setPageReadyToStart] = useState(1);
   const [pageInProd, setPageInProd] = useState(1);
   const [pageWaitQC, setPageWaitQC] = useState(1);
 
@@ -148,10 +178,6 @@ export function ProductionPage() {
     return false;
   };
 
-  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo);
-  const materialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so));
-  const inProduction = mergedSalesOrders.filter(so => (so.status === 'In Production' || so.status === 'Paused') && isAssignedToCurrentUser(so));
-  const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC');
 
   const getMaterialRequest = (so: SalesOrder) => {
     const backendId = getBackendSalesOrderId(so);
@@ -195,6 +221,20 @@ export function ProductionPage() {
     if (isSpvMade) return 'finance_pending';
     return 'requested';
   };
+
+  const checkMaterialComplete = (so: SalesOrder) => {
+    const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+    const mrState = getMaterialRequestState(so);
+    const hasMr = mrState !== 'none';
+    const mrReadyForAssignment = mrState === 'completed';
+    return hasBom && hasMr && mrReadyForAssignment;
+  };
+
+  const pendingMaterialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && !checkMaterialComplete(so));
+  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && checkMaterialComplete(so));
+  const readyToStart = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so));
+  const inProduction = mergedSalesOrders.filter(so => (so.status === 'In Production' || so.status === 'Paused') && isAssignedToCurrentUser(so));
+  const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC');
 
   const approveMaterialRequest = async (so: SalesOrder) => {
     const request = getMaterialRequest(so);
@@ -315,7 +355,82 @@ export function ProductionPage() {
         </div>
       </div>
 
-      {isSupervisor && pendingAssignment.length > 0 && (
+      {isSupervisor && (
+        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Package size={16} style={{ color: S.cyan }} />
+              <span style={{ color: S.slate, fontSize: "14px", fontWeight: 600 }}>Persiapan Material ({pendingMaterialPrep.length})</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {pendingMaterialPrep.length === 0 ? (
+              <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada pesanan pada tahap persiapan material</p>
+              </div>
+            ) : pendingMaterialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).map((so, idx) => {
+              const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+              const mrState = getMaterialRequestState(so);
+              const hasMr = mrState !== 'none';
+              const mrReadyForAssignment = mrState === 'completed';
+              const canAssignToOperator = hasBom && hasMr && mrReadyForAssignment;
+
+              return (
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < pendingMaterialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                    <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
+                        <StatusBadge status={so.status} />
+                        {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
+                        {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
+                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap</span>}
+                        {hasBom && mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Menunggu Review SPV</span>}
+                        {hasBom && (mrState === 'finance_pending' || mrState === 'approved') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DBEAFE", color: "#1E40AF", borderRadius: 4, fontWeight: 600, border: "1px solid #BFDBFE" }}>Sedang Diproses Purchasing</span>}
+                        {hasBom && mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#991B1B", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>MR Ditolak</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
+                        <DrawingLinks so={so} />
+                      </div>
+                    </div>
+                    {currentUser?.role !== 'Admin' && (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        {isSupervisor && mrState === 'requested' && (
+                          <button onClick={(e) => { e.stopPropagation(); setReviewMrModal(so); }}
+                            style={{ padding: "7px 12px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                            Review MR
+                          </button>
+                        )}
+                        {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/production/mr/${so.id}`); }}
+                            style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                            <FileWarning size={14} /> Material Kurang
+                          </button>
+                        )}
+                        {mrState === 'rejected' && isSupervisor && (
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/production/mr/${so.id}`); }}
+                            style={{ padding: "7px 12px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                            <FileWarning size={14} /> Ajukan Ulang MR
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ cursor: "pointer" }} onClick={() => setDetailModal(so)}>
+                    <InlineBomDisplay so={so} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <PaginationControl currentPage={pageMaterialPrep} totalItems={pendingMaterialPrep.length} itemsPerPage={itemsPerPage} onPageChange={setPageMaterialPrep} />
+        </div>
+      )}
+
+
+            {isSupervisor && (
         <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -324,7 +439,11 @@ export function ProductionPage() {
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).map((so, idx) => {
+            {pendingAssignment.length === 0 ? (
+              <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada pesanan yang menunggu penugasan operator</p>
+              </div>
+            ) : pendingAssignment.slice((pagePending - 1) * itemsPerPage, pagePending * itemsPerPage).map((so, idx) => {
               const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
               const mrState = getMaterialRequestState(so);
               const hasMr = mrState !== 'none';
@@ -336,12 +455,14 @@ export function ProductionPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
                         {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
                         {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
-                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap - Siap Tugaskan</span>}
-                        {hasBom && hasMr && !mrReadyForAssignment && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Material Belum Lengkap</span>}
+                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap</span>}
+                        {hasBom && mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Menunggu Review SPV</span>}
+                        {hasBom && (mrState === 'finance_pending' || mrState === 'approved') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DBEAFE", color: "#1E40AF", borderRadius: 4, fontWeight: 600, border: "1px solid #BFDBFE" }}>Sedang Diproses Purchasing</span>}
+                        {hasBom && mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#991B1B", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>MR Ditolak</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -351,43 +472,11 @@ export function ProductionPage() {
                     </div>
                     {currentUser?.role !== 'Admin' && (
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                        {isSupervisor && mrState === 'requested' && (
-                          <button onClick={() => setReviewMrModal(so)}
-                            style={{ padding: "7px 12px", background: "#EAB308", color: "#fff", border: "none", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-                            Review MR
-                          </button>
-                        )}
-                        {(mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
-                          <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                            style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                            <FileWarning size={14} /> Material Kurang
-                          </button>
-                        )}
-                        {mrState === 'rejected' && isSupervisor && (
-                          <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
-                            style={{ padding: "7px 12px", background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                            <FileWarning size={14} /> Ajukan Ulang MR
-                          </button>
-                        )}
                         <button
-                          onClick={() => {
-                            if (!canAssignToOperator) {
-                              let reason = "";
-                              if (!hasBom) reason = "BOM belum dibuat";
-                              else if (!hasMr) reason = "Material Request belum diajukan (klik 'Material Kurang')";
-                              else if (!mrReadyForAssignment) reason = "Material belum lengkap/diterima (status MR: " + mrState + ")";
-                              setSystemMessage({
-                                tone: "error",
-                                title: "Prasyarat Penugasan Belum Lengkap",
-                                message: `Tidak dapat menugaskan operator produksi untuk ${so.id}! ${reason}.`,
-                              });
-                            } else {
-                              setAssignModal(so);
-                            }
-                          }}
+                          onClick={(e) => { e.stopPropagation(); setAssignModal(so); }}
                           style={{
                             padding: "8px 14px",
-                            background: canAssignToOperator ? S.cyan : "#94A3B8",
+                            background: S.cyan,
                             color: "#fff",
                             border: "none",
                             borderRadius: 6,
@@ -416,28 +505,30 @@ export function ProductionPage() {
         </div>
       )}
 
+
+
       <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Package size={16} style={{ color: S.cyan }} />
-            <span style={{ color: S.slate, fontSize: "14px", fontWeight: 600 }}>Persiapan Material ({materialPrep.length})</span>
+            <PlayCircle size={16} style={{ color: S.cyan }} />
+            <span style={{ color: S.slate, fontSize: "14px", fontWeight: 600 }}>Siap Mulai Produksi ({readyToStart.length})</span>
           </div>
         </div>
-        {materialPrep.length === 0 ? (
+        {readyToStart.length === 0 ? (
           <div style={{ padding: "40px 20px", textAlign: "center" }}>
-            <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada persiapan material</p>
+            <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada mesin yang siap mulai</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).map((so, idx) => {
+            {readyToStart.slice((pageReadyToStart - 1) * itemsPerPage, pageReadyToStart * itemsPerPage).map((so, idx) => {
               const operator = users.find(u => u.id === so.assignedTo)?.name || so.assignedName || "-";
               const mrState = getMaterialRequestState(so);
               return (
-                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < materialPrep.slice((pageMaterialPrep - 1) * itemsPerPage, pageMaterialPrep * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "16px 18px", borderBottom: idx < readyToStart.slice((pageReadyToStart - 1) * itemsPerPage, pageReadyToStart * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
                         {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
                         {mrState === 'finance_pending' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 500, border: "1px solid #FCD34D" }}>MR Menunggu Purchasing</span>}
@@ -448,9 +539,7 @@ export function ProductionPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
-                        <span style={{ fontSize: "11.5px", background: operator !== "-" ? "#E0F2FE" : "#FEF2F2", color: operator !== "-" ? "#0369A1" : "#B91C1C", padding: "2px 8px", borderRadius: 6, border: `1px solid ${operator !== "-" ? "#7DD3FC" : "#FECACA"}`, fontWeight: 600 }}>
-                          Operator: {operator}
-                        </span>
+                        <span>Operator: <strong style={{ color: S.slate }}>{operator}</strong></span>
                         <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
                         <DrawingLinks so={so} />
                       </div>
@@ -511,8 +600,10 @@ export function ProductionPage() {
             })}
           </div>
         )}
-        <PaginationControl currentPage={pageMaterialPrep} totalItems={materialPrep.length} itemsPerPage={itemsPerPage} onPageChange={setPageMaterialPrep} />
+        <PaginationControl currentPage={pageReadyToStart} totalItems={readyToStart.length} itemsPerPage={itemsPerPage} onPageChange={setPageReadyToStart} />
       </div>
+
+
 
       <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
@@ -552,7 +643,7 @@ export function ProductionPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
                         <StatusBadge status={so.status} />
                         {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
                         {mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 500, border: "1px solid #FEF08A" }}>MR Menunggu Approval</span>}
@@ -564,9 +655,7 @@ export function ProductionPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
-                        <span style={{ fontSize: "11.5px", background: operator !== "-" ? "#E0F2FE" : "#FEF2F2", color: operator !== "-" ? "#0369A1" : "#B91C1C", padding: "2px 8px", borderRadius: 6, border: `1px solid ${operator !== "-" ? "#7DD3FC" : "#FECACA"}`, fontWeight: 600 }}>
-                          Operator: {operator}
-                        </span>
+                        <span>Operator: <strong style={{ color: S.slate }}>{operator}</strong></span>
                         <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
                         {so.startTime && <span>Mulai: <strong style={{ color: S.slate }}>{new Date(so.startTime).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}</strong></span>}
                         <DrawingLinks so={so} />

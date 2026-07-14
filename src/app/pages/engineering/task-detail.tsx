@@ -227,6 +227,7 @@ export function EngineeringTaskDetailPage() {
       } else {
         await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'Approved', notes: 'Design Inputted & Approved by SPV', reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || 'Supervisor', designReference: designLink && designLink.trim() !== '' ? designLink : undefined });
         updateSalesOrder(qut.id, { designLink, designId: designLink, designReference: designLink, materials: Object.values(itemMaterials).flat(), bomsPerItem: itemMaterials, status: 'Ready for Production', backendDesignStatus: 'Approved', designApprovedAt: new Date().toISOString().split('T')[0] });
+        setCompletedAsSpv(true);
       }
 
       for (const item of qut.items || []) {
