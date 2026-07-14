@@ -10,7 +10,7 @@ export function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: 
   const { users, currentUser, refreshBackendData } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const operators = users.filter(u => u.role === 'Engineering' && u.username !== 'eng_spv');
+  const operators = users.filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor');
 
   const handleAssign = async (operatorId: string) => {
     if (isSubmitting) return;

@@ -25,7 +25,7 @@ export function useBackendSync(currentUser: User | null) {
 
   const refreshBackendData = useCallback(async (callbacks: RefreshCallbacks) => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
-    const shouldLoadInvoices = !!currentUser;
+    const shouldLoadInvoices = currentUser && ['Admin', 'Finance', 'Owner', 'Sales'].includes(currentUser.role);
     const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult, inventoryResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
