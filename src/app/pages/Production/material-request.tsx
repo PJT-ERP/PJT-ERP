@@ -633,7 +633,7 @@ export function ProductionMaterialRequestPage() {
                 Material Request Berhasil Diajukan
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                Pengajuan MR untuk {so.id} telah dikirim ke Supervisor untuk direview sebelum diteruskan ke tim Purchasing.
+                Pengajuan MR untuk {so.id} telah dikirim ke {currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' ? 'tim Purchasing' : 'Supervisor untuk direview sebelum diteruskan ke tim Purchasing'}.
               </p>
               <button onClick={() => { navigate('/erp/production'); }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
             </div>

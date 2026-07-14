@@ -604,7 +604,7 @@ export function CreateInvoice() {
             </div>
 
             {/* Bottom Accent */}
-            <div className="mt-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 border-t border-slate-100 pt-10">
+            <div className="mt-20 flex flex-col justify-between items-start border-t border-slate-100 pt-10">
               <div className="text-left">
                 <p className="text-sm font-bold text-slate-800 mb-3">Informasi Pembayaran</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 inline-block shadow-sm">
@@ -612,10 +612,6 @@ export function CreateInvoice() {
                   <p className="text-lg font-black text-red-800 tracking-tight">Bank BCA - 8820748299</p>
                   <p className="text-sm font-semibold text-slate-700">a/n PT. PRATAMA JAYA TEKINDO</p>
                 </div>
-              </div>
-              <div className="text-left sm:text-right">
-                <p className="text-sm text-slate-500 font-semibold mb-1">Terima kasih atas kerja sama Anda.</p>
-                <p className="text-[11px] text-slate-400 font-medium">Dokumen ini dihasilkan oleh Sistem ERP PT. PRATAMA JAYA TEKINDO<br className="hidden sm:block"/>dan sah tanpa tanda tangan fisik.</p>
               </div>
             </div>
 
