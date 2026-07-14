@@ -61,10 +61,13 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
+    // Normalize inventoryItemId: repeat orders store it in `id`, manual entries use `inventoryItemId`
+    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') ? legacy.id : undefined);
+
     // Try to find the item code from the products if it's missing
-    if (!legacy.code && legacy.inventoryItemId) {
+    if (!legacy.code && resolvedInvId) {
       for (const p of products) {
-        const match = p.bomItems?.find(b => b.inventoryItemId === legacy.inventoryItemId);
+        const match = p.bomItems?.find(b => b.inventoryItemId === resolvedInvId);
         if (match?.inventoryItemCode) {
           legacy.code = match.inventoryItemCode;
           break;
@@ -73,19 +76,19 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       
       // If still missing, try to find it in the inventory items directly
       if (!legacy.code && inventoryItems.length > 0) {
-        const invMatch = inventoryItems.find(inv => inv.id === legacy.inventoryItemId);
+        const invMatch = inventoryItems.find(inv => inv.id === resolvedInvId);
         if (invMatch?.code) {
           legacy.code = invMatch.code;
         }
       }
     }
 
-    if (legacy.inventoryItemId) {
-      overriddenInventoryItemIds.add(legacy.inventoryItemId);
+    if (resolvedInvId) {
+      overriddenInventoryItemIds.add(resolvedInvId);
     }
 
     const specKey = legacy.spec || legacy.specification || "";
-    const key = `${legacy.inventoryItemId || legacy.name}|${specKey}|${legacy.unit}`;
+    const key = `${resolvedInvId || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);
