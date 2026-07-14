@@ -328,7 +328,7 @@ export function ProductionPage() {
               const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
               const mrState = getMaterialRequestState(so);
               const hasMr = mrState !== 'none';
-              const mrReadyForAssignment = mrState === 'approved' || mrState === 'completed';
+              const mrReadyForAssignment = mrState === 'completed';
               const canAssignToOperator = hasBom && hasMr && mrReadyForAssignment;
 
               return (
@@ -340,8 +340,8 @@ export function ProductionPage() {
                         <StatusBadge status={so.status} />
                         {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
                         {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
-                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Siap Tugaskan Operator</span>}
-                        {hasBom && hasMr && !mrReadyForAssignment && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>MR Belum Diproses Purchasing</span>}
+                        {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap - Siap Tugaskan</span>}
+                        {hasBom && hasMr && !mrReadyForAssignment && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Material Belum Lengkap</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -375,7 +375,7 @@ export function ProductionPage() {
                               let reason = "";
                               if (!hasBom) reason = "BOM belum dibuat";
                               else if (!hasMr) reason = "Material Request belum diajukan (klik 'Material Kurang')";
-                              else if (!mrReadyForAssignment) reason = "Material belum diproses Purchasing & diterima (status MR: " + mrState + ")";
+                              else if (!mrReadyForAssignment) reason = "Material belum lengkap/diterima (status MR: " + mrState + ")";
                               setSystemMessage({
                                 tone: "error",
                                 title: "Prasyarat Penugasan Belum Lengkap",
