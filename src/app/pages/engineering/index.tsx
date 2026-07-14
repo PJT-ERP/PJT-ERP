@@ -328,26 +328,15 @@ export function EngineeringPage() {
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                onClick={() => setShowScanner(true)}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  padding: "12px", borderRadius: 4, cursor: "pointer",
-                  background: S.cyan, border: `1px solid ${S.cyan}`,
-                  color: "#fff", fontSize: "13px", fontWeight: 600, fontFamily: S.font,
-                  transition: "opacity 0.1s", marginBottom: 4
-                }}
-              >
-                <QrCode size={16} /> Scan Barcode / QR Ticket
-              </button>
               {[
+                { label: "Scan Barcode / QR Ticket", icon: <QrCode size={13} />, action: "scan", primary: false },
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
                 { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: true },
-              ].filter(action => isSpv || action.path === "/erp/production").map((action) => (
+              ].filter(action => action.action === "scan" || (isSpv || action.path === "/erp/production")).map((action) => (
                 <button
                   key={action.label}
-                  onClick={() => navigate(action.path)}
+                  onClick={() => action.action === "scan" ? setShowScanner(true) : navigate(action.path!)}
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "9px 12px", borderRadius: 4, cursor: "pointer",
