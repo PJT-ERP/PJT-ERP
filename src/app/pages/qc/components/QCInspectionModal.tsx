@@ -256,6 +256,11 @@ export function QCInspectionModal({
                 * Link dimunculkan dalam mode abu-abu (readonly). Klik tombol <strong>"Edit Link"</strong> di sebelah kanan jika ingin mengubahnya.
               </p>
             )}
+            {!drawingLink && so.backendDesignStatus === 'Approved' && !so.designApprovedAt && (
+              <p style={{ fontSize: "12px", color: S.secondary, margin: "6px 0 0", fontStyle: "italic", padding: "6px 10px", background: "#F1F5F9", borderRadius: 6, border: "1px solid #E2E8F0" }}>
+                Produk terdaftar di katalog — tidak memerlukan desain.
+              </p>
+            )}
           </div>
 
           <div>
