@@ -447,7 +447,10 @@ export function ProductionMaterialRequestPage() {
       } else {
         const mats = getMaterialOptions(so);
         setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
-        setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+        setItems(mats.length > 0
+          ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+          : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
+        );
       }
     }).catch(() => {
       const mats = getMaterialOptions(so);
