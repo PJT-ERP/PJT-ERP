@@ -822,6 +822,60 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
+    public async Task FinanceApprove_manual_PR_publishes_PurchaseRequestFinanceApprovedEvent()
+    {
+        await using var db = CreateDbContext();
+        var publisher = new RecordingEventPublisher();
+        var service = CreateService(db, publisher);
+
+        // Create a manual/ad-hoc PR
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("99999999-9999-9999-9999-999999999999"),
+                "Office Admin",
+                null, null, null,
+                [new CreatePurchaseRequestItem(null, null, null, null, "Custom Table", null, 2, null, "Need a table", "Normal", "Consumable")],
+                RequireSupervisorApproval: true),
+            CancellationToken.None);
+
+        // Step 1: Supervisor accepts
+        await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(Guid.Parse("88888888-8888-8888-8888-888888888888"), "Accept", null, "Supervisor"),
+            CancellationToken.None);
+
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+
+        // Step 1.5: Purchasing sets pricing
+        await service.UpdatePurchaseItemInfoAsync(
+            purchaseRequest.Id, itemId,
+            new UpdatePurchaseItemInfoRequest("Supplier X", null, null, null, null, null, null, 1_000_000m),
+            CancellationToken.None);
+
+        publisher.PublishedEvents.Clear();
+
+        // Step 2: Finance approves
+        var reviewed = await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(Guid.Parse("66666666-6666-6666-6666-666666666666"), "Accept", null, "Finance"),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, reviewed!.Status);
+        
+        var financeApprovedEvent = publisher.PublishedEvents
+            .OfType<PurchaseRequestFinanceApprovedEvent>()
+            .SingleOrDefault();
+
+        Assert.NotNull(financeApprovedEvent);
+        Assert.Equal(purchaseRequest.Id, financeApprovedEvent.PurchaseRequestId);
+        
+        var item = Assert.Single(financeApprovedEvent.Items);
+        Assert.Equal("Custom Table", item.ItemName);
+        Assert.Equal("Consumable", item.PurchaseCategory);
+    }
+
+    [Fact]
     public async Task MaterialRequestSubmittedEventHandler_then_pricing_update_keeps_SupervisorApproved()
     {
         await using var db = CreateDbContext();
