@@ -122,6 +122,17 @@ export function CreatePurchaseRequestPage() {
         requireSupervisorApproval: false,
       });
 
+      if (created?.id) {
+        try {
+          await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+            reviewedByUserId: requesterId,
+            decision: 'Accept'
+          });
+        } catch (e) {
+          console.warn("Auto supervisor review failed for manual PR", e);
+        }
+      }
+
       await refreshBackendData();
       navigate("/erp/purchasing/requests");
     } catch (error: any) {

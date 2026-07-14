@@ -564,9 +564,16 @@ export function ProductionMaterialRequestPage() {
         console.warn("Auto-confirm SO silently failed or already confirmed", e);
       }
 
-      const result: any = await productionApi.submitMaterialRequest(salesOrderId, {
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      const { purchasingApi } = await import("../../services/purchasingApi");
+      await purchasingApi.createPurchaseRequest({
+        requestDate: formatBackendDate(new Date()),
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering",
+        requesterName: currentUser?.role || 'Engineering User',
+        salesOrderId: salesOrderId,
+        salesOrderNumber: so.id,
+        projectName: so.id,
+        requireSupervisorApproval: !isSpvUser,
         notes: notes || null,
         items: parsedItems.map(item => ({
           materialRequirementId: null,
@@ -580,30 +587,7 @@ export function ProductionMaterialRequestPage() {
           purchaseCategory: item.purchaseCategory,
         })),
       });
-      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
-      if (isSpvUser) {
-        try {
-          const { purchasingApi } = await import("../../services/purchasingApi");
-          if (result?.id) {
-            await purchasingApi.supervisorReviewPurchaseRequest(result.id, {
-              reviewedByUserId: requesterId,
-              decision: 'Accept',
-            });
-          }
-          const allReqs = await purchasingApi.listPurchaseRequests();
-          for (const req of allReqs || []) {
-            const isMatch = req.salesOrderId === salesOrderId || req.salesOrderId === so.backendId || req.salesOrderNumber === so.id || req.salesOrderNumber === so.soNumber || req.id === result?.id;
-            if (isMatch && (req.status === 'Submitted' || req.status === 'Pending')) {
-              await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
-                reviewedByUserId: requesterId,
-                decision: 'Accept',
-              });
-            }
-          }
-        } catch (e) {
-          console.warn("Auto review MR by SPV failed", e);
-        }
-      }
+
       await refreshBackendData();
       setIsSuccess(true);
     } catch (error: unknown) {
