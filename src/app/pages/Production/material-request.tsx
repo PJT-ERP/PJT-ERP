@@ -447,7 +447,10 @@ export function ProductionMaterialRequestPage() {
       } else {
         const mats = getMaterialOptions(so);
         setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
-        setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+        setItems(mats.length > 0
+          ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+          : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
+        );
       }
     }).catch(() => {
       const mats = getMaterialOptions(so);
@@ -561,10 +564,16 @@ export function ProductionMaterialRequestPage() {
         console.warn("Auto-confirm SO silently failed or already confirmed", e);
       }
 
-      await productionApi.submitMaterialRequest(salesOrderId, {
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      const { purchasingApi } = await import("../../services/purchasingApi");
+      const created = await purchasingApi.createPurchaseRequest({
+        requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering",
-        notes: notes || null,
+        requesterName: currentUser?.name || currentUser?.role || 'Engineering User',
+        salesOrderId: salesOrderId,
+        salesOrderNumber: so.id,
+        projectName: so.id,
+        requireSupervisorApproval: !isSpvUser,
         items: parsedItems.map(item => ({
           materialRequirementId: null,
           salesOrderItemId: null,
@@ -577,6 +586,18 @@ export function ProductionMaterialRequestPage() {
           purchaseCategory: item.purchaseCategory,
         })),
       });
+
+      if (isSpvUser && created?.id) {
+        try {
+          await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+            reviewedByUserId: requesterId,
+            decision: 'Accept',
+          });
+        } catch (e) {
+          console.warn("Auto supervisor review failed for production MR", e);
+        }
+      }
+
       await refreshBackendData();
       setIsSuccess(true);
     } catch (error: unknown) {
@@ -612,7 +633,7 @@ export function ProductionMaterialRequestPage() {
                 Material Request Berhasil Diajukan
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                Pengajuan MR untuk {so.id} telah dikirim ke Supervisor untuk direview sebelum diteruskan ke tim Purchasing.
+                Pengajuan MR untuk {so.id} telah dikirim ke {currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' ? 'tim Purchasing' : 'Supervisor untuk direview sebelum diteruskan ke tim Purchasing'}.
               </p>
               <button onClick={() => { navigate('/erp/production'); }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
             </div>

@@ -197,7 +197,7 @@ function mapDeliveryStatus(status: string): PO["deliveryStatus"] {
 }
 
 function mergeDeliveryStatus(current: PO["deliveryStatus"], next: PO["deliveryStatus"]): PO["deliveryStatus"] {
-  const rank: Record<PO["deliveryStatus"], number> = {
+  const rank: Record<string, number> = {
     Cancelled: 0,
     "In Transit": 1,
     Closed: 2,

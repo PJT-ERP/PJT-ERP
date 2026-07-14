@@ -166,8 +166,16 @@ export function PurchaseRequestDetailPage() {
         setInventoryItems(invData);
         const supNames = suppliersData.map(s => s.name);
 
-        const req = data.find(r => r.prNumber === id || r.id === id);
-        if (req && req.status !== "Submitted" && req.status !== "SupervisorRejected") {
+        const cleanId = id ? id.trim().toLowerCase() : "";
+        const req = data.find(r => 
+          (r.prNumber && r.prNumber.trim().toLowerCase() === cleanId) || 
+          (r.id && r.id.trim().toLowerCase() === cleanId)
+        );
+        if (!req) {
+          console.error("PR not found in backend data! Searched for ID:", cleanId, "Available PRs:", data.map(d => ({id: d.id, pr: d.prNumber, status: d.status})));
+        }
+        
+        if (req && req.status !== "SupervisorRejected") {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {

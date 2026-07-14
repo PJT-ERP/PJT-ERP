@@ -140,6 +140,23 @@ export function MaterialRequestModal({
           purchaseCategory: item.purchaseCategory,
         })),
       });
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      if (isSpvUser) {
+        try {
+          const { purchasingApi } = await import("../../../services/purchasingApi");
+          const reqs = await purchasingApi.listPurchaseRequests({ salesOrderId });
+          for (const req of reqs || []) {
+            if (req.status === 'Submitted' || req.status === 'Pending') {
+              await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
+                reviewedByUserId: requesterId,
+                decision: 'Accept',
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Auto review MR by SPV failed", e);
+        }
+      }
       onSubmitted();
       await refreshBackendData();
       window.setTimeout(() => {
@@ -147,8 +164,10 @@ export function MaterialRequestModal({
       }, 1500);
       onMessage({
         tone: "success",
-        title: "MR Diajukan ke Supervisor",
-        message: `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
+        title: isSpvUser ? "MR Dikirim ke Purchasing" : "MR Diajukan ke Supervisor",
+        message: isSpvUser 
+          ? `Material Request untuk ${so.id} berhasil disimpan dan langsung masuk ke antrian Purchasing.`
+          : `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
       });
       onClose();
     } catch (error: unknown) {

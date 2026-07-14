@@ -27,7 +27,9 @@ export function canLoadPurchaseRequests(role?: UserRole | null) {
     || role === "Owner";
 }
 
-export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = []): SalesOrder["materials"] {
+import { InventoryItemDto } from "../../../services/masterDataApi";
+
+export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder["materials"] {
   const legacyMaterials: any[] = [];
   const productsById = new Map(products.map(product => [product.id, product]));
 
@@ -59,23 +61,42 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
+    // Normalize inventoryItemId: repeat orders store it in `id`, manual entries use `inventoryItemId`
+    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') ? legacy.id : undefined);
+
     // Try to find the item code from the products if it's missing
-    if (!legacy.code && legacy.inventoryItemId) {
+    if (!legacy.code && resolvedInvId) {
       for (const p of products) {
-        const match = p.bomItems?.find(b => b.inventoryItemId === legacy.inventoryItemId);
+        const match = p.bomItems?.find(b => b.inventoryItemId === resolvedInvId);
         if (match?.inventoryItemCode) {
           legacy.code = match.inventoryItemCode;
           break;
         }
       }
+      
+      // If still missing, try to find it in the inventory items directly
+      if (!legacy.code && inventoryItems.length > 0) {
+        const invMatch = inventoryItems.find(inv => inv.id === resolvedInvId);
+        if (invMatch?.code) {
+          legacy.code = invMatch.code;
+        }
+      }
     }
 
-    if (legacy.inventoryItemId) {
-      overriddenInventoryItemIds.add(legacy.inventoryItemId);
+    // Strip code prefix from name for legacy repeat orders that embedded it (e.g. "MAT-001 - S45C Round Bar")
+    if (legacy.code && legacy.name) {
+      const codePrefix = `${legacy.code} - `;
+      if (legacy.name.startsWith(codePrefix)) {
+        legacy.name = legacy.name.slice(codePrefix.length);
+      }
+    }
+
+    if (resolvedInvId) {
+      overriddenInventoryItemIds.add(resolvedInvId);
     }
 
     const specKey = legacy.spec || legacy.specification || "";
-    const key = `${legacy.inventoryItemId || legacy.name}|${specKey}|${legacy.unit}`;
+    const key = `${resolvedInvId || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);
@@ -96,7 +117,8 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       const bomQuantity = Number(bomItem.quantity || 0);
       if (bomQuantity <= 0) return;
 
-      const specKey = bomItem.inventoryItemCode || "";
+      const specVal = bomItem.specification || bomItem.spec || "";
+      const specKey = specVal || bomItem.inventoryItemCode || "";
       const key = `${bomItem.inventoryItemId || bomItem.inventoryItemName}|${specKey}|${bomItem.unit}`;
       const existing = materialsByKey.get(key);
       const quantity = bomQuantity * Math.max(itemQuantity, 1);
@@ -111,8 +133,8 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
         inventoryItemId: bomItem.inventoryItemId,
         name: bomItem.inventoryItemName,
         code: bomItem.inventoryItemCode,
-        spec: "",
-        specification: "",
+        spec: specVal,
+        specification: specVal,
         quantity,
         unit: bomItem.unit,
       });
@@ -144,9 +166,9 @@ export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
   return bomsPerItem;
 }
 
-export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = []): SalesOrder {
+export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder {
   const primaryItem = order.items[0];
-  const materials = mapSalesOrderMaterials(order, products);
+  const materials = mapSalesOrderMaterials(order, products, inventoryItems);
   const bomsPerItem = mapBomsPerItem(order);
 
   return {
@@ -280,7 +302,7 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
   if (order.status === "Completed" || qcDecisionLower === "pass" || qcDecisionLower === "go") {
     if (invoices.length > 0) {
       const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
-      if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
+      if (invoice && invoice.status !== "Paid" && invoice.status !== "PAID") {
         return "Waiting Payment";
       }
     }

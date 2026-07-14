@@ -1,21 +1,22 @@
 import React, { useState, useCallback } from "react";
 import {
-  Plus, RefreshCw, ChevronLeft, CheckCircle2,
-  User, Building2, Phone, Mail, MapPin,
-  Package, Hash, Calendar, FileText, Search,
+  ChevronLeft,
   ChevronRight,
-  Layers, DollarSign
+  CheckCircle2, RefreshCw,
+  Layers, Search, Building2, Phone, Mail, MapPin,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { salesApi } from "../../services/salesApi";
-import {
-  Label, Input, CurrencyInput, Textarea, Select,
-  SearchableCustomerSelect, SectionCard, Grid2
-} from "./create/FormHelpers";
+import { Select, SectionCard, Label, SearchableCustomerSelect } from "./create/FormHelpers";
 import {
   ProductRow, ProductOption, emptyProduct,
-  ProductLineItem, AddProductBtn
+  AddProductBtn, ProductLineItem
 } from "./create/ProductLineItem";
+import { SuccessScreen } from "./create/SuccessScreen";
+import { OrderTypeSelector } from "./create/OrderTypeSelector";
+import { CustomerSection } from "./create/CustomerSection";
+import { OrderDetailSection } from "./create/OrderDetailSection";
+import { PricingSection } from "./create/PricingSection";
 
 interface SOCreateProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -31,9 +32,7 @@ const S = {
   secondary: "#475569",
   border: "#CBD5E1",
   bg: "#F1F5F9",
-  bgHover: "#E2E8F0",
   white: "#FFFFFF",
-  red: "#EF4444",
   cyan: "#C8102E",
 };
 
@@ -124,6 +123,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     ? customers.find(c => c.code === repeatForm.customerId)
     : null;
 
+  // ── Effects ──
   React.useEffect(() => {
     if (orderType === "repeat" && repeatForm.previousSoId && repeatProducts.length === 0 && salesOrders.length > 0) {
       const selectedSo = salesOrders.find(so => so.id === repeatForm.previousSoId || so.soNumber === repeatForm.previousSoId);
@@ -148,7 +148,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             if (matchedProduct) {
               materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
                 id: b.inventoryItemId,
-                name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                name: b.inventoryItemName,
+                code: b.inventoryItemCode,
                 specification: "",
                 quantity: String(b.quantity || b.qty),
                 unit: b.unit,
@@ -218,12 +219,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   }, [isExistingCustomer, isEdit, orderType]);
 
+  // ── Product list helpers ──
   const handleBack = () => {
-    if (orderType) {
-      handleReset();
-    } else {
-      onNavigate("so-list");
-    }
+    if (orderType) { handleReset(); } else { onNavigate("so-list"); }
   };
 
   const updateProduct = useCallback((id: string, updated: ProductRow, list: ProductRow[], setter: React.Dispatch<React.SetStateAction<ProductRow[]>>) => {
@@ -252,20 +250,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     setRepeatProducts([]);
   };
 
-  const ensureCustomerId = async (input: {
-    code: string;
-    company: string;
-    customerName: string;
-    email?: string;
-    phone?: string;
-    address?: string;
-  }) => {
+  // ── Backend integration ──
+  const ensureCustomerId = async (input: { code: string; company: string; customerName: string; email?: string; phone?: string; address?: string }) => {
     const code = input.code.trim().toUpperCase();
     const backendCustomers = await salesApi.listCustomers();
     const existing = backendCustomers.find(customer => customer.code.toUpperCase() === code);
-    if (existing) {
-      return { id: existing.id, code: existing.code, isNew: false };
-    }
+    if (existing) return { id: existing.id, code: existing.code, isNew: false };
 
     const created = await salesApi.createCustomer({
       code,
@@ -281,9 +271,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const ensureProductId = async (row: ProductRow, nextPrdNum: { current: number }) => {
     if (row.type === "existing" && row.productName) {
       const selected = catalogProductOptions.find(product => product.label === row.productName || product.label.includes(row.productName));
-      if (selected) {
-        return { id: selected.id, isNew: false };
-      }
+      if (selected) return { id: selected.id, isNew: false };
     }
 
     const name = (row.type === "custom" ? row.customName : row.productName).trim();
@@ -292,17 +280,14 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       partNumber: "",
       description: fallbackName,
       unit: row.unit || "pcs",
-      materialSpec: row.materials.map(material => material.specification || material.name).filter(Boolean).join("; ") || row.notes || null,
+      materialSpec: row.materials.map(m => m.specification || m.name).filter(Boolean).join("; ") || row.notes || null,
     });
     return { id: created.id, isNew: true };
   };
 
   const createSalesOrderFromRows = async (
-    customerId: string,
-    targetDate: string,
-    customerDrawingUrl: string,
-    rows: ProductRow[],
-    designStatus?: string,
+    customerId: string, targetDate: string, customerDrawingUrl: string,
+    rows: ProductRow[], designStatus?: string,
   ) => {
     let maxPrd = 0;
     productCatalog.forEach(p => {
@@ -331,32 +316,24 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         });
       }
 
-      const payload = {
-        customerId,
-        soDate: today,
-        targetDate,
+      return await salesApi.createSalesOrder({
+        customerId, soDate: today, targetDate,
         customerDrawingUrl: customerDrawingUrl || null,
         designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
         designStatus: designStatus ?? (rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved"),
         items,
-      };
-
-      return await salesApi.createSalesOrder(payload);
+      });
     } catch (error) {
       for (const pid of newlyCreatedProductIds) {
-        try {
-          await salesApi.deleteProduct(pid);
-        } catch (e) {
-          console.error("Failed to rollback orphaned product", pid, e);
-        }
+        try { await salesApi.deleteProduct(pid); } catch (e) { console.error("Failed to rollback orphaned product", pid, e); }
       }
       throw error;
     }
   };
 
+  // ── Submit handlers ──
   const handleNewOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (isEdit && editSoId) {
       window.alert("Edit Sales Order langsung belum tersedia di backend. Buat SO baru dari QUT atau repeat order untuk E2E.");
       return;
@@ -372,33 +349,24 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       }
 
       const customerRes = await ensureCustomerId({
-        code: customerForm.customerCode,
-        company: customerForm.company,
-        customerName: customerForm.customerName,
-        email: customerForm.email,
-        phone: customerForm.phone,
-        address: customerForm.address,
+        code: customerForm.customerCode, company: customerForm.company,
+        customerName: customerForm.customerName, email: customerForm.email,
+        phone: customerForm.phone, address: customerForm.address,
       });
       
       try {
         const custProduct = products.find(p => p.type === "custom" && p.designId === "customer");
         const finalImageUrl = custProduct?.customerDesignUrl || "";
         const created = await createSalesOrderFromRows(customerRes.id, customerForm.deadline, finalImageUrl, products);
-
         if (customerForm.estimatedAmount) {
           updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
         }
-
         await refreshBackendData();
         setGeneratedSONumber(created.soNumber);
         setSubmitted(true);
       } catch (error) {
         if (customerRes.isNew) {
-          try {
-            await salesApi.deleteCustomer(customerRes.code);
-          } catch (e) {
-            console.error("Failed to rollback orphaned customer", customerRes.code, e);
-          }
+          try { await salesApi.deleteCustomer(customerRes.code); } catch (e) { console.error("Failed to rollback orphaned customer", customerRes.code, e); }
         }
         throw error;
       }
@@ -425,33 +393,25 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       }
 
       const customerRes = await ensureCustomerId({
-        code: selectedCustomer.code,
-        company: selectedCustomer.name,
+        code: selectedCustomer.code, company: selectedCustomer.name,
         customerName: selectedCustomer.contactPerson || selectedCustomer.name,
         email: selectedCustomer.email || selectedCustomer.contact,
-        phone: selectedCustomer.phone,
-        address: selectedCustomer.address,
+        phone: selectedCustomer.phone, address: selectedCustomer.address,
       });
       
       try {
         const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
         const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
         const created = await createSalesOrderFromRows(customerRes.id, repeatForm.deadline, finalImageUrl, repeatProducts, "Approved");
-
         if (repeatForm.estimatedAmount) {
           updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
         }
-
         await refreshBackendData();
         setGeneratedSONumber(created.soNumber);
         setSubmitted(true);
       } catch (error) {
         if (customerRes.isNew) {
-          try {
-            await salesApi.deleteCustomer(customerRes.code);
-          } catch (e) {
-            console.error("Failed to rollback orphaned customer", customerRes.code, e);
-          }
+          try { await salesApi.deleteCustomer(customerRes.code); } catch (e) { console.error("Failed to rollback orphaned customer", customerRes.code, e); }
         }
         throw error;
       }
@@ -464,55 +424,28 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
+  // ── Submitted state ──
   if (submitted) {
-    const totalItems = orderType === "repeat"
-      ? repeatProducts.length
-      : products.length;
+    const totalItems = orderType === "repeat" ? repeatProducts.length : products.length;
     const isCustomSubmit = orderType === "repeat"
       ? repeatProducts.some(r => r.type === "custom")
       : products.some(r => r.type === "custom");
 
     return (
-      <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
-        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 8, padding: 40, textAlign: "center", maxWidth: 460, width: "100%" }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-            <CheckCircle2 size={28} style={{ color: "#22C55E" }} />
-          </div>
-          <h2 style={{ color: S.slate, marginBottom: 6 }}>{isEdit ? "Sales Order Diperbarui" : "Sales Order Dibuat"}</h2>
-          <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Sales Order:</p>
-          <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedSONumber}</p>
-          <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
-            {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Tersimpan di backend"}
-          </p>
-          <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4, padding: "10px 14px", marginBottom: 24, textAlign: "left" }}>
-            <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>
-              <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
-              {" "}
-              {isCustomSubmit
-                ? "Pesanan telah disimpan. Anda dapat mengubah referensi desain dari Detail SO kapan saja sebelum tim Engineering memulai tahap produksi (In Production)."
-                : "Pesanan telah disimpan dan Harga telah ditetapkan. Pesanan akan diteruskan ke tim Finance untuk pembuatan Invoice DP."}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={handleReset}
-              style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
-              onMouseLeave={e => (e.currentTarget.style.background = S.white)}
-            >Buat SO Lagi</button>
-            <button onClick={() => onNavigate("so-list")}
-              style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "opacity 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
-              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-            >Lihat Daftar SO</button>
-          </div>
-        </div>
-      </div>
+      <SuccessScreen
+        generatedSoNumber={generatedSONumber}
+        totalItems={totalItems}
+        isCustomSubmit={isCustomSubmit}
+        isEdit={isEdit}
+        onReset={handleReset}
+        onViewList={() => onNavigate("so-list")}
+      />
     );
   }
 
+  // ── Main render ──
   return (
     <div style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
-
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button onClick={handleBack}
           style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.secondary, cursor: "pointer", transition: "background 0.12s, color 0.12s", flexShrink: 0 }}
@@ -550,122 +483,25 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         })}
       </div>
 
-      {!orderType && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, maxWidth: 860 }}>
-          {[
-            { type: "new" as const, icon: <Plus size={22} style={{ color: "#10B981" }} />, title: "Pesanan Baru (New Order)", desc: "Buat Sales Order baru dari awal. Dapat dilanjutkan ke request desain jika pesanan bersifat custom.", accentColor: "#10B981" },
-            { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.", accentColor: "#6366F1" },
-          ].map(card => (
-            <button key={card.type} onClick={() => setOrderType(card.type)}
-              style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `2px solid ${S.border}`, borderRadius: 8, padding: 22, textAlign: "left", cursor: "pointer", transition: "border-color 0.15s, box-shadow 0.15s, transform 0.1s", fontFamily: S.font }}
-              onMouseEnter={e => { (e.currentTarget).style.borderColor = card.accentColor; (e.currentTarget).style.boxShadow = `0 4px 12px ${card.accentColor}33`; (e.currentTarget).style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { (e.currentTarget).style.borderColor = S.border; (e.currentTarget).style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)"; (e.currentTarget).style.transform = "translateY(0)"; }}
-            >
-              <div style={{ width: 42, height: 42, borderRadius: 8, background: S.bgHover, border: `1px solid ${S.border}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-                {card.icon}
-              </div>
-              <h3 style={{ color: S.slate, margin: "0 0 6px", fontSize: "16px", fontWeight: 600 }}>{card.title}</h3>
-              <p style={{ color: S.secondary, fontSize: "13px", margin: 0, lineHeight: 1.6 }}>{card.desc}</p>
-            </button>
-          ))}
-        </div>
-      )}
+      {!orderType && <OrderTypeSelector onSelect={setOrderType} />}
 
+      {/* ===== New Order Form ===== */}
       {orderType === "new" && (
-        <form onSubmit={handleNewOrderSubmit}
-          style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
+        <form onSubmit={handleNewOrderSubmit} style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
+          <CustomerSection
+            form={{ customerCode: customerForm.customerCode, customerName: customerForm.customerName, company: customerForm.company, phone: customerForm.phone, email: customerForm.email, address: customerForm.address }}
+            onChange={f => setCustomerForm({ ...customerForm, ...f })}
+            isExistingCustomer={isExistingCustomer}
+            onToggleExisting={setIsExistingCustomer}
+            customers={customers}
+          />
 
-          <SectionCard title="Informasi Pelanggan" icon={<User size={14} />}>
-            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsExistingCustomer(false);
-                  setCustomerForm({ ...customerForm, customerCode: "", customerName: "", company: "", phone: "", email: "", address: "" });
-                }}
-                style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: !isExistingCustomer ? 600 : 400, background: !isExistingCustomer ? S.primary : S.white, color: !isExistingCustomer ? S.white : S.secondary, border: `1px solid ${!isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
-              >
-                Pelanggan Baru
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsExistingCustomer(true);
-                  setCustomerForm({ ...customerForm, customerCode: "", customerName: "", company: "", phone: "", email: "", address: "" });
-                }}
-                style={{ padding: "6px 14px", borderRadius: 4, fontSize: "12.5px", fontWeight: isExistingCustomer ? 600 : 400, background: isExistingCustomer ? S.primary : S.white, color: isExistingCustomer ? S.white : S.secondary, border: `1px solid ${isExistingCustomer ? S.primary : S.border}`, cursor: "pointer", fontFamily: S.font, transition: "all 0.15s" }}
-              >
-                Pelanggan Terdaftar
-              </button>
-            </div>
-
-            {isExistingCustomer && (
-              <div style={{ marginBottom: 16 }}>
-                <Label text="Pilih Pelanggan Existing" required />
-                <SearchableCustomerSelect
-                  customers={customers}
-                  value={customerForm.customerCode}
-                  onChange={val => {
-                    const c = customers.find(cust => cust.code === val);
-                    if (c) {
-                      setCustomerForm({
-                        ...customerForm,
-                        customerCode: c.code,
-                        customerName: c.contactPerson || c.name,
-                        company: c.name,
-                        phone: c.phone || "",
-                        email: c.email || c.contact || "",
-                        address: c.address || "",
-                      });
-                    }
-                  }}
-                />
-              </div>
-            )}
-
-            <Grid2>
-              <div>
-                <Label text="Kode Pelanggan (Auto)" required />
-                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 4, height: "32px", boxSizing: "border-box" }}>
-                  <Hash size={13} style={{ color: "#2563EB" }} />
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#1E3A8A", fontFamily: "monospace", opacity: customerForm.customerCode ? 1 : 0.6 }}>{customerForm.customerCode || "Otomatis"}</span>
-                </div>
-              </div>
-              <div>
-                <Label text="Nama Kontak (PIC)" required />
-                <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" value={customerForm.customerName} onChange={e => setCustomerForm({ ...customerForm, customerName: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
-              </div>
-              <div>
-                <Label text="Nama Perusahaan" required />
-                <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" value={customerForm.company} onChange={e => setCustomerForm({ ...customerForm, company: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
-              </div>
-              <div>
-                <Label text="No. Telepon" required />
-                <Input icon={<Phone size={11} />} type="tel" placeholder="08xxxxxxxxxx" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
-              </div>
-              <div>
-                <Label text="Email" required />
-                <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Label text="Alamat Pengiriman" required />
-                <Textarea placeholder="Alamat lengkap tujuan pengiriman" value={customerForm.address} onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })} required readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
-              </div>
-            </Grid2>
-          </SectionCard>
-
-          <SectionCard title="Detail Order" icon={<Calendar size={14} />}>
-            <Grid2>
-              <div>
-                <Label text="Target Pengiriman (Project Deadline)" required />
-                <Input icon={<Calendar size={11} />} type="date" value={customerForm.deadline} onChange={e => setCustomerForm({ ...customerForm, deadline: e.target.value })} required />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Label text="Catatan Umum" />
-                <Input placeholder="Instruksi umum, catatan pengiriman..." value={customerForm.generalNotes} onChange={e => setCustomerForm({ ...customerForm, generalNotes: e.target.value })} />
-              </div>
-            </Grid2>
-          </SectionCard>
+          <OrderDetailSection
+            deadline={customerForm.deadline}
+            onDeadlineChange={v => setCustomerForm({ ...customerForm, deadline: v })}
+            generalNotes={customerForm.generalNotes}
+            onNotesChange={v => setCustomerForm({ ...customerForm, generalNotes: v })}
+          />
 
           <SectionCard
             title={`Daftar Produk (${products.length} item)`}
@@ -685,15 +521,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             </div>
           </SectionCard>
 
-          <SectionCard title="Penetapan Harga" icon={<DollarSign size={14} />}>
-            <div style={{ padding: 14, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6 }}>
-              <Label text="Harga Estimasi / Nilai Kesepakatan Awal (Opsional)" />
-              <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 12 }}>Rp</span>} placeholder="0" value={customerForm.estimatedAmount || 0} onChange={(val: number) => setCustomerForm({ ...customerForm, estimatedAmount: val })} />
-              <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.secondary }}>
-                *Jika Anda telah menyepakati harga dengan pelanggan, isikan total nilainya di sini. Pesanan akan otomatis melewati tahap "Waiting Pricing" dari Finance, sehingga Produksi bisa langsung dimulai. Jika dikosongkan, Finance yang akan menentukan harganya.
-              </p>
-            </div>
-          </SectionCard>
+          <PricingSection
+            estimatedAmount={customerForm.estimatedAmount || 0}
+            onChange={val => setCustomerForm({ ...customerForm, estimatedAmount: val })}
+          />
 
           <div style={{ display: "flex", gap: 10 }}>
             <button type="button" onClick={handleReset}
@@ -712,10 +543,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </form>
       )}
 
+      {/* ===== Repeat Order Form ===== */}
       {orderType === "repeat" && (
-        <form onSubmit={handleRepeatOrderSubmit}
-          style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
-
+        <form onSubmit={handleRepeatOrderSubmit} style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
           <SectionCard title="Pilih Pelanggan" icon={<Search size={14} />}>
             <div style={{ marginBottom: selectedCustomer ? 14 : 0 }}>
               <Label text="Pelanggan" required />
@@ -730,8 +560,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             </div>
             {selectedCustomer && (
               <div style={{ marginBottom: 14 }}>
-                <Label text="Sales Order Sebelumnya" required />
-                <Select value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)} required>
+                <Select required value={repeatForm.previousSoId} onChange={e => handleRepeatSoSelect(e.target.value)}>
                   <option value="">— Pilih SO untuk di-repeat —</option>
                   {salesOrders.filter(so => selectedCustomer && so.customerId === selectedCustomer.code).map(so => (
                     <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description}</option>
@@ -756,18 +585,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             )}
           </SectionCard>
 
-          <SectionCard title="Detail Order" icon={<Calendar size={14} />}>
-            <Grid2>
-              <div>
-                <Label text="Target Pengiriman (Project Deadline)" required />
-                <Input icon={<Calendar size={11} />} type="date" value={repeatForm.deadline} onChange={e => setRepeatForm({ ...repeatForm, deadline: e.target.value })} required />
-              </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <Label text="Catatan Umum" />
-                <Input placeholder="Tambahan catatan khusus..." value={repeatForm.generalNotes} onChange={e => setRepeatForm({ ...repeatForm, generalNotes: e.target.value })} />
-              </div>
-            </Grid2>
-          </SectionCard>
+          <OrderDetailSection
+            deadline={repeatForm.deadline}
+            onDeadlineChange={v => setRepeatForm({ ...repeatForm, deadline: v })}
+            generalNotes={repeatForm.generalNotes}
+            onNotesChange={v => setRepeatForm({ ...repeatForm, generalNotes: v })}
+          />
 
           <SectionCard
             title={`Produk Repeat Order (${repeatProducts.length} item)`}
@@ -793,15 +616,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             )}
           </SectionCard>
 
-          <SectionCard title="Penetapan Harga" icon={<DollarSign size={14} />}>
-            <div style={{ padding: 14, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6 }}>
-              <Label text="Harga Estimasi / Nilai Kesepakatan Awal (Opsional)" />
-              <CurrencyInput icon={<span style={{ fontWeight: 600, fontSize: 12 }}>Rp</span>} placeholder="0" value={repeatForm.estimatedAmount || 0} onChange={(val: number) => setRepeatForm({ ...repeatForm, estimatedAmount: val })} />
-              <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.secondary }}>
-                *Jika Anda telah menyepakati harga dengan pelanggan, isikan total nilainya di sini. Pesanan akan otomatis melewati tahap "Waiting Pricing" dari Finance, sehingga Produksi bisa langsung dimulai. Jika dikosongkan, Finance yang akan menentukan harganya.
-              </p>
-            </div>
-          </SectionCard>
+          <PricingSection
+            estimatedAmount={repeatForm.estimatedAmount || 0}
+            onChange={val => setRepeatForm({ ...repeatForm, estimatedAmount: val })}
+          />
 
           <div style={{ display: "flex", gap: 10 }}>
             <button type="button" onClick={handleReset}
@@ -819,7 +637,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           </div>
         </form>
       )}
-
     </div>
   );
 }

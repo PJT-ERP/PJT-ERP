@@ -22,7 +22,7 @@ export function ProductsPage() {
   
   const [selectedProduct, setSelectedProduct] = useState<ProductDto | null>(null);
   const [isEditingBom, setIsEditingBom] = useState(false);
-  const [bomItems, setBomItems] = useState<{ inventoryItemId: string; quantity: string }[]>([]);
+  const [bomItems, setBomItems] = useState<{ inventoryItemId: string; quantity: string; specification?: string }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const filtered = productCatalog.filter(p => 
@@ -37,26 +37,49 @@ export function ProductsPage() {
     setSelectedProduct(p);
     setBomItems(p.bomItems?.map(b => ({
       inventoryItemId: b.inventoryItemId,
-      quantity: String(b.quantity)
+      quantity: String(b.quantity),
+      specification: b.specification || b.spec || ""
     })) || []);
     setIsEditingBom(true);
   };
 
   const handleAddBomItem = () => {
-    setBomItems([...bomItems, { inventoryItemId: '', quantity: '1' }]);
+    setBomItems([...bomItems, { inventoryItemId: '', quantity: '1', specification: '' }]);
   };
 
   const handleRemoveBomItem = (index: number) => {
     setBomItems(bomItems.filter((_, i) => i !== index));
   };
 
+  const getDuplicateIndices = () => {
+    const seenKeys = new Map<string, number>();
+    const dupes = new Set<number>();
+    for (let i = 0; i < bomItems.length; i++) {
+      const b = bomItems[i];
+      if (!b.inventoryItemId) continue;
+      const specKey = (b.specification || "").trim().toLowerCase();
+      const key = `${b.inventoryItemId}|${specKey}`;
+      if (seenKeys.has(key)) {
+        dupes.add(i);
+        dupes.add(seenKeys.get(key)!);
+      } else {
+        seenKeys.set(key, i);
+      }
+    }
+    return dupes;
+  };
+  const duplicateIndices = getDuplicateIndices();
+  const hasDuplicateMaterial = duplicateIndices.size > 0;
+
   const handleSaveBom = async () => {
-    if (!selectedProduct) return;
+    if (!selectedProduct || hasDuplicateMaterial) return;
     try {
       setIsSaving(true);
       const parsedItems = bomItems.filter(b => b.inventoryItemId && Number(b.quantity) > 0).map(b => ({
         inventoryItemId: b.inventoryItemId,
-        quantity: Number(b.quantity)
+        quantity: Number(b.quantity),
+        specification: (b.specification || "").trim(),
+        spec: (b.specification || "").trim()
       }));
       await salesApi.updateProductBom(selectedProduct.id, { bomItems: parsedItems });
       await refreshBackendData();
@@ -178,50 +201,73 @@ export function ProductsPage() {
 
         {/* BOM EDITOR */}
         {isEditingBom && selectedProduct && (
-          <div style={{ width: 400, background: S.white, borderRadius: 12, border: `1px solid ${S.border}`, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
+          <div style={{ width: 540, background: S.white, borderRadius: 12, border: `1px solid ${S.border}`, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: 16, borderBottom: `1px solid ${S.border}`, background: "#F8FAFC", borderRadius: "12px 12px 0 0" }}>
               <h3 style={{ margin: 0, fontSize: "15px", color: S.slate }}>Kelola Standard BOM</h3>
               <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: S.secondary, fontWeight: 500 }}>{selectedProduct.partNumber} - {selectedProduct.description}</p>
             </div>
             
             <div style={{ padding: 16, flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-              {bomItems.map((item, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", background: "#F1F5F9", padding: 12, borderRadius: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: "block", fontSize: "11px", color: S.secondary, marginBottom: 4 }}>Material</label>
-                    <select
-                      value={item.inventoryItemId}
-                      onChange={e => {
-                        const newItems = [...bomItems];
-                        newItems[idx].inventoryItemId = e.target.value;
-                        setBomItems(newItems);
-                      }}
-                      style={{ width: "100%", padding: "6px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px" }}
-                    >
-                      <option value="">-- Pilih Material --</option>
-                      {inventoryItems.map((inv: any) => (
-                        <option key={inv.id} value={inv.id}>{inv.code} - {inv.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ width: 60 }}>
-                    <label style={{ display: "block", fontSize: "11px", color: S.secondary, marginBottom: 4 }}>Qty</label>
-                    <input 
-                      type="number" min="0" step="any"
-                      value={item.quantity}
-                      onChange={e => {
-                        const newItems = [...bomItems];
-                        newItems[idx].quantity = e.target.value;
-                        setBomItems(newItems);
-                      }}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "6px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", textAlign: "right" }}
-                    />
-                  </div>
-                  <button onClick={() => handleRemoveBomItem(idx)} style={{ alignSelf: "flex-end", padding: "7px", background: "#FEF2F2", color: "#EF4444", border: "none", borderRadius: 4, cursor: "pointer" }}>
-                    <Trash2 size={14} />
-                  </button>
+              {hasDuplicateMaterial && (
+                <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: "12px", display: "flex", alignItems: "center", gap: 8, fontWeight: 500 }}>
+                  <span>⚠️ Material dengan spesifikasi yang sama sudah ada di daftar BOM! Spesifikasi untuk material yang sama wajib berbeda.</span>
                 </div>
-              ))}
+              )}
+
+              {bomItems.map((item, idx) => {
+                const isDup = duplicateIndices.has(idx);
+                return (
+                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", background: isDup ? "#FEE2E2" : "#F1F5F9", padding: 12, borderRadius: 8, border: isDup ? "1px solid #F87171" : "1px solid transparent" }}>
+                    <div style={{ flex: 1.2 }}>
+                      <label style={{ display: "block", fontSize: "11px", color: S.secondary, marginBottom: 4 }}>Material</label>
+                      <select
+                        value={item.inventoryItemId}
+                        onChange={e => {
+                          const newItems = [...bomItems];
+                          newItems[idx].inventoryItemId = e.target.value;
+                          setBomItems(newItems);
+                        }}
+                        style={{ width: "100%", padding: "6px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px" }}
+                      >
+                        <option value="">-- Pilih Material --</option>
+                        {inventoryItems.map((inv: any) => (
+                          <option key={inv.id} value={inv.id}>{inv.code} - {inv.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: "11px", color: S.secondary, marginBottom: 4 }}>Spesifikasi</label>
+                      <input 
+                        type="text"
+                        placeholder="Contoh: 100x50mm / 2mm"
+                        value={item.specification || ""}
+                        onChange={e => {
+                          const newItems = [...bomItems];
+                          newItems[idx].specification = e.target.value;
+                          setBomItems(newItems);
+                        }}
+                        style={{ width: "100%", boxSizing: "border-box", padding: "6px 8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px" }}
+                      />
+                    </div>
+                    <div style={{ width: 65 }}>
+                      <label style={{ display: "block", fontSize: "11px", color: S.secondary, marginBottom: 4 }}>Qty</label>
+                      <input 
+                        type="number" min="0" step="any"
+                        value={item.quantity}
+                        onChange={e => {
+                          const newItems = [...bomItems];
+                          newItems[idx].quantity = e.target.value;
+                          setBomItems(newItems);
+                        }}
+                        style={{ width: "100%", boxSizing: "border-box", padding: "6px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", textAlign: "right" }}
+                      />
+                    </div>
+                    <button onClick={() => handleRemoveBomItem(idx)} style={{ alignSelf: "flex-end", padding: "7px", background: "#FEF2F2", color: "#EF4444", border: "none", borderRadius: 4, cursor: "pointer" }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
               
               <button onClick={handleAddBomItem} style={{ width: "100%", padding: "10px", background: "transparent", border: `1px dashed ${S.primary}`, color: S.primary, borderRadius: 8, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Plus size={16} /> Tambah Material
@@ -230,7 +276,7 @@ export function ProductsPage() {
             
             <div style={{ padding: 16, borderTop: `1px solid ${S.border}`, display: "flex", gap: 8, justifyContent: "flex-end", background: "#F8FAFC", borderRadius: "0 0 12px 12px" }}>
               <button onClick={() => setIsEditingBom(false)} style={{ padding: "8px 16px", border: `1px solid ${S.border}`, background: "#fff", borderRadius: 6, fontSize: "13px", cursor: "pointer", color: S.secondary }}>Batal</button>
-              <button onClick={handleSaveBom} disabled={isSaving} style={{ padding: "8px 16px", border: "none", background: S.primary, color: "#fff", borderRadius: 6, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+              <button onClick={handleSaveBom} disabled={isSaving || hasDuplicateMaterial} style={{ padding: "8px 16px", border: "none", background: (isSaving || hasDuplicateMaterial) ? S.secondary : S.primary, color: "#fff", borderRadius: 6, fontSize: "13px", fontWeight: 600, cursor: (isSaving || hasDuplicateMaterial) ? "not-allowed" : "pointer" }}>
                 {isSaving ? "Menyimpan..." : "Simpan BOM"}
               </button>
             </div>

@@ -86,7 +86,7 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task MaterialRequestSubmittedEventHandler_creates_submitted_multi_item_request()
+    public async Task MaterialRequestSubmittedEventHandler_creates_auto_approved_multi_item_request()
     {
         await using var db = CreateDbContext();
         var service = CreateService(db);
@@ -130,7 +130,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         var request = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
-        Assert.Equal(PurchaseRequestStatuses.Submitted, request.Status);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, request.Status);
         Assert.Equal(salesOrderId, request.SalesOrderId);
         Assert.Equal("SO-001", request.SalesOrderNumber);
         Assert.Equal(workerUserId, request.RequestedByUserId);
@@ -241,7 +241,7 @@ public sealed class PurchaseRequestServiceTests
                 [new CreatePurchaseRequestItem(requirement.Id, null, null, null, "", null, 5, "Supplier A", "Need material", "Critical")]),
             CancellationToken.None);
 
-        Assert.Equal(PurchaseRequestStatuses.Submitted, purchaseRequest.Status);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
         Assert.Equal(requirement.SalesOrderId, purchaseRequest.SalesOrderId);
         var item = Assert.Single(purchaseRequest.Items);
         Assert.Equal(requirement.Id, item.MaterialRequirementId);
@@ -284,7 +284,7 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         Assert.NotNull(updated);
-        Assert.Equal(PurchaseRequestStatuses.Submitted, updated.Status);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
         Assert.Null(updated.RejectionReason);
         Assert.Null(updated.SupervisorRejectionReason);
         Assert.Null(updated.FinanceRejectionReason);
@@ -657,6 +657,239 @@ public sealed class PurchaseRequestServiceTests
 
         Assert.Equal(PurchaseRequestStatuses.Completed, received!.Status);
         Assert.Equal(PurchaseItemStatuses.Received, received.Items.First().PurchaseStatus);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  New flow: auto-approved PRs (requireSupervisorApproval = false)
+    //  must retain SupervisorApproved status after pricing updates,
+    //  even when SupervisorReviewedAtUtc is null and PR has a SalesOrder.
+    // ═══════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task UpdatePurchaseItemInfoAsync_keeps_SupervisorApproved_for_auto_approved_pr_with_so()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+
+        // 1. Create auto-approved PR with SalesOrder (simulating supervisor MR from Production)
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                "Engineering Supervisor",
+                requirement.SalesOrderId,
+                requirement.SalesOrderNumber,
+                requirement.ProjectName,
+                [new CreatePurchaseRequestItem(requirement.Id, requirement.SalesOrderId, requirement.SalesOrderNumber, requirement.ProjectName, "", null, 5, null, "Urgent", "Urgent", "Project")],
+                RequireSupervisorApproval: false),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
+        Assert.NotNull(purchaseRequest.SalesOrderId);
+        Assert.Null(purchaseRequest.SupervisorReviewedAtUtc);
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+
+        // 2. Purchasing saves pricing via UpdatePurchaseItemInfoAsync (simulates "Simpan Harga")
+        var updated = await service.UpdatePurchaseItemInfoAsync(
+            purchaseRequest.Id,
+            itemId,
+            new UpdatePurchaseItemInfoRequest(
+                "PT. Steel Indonesia",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                5_000_000m), // Only save supplier + estimated price, no status change
+            CancellationToken.None);
+
+        // 3. Status must stay SupervisorApproved — NOT reset to Submitted
+        Assert.NotNull(updated);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
+        Assert.Equal("PT. Steel Indonesia", Assert.Single(updated.Items).SupplierName);
+        Assert.Equal(5_000_000m, Assert.Single(updated.Items).EstimatedPrice);
+    }
+
+    [Fact]
+    public async Task UpdatePurchaseItemInfoAsync_keeps_SupervisorApproved_after_multiple_saves()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                "Engineering Supervisor",
+                requirement.SalesOrderId,
+                requirement.SalesOrderNumber,
+                requirement.ProjectName,
+                [new CreatePurchaseRequestItem(requirement.Id, requirement.SalesOrderId, requirement.SalesOrderNumber, requirement.ProjectName, "", null, 5, null, "Urgent", "Urgent", "Project")],
+                RequireSupervisorApproval: false),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+
+        // Save pricing first time
+        await service.UpdatePurchaseItemInfoAsync(
+            purchaseRequest.Id, itemId,
+            new UpdatePurchaseItemInfoRequest("Supplier A", null, null, null, null, null, null, 1_000_000m),
+            CancellationToken.None);
+
+        // Save pricing second time (simulates re-clicking "Simpan Harga")
+        var updated = await service.UpdatePurchaseItemInfoAsync(
+            purchaseRequest.Id, itemId,
+            new UpdatePurchaseItemInfoRequest("Supplier B", null, null, null, null, null, null, 1_500_000m),
+            CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
+    }
+
+    [Fact]
+    public async Task SupervisorReview_on_already_SupervisorApproved_pr_succeeds()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+
+        // 1. Create auto-approved PR (SupervisorReviewedAtUtc is null at this point)
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                "Engineering Supervisor",
+                requirement.SalesOrderId,
+                requirement.SalesOrderNumber,
+                requirement.ProjectName,
+                [new CreatePurchaseRequestItem(requirement.Id, requirement.SalesOrderId, requirement.SalesOrderNumber, requirement.ProjectName, "", null, 5, null, null, "Urgent")],
+                RequireSupervisorApproval: false),
+            CancellationToken.None);
+
+        Assert.Null(purchaseRequest.SupervisorReviewedAtUtc);
+
+        // 2. Frontend calls supervisor review to set SupervisorReviewedAtUtc
+        var reviewed = await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(Guid.Parse("88888888-8888-8888-8888-888888888888"), "Accept", null, "Supervisor"),
+            CancellationToken.None);
+
+        Assert.NotNull(reviewed);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, reviewed.Status);
+        Assert.NotNull(reviewed.SupervisorReviewedAtUtc);
+    }
+
+    [Fact]
+    public async Task AutoApproved_pr_then_pricing_then_supervisor_review_retains_status()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                "Engineering Supervisor",
+                requirement.SalesOrderId,
+                requirement.SalesOrderNumber,
+                requirement.ProjectName,
+                [new CreatePurchaseRequestItem(requirement.Id, requirement.SalesOrderId, requirement.SalesOrderNumber, requirement.ProjectName, "", null, 5, null, null, "Urgent")],
+                RequireSupervisorApproval: false),
+            CancellationToken.None);
+
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+
+        // Step 1: Supervisor auto-review (sets SupervisorReviewedAtUtc)
+        await service.ReviewAsync(
+            purchaseRequest.Id,
+            new ReviewPurchaseRequest(Guid.Parse("88888888-8888-8888-8888-888888888888"), "Accept", null, "Supervisor"),
+            CancellationToken.None);
+
+        // Step 2: Purchasing saves pricing
+        var updated = await service.UpdatePurchaseItemInfoAsync(
+            purchaseRequest.Id, itemId,
+            new UpdatePurchaseItemInfoRequest("PT. Steel", null, null, null, null, null, null, 5_000_000m),
+            CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
+        Assert.NotNull(updated.SupervisorReviewedAtUtc);
+    }
+
+    [Fact]
+    public async Task MaterialRequestSubmittedEventHandler_then_pricing_update_keeps_SupervisorApproved()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var handler = new MaterialRequestSubmittedEventHandler(service);
+        var salesOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var workerUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
+        // 1. Simulate Material Request submitted from Production
+        await handler.Handle(
+            new MaterialRequestSubmittedEvent(
+                salesOrderId,
+                "SO-001",
+                Guid.NewGuid(),
+                null,
+                workerUserId,
+                "Worker A",
+                new DateOnly(2026, 7, 1),
+                "Project",
+                "Need raw material",
+                [
+                    new MaterialRequestSubmittedItem(null, null, "S45C Round Bar", "Diameter 10mm", 2, "Urgent", null, "Main material", "Project")
+                ]),
+            CancellationToken.None);
+
+        var request = await db.PurchaseRequests.Include(item => item.Items).SingleAsync();
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, request.Status);
+        Assert.NotNull(request.SalesOrderId);
+        Assert.Null(request.SupervisorReviewedAtUtc);
+        var itemId = Assert.Single(request.Items).Id;
+
+        // 2. Purchasing saves pricing — must NOT reset status
+        var updated = await service.UpdatePurchaseItemInfoAsync(
+            request.Id, itemId,
+            new UpdatePurchaseItemInfoRequest("PT. Steel", null, null, null, null, null, null, 3_000_000m),
+            CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
+    }
+
+    [Fact]
+    public async Task AutoApproved_pr_without_so_then_pricing_keeps_SupervisorApproved()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+
+        // No SO, no requirement link — manual/ad-hoc PR
+        var purchaseRequest = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.Parse("99999999-9999-9999-9999-999999999999"),
+                "Office Admin",
+                null, null, null,
+                [new CreatePurchaseRequestItem(null, null, null, null, "Office Supplies", null, 10, null, "Need supplies", "Normal")],
+                RequireSupervisorApproval: false),
+            CancellationToken.None);
+
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
+        var itemId = Assert.Single(purchaseRequest.Items).Id;
+
+        var updated = await service.UpdatePurchaseItemInfoAsync(
+            purchaseRequest.Id, itemId,
+            new UpdatePurchaseItemInfoRequest("Gramedia", null, null, null, null, null, null, 500_000m),
+            CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, updated.Status);
     }
 
     private static PurchaseRequestService CreateService(

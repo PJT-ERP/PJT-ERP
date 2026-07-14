@@ -77,9 +77,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName,
             Status = request.RequireSupervisorApproval
                 ? PurchaseRequestStatuses.Submitted
-                : (resolvedSalesOrderId == null && string.IsNullOrWhiteSpace(resolvedSalesOrderNumber)
-                    ? PurchaseRequestStatuses.SupervisorApproved
-                    : PurchaseRequestStatuses.Submitted),
+                : PurchaseRequestStatuses.SupervisorApproved,
             Items = request.Items.Select(item =>
             {
                 materialRequirements.TryGetValue(item.MaterialRequirementId ?? Guid.Empty, out var requirement);
@@ -182,9 +180,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseRequest.SalesOrderId = request.SalesOrderId ?? firstRequirement?.SalesOrderId;
         purchaseRequest.SalesOrderNumber = NormalizeOptional(request.SalesOrderNumber) ?? firstRequirement?.SalesOrderNumber;
         purchaseRequest.ProjectName = NormalizeOptional(request.ProjectName) ?? firstRequirement?.ProjectName;
-        purchaseRequest.Status = purchaseRequest.SalesOrderId == null && string.IsNullOrWhiteSpace(purchaseRequest.SalesOrderNumber)
-            ? PurchaseRequestStatuses.SupervisorApproved
-            : PurchaseRequestStatuses.Submitted;
+        purchaseRequest.Status = PurchaseRequestStatuses.SupervisorApproved;
         purchaseRequest.ReviewedByUserId = null;
         purchaseRequest.ReviewedAtUtc = null;
         purchaseRequest.RejectionReason = null;

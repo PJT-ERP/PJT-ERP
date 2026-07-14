@@ -216,9 +216,9 @@ public sealed partial class ProductionService(
 
         if (salesOrder is null) return null;
 
-        if (salesOrder.DesignStatus == SalesOrderDesignStatuses.Approved)
+        if (salesOrder.DesignStatus == SalesOrderDesignStatuses.Approved && salesOrder.ProductionWorkerUserId != null)
         {
-            throw new InvalidOperationException("Cannot update items after design is approved.");
+            throw new InvalidOperationException("Cannot update items after design is approved and assigned to production.");
         }
 
         ValidateSalesOrderItems(request.Items);
