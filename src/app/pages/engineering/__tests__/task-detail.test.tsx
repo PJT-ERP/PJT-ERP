@@ -89,12 +89,12 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
     const urlInputs = screen.getAllByRole('textbox').filter(input => (input as HTMLInputElement).type === 'url');
     fireEvent.change(urlInputs[0] || linkInput, { target: { value: 'https://new-design-link.com' } });
 
-    // 4. Click "Submit & Forward"
-    const submitBtn = screen.getByRole('button', { name: /Submit & Forward/i });
+    // 4. Click "Simpan Desain & Lanjut ke Produksi" (to enter confirm step)
+    const submitBtn = screen.getByRole('button', { name: /Simpan Desain/i });
     fireEvent.click(submitBtn);
 
-    // 5. Confirmation screen appears, click "Forward ke Supervisor"
-    const confirmBtn = screen.getByRole('button', { name: /Forward ke Supervisor/i });
+    // 5. Confirmation screen appears, click "Simpan Desain & Lanjut ke Produksi" again
+    const confirmBtn = screen.getByRole('button', { name: /Simpan Desain/i });
     fireEvent.click(confirmBtn);
 
     // 6. Verify APIs were called

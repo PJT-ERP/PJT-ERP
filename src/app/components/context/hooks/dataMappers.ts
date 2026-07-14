@@ -280,7 +280,7 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
   if (order.status === "Completed" || qcDecisionLower === "pass" || qcDecisionLower === "go") {
     if (invoices.length > 0) {
       const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
-      if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
+      if (invoice && invoice.status !== "Paid" && invoice.status !== "PAID") {
         return "Waiting Payment";
       }
     }
