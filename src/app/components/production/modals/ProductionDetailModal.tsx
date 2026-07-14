@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from "react";
+import { Edit2, Check, X } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { SalesOrder } from "../../data/mockData";
 import { S, StatusBadge, getDrawingUrl, getMaterialOptions, getBackendSalesOrderId } from "../ProductionHelpers";
 import { isGuid } from "../../../services/backendIds";
+import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
 
 export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { purchasingRequests } = useApp();
+  const { purchasingRequests, updateSalesOrder, currentUser } = useApp();
   const materials = getMaterialOptions(so);
   const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
   const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; materialSpec?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
+  const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
+
+  const [isEditingBOM, setIsEditingBOM] = useState(false);
+  const [editedBOM, setEditedBOM] = useState(materials);
+  const isSpv = currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+
+  useEffect(() => {
+    masterDataApi.listInventory().then(setInventory).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const salesOrderId = getBackendSalesOrderId(so);
@@ -78,15 +89,76 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
             )}
           </div>
           <div>
-            <p style={{ fontSize: "13px", color: S.secondary, margin: "0 0 8px", fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
-            {materials.length > 0 ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <p style={{ fontSize: "13px", color: S.secondary, margin: 0, fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
+              {isSpv && !isEditingBOM && (
+                <button onClick={() => { setEditedBOM(materials); setIsEditingBOM(true); }} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                  <Edit2 size={12} /> Edit BOM
+                </button>
+              )}
+            </div>
+            {isEditingBOM ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {materials.map((m, i) => (
-                  <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px" }}>
-                    <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
-                    {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
+                {editedBOM.map((m, i) => (
+                  <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
+                      {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: "12px", color: S.secondary }}>Qty (per pcs):</span>
+                      <input 
+                        type="number" 
+                        value={m.quantity || ''} 
+                        onChange={e => {
+                          const newBOM = [...editedBOM];
+                          newBOM[i].quantity = Number(e.target.value);
+                          setEditedBOM(newBOM);
+                        }}
+                        style={{ width: 60, padding: "4px 8px", borderRadius: 4, border: `1px solid ${S.border}`, fontSize: "13px", fontFamily: S.font }}
+                      />
+                    </div>
                   </div>
                 ))}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+                  <button onClick={() => setIsEditingBOM(false)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.white, border: `1px solid ${S.border}`, borderRadius: 4, color: S.slate, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    <X size={12} /> Batal
+                  </button>
+                  <button onClick={() => {
+                    updateSalesOrder(so.id, { materials: editedBOM });
+                    setIsEditingBOM(false);
+                  }} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.cyan, border: "none", borderRadius: 4, color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    <Check size={12} /> Simpan
+                  </button>
+                </div>
+              </div>
+            ) : materials.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {materials.map((m, i) => {
+                  const invItem = inventory.find(inv => 
+                    inv.name?.toLowerCase() === m.itemName.toLowerCase() && 
+                    (!m.specification || inv.specification?.toLowerCase() === m.specification.toLowerCase())
+                  );
+                  // Total kebutuhan = jumlah di BOM (per pcs) * jumlah produk pesanan
+                  const reqQty = (m.quantity ?? 0) * (so.quantity || 1);
+                  const stock = invItem?.currentStock ?? 0;
+                  const isShort = reqQty > 0 && stock < reqQty;
+                  
+                  return (
+                    <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${isShort ? '#FECACA' : S.border}`, borderRadius: 6, fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
+                        {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
+                      </div>
+                      {(reqQty > 0 || stock > 0 || isShort) && (
+                        <div style={{ display: "flex", gap: 12, fontSize: "12px", color: S.secondary, textAlign: "right" }}>
+                          {reqQty > 0 && <span>Butuh: <strong style={{ color: S.slate }}>{reqQty}</strong></span>}
+                          <span>Stok Gudang: <strong style={{ color: isShort ? '#DC2626' : S.slate }}>{stock}</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p style={{ fontSize: "14px", color: S.slate, margin: 0 }}>Belum ada data BOM.</p>

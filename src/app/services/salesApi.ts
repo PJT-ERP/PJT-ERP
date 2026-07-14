@@ -36,6 +36,8 @@ export interface ProductBomItemDto {
   inventoryItemName: string;
   quantity: number;
   unit: string;
+  specification?: string | null;
+  spec?: string | null;
 }
 
 export interface ProductDto {
@@ -51,6 +53,8 @@ export interface ProductDto {
 export interface CreateProductBomItemRequest {
   inventoryItemId: string;
   quantity: number;
+  specification?: string | null;
+  spec?: string | null;
 }
 
 export interface CreateProductRequest {

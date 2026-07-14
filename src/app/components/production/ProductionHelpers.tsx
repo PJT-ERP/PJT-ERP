@@ -67,6 +67,7 @@ export type MaterialOption = {
   key: string;
   itemName: string;
   specification: string;
+  quantity?: number;
 };
 
 export function parseMaterialText(value?: string | null): MaterialOption[] {
@@ -95,11 +96,17 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   const options: MaterialOption[] = [];
   const seen = new Set<string>();
 
-  const addOption = (item: string, spec: string) => {
+  const addOption = (materialObj: any, item: string, spec: string, qty?: number) => {
     const key = `${item.toLowerCase().replace(/[^a-z0-9]/g, '')}|${spec.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
-      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim() });
+      options.push({ 
+        ...(materialObj || {}),
+        key: materialObj?.key || `mat-${seen.size}`, 
+        itemName: item.trim(), 
+        specification: spec.trim(), 
+        quantity: qty 
+      });
     }
   };
 
@@ -108,9 +115,10 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
     so.materials.forEach((material: any) => {
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
+      const quantity = typeof material?.quantity === 'number' ? material.quantity : (material?.quantity ? Number(material.quantity) : undefined);
 
       if (itemName && itemName.toLowerCase() !== "pppp") {
-        addOption(itemName, specification);
+        addOption(material, itemName, specification, Number.isNaN(quantity) ? undefined : quantity);
         hasValidEngineerMaterials = true;
       }
     });
@@ -120,10 +128,10 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
     }
   }
 
-  parseMaterialText(so.material).forEach(m => addOption(m.itemName, m.specification));
+  parseMaterialText(so.material).forEach(m => addOption(m, m.itemName, m.specification));
 
   if (options.length === 0 && so.description) {
-    addOption(so.description, so.spec || "");
+    addOption({}, so.description, so.spec || "");
   }
 
   return options;

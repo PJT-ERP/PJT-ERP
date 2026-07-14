@@ -117,7 +117,8 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       const bomQuantity = Number(bomItem.quantity || 0);
       if (bomQuantity <= 0) return;
 
-      const specKey = bomItem.inventoryItemCode || "";
+      const specVal = bomItem.specification || bomItem.spec || "";
+      const specKey = specVal || bomItem.inventoryItemCode || "";
       const key = `${bomItem.inventoryItemId || bomItem.inventoryItemName}|${specKey}|${bomItem.unit}`;
       const existing = materialsByKey.get(key);
       const quantity = bomQuantity * Math.max(itemQuantity, 1);
@@ -132,8 +133,8 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
         inventoryItemId: bomItem.inventoryItemId,
         name: bomItem.inventoryItemName,
         code: bomItem.inventoryItemCode,
-        spec: "",
-        specification: "",
+        spec: specVal,
+        specification: specVal,
         quantity,
         unit: bomItem.unit,
       });

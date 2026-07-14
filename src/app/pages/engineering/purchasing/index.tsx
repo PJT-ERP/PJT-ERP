@@ -69,9 +69,8 @@ export function EngineeringPurchasingPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        {(['Menunggu SPV', 'Pending', 'Diproses', 'Selesai', 'Ditolak'] as const).map(s => {
+        {(['Pending', 'Diproses', 'Selesai', 'Ditolak'] as const).map(s => {
           let accent = "#94A3B8"; let bg = "rgba(148,163,184,0.08)";
-          if (s === 'Menunggu SPV') { accent = "#A855F7"; bg = "rgba(168,85,247,0.08)"; }
           if (s === 'Diproses') { accent = "#3B82F6"; bg = "rgba(59,130,246,0.08)"; }
           if (s === 'Selesai') { accent = "#22C55E"; bg = "rgba(34,197,94,0.08)"; }
           if (s === 'Ditolak') { accent = "#EF4444"; bg = "rgba(239,68,68,0.08)"; }
