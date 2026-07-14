@@ -566,7 +566,7 @@ export function ProductionMaterialRequestPage() {
 
       const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
       const { purchasingApi } = await import("../../services/purchasingApi");
-      await purchasingApi.createPurchaseRequest({
+      const created = await purchasingApi.createPurchaseRequest({
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
         requesterName: currentUser?.name || currentUser?.role || 'Engineering User',
@@ -586,6 +586,17 @@ export function ProductionMaterialRequestPage() {
           purchaseCategory: item.purchaseCategory,
         })),
       });
+
+      if (isSpvUser && created?.id) {
+        try {
+          await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+            reviewedByUserId: requesterId,
+            decision: 'Accept',
+          });
+        } catch (e) {
+          console.warn("Auto supervisor review failed for production MR", e);
+        }
+      }
 
       await refreshBackendData();
       setIsSuccess(true);
