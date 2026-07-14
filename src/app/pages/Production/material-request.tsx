@@ -567,14 +567,13 @@ export function ProductionMaterialRequestPage() {
       const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
       const { purchasingApi } = await import("../../services/purchasingApi");
       await purchasingApi.createPurchaseRequest({
-        requestDate: formatBackendDate(new Date()),
+        requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
-        requesterName: currentUser?.role || 'Engineering User',
+        requesterName: currentUser?.name || currentUser?.role || 'Engineering User',
         salesOrderId: salesOrderId,
         salesOrderNumber: so.id,
         projectName: so.id,
         requireSupervisorApproval: !isSpvUser,
-        notes: notes || null,
         items: parsedItems.map(item => ({
           materialRequirementId: null,
           salesOrderItemId: null,
