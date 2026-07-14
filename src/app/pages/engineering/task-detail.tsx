@@ -784,7 +784,7 @@ export function EngineeringTaskDetailPage() {
                   </div>
                 ) : (
                   <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-                    <p style={{ fontSize: "14px", color: "#1D4ED8", margin: 0, fontWeight: 500 }}>💡 Silakan unggah dokumen CAD ke cloud dan masukkan Bill of Materials (BOM) di bawah ini.</p>
+                    <p style={{ fontSize: "14px", color: "#1D4ED8", margin: 0, fontWeight: 500 }}>💡 Silakan unggah desain dan masukkan Bill of Materials (BOM) di bawah ini.</p>
                   </div>
                 )
               )}
