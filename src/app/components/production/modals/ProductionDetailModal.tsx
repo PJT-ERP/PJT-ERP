@@ -55,6 +55,12 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
               <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#DC2626" }}>{request.rejectionReason}</p>
             </div>
           )}
+          { so.rejectionReason && (
+            <div style={{ padding: "12px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8 }}>
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#9A3412" }}>Dikembalikan ke SPV (Catatan Operator):</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#C2410C" }}>{so.rejectionReason}</p>
+            </div>
+          )}
           { so.status === 'Paused' && so.pauseReason && (
             <div style={{ padding: "12px", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8 }}>
               <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#9A3412" }}>Alasan Produksi Dihentikan Sementara:</p>

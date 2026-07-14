@@ -342,6 +342,7 @@ export function ProductionPage() {
                         {!hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Req Material Belum Diajukan</span>}
                         {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap - Siap Tugaskan</span>}
                         {hasBom && hasMr && !mrReadyForAssignment && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Material Belum Lengkap</span>}
+                        {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA" }}>Dikembalikan ke SPV</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -407,6 +408,11 @@ export function ProductionPage() {
                   </div>
                   <div style={{ cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <InlineBomDisplay so={so} />
+                    {so.rejectionReason && (
+                      <p style={{ fontSize: "12px", color: "#9A3412", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FFF7ED", borderRadius: 6, border: "1px solid #FED7AA" }}>
+                        Dikembalikan: {so.rejectionReason}
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -445,6 +451,7 @@ export function ProductionPage() {
                         {mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#E0F2FE", color: "#0369A1", borderRadius: 4, fontWeight: 500, border: "1px solid #7DD3FC" }}>Material Lengkap</span>}
                         {mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#B91C1C", borderRadius: 4, fontWeight: 500, border: "1px solid #FCA5A5" }}>MR Ditolak</span>}
                         {(so.isRework || so.qcStatus === 'NoGo') && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 500, border: "1px solid #FECACA" }}>Rework QC</span>}
+                        {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA" }}>Dikembalikan ke SPV</span>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                         <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
@@ -500,18 +507,23 @@ export function ProductionPage() {
                   </div>
                   <div style={{ cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                     <InlineBomDisplay so={so} />
-                    {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
-                      <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
-                        Catatan QC: {so.qcNotes}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <PaginationControl currentPage={pageMaterialPrep} totalItems={materialPrep.length} itemsPerPage={itemsPerPage} onPageChange={setPageMaterialPrep} />
+                     {(so.isRework || so.qcStatus === 'NoGo') && so.qcNotes && (
+                       <p style={{ fontSize: "12.5px", color: "#DC2626", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FEF2F2", borderRadius: 6, border: "1px solid #FECACA", display: "inline-block" }}>
+                         Catatan QC: {so.qcNotes}
+                       </p>
+                     )}
+                     {so.rejectionReason && (
+                       <p style={{ fontSize: "12px", color: "#9A3412", margin: "6px 0 0", fontWeight: 500, padding: "6px 10px", background: "#FFF7ED", borderRadius: 6, border: "1px solid #FED7AA" }}>
+                         Dikembalikan: {so.rejectionReason}
+                       </p>
+                     )}
+                   </div>
+                 </div>
+               );
+             })}
+           </div>
+         )}
+         <PaginationControl currentPage={pageMaterialPrep} totalItems={materialPrep.length} itemsPerPage={itemsPerPage} onPageChange={setPageMaterialPrep} />
       </div>
 
       <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
