@@ -273,9 +273,10 @@ export function ERPLayout() {
       salesOrders.filter(so => so.status === 'Ready for Production').forEach(so => {
         if (!isRelevant(so.assignedTo)) return;
         const isUnassigned = !so.assignedTo;
-        const title = isUnassigned && isSpv ? 'Butuh Penugasan Produksi' : 'Siap Diproduksi';
-        const desc = isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke pekerja.` : `SO ${so.id} siap untuk mulai diproduksi.`;
-        notifs.push({ id: so.id, type: 'info', title, desc, targetPath: '/erp/production' });
+        const isReturnedToSpv = isUnassigned && !!so.rejectionReason;
+        const title = isReturnedToSpv ? 'SO Dikembalikan ke SPV' : (isUnassigned && isSpv ? 'Butuh Penugasan Produksi' : 'Siap Diproduksi');
+        const desc = isReturnedToSpv ? `SO ${so.id} dikembalikan oleh operator: "${so.rejectionReason}"` : (isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke pekerja.` : `SO ${so.id} siap untuk mulai diproduksi.`);
+        notifs.push({ id: so.id, type: isReturnedToSpv ? 'alert' : 'info', title, desc, targetPath: '/erp/production' });
       });
 
       salesOrders.filter(so => so.status === 'QC').forEach(so => {
@@ -337,7 +338,6 @@ export function ERPLayout() {
         notifs.push({ id: pr.id, type: 'alert', title: 'MR Butuh Approval', desc: `MR ${pr.id} butuh persetujuan segera.`, targetPath: '/erp/purchasing/requests' });
       });
     }
-    return notifs;
     return notifs;
   }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds, invoices, payments]);
 

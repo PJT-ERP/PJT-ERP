@@ -148,7 +148,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             if (matchedProduct) {
               materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
                 id: b.inventoryItemId,
-                name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                name: b.inventoryItemName,
+                code: b.inventoryItemCode,
                 specification: "",
                 quantity: String(b.quantity || b.qty),
                 unit: b.unit,

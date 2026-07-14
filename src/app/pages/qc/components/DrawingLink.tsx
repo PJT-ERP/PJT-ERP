@@ -7,8 +7,11 @@ import { S } from './utils';
 export function DrawingLink({ so, inspection }: { so: SalesOrder; inspection?: QcInspectionDto }) {
   const drawingUrl = inspection?.customerDrawingUrl || so.customerDrawingUrl || so.designLink;
   const designRef = inspection?.designReference || so.backendDesignStatus;
+
+  const isCatalogProduct = so.backendDesignStatus === 'Approved' && !so.designApprovedAt;
+
   if (!drawingUrl && !designRef) {
-    return null;
+    if (!isCatalogProduct) return null;
   }
 
   return (
@@ -18,7 +21,12 @@ export function DrawingLink({ so, inspection }: { so: SalesOrder; inspection?: Q
           <ExternalLink size={12} /> Gambar SO
         </a>
       )}
-      {designRef && <span style={{ color: S.secondary, fontSize: "12px" }}>Ref: {designRef}</span>}
+      {!drawingUrl && isCatalogProduct && (
+        <span style={{ color: S.secondary, fontSize: "11.5px", fontStyle: "italic", padding: "2px 8px", background: "#F1F5F9", borderRadius: 4, border: "1px solid #E2E8F0" }}>
+          Produk terdaftar di katalog — tidak memerlukan desain
+        </span>
+      )}
+      {designRef && !isCatalogProduct && <span style={{ color: S.secondary, fontSize: "12px" }}>Ref: {designRef}</span>}
     </div>
   );
 }
