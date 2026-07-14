@@ -528,6 +528,45 @@ public sealed class ProductionServiceTests
         Assert.Equal(2, salesOrder.Items.Count);
     }
 
+    [Fact]
+    public async Task StartProductionAsync_fails_when_material_insufficient()
+    {
+        await using var db = CreateDbContext();
+        var customer = new CustomerReplica { Id = Guid.NewGuid(), Code = "C-1", Name = "Cust" };
+        var product = new ProductReplica { Id = Guid.NewGuid(), PartNumber = "P-1", Description = "Desc", MaterialSpec = "Spec" };
+        await db.CustomerReplicas.AddAsync(customer);
+        await db.ProductReplicas.AddAsync(product);
+        await db.SaveChangesAsync();
+
+        var masterDataClient = new StubMasterDataClient { ShouldFailDeduct = true };
+        var service = new ProductionService(db, new RecordingEventPublisher(), masterDataClient);
+
+        // 1. Create SO
+        var salesOrder = await service.CreateSalesOrderAsync(
+            new CreateSalesOrderRequest(customer.Id, DateOnly.FromDateTime(DateTime.UtcNow), DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)),
+                [new CreateSalesOrderItemRequest(product.Id, 10, 0, null)], null,
+                new EngineerAssignment(WorkerUserId, "Worker"), new EngineerAssignment(ReviewerUserId, "Reviewer"),
+                null, null, SalesOrderDesignStatuses.Approved),
+            CancellationToken.None);
+
+        // 2. Confirm SO (goes to Material Preparation / Waiting)
+        var confirmed = await service.ConfirmSalesOrderAsync(salesOrder!.Id, new ConfirmSalesOrderRequest(WorkerUserId), CancellationToken.None);
+        Assert.Equal(SalesOrderStatuses.InProduction, confirmed!.SalesOrderStatus);
+        Assert.Equal(ProductionOrderStatuses.Waiting, confirmed.ProductionStatus);
+
+        // 3. Try start production (should throw InvalidOperationException from masterDataClient)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartProductionAsync(
+            salesOrder.Id,
+            new ProductionStatusUpdateRequest(WorkerUserId, "Starting", null),
+            CancellationToken.None));
+
+        Assert.Equal("Insufficient stock", ex.Message);
+
+        // 4. Verify SO status didn't change
+        var currentSo = await db.SalesOrders.SingleAsync(s => s.Id == salesOrder.Id);
+        Assert.Equal(SalesOrderStatuses.InProduction, currentSo.Status);
+    }
+
     private sealed class RecordingEventPublisher : IEventPublisher
     {
         public List<IntegrationEvent> PublishedEvents { get; } = [];
@@ -541,6 +580,7 @@ public sealed class ProductionServiceTests
 
     private sealed class StubMasterDataClient : IMasterDataClient
     {
+        public bool ShouldFailDeduct { get; set; } = false;
         public List<Guid> RequestedCustomerIds { get; } = [];
         public List<Guid> RequestedProductIds { get; } = [];
 
@@ -563,6 +603,7 @@ public sealed class ProductionServiceTests
 
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
         {
+            if (ShouldFailDeduct) throw new InvalidOperationException("Insufficient stock");
             return Task.CompletedTask;
         }
     }

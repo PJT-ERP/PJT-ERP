@@ -20,38 +20,6 @@ public sealed class PurchaseItemReceivedEventHandler(MasterDataContext db) : IIn
             inventoryItem.CurrentStock += integrationEvent.QuantityReceived;
             inventoryItem.UpdatedAtUtc = DateTime.UtcNow;
         }
-        else
-        {
-            var existingCodes = await db.InventoryItems
-                .Where(i => i.Code.StartsWith("MAT-"))
-                .Select(i => i.Code)
-                .ToListAsync(cancellationToken);
-            
-            var max = 0;
-            foreach (var existingCode in existingCodes)
-            {
-                if (existingCode.Length <= 4) continue;
-                if (int.TryParse(existingCode[4..], out var number) && number > max)
-                {
-                    max = number;
-                }
-            }
-            var newCode = $"MAT-{(max + 1):000}";
-
-            inventoryItem = new Domain.Entities.InventoryItem
-            {
-                Id = Guid.NewGuid(),
-                Code = newCode,
-                Name = integrationEvent.ItemName.Trim(),
-                Category = string.IsNullOrWhiteSpace(integrationEvent.Category) ? "Consumable" : integrationEvent.Category,
-                Unit = "pcs",
-                CurrentStock = integrationEvent.QuantityReceived,
-                Location = "General",
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
-            };
-            db.InventoryItems.Add(inventoryItem);
-        }
 
         await db.SaveChangesAsync(cancellationToken);
     }

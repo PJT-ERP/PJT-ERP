@@ -30,7 +30,8 @@ builder.Services.AddPgmqEventBus<PurchasingContext>(builder.Configuration, optio
     .WithReceiver()
     .AddSubscription<SalesOrderConfirmedEvent, SalesOrderConfirmedEventHandler>()
     .AddSubscription<SpkCreatedEvent, SpkCreatedEventHandler>()
-    .AddSubscription<MaterialRequestSubmittedEvent, MaterialRequestSubmittedEventHandler>();
+    .AddSubscription<MaterialRequestSubmittedEvent, MaterialRequestSubmittedEventHandler>()
+    .AddSubscription<PurchaseItemMasterDataLinkedEvent, PurchaseItemMasterDataLinkedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();

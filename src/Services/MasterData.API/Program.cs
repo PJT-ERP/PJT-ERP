@@ -29,7 +29,8 @@ builder.Services.AddPgmqEventBus<MasterDataContext>(builder.Configuration, optio
     options.FanOutQueues = ["pjt_production_events", "pjt_purchasing_events"];
 })
     .WithReceiver()
-    .AddSubscription<PurchaseItemReceivedEvent, PurchaseItemReceivedEventHandler>();
+    .AddSubscription<PurchaseItemReceivedEvent, PurchaseItemReceivedEventHandler>()
+    .AddSubscription<PurchaseRequestFinanceApprovedEvent, PurchaseRequestFinanceApprovedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();

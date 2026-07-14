@@ -61,7 +61,7 @@ interface Supplier {
   province: string;
   address: string;
   status: "Active" | "Inactive" | "On Hold" | "Blacklisted";
-  rating: number;
+
   totalPOs: number;
   totalValue: number;
   onTimeRate: number;
@@ -149,16 +149,7 @@ const formatRpM = (n: number) => {
   return `${(n / 1_000_000).toFixed(0)} Jt`;
 };
 
-function Stars({ r }: { r: number }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <Star key={s} size={11} style={{ fill: s <= Math.round(r) ? "#f59e0b" : "none", color: s <= Math.round(r) ? "#f59e0b" : "#cbd5e1" }} />
-      ))}
-      <span style={{ fontSize: 11, color: "#64748b", marginLeft: 4, fontWeight: 600 }}>{r}</span>
-    </span>
-  );
-}
+
 
 /* ── Detail view ───────────────────────────────────────────── */
 
@@ -282,7 +273,7 @@ function SupplierDetail({
                 { label: "No. Rekening", val: supplier.bankAccount },
                 { label: "Cabang Bank", val: supplier.bankBranch },
                 { label: "Bergabung Sejak", val: supplier.since },
-                { label: "Rating", val: `${supplier.rating}/5.0` },
+
               ].map(({ label, val }) => (
                 <div key={label}>
                   <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
@@ -388,7 +379,7 @@ function SupplierDetail({
               { label: "On-Time Delivery", val: `${supplier.onTimeRate}%`, target: "≥ 90%", ok: supplier.onTimeRate >= 90, bar: supplier.onTimeRate, color: "#C8102E" },
               { label: "Defect Rate", val: `${supplier.defectRate}%`, target: "≤ 2%", ok: supplier.defectRate <= 2, bar: Math.min(supplier.defectRate * 10, 100), color: "#dc2626", invert: true },
               { label: "Total PO (6 bln)", val: supplier.totalPOs.toString(), target: "—", ok: true, bar: Math.min((supplier.totalPOs / 60) * 100, 100), color: "#0891b2" },
-              { label: "Rating", val: `${supplier.rating}/5.0`, target: "≥ 4.0", ok: supplier.rating >= 4.0, bar: (supplier.rating / 5) * 100, color: "#f59e0b" },
+
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-lg p-4" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{kpi.label}</p>
@@ -481,9 +472,7 @@ export function SuppliersPage() {
       const rejectedItems = allItems.filter(i => i.purchaseStatus === "Rejected" || i.purchaseStatus === "Ditolak");
       const defectRate = allItems.length === 0 ? 0 : Number(((rejectedItems.length / allItems.length) * 100).toFixed(1));
 
-      const calculatedRating = totalPOs === 0
-        ? 0
-        : Number(Math.min(5.0, Math.max(1.0, ((onTimeRate / 100) * 2.5) + Math.max(0, 2.0 - (defectRate * 0.4)) + Math.min(0.5, totalPOs * 0.05))).toFixed(1));
+
 
       return {
         ...s,
@@ -491,7 +480,7 @@ export function SuppliersPage() {
         totalValue,
         onTimeRate,
         defectRate,
-        rating: calculatedRating,
+
         history: calculateSupplierHistory(supplierPos)
       };
     });
@@ -689,7 +678,7 @@ export function SuppliersPage() {
                 <TH>Supplier</TH>
                 <TH className="hidden md:table-cell">Kategori</TH>
                 <TH className="hidden lg:table-cell">Kota</TH>
-                <TH className="hidden xl:table-cell">Rating</TH>
+
                 <TH className="hidden sm:table-cell">Total PO</TH>
                 <TH className="hidden md:table-cell">On-Time</TH>
                 <TH className="hidden lg:table-cell">Nilai Transaksi</TH>
@@ -725,9 +714,7 @@ export function SuppliersPage() {
                     <TD className="hidden lg:table-cell">
                       <span style={{ fontSize: 12, color: "#475569" }}>{s.city}</span>
                     </TD>
-                    <TD className="hidden xl:table-cell">
-                      <Stars r={s.rating} />
-                    </TD>
+
                     <TD className="hidden sm:table-cell">
                       <span style={{ fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>{s.totalPOs}</span>
                     </TD>
