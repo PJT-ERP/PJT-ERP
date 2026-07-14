@@ -199,15 +199,18 @@ describe('mapSalesOrderMaterials — repeat order BOM deduplication', () => {
     expect(materials).toBeDefined();
     expect(materials!.length).toBe(2);
 
+    // Names should have code prefix stripped (legacy repeat order cleanup)
     const names = materials!.map(m => m.name);
-    expect(names).toContain('MAT-001 - S45C Round Bar');
-    expect(names).toContain('MAT-002 - Aluminium Plate');
+    expect(names).toContain('S45C Round Bar');
+    expect(names).toContain('Aluminium Plate');
 
-    // Quantities should be from the legacy notes (not doubled)
-    const s45c = materials!.find(m => m.name === 'MAT-001 - S45C Round Bar');
-    const alum = materials!.find(m => m.name === 'MAT-002 - Aluminium Plate');
+    // Codes should be resolved from product BOM
+    const s45c = materials!.find(m => m.name === 'S45C Round Bar');
+    const alum = materials!.find(m => m.name === 'Aluminium Plate');
     expect(s45c).toBeDefined();
     expect(alum).toBeDefined();
+    expect(s45c!.code).toBe('MAT-001');
+    expect(alum!.code).toBe('MAT-002');
     expect(Number(s45c!.quantity)).toBe(2);
     expect(Number(alum!.quantity)).toBe(1);
   });

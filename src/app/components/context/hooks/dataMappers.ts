@@ -83,6 +83,14 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       }
     }
 
+    // Strip code prefix from name for legacy repeat orders that embedded it (e.g. "MAT-001 - S45C Round Bar")
+    if (legacy.code && legacy.name) {
+      const codePrefix = `${legacy.code} - `;
+      if (legacy.name.startsWith(codePrefix)) {
+        legacy.name = legacy.name.slice(codePrefix.length);
+      }
+    }
+
     if (resolvedInvId) {
       overriddenInventoryItemIds.add(resolvedInvId);
     }
