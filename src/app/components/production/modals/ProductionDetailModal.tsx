@@ -136,8 +136,7 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {materials.map((m, i) => {
                   const invItem = inventory.find(inv => 
-                    inv.name?.toLowerCase() === m.itemName.toLowerCase() && 
-                    (!m.specification || inv.specification?.toLowerCase() === m.specification.toLowerCase())
+                    inv.name?.toLowerCase() === m.itemName.toLowerCase()
                   );
                   // Total kebutuhan = jumlah di BOM (per pcs) * jumlah produk pesanan
                   const reqQty = (m.quantity ?? 0) * (so.quantity || 1);
