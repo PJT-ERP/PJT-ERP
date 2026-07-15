@@ -62,6 +62,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },
+    { label: "Laporan", icon: <BarChart2 size={15} />, path: "/erp/finance/reports" },
     { label: "Costing & Pricing", icon: <DollarSign size={15} />, path: "/erp/finance/costing" },
     { label: "Daftar Tagihan", icon: <FileText size={15} />, path: "/erp/finance/invoices" },
     { label: "Verifikasi Bayar", icon: <FileText size={15} />, path: "/erp/finance/payment-verification" },

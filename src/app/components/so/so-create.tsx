@@ -210,6 +210,13 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   }, [products, orderType]);
 
   React.useEffect(() => {
+    if (orderType === "repeat") {
+      const total = repeatProducts.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+      setRepeatForm(f => ({ ...f, estimatedAmount: total }));
+    }
+  }, [repeatProducts, orderType]);
+
+  React.useEffect(() => {
     if (!isExistingCustomer && !isEdit && orderType === "new" && (!customerForm.customerCode || customerForm.customerCode.startsWith("CUST-") === false)) {
       import("../../services/salesApi").then(({ salesApi }) => {
         salesApi.getNextCustomerCode().then(res => {
