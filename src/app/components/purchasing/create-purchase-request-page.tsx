@@ -72,6 +72,10 @@ export function CreatePurchaseRequestPage() {
   const [formUrgency, setFormUrgency] = useState("");
   const [formNotes, setFormNotes] = useState("");
 
+  const uniqueUnits = Array.from(new Set(inventoryItems.map((i: any) => i.unit?.toUpperCase()).filter(Boolean))) as string[];
+  if (!uniqueUnits.includes("PCS")) uniqueUnits.push("PCS");
+  uniqueUnits.sort();
+
   const addFormItem = () => setFormItems([...formItems, { code: "", name: "", spec: "", qty: 1, unit: "PCS", category: formSoNumber && formSoNumber !== "none" ? "Project" : "Consumable" }]);
   const removeFormItem = (i: number) => setFormItems(formItems.filter((_, idx) => idx !== i));
   const updateFormItem = (i: number, key: keyof ManualRequestItem, val: any) => {
@@ -101,7 +105,7 @@ export function CreatePurchaseRequestPage() {
 
     try {
       setIsSubmitting(true);
-      await purchasingApi.createPurchaseRequest({
+      const created: any = await purchasingApi.createPurchaseRequest({
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
         requesterName: currentUser?.name || "Purchasing",
@@ -115,11 +119,16 @@ export function CreatePurchaseRequestPage() {
           itemName: item.code ? `[${item.code}] ${item.name || "Material"}` : (item.name || "Material"),
           size: item.spec || null,
           qty: Number(item.qty) || 1,
+          unit: item.unit || "PCS",
           notes: [formUrgency, formNotes].filter(Boolean).join(" - ") || null,
           urgency,
           purchaseCategory: item.category || (selectedSo ? "Project" : "Consumable"),
         })),
+        requireSupervisorApproval: false,
       });
+
+
+
       await refreshBackendData();
       navigate("/erp/purchasing/requests");
     } catch (error: any) {
@@ -255,7 +264,23 @@ export function CreatePurchaseRequestPage() {
                   </div>
                   <div className="md:col-span-3">
                     <label className="mb-1 block text-xs font-semibold text-slate-500">Satuan</label>
-                    <input type="text" disabled className="w-full rounded border border-slate-200 bg-slate-100 px-3 py-2 text-sm uppercase outline-none text-slate-500 cursor-not-allowed" value={item.unit} onChange={(e) => updateFormItem(i, "unit", e.target.value.toUpperCase())} placeholder="PCS" />
+                    {item.code ? (
+                      <input type="text" disabled className="w-full rounded border border-slate-200 bg-slate-100 px-3 py-2 text-sm uppercase outline-none text-slate-500 cursor-not-allowed" value={item.unit} placeholder="PCS" />
+                    ) : (
+                      <>
+                        <input 
+                          type="text" 
+                          list={`unit-list-${i}`}
+                          className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm uppercase outline-none focus:border-blue-500" 
+                          value={item.unit} 
+                          onChange={(e) => updateFormItem(i, "unit", e.target.value.toUpperCase())} 
+                          placeholder="PCS" 
+                        />
+                        <datalist id={`unit-list-${i}`}>
+                          {uniqueUnits.map(u => <option key={u} value={u} />)}
+                        </datalist>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

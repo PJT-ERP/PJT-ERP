@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using PJT_ERP.Identity.Api.Application.Auth;
 using PJT_ERP.Shared.Auth;
 
@@ -8,29 +9,60 @@ namespace PJT_ERP.Identity.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
-public sealed class AuthController(IAuthService authService) : ControllerBase
+public sealed class AuthController(IAuthService authService, ILogger<AuthController> logger) : ControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
+{
+    var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown IP";
+    var result = await authService.LoginAsync(request, cancellationToken);
+    if (result is null)
     {
-        var result = await authService.LoginAsync(request, cancellationToken);
-        if (result is null)
-        {
-            return Unauthorized(new { message = "User is not registered or inactive." });
-        }
-
-        Response.Cookies.Append("access_token", result.AccessToken, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = Request.IsHttps,
-            SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow.AddHours(12),
-            Path = "/"
-        });
-
-        return Ok(result);
+        logger.LogWarning("Security Audit: Failed login attempt for email {Email} from IP {ClientIp}", request.Email, clientIp);
+        return Unauthorized(new { message = "User is not registered or inactive." });
     }
+
+    logger.LogInformation("Security Audit: Successful login for user {UserId} ({Email}) from IP {ClientIp}", result.UserId, result.Email, clientIp);
+
+    Response.Cookies.Append("access_token", result.AccessToken, new CookieOptions
+    {
+        HttpOnly = true,
+        Secure = Request.IsHttps,
+        SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+        Expires = DateTimeOffset.UtcNow.AddHours(12),
+        Path = "/",
+        IsEssential = true
+    });
+  
+    var secureResponse = new LoginResponse(
+        AccessToken: string.Empty, 
+        UserId: result.UserId,
+        Email: result.Email,
+        Name: result.Name,
+        Roles: result.Roles,
+        Department: result.Department
+    );
+    return Ok(secureResponse);
+}
+
+[HttpPost("logout")]
+[Authorize]
+public ActionResult Logout()
+{
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown User";
+    var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown IP";
+    logger.LogInformation("Security Audit: User {UserId} logged out from IP {ClientIp}", userId, clientIp);
+
+    Response.Cookies.Delete("access_token", new CookieOptions
+    {
+        HttpOnly = true,
+        Secure = Request.IsHttps,
+        SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+        Path = "/"
+    });
+    return Ok(new { message = "Logged out successfully." });
+}
 
     [HttpGet("me")]
     [Authorize]
@@ -63,19 +95,6 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return Unauthorized();
     }
 
-    [HttpPost("logout")]
-    [Authorize]
-    public IActionResult Logout()
-    {
-        Response.Cookies.Delete("access_token", new CookieOptions
-        {
-            Secure = Request.IsHttps,
-            SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
-            Path = "/"
-        });
-
-        return NoContent();
-    }
 
     [HttpGet("users")]
     [Authorize]

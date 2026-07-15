@@ -56,7 +56,7 @@ function StatusBadge({ status }: { status: SOStatus }) {
 
 export function SODashboard({ onNavigate }: SODashboardProps) {
   const { salesOrders, customers } = useApp();
-  const { invoices, payments } = useFinanceData();
+  const { invoices, payments } = useFinanceData(true, false, false);
   const mergedSalesOrders = React.useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
@@ -347,9 +347,9 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             </div>
 
             {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "10px 18px", background: S.cyan, borderBottom: `1px solid ${S.border}` }}>
               {["No. SO", "Pelanggan", "Produk", "Qty", "Status"].map((h) => (
-                <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+                <span key={h} style={{ color: S.white, fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
 
@@ -407,7 +407,19 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                     </p>
                     <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#94A3B8" }}>
                       <span style={{ fontWeight: 500, color: "#64748B" }}>{act.user}</span>
-                      {" · "}{act.role}{" · "}{act.timestamp}
+                      {" · "}{act.role}{" · "}{
+                        !act.timestamp ? "-" : (() => {
+                          const d = new Date(act.timestamp);
+                          if (isNaN(d.getTime())) return act.timestamp;
+                          return d.toLocaleString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          }).replace('.', ':');
+                        })()
+                      }
                     </p>
                   </div>
                 </div>

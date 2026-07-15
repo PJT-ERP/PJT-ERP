@@ -4,6 +4,7 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.QC.Api.Domain.Entities;
 using PJT_ERP.QC.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Infrastructure.Messaging;
+using PJT_ERP.Shared.Infrastructure.Security;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Formats.Webp;
@@ -86,6 +87,8 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
         {
             if (file.Length == 0) continue;
 
+            await FileUploadSecurityValidator.ValidateFileAsync(file, cancellationToken);
+
             var uniqueFileName = $"qc-{Guid.NewGuid():N}.webp";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
@@ -103,12 +106,7 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             }
             catch (UnknownImageFormatException)
             {
-                // Fallback for non-image files or formats ImageSharp can't read
-                var extension = Path.GetExtension(file.FileName);
-                uniqueFileName = $"qc-{Guid.NewGuid():N}{extension}";
-                filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                await using var stream = new FileStream(filePath, FileMode.Create);
-                await file.CopyToAsync(stream, cancellationToken);
+                throw new InvalidOperationException($"File '{file.FileName}' is not a valid or supported image format.");
             }
 
             urls.Add($"/qc-photos/{uniqueFileName}");
@@ -150,9 +148,10 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             throw new InvalidOperationException("Reviewer name is required.");
         }
 
-        if (request.QcPhotos == null || request.QcPhotos.Count == 0)
+        var totalPhotos = (request.QcPhotos?.Count ?? 0) + (request.ProductionPhotos?.Count ?? 0);
+        if (totalPhotos == 0)
         {
-            throw new InvalidOperationException("At least one QC photo must be provided.");
+            throw new InvalidOperationException("At least one QC or Production photo must be provided.");
         }
     }
 

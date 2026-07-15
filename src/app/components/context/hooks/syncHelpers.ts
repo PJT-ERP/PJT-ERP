@@ -6,6 +6,7 @@ import { productionApi } from "../../../services/productionApi";
 import { qcApi } from "../../../services/qcApi";
 import { isGuid, toBackendUserId, BACKEND_USER_IDS_BY_LOCAL_ID } from "../../../services/backendIds";
 import { mapSalesOrderDto, mapPurchaseRequestDto } from "./dataMappers";
+import { toast } from "sonner";
 
 export async function syncCreateSalesOrder(
   so: SalesOrder,
@@ -142,6 +143,7 @@ export async function syncUpdateSalesOrder(
             qcNotes: updates.qcNotes ?? item.qcNotes,
             qcPhotos: updates.qcPhotos ?? item.qcPhotos,
             productionPhotos: updates.productionPhotos ?? item.productionPhotos,
+            ...(updates.qcStatus === "Go" ? { status: "Completed" as any, completedAt: new Date().toISOString().split('T')[0] } : {}),
           } : item));
         }
       } catch (err) {
@@ -161,7 +163,7 @@ export async function syncUpdateSalesOrder(
       }
     }
 
-    if (updates.designLink !== undefined) {
+    if (updates.designLink !== undefined && updates.designLink.trim() !== '') {
       try {
         await productionApi.uploadEngineeringDrawing(backendId, {
           drawingFileUrl: updates.designLink,
@@ -189,27 +191,43 @@ export async function syncUpdateSalesOrder(
       }
     }
 
+    if (updates.backendDesignStatus === "WaitingApproval" || updates.status === "Waiting Spv Approval") {
+      try {
+        const updated = await salesApi.updateSalesOrderDesignStatus(backendId, {
+          designStatus: "WaitingApproval",
+          reviewedByUserId: toBackendUserId(currentUser) || currentUser?.id,
+          reviewerName: currentUser?.name || "System",
+          notes: updates.notes || "Submitted for Review",
+          designReference: updates.designLink && updates.designLink.trim() !== '' ? updates.designLink : undefined
+        });
+        setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
+      } catch (err) {
+        console.warn("Failed to update design status to WaitingApproval in backend.", err);
+      }
+    }
+
     if (updates.materials !== undefined) {
       try {
         const primaryItem = so.items?.[0];
         if (primaryItem) {
           const updated = await salesApi.updateSalesOrderItems(backendId, {
-            items: so.items.map((it, idx) => ({
-              salesOrderItemId: it.id,
+            items: (so.items || []).map((it, idx) => ({
               productId: it.productId,
               qty: it.quantity,
-              unitPrice: (it as any).unitPrice || 0,
-              notes: updates.bomsPerItem?.[it.id] ? JSON.stringify(updates.bomsPerItem[it.id]) : (idx === 0 && updates.materials ? JSON.stringify(updates.materials) : (it as any).notes)
+              unitPrice: it.price || 0,
+              notes: updates.bomsPerItem?.[it.id] ? JSON.stringify(updates.bomsPerItem[it.id]) : (idx === 0 && updates.materials ? JSON.stringify(updates.materials) : (it.notes || ""))
             }))
           });
           setSalesOrders(prev => prev.map(item => item.backendId === backendId || item.id === so.id ? mapSalesOrderDto(updated, [], productCatalog) : item));
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Failed to update materials in backend.", err);
+        toast.error("Gagal menyimpan BOM ke database: " + (err?.response?.data?.message || err.message || "Unknown error"));
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn("Failed to sync sales order update to backend.", error);
+    toast.error("Gagal sinkronisasi dengan database: " + (error?.response?.data?.message || error.message || "Unknown error"));
   }
 }
 

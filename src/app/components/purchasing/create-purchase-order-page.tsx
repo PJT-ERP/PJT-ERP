@@ -272,10 +272,9 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
       return;
     }
 
-    const poNumber = await purchasingApi.previewNextPoNumber();
-
     try {
       setIsSubmitting(true);
+      const poNumber = await purchasingApi.previewNextPoNumber();
       await Promise.all(items.map(item => purchasingApi.processPurchaseRequestItem(request.id, item.requestItemId!, {
         supplierName: supplier,
         expectedArrivalDate: dueDate,

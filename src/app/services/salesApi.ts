@@ -36,6 +36,8 @@ export interface ProductBomItemDto {
   inventoryItemName: string;
   quantity: number;
   unit: string;
+  specification?: string | null;
+  spec?: string | null;
 }
 
 export interface ProductDto {
@@ -51,6 +53,8 @@ export interface ProductDto {
 export interface CreateProductBomItemRequest {
   inventoryItemId: string;
   quantity: number;
+  specification?: string | null;
+  spec?: string | null;
 }
 
 export interface CreateProductRequest {
@@ -146,6 +150,7 @@ export interface AssignSalesOrderEngineersRequest {
     userId: string;
     name: string;
   } | null;
+  notes?: string;
 }
 
 export const salesApi = {
@@ -216,7 +221,7 @@ export const salesApi = {
     return response.data;
   },
 
-  async updateSalesOrderDesignStatus(salesOrderId: string, request: { designStatus: string, reviewedByUserId?: string, reviewerName?: string, notes?: string }) {
+  async updateSalesOrderDesignStatus(salesOrderId: string, request: { designStatus: string, reviewedByUserId?: string, reviewerName?: string, notes?: string, designReference?: string, customerDrawingUrl?: string }) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/design-status`, request);
     return response.data;
   },
@@ -226,7 +231,7 @@ export const salesApi = {
     return response.data;
   },
 
-  async submitSalesOrderDesign(salesOrderId: string, request: { designReference: string, drawingFileUrl: string }) {
+  async submitSalesOrderDesign(salesOrderId: string, request: { designReference: string, drawingFileUrl?: string, updatedByName?: string }) {
     const response = await apiClient.post<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/submit-design`, request);
     return response.data;
   },

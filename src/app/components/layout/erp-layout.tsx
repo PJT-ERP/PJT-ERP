@@ -21,17 +21,17 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   'Engineering': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
-    { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
-    { label: "Req. Pembelian", icon: <ShoppingCart size={15} />, path: "/erp/engineer-purchasing" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
-    { label: "Pantau QC", icon: <CheckSquare size={15} />, path: "/erp/engineer-qc" },
   ],
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
     { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Req. Pembelian", icon: <Package size={15} />, path: "/erp/engineer-purchasing" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
-    { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/engineer-qc" },
+  ],
+  QC: [
+    { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/qc" },
+    { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/qc/inspections" },
   ],
   Owner: [
     { label: "MENU UTAMA", isHeader: true },
@@ -41,7 +41,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard", activePrefix: "/erp/so" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
     { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production", activePrefix: "/erp/production" },
-    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/engineer-qc", activePrefix: "/erp/engineer-qc" },
+    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc/inspections", activePrefix: "/erp/qc" },
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
     { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
@@ -52,7 +52,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard", activePrefix: "/erp/so" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },
     { label: "Produksi", icon: <Activity size={15} />, path: "/erp/production", activePrefix: "/erp/production" },
-    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/engineer-qc", activePrefix: "/erp/engineer-qc" },
+    { label: "QC & Inspeksi", icon: <Shield size={15} />, path: "/erp/qc/inspections", activePrefix: "/erp/qc" },
     { label: "Manajemen Pembelian", icon: <Package size={15} />, path: "/erp/purchasing/dashboard", activePrefix: "/erp/purchasing" },
     { label: "Stok Gudang", icon: <Box size={15} />, path: "/erp/purchasing/inventory" },
     { label: "Master Produk", icon: <Package size={15} />, path: "/erp/admin/products" },
@@ -97,7 +97,7 @@ export function ERPLayout() {
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
   const canReadSupplierPayments = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
-  const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments);
+  const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments, canReadSupplierPayments);
   const { purchaseRequests: backendPurchaseRequests, suppliers: purchasingSuppliers } = usePurchasingData(currentUser?.role === 'Finance');
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
 
@@ -273,9 +273,10 @@ export function ERPLayout() {
       salesOrders.filter(so => so.status === 'Ready for Production').forEach(so => {
         if (!isRelevant(so.assignedTo)) return;
         const isUnassigned = !so.assignedTo;
-        const title = isUnassigned && isSpv ? 'Butuh Penugasan Produksi' : 'Siap Diproduksi';
-        const desc = isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke pekerja.` : `SO ${so.id} siap untuk mulai diproduksi.`;
-        notifs.push({ id: so.id, type: 'info', title, desc, targetPath: '/erp/production' });
+        const isReturnedToSpv = isUnassigned && !!so.rejectionReason;
+        const title = isReturnedToSpv ? 'SO Dikembalikan ke SPV' : (isUnassigned && isSpv ? 'Butuh Penugasan Produksi' : 'Siap Diproduksi');
+        const desc = isReturnedToSpv ? `SO ${so.id} dikembalikan oleh operator: "${so.rejectionReason}"` : (isUnassigned && isSpv ? `SO ${so.id} belum ditugaskan ke pekerja.` : `SO ${so.id} siap untuk mulai diproduksi.`);
+        notifs.push({ id: so.id, type: isReturnedToSpv ? 'alert' : 'info', title, desc, targetPath: '/erp/production' });
       });
 
       salesOrders.filter(so => so.status === 'QC').forEach(so => {
@@ -337,7 +338,6 @@ export function ERPLayout() {
         notifs.push({ id: pr.id, type: 'alert', title: 'MR Butuh Approval', desc: `MR ${pr.id} butuh persetujuan segera.`, targetPath: '/erp/purchasing/requests' });
       });
     }
-    return notifs;
     return notifs;
   }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds, invoices, payments]);
 

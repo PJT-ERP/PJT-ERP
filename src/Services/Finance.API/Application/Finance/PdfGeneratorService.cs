@@ -208,21 +208,7 @@ public static class PdfGeneratorService
 
     private static void ComposeFooter(IContainer container)
     {
-        container.Row(row =>
-        {
-            row.RelativeItem().Column(column =>
-            {
-                column.Item().Text("Terima kasih atas kerja sama Anda.").FontSize(10).FontColor(Colors.Grey.Darken2).SemiBold();
-                column.Item().Text("Dokumen ini dihasilkan oleh Sistem ERP PT Pratama Jaya dan sah tanpa tanda tangan fisik.").FontSize(8).FontColor(Colors.Grey.Medium);
-            });
-            row.ConstantItem(50).AlignRight().Text(x =>
-            {
-                x.Span("Page ");
-                x.CurrentPageNumber();
-                x.Span(" / ");
-                x.TotalPages();
-            });
-        });
+        // Removed footer content (including page numbering) as requested
     }
 
     private static string FormatCurrency(decimal amount)

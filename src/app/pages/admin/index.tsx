@@ -15,7 +15,7 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const ROLES: UserRole[] = ['Sales', 'Engineering', 'Admin', 'Finance', 'Purchasing'];
+const ROLES: UserRole[] = ['Sales', 'Engineering', 'Admin', 'Finance', 'Purchasing', 'QC'];
 
 function getRoleColors(role: string) {
   switch (role) {
@@ -25,6 +25,7 @@ function getRoleColors(role: string) {
     case 'Engineering': return { bg: '#FFE4E6', text: '#E11D48', border: '#FECDD3' }; // Rose / Red
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
+    case 'QC': return { bg: '#FEF9C3', text: '#A16207', border: '#FEF08A' }; // Yellow
     default: return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' }; // Sales
   }
 }

@@ -15,6 +15,7 @@ public sealed class PurchaseRequestItem
     public string ItemName { get; set; } = "";
     public string? Size { get; set; }
     public int Qty { get; set; }
+    public string Unit { get; set; } = "PCS";
     public string Urgency { get; set; } = PurchaseItemUrgencies.Normal;
     public string PurchaseCategory { get; set; } = PurchaseItemCategories.Project;
     public string? SuggestedSupplier { get; set; }

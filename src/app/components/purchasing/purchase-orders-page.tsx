@@ -49,7 +49,7 @@ export interface PO {
   contactPhone: string;
   orderDate: string;
   dueDate: string;
-  deliveryStatus: "Open" | "Confirmed" | "In Transit" | "Partial" | "Received" | "Closed" | "Cancelled";
+  deliveryStatus: "Open" | "Partial" | "Confirmed" | "In Transit" | "Closed" | "Cancelled";
   paymentStatus: "Unpaid" | "Partial" | "Paid";
   paymentTerms: string;
   requestRefs: string[];
@@ -66,11 +66,7 @@ const SUPPLIERS = ["CV Bintang Logam", "PT Sumber Teknik", "UD Maju Jaya", "PT I
 /* ── Status configs ────────────────────────────────────────── */
 
 export const deliveryCfg: Record<string, { bg: string; color: string; dot: string; pct: number }> = {
-  Open:       { bg: "#eff6ff", color: "#1d4ed8", dot: "#3b82f6", pct: 5 },
-  Confirmed:  { bg: "#f0fdf4", color: "#166534", dot: "#22c55e", pct: 25 },
   "In Transit": { bg: "#fffbeb", color: "#92400e", dot: "#f59e0b", pct: 60 },
-  Partial:    { bg: "#faf5ff", color: "#6b21a8", dot: "#a855f7", pct: 70 },
-  Received:   { bg: "#f0fdf4", color: "#166534", dot: "#16a34a", pct: 90 },
   Closed:     { bg: "#f1f5f9", color: "#334155", dot: "#64748b", pct: 100 },
   Cancelled:  { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626", pct: 0 },
 };
@@ -88,7 +84,7 @@ export const calcUnitPrice = (item: POItem) => item.qty > 0 ? item.totalPrice / 
 export const calcTotal = (items: POItem[]) => items.reduce((s, i) => s + i.totalPrice, 0);
 export const calcReceived = (items: POItem[]) => items.reduce((s, i) => s + i.received * calcUnitPrice(i), 0);
 
-export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = []): PO[] {
+export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payments: SupplierPaymentDto[] = [], suppliers: any[] = [], inventoryItems: any[] = []): PO[] {
   const byPo = new Map<string, PO>();
 
   requests.forEach(request => {
@@ -110,7 +106,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
-          code: item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          code: inventoryItems.find(inv => inv.name?.toLowerCase() === item.itemName?.toLowerCase())?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
           spec: item.size || "-",
           qty: item.qty,
@@ -153,7 +149,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           contactPhone: primaryContact?.phone || "-",
           orderDate: formatPoDate(item.purchaseDate || request.requestDate),
           dueDate: formatPoDate(item.expectedArrivalDate || request.requestDate),
-          deliveryStatus: mapDeliveryStatus(item.purchaseStatus),
+          deliveryStatus: "Open", // will be calculated below
           paymentStatus: payments.some(p => p.poNumber === poNumber) ? "Paid" : "Unpaid",
           paymentTerms: extractedTerms,
           requestRefs: [request.prNumber],
@@ -169,26 +165,42 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
       });
   });
 
+  for (const po of byPo.values()) {
+    const allCancelled = po.items.every(i => i.purchaseStatus === "Rejected");
+    const allClosed = po.items.every(i => i.purchaseStatus === "Received" || i.received >= i.qty);
+    const anyReceived = po.items.some(i => i.received > 0);
+    const anyOrdered = po.items.some(i => i.purchaseStatus === "Ordered");
+    const anyApproved = po.items.some(i => i.purchaseStatus === "Approved");
+
+    if (allCancelled) {
+      po.deliveryStatus = "Cancelled";
+    } else if (allClosed) {
+      po.deliveryStatus = "Closed";
+    } else if (anyReceived) {
+      po.deliveryStatus = "Partial";
+    } else if (anyOrdered) {
+      po.deliveryStatus = "In Transit";
+    } else if (anyApproved) {
+      po.deliveryStatus = "Confirmed";
+    } else {
+      po.deliveryStatus = "Open";
+    }
+  }
+
   return [...byPo.values()].sort((a, b) => b.id.localeCompare(a.id));
 }
 
 function mapDeliveryStatus(status: string): PO["deliveryStatus"] {
   if (status === "Received") return "Closed";
-  if (status === "Ordered") return "In Transit";
-  if (status === "Approved") return "Confirmed";
   if (status === "Rejected") return "Cancelled";
-  return "Open";
+  return "In Transit";
 }
 
 function mergeDeliveryStatus(current: PO["deliveryStatus"], next: PO["deliveryStatus"]): PO["deliveryStatus"] {
-  const rank: Record<PO["deliveryStatus"], number> = {
+  const rank: Record<string, number> = {
     Cancelled: 0,
-    Open: 1,
-    Confirmed: 2,
-    "In Transit": 3,
-    Partial: 4,
-    Received: 5,
-    Closed: 6,
+    "In Transit": 1,
+    Closed: 2,
   };
 
   return rank[next] > rank[current] ? next : current;
@@ -248,8 +260,8 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const { purchaseRequests, supplierPayments, suppliers } = usePurchasingData();
-  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers), [purchaseRequests, supplierPayments, suppliers]);
+  const { purchaseRequests, supplierPayments, suppliers, inventoryItems } = usePurchasingData();
+  const purchaseOrders = useMemo(() => mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, suppliers, inventoryItems), [purchaseRequests, supplierPayments, suppliers, inventoryItems]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -516,7 +528,18 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                                       <td style={{ padding: "8px 12px", fontSize: 12, color: "#64748b" }}>{item.spec}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 500 }}>{item.qty} {item.unit}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: item.received === item.qty ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>
-                                        {item.received} {item.unit}
+                                        <div className="flex flex-col items-end gap-1">
+                                          <span>{item.received} {item.unit}</span>
+                                          {item.received > 0 && (
+                                            <span 
+                                              className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700 border border-green-200"
+                                              title="Stok aktual gudang telah diperbarui"
+                                              style={{ lineHeight: 1 }}
+                                            >
+                                              <CheckCircle2 size={10} /> Masuk Gudang
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", color: "#64748b" }}>{formatRp(calcUnitPrice(item))}</td>
                                       <td style={{ padding: "8px 12px", fontSize: 12, textAlign: "right", fontWeight: 600, color: "#1F1F1F" }}>{formatRp(item.totalPrice)}</td>

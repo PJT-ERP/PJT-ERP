@@ -4,6 +4,7 @@ import { salesApi, CustomerDto, ProductDto, SalesOrderDto } from "../../../servi
 import { purchasingApi, PurchaseRequestDto } from "../../../services/purchasingApi";
 import { authApi } from "../../../services/authApi";
 import { financeApi } from "../../../services/financeApi";
+import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
 import {
   mapCustomerDto,
   canLoadPurchaseRequests,
@@ -24,14 +25,15 @@ export function useBackendSync(currentUser: User | null) {
 
   const refreshBackendData = useCallback(async (callbacks: RefreshCallbacks) => {
     const shouldLoadPurchaseRequests = canLoadPurchaseRequests(currentUser?.role);
-    const shouldLoadInvoices = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner" || currentUser?.role === "Sales";
-    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult] = await Promise.allSettled([
+    const shouldLoadInvoices = currentUser && ['Admin', 'Finance', 'Owner', 'Sales'].includes(currentUser.role);
+    const [customersResult, productsResult, salesOrdersResult, purchaseRequestsResult, usersResult, invoicesResult, inventoryResult] = await Promise.allSettled([
       salesApi.listCustomers(),
       salesApi.listProducts(),
       salesApi.listSalesOrders(),
       shouldLoadPurchaseRequests ? purchasingApi.listPurchaseRequests() : Promise.resolve<PurchaseRequestDto[]>([]),
       authApi.getUsers(),
-      shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([])
+      shouldLoadInvoices ? financeApi.listInvoices().catch(() => []) : Promise.resolve([]),
+      masterDataApi.listInventory().catch(() => [] as InventoryItemDto[])
     ]);
 
     if (customersResult.status === "fulfilled") {
@@ -55,8 +57,10 @@ export function useBackendSync(currentUser: User | null) {
       invoices = invoicesResult.value;
     }
 
+    const inventoryItems: InventoryItemDto[] = inventoryResult.status === "fulfilled" ? inventoryResult.value : [];
+
     if (salesOrdersResult.status === "fulfilled") {
-      callbacks.onSalesOrdersLoaded(salesOrdersResult.value.map(dto => mapSalesOrderDto(dto, invoices, productsForSalesOrders)));
+      callbacks.onSalesOrdersLoaded(salesOrdersResult.value.map(dto => mapSalesOrderDto(dto, invoices, productsForSalesOrders, inventoryItems)));
     } else {
       console.warn("Sales order seed data was not loaded.", salesOrdersResult.reason);
     }

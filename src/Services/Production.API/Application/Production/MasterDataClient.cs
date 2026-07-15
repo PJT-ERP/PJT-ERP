@@ -2,9 +2,6 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http;
 using System.Net.Http.Headers;
 
-using Microsoft.AspNetCore.Http;
-using System.Net.Http.Headers;
-
 namespace PJT_ERP.Production.Api.Application.Production;
 
 public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor httpContextAccessor) : IMasterDataClient
@@ -88,7 +85,6 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
             }
             catch
             {
-                // Ignored, fallback to default error message
             }
             throw new InvalidOperationException(errorMessage);
         }
@@ -125,7 +121,6 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
             }
             catch
             {
-                // Ignored, fallback to default error message
             }
             throw new InvalidOperationException(errorMessage);
         }

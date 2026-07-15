@@ -16,6 +16,7 @@ public sealed class SupplierPaymentsController(IFinanceService financeService) :
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Finance")] 
     public async Task<ActionResult<SupplierPaymentDto>> SubmitPayment(
         [FromForm] SubmitSupplierPaymentFormRequest request,
         CancellationToken cancellationToken)

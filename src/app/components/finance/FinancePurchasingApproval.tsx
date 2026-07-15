@@ -49,16 +49,14 @@ export function FinancePurchasingApproval() {
       const allMrs = purchaseRequests.map(mapPurchaseRequestToMr);
       const pendingMrs = allMrs.filter(mr => {
         if (mr.backendStatus === "Completed" || mr.status === "Completed") return false;
-        return mr.backendStatus === "SupervisorApproved" || 
+        
+        // Hanya tampilkan di Finance jika Purchasing sudah submit harga (isReadyForFinance)
+        // ATAU statusnya memang sedang/sudah diproses oleh Finance
+        return mr.isReadyForFinance === true || 
                mr.backendStatus === "FinanceApproved" || 
                mr.backendStatus === "FinanceRejected" ||
-               mr.backendStatus === "Rejected" ||
-               mr.backendStatus === "Submitted" ||
-               mr.backendStatus === "Approved" ||
-               mr.status === "Approved" ||
-               mr.isReadyForFinance === true ||
-               mr.status === "Waiting for Finance Approval" ||
-               mr.status === "Revision Needed";
+               (mr.status as string) === "Waiting for Finance Approval" ||
+               (mr.status as string) === "Revision Needed";
       });
       
       pendingMrs.sort((a, b) => {

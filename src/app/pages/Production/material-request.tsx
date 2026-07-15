@@ -447,7 +447,10 @@ export function ProductionMaterialRequestPage() {
       } else {
         const mats = getMaterialOptions(so);
         setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
-        setItems([{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]);
+        setItems(mats.length > 0
+          ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+          : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
+        );
       }
     }).catch(() => {
       const mats = getMaterialOptions(so);
@@ -469,7 +472,7 @@ export function ProductionMaterialRequestPage() {
     code: p.code,
     currentStock: p.currentStock || 0,
     unit: p.unit || "pcs",
-    spec: (p as any).specification || p.description || ""
+    spec: (p as any).specification || (p as any).description || ""
   }));
 
   if (!so) {
@@ -552,10 +555,25 @@ export function ProductionMaterialRequestPage() {
 
     try {
       setIsSubmitting(true);
-      await productionApi.submitMaterialRequest(salesOrderId, {
+      
+      // Auto confirm the Sales Order silently before making the MR API call
+      try {
+        const { salesApi } = await import("../../services/salesApi");
+        await salesApi.confirmSalesOrder(salesOrderId, requesterId);
+      } catch (e) {
+        console.warn("Auto-confirm SO silently failed or already confirmed", e);
+      }
+
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      const { purchasingApi } = await import("../../services/purchasingApi");
+      const created = await purchasingApi.createPurchaseRequest({
+        requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,
-        requesterName: currentUser?.name || so.assignedName || "Engineering",
-        notes: notes || null,
+        requesterName: currentUser?.name || currentUser?.role || 'Engineering User',
+        salesOrderId: salesOrderId,
+        salesOrderNumber: so.id,
+        projectName: so.id,
+        requireSupervisorApproval: !isSpvUser,
         items: parsedItems.map(item => ({
           materialRequirementId: null,
           salesOrderItemId: null,
@@ -568,6 +586,18 @@ export function ProductionMaterialRequestPage() {
           purchaseCategory: item.purchaseCategory,
         })),
       });
+
+      if (isSpvUser && created?.id) {
+        try {
+          await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+            reviewedByUserId: requesterId,
+            decision: 'Accept',
+          });
+        } catch (e) {
+          console.warn("Auto supervisor review failed for production MR", e);
+        }
+      }
+
       await refreshBackendData();
       setIsSuccess(true);
     } catch (error: unknown) {
@@ -585,7 +615,7 @@ export function ProductionMaterialRequestPage() {
       <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
           <button 
-            onClick={() => { window.location.href = '/erp/production'; }} 
+            onClick={() => { navigate('/erp/production'); }} 
             style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: S.white, border: `1px solid ${S.border}`, borderRadius: "8px", cursor: "pointer", color: S.slate, fontSize: "14px", fontWeight: 500, marginBottom: "20px", padding: "8px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", transition: "all 0.2s", alignSelf: "flex-start" }}
             onMouseEnter={e => { e.currentTarget.style.background = S.bg; e.currentTarget.style.borderColor = "#CBD5E1"; }}
             onMouseLeave={e => { e.currentTarget.style.background = S.white; e.currentTarget.style.borderColor = S.border; }}
@@ -603,9 +633,9 @@ export function ProductionMaterialRequestPage() {
                 Material Request Berhasil Diajukan
               </h3>
               <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-                Pengajuan MR untuk {so.id} telah dikirim ke Supervisor untuk direview sebelum diteruskan ke tim Purchasing.
+                Pengajuan MR untuk {so.id} telah dikirim ke {currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' ? 'tim Purchasing' : 'Supervisor untuk direview sebelum diteruskan ke tim Purchasing'}.
               </p>
-              <button onClick={() => { window.location.href = '/erp/production'; }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
+              <button onClick={() => { navigate('/erp/production'); }} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Dasbor Produksi</button>
             </div>
           ) : (
             <>

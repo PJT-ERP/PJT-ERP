@@ -61,7 +61,7 @@
   "contactTitle": "Don't Know Where to Start?",
   "contactSubtitle": "Get Solutions for All Your Engineering Needs",
   "contactLocations": [
-    { "id": "loc1", "label": "Head Office", "address": "Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya, Kec.\nPs. Kemis, Kabupaten Tangerang, Banten 15560" },
+    { "id": "loc1", "label": "Head Office", "address": "Sunrise Bizpark Blok D3, RT.003/RW.3, Gelam Jaya,\nKec. Ps. Kemis, Kabupaten Tangerang, Banten 15560" },
     { "id": "loc2", "label": "Branch Office", "address": "Kawasan 3 bisnis centre,Ruko Shapire No 51 Jl. Lingkar\nTanjungpura, Tanjungpura, kec. Karawang Barat, Jawa Barat 41361" },
     { "id": "loc3", "label": "Workshop 2", "address": "Pergudangan centre point Blok B5, Krian, Sidoarjo," }
   ],

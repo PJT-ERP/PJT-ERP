@@ -19,7 +19,8 @@ public sealed class PurchaseItemReceivedEventHandler(MasterDataContext db) : IIn
         {
             inventoryItem.CurrentStock += integrationEvent.QuantityReceived;
             inventoryItem.UpdatedAtUtc = DateTime.UtcNow;
-            await db.SaveChangesAsync(cancellationToken);
         }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 }

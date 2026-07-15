@@ -1,8 +1,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
-ENV NUGET_XMLDOC_MODE=skip
+ENV NUGET_XMLDOC_MODE=skip \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_GCHeapHardLimit=1048576000 \
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
-# Copy the solution file and all project files
 COPY ["PtPjtErp.sln", "./"]
 COPY ["NuGet.config", "./"]
 
@@ -26,15 +28,12 @@ COPY ["tests/Services/Production.API.Tests/Production.API.Tests.csproj", "tests/
 COPY ["tests/Services/Purchasing.API.Tests/Purchasing.API.Tests.csproj", "tests/Services/Purchasing.API.Tests/"]
 COPY ["tests/Services/QC.API.Tests/QC.API.Tests.csproj", "tests/Services/QC.API.Tests/"]
 
-# Restore all projects at once
 RUN dotnet restore "PtPjtErp.sln" --disable-parallel
 
-# Copy the rest of the source code
 COPY . .
 
-# Publish the specified project
 ARG PROJECT_PATH
-RUN dotnet publish ${PROJECT_PATH} -c Release -o /app/publish /p:UseAppHost=false --no-restore
+RUN dotnet publish ${PROJECT_PATH} -c Release -o /app/publish /p:UseAppHost=false /p:BuildInParallel=false /nodeReuse:false -m:1 --no-restore
 
 # Final runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine

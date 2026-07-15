@@ -17,8 +17,9 @@ interface StockIssue {
   specs?: Array<{ spec: string; quantity: number }>;
 }
 
-export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
+export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: SalesOrder; onClose: () => void; onReturnToSpv?: () => void }) {
   const { currentUser, productCatalog, refreshBackendData } = useApp();
+  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -230,13 +231,23 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
 
               {isStockError && (
                 <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues || [] } })}
-                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                  >
-                    <FileWarning size={14} /> Buat Material Request
-                  </button>
+                  {isSupervisor ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues || [] } })}
+                      style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <FileWarning size={14} /> Buat Material Request
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { onClose(); if (onReturnToSpv) onReturnToSpv(); }}
+                      style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <FileWarning size={14} /> Kembalikan ke SPV
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -266,13 +277,23 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
                 ))}
               </div>
               <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => { onClose(); navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues! } }); }}
-                  style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <FileWarning size={14} /> Buat Material Request
-                </button>
+                {isSupervisor ? (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues! } }); }}
+                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <FileWarning size={14} /> Buat Material Request
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); if (onReturnToSpv) onReturnToSpv(); }}
+                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <FileWarning size={14} /> Kembalikan ke SPV
+                  </button>
+                )}
               </div>
             </div>
           )}

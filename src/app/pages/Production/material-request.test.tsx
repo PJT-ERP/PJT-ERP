@@ -47,7 +47,7 @@ describe('ProductionMaterialRequestPage', () => {
         { id: 'SO-123', description: 'Test Order' }
       ],
       purchasingRequests: [],
-      currentUser: { role: 'Engineering' },
+      currentUser: { role: 'Engineering Supervisor' },
     } as any);
 
     render(
@@ -90,7 +90,7 @@ describe('ProductionMaterialRequestPage', () => {
     vi.mocked(useApp).mockReturnValue({
       salesOrders: [{ id: 'SO-123', description: 'Test Order' }],
       purchasingRequests: [],
-      currentUser: { role: 'Engineering' },
+      currentUser: { role: 'Engineering Supervisor' },
     } as any);
 
     render(

@@ -5,7 +5,7 @@ using PJT_ERP.Purchasing.Api.Application.PurchaseRequests;
 namespace PJT_ERP.Purchasing.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin,Finance,Engineering Worker,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
+[Authorize(Roles = "Admin,Finance,Engineering,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order")]
 [Route("api/v1/purchasing")]
 public sealed class MaterialTrackingController(IPurchaseRequestService purchaseRequestService) : ControllerBase
 {

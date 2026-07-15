@@ -27,38 +27,76 @@ export function canLoadPurchaseRequests(role?: UserRole | null) {
     || role === "Owner";
 }
 
-export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = []): SalesOrder["materials"] {
+import { InventoryItemDto } from "../../../services/masterDataApi";
+
+export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder["materials"] {
   const legacyMaterials: any[] = [];
   const productsById = new Map(products.map(product => [product.id, product]));
 
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
-    if (product?.bomItems && product.bomItems.length > 0) return;
+    // Process custom materials (notes) regardless of whether it has standard BOM
+    if (item.notes?.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(item.notes);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((material, index) => {
+            if (!material || typeof material !== "object") return;
 
-    if (!item.notes?.startsWith("[")) return;
-
-    try {
-      const parsed = JSON.parse(item.notes);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((material, index) => {
-          if (!material || typeof material !== "object") return;
-
-          legacyMaterials.push({
-            ...material,
-            id: material.id || `${item.id}-legacy-${index}`,
+            legacyMaterials.push({
+              ...material,
+              id: material.id || `${item.id}-legacy-${index}`,
+            });
           });
-        });
+        }
+      } catch {
+        // Keep older malformed notes from breaking the whole SO list.
       }
-    } catch {
-      // Keep older malformed notes from breaking the whole SO list.
     }
   });
 
   const materialsByKey = new Map<string, any>();
 
+  const overriddenInventoryItemIds = new Set<string>();
+
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
-    const key = legacy.inventoryItemId || `${legacy.name}|${legacy.unit}`;
+    // Normalize inventoryItemId: repeat orders store it in `id`, manual entries use `inventoryItemId`
+    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') ? legacy.id : undefined);
+
+    // Try to find the item code from the products if it's missing
+    if (!legacy.code && resolvedInvId) {
+      for (const p of products) {
+        const match = p.bomItems?.find(b => b.inventoryItemId === resolvedInvId);
+        if (match?.inventoryItemCode) {
+          legacy.code = match.inventoryItemCode;
+          break;
+        }
+      }
+      
+      // If still missing, try to find it in the inventory items directly
+      if (!legacy.code && inventoryItems.length > 0) {
+        const invMatch = inventoryItems.find(inv => inv.id === resolvedInvId);
+        if (invMatch?.code) {
+          legacy.code = invMatch.code;
+        }
+      }
+    }
+
+    // Strip code prefix from name for legacy repeat orders that embedded it (e.g. "MAT-001 - S45C Round Bar")
+    if (legacy.code && legacy.name) {
+      const codePrefix = `${legacy.code} - `;
+      if (legacy.name.startsWith(codePrefix)) {
+        legacy.name = legacy.name.slice(codePrefix.length);
+      }
+    }
+
+    if (resolvedInvId) {
+      overriddenInventoryItemIds.add(resolvedInvId);
+    }
+
+    const specKey = legacy.spec || legacy.specification || "";
+    const key = `${resolvedInvId || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);
@@ -70,11 +108,18 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
   order.items.forEach(item => {
     const product = productsById.get(item.productId);
     product?.bomItems?.forEach(bomItem => {
+      // If the engineering team explicitly provided custom specs for this inventory item, skip the standard BOM entry
+      if (overriddenInventoryItemIds.has(bomItem.inventoryItemId)) {
+        return;
+      }
+
       const itemQuantity = Number(item.qty || 0);
       const bomQuantity = Number(bomItem.quantity || 0);
       if (bomQuantity <= 0) return;
 
-      const key = bomItem.inventoryItemId || `${bomItem.inventoryItemName}|${bomItem.unit}`;
+      const specVal = bomItem.specification || bomItem.spec || "";
+      const specKey = specVal || bomItem.inventoryItemCode || "";
+      const key = `${bomItem.inventoryItemId || bomItem.inventoryItemName}|${specKey}|${bomItem.unit}`;
       const existing = materialsByKey.get(key);
       const quantity = bomQuantity * Math.max(itemQuantity, 1);
 
@@ -87,8 +132,9 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
         id: `${item.id}-${bomItem.id || key}`,
         inventoryItemId: bomItem.inventoryItemId,
         name: bomItem.inventoryItemName,
-        spec: bomItem.inventoryItemCode,
-        specification: bomItem.inventoryItemCode,
+        code: bomItem.inventoryItemCode,
+        spec: specVal,
+        specification: specVal,
         quantity,
         unit: bomItem.unit,
       });
@@ -120,9 +166,9 @@ export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
   return bomsPerItem;
 }
 
-export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = []): SalesOrder {
+export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder {
   const primaryItem = order.items[0];
-  const materials = mapSalesOrderMaterials(order, products);
+  const materials = mapSalesOrderMaterials(order, products, inventoryItems);
   const bomsPerItem = mapBomsPerItem(order);
 
   return {
@@ -145,7 +191,7 @@ export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], pro
     createdAt: order.soDate,
     designReference: order.designReference,
     designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
-    designLink: order.drawingFileUrl || order.customerDrawingUrl || (order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || undefined,
+    designLink: order.drawingFileUrl || (order.designReference && order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || order.customerDrawingUrl || undefined,
     startTime: order.startedAtUtc || undefined,
     endTime: order.finishedAtUtc || undefined,
     qcStatus: mapQcDecision(order.qcDecision),
@@ -254,9 +300,11 @@ export function mapPurchasingStatus(status: string): PurchasingStatus {
 export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesOrder["status"] {
   const qcDecisionLower = order.qcDecision?.toLowerCase()?.trim();
   if (order.status === "Completed" || qcDecisionLower === "pass" || qcDecisionLower === "go") {
-    const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
-    if (!invoice || (invoice.status !== "Paid" && invoice.status !== "PAID")) {
-      return "Waiting Payment";
+    if (invoices.length > 0) {
+      const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
+      if (invoice && invoice.status !== "Paid" && invoice.status !== "PAID") {
+        return "Waiting Payment";
+      }
     }
     return "Completed";
   }

@@ -7,7 +7,7 @@ import { PurchasingFormModal } from "./PurchasingFormModal";
 import { PRDetailModal } from "./PRDetailModal";
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests, refreshBackendData, currentUser } = useApp();
+  const { purchasingRequests, refreshBackendData, currentUser, users } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
@@ -24,11 +24,23 @@ export function EngineeringPurchasingPage() {
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
 
   const relevantRequests = isSpv
-    ? purchasingRequests
+    ? purchasingRequests.filter(r => {
+        if (currentUser?.role === 'Engineering Supervisor') {
+          const requester = users.find(u => u.id === r.requestedBy || u.name === r.requestedBy);
+          if (requester?.role === 'Purchasing' || requester?.role === 'Purchasing Admin') return false;
+          if (r.requestedBy.toLowerCase().includes('purchasing')) return false;
+        }
+        return true;
+      })
     : purchasingRequests.filter(r => r.requestedBy === currentUser?.name || r.requestedBy === currentUser?.id);
 
-  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted');
-  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted');
+  const isMadeBySpv = (r: any) => {
+    const reqBy = r.requestor || r.requestedBy || (r as any).requesterName || "";
+    return reqBy.toLowerCase().includes('supervisor') || reqBy.toLowerCase().includes('spv') || reqBy === 'Admin' || reqBy === 'Owner' || r.approvedBy === 'Engineering Supervisor';
+  };
+
+  const waitingSpvRequests = relevantRequests.filter(r => r.backendStatus === 'Submitted' && !isMadeBySpv(r));
+  const otherRequests = relevantRequests.filter(r => r.backendStatus !== 'Submitted' || isMadeBySpv(r));
 
   const totalPages = Math.ceil(otherRequests.length / itemsPerPage);
   const paginatedRequests = otherRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -38,7 +50,7 @@ export function EngineeringPurchasingPage() {
 
   const statusCount = (s: string) => {
     if (s === 'Menunggu SPV') return waitingSpvRequests.length;
-    return relevantRequests.filter(r => r.status === s && r.backendStatus !== 'Submitted').length;
+    return relevantRequests.filter(r => (r.status === s && (r.backendStatus !== 'Submitted' || isMadeBySpv(r))) || (s === 'Diproses' && r.backendStatus === 'Submitted' && isMadeBySpv(r))).length;
   };
 
   return (
@@ -64,9 +76,8 @@ export function EngineeringPurchasingPage() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        {(['Menunggu SPV', 'Pending', 'Diproses', 'Selesai', 'Ditolak'] as const).map(s => {
+        {(['Pending', 'Diproses', 'Selesai', 'Ditolak'] as const).map(s => {
           let accent = "#94A3B8"; let bg = "rgba(148,163,184,0.08)";
-          if (s === 'Menunggu SPV') { accent = "#A855F7"; bg = "rgba(168,85,247,0.08)"; }
           if (s === 'Diproses') { accent = "#3B82F6"; bg = "rgba(59,130,246,0.08)"; }
           if (s === 'Selesai') { accent = "#22C55E"; bg = "rgba(34,197,94,0.08)"; }
           if (s === 'Ditolak') { accent = "#EF4444"; bg = "rgba(239,68,68,0.08)"; }
