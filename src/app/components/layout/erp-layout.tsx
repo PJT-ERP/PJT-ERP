@@ -79,20 +79,26 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
 };
 
 export function ERPLayout() {
+  const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('dismissedNotifIds') || '[]'); } catch { return []; }
+    try { 
+      const userKey = currentUser?.username || 'default';
+      return JSON.parse(localStorage.getItem(`dismissedNotifIds_${userKey}`) || '[]'); 
+    } catch { return []; }
   });
+  
   const dismissNotif = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newDismissed = [...dismissedNotifIds, id];
     setDismissedNotifIds(newDismissed);
-    localStorage.setItem('dismissedNotifIds', JSON.stringify(newDismissed));
+    if (currentUser) {
+      localStorage.setItem(`dismissedNotifIds_${currentUser.username}`, JSON.stringify(newDismissed));
+    }
   };
-
-  const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
   const canReadFinanceData = currentUser?.role === "Finance" 
     || currentUser?.role === "Admin"
     || currentUser?.role === "Owner"
@@ -343,7 +349,10 @@ export function ERPLayout() {
   }, [currentUser, salesOrders, purchasingRequests, readyInvoices, dismissedNotifIds, invoices, payments]);
 
   const [lastViewedKeys, setLastViewedKeys] = React.useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('lastViewedKeys') || '[]'); } catch { return []; }
+    try { 
+      const userKey = currentUser?.username || 'default';
+      return JSON.parse(localStorage.getItem(`lastViewedKeys_${userKey}`) || '[]'); 
+    } catch { return []; }
   });
 
   const getNotifKey = (n: { id: string, title: string }) => `${n.id}-${n.title}`;
@@ -352,9 +361,11 @@ export function ERPLayout() {
     if (isNotifOpen) {
       const keys = notifications.map(getNotifKey);
       setLastViewedKeys(keys);
-      localStorage.setItem('lastViewedKeys', JSON.stringify(keys));
+      if (currentUser) {
+        localStorage.setItem(`lastViewedKeys_${currentUser.username}`, JSON.stringify(keys));
+      }
     }
-  }, [isNotifOpen, notifications]);
+  }, [isNotifOpen, notifications, currentUser]);
 
   const unreadCount = notifications.filter(n => !lastViewedKeys.includes(getNotifKey(n))).length;
   const hasNotif = unreadCount > 0;
