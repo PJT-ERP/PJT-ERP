@@ -35,6 +35,10 @@ section[class*="bg-white"][class*="rounded"] {
 }
 
 @media print {
+  .print-hide {
+    display: none !important;
+  }
+
   @page {
     size: A4;
     margin: 0;

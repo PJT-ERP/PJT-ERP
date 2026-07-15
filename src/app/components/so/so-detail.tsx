@@ -275,7 +275,12 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => window.print()} />
+          <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => {
+            const originalTitle = document.title;
+            document.title = order.id;
+            window.print();
+            document.title = originalTitle;
+          }} />
           <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
           <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Batal Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
         </div>

@@ -376,7 +376,7 @@ export function MaterialRequestsPage() {
           />
         </div>
         <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}>
-          <SelectTrigger className="h-9 w-36 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <SelectTrigger className="h-9 w-44 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <Filter size={12} className="mr-1" /><SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -385,7 +385,7 @@ export function MaterialRequestsPage() {
           </SelectContent>
         </Select>
         <Select value={filterPriority} onValueChange={(v) => { setFilterPriority(v); setCurrentPage(1); }}>
-          <SelectTrigger className="h-9 w-36 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <SelectTrigger className="h-9 w-44 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <SelectValue placeholder="Prioritas" />
           </SelectTrigger>
           <SelectContent>

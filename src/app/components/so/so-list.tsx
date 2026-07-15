@@ -104,7 +104,7 @@ function FilterDropdown({
           appearance: "none",
           background: S.white,
           border: `1px solid ${focused ? S.secondary : S.border}`,
-          borderRadius: 4, padding: "6px 26px 6px 10px",
+          borderRadius: 4, padding: "6px 32px 6px 12px", minWidth: "140px",
           fontSize: "12px", color: S.secondary,
           fontWeight: 400,
           cursor: "pointer", fontFamily: S.font, outline: "none",

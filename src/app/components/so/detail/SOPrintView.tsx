@@ -5,7 +5,7 @@ export function SOPrintView({ order, customer, displayMaterials, currentUser }: 
   const createdBy = order.createdBy === "backend" ? (currentUser?.name || "Sales Staff") : (order.createdBy || "Sales Staff");
 
   return (
-    <div className="hidden print:block print:w-full print:border-none print:shadow-none print:m-0 print:bg-white print:text-slate-900 bg-white print-area print:min-h-[100vh]">
+    <div className="hidden print:block print:w-full print:border-none print:shadow-none print:m-0 print:bg-white print:text-slate-900 bg-white print-area">
       <div className="px-10 pt-14 pb-8 border-b-2 border-slate-800">
         <div className="flex justify-between items-start">
           <div className="flex gap-6 items-center">
@@ -111,9 +111,9 @@ export function SOPrintView({ order, customer, displayMaterials, currentUser }: 
         )}
       </div>
 
-      <div className="mt-auto flex justify-end px-12 pt-16 pb-12">
+      <div className="flex justify-end px-12 pt-8 pb-4 mt-4">
         <div className="text-center">
-          <p className="text-base font-medium text-slate-800 mb-24">Dibuat Oleh,</p>
+          <p className="text-base font-medium text-slate-800 mb-16">Dibuat Oleh,</p>
           <div className="w-56 border-b-2 border-slate-400 mx-auto"></div>
           <p className="text-base font-bold text-slate-900 mt-2">{createdBy}</p>
           <p className="text-sm text-slate-500 mt-1">Sales Department</p>
