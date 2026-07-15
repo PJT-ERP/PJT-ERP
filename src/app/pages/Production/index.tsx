@@ -166,8 +166,7 @@ export function ProductionPage() {
     
     return materials.some(m => {
       const invItem = inventory.find(inv => 
-        inv.name?.toLowerCase() === m.itemName.toLowerCase() && 
-        (!m.specification || inv.specification?.toLowerCase() === m.specification.toLowerCase())
+        inv.name?.toLowerCase() === m.itemName.toLowerCase()
       );
       const reqQty = (m.quantity ?? 0) * (so.quantity || 1);
       const stock = invItem?.currentStock ?? 0;
