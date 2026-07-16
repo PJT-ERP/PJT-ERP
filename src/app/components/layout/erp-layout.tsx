@@ -330,7 +330,7 @@ export function ERPLayout() {
           && so.status !== "Completed" && so.backendStatus !== "Completed"
           && !hasInvoice;
       }).forEach(so => {
-        notifs.push({ id: so.id, type: 'warning', title: 'Permintaan Harga', desc: `Hitung estimasi COGS & buat Invoice untuk SO ${so.id}.`, targetPath: '/erp/finance/costing' });
+        notifs.push({ id: so.id, type: 'warning', title: 'Permintaan Harga', desc: `Buat Invoice untuk ${so.id}.`, targetPath: '/erp/finance/costing' });
       });
       payments.filter(p => p.status === 'PENDING').forEach(payment => {
         notifs.push({ id: payment.id, type: 'info', title: 'Verifikasi Pembayaran', desc: `Pembayaran untuk Invoice ${payment.invoiceNumber} menunggu verifikasi.`, targetPath: '/erp/finance/payment-verification' });
