@@ -1,5 +1,5 @@
 import React from "react";
-import { GripVertical, Trash2, Hash, Link as LinkIcon, Plus } from "lucide-react";
+import { GripVertical, Trash2, Hash, Link as LinkIcon, Plus, AlertCircle } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../../data/mockData";
 import { Label, Input, CurrencyInput, Select } from "./FormHelpers";
 
@@ -123,7 +123,53 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
         <div style={{ marginBottom: 10 }}>
           <Label text={isCustom ? "Nama Produk (Manual)" : "Nama Produk"} required />
           {isCustom ? (
-            <Input placeholder="Ketik nama produk custom..." value={row.customName} onChange={e => onChange({ ...row, customName: e.target.value })} required />
+            <div>
+              <Input placeholder="Ketik nama produk custom..." value={row.customName} onChange={e => onChange({ ...row, customName: e.target.value })} required />
+              {row.customName.trim().length > 0 && productOptions.some(p => {
+                const c = row.customName.trim().toLowerCase();
+                const l = p.label.toLowerCase();
+                return l === c || (l.includes(" - ") && l.substring(l.indexOf(" - ") + 3).trim() === c);
+              }) && (
+                <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, display: "flex", gap: 10, alignItems: "center" }}>
+                  <AlertCircle size={14} style={{ color: "#D97706", flexShrink: 0 }} />
+                  <span style={{ fontSize: "11.5px", color: "#92400E", fontFamily: S.font, flex: 1, lineHeight: 1.4 }}>
+                    Produk <strong>"{row.customName}"</strong> sudah terdaftar. 
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const matched = productOptions.find(p => {
+                        const c = row.customName.trim().toLowerCase();
+                        const l = p.label.toLowerCase();
+                        return l === c || (l.includes(" - ") && l.substring(l.indexOf(" - ") + 3).trim() === c);
+                      });
+                      if (matched) {
+                        onChange({
+                          ...row,
+                          type: "existing",
+                          productName: matched.label,
+                          customName: "",
+                          designId: "",
+                          unit: matched.unit.toLowerCase() || row.unit,
+                          materials: matched.bomItems?.length ? matched.bomItems.map(b => ({
+                            id: b.inventoryItemId,
+                            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                            specification: "",
+                            quantity: String(b.quantity),
+                            unit: b.unit,
+                          })) : [],
+                        });
+                      }
+                    }}
+                    style={{ fontSize: "11px", padding: "4px 10px", background: "#F59E0B", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 500, flexShrink: 0, transition: "background 0.2s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#D97706"}
+                    onMouseLeave={e => e.currentTarget.style.background = "#F59E0B"}
+                  >
+                    Ganti ke Terdaftar
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <Select value={row.productName} onChange={e => {
               const pName = e.target.value;
