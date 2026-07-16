@@ -27,8 +27,9 @@ export function WorkflowPipeline({ order }: { order: SalesOrder }) {
           const tStep = order.timeline?.find(t => t.step === step.key);
           const isDone = idx < currentIdx;
           const isCurrent = idx === currentIdx;
-          const isUnpaidCompleted = isCurrent && idx === 5 && order.status === 'Waiting Payment';
-          const isFinancePending = idx === 1 && !order.invoice?.invoiceId && currentIdx > 1;
+          const hasUnpaidBalance = !!order.invoice && (order.invoice.amount || 0) > (order.invoice.paidAmount || 0);
+          const isUnpaidCompleted = isCurrent && idx === 5 && (order.status === 'Waiting Payment' || hasUnpaidBalance);
+          const isFinancePending = idx === 1 && (!order.invoice?.invoiceId || hasUnpaidBalance) && currentIdx >= 1;
 
           return (
             <React.Fragment key={step.key}>
@@ -46,7 +47,7 @@ export function WorkflowPipeline({ order }: { order: SalesOrder }) {
                 </div>
                 {(isUnpaidCompleted || isFinancePending) && (
                   <div style={{ position: "absolute", top: -25, background: "#F59E0B", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: 4, fontWeight: "bold", whiteSpace: "nowrap" }}>
-                    {isFinancePending ? "Pending Invoice" : "Unpaid"}
+                    {isFinancePending && hasUnpaidBalance ? "Belum Lunas" : isFinancePending ? "Pending Invoice" : "Unpaid"}
                   </div>
                 )}
                 <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : (isDone && !isFinancePending) ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>

@@ -26,6 +26,29 @@ public static class ProductionSchemaInitializer
                 changed_at_utc timestamp with time zone NOT NULL
             );
 
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='consultation_requests' AND column_name='Id'
+                ) THEN
+                    DROP TABLE consultation_requests;
+                END IF;
+            END $$;
+
+            CREATE TABLE IF NOT EXISTS consultation_requests (
+                id uuid NOT NULL PRIMARY KEY,
+                name character varying(150) NOT NULL,
+                phone character varying(50) NOT NULL,
+                email character varying(150) NOT NULL,
+                service_description character varying(500) NOT NULL,
+                message character varying(2000) NOT NULL,
+                status character varying(50) NOT NULL,
+                created_at_utc timestamp with time zone NOT NULL,
+                updated_at_utc timestamp with time zone
+            );
+
             ALTER TABLE customer_replicas ADD COLUMN IF NOT EXISTS email character varying(160);
 
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_email character varying(160);
