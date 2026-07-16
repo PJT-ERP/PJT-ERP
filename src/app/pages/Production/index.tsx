@@ -158,7 +158,7 @@ export function ProductionPage() {
   const [inventory, setInventory] = React.useState<InventoryItemDto[]>([]);
   React.useEffect(() => {
     masterDataApi.listInventory().then(setInventory).catch(console.error);
-  }, []);
+  }, [salesOrders]);
 
   const checkMaterialShortage = (so: SalesOrder) => {
     const materials = getMaterialOptions(so);
@@ -441,7 +441,7 @@ export function ProductionPage() {
                             Review MR
                           </button>
                         )}
-                        {isShortage && (mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && (
+                        {isShortage && (mrState === 'none' || mrState === 'completed') && isSupervisor && (
                           <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/production/mr/${so.id}`); }}
                             style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                             <FileWarning size={14} /> Material Kurang
@@ -598,7 +598,7 @@ export function ProductionPage() {
                           Review MR
                         </button>
                       )}
-                      {isShortage && (mrState === 'none' || ((so.isRework || so.qcStatus === 'NoGo') && mrState === 'completed')) && isSupervisor && currentUser?.role !== 'Admin' && (
+                      {isShortage && (mrState === 'none' || mrState === 'completed') && isSupervisor && currentUser?.role !== 'Admin' && (
                         <button onClick={() => navigate(`/erp/production/mr/${so.id}`)}
                           style={{ padding: "8px 16px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                           <FileWarning size={14} /> Material Kurang

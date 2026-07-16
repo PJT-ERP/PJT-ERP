@@ -102,11 +102,16 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           rcv = item.qty;
         }
 
+        const matchedInv = inventoryItems.find(inv => 
+          inv.name?.toLowerCase() === item.itemName?.toLowerCase() || 
+          item.itemName?.toLowerCase() === `${inv.code?.toLowerCase()} - ${inv.name?.toLowerCase()}`
+        );
+
         const poItem: POItem = {
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
-          code: inventoryItems.find(inv => inv.name?.toLowerCase() === item.itemName?.toLowerCase())?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          code: matchedInv?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
           spec: item.size || "-",
           qty: item.qty,

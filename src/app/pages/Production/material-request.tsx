@@ -305,8 +305,8 @@ export function ProductionMaterialRequestPage() {
       return;
     }
 
-    // Jika sudah ada MR (misalnya ditolak dan dikembalikan), gunakan item dari MR tersebut
-    if (request && request.items && request.items.length > 0) {
+    // Jika sudah ada MR (misalnya ditolak dan dikembalikan), gunakan item dari MR tersebut (KECUALI jika sudah Completed/Selesai, kita buat MR baru berdasarkan shortage saat ini)
+    if (request && request.status !== 'Selesai' && request.items && request.items.length > 0) {
       setItems(request.items.map((m: any, idx: number) => ({
         materialKey: `req-${idx}`,
         itemName: m.itemName || "",

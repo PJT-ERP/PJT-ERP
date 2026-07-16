@@ -67,6 +67,9 @@ public static class FinanceSchemaInitializer
 
             ALTER TABLE invoice_candidate_items
                 ADD COLUMN IF NOT EXISTS unit_price numeric(18,2) NOT NULL DEFAULT 0;
+
+            ALTER TABLE finance_settings
+                ADD COLUMN IF NOT EXISTS monthly_target numeric(18,2) NOT NULL DEFAULT 1000000000.00;
             """,
             cancellationToken);
 

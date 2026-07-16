@@ -425,15 +425,22 @@ export function PurchaseRequestDetailPage() {
                 </thead>
                 <tbody>
                   {detail.items.map((item, i) => {
-                    const invItem = inventoryItems.find(inv => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                    const itemNameLower = (item.name || "").toLowerCase().trim();
+                    const invItem = inventoryItems.find((inv: any) => 
+                      inv.name.toLowerCase().trim() === itemNameLower || 
+                      itemNameLower === `${(inv.code || "").toLowerCase().trim()} - ${inv.name.toLowerCase().trim()}`
+                    );
                     const actualCode = invItem ? invItem.code : item.code;
                     const isSpecActuallyCode = item.spec && actualCode && item.spec.trim().toUpperCase() === actualCode.trim().toUpperCase();
+                    const actualName = invItem && itemNameLower.startsWith(`${(invItem.code || "").toLowerCase().trim()} - `) 
+                      ? (item.name || "").substring((invItem.code || "").length + 3).trim()
+                      : item.name;
 
                     return (
-                    <tr key={i} className="border-b border-slate-100 last:border-0">
-                      <td className="p-3 text-xs text-slate-600 font-mono">{actualCode}</td>
+                    <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                      <td className="p-3 text-xs text-slate-500 font-mono">{actualCode}</td>
                       <td className="p-3 text-sm text-slate-900">
-                        <div className="font-medium">{item.name}</div>
+                        <div className="font-medium">{actualName}</div>
                         {item.spec && item.spec !== "-" && !isSpecActuallyCode && (
                           <div className="text-xs text-slate-500 mt-0.5">Spesifikasi: {item.spec}</div>
                         )}
