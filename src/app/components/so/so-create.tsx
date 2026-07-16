@@ -110,6 +110,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [generatedSONumber, setGeneratedSONumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [pendingSubmitType, setPendingSubmitType] = useState<"new" | "repeat" | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -339,14 +341,19 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   };
 
   // ── Submit handlers ──
-  const handleNewOrderSubmit = async (e: React.FormEvent) => {
+  const handleNewOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isEdit && editSoId) {
       window.alert("Edit Sales Order langsung belum tersedia di backend. Buat SO baru dari QUT atau repeat order untuk E2E.");
       return;
     }
+    setPendingSubmitType("new");
+    setConfirmModalOpen(true);
+  };
 
+  const executeNewOrderSubmit = async () => {
     setIsSubmitting(true);
+    setConfirmModalOpen(false);
     try {
       const missingDesignUrl = products.some(p => p.type === "custom" && p.designId === "customer" && !p.customerDesignUrl?.trim());
       if (missingDesignUrl) {
@@ -386,11 +393,17 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     }
   };
 
-  const handleRepeatOrderSubmit = async (e: React.FormEvent) => {
+  const handleRepeatOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer) return;
+    setPendingSubmitType("repeat");
+    setConfirmModalOpen(true);
+  };
 
+  const executeRepeatOrderSubmit = async () => {
+    if (!selectedCustomer) return;
     setIsSubmitting(true);
+    setConfirmModalOpen(false);
     try {
       const missingDesignUrl = repeatProducts.some(p => p.type === "custom" && p.designId === "customer" && !p.customerDesignUrl?.trim());
       if (missingDesignUrl) {
@@ -643,6 +656,53 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModalOpen && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: S.white, borderRadius: 8, width: "100%", maxWidth: 450, fontFamily: S.font, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}>
+            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, display: "flex", alignItems: "center", gap: 8 }}>
+                <CheckCircle2 size={18} color={S.primary} />
+                Konfirmasi Submit
+              </h3>
+              <button onClick={() => setConfirmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary, fontSize: "20px" }}>&times;</button>
+            </div>
+            
+            <div style={{ padding: "20px", fontSize: "14px", color: S.slate, lineHeight: 1.5 }}>
+              <p style={{ margin: "0 0 12px 0" }}>Apakah Anda sudah mengecek ulang semua data pada formulir ini?</p>
+              <ul style={{ margin: "0 0 16px 0", paddingLeft: "24px", color: S.secondary, display: "flex", flexDirection: "column", gap: "6px" }}>
+                <li>Data Pelanggan (Nama, Perusahaan, Kontak)</li>
+                <li>Daftar Produk (Nama, Qty, Satuan, Harga)</li>
+                <li>BOM Material & Referensi Desain</li>
+                <li>Tanggal Deadline & Catatan Tambahan</li>
+              </ul>
+              <p style={{ margin: 0, fontSize: "13px", color: "#DC2626", fontWeight: 500 }}>
+                Data yang sudah disubmit tidak dapat diedit langsung.
+              </p>
+            </div>
+
+            <div style={{ padding: "16px 20px", background: S.bg, display: "flex", justifyContent: "flex-end", gap: 12, borderTop: `1px solid ${S.border}` }}>
+              <button 
+                onClick={() => setConfirmModalOpen(false)}
+                style={{ padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, color: S.slate, fontSize: "13px", fontWeight: 500, cursor: "pointer" }}
+              >
+                Cek Ulang Lagi
+              </button>
+              <button 
+                onClick={() => {
+                  if (pendingSubmitType === "new") executeNewOrderSubmit();
+                  else if (pendingSubmitType === "repeat") executeRepeatOrderSubmit();
+                }}
+                disabled={isSubmitting}
+                style={{ padding: "8px 16px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: isSubmitting ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <CheckCircle2 size={14} /> Ya, Submit Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
