@@ -13,6 +13,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<SalesOrderDesignRevision> SalesOrderDesignRevisions => Set<SalesOrderDesignRevision>();
+    public DbSet<ConsultationRequest> ConsultationRequests => Set<ConsultationRequest>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -40,6 +41,21 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(product => product.MaterialSpec).HasColumnName("material_spec");
             builder.Property(product => product.IsActive).HasColumnName("is_active");
             builder.Property(product => product.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        });
+
+        modelBuilder.Entity<ConsultationRequest>(builder =>
+        {
+            builder.ToTable("consultation_requests");
+            builder.HasKey(req => req.Id);
+            builder.Property(req => req.Id).HasColumnName("id");
+            builder.Property(req => req.Name).HasMaxLength(150).HasColumnName("name");
+            builder.Property(req => req.Phone).HasMaxLength(50).HasColumnName("phone");
+            builder.Property(req => req.Email).HasMaxLength(150).HasColumnName("email");
+            builder.Property(req => req.ServiceDescription).HasMaxLength(500).HasColumnName("service_description");
+            builder.Property(req => req.Message).HasMaxLength(2000).HasColumnName("message");
+            builder.Property(req => req.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(req => req.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(req => req.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
         modelBuilder.Entity<SalesOrder>(builder =>

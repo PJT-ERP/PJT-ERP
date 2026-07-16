@@ -12,8 +12,10 @@ import {
 import {
   formatIDR, formatDate
 } from './mockData';
-import { useFinanceData } from './useFinanceData';
 import { useApp } from '../context/AppContext';
+import { useFinanceData } from './useFinanceData';
+import { usePurchasingData } from '../purchasing/usePurchasingData';
+import { mapPurchaseRequestsToPos, calcTotal } from '../purchasing/purchase-orders-page';
 
 const KPI_CARDS = [
   {
@@ -119,10 +121,12 @@ export function FinanceDashboard() {
     isLoading,
     isUsingBackend,
     refresh,
+    supplierPayments,
     monthlyRevenueData,
     invoiceStatusData,
   } = useFinanceData();
-  const { salesOrders, purchasingRequests, currentUser } = useApp();
+  const { purchaseRequests } = usePurchasingData();
+  const { salesOrders, currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
   const [activeTab, setActiveTab] = useState<'GLOBAL' | 'CUSTOMER'>('GLOBAL');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
@@ -174,10 +178,15 @@ export function FinanceDashboard() {
   const financeSummary = useMemo(() => {
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
     const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
-    const totalSupplierBills = purchasingRequests.reduce((sum, request) => sum + (request.estimatedPrice || 0), 0);
-    const paidSupplierBills = purchasingRequests
-      .filter(request => request.status === 'Selesai')
-      .reduce((sum, request) => sum + (request.estimatedPrice || 0), 0);
+    
+    const allPos = mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, []);
+    const unpaidSupplierBills = allPos
+      .filter(po => po.paymentStatus !== 'Paid' && po.financeApproval === 'Approved' && po.items.length > 0)
+      .reduce((sum, po) => sum + calcTotal(po.items), 0);
+    
+    const paidSupplierBills = allPos
+      .filter(po => po.paymentStatus === 'Paid' && po.financeApproval === 'Approved' && po.items.length > 0)
+      .reduce((sum, po) => sum + calcTotal(po.items), 0);
     const overdueAmount = invoices
       .filter(invoice => invoice.status === 'OVERDUE')
       .reduce((sum, invoice) => sum + Math.max(0, invoice.amount - invoice.paidAmount), 0);
@@ -185,12 +194,12 @@ export function FinanceDashboard() {
     return {
       outstandingAmount: Math.max(0, totalBilled - totalPaid),
       overdueAmount,
-      supplierPayable: Math.max(0, totalSupplierBills - paidSupplierBills),
+      supplierPayable: unpaidSupplierBills,
       currentBalance: openingBalance + totalPaid - paidSupplierBills,
       openingBalance,
       collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
     };
-  }, [invoices, purchasingRequests, openingBalance]);
+  }, [invoices, purchaseRequests, supplierPayments, openingBalance]);
 
   const displayKPIs = useMemo(() => {
     const custInvoices = activeTab === 'CUSTOMER' && selectedCustomer !== 'ALL'

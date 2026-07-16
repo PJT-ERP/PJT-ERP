@@ -160,7 +160,7 @@ export function FinanceCosting() {
   };
 
   const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
-  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Waiting Payment";
+  const isReadOnly = selectedItem && activeTab === 'history';
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>

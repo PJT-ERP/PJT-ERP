@@ -248,8 +248,23 @@ export const salesApi = {
 
   async confirmSalesOrder(salesOrderId: string, approvedByUserId: string) {
     const response = await apiClient.post(`/api/v1/production/sales-orders/${salesOrderId}/confirm`, {
-      approvedByUserId,
+      approvedByUserId
     });
     return response.data;
   },
+
+  async submitConsultation(request: { name: string, phone: string, email: string, serviceDescription: string, message: string }) {
+    const response = await apiClient.post(`/api/v1/production/consultations`, request);
+    return response.data;
+  },
+
+  async getConsultations() {
+    const response = await apiClient.get(`/api/v1/production/consultations`);
+    return response.data;
+  },
+  
+  async updateConsultationStatus(id: string, status: string) {
+    const response = await apiClient.put(`/api/v1/production/consultations/${id}/status`, { status });
+    return response.data;
+  }
 };

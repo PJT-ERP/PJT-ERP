@@ -5,6 +5,7 @@ import { CustomerList } from "../components/so/customer-list";
 import { SODashboard } from "../components/so/so-dashboard";
 import { SOList } from "../components/so/so-list";
 import { SOCreate } from "../components/so/so-create";
+import { ConsultationsPage } from "../components/so/ConsultationsPage";
 
 function SOModuleRoutes() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ function SOModuleRoutes() {
       <Route path="order-create" element={<SOCreateWrapper onNavigate={handleNavigate} />} />
       <Route path="detail/:id" element={<SODetailWrapper onNavigate={handleNavigate} />} />
       <Route path="customers" element={<CustomerList onNavigate={handleNavigate} />} />
+      <Route path="consultations" element={<ConsultationsPage />} />
     </Routes>
   );
 }

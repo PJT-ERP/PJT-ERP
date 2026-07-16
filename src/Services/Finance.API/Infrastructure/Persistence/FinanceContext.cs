@@ -214,6 +214,7 @@ public sealed class FinanceContext(DbContextOptions<FinanceContext> options) : D
             builder.HasKey(setting => setting.Id);
             builder.Property(setting => setting.Id).HasMaxLength(50).HasColumnName("id");
             builder.Property(setting => setting.OpeningBalance).HasColumnType("numeric(18,2)").HasColumnName("opening_balance");
+            builder.Property(setting => setting.MonthlyTarget).HasColumnType("numeric(18,2)").HasColumnName("monthly_target");
         });
     }
 }

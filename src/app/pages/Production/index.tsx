@@ -27,7 +27,7 @@ import { PaginationControl } from "../../components/production/PaginationControl
 import { MaterialReviewModal } from "../../components/production/modals/MaterialReviewModal";
 import { ProductionDetailModal } from "../../components/production/modals/ProductionDetailModal";
 import { ReturnToSpvModal } from "../../components/production/modals/ReturnToSpvModal";
-function InlineBomDisplay({ so }: { so: SalesOrder }) {
+export function InlineBomDisplay({ so }: { so: SalesOrder }) {
   const materials = (so.materials && Array.isArray(so.materials) && so.materials.length > 0) ? so.materials : [];
   
   return (
@@ -830,6 +830,7 @@ export function ProductionPage() {
                         <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
                         <DrawingLinks so={so} />
                       </div>
+                      <InlineBomDisplay so={so} />
                     </div>
                   </div>
                 );

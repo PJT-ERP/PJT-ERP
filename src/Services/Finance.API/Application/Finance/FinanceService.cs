@@ -549,4 +549,26 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
 
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<decimal> GetMonthlyTargetAsync(CancellationToken cancellationToken = default)
+    {
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
+        return setting?.MonthlyTarget ?? 1_000_000_000m;
+    }
+
+    public async Task UpdateMonthlyTargetAsync(decimal newTarget, CancellationToken cancellationToken = default)
+    {
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
+        if (setting == null)
+        {
+            setting = new FinanceSetting { Id = "default", MonthlyTarget = newTarget };
+            db.Settings.Add(setting);
+        }
+        else
+        {
+            setting.MonthlyTarget = newTarget;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }

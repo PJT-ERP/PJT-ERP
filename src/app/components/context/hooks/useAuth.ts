@@ -109,13 +109,21 @@ export function useAuth() {
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     void authApi.logout();
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_PROFILE_KEY);
     setCurrentUser(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('unauthorized', handleUnauthorized);
+  }, [logout]);
 
   const addUser = async (user: Omit<User, 'id'>): Promise<boolean> => {
     const created = await authApi.createUser({

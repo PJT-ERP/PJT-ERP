@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   LayoutDashboard, Users, Plus, List, ChevronRight, Menu, X, Bell, Search, LogOut, Building2,
-  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2, AlertTriangle, LayoutTemplate
+  ShoppingCart, CheckSquare, Box, Activity, Wrench, FileText, ClipboardList, Package, DollarSign, CheckCircle, Shield, BarChart2, AlertTriangle, LayoutTemplate, Mail
 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { useApp } from "../context/AppContext";
@@ -18,6 +18,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Dashboard Penjualan", icon: <LayoutDashboard size={15} />, path: "/erp/so/dashboard" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
+    { label: "Konsultasi (Leads)", icon: <Mail size={15} />, path: "/erp/so/consultations" },
   ],
   'Engineering': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
@@ -46,6 +47,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Keuangan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
+    { label: "Konsultasi (Leads)", icon: <Mail size={15} />, path: "/erp/so/consultations" },
   ],
   Admin: [
     { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
@@ -59,6 +61,7 @@ const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Supplier", icon: <Building2 size={15} />, path: "/erp/admin/suppliers" },
     { label: "Manajemen Akun", icon: <Users size={15} />, path: "/erp/admin", activePrefix: "/erp/admin" },
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
+    { label: "Konsultasi (Leads)", icon: <Mail size={15} />, path: "/erp/so/consultations" },
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },

@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Production.Api.Application.Analytics;
 using PJT_ERP.Production.Api.Application.IntegrationEvents;
@@ -47,6 +49,21 @@ builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
 builder.Services.AddPjtOpenApi();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("public", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            }));
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -61,6 +78,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

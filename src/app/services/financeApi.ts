@@ -302,4 +302,14 @@ export const financeApi = {
     const response = await apiClient.put('/api/v1/finance/settings/opening-balance', { openingBalance });
     return response.data;
   },
+
+  async getMonthlyTarget() {
+    const response = await apiClient.get<number>('/api/v1/finance/settings/monthly-target');
+    return response.data;
+  },
+
+  async updateMonthlyTarget(monthlyTarget: number) {
+    const response = await apiClient.put('/api/v1/finance/settings/monthly-target', { monthlyTarget });
+    return response.data;
+  }
 };

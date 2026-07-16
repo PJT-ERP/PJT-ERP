@@ -54,8 +54,8 @@ apiClient.interceptors.response.use(
       if (window.location.pathname.includes("/login") || isLoginRequest) {
         return Promise.reject(error);
       }
-      window.location.href = "/login";
-      return new Promise(() => {});
+      window.dispatchEvent(new CustomEvent('unauthorized'));
+      return Promise.reject(error);
     }
     return Promise.reject(error);
   },

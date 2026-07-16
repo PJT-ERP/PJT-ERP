@@ -24,4 +24,6 @@ public interface IFinanceService
     Task<SupplierPaymentDto?> SubmitSupplierPaymentAsync(SubmitSupplierPaymentFormRequest request, CancellationToken cancellationToken);
     Task<decimal> GetOpeningBalanceAsync(CancellationToken cancellationToken = default);
     Task UpdateOpeningBalanceAsync(decimal newBalance, CancellationToken cancellationToken = default);
+    Task<decimal> GetMonthlyTargetAsync(CancellationToken cancellationToken = default);
+    Task UpdateMonthlyTargetAsync(decimal newTarget, CancellationToken cancellationToken = default);
 }
