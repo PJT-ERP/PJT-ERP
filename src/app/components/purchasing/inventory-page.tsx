@@ -123,11 +123,7 @@ function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, editItem, 
         return;
       }
 
-      let prefix = "MAT-";
-      if (formData.category === "Consumable") prefix = "CON-";
-      else if (formData.category === "Tools") prefix = "TLS-";
-      else if (formData.category === "Asset") prefix = "AST-";
-      else if (formData.category === "Maintenance") prefix = "MNT-";
+      const prefix = "MAT-";
 
       let maxNum = 0;
       inventoryItems.forEach(i => {
