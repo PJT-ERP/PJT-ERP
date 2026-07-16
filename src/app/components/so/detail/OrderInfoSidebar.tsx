@@ -203,27 +203,6 @@ function DesignSection({ order, isEditMode, editForm, setEditForm, isDesignLocke
         )}
       </div>
 
-      {order.designRevisions && order.designRevisions.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <p style={{ margin: "0 0 8px", fontSize: "10.5px", color: "#94A3B8" }}>Riwayat Revisi Desain</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
-            {order.designRevisions.map(rev => (
-              <div key={rev.version} style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
-                <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
-                  <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
-                </p>
-                <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "10px", color: S.secondary, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
-                  {rev.url || "(URL Dihapus)"}
-                </a>
-                <p style={{ margin: "2px 0 0", fontSize: "9px", color: "#94A3B8" }}>
-                  {new Date(rev.changedAt).toLocaleString("id-ID")}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </>
   );
 }
