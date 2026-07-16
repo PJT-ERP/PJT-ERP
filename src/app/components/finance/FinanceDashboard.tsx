@@ -354,7 +354,7 @@ export function FinanceDashboard() {
               {item.label === 'Saldo Awal' && !isEditingBalance && !isAdmin && (
                 <button 
                   onClick={() => setIsEditingBalance(true)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600"
+                  className="text-slate-400 hover:text-red-600 transition-colors"
                 >
                   <Pencil size={12} />
                 </button>
