@@ -160,9 +160,6 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
             const itemQty = item.quantity || item.qty || 1;
             let unitPrice = item.unitPrice || 0;
-            if (unitPrice === 0 && totalItemQty > 0 && totalEstimated > 0) {
-              unitPrice = Math.floor(totalEstimated / totalItemQty);
-            }
 
             return {
               ...emptyProduct(),
@@ -196,7 +193,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             customName: selectedSo.description,
             quantity: String(selectedSo.quantity),
             unit: selectedSo.unit,
-            unitPrice: selectedSo.estimatedAmount && selectedSo.quantity ? Math.floor(selectedSo.estimatedAmount / selectedSo.quantity) : 0,
+            unitPrice: 0,
             materials,
           }]);
         }

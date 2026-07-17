@@ -37,13 +37,23 @@ describe('SOCreate Component', () => {
       productCatalog: mockProductCatalog,
       salesOrders: [
         {
-          id: 'so-1',
+          id: 'so-unpriced',
           soNumber: 'SO-2026-001',
           customerId: 'CUST-001',
-          description: 'Test Repeat',
+          description: 'Test Repeat Unpriced',
           estimatedAmount: 5000,
           items: [
             { productId: 'prod-1', productName: 'PART-001', qty: 10, unitPrice: 0 }
+          ]
+        },
+        {
+          id: 'so-priced',
+          soNumber: 'SO-2026-002',
+          customerId: 'CUST-001',
+          description: 'Test Repeat Priced',
+          estimatedAmount: 5000,
+          items: [
+            { productId: 'prod-1', productName: 'PART-001', qty: 10, unitPrice: 500 }
           ]
         }
       ],
@@ -103,8 +113,8 @@ describe('SOCreate Component', () => {
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => expect(screen.getByText('Penetapan Harga')).toBeInTheDocument());
   });
-  it('autofills unit price (harga satuan) for repeat orders', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+  it('does NOT fallback to estimated amount if original SO is unpriced by Finance', async () => {
+    const { container } = render(<SOCreate onNavigate={onNavigate} />);
     
     // Select Repeat Order
     fireEvent.click(screen.getByText('Repeat Order'));
@@ -112,21 +122,48 @@ describe('SOCreate Component', () => {
     // Ensure customer is selected
     const customerSelect = screen.getByPlaceholderText('Cari nama, kode, atau PIC pelanggan...');
     fireEvent.change(customerSelect, { target: { value: 'CUST-001' } });
-    fireEvent.click(screen.getByText('PT Maju Jaya')); // Select the dropdown option
+    fireEvent.click(screen.getByText('PT Maju Jaya'));
     
-    // Select previous SO
-    const soSelect = await screen.findByText('— Pilih SO untuk di-repeat —');
-    fireEvent.change(soSelect.closest('select')!, { target: { value: 'so-1' } });
-    
-    // Look for the autofilled inputs (Quantity and Unit Price)
-    // The mock data has totalEstimated = 5000, totalItemQty = 10 -> unit price = 500
+    // Select previous unpriced SO
     await waitFor(() => {
-      const inputs = screen.getAllByRole('textbox'); // actually qty and price might be type="number" or handled by CurrencyInput
-      const qtyInputs = screen.getAllByDisplayValue('10');
-      const priceInputs = screen.getAllByDisplayValue('500');
-      
-      expect(qtyInputs.length).toBeGreaterThan(0);
-      expect(priceInputs.length).toBeGreaterThan(0);
+      const selects = container.querySelectorAll('select');
+      expect(selects.length).toBeGreaterThan(0);
+      const soSelect = selects[selects.length - 1];
+      fireEvent.change(soSelect, { target: { value: 'so-unpriced' } });
+    });
+    
+    await waitFor(() => {
+      const inputs = container.querySelectorAll('input');
+      const inputValues = Array.from(inputs).map(i => (i as HTMLInputElement).value);
+      expect(inputValues).toContain('10'); // qty
+      expect(inputValues).not.toContain('500');
+    });
+  });
+
+  it('autofills unit price correctly if original SO was already priced by Finance', async () => {
+    const { container } = render(<SOCreate onNavigate={onNavigate} />);
+    
+    // Select Repeat Order
+    fireEvent.click(screen.getByText('Repeat Order'));
+    
+    // Ensure customer is selected
+    const customerSelect = screen.getByPlaceholderText('Cari nama, kode, atau PIC pelanggan...');
+    fireEvent.change(customerSelect, { target: { value: 'CUST-001' } });
+    fireEvent.click(screen.getByText('PT Maju Jaya'));
+    
+    // Select previous priced SO
+    await waitFor(() => {
+      const selects = container.querySelectorAll('select');
+      expect(selects.length).toBeGreaterThan(0);
+      const soSelect = selects[selects.length - 1];
+      fireEvent.change(soSelect, { target: { value: 'so-priced' } });
+    });
+    
+    await waitFor(() => {
+      const inputs = container.querySelectorAll('input');
+      const inputValues = Array.from(inputs).map(i => (i as HTMLInputElement).value);
+      expect(inputValues).toContain('10'); // qty
+      expect(inputValues).toContain('500'); // unitPrice
     });
   });
 });

@@ -69,6 +69,7 @@ export interface SalesOrder {
   qcNotes?: string;
   qcPhotos?: string[];
   productionPhotos?: string[];
+  completionNote?: string;
   qcAt?: string;
   completedAt?: string;
   isRework?: boolean;

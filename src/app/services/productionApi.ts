@@ -32,6 +32,7 @@ export interface SalesOrderProductionProgressDto {
   startedAtUtc?: string | null;
   finishedAtUtc?: string | null;
   qcDecision?: string | null;
+  completionNote?: string | null;
   updatedAtUtc: string;
   items: SalesOrderProgressItemDto[];
 }
@@ -155,6 +156,7 @@ export const productionApi = {
   async finishProduction(salesOrderId: string, request: {
     workerUserId: string;
     workerName: string;
+    reason?: string;
   }) {
     const response = await apiClient.put<SalesOrderProductionProgressDto>(
       `/api/v1/production/sales-orders/${salesOrderId}/production/finish`,

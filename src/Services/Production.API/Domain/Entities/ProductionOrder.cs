@@ -24,6 +24,7 @@ public sealed class ProductionOrder
     public string? FinishedByName { get; set; }
     public string? QcDecision { get; set; }
     public string? PauseReason { get; set; }
+    public string? CompletionNote { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

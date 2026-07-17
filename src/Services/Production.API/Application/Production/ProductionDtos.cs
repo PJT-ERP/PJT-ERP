@@ -75,6 +75,7 @@ public sealed record SalesOrderDto(
     string? PauseReason,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    string? CompletionNote,
     decimal? EstimatedAmount,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items,
@@ -136,6 +137,7 @@ public sealed record SalesOrderProductionProgressDto(
     long? DurationSeconds,
     string? QcDecision,
     string? PauseReason,
+    string? CompletionNote,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
 

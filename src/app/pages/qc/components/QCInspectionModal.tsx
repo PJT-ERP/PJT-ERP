@@ -267,6 +267,15 @@ export function QCInspectionModal({
             )}
           </div>
 
+          {so.completionNote && (
+            <div>
+              <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Catatan Produksi</p>
+              <div style={{ padding: "10px 14px", background: "#FFFBEB", border: `1px solid #FEF3C7`, borderRadius: 8, fontSize: "13px", color: "#92400E" }}>
+                <strong>Catatan Operator:</strong> {so.completionNote}
+              </div>
+            </div>
+          )}
+
           <div>
             <p style={{ fontSize: "13px", color: S.slate, fontWeight: 500, margin: "0 0 8px" }}>Foto Hasil Produksi</p>
             <div

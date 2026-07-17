@@ -86,6 +86,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS finished_by_user_id uuid;
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS finished_by_name character varying(160);
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS pause_reason character varying(500);
+            ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS completion_note character varying(1000);
 
             UPDATE production_orders po
             SET sales_order_id = soi.sales_order_id

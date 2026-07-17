@@ -79,6 +79,7 @@ public sealed partial class ProductionService
             productionOrder?.PauseReason,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
+            productionOrder?.CompletionNote,
             order.EstimatedAmount,
             order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray(),
@@ -145,6 +146,7 @@ public sealed partial class ProductionService
             productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
             productionOrder?.QcDecision,
             productionOrder?.PauseReason,
+            productionOrder?.CompletionNote,
             updatedAtUtc,
             order.Items
                 .OrderBy(item => item.ProductPartNumber)
@@ -445,6 +447,10 @@ public sealed partial class ProductionService
         productionOrder.FinishedAtUtc ??= timestampUtc;
         productionOrder.FinishedByUserId ??= request.WorkerUserId;
         productionOrder.FinishedByName ??= request.WorkerName.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Reason))
+        {
+            productionOrder.CompletionNote = request.Reason.Trim();
+        }
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 

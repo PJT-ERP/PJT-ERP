@@ -110,6 +110,7 @@ export interface SalesOrderDto {
   qcPhotos?: string[] | null;
   productionPhotos?: string[] | null;
   estimatedAmount?: number | null;
+  completionNote?: string | null;
 }
 
 export interface CreateSalesOrderRequest {
