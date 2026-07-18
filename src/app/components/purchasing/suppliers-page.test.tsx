@@ -115,8 +115,8 @@ describe('SuppliersPage', () => {
     const editBtn = screen.getByRole('button', { name: /Edit/i });
     fireEvent.click(editBtn);
 
-    // Change supplier name
-    const nameInput = screen.getByDisplayValue('Test Supplier');
+    // Change supplier name (wait for modal)
+    const nameInput = await screen.findByLabelText(/Nama Perusahaan/i);
     fireEvent.change(nameInput, { target: { value: 'Test Supplier Updated' } });
 
     // Submit form
@@ -193,12 +193,7 @@ describe('SuppliersPage', () => {
     fireEvent.click(screen.getByText('History Supplier'));
 
     // The Info tab is the default active tab and shows supplier details
-    expect(screen.getByText('Kode Supplier')).toBeInTheDocument();
-    expect(screen.getByText('SUP-001')).toBeInTheDocument();
-    expect(screen.getByText('Tipe Badan Usaha')).toBeInTheDocument();
-    expect(screen.getByText('PT')).toBeInTheDocument();
-    expect(screen.getByText('Kategori Material')).toBeInTheDocument();
-    expect(screen.getByText('Raw Material')).toBeInTheDocument();
-    expect(screen.getAllByText('Jakarta').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('SUP-001 · PT · Raw Material')).toBeInTheDocument();
+    expect(screen.getAllByText('Jakarta,').length).toBeGreaterThanOrEqual(1);
   });
 });

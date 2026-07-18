@@ -7,11 +7,11 @@ namespace PJT_ERP.Production.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "Admin,Owner")]
 [Route("api/v1/production/dashboard")]
-public sealed class DashboardController(IProductionService productionService) : ControllerBase
+public sealed class DashboardController(IProductionQueryService queryService) : ControllerBase
 {
     [HttpGet("executive")]
     public async Task<ActionResult<ExecutiveDashboardDto>> Executive(CancellationToken cancellationToken)
     {
-        return Ok(await productionService.GetExecutiveDashboardAsync(cancellationToken));
+        return Ok(await queryService.GetExecutiveDashboardAsync(cancellationToken));
     }
 }

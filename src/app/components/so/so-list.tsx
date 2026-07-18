@@ -1,38 +1,19 @@
-import React, { useState, useMemo } from "react";
+import React from "react";
 import {
   Search, Plus, Download, Eye, Edit, Copy, Printer,
   ChevronLeft, ChevronRight, X, SlidersHorizontal, LayoutGrid, List,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
-import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
-import { useFinanceData } from "../finance/useFinanceData";
-
-import { getSalesOrderInvoiceStatus, mergeSalesOrderInvoice, type SalesInvoiceStatus } from "./invoice-sync";
-
-const invoiceStatusConfig: Record<SalesInvoiceStatus, { label: string; textColor: string; bgColor: string; borderColor: string; dotColor: string }> = {
-  paid: { label: "Paid", textColor: "#FFFFFF", bgColor: "#16A34A", borderColor: "transparent", dotColor: "#FFFFFF" },
-  verified: { label: "Partial", textColor: "#FFFFFF", bgColor: "#3B82F6", borderColor: "transparent", dotColor: "#FFFFFF" },
-  waiting: { label: "Waiting", textColor: "#FFFFFF", bgColor: "#F59E0B", borderColor: "transparent", dotColor: "#FFFFFF" },
-  not_created: { label: "Not Created", textColor: "#FFFFFF", bgColor: "#DC2626", borderColor: "transparent", dotColor: "#FFFFFF" },
-  pending_verification: { label: "Menunggu Verifikasi", textColor: "#C8102E", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#C8102E" },
-  overdue: { label: "Overdue", textColor: "#B91C1C", bgColor: "#FEF2F2", borderColor: "#FECACA", dotColor: "#DC2626" },
-};
+import { SalesOrder, SOStatus } from "../data/mockData";
+import { getSalesOrderInvoiceStatus, type SalesInvoiceStatus } from "./invoice-sync";
+import { useSOList, PAGE_SIZE } from "./hooks/useSOList";
+import { 
+  S, STATUS_OPTIONS, StatusBadge, InvoiceBadge, FilterDropdown, 
+  ActionBtn, HoverBtn, MobileActionBtn, Pagination, invoiceStatusConfig
+} from "./components/so-list/SOListHelpers";
 
 interface SOListProps {
   onNavigate: (page: string, data?: unknown) => void;
 }
-
-const S = {
-  font: "Inter, sans-serif",
-  cyan: "#0284C7", // Deeper cyan (sky-600)
-  slate: "#1F1F1F", // Darker slate
-  secondary: "#475569",
-  border: "#CBD5E1", // Darker border for visibility
-  bg: "#F1F5F9",
-  white: "#FFFFFF",
-};
-
-const PAGE_SIZE = 8;
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
@@ -46,164 +27,14 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-const STATUS_OPTIONS = [
-  { value: "all",                 label: "Semua Status"         },
-  { value: "Waiting Payment", label: "Waiting Payment"   },
-  { value: "Pending Design",      label: "Pending Design"        },
-  { value: "Waiting Approval",    label: "Waiting Approval"      },
-  { value: "Ready for Production",label: "Ready for Production"  },
-  { value: "In Production",       label: "In Production"         },
-  { value: "QC",                  label: "QC"                    },
-  { value: "Completed",           label: "Completed"             },
-  { value: "Rejected",            label: "Rejected"              },
-];
-
-// ─── StatusBadge ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: SOStatus }) {
-  const cfg = getStatusColor(status);
-  return (
-    <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
-      <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
-      {status}
-    </span>
-  );
-}
-
-// ─── InvoiceBadge ─────────────────────────────────────────────────────────────
-function InvoiceBadge({ status }: { status: SalesInvoiceStatus }) {
-  const cfg = invoiceStatusConfig[status];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "2px 8px", borderRadius: 4,
-      border: `1px solid ${cfg.borderColor}`,
-      background: cfg.bgColor, color: cfg.textColor,
-      fontSize: "11px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.dotColor, flexShrink: 0 }} />
-      {cfg.label}
-    </span>
-  );
-}
-
-// ─── FilterDropdown ───────────────────────────────────────────────────────────
-function FilterDropdown({
-  value, onChange, active, children,
-}: {
-  value: string; onChange: (v: string) => void; active?: boolean; children: React.ReactNode;
-}) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={{
-          appearance: "none",
-          background: S.white,
-          border: `1px solid ${focused ? S.secondary : S.border}`,
-          borderRadius: 4, padding: "6px 32px 6px 12px", minWidth: "140px",
-          fontSize: "12px", color: S.secondary,
-          fontWeight: 400,
-          cursor: "pointer", fontFamily: S.font, outline: "none",
-          transition: "border-color 0.12s, background 0.12s, color 0.12s",
-        }}
-      >
-        {children}
-      </select>
-      <svg width="10" height="10" viewBox="0 0 10 10" style={{ position: "absolute", right: 8, pointerEvents: "none", color: "#94A3B8" }} fill="none">
-        <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  );
-}
-
-// ─── HoverActionBtn ───────────────────────────────────────────────────────────
-function ActionBtn({
-  icon, label, hoverBg, hoverColor, onClick, title,
-}: {
-  icon: React.ReactNode; label: string;
-  hoverBg: string; hoverColor: string;
-  onClick: () => void; title: string;
-}) {
-  const [hov, setHov] = useState(false);
-  const [active, setActive] = useState(false);
-  return (
-    <button
-      title={title}
-      onClick={e => { e.stopPropagation(); onClick(); }}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      onMouseLeave={() => { setHov(false); setActive(false); }}
-      onMouseEnter={() => setHov(true)}
-      style={{
-        display: "flex", alignItems: "center", gap: 6,
-        padding: "6px 10px",
-        borderRadius: 6, border: `1px solid ${active || hov ? hoverColor : S.border}`,
-        background: active ? hoverColor : hov ? hoverBg : S.white,
-        color: active ? "#FFF" : hov ? hoverColor : S.secondary,
-        fontSize: "11px", fontWeight: 600, cursor: "pointer",
-        fontFamily: S.font, transition: "all 0.1s", whiteSpace: "nowrap",
-        boxShadow: active ? "none" : hov ? "0 2px 4px rgba(0,0,0,0.05)" : "0 1px 2px rgba(0,0,0,0.02)",
-        transform: active ? "scale(0.96)" : "scale(1)",
-      }}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 export function SOList({ onNavigate }: SOListProps) {
-  const { salesOrders, customers } = useApp();
-  const { invoices, payments } = useFinanceData(true, false, false);
-  const [search, setSearch]               = useState("");
-  const [statusFilter, setStatusFilter]   = useState("all");
-  const [customerFilter, setCustomerFilter] = useState("all");
-  const [dateFilter, setDateFilter]       = useState("");
-  const [page, setPage]                   = useState(1);
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [viewMode, setViewMode]           = useState<"table" | "card">("table");
-
-  const hasActiveFilters = statusFilter !== "all" || customerFilter !== "all" || !!dateFilter;
-  const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (customerFilter !== "all" ? 1 : 0) + (dateFilter ? 1 : 0);
-
-  const mergedSalesOrders = useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
-
-  const filtered = useMemo(() => mergedSalesOrders.filter(o => {
-    if (o.id.startsWith("QU")) return false; // Hide quotations from SO List
-    
-    const cust = customers.find(c => c.code === o.customerId);
-    const cName = cust?.name || "";
-    const q = search.toLowerCase();
-    const matchSearch = !search ||
-      o.id.toLowerCase().includes(q) ||
-      cName.toLowerCase().includes(q) ||
-      o.description.toLowerCase().includes(q) ||
-      o.createdAt.includes(q) ||
-      o.deadline.includes(q);
-    return matchSearch &&
-      (statusFilter === "all" || o.status === statusFilter) &&
-      (customerFilter === "all" || o.customerId === customerFilter) &&
-      (!dateFilter || o.createdAt.startsWith(dateFilter));
-  }), [mergedSalesOrders, customers, search, statusFilter, customerFilter, dateFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const resetAll = () => {
-    setSearch(""); setStatusFilter("all");
-    setCustomerFilter("all"); setDateFilter(""); setPage(1);
-  };
+  const board = useSOList();
 
   const exportOrders = () => {
     downloadCsv("sales-orders.csv", [
       ["No. SO", "Customer", "Company", "Product", "Qty", "Unit", "Deadline", "Invoice Status", "Workflow Status"],
-      ...filtered.map(order => {
-        const cust = customers.find(c => c.code === order.customerId);
+      ...board.filtered.map(order => {
+        const cust = board.customers.find(c => c.code === order.customerId);
         return [
         order.id,
         cust?.name || "",
@@ -212,14 +43,10 @@ export function SOList({ onNavigate }: SOListProps) {
         String(order.quantity),
         order.unit,
         order.deadline,
-        invoiceStatusConfig[getSalesOrderInvoiceStatus(order, invoices)].label,
+        invoiceStatusConfig[getSalesOrderInvoiceStatus(order, board.invoices)].label,
         order.status,
       ]})
     ]);
-  };
-
-  const showEditUnavailable = () => {
-    window.alert("Edit Sales Order belum tersedia di demo ini. Gunakan Duplikat untuk membuat order baru dari data yang mirip.");
   };
 
   return (
@@ -239,9 +66,9 @@ export function SOList({ onNavigate }: SOListProps) {
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>Daftar Sales Order</h1>
           <p style={{ color: S.secondary, fontSize: "12.5px", marginTop: 2 }}>
-            {salesOrders.length} order terdaftar
-            {filtered.length !== salesOrders.length && (
-              <span style={{ color: "#C8102E" }}> · {filtered.length} ditampilkan</span>
+            {board.salesOrders.length} order terdaftar
+            {board.filtered.length !== board.salesOrders.length && (
+              <span style={{ color: "#C8102E" }}> · {board.filtered.length} ditampilkan</span>
             )}
           </p>
         </div>
@@ -273,7 +100,7 @@ export function SOList({ onNavigate }: SOListProps) {
           {/* Search */}
           <div style={{
             flex: 1, display: "flex", alignItems: "center", gap: 7,
-            background: S.bg, border: `1px solid ${searchFocused ? S.cyan : S.border}`,
+            background: S.bg, border: `1px solid ${board.searchFocused ? S.cyan : S.border}`,
             borderRadius: 4, padding: "6px 10px",
             transition: "border-color 0.12s",
           }}>
@@ -281,15 +108,15 @@ export function SOList({ onNavigate }: SOListProps) {
             <input
               type="text"
               placeholder="Cari no. SO, nama pelanggan, produk..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
+              value={board.search}
+              onChange={e => { board.setSearch(e.target.value); board.setPage(1); }}
+              onFocus={() => board.setSearchFocused(true)}
+              onBlur={() => board.setSearchFocused(false)}
               style={{ background: "transparent", border: "none", outline: "none", fontSize: "12.5px", color: S.slate, fontFamily: S.font, width: "100%", minWidth: 0 }}
             />
-            {search && (
+            {board.search && (
               <button
-                onClick={() => { setSearch(""); setPage(1); }}
+                onClick={() => { board.setSearch(""); board.setPage(1); }}
                 style={{ color: "#94A3B8", background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0, flexShrink: 0 }}
                 onMouseEnter={e => (e.currentTarget.style.color = S.slate)}
                 onMouseLeave={e => (e.currentTarget.style.color = "#94A3B8")}
@@ -300,12 +127,12 @@ export function SOList({ onNavigate }: SOListProps) {
           </div>
 
           {/* Active filter badge */}
-          {hasActiveFilters && (
+          {board.hasActiveFilters && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: 4, background: "rgba(200,16,46,0.08)", border: "1px solid rgba(200,16,46,0.25)" }}>
               <SlidersHorizontal size={11} style={{ color: "#C8102E" }} />
-              <span style={{ fontSize: "11.5px", color: "#C8102E", fontWeight: 500 }}>{activeFilterCount} filter aktif</span>
+              <span style={{ fontSize: "11.5px", color: "#C8102E", fontWeight: 500 }}>{board.activeFilterCount} filter aktif</span>
               <button
-                onClick={resetAll}
+                onClick={board.resetAll}
                 style={{ color: "#C8102E", background: "none", border: "none", cursor: "pointer", display: "flex", padding: 0 }}
                 title="Hapus semua filter"
               >
@@ -317,12 +144,12 @@ export function SOList({ onNavigate }: SOListProps) {
           {/* View toggle */}
           <div style={{ display: "flex", background: S.bg, borderRadius: 6, padding: 3, border: `1px solid ${S.border}` }}>
             <button
-              onClick={() => setViewMode("table")}
+              onClick={() => board.setViewMode("table")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 28, borderRadius: 4, border: "none", cursor: "pointer",
-                background: viewMode === "table" ? S.white : "transparent",
-                boxShadow: viewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                color: viewMode === "table" ? "#C8102E" : S.secondary,
+                background: board.viewMode === "table" ? S.white : "transparent",
+                boxShadow: board.viewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                color: board.viewMode === "table" ? "#C8102E" : S.secondary,
                 transition: "all 0.2s"
               }}
               title="Tampilan Tabel"
@@ -330,12 +157,12 @@ export function SOList({ onNavigate }: SOListProps) {
               <List size={14} />
             </button>
             <button
-              onClick={() => setViewMode("card")}
+              onClick={() => board.setViewMode("card")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 28, borderRadius: 4, border: "none", cursor: "pointer",
-                background: viewMode === "card" ? S.white : "transparent",
-                boxShadow: viewMode === "card" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                color: viewMode === "card" ? "#C8102E" : S.secondary,
+                background: board.viewMode === "card" ? S.white : "transparent",
+                boxShadow: board.viewMode === "card" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                color: board.viewMode === "card" ? "#C8102E" : S.secondary,
                 transition: "all 0.2s"
               }}
               title="Tampilan Kartu"
@@ -350,20 +177,20 @@ export function SOList({ onNavigate }: SOListProps) {
           <span style={{ fontSize: "11.5px", color: "#94A3B8", flexShrink: 0 }}>Filter:</span>
 
           <FilterDropdown
-            value={statusFilter}
-            onChange={v => { setStatusFilter(v); setPage(1); }}
-            active={statusFilter !== "all"}
+            value={board.statusFilter}
+            onChange={v => { board.setStatusFilter(v); board.setPage(1); }}
+            active={board.statusFilter !== "all"}
           >
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </FilterDropdown>
 
           <FilterDropdown
-            value={customerFilter}
-            onChange={v => { setCustomerFilter(v); setPage(1); }}
-            active={customerFilter !== "all"}
+            value={board.customerFilter}
+            onChange={v => { board.setCustomerFilter(v); board.setPage(1); }}
+            active={board.customerFilter !== "all"}
           >
             <option value="all">Semua Pelanggan</option>
-            {customers.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+            {board.customers.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
           </FilterDropdown>
 
           <div style={{
@@ -375,8 +202,8 @@ export function SOList({ onNavigate }: SOListProps) {
             <span style={{ fontSize: "11px", color: "#94A3B8", fontFamily: S.font, fontWeight: 500, flexShrink: 0 }}>Bulan:</span>
             <input
               type="month"
-              value={dateFilter}
-              onChange={e => { setDateFilter(e.target.value); setPage(1); }}
+              value={board.dateFilter}
+              onChange={e => { board.setDateFilter(e.target.value); board.setPage(1); }}
               style={{ background: "transparent", border: "none", outline: "none", fontSize: "12px", color: S.secondary, fontFamily: S.font, cursor: "pointer" }}
             />
           </div>
@@ -385,7 +212,7 @@ export function SOList({ onNavigate }: SOListProps) {
       </div>
 
       {/* ── Table / Cards ─────────────────────────────────────────────────────────── */}
-      {viewMode === "table" ? (
+      {board.viewMode === "table" ? (
         <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", minWidth: 1200, tableLayout: "auto", borderCollapse: "collapse" }}>
@@ -413,18 +240,18 @@ export function SOList({ onNavigate }: SOListProps) {
               </tr>
             </thead>
             <tbody>
-              {paginated.length === 0 ? (
+              {board.paginated.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
                     Tidak ada data yang sesuai dengan filter
                   </td>
                 </tr>
-              ) : paginated.map((order, idx) => (
+              ) : board.paginated.map((order, idx) => (
                 <TableRow
                   key={order.id}
-                  order={order}
-                  customerName={customers.find(c => c.code === order.customerId)?.name || "Unknown"}
-                  isLast={idx === paginated.length - 1}
+                  order={order as SalesOrder}
+                  customerName={board.customers.find(c => c.code === order.customerId)?.name || "Unknown"}
+                  isLast={idx === board.paginated.length - 1}
                   onView={() => onNavigate("so-detail", order.id)}
                   onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
                   onDuplicate={() => onNavigate("so-create")}
@@ -438,11 +265,11 @@ export function SOList({ onNavigate }: SOListProps) {
           {/* Pagination */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 16px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA" }}>
             <span style={{ color: S.secondary, fontSize: "12px" }}>
-              {filtered.length === 0
+              {board.filtered.length === 0
                 ? "Tidak ada hasil"
-                : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} dari ${filtered.length} hasil`}
+                : `${(board.page - 1) * PAGE_SIZE + 1}–${Math.min(board.page * PAGE_SIZE, board.filtered.length)} dari ${board.filtered.length} hasil`}
             </span>
-            <Pagination page={page} total={totalPages} onChange={setPage} />
+            <Pagination page={board.page} total={board.totalPages} onChange={board.setPage} />
           </div>
         </div>
       ) : (
@@ -452,12 +279,12 @@ export function SOList({ onNavigate }: SOListProps) {
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
             gap: 16
           }}>
-            {paginated.length === 0 ? (
+            {board.paginated.length === 0 ? (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 8, border: `1px solid ${S.border}` }}>
                 Tidak ada data yang sesuai dengan filter
               </div>
-            ) : paginated.map((order) => {
-              const customerName = customers.find(c => c.code === order.customerId)?.name || "Unknown";
+            ) : board.paginated.map((order) => {
+              const customerName = board.customers.find(c => c.code === order.customerId)?.name || "Unknown";
               return (
                 <div key={order.id} style={{
                   background: S.white, borderRadius: 8, border: `1px solid ${S.border}`, padding: 16,
@@ -506,11 +333,11 @@ export function SOList({ onNavigate }: SOListProps) {
           {/* Pagination for cards */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", marginTop: 8 }}>
             <span style={{ color: S.secondary, fontSize: "12px" }}>
-              {filtered.length === 0
+              {board.filtered.length === 0
                 ? "Tidak ada hasil"
-                : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} dari ${filtered.length} hasil`}
+                : `${(board.page - 1) * PAGE_SIZE + 1}–${Math.min(board.page * PAGE_SIZE, board.filtered.length)} dari ${board.filtered.length} hasil`}
             </span>
-            <Pagination page={page} total={totalPages} onChange={setPage} />
+            <Pagination page={board.page} total={board.totalPages} onChange={board.setPage} />
           </div>
         </div>
       )}
@@ -528,7 +355,7 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
   onDuplicate: () => void;
   onPrint: () => void;
 }) {
-  const [hov, setHov] = useState(false);
+  const [hov, React_useState] = React.useState(false);
 
   return (
     <tr
@@ -539,8 +366,8 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
         cursor: "pointer",
       }}
       onClick={onView}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onMouseEnter={() => React_useState(true)}
+      onMouseLeave={() => React_useState(false)}
     >
       {/* Left accent bar on hover */}
       <td style={{ padding: "9px 14px", position: "relative" }}>
@@ -585,99 +412,4 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
   );
 }
 
-// ─── HoverBtn ─────────────────────────────────────────────────────────────────
-function HoverBtn({ icon, label, onClick, style: baseStyle, hoverStyle, primary }: {
-  icon: React.ReactNode; label: string; onClick: () => void;
-  style: React.CSSProperties; hoverStyle: React.CSSProperties; primary?: boolean;
-}) {
-  const [hov, setHov] = useState(false);
-  const [active, setActive] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      onMouseLeave={() => { setHov(false); setActive(false); }}
-      onMouseEnter={() => setHov(true)}
-      style={{
-        display: "flex", alignItems: "center", gap: 5,
-        padding: "8px 14px", borderRadius: 6,
-        fontSize: "12.5px", fontWeight: 600,
-        cursor: "pointer", fontFamily: S.font,
-        border: `1px solid ${S.border}`,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-        transition: "all 0.1s",
-        transform: active ? "scale(0.96)" : hov ? "translateY(-1px)" : "none",
-        ...(hov ? { ...baseStyle, ...hoverStyle, boxShadow: active ? "none" : "0 4px 6px rgba(0,0,0,0.05)" } : baseStyle),
-        ...(active && primary ? { filter: "brightness(0.9)" } : {}),
-      }}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
-function MobileActionBtn({ label, bg, color, action }: { label: string, bg: string, color: string, action: () => void }) {
-  const [hov, setHov] = useState(false);
-  const [active, setActive] = useState(false);
-  return (
-    <button
-      onClick={action}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      onMouseLeave={() => { setHov(false); setActive(false); }}
-      onMouseEnter={() => setHov(true)}
-      style={{
-        flex: 1, padding: "8px 4px", borderRadius: 6,
-        border: `1px solid ${active || hov ? color : S.border}`,
-        background: active ? color : hov ? bg : S.white,
-        color: active ? "#FFF" : hov ? color : S.secondary,
-        fontSize: "12px", fontWeight: 600, cursor: "pointer",
-        fontFamily: S.font, transition: "all 0.1s",
-        boxShadow: active ? "none" : hov ? "0 2px 4px rgba(0,0,0,0.05)" : "0 1px 2px rgba(0,0,0,0.02)",
-        transform: active ? "scale(0.96)" : "scale(1)",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ─── Pagination ───────────────────────────────────────────────────────────────
-function Pagination({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
-  return (
-    <div style={{ display: "flex", gap: 3 }}>
-      <PagBtn label={<ChevronLeft size={12} />} onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} />
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <PagBtn key={p} label={p} onClick={() => onChange(p)} active={p === page} />
-      ))}
-      <PagBtn label={<ChevronRight size={12} />} onClick={() => onChange(Math.min(total, page + 1))} disabled={page === total} />
-    </div>
-  );
-}
-
-function PagBtn({ label, onClick, active, disabled }: {
-  label: React.ReactNode; onClick: () => void; active?: boolean; disabled?: boolean;
-}) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 4,
-        border: `1px solid ${active ? "#C8102E" : "#E2E8F0"}`,
-        background: active ? "#C8102E" : hov && !disabled ? "#F8FAFC" : "#fff",
-        color: active ? "#fff" : disabled ? "#CBD5E1" : hov ? "#111827" : "#64748B",
-        fontSize: "12px", cursor: disabled ? "not-allowed" : "pointer",
-        fontFamily: "Inter, sans-serif", transition: "all 0.12s",
-        opacity: disabled ? 0.45 : 1,
-      }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      {label}
-    </button>
-  );
-}
+export default SOList;

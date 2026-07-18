@@ -1,597 +1,53 @@
-import { useMemo, useState } from "react";
-import {
-  Search,
-  Phone,
-  Mail,
-  MapPin,
-  Star,
-  Plus,
-  ArrowLeft,
-  TrendingUp,
-  CheckCircle2,
-  ShoppingCart,
-  Eye,
-  Download,
-  Filter,
-  Building2,
-  ChevronRight,
-  ArrowUpRight,
-  ArrowDownRight,
-  Edit2,
-  Trash2,
-  AlertTriangle,
-} from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from "recharts";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { usePurchasingData } from "./usePurchasingData";
-import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
+import React from "react";
+import { Search, Plus, AlertTriangle } from "lucide-react";
 import { AddSupplierModal } from "./add-supplier-modal";
-import { useApp } from "../context/AppContext";
-import { mapPurchaseRequestsToPos, calcTotal, PO } from "./purchase-orders-page";
-
-/* ── Types & Data ──────────────────────────────────────────── */
-
-interface Contact {
-  name: string;
-  role: string;
-  phone: string;
-  email: string;
-  isPrimary?: boolean;
-}
-
-interface MonthData { month: string; value: number; pos: number; }
-
-interface Supplier {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-  category: string;
-  city: string;
-  province: string;
-  address: string;
-  status: "Active" | "Inactive" | "On Hold" | "Blacklisted";
-
-  totalPOs: number;
-  totalValue: number;
-  onTimeRate: number;
-  defectRate: number;
-  contacts: Contact[];
-  history: MonthData[];
-  bankName: string;
-  bankAccount: string;
-  bankBranch: string;
-  npwp: string;
-  paymentTerms: string;
-  since: string;
-}
-
-const calculateSupplierHistory = (supplierPos: PO[]) => {
-  const monthPairs = [
-    { label: "Jan", idx: 0, aliases: ["Jan", "01/", "-01-", "-01", ".01.", "2026-01"] },
-    { label: "Feb", idx: 1, aliases: ["Feb", "02/", "-02-", "-02", ".02.", "2026-02"] },
-    { label: "Mar", idx: 2, aliases: ["Mar", "03/", "-03-", "-03", ".03.", "2026-03"] },
-    { label: "Apr", idx: 3, aliases: ["Apr", "04/", "-04-", "-04", ".04.", "2026-04"] },
-    { label: "May", idx: 4, aliases: ["May", "Mei", "05/", "-05-", "-05", ".05.", "2026-05"] },
-    { label: "Jun", idx: 5, aliases: ["Jun", "06/", "-06-", "-06", ".06.", "2026-06"] },
-    { label: "Jul", idx: 6, aliases: ["Jul", "07/", "-07-", "-07", ".07.", "2026-07"] },
-    { label: "Aug", idx: 7, aliases: ["Aug", "Ags", "08/", "-08-", "-08", ".08.", "2026-08"] },
-    { label: "Sep", idx: 8, aliases: ["Sep", "09/", "-09-", "-09", ".09.", "2026-09"] },
-    { label: "Oct", idx: 9, aliases: ["Oct", "Okt", "10/", "-10-", "-10", ".10.", "2026-10"] },
-    { label: "Nov", idx: 10, aliases: ["Nov", "11/", "-11-", "-11", ".11.", "2026-11"] },
-    { label: "Dec", idx: 11, aliases: ["Dec", "Des", "12/", "-12-", "-12", ".12.", "2026-12"] }
-  ];
-  return monthPairs.map(mp => {
-    const posInMonth = supplierPos.filter(po => {
-      if (!po.orderDate) return false;
-      if (mp.aliases.some(alias => po.orderDate.includes(alias))) return true;
-      try {
-        const d = new Date(po.orderDate);
-        return !isNaN(d.getTime()) && d.getMonth() === mp.idx;
-      } catch {
-        return false;
-      }
-    });
-    const value = posInMonth.reduce((sum, po) => sum + calcTotal(po.items), 0);
-    return {
-      month: mp.label,
-      pos: posInMonth.length,
-      value: Math.round(value / 1000000)
-    };
-  });
-};
-
-/* ── Helpers ───────────────────────────────────────────────── */
-
-const statusCfg: Record<string, { bg: string; color: string; dot: string }> = {
-  Active:      { bg: "#dcfce7", color: "#166534", dot: "#16a34a" },
-  Inactive:    { bg: "#f1f5f9", color: "#475569", dot: "#94a3b8" },
-  "On Hold":   { bg: "#fef9c3", color: "#92400e", dot: "#f59e0b" },
-  Blacklisted: { bg: "#fee2e2", color: "#991b1b", dot: "#dc2626" },
-};
-
-function Pill({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5" style={{ background: bg, color, fontSize: 11, fontWeight: 600 }}>
-      {children}
-    </span>
-  );
-}
-
-function TH({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <th className={className} style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", padding: "9px 16px", textAlign: "left", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-      {children}
-    </th>
-  );
-}
-
-function TD({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <td className={className} style={{ padding: "11px 16px", fontSize: 13, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle" }}>
-      {children}
-    </td>
-  );
-}
-
-const formatRpM = (n: number) => {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)} M`;
-  return `${(n / 1_000_000).toFixed(0)} Jt`;
-};
-
-
-
-/* ── Detail view ───────────────────────────────────────────── */
-
-function SupplierDetail({
-  supplier,
-  onBack,
-  onEdit,
-  onDelete,
-  canCreatePo,
-}: {
-  supplier: Supplier;
-  onBack: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  canCreatePo: boolean;
-}) {
-  const sc = statusCfg[supplier.status];
-
-  return (
-    <div className="p-5 space-y-5">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
-        style={{ fontSize: 12, color: "#475569" }}
-      >
-        <ArrowLeft size={14} /> Kembali ke Daftar Supplier
-      </button>
-
-      {/* Supplier header */}
-      <div
-        className="rounded-lg p-5"
-        style={{ background: "#1F1F1F", border: "1px solid #334155" }}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-md shrink-0" style={{ background: "#334155" }}>
-              <Building2 size={20} style={{ color: "#fff" }} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 style={{ color: "#fff" }}>{supplier.name}</h1>
-                <Pill bg={sc.bg} color={sc.color}>{supplier.status}</Pill>
-              </div>
-              <p style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
-                {supplier.code} · {supplier.type} · {supplier.category}
-              </p>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <MapPin size={11} style={{ color: "#64748b" }} />
-                <span style={{ fontSize: 12, color: "#64748b" }}>{supplier.city}, {supplier.province}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onEdit}
-              className="flex items-center gap-1.5 rounded px-3 py-2 border border-white/20 text-white hover:bg-white/10 transition-colors"
-              style={{ fontSize: 12 }}
-            >
-              <Edit2 size={13} /> Edit
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex items-center gap-1.5 rounded px-3 py-2 border border-red-300/40 text-red-100 hover:bg-red-500/20 transition-colors"
-              style={{ fontSize: 12 }}
-            >
-              <Trash2 size={13} /> Hapus
-            </button>
-          </div>
-        </div>
-
-        {/* KPI row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-          {[
-            { label: "Total PO", val: `${supplier.totalPOs} PO`, icon: <ShoppingCart size={14} style={{ color: "#60a5fa" }} /> },
-            { label: "Total Nilai", val: `Rp ${formatRpM(supplier.totalValue)}`, icon: <TrendingUp size={14} style={{ color: "#4ade80" }} /> },
-            { label: "On-Time Rate", val: `${supplier.onTimeRate}%`, icon: <CheckCircle2 size={14} style={{ color: "#4ade80" }} />, color: supplier.onTimeRate >= 90 ? "#4ade80" : supplier.onTimeRate >= 80 ? "#fbbf24" : "#f87171" },
-            { label: "Defect Rate", val: `${supplier.defectRate}%`, icon: <Star size={14} style={{ color: "#fbbf24" }} />, color: supplier.defectRate <= 1 ? "#4ade80" : supplier.defectRate <= 3 ? "#fbbf24" : "#f87171" },
-          ].map((k) => (
-            <div key={k.label} className="rounded p-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-              <div className="flex items-center gap-2 mb-1.5">{k.icon}<span style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>{k.label}</span></div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: k.color ?? "#fff" }}>{k.val}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Tabs defaultValue="info">
-        <TabsList className="rounded-lg h-9 bg-white border border-border p-1 gap-0">
-          {[
-            { val: "info", label: "Informasi" },
-            { val: "contacts", label: "Kontak" },
-            { val: "history", label: "Riwayat Pembelian" },
-            { val: "performance", label: "Performa" },
-          ].map((t) => (
-            <TabsTrigger
-              key={t.val}
-              value={t.val}
-              className="rounded-sm h-7 px-3 text-xs data-[state=active]:bg-[#C8102E] data-[state=active]:text-white data-[state=active]:shadow-sm"
-            >
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {/* Info */}
-        <TabsContent value="info" className="mt-4">
-          <div
-            className="rounded-lg p-5"
-            style={{ background: "#fff", border: "1px solid #e2e8f0" }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
-              {[
-                { label: "Kode Supplier", val: supplier.code },
-                { label: "Tipe Badan Usaha", val: supplier.type },
-                { label: "Kategori Material", val: supplier.category },
-                { label: "Kota", val: supplier.city },
-                { label: "Provinsi", val: supplier.province },
-                { label: "Terms Pembayaran", val: supplier.paymentTerms },
-                { label: "NPWP", val: supplier.npwp },
-                { label: "Bank", val: supplier.bankName },
-                { label: "No. Rekening", val: supplier.bankAccount },
-                { label: "Cabang Bank", val: supplier.bankBranch },
-                { label: "Bergabung Sejak", val: supplier.since },
-
-              ].map(({ label, val }) => (
-                <div key={label}>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>
-                  <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{val}</p>
-                </div>
-              ))}
-              <div className="sm:col-span-2 lg:col-span-3">
-                <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Alamat Lengkap</p>
-                <p style={{ fontSize: 13, color: "#1F1F1F", marginTop: 3 }}>{supplier.address}</p>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Contacts */}
-        <TabsContent value="contacts" className="mt-4 space-y-3">
-          {supplier.contacts.map((c) => (
-            <div
-              key={c.email}
-              className="rounded-lg p-4"
-              style={{ background: "#fff", border: "1px solid #e2e8f0" }}
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className="flex items-center justify-center w-10 h-10 rounded-full text-white shrink-0"
-                  style={{ background: "#C8102E", fontSize: 14, fontWeight: 700 }}
-                >
-                  {c.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p style={{ fontSize: 14, fontWeight: 600, color: "#1F1F1F" }}>{c.name}</p>
-                    {c.isPrimary && (
-                      <span className="rounded px-1.5 py-0.5" style={{ fontSize: 10, fontWeight: 600, background: "#eff6ff", color: "#1d4ed8" }}>
-                        Kontak Utama
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{c.role}</p>
-                  <div className="flex flex-wrap gap-4 mt-3">
-                    <a href={`tel:${c.phone}`} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ fontSize: 13, color: "#1F1F1F" }}>
-                      <Phone size={14} style={{ color: "#94a3b8" }} /> {c.phone}
-                    </a>
-                    <a href={`mailto:${c.email}`} className="flex items-center gap-2 hover:opacity-70 transition-opacity" style={{ fontSize: 13, color: "#1F1F1F" }}>
-                      <Mail size={14} style={{ color: "#94a3b8" }} /> {c.email}
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </TabsContent>
-
-        {/* History */}
-        <TabsContent value="history" className="mt-4 space-y-4">
-          <div className="rounded-lg p-5" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 16 }}>
-              Nilai Pembelian 6 Bulan Terakhir (Juta Rp)
-            </p>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={supplier.history} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderColor: "#e2e8f0" }} formatter={(v: number) => [`Rp ${v} Jt`]} />
-                <Bar dataKey="value" fill="#C8102E" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Table summary */}
-          <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <TH>Bulan</TH>
-                  <TH>Jumlah PO</TH>
-                  <TH>Nilai Pembelian</TH>
-                  <TH>Rata-rata / PO</TH>
-                </tr>
-              </thead>
-              <tbody>
-                {supplier.history.slice().reverse().map((h) => (
-                  <tr key={h.month} style={{ borderBottom: "1px solid #f1f5f9" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                  >
-                    <TD><span style={{ fontWeight: 500, color: "#1F1F1F" }}>{h.month} 2026</span></TD>
-                    <TD><span style={{ color: "#475569" }}>{h.pos} PO</span></TD>
-                    <TD><span style={{ fontWeight: 600, color: "#1F1F1F" }}>Rp {h.value} Jt</span></TD>
-                    <TD><span style={{ color: "#64748b" }}>Rp {h.pos > 0 ? Math.round(h.value / h.pos) : 0} Jt</span></TD>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </TabsContent>
-
-        {/* Performance */}
-        <TabsContent value="performance" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "On-Time Delivery", val: `${supplier.onTimeRate}%`, target: "≥ 90%", ok: supplier.onTimeRate >= 90, bar: supplier.onTimeRate, color: "#C8102E" },
-              { label: "Defect Rate", val: `${supplier.defectRate}%`, target: "≤ 2%", ok: supplier.defectRate <= 2, bar: Math.min(supplier.defectRate * 10, 100), color: "#dc2626", invert: true },
-              { label: "Total PO (6 bln)", val: supplier.totalPOs.toString(), target: "—", ok: true, bar: Math.min((supplier.totalPOs / 60) * 100, 100), color: "#0891b2" },
-
-            ].map((kpi) => (
-              <div key={kpi.label} className="rounded-lg p-4" style={{ background: "#fff", border: "1px solid #e2e8f0" }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{kpi.label}</p>
-                <p style={{ fontSize: 20, fontWeight: 700, color: "#1F1F1F", marginTop: 6 }}>{kpi.val}</p>
-                <div className="flex items-center justify-between mt-2 mb-1.5">
-                  <span style={{ fontSize: 10, color: "#94a3b8" }}>Target: {kpi.target}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: kpi.ok ? "#16a34a" : "#dc2626" }}>
-                    {kpi.ok ? "✓ OK" : "✗ Below"}
-                  </span>
-                </div>
-                <div className="rounded-full overflow-hidden" style={{ height: 5, background: "#f1f5f9" }}>
-                  <div className="h-full rounded-full" style={{ width: `${kpi.bar}%`, background: kpi.color }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-/* ── Main list view ────────────────────────────────────────── */
+import { useSuppliers } from "./hooks/useSuppliers";
+import { SupplierDetailPanel } from "./components/suppliers/SupplierDetailPanel";
+import { SupplierTable } from "./components/suppliers/SupplierTable";
 
 export function SuppliersPage() {
-  const { currentUser } = useApp();
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [supplierPage, setSupplierPage] = useState(1);
-  const perPage = 10;
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState<SupplierDto | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | SupplierDto | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
+  const board = useSuppliers();
 
-  const { suppliers, purchaseRequests, supplierPayments, isLoading, refresh } = usePurchasingData();
-
-  const allPos = useMemo(() => {
-    return mapPurchaseRequestsToPos(purchaseRequests || [], supplierPayments || [], suppliers);
-  }, [purchaseRequests, supplierPayments, suppliers]);
-
-  const enhancedSuppliers = useMemo(() => {
-    const existingNames = new Set((suppliers as any[]).map(s => (s.name || "").toLowerCase().trim()));
-    const backendSuppliers: any[] = [];
-    
-    allPos.forEach(po => {
-      if (!po || !po.supplier) return;
-      const nameKey = po.supplier.toLowerCase().trim();
-      if (!existingNames.has(nameKey) && nameKey !== "supplier belum ditentukan") {
-        existingNames.add(nameKey);
-        backendSuppliers.push({
-          id: `backend-${po.supplierCode || nameKey}`,
-          code: po.supplierCode || "SUP-BACKEND",
-          name: po.supplier,
-          category: po.items?.[0]?.name ? "Logam & Material" : "General Supply",
-          city: "Jakarta",
-          address: "Alamat terdaftar di PO",
-          phone: "-",
-          email: "-",
-          status: "Active",
-          paymentTerms: "Net 14",
-          since: "2026",
-          contacts: [{ name: "Contact Person", phone: "-", email: "-", isPrimary: true }]
-        });
-      }
-    });
-
-    const combinedList = [...(suppliers as any[]), ...backendSuppliers];
-
-    return combinedList.map(s => {
-      const supplierPos = allPos.filter(po => {
-        if (!po) return false;
-        return po.supplierCode === s.code ||
-               po.supplier === s.name ||
-               (po.supplier && s.name && po.supplier.toLowerCase().trim() === s.name.toLowerCase().trim()) ||
-               (po.supplier && s.name && po.supplier.toLowerCase().includes(s.name.toLowerCase()));
-      });
-
-      const totalPOs = supplierPos.length;
-      const totalValue = supplierPos.reduce((sum, po) => sum + calcTotal(po.items), 0);
-
-      const completedPos = supplierPos.filter(p => (p.deliveryStatus as string) === "Received" || (p.deliveryStatus as string) === "Closed");
-      const cancelledPos = supplierPos.filter(p => (p.deliveryStatus as string) === "Cancelled");
-      const onTimeRate = totalPOs === 0 ? 0 : Math.round(((totalPOs - cancelledPos.length) / totalPOs) * 100);
-
-      const allItems = supplierPos.flatMap(p => p.items);
-      const rejectedItems = allItems.filter(i => i.purchaseStatus === "Rejected" || i.purchaseStatus === "Ditolak");
-      const defectRate = allItems.length === 0 ? 0 : Number(((rejectedItems.length / allItems.length) * 100).toFixed(1));
-
-
-
-      return {
-        ...s,
-        totalPOs,
-        totalValue,
-        onTimeRate,
-        defectRate,
-
-        history: calculateSupplierHistory(supplierPos)
-      };
-    });
-  }, [suppliers, allPos]);
-
-  const filtered = useMemo(() => {
-    return enhancedSuppliers.filter((s) => {
-      if (filterStatus !== "all" && s.status !== filterStatus) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        return (
-          s.name.toLowerCase().includes(q) ||
-          s.code.toLowerCase().includes(q) ||
-          s.category.toLowerCase().includes(q) ||
-          (s.city?.toLowerCase().includes(q) ?? false)
-        );
-      }
-      return true;
-    });
-  }, [search, filterStatus, enhancedSuppliers]);
-
-  if (isLoading) {
-    return <div className="p-5 flex justify-center text-slate-500">Loading suppliers...</div>;
-  }
-
-  const openEdit = (supplier: Supplier | SupplierDto) => {
-    setStatusMessage(null);
-    setEditingSupplier(supplier as SupplierDto);
-    setIsAddModalOpen(true);
-  };
-
-  const handleDeleteSupplier = (supplier: Supplier | SupplierDto) => {
-    setSupplierToDelete(supplier);
-  };
-
-  const confirmDeleteSupplier = async () => {
-    if (!supplierToDelete) return;
-    setIsDeleting(true);
-    setStatusMessage(null);
-    try {
-      await masterDataApi.deleteSupplier(supplierToDelete.code);
-      if (selectedSupplier && selectedSupplier.code === supplierToDelete.code) {
-        setSelectedSupplier(null);
-      }
-      await refresh();
-      setStatusMessage({ type: "success", text: `Supplier ${supplierToDelete.name} berhasil dihapus.` });
-    } catch (error: any) {
-      console.warn("Failed to delete supplier.", error);
-      setStatusMessage({
-        type: "error",
-        text: error?.response?.data?.message || "Gagal menghapus supplier. Cek apakah supplier masih dipakai di dokumen PO/MR.",
-      });
-    } finally {
-      setIsDeleting(false);
-      setSupplierToDelete(null);
-    }
-  };
-
-  if (selectedSupplier) {
+  if (board.selectedSupplier) {
     return (
       <>
-        {statusMessage && (
-          <div
-            className="m-5 mb-0 rounded border px-4 py-3 text-sm"
-            style={{
-              background: statusMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
-              borderColor: statusMessage.type === "success" ? "#bbf7d0" : "#fecaca",
-              color: statusMessage.type === "success" ? "#166534" : "#991b1b",
-            }}
-          >
-            {statusMessage.text}
-          </div>
-        )}
-        <SupplierDetail
-          supplier={selectedSupplier}
-          onBack={() => setSelectedSupplier(null)}
-          onEdit={() => openEdit(selectedSupplier)}
-          onDelete={() => handleDeleteSupplier(selectedSupplier)}
-          canCreatePo={canCreatePo}
+        <SupplierDetailPanel
+          supplier={board.selectedSupplier}
+          onBack={() => board.setSelectedSupplier(null)}
+          onEdit={() => board.openEdit(board.selectedSupplier)}
+          onDelete={() => board.setSupplierToDelete(board.selectedSupplier)}
+          canCreatePo={board.canCreatePo}
         />
+        {/* Modals */}
         <AddSupplierModal
-          open={isAddModalOpen}
-          onOpenChange={(open) => {
-            setIsAddModalOpen(open);
-            if (!open) setEditingSupplier(null);
-          }}
-          supplier={editingSupplier}
-          onSuccess={async () => {
-            await refresh();
-            setSelectedSupplier(null);
-            setStatusMessage({ type: "success", text: "Supplier berhasil diperbarui." });
+          open={board.isAddModalOpen}
+          onOpenChange={board.setIsAddModalOpen}
+          supplier={board.editingSupplier}
+          onSuccess={() => {
+            board.setIsAddModalOpen(false);
+            board.refresh();
+            board.setStatusMessage({ type: "success", text: "Supplier berhasil diperbarui" });
+            setTimeout(() => board.setStatusMessage(null), 3000);
           }}
         />
-        {supplierToDelete && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="text-red-600" size={20} />
+        {board.supplierToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="flex items-start gap-4 p-6">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 shrink-0 text-red-600">
+                  <AlertTriangle size={20} />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Hapus Supplier</h3>
                   <p className="text-sm text-slate-500 mt-1">
-                    Yakin ingin menghapus <strong>{supplierToDelete.name}</strong>?
+                    Yakin ingin menghapus <strong>{(board.supplierToDelete as any).name}</strong>?
                   </p>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button onClick={() => setSupplierToDelete(null)} disabled={isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
-                <button onClick={confirmDeleteSupplier} disabled={isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
-                  {isDeleting ? "Menghapus..." : "Hapus"}
+              <div className="flex justify-end gap-3 p-4 bg-slate-50 border-t">
+                <button onClick={() => board.setSupplierToDelete(null)} disabled={board.isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50 border border-slate-300">Batal</button>
+                <button onClick={board.confirmDeleteSupplier} disabled={board.isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50">
+                  {board.isDeleting ? "Menghapus..." : "Hapus"}
                 </button>
               </div>
             </div>
@@ -614,8 +70,8 @@ export function SuppliersPage() {
         <div className="flex items-center gap-2">
           <button 
             onClick={() => {
-              setEditingSupplier(null);
-              setIsAddModalOpen(true);
+              board.setEditingSupplier(null);
+              board.setIsAddModalOpen(true);
             }}
             className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-white hover:opacity-90 transition-opacity" 
             style={{ fontSize: 12, background: "#C8102E" }}
@@ -625,16 +81,16 @@ export function SuppliersPage() {
         </div>
       </div>
 
-      {statusMessage && (
+      {board.statusMessage && (
         <div
           className="rounded border px-4 py-3 text-sm"
           style={{
-            background: statusMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
-            borderColor: statusMessage.type === "success" ? "#bbf7d0" : "#fecaca",
-            color: statusMessage.type === "success" ? "#166534" : "#991b1b",
+            background: board.statusMessage.type === "success" ? "#f0fdf4" : "#fef2f2",
+            borderColor: board.statusMessage.type === "success" ? "#bbf7d0" : "#fecaca",
+            color: board.statusMessage.type === "success" ? "#166534" : "#991b1b",
           }}
         >
-          {statusMessage.text}
+          {board.statusMessage.text}
         </div>
       )}
 
@@ -643,8 +99,8 @@ export function SuppliersPage() {
         <div className="relative flex-1 sm:max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
           <input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setSupplierPage(1); }}
+            value={board.search}
+            onChange={(e) => { board.setSearch(e.target.value); board.setSupplierPage(1); }}
             placeholder="Cari nama, kode, kategori, kota..."
             className="w-full rounded-md border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#C8102E]/20"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
@@ -654,13 +110,13 @@ export function SuppliersPage() {
           {["all", "Active", "On Hold", "Inactive"].map((s) => (
             <button
               key={s}
-              onClick={() => { setFilterStatus(s); setSupplierPage(1); }}
+              onClick={() => { board.setFilterStatus(s); board.setSupplierPage(1); }}
               className="rounded-md px-3 py-1.5 transition-colors"
               style={{
                 fontSize: 12, fontWeight: 500,
-                background: filterStatus === s ? "#C8102E" : "#f8fafc",
-                color: filterStatus === s ? "#fff" : "#475569",
-                border: `1px solid ${filterStatus === s ? "#C8102E" : "#e2e8f0"}`,
+                background: board.filterStatus === s ? "#C8102E" : "#f8fafc",
+                color: board.filterStatus === s ? "#fff" : "#475569",
+                border: `1px solid ${board.filterStatus === s ? "#C8102E" : "#e2e8f0"}`,
               }}
             >
               {s === "all" ? "Semua" : s}
@@ -669,154 +125,39 @@ export function SuppliersPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <TH>Supplier</TH>
-                <TH className="hidden md:table-cell">Kategori</TH>
-                <TH className="hidden lg:table-cell">Kota</TH>
+      <SupplierTable board={board} />
 
-                <TH className="hidden sm:table-cell">Total PO</TH>
-                <TH className="hidden md:table-cell">On-Time</TH>
-                <TH className="hidden lg:table-cell">Nilai Transaksi</TH>
-                <TH>Status</TH>
-                <TH>Aksi</TH>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice((supplierPage - 1) * perPage, supplierPage * perPage).map((s) => {
-                const sc = statusCfg[s.status];
-                return (
-                  <tr
-                    key={s.id}
-                    style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                    onClick={() => setSelectedSupplier(s)}
-                  >
-                    <TD>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-md shrink-0" style={{ background: "#C8102E", fontSize: 13, fontWeight: 700, color: "#fff" }}>
-                          {s.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: 600, color: "#1F1F1F", fontSize: 13 }}>{s.name}</p>
-                          <p style={{ fontSize: 11, color: "#94a3b8" }}>{s.code}</p>
-                        </div>
-                      </div>
-                    </TD>
-                    <TD className="hidden md:table-cell">
-                      <span style={{ fontSize: 12, color: "#475569" }}>{s.category}</span>
-                    </TD>
-                    <TD className="hidden lg:table-cell">
-                      <span style={{ fontSize: 12, color: "#475569" }}>{s.city}</span>
-                    </TD>
-
-                    <TD className="hidden sm:table-cell">
-                      <span style={{ fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>{s.totalPOs}</span>
-                    </TD>
-                    <TD className="hidden md:table-cell">
-                      <span style={{ fontSize: 12, fontWeight: 600, color: s.onTimeRate >= 90 ? "#16a34a" : s.onTimeRate >= 80 ? "#d97706" : "#dc2626" }}>
-                        {s.onTimeRate}%
-                      </span>
-                    </TD>
-                    <TD className="hidden lg:table-cell">
-                      <span style={{ fontSize: 12, fontWeight: 500, color: "#1F1F1F" }}>Rp {formatRpM(s.totalValue)}</span>
-                    </TD>
-                    <TD>
-                      <Pill bg={sc.bg} color={sc.color}>
-                        <span className="rounded-full" style={{ width: 5, height: 5, background: sc.dot, display: "inline-block" }} />
-                        {s.status}
-                      </Pill>
-                    </TD>
-                    <TD>
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className="flex items-center gap-1 rounded px-2 py-1 border hover:bg-red-50 transition-colors"
-                          style={{ fontSize: 11, color: "#C8102E", borderColor: "#bfdbfe" }}
-                          onClick={() => setSelectedSupplier(s)}
-                        >
-                          <Eye size={12} /> Detail
-                        </button>
-                        <button
-                          className="rounded p-1.5 hover:bg-amber-50 transition-colors"
-                          style={{ color: "#d97706" }}
-                          title="Edit supplier"
-                          onClick={() => openEdit(s)}
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        <button
-                          className="rounded p-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
-                          style={{ color: "#dc2626" }}
-                          title="Hapus supplier"
-                          disabled={isDeleting}
-                          onClick={() => handleDeleteSupplier(s)}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </TD>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {filtered.length > perPage && (
-          <div className="flex items-center justify-center gap-1 px-4 py-2" style={{ borderTop: "1px solid #f1f5f9" }}>
-            <button onClick={() => setSupplierPage(p => Math.max(1, p - 1))} disabled={supplierPage === 1}
-              style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: supplierPage === 1 ? "#d4d4d8" : "#C8102E", cursor: supplierPage === 1 ? "default" : "pointer", fontWeight: 600 }}>‹</button>
-            {Array.from({ length: Math.ceil(filtered.length / perPage) }, (_, i) => i + 1).map(p => (
-              <button key={p} onClick={() => setSupplierPage(p)}
-                style={{ minWidth: 22, height: 22, padding: "0 4px", fontSize: 11, fontWeight: 600, borderRadius: 4, border: "none",
-                  background: p === supplierPage ? "#C8102E" : "transparent", color: p === supplierPage ? "#fff" : "#475569", cursor: "pointer" }}>{p}</button>
-            ))}
-            <button onClick={() => setSupplierPage(p => Math.min(Math.ceil(filtered.length / perPage), p + 1))} disabled={supplierPage >= Math.ceil(filtered.length / perPage)}
-              style={{ padding: "2px 6px", fontSize: 11, border: "none", background: "none", color: supplierPage >= Math.ceil(filtered.length / perPage) ? "#d4d4d8" : "#C8102E", cursor: supplierPage >= Math.ceil(filtered.length / perPage) ? "default" : "pointer", fontWeight: 600 }}>›</button>
-          </div>
-        )}
-        <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}>
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} supplier ditemukan</p>
-          <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>
-            Total aktif: {enhancedSuppliers.filter((s) => s.status === "Active").length}
-          </p>
-        </div>
-      </div>
-      
-      <AddSupplierModal 
-        open={isAddModalOpen} 
-        onOpenChange={(open) => {
-          setIsAddModalOpen(open);
-          if (!open) setEditingSupplier(null);
+      {/* Modals */}
+      <AddSupplierModal
+        open={board.isAddModalOpen}
+        onOpenChange={board.setIsAddModalOpen}
+        supplier={board.editingSupplier}
+        onSuccess={() => {
+          board.setIsAddModalOpen(false);
+          board.refresh();
+          board.setStatusMessage({ type: "success", text: board.editingSupplier ? "Supplier berhasil diperbarui" : "Supplier berhasil ditambahkan" });
+          setTimeout(() => board.setStatusMessage(null), 3000);
         }}
-        supplier={editingSupplier}
-          onSuccess={() => {
-            refresh();
-            setStatusMessage({ type: "success", text: editingSupplier ? "Supplier berhasil diperbarui." : "Supplier baru berhasil ditambahkan." });
-          }}
       />
-      {supplierToDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-lg bg-white shadow-2xl overflow-hidden p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="text-red-600" size={20} />
+
+      {board.supplierToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-start gap-4 p-6">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 shrink-0 text-red-600">
+                <AlertTriangle size={20} />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-800">Hapus Supplier</h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Yakin ingin menghapus <strong>{supplierToDelete.name}</strong>?
+                  Yakin ingin menghapus <strong>{(board.supplierToDelete as any).name}</strong>?
                 </p>
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setSupplierToDelete(null)} disabled={isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">Batal</button>
-              <button onClick={confirmDeleteSupplier} disabled={isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
-                {isDeleting ? "Menghapus..." : "Hapus"}
+            <div className="flex justify-end gap-3 p-4 bg-slate-50 border-t">
+              <button onClick={() => board.setSupplierToDelete(null)} disabled={board.isDeleting} className="rounded px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50 border border-slate-300">Batal</button>
+              <button onClick={board.confirmDeleteSupplier} disabled={board.isDeleting} className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50">
+                {board.isDeleting ? "Menghapus..." : "Hapus"}
               </button>
             </div>
           </div>
@@ -825,3 +166,5 @@ export function SuppliersPage() {
     </div>
   );
 }
+
+export default SuppliersPage;

@@ -154,6 +154,42 @@ export interface AssignSalesOrderEngineersRequest {
   notes?: string;
 }
 
+export interface CompleteSalesOrderRequest {
+  customer: {
+    code: string;
+    name: string;
+    address?: string | null;
+    contactPerson?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+  products: Array<{
+    tempId: string;
+    description: string;
+    unit: string;
+    materialSpec?: string | null;
+  }>;
+  order: {
+    soDate: string;
+    targetDate?: string | null;
+    items: Array<{
+      productTempId?: string | null;
+      existingProductId?: string | null;
+      qty: number;
+      unitPrice: number;
+      notes?: string | null;
+      designReference?: string | null;
+      customerDrawingUrl?: string | null;
+    }>;
+    designWorker?: { userId: string; name: string } | null;
+    productionWorker?: { userId: string; name: string } | null;
+    qcReviewer?: { userId: string; name: string } | null;
+    customerDrawingUrl?: string | null;
+    designReference?: string | null;
+    designStatus?: string | null;
+  };
+}
+
 export const salesApi = {
   async listCustomers() {
     const response = await apiClient.get<CustomerDto[]>('/api/v1/master-data/customers');
@@ -209,6 +245,11 @@ export const salesApi = {
 
   async createSalesOrder(request: CreateSalesOrderRequest) {
     const response = await apiClient.post<SalesOrderDto>('/api/v1/production/sales-orders', request);
+    return response.data;
+  },
+
+  async createCompleteSalesOrder(request: CompleteSalesOrderRequest) {
+    const response = await apiClient.post<SalesOrderDto>('/api/v1/production/sales-orders/complete', request);
     return response.data;
   },
 

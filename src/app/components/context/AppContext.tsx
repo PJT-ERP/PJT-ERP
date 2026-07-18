@@ -87,9 +87,12 @@ interface AppContextType {
   productCatalog: ProductDto[];
   users: User[];
   purchasingRequests: PurchasingRequest[];
+  backendCustomerIdsByCode: Record<string, string>;
   refreshBackendData: () => Promise<void>;
   addSalesOrder: (so: Omit<SalesOrder, 'id' | 'createdAt' | 'status' | 'createdBy'>) => SalesOrder;
   updateSalesOrder: (id: string, updates: Partial<SalesOrder>) => void;
+  setSalesOrders: React.Dispatch<React.SetStateAction<SalesOrder[]>>;
+  setProductCatalog: React.Dispatch<React.SetStateAction<ProductDto[]>>;
   addUser: (user: Omit<User, 'id'>) => Promise<boolean>;
   updateUser: (id: string, updates: Partial<User>) => Promise<boolean>;
   deleteUser: (id: string) => void;
@@ -173,9 +176,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       productCatalog: backendSync.productCatalog,
       users: auth.users,
       purchasingRequests: purchasingHook.purchasingRequests,
+      backendCustomerIdsByCode: customersHook.backendCustomerIdsByCode,
       refreshBackendData,
       addSalesOrder: salesOrdersHook.addSalesOrder,
       updateSalesOrder: salesOrdersHook.updateSalesOrder,
+      setSalesOrders: salesOrdersHook.setSalesOrders,
+      setProductCatalog: backendSync.setProductCatalog,
       addUser: auth.addUser,
       updateUser: auth.updateUser,
       deleteUser: auth.deleteUser,

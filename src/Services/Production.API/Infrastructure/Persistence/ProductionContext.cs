@@ -63,6 +63,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.ToTable("sales_orders");
             builder.HasKey(order => order.Id);
             builder.HasIndex(order => order.SoNumber).IsUnique();
+            builder.HasIndex(order => order.CustomerId);
             builder.Property(order => order.SoNumber).HasMaxLength(100).HasColumnName("so_number");
             builder.Property(order => order.CustomerId).HasColumnName("customer_id");
             builder.Property(order => order.CustomerCode).HasMaxLength(50).HasColumnName("customer_code");

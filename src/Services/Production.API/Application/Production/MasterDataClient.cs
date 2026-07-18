@@ -54,6 +54,24 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
+    public async Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken cancellationToken)
+    {
+        AttachAuthorizationHeader();
+        var response = await httpClient.PostAsJsonAsync("api/v1/master-data/customers", request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<MasterDataCustomerDto>(cancellationToken: cancellationToken);
+        return result ?? throw new InvalidOperationException("Failed to create customer.");
+    }
+
+    public async Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken cancellationToken)
+    {
+        AttachAuthorizationHeader();
+        var response = await httpClient.PostAsJsonAsync("api/v1/master-data/products", request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<MasterDataProductDto>(cancellationToken: cancellationToken);
+        return result ?? throw new InvalidOperationException("Failed to create product.");
+    }
+
     public async Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken)
     {
         AttachAuthorizationHeader();
