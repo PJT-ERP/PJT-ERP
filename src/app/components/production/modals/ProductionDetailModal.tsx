@@ -138,8 +138,8 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
                   const invItem = inventory.find(inv => 
                     inv.name?.toLowerCase() === m.itemName.toLowerCase()
                   );
-                  // Total kebutuhan = jumlah di BOM (per pcs) * jumlah produk pesanan
-                  const reqQty = (m.quantity ?? 0) * (so.quantity || 1);
+                  // getMaterialOptions already returns the total aggregated quantity
+                  const reqQty = m.quantity ?? 0;
                   const stock = invItem?.currentStock ?? 0;
                   const isShort = reqQty > 0 && stock < reqQty;
                   
