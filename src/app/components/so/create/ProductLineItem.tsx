@@ -24,20 +24,7 @@ interface BOMItem {
   unit: string;
 }
 
-export interface ProductRow {
-  id: string;
-  type: "existing" | "custom";
-  productName: string;
-  customName: string;
-  designId?: string;
-  materials: BOMItem[];
-  quantity: string;
-  unit: string;
-  notes: string;
-  customerDesignUrl?: string;
-  unitPrice?: number;
-  materialSpec?: string | null;
-}
+import { ProductLineItemType } from "../schema/soCreateSchema";
 
 export interface ProductOption {
   id: string;
@@ -48,7 +35,7 @@ export interface ProductOption {
   bomItems?: { inventoryItemId: string; inventoryItemCode: string; inventoryItemName: string; quantity: number; unit: string; }[];
 }
 
-export const emptyProduct = (): ProductRow => ({
+export const emptyProduct = (): ProductLineItemType => ({
   id: crypto.randomUUID(),
   type: "existing",
   productName: "",
@@ -63,11 +50,11 @@ export const emptyProduct = (): ProductRow => ({
 });
 
 interface ProductLineItemProps {
-  row: ProductRow;
+  row: ProductLineItemType;
   index: number;
   total: number;
   productOptions: ProductOption[];
-  onChange: (updated: ProductRow) => void;
+  onChange: (updated: ProductLineItemType) => void;
   onRemove: () => void;
 }
 
@@ -119,14 +106,14 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
         )}
       </div>
 
-      <div style={{ padding: 14 }}>
+    <div style={{ padding: 14 }}>
         <div style={{ marginBottom: 10 }}>
           <Label text={isCustom ? "Nama Produk (Manual)" : "Nama Produk"} required />
           {isCustom ? (
             <div>
-              <Input placeholder="Ketik nama produk custom..." value={row.customName} onChange={e => onChange({ ...row, customName: e.target.value })} required />
-              {row.customName.trim().length > 0 && productOptions.some(p => {
-                const c = row.customName.trim().toLowerCase();
+              <Input placeholder="Ketik nama produk custom..." value={row.customName || ""} onChange={e => onChange({ ...row, customName: e.target.value })} required />
+              {(row.customName || "").trim().length > 0 && productOptions.some(p => {
+                const c = (row.customName || "").trim().toLowerCase();
                 const l = p.label.toLowerCase();
                 return l === c || (l.includes(" - ") && l.substring(l.indexOf(" - ") + 3).trim() === c);
               }) && (
@@ -139,7 +126,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                     type="button"
                     onClick={() => {
                       const matched = productOptions.find(p => {
-                        const c = row.customName.trim().toLowerCase();
+                        const c = (row.customName || "").trim().toLowerCase();
                         const l = p.label.toLowerCase();
                         return l === c || (l.includes(" - ") && l.substring(l.indexOf(" - ") + 3).trim() === c);
                       });

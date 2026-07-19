@@ -8,20 +8,23 @@ namespace PJT_ERP.Production.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/v1/production/sales-orders")]
-public sealed class SalesOrdersController(IProductionService productionService) : ControllerBase
+public sealed class SalesOrdersController(
+    ISalesOrderCommandService salesOrderCommandService,
+    IProductionCommandService productionCommandService,
+    IProductionQueryService queryService) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)
     {
-        return Ok(await productionService.ListSalesOrdersAsync(cancellationToken));
+        return Ok(await queryService.ListSalesOrdersAsync(cancellationToken));
     }
 
     [HttpGet("{id:guid}/progress")]
     [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
     {
-        var progress = await productionService.GetSalesOrderProgressAsync(id, cancellationToken);
+        var progress = await queryService.GetSalesOrderProgressAsync(id, cancellationToken);
         return progress is null ? NotFound() : Ok(progress);
     }
 
@@ -31,7 +34,23 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.CreateSalesOrderAsync(request, cancellationToken);
+            var order = await salesOrderCommandService.CreateSalesOrderAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(List), new { id = order.Id }, order);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.WriteLine($"[DEBUG] InvalidOperationException: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("complete")]
+    [Authorize(Roles = "Admin,Sales,Sales Order")]
+    public async Task<ActionResult<SalesOrderDto>> CreateComplete(CompleteSalesOrderRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await salesOrderCommandService.CreateCompleteSalesOrderAsync(request, cancellationToken);
             return CreatedAtAction(nameof(List), new { id = order.Id }, order);
         }
         catch (InvalidOperationException ex)
@@ -47,7 +66,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.AssignSalesOrderEngineersAsync(id, request, cancellationToken);
+            var order = await salesOrderCommandService.AssignSalesOrderEngineersAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -65,7 +84,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.UpdateSalesOrderDesignStatusAsync(id, request, cancellationToken);
+            var order = await salesOrderCommandService.UpdateSalesOrderDesignStatusAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -83,7 +102,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.UpdateCustomerDrawingUrlAsync(id, request, cancellationToken);
+            var order = await salesOrderCommandService.UpdateCustomerDrawingUrlAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -101,7 +120,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.UpdateSalesOrderItemsAsync(id, request, cancellationToken);
+            var order = await salesOrderCommandService.UpdateSalesOrderItemsAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -119,7 +138,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.SetSalesOrderPricingAsync(id, request, cancellationToken);
+            var order = await salesOrderCommandService.SetSalesOrderPricingAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -137,7 +156,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            var order = await productionService.SubmitSalesOrderDesignAsync(id, request, cancellationToken);
+            var order = await salesOrderCommandService.SubmitSalesOrderDesignAsync(id, request, cancellationToken);
             return order is null ? NotFound() : Ok(order);
         }
         catch (InvalidOperationException ex)
@@ -152,7 +171,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
     {
         try
         {
-            return Ok(await productionService.ConfirmSalesOrderAsync(id, request, cancellationToken));
+            return Ok(await salesOrderCommandService.ConfirmSalesOrderAsync(id, request, cancellationToken));
         }
         catch (InvalidOperationException ex)
         {
@@ -170,7 +189,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
-            var result = await productionService.UploadEngineeringDrawingAsync(id, request, cancellationToken, isPrivileged);
+            var result = await productionCommandService.UploadEngineeringDrawingAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -189,7 +208,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
-            var result = await productionService.SubmitMaterialRequestAsync(id, request, cancellationToken, isPrivileged);
+            var result = await productionCommandService.SubmitMaterialRequestAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -208,7 +227,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
-            var result = await productionService.StartProductionAsync(id, request, cancellationToken, isPrivileged);
+            var result = await productionCommandService.StartProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -227,7 +246,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
-            var result = await productionService.FinishProductionAsync(id, request, cancellationToken, isPrivileged);
+            var result = await productionCommandService.FinishProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -246,7 +265,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
-            var result = await productionService.PauseProductionAsync(id, request, cancellationToken, isPrivileged);
+            var result = await productionCommandService.PauseProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -265,7 +284,7 @@ public sealed class SalesOrdersController(IProductionService productionService) 
         try
         {
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
-            var result = await productionService.ResumeProductionAsync(id, request, cancellationToken, isPrivileged);
+            var result = await productionCommandService.ResumeProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
         }
         catch (InvalidOperationException ex)

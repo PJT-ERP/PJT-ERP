@@ -14,9 +14,18 @@ x-api-environment: &api-environment
   ConnectionStrings__FinanceConnection: "Host=db;Port=5432;Database=pjt_finance;Username=postgres;Password=postgres"
   ConnectionStrings__NpgmqConnection: "Host=db;Port=5432;Database=pjt_eventbus;Username=postgres;Password=postgres"
   ConnectionStrings__CacheConnection: "Host=db;Port=5432;Database=pjt_cache;Username=postgres;Password=postgres"
+  Seq__ServerUrl: "http://seq:80"
   DOTNET_gcServer: "0"
 
 services:
+  seq:
+    image: datalust/seq:latest
+    ports:
+      - "5341:80"
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+
   db:
     image: ghcr.io/pgmq/pg17-pgmq:v1.8.0
     restart: unless-stopped

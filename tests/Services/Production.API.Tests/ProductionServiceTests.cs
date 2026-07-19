@@ -584,6 +584,8 @@ public sealed class ProductionServiceTests
         public List<Guid> RequestedCustomerIds { get; } = [];
         public List<Guid> RequestedProductIds { get; } = [];
 
+                public Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataCustomerDto(Guid.NewGuid(), request.Code, request.Name, request.Email, true));
+        public Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataProductDto(Guid.NewGuid(), request.PartNumber, request.Description, request.Unit, request.MaterialSpec, true));
         public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken)
         {
             RequestedCustomerIds.Add(id);
@@ -608,3 +610,4 @@ public sealed class ProductionServiceTests
         }
     }
 }
+

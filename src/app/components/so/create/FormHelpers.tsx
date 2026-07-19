@@ -21,33 +21,36 @@ export function Label({ text, required }: { text: string; required?: boolean }) 
   );
 }
 
-export function Input({ icon, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div style={{ position: "relative" }}>
-      {icon && (
-        <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none", display: "flex" }}>
-          {icon}
-        </span>
-      )}
-      <input
-        {...props}
-        style={{
-          width: "100%", boxSizing: "border-box",
-          background: focused ? S_form.white : "#FAFAFA",
-          border: `1px solid ${focused ? S_form.primary : S_form.border}`,
-          borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
-          fontSize: "12.5px", color: S_form.slate, fontFamily: S_form.font, outline: "none",
-          boxShadow: focused ? `0 0 0 2px ${S_form.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-          ...props.style,
-        }}
-        onFocus={e => { setFocused(true); props.onFocus?.(e); }}
-        onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-      />
-    </div>
-  );
-}
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }>(
+  ({ icon, ...props }, ref) => {
+    const [focused, setFocused] = useState(false);
+    return (
+      <div style={{ position: "relative" }}>
+        {icon && (
+          <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#94A3B8", pointerEvents: "none", display: "flex" }}>
+            {icon}
+          </span>
+        )}
+        <input
+          {...props}
+          ref={ref}
+          style={{
+            width: "100%", boxSizing: "border-box",
+            background: focused ? S_form.white : "#FAFAFA",
+            border: `1px solid ${focused ? S_form.primary : S_form.border}`,
+            borderRadius: 4, padding: icon ? "7px 10px 7px 30px" : "7px 10px",
+            fontSize: "12.5px", color: S_form.slate, fontFamily: S_form.font, outline: "none",
+            boxShadow: focused ? `0 0 0 2px ${S_form.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+            transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
+            ...props.style,
+          }}
+          onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+          onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+        />
+      </div>
+    );
+  }
+);
 
 export function CurrencyInput({ value, onChange, icon, ...props }: any) {
   const [focused, setFocused] = useState(false);
@@ -100,50 +103,56 @@ export function CurrencyInput({ value, onChange, icon, ...props }: any) {
   );
 }
 
-export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { rows?: number }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <textarea
-      {...props}
-      rows={props.rows ?? 2}
-      style={{
-        width: "100%", boxSizing: "border-box",
-        background: focused ? S_form.white : "#FAFAFA",
-        border: `1px solid ${focused ? S_form.primary : S_form.border}`,
-        borderRadius: 4, padding: "7px 10px",
-        fontSize: "12.5px", color: S_form.slate, fontFamily: S_form.font, outline: "none", resize: "none",
-        boxShadow: focused ? `0 0 0 2px ${S_form.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-        transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-        ...props.style,
-      }}
-      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
-      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-    />
-  );
-}
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { rows?: number }>(
+  ({ rows, ...props }, ref) => {
+    const [focused, setFocused] = useState(false);
+    return (
+      <textarea
+        {...props}
+        ref={ref}
+        rows={rows ?? 2}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: focused ? S_form.white : "#FAFAFA",
+          border: `1px solid ${focused ? S_form.primary : S_form.border}`,
+          borderRadius: 4, padding: "7px 10px",
+          fontSize: "12.5px", color: S_form.slate, fontFamily: S_form.font, outline: "none", resize: "none",
+          boxShadow: focused ? `0 0 0 2px ${S_form.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
+          ...props.style,
+        }}
+        onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      />
+    );
+  }
+);
 
-export function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <select
-      {...props}
-      style={{
-        width: "100%", boxSizing: "border-box",
-        background: focused ? S_form.white : "#FAFAFA",
-        border: `1px solid ${focused ? S_form.primary : S_form.border}`,
-        borderRadius: 4, padding: "7px 10px",
-        fontSize: "12.5px", color: S_form.slate, fontFamily: S_form.font, outline: "none", cursor: "pointer",
-        boxShadow: focused ? `0 0 0 2px ${S_form.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
-        transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
-        ...props.style,
-      }}
-      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
-      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
-    >
-      {children}
-    </select>
-  );
-}
+export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
+  ({ children, ...props }, ref) => {
+    const [focused, setFocused] = useState(false);
+    return (
+      <select
+        {...props}
+        ref={ref}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: focused ? S_form.white : "#FAFAFA",
+          border: `1px solid ${focused ? S_form.primary : S_form.border}`,
+          borderRadius: 4, padding: "7px 10px",
+          fontSize: "12.5px", color: S_form.slate, fontFamily: S_form.font, outline: "none", cursor: "pointer",
+          boxShadow: focused ? `0 0 0 2px ${S_form.primary}33` : "inset 0 1px 2px rgba(0,0,0,0.02)",
+          transition: "border-color 0.12s, box-shadow 0.12s, background 0.12s",
+          ...props.style,
+        }}
+        onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+      >
+        {children}
+      </select>
+    );
+  }
+);
 
 export function SearchableCustomerSelect({ customers, value, onChange }: { customers: any[]; value: string; onChange: (val: string) => void }) {
   const [search, setSearch] = useState("");

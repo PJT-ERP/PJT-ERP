@@ -23,7 +23,9 @@ builder.Services.AddDbContext<ProductionContext>(options =>
         npgsql => npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(5), null));
 });
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ProductionContext>());
-builder.Services.AddScoped<IProductionService, ProductionService>();
+builder.Services.AddScoped<ISalesOrderCommandService, SalesOrderCommandService>();
+builder.Services.AddScoped<IProductionCommandService, ProductionCommandService>();
+builder.Services.AddScoped<IProductionQueryService, ProductionQueryService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddHttpContextAccessor();
 
@@ -47,6 +49,10 @@ builder.Services.AddPgmqEventBus<ProductionContext>(builder.Configuration, optio
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 builder.Services.AddPjtOpenApi();
 
 builder.Services.AddRateLimiter(options =>
@@ -78,6 +84,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
+app.UseResponseCompression();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

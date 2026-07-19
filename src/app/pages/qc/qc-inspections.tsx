@@ -12,7 +12,7 @@ import { S, isGo, isNoGo, mapInspectionToSalesOrder, findInspectionForSo } from 
 import { QCHistoryModal } from "./components/QCHistoryModal";
 import { QCInspectionModal } from "./components/QCInspectionModal";
 import { DrawingLink } from "./components/DrawingLink";
-import { InlineBomDisplay } from "../Production";
+import { InlineBomDisplay } from "../Production/components/InlineBomDisplay";
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);

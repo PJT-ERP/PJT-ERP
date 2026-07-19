@@ -38,7 +38,11 @@ export function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; in
             <span style={{ color: S.secondary, fontSize: "12.5px" }}>{so.qcAt ? new Date(so.qcAt).toLocaleString('id-ID') : '-'}</span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Produk</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{so.description}</p>
+            </div>
             <div>
               <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p>
               <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p>

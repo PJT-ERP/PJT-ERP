@@ -34,6 +34,10 @@ public sealed class PgmqEventReceiver(
 
                 await ProcessMessageAsync(message, stoppingToken);
             }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error reading from PGMQ queue {QueueName}.", options.Value.QueueName);
