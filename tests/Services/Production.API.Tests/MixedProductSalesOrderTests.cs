@@ -241,6 +241,8 @@ public sealed class MixedProductSalesOrderTests
 
     private sealed class StubMasterDataClient : IMasterDataClient
     {
+                public Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataCustomerDto(Guid.NewGuid(), request.Code, request.Name, request.Email, true));
+        public Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataProductDto(Guid.NewGuid(), request.PartNumber, request.Description, request.Unit, request.MaterialSpec, true));
         public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<MasterDataCustomerDto?>(new MasterDataCustomerDto(id, "STUB", "Stub", "x@test.com", true));
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) =>
@@ -249,3 +251,4 @@ public sealed class MixedProductSalesOrderTests
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
+
