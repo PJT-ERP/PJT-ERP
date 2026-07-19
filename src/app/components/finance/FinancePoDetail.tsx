@@ -398,7 +398,9 @@ export function FinancePoDetail() {
                       <p>Browser tidak mendukung PDF. <a href={proofFileUrl} target="_blank" className="text-blue-600 underline">Download PDF</a></p>
                     </object>
                   ) : (
-                    <img src={proofFileUrl} alt="Bukti Transfer" className="max-w-full h-auto rounded border border-slate-200" />
+                    <a href={proofFileUrl} target="_blank" rel="noopener noreferrer" className="block cursor-pointer hover:opacity-90 transition-opacity" title="Klik untuk memperbesar">
+                      <img src={proofFileUrl} alt="Bukti Transfer" className="max-w-full h-auto rounded border border-slate-200" />
+                    </a>
                   )}
                 </div>
               ) : (
