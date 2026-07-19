@@ -2,9 +2,10 @@ import React from "react";
 import { Package } from "lucide-react";
 import { SalesOrder } from "../../../components/data/mockData";
 import { S } from "../../../components/production/ProductionHelpers";
+import { getMaterialOptions } from "./material-request/MaterialRequestHelpers";
 
 export function InlineBomDisplay({ so }: { so: SalesOrder }) {
-  const materials = (so.materials && Array.isArray(so.materials) && so.materials.length > 0) ? so.materials : [];
+  const materials = getMaterialOptions(so);
   
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginTop: 12 }} onClick={e => e.stopPropagation()}>
@@ -61,45 +62,35 @@ export function InlineBomDisplay({ so }: { so: SalesOrder }) {
            </div>
          ) : (
            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
-        <thead>
-          <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
-            <th style={{ padding: "6px 12px", fontWeight: 600, width: "35%" }}>Nama Material</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600, width: "20%" }}>Kode</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600, width: "30%" }}>Spesifikasi</th>
-            <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right", width: "15%" }}>Qty / Satuan</th>
-          </tr>
-        </thead>
-        <tbody>
-          {materials.map((m: any, idx: number) => (
-            <tr key={idx} style={{ borderBottom: idx < materials.length - 1 ? `1px solid #E2E8F0` : "none", background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}>
-              <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate }}>
-                {m.name || m.inventoryItemName || m.materialName || "-"}
-              </td>
-              <td style={{ padding: "8px 12px", color: S.secondary }}>
-                {m.code || m.inventoryItemCode ? (
-                  <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
-                    {m.code || m.inventoryItemCode}
-                  </span>
-                ) : (
-                  <span style={{ color: "#94A3B8", fontStyle: "italic", fontSize: "11.5px" }}>Custom</span>
-                )}
-              </td>
-              <td style={{ padding: "8px 12px", color: S.secondary }}>
-                {m.spec || m.specification ? (
-                  <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
-                    {m.spec || m.specification}
-                  </span>
-                ) : (
-                  <span style={{ color: "#94A3B8" }}>-</span>
-                )}
-              </td>
-              <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate, textAlign: "right" }}>
-                {m.quantity || m.qty || 0} <span style={{ color: S.secondary, fontWeight: 500 }}>{m.unit || 'pcs'}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+             <thead>
+               <tr style={{ background: "#FFFFFF", borderBottom: `1px solid ${S.border}`, color: S.secondary, fontSize: "11px" }}>
+                 <th style={{ padding: "6px 12px", fontWeight: 600, width: "35%" }}>Nama Material</th>
+                 <th style={{ padding: "6px 12px", fontWeight: 600, width: "20%" }}>Spesifikasi</th>
+                 <th style={{ padding: "6px 12px", fontWeight: 600, textAlign: "right", width: "15%" }}>Total Qty</th>
+               </tr>
+             </thead>
+             <tbody>
+               {materials.map((m: any, idx: number) => (
+                 <tr key={m.key || idx} style={{ borderBottom: idx < materials.length - 1 ? `1px solid #E2E8F0` : "none", background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}>
+                   <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate }}>
+                     {m.itemName || "-"}
+                   </td>
+                   <td style={{ padding: "8px 12px", color: S.secondary }}>
+                     {m.specification ? (
+                       <span style={{ fontFamily: "monospace", fontSize: "11.5px", background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: S.slate }}>
+                         {m.specification}
+                       </span>
+                     ) : (
+                       <span style={{ color: "#94A3B8" }}>-</span>
+                     )}
+                   </td>
+                   <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate, textAlign: "right" }}>
+                     {m.quantity || 0} <span style={{ color: S.secondary, fontWeight: 500 }}>pcs</span>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
          )}
        </div>
     </div>

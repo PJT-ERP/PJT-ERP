@@ -52,6 +52,41 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
     }
   };
 
+  if (so.bomsPerItem && so.items && so.items.length > 0) {
+    let hasValidEngineerMaterials = false;
+    const aggregatedMaterials = new Map<string, { itemName: string, spec: string, quantity: number }>();
+
+    so.items.forEach((item: any) => {
+      const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
+      if (boms && Array.isArray(boms)) {
+        boms.forEach((material: any) => {
+          const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
+          const specification = String(material?.specification || material?.spec || material?.size || "").trim();
+          
+          if (itemName && itemName.toLowerCase() !== "pppp") {
+            const rawQty = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
+            const matQty = isNaN(rawQty) ? 0 : rawQty;
+            const itemQty = Number(item.quantity) || 1;
+            
+            const key = `${itemName.toLowerCase()}|${specification.toLowerCase()}`;
+            if (!aggregatedMaterials.has(key)) {
+              aggregatedMaterials.set(key, { itemName, spec: specification, quantity: 0 });
+            }
+            aggregatedMaterials.get(key)!.quantity += (matQty * itemQty);
+            hasValidEngineerMaterials = true;
+          }
+        });
+      }
+    });
+
+    if (hasValidEngineerMaterials) {
+      aggregatedMaterials.forEach((val) => {
+        addOption(val.itemName, val.spec, val.quantity);
+      });
+      return options;
+    }
+  }
+
   if (Array.isArray(so.materials) && so.materials.length > 0) {
     let hasValidEngineerMaterials = false;
     so.materials.forEach((material: any) => {
