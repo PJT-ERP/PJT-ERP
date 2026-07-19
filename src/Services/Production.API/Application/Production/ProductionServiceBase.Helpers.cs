@@ -6,9 +6,9 @@ using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.Production.Api.Application.Production;
 
-public sealed partial class ProductionService
+public abstract partial class ProductionServiceBase
 {
-    private async Task<SalesOrder?> FindSalesOrderByTrackingCodeAsync(
+    protected async Task<SalesOrder?> FindSalesOrderByTrackingCodeAsync(
         string trackingCode,
         bool asNoTracking,
         CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ public sealed partial class ProductionService
             cancellationToken);
     }
 
-    private static SalesOrderDto ToDto(SalesOrder order)
+    protected static SalesOrderDto ToDto(SalesOrder order)
     {
         var productionOrder = GetPrimaryProductionOrder(order);
 
@@ -79,6 +79,7 @@ public sealed partial class ProductionService
             productionOrder?.PauseReason,
             order.CreatedAtUtc,
             order.UpdatedAtUtc,
+            productionOrder?.CompletionNote,
             order.EstimatedAmount,
             order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray(),
@@ -86,7 +87,7 @@ public sealed partial class ProductionService
             order.QcPhotos);
     }
 
-    private static SalesOrderItemDto ToDto(SalesOrderItem item)
+    protected static SalesOrderItemDto ToDto(SalesOrderItem item)
     {
         return new SalesOrderItemDto(
             item.Id,
@@ -100,7 +101,7 @@ public sealed partial class ProductionService
             item.CustomerDrawingUrl);
     }
 
-    private static SalesOrderProductionProgressDto ToProgressDto(SalesOrder order)
+    protected static SalesOrderProductionProgressDto ToProgressDto(SalesOrder order)
     {
         var productionOrder = GetPrimaryProductionOrder(order);
         var updatedAtUtc = productionOrder is null || order.UpdatedAtUtc >= productionOrder.UpdatedAtUtc
@@ -145,6 +146,7 @@ public sealed partial class ProductionService
             productionOrder is null ? null : CalculateDurationSeconds(productionOrder),
             productionOrder?.QcDecision,
             productionOrder?.PauseReason,
+            productionOrder?.CompletionNote,
             updatedAtUtc,
             order.Items
                 .OrderBy(item => item.ProductPartNumber)
@@ -159,7 +161,7 @@ public sealed partial class ProductionService
                 .ToArray());
     }
 
-    private static PublicProductionTrackingDto ToPublicTrackingDto(SalesOrder order)
+    protected static PublicProductionTrackingDto ToPublicTrackingDto(SalesOrder order)
     {
         var productionOrder = GetPrimaryProductionOrder(order);
         var updatedAtUtc = productionOrder is null || order.UpdatedAtUtc >= productionOrder.UpdatedAtUtc
@@ -192,7 +194,7 @@ public sealed partial class ProductionService
                 .ToArray());
     }
 
-    private static decimal CalculateProgressPercent(SalesOrder order, ProductionOrder? prodOrder)
+    protected static decimal CalculateProgressPercent(SalesOrder order, ProductionOrder? prodOrder)
     {
         var soStatus = (order.Status ?? "").ToLowerInvariant();
         var prodStatus = (prodOrder?.Status ?? "").ToLowerInvariant();
@@ -208,7 +210,7 @@ public sealed partial class ProductionService
         return 0;
     }
 
-    private static long? CalculateDurationSeconds(ProductionOrder order)
+    protected static long? CalculateDurationSeconds(ProductionOrder order)
     {
         if (!order.StartedAtUtc.HasValue)
         {
@@ -224,7 +226,7 @@ public sealed partial class ProductionService
         return Math.Max(0, (long)Math.Round((end.Value - order.StartedAtUtc.Value).TotalSeconds));
     }
 
-    private static bool IsQcGo(string? decision)
+    protected static bool IsQcGo(string? decision)
     {
         return decision is not null
             && (decision.Equals("Go", StringComparison.OrdinalIgnoreCase)
@@ -233,7 +235,7 @@ public sealed partial class ProductionService
                 || decision.Equals("Pass", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool IsQcNoGo(string? decision)
+    protected static bool IsQcNoGo(string? decision)
     {
         return decision is not null
             && (decision.Equals("NoGo", StringComparison.OrdinalIgnoreCase)
@@ -243,21 +245,21 @@ public sealed partial class ProductionService
                 || decision.Equals("Fail", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static IQueryable<SalesOrder> IncludeProduction(IQueryable<SalesOrder> query)
+    protected static IQueryable<SalesOrder> IncludeProduction(IQueryable<SalesOrder> query)
     {
         return query
             .Include(order => order.Items)
             .Include(order => order.ProductionOrders);
     }
 
-    private static ProductionOrder? GetPrimaryProductionOrder(SalesOrder salesOrder)
+    protected static ProductionOrder? GetPrimaryProductionOrder(SalesOrder salesOrder)
     {
         return salesOrder.ProductionOrders
             .OrderBy(order => order.CreatedAtUtc)
             .FirstOrDefault();
     }
 
-    private static void ValidateSalesOrderItems(IReadOnlyCollection<CreateSalesOrderItemRequest> items)
+    protected static void ValidateSalesOrderItems(IReadOnlyCollection<CreateSalesOrderItemRequest> items)
     {
         if (items.Count == 0)
         {
@@ -270,7 +272,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static EngineerAssignment? NormalizeAssignment(EngineerAssignment? assignment, string label)
+    protected static EngineerAssignment? NormalizeAssignment(EngineerAssignment? assignment, string label)
     {
         if (assignment is null)
         {
@@ -291,7 +293,7 @@ public sealed partial class ProductionService
         return assignment with { Name = assignment.Name.Trim() };
     }
 
-    private static void ApplyAssignment(SalesOrder salesOrder, AssignSalesOrderEngineersRequest request)
+    protected static void ApplyAssignment(SalesOrder salesOrder, AssignSalesOrderEngineersRequest request)
     {
         var designWorker = NormalizeAssignment(request.DesignWorker, "Design worker");
         var productionWorker = NormalizeAssignment(request.ProductionWorker, "Production worker");
@@ -321,14 +323,14 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void EnsureEngineersAssigned(SalesOrder salesOrder)
+    protected static void EnsureEngineersAssigned(SalesOrder salesOrder)
     {
         // Workflow change: MR is now submitted by SPV before penugasan operator.
         // Therefore, we no longer require production worker or QC reviewer to be assigned
         // before the sales order can be confirmed.
     }
 
-    private static void EnsureDesignApproved(SalesOrder salesOrder)
+    protected static void EnsureDesignApproved(SalesOrder salesOrder)
     {
         if (salesOrder.DesignStatus != SalesOrderDesignStatuses.Approved)
         {
@@ -336,7 +338,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void ValidateWorkerRequest(ProductionStatusUpdateRequest request)
+    protected static void ValidateWorkerRequest(ProductionStatusUpdateRequest request)
     {
         if (request.WorkerUserId == Guid.Empty)
         {
@@ -349,7 +351,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void ValidateDrawingUploadRequest(UploadEngineeringDrawingRequest request)
+    protected static void ValidateDrawingUploadRequest(UploadEngineeringDrawingRequest request)
     {
         if (request.UploadedByUserId == Guid.Empty)
         {
@@ -362,7 +364,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void ValidateMaterialRequest(SubmitProductionMaterialRequest request)
+    protected static void ValidateMaterialRequest(SubmitProductionMaterialRequest request)
     {
         if (request.RequestedByUserId == Guid.Empty)
         {
@@ -390,7 +392,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void EnsureAssignedWorker(Guid? assignedWorkerId, Guid workerUserId, bool isPrivileged = false, string roleName = "worker")
+    protected static void EnsureAssignedWorker(Guid? assignedWorkerId, Guid workerUserId, bool isPrivileged = false, string roleName = "worker")
     {
         // Privileged users (Admin, Owner, Engineering Supervisor) can bypass worker assignment check
         if (isPrivileged)
@@ -410,7 +412,7 @@ public sealed partial class ProductionService
         }
     }
 
-    private static void StartProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    protected static void StartProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
     {
         if (productionOrder.Status == ProductionOrderStatuses.Closed)
         {
@@ -429,7 +431,7 @@ public sealed partial class ProductionService
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 
-    private static void FinishProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    protected static void FinishProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
     {
         if (productionOrder.Status == ProductionOrderStatuses.Closed)
         {
@@ -445,10 +447,14 @@ public sealed partial class ProductionService
         productionOrder.FinishedAtUtc ??= timestampUtc;
         productionOrder.FinishedByUserId ??= request.WorkerUserId;
         productionOrder.FinishedByName ??= request.WorkerName.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Reason))
+        {
+            productionOrder.CompletionNote = request.Reason.Trim();
+        }
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 
-    private static void PauseProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    protected static void PauseProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
     {
         if (productionOrder.Status == ProductionOrderStatuses.Closed || productionOrder.Status == ProductionOrderStatuses.Finished)
         {
@@ -465,7 +471,7 @@ public sealed partial class ProductionService
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 
-    private static void ResumeProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
+    protected static void ResumeProduction(ProductionOrder productionOrder, ProductionStatusUpdateRequest request, DateTime timestampUtc)
     {
         if (productionOrder.Status != ProductionOrderStatuses.Paused)
         {
@@ -477,7 +483,7 @@ public sealed partial class ProductionService
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 
-    private static SalesOrderConfirmedItem[] BuildConfirmedItems(SalesOrder salesOrder)
+    protected static SalesOrderConfirmedItem[] BuildConfirmedItems(SalesOrder salesOrder)
     {
         return salesOrder.Items
             .OrderBy(item => item.ProductPartNumber)
@@ -492,7 +498,7 @@ public sealed partial class ProductionService
             .ToArray();
     }
 
-    private static SpkCreatedItem[] BuildSpkItems(SalesOrder salesOrder)
+    protected static SpkCreatedItem[] BuildSpkItems(SalesOrder salesOrder)
     {
         return salesOrder.Items
             .OrderBy(item => item.ProductPartNumber)
@@ -507,12 +513,12 @@ public sealed partial class ProductionService
             .ToArray();
     }
 
-    private static string? NormalizeOptional(string? value)
+    protected static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static string? NormalizeOptionalUrl(string? value, string label)
+    protected static string? NormalizeOptionalUrl(string? value, string label)
     {
         var normalized = NormalizeOptional(value);
         if (normalized is null)
@@ -529,12 +535,12 @@ public sealed partial class ProductionService
         return uri.ToString();
     }
 
-    private static Guid? NormalizeSalesOrderItemId(Guid? salesOrderItemId)
+    protected static Guid? NormalizeSalesOrderItemId(Guid? salesOrderItemId)
     {
         return salesOrderItemId == Guid.Empty ? null : salesOrderItemId;
     }
 
-    private static string NormalizeMaterialRequestUrgency(string? urgency)
+    protected static string NormalizeMaterialRequestUrgency(string? urgency)
     {
         if (string.IsNullOrWhiteSpace(urgency))
         {
@@ -550,7 +556,7 @@ public sealed partial class ProductionService
         };
     }
 
-    private static string? NormalizeMaterialRequestCategory(string? category)
+    protected static string? NormalizeMaterialRequestCategory(string? category)
     {
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -568,7 +574,7 @@ public sealed partial class ProductionService
         };
     }
 
-    private static string NormalizeDesignStatus(string? status)
+    protected static string NormalizeDesignStatus(string? status)
     {
         if (string.IsNullOrWhiteSpace(status))
         {

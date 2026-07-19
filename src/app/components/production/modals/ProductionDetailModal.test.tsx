@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProductionDetailModal } from './ProductionDetailModal';
 import { useApp } from '../../context/AppContext';
 import { productionApi } from '../../../services/productionApi';
+import { masterDataApi } from '../../../services/masterDataApi';
 
 vi.mock('../../context/AppContext', () => ({
   useApp: vi.fn(),
@@ -12,6 +13,12 @@ vi.mock('../../context/AppContext', () => ({
 vi.mock('../../../services/productionApi', () => ({
   productionApi: {
     getSalesOrderMaterialTracking: vi.fn(),
+  },
+}));
+
+vi.mock('../../../services/masterDataApi', () => ({
+  masterDataApi: {
+    listInventory: vi.fn(),
   },
 }));
 
@@ -30,6 +37,7 @@ describe('ProductionDetailModal', () => {
     vi.mocked(useApp).mockReturnValue({
       purchasingRequests: [],
     } as any);
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([]);
   });
 
   it('renders custom BOM specifications even when Material Tracking data is loaded', async () => {
@@ -74,5 +82,33 @@ describe('ProductionDetailModal', () => {
 
     // The Material Tracking section should ALSO be visible
     expect(screen.getAllByText('Material Tracking').length).toBeGreaterThan(0);
+  });
+
+  it('matches inventory items by name ignoring BOM specification for stock checks', async () => {
+    const so = {
+      id: 'SO-124',
+      status: 'Produksi',
+      quantity: 2,
+      materials: [
+        { itemName: 'batu', specification: 'bata', quantity: 5 } // Butuh: 10
+      ]
+    } as any;
+
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([
+      { name: 'batu', code: 'MAT-001', currentStock: 121 } // Master Data has no spec
+    ] as any);
+
+    render(<ProductionDetailModal so={so} onClose={vi.fn()} />);
+
+    // Wait for inventory fetch
+    await waitFor(() => {
+      expect(masterDataApi.listInventory).toHaveBeenCalled();
+    });
+
+    // The reqQty should be 2 * 5 = 10
+    expect(screen.getByText('10')).toBeInTheDocument(); // Butuh: 10
+    
+    // The stock should be 121, meaning it matched successfully
+    expect(screen.getByText('121')).toBeInTheDocument(); // Stok Gudang: 121
   });
 });

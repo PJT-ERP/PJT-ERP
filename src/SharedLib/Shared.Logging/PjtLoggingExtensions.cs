@@ -1,9 +1,10 @@
-using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
 
 namespace PJT_ERP.Shared.Logging;
 
@@ -11,11 +12,22 @@ public static class PjtLoggingExtensions
 {
     public static WebApplicationBuilder AddPjtLogging(this WebApplicationBuilder builder)
     {
-        builder.Logging.ClearProviders();
-        builder.Logging.AddSimpleConsole(options =>
+        var seqServerUrl = builder.Configuration["Seq:ServerUrl"];
+
+        builder.Host.UseSerilog((context, loggerConfiguration) =>
         {
-            options.SingleLine = true;
-            options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+            loggerConfiguration
+                .ReadFrom.Configuration(context.Configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithMachineName()
+                .Enrich.WithEnvironmentName()
+                .Enrich.WithProcessId()
+                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+
+            if (!string.IsNullOrWhiteSpace(seqServerUrl))
+            {
+                loggerConfiguration.WriteTo.Seq(seqServerUrl);
+            }
         });
 
         return builder;
@@ -23,34 +35,31 @@ public static class PjtLoggingExtensions
 
     public static IApplicationBuilder UsePjtRequestLogging(this IApplicationBuilder app)
     {
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                if (ex != null || httpContext.Response.StatusCode > 499)
+                    return LogEventLevel.Error;
+
+                if (httpContext.Response.StatusCode > 399)
+                    return LogEventLevel.Warning;
+
+                return LogEventLevel.Information;
+            };
+        });
+
         return app.Use(async (context, next) =>
         {
-            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("PJT.Requests");
-            var startedAt = Stopwatch.GetTimestamp();
-
             try
             {
                 await next();
-
-                var elapsed = Stopwatch.GetElapsedTime(startedAt);
-                var safePath = SanitizeLogPath(context.Request.Path, context.Request.QueryString);
-                logger.LogInformation(
-                    "{Method} {Path} responded {StatusCode} in {ElapsedMs}ms",
-                    context.Request.Method,
-                    safePath,
-                    context.Response.StatusCode,
-                    elapsed.TotalMilliseconds.ToString("0.0"));
             }
             catch (InvalidOperationException ex)
             {
-                var elapsed = Stopwatch.GetElapsedTime(startedAt);
-                var safePath = SanitizeLogPath(context.Request.Path, context.Request.QueryString);
-                logger.LogWarning(ex,
-                    "Business validation error during {Method} {Path} ({ElapsedMs}ms): {Message}",
-                    context.Request.Method,
-                    safePath,
-                    elapsed.TotalMilliseconds.ToString("0.0"),
-                    ex.Message);
+                var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("PJT.GlobalExceptionHandler");
+                logger.LogWarning(ex, "Business validation error: {Message}", ex.Message);
 
                 if (!context.Response.HasStarted)
                 {
@@ -61,16 +70,10 @@ public static class PjtLoggingExtensions
             }
             catch (Exception ex)
             {
-                var elapsed = Stopwatch.GetElapsedTime(startedAt);
-                var safePath = SanitizeLogPath(context.Request.Path, context.Request.QueryString);
+                var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("PJT.GlobalExceptionHandler");
                 var traceId = context.TraceIdentifier;
 
-                logger.LogError(ex,
-                    "Unhandled exception during {Method} {Path} [{TraceId}] ({ElapsedMs}ms)",
-                    context.Request.Method,
-                    safePath,
-                    traceId,
-                    elapsed.TotalMilliseconds.ToString("0.0"));
+                logger.LogError(ex, "Unhandled exception [{TraceId}]", traceId);
 
                 if (!context.Response.HasStarted)
                 {
@@ -84,25 +87,5 @@ public static class PjtLoggingExtensions
                 }
             }
         });
-    }
-
-    private static string SanitizeLogPath(PathString path, QueryString query)
-    {
-        if (!query.HasValue || string.IsNullOrEmpty(query.Value))
-        {
-            return path.ToString();
-        }
-
-        var queryString = query.Value;
-        if (queryString.Contains("token=", StringComparison.OrdinalIgnoreCase) ||
-            queryString.Contains("key=", StringComparison.OrdinalIgnoreCase) ||
-            queryString.Contains("password=", StringComparison.OrdinalIgnoreCase) ||
-            queryString.Contains("secret=", StringComparison.OrdinalIgnoreCase) ||
-            queryString.Contains("auth=", StringComparison.OrdinalIgnoreCase))
-        {
-            return $"{path}?[REDACTED_SENSITIVE_QUERY]";
-        }
-
-        return $"{path}{queryString}";
     }
 }

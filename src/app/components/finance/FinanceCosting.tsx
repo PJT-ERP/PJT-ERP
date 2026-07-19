@@ -90,13 +90,16 @@ export function FinanceCosting() {
       const hasEstimated = (selectedItem.estimatedAmount || 0) > 0;
       const isSingleItem = selectedItem.items?.length === 1;
 
-      selectedItem.items?.forEach((item: any) => {
+      selectedItem.items?.forEach((item: any, idx: number) => {
+        const key = item.id || item.productId || idx.toString();
         if (item.unitPrice && item.unitPrice > 0) {
-          initialPrices[item.productId] = item.unitPrice;
+          initialPrices[key] = item.unitPrice;
+        } else if (item.totalPrice && item.totalPrice > 0 && item.quantity > 0) {
+          initialPrices[key] = item.totalPrice / item.quantity;
         } else if (hasEstimated && isSingleItem && item.quantity > 0) {
-          initialPrices[item.productId] = selectedItem.estimatedAmount / item.quantity;
+          initialPrices[key] = selectedItem.estimatedAmount / item.quantity;
         } else {
-          initialPrices[item.productId] = 0;
+          initialPrices[key] = 0;
         }
       });
       setItemPrices(initialPrices);
@@ -110,10 +113,13 @@ export function FinanceCosting() {
     
     setTimeout(async () => {
       // Handle SO logic
-      const updatedItems = selectedItem.items!.map((item: any) => ({
-        ...item,
-        unitPrice: itemPrices[item.productId] || 0
-      }));
+      const updatedItems = selectedItem.items!.map((item: any, idx: number) => {
+        const key = item.id || item.productId || idx.toString();
+        return {
+          ...item,
+          unitPrice: itemPrices[key] || 0
+        };
+      });
 
       const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
       const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production"].includes(selectedItem.status);
@@ -154,13 +160,17 @@ export function FinanceCosting() {
 
   const calculateTotal = () => {
     if (!selectedItem || !selectedItem.items) return 0;
-    return selectedItem.items.reduce((total: number, item: any) => {
-      return total + (itemPrices[item.productId] || 0) * item.quantity;
+    return selectedItem.items.reduce((total: number, item: any, idx: number) => {
+      const key = item.id || item.productId || idx.toString();
+      return total + (itemPrices[key] || 0) * item.quantity;
     }, 0);
   };
 
-  const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
-  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Waiting Payment";
+  const isAllPriced = selectedItem?.items?.every((item: any, idx: number) => {
+    const key = item.id || item.productId || idx.toString();
+    return (itemPrices[key] || 0) > 0;
+  });
+  const isReadOnly = selectedItem && activeTab === 'history';
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
@@ -402,10 +412,11 @@ export function FinanceCosting() {
                   </thead>
                   <tbody>
                     {selectedItem.items?.map((item: any, idx: number) => {
-                      const price = itemPrices[item.productId] || 0;
+                      const key = item.id || item.productId || idx.toString();
+                      const price = itemPrices[key] || 0;
                       const subtotal = price * item.quantity;
                       return (
-                        <tr key={item.productId || idx} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
+                        <tr key={key} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
                           <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName}</td>
                           <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity} {item.unit}</td>
                           <td style={{ padding: "12px 14px" }}>
@@ -415,7 +426,7 @@ export function FinanceCosting() {
                                 type="text"
                                 value={price ? price.toLocaleString("id-ID") : ""}
                                 disabled={isReadOnly}
-                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value.replace(/\D/g, "")) })}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [key]: Number(e.target.value.replace(/\D/g, "")) })}
                                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                               />
                             </div>

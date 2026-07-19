@@ -27,7 +27,7 @@ export function EngineeringPurchasingPage() {
     ? purchasingRequests.filter(r => {
         if (currentUser?.role === 'Engineering Supervisor') {
           const requester = users.find(u => u.id === r.requestedBy || u.name === r.requestedBy);
-          if (requester?.role === 'Purchasing' || requester?.role === 'Purchasing Admin') return false;
+          if ((requester?.role as string) === 'Purchasing' || (requester?.role as string) === 'Purchasing Admin') return false;
           if (r.requestedBy.toLowerCase().includes('purchasing')) return false;
         }
         return true;

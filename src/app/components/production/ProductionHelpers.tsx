@@ -110,6 +110,42 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
     }
   };
 
+  // Use bomsPerItem for correct per-product-line aggregation
+  if (so.bomsPerItem && so.items && so.items.length > 0) {
+    let hasValidEngineerMaterials = false;
+    const aggregated = new Map<string, { materialObj: any, itemName: string, spec: string, quantity: number }>();
+
+    so.items.forEach((item: any) => {
+      const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
+      if (boms && Array.isArray(boms)) {
+        boms.forEach((material: any) => {
+          const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
+          const specification = String(material?.specification || material?.spec || material?.size || "").trim();
+          
+          if (itemName && itemName.toLowerCase() !== "pppp") {
+            const rawQty = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
+            const matQty = isNaN(rawQty) ? 0 : rawQty;
+            const itemQty = Number(item.quantity) || 1;
+            
+            const key = `${itemName.toLowerCase().replace(/[^a-z0-9]/g, '')}|${specification.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+            if (!aggregated.has(key)) {
+              aggregated.set(key, { materialObj: material, itemName, spec: specification, quantity: 0 });
+            }
+            aggregated.get(key)!.quantity += (matQty * itemQty);
+            hasValidEngineerMaterials = true;
+          }
+        });
+      }
+    });
+
+    if (hasValidEngineerMaterials) {
+      aggregated.forEach((val) => {
+        addOption(val.materialObj, val.itemName, val.spec, val.quantity);
+      });
+      return options;
+    }
+  }
+
   if (Array.isArray(so.materials) && so.materials.length > 0) {
     let hasValidEngineerMaterials = false;
     so.materials.forEach((material: any) => {

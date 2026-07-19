@@ -23,6 +23,10 @@ public sealed class PgmqOutboxProcessor<TContext>(
                     await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                 }
             }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "PGMQ outbox processor failed. Retrying soon.");

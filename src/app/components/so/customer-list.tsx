@@ -219,7 +219,6 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
     { label: "Total Pelanggan", value: customers.length, color: "#C8102E", bg: "rgba(200,16,46,0.08)" },
     { label: "Pelanggan Aktif", value: activeCustomers, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
     { label: "Order Bulan Ini", value: salesOrders.filter(o => o.createdAt.startsWith("2026-05")).length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-    { label: "Kota Terjangkau", value: new Set(customers.map(c => c.address)).size, color: "#8B5CF6", bg: "rgba(139,92,246,0.08)" },
   ];
 
   // ── Modal handlers ──────────────────────────────────────────────────────────

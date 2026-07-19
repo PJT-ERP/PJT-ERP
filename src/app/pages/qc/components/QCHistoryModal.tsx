@@ -38,14 +38,28 @@ export function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; in
             <span style={{ color: S.secondary, fontSize: "12.5px" }}>{so.qcAt ? new Date(so.qcAt).toLocaleString('id-ID') : '-'}</span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <div>
-              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p>
-              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0, marginBottom: "4px" }}>Produk & Quantity</p>
+              {so.items && so.items.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {so.items.map((item, idx) => (
+                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", background: S.bg, padding: "6px 12px", borderRadius: "6px", border: `1px solid ${S.border}` }}>
+                      <span style={{ fontSize: "13px", color: S.slate, fontWeight: 500 }}>{item.productName || "Custom Product"}</span>
+                      <span style={{ fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.quantity} {item.unit || so.unit || 'PCS'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between", background: S.bg, padding: "6px 12px", borderRadius: "6px", border: `1px solid ${S.border}` }}>
+                  <span style={{ fontSize: "13px", color: S.slate, fontWeight: 500 }}>{so.description}</span>
+                  <span style={{ fontSize: "13px", color: S.slate, fontWeight: 600 }}>{so.quantity} {so.unit || 'PCS'}</span>
+                </div>
+              )}
             </div>
             <div>
-              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Quantity</p>
-              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{so.quantity} {so.unit}</p>
+              <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Customer</p>
+              <p style={{ fontSize: "13.5px", color: S.slate, margin: "2px 0 0", fontWeight: 500 }}>{customer?.name || so.customerName || so.customerId}</p>
             </div>
             <div>
               <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Diinspeksi Oleh</p>

@@ -110,6 +110,7 @@ export interface SalesOrderDto {
   qcPhotos?: string[] | null;
   productionPhotos?: string[] | null;
   estimatedAmount?: number | null;
+  completionNote?: string | null;
 }
 
 export interface CreateSalesOrderRequest {
@@ -151,6 +152,42 @@ export interface AssignSalesOrderEngineersRequest {
     name: string;
   } | null;
   notes?: string;
+}
+
+export interface CompleteSalesOrderRequest {
+  customer: {
+    code: string;
+    name: string;
+    address?: string | null;
+    contactPerson?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+  products: Array<{
+    tempId: string;
+    description: string;
+    unit: string;
+    materialSpec?: string | null;
+  }>;
+  order: {
+    soDate: string;
+    targetDate?: string | null;
+    items: Array<{
+      productTempId?: string | null;
+      existingProductId?: string | null;
+      qty: number;
+      unitPrice: number;
+      notes?: string | null;
+      designReference?: string | null;
+      customerDrawingUrl?: string | null;
+    }>;
+    designWorker?: { userId: string; name: string } | null;
+    productionWorker?: { userId: string; name: string } | null;
+    qcReviewer?: { userId: string; name: string } | null;
+    customerDrawingUrl?: string | null;
+    designReference?: string | null;
+    designStatus?: string | null;
+  };
 }
 
 export const salesApi = {
@@ -211,6 +248,11 @@ export const salesApi = {
     return response.data;
   },
 
+  async createCompleteSalesOrder(request: CompleteSalesOrderRequest) {
+    const response = await apiClient.post<SalesOrderDto>('/api/v1/production/sales-orders/complete', request);
+    return response.data;
+  },
+
   async assignSalesOrderEngineers(salesOrderId: string, request: AssignSalesOrderEngineersRequest) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/engineers`, request);
     return response.data;
@@ -248,8 +290,23 @@ export const salesApi = {
 
   async confirmSalesOrder(salesOrderId: string, approvedByUserId: string) {
     const response = await apiClient.post(`/api/v1/production/sales-orders/${salesOrderId}/confirm`, {
-      approvedByUserId,
+      approvedByUserId
     });
     return response.data;
   },
+
+  async submitConsultation(request: { name: string, phone: string, email: string, serviceDescription: string, message: string }) {
+    const response = await apiClient.post(`/api/v1/production/consultations`, request);
+    return response.data;
+  },
+
+  async getConsultations() {
+    const response = await apiClient.get(`/api/v1/production/consultations`);
+    return response.data;
+  },
+  
+  async updateConsultationStatus(id: string, status: string) {
+    const response = await apiClient.put(`/api/v1/production/consultations/${id}/status`, { status });
+    return response.data;
+  }
 };

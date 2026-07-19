@@ -6,25 +6,11 @@ using PJT_ERP.Shared.Infrastructure.Messaging;
 
 namespace PJT_ERP.Production.Api.Application.Production;
 
-public sealed partial class ProductionService(
+public class SalesOrderCommandService(
     ProductionContext db, 
     IEventPublisher eventPublisher,
-    IMasterDataClient masterDataClient) : IProductionService
+    IMasterDataClient masterDataClient) : ProductionServiceBase(db, eventPublisher, masterDataClient), ISalesOrderCommandService
 {
-    public async Task<IReadOnlyCollection<SalesOrderDto>> ListSalesOrdersAsync(CancellationToken cancellationToken)
-    {
-        var orders = await db.SalesOrders
-            .AsNoTracking()
-            .Include(order => order.Items)
-            .Include(order => order.ProductionOrders)
-            .Include(order => order.DesignRevisions)
-            .AsSplitQuery()
-            .OrderByDescending(order => order.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
-
-        return orders.Select(ToDto).ToArray();
-    }
-
     public async Task<SalesOrderDto> CreateSalesOrderAsync(CreateSalesOrderRequest request, CancellationToken cancellationToken)
     {
         ValidateSalesOrderItems(request.Items);
@@ -92,6 +78,14 @@ public sealed partial class ProductionService(
 
         var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
         var estimatedAmount = request.Items.Sum(item => item.Qty * item.UnitPrice);
+        
+        var isApproved = NormalizeDesignStatus(request.DesignStatus) == "Approved";
+        var status = SalesOrderStatuses.Draft;
+        if (isApproved)
+        {
+            status = "Waiting Pricing";
+        }
+
         var order = new SalesOrder
         {
             SoNumber = soNumber,
@@ -102,7 +96,7 @@ public sealed partial class ProductionService(
             CustomerDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL"),
             DesignReference = NormalizeOptional(request.DesignReference),
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
-            Status = NormalizeDesignStatus(request.DesignStatus) == "Approved" ? "Waiting Pricing" : SalesOrderStatuses.Draft,
+            Status = status,
             SoDate = request.SoDate,
             TargetDate = request.TargetDate,
             EstimatedAmount = estimatedAmount,
@@ -134,7 +128,58 @@ public sealed partial class ProductionService(
 
         await db.SalesOrders.AddAsync(order, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+
         return ToDto(order);
+    }
+
+    public async Task<SalesOrderDto> CreateCompleteSalesOrderAsync(CompleteSalesOrderRequest request, CancellationToken cancellationToken)
+    {
+        var customerCode = request.Customer.Code.Trim().ToUpperInvariant();
+        var existingCustomer = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Code.ToUpper() == customerCode, cancellationToken);
+        Guid customerId;
+
+        if (existingCustomer != null)
+        {
+            customerId = existingCustomer.Id;
+        }
+        else
+        {
+            var masterReq = new CreateCustomerMasterDataRequest(request.Customer.Code, request.Customer.Name, request.Customer.Address, request.Customer.ContactPerson, request.Customer.Email, request.Customer.Phone);
+            var newCust = await masterDataClient.CreateCustomerAsync(masterReq, cancellationToken);
+            customerId = newCust.Id;
+        }
+
+        var productMap = new Dictionary<string, Guid>();
+        foreach (var prodReq in request.Products)
+        {
+            var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
+            var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
+            productMap[prodReq.TempId] = newProd.Id;
+        }
+
+        var createItems = new List<CreateSalesOrderItemRequest>();
+        foreach (var item in request.Order.Items)
+        {
+            Guid productId = item.ExistingProductId ?? (item.ProductTempId != null && productMap.TryGetValue(item.ProductTempId, out var id) ? id : Guid.Empty);
+            if (productId == Guid.Empty) throw new InvalidOperationException("Invalid product reference in order item.");
+
+            createItems.Add(new CreateSalesOrderItemRequest(productId, item.Qty, item.UnitPrice, item.Notes, item.DesignReference, item.CustomerDrawingUrl));
+        }
+
+        var createRequest = new CreateSalesOrderRequest(
+            customerId,
+            request.Order.SoDate,
+            request.Order.TargetDate,
+            createItems,
+            request.Order.DesignWorker,
+            request.Order.ProductionWorker,
+            request.Order.QcReviewer,
+            request.Order.CustomerDrawingUrl,
+            request.Order.DesignReference,
+            request.Order.DesignStatus
+        );
+
+        return await CreateSalesOrderAsync(createRequest, cancellationToken);
     }
 
     public async Task<SalesOrderDto?> AssignSalesOrderEngineersAsync(
@@ -147,10 +192,7 @@ public sealed partial class ProductionService(
             .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
-        if (salesOrder is null)
-        {
-            return null;
-        }
+        if (salesOrder is null) return null;
 
         if (salesOrder.Status == SalesOrderStatuses.Cancelled)
         {
@@ -223,7 +265,6 @@ public sealed partial class ProductionService(
 
         ValidateSalesOrderItems(request.Items);
 
-        // For simplicity: remove existing, add new
         db.SalesOrderItems.RemoveRange(salesOrder.Items);
         
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
@@ -397,10 +438,7 @@ public sealed partial class ProductionService(
             .Include(order => order.DesignRevisions)
             .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
 
-        if (salesOrder is null)
-        {
-            return null;
-        }
+        if (salesOrder is null) return null;
 
         if (salesOrder.Status == SalesOrderStatuses.Cancelled)
         {
@@ -563,301 +601,7 @@ public sealed partial class ProductionService(
             cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken)
+        return await GetSalesOrderProgressInternalAsync(salesOrder.Id, cancellationToken)
             ?? throw new InvalidOperationException("Sales order tracking was not found after confirmation.");
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> GetSalesOrderProgressAsync(Guid salesOrderId, CancellationToken cancellationToken)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders.AsNoTracking())
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        return salesOrder is null ? null : ToProgressDto(salesOrder);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> GetSalesOrderTrackingByCodeAsync(string trackingCode, CancellationToken cancellationToken)
-    {
-        var salesOrder = await FindSalesOrderByTrackingCodeAsync(trackingCode, asNoTracking: true, cancellationToken);
-        return salesOrder is null ? null : ToProgressDto(salesOrder);
-    }
-
-    public async Task<PublicProductionTrackingDto?> GetPublicTrackingAsync(string trackingCode, CancellationToken cancellationToken)
-    {
-        var salesOrder = await FindSalesOrderByTrackingCodeAsync(trackingCode, asNoTracking: true, cancellationToken);
-        return salesOrder is null ? null : ToPublicTrackingDto(salesOrder);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> UploadEngineeringDrawingAsync(
-        Guid salesOrderId,
-        UploadEngineeringDrawingRequest request,
-        CancellationToken cancellationToken,
-        bool isPrivileged = false)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders)
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        if (salesOrder is null)
-        {
-            return null;
-        }
-
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before engineering drawings can be uploaded.");
-
-        ValidateDrawingUploadRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.UploadedByUserId, isPrivileged, "production worker");
-
-        if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.Absolute, out var drawingUri)
-            || drawingUri.Scheme is not ("http" or "https"))
-        {
-            throw new InvalidOperationException("Drawing file URL must be a valid HTTP or HTTPS link.");
-        }
-
-        productionOrder.DrawingFileUrl = drawingUri.ToString();
-        productionOrder.DrawingUploadedByUserId = request.UploadedByUserId;
-        productionOrder.DrawingUploaderName = request.UploaderName.Trim();
-        productionOrder.DrawingUploadedAtUtc = DateTime.UtcNow;
-        productionOrder.DrawingRef = string.IsNullOrWhiteSpace(request.DrawingRef)
-            ? productionOrder.DrawingRef
-            : request.DrawingRef.Trim();
-        productionOrder.UpdatedAtUtc = DateTime.UtcNow;
-        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
-
-        await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> SubmitMaterialRequestAsync(
-        Guid salesOrderId,
-        SubmitProductionMaterialRequest request,
-        CancellationToken cancellationToken,
-        bool isPrivileged = false)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders)
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        if (salesOrder is null)
-        {
-            return null;
-        }
-
-        var productionOrder = GetPrimaryProductionOrder(salesOrder);
-        // Do not throw if productionOrder is null. MR can be submitted before SO is confirmed.
-
-        ValidateMaterialRequest(request);
-        EnsureAssignedWorker(productionOrder?.SalesOrder?.ProductionWorkerUserId, request.RequestedByUserId, isPrivileged, "production worker");
-
-        if (productionOrder?.Status is ProductionOrderStatuses.Finished or ProductionOrderStatuses.Closed)
-        {
-            throw new InvalidOperationException("Finished or closed sales order production cannot receive material requests.");
-        }
-
-        var now = DateTime.UtcNow;
-        await eventPublisher.PublishAsync(
-            new MaterialRequestSubmittedEvent(
-                salesOrder.Id,
-                salesOrder.SoNumber,
-                productionOrder?.Id ?? Guid.Empty,
-                productionOrder?.BarcodeUid ?? $"PJT|SO|{now:yyyyMMdd}|{salesOrder.Id:N}",
-                request.RequestedByUserId,
-                request.RequesterName.Trim(),
-                DateOnly.FromDateTime(now),
-                salesOrder.SoNumber,
-                NormalizeOptional(request.Notes),
-                request.Items.Select(item => new MaterialRequestSubmittedItem(
-                    item.MaterialRequirementId,
-                    NormalizeSalesOrderItemId(item.SalesOrderItemId),
-                    item.ItemName.Trim(),
-                    NormalizeOptional(item.Size),
-                    item.Qty,
-                    NormalizeMaterialRequestUrgency(item.Urgency),
-                    NormalizeOptional(item.SuggestedSupplier),
-                    NormalizeOptional(item.Notes),
-                    NormalizeMaterialRequestCategory(item.PurchaseCategory)))
-                    .ToArray()),
-            cancellationToken);
-
-        productionOrder.UpdatedAtUtc = now;
-        salesOrder.UpdatedAtUtc = now;
-        await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> StartProductionAsync(
-        Guid salesOrderId,
-        ProductionStatusUpdateRequest request,
-        CancellationToken cancellationToken,
-        bool isPrivileged = false)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders)
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        if (salesOrder is null)
-        {
-            return null;
-        }
-
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before production can start.");
-
-        ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
-        
-        // Deduct BOM stock atomically for all SO items using bulk API
-        var deductItems = salesOrder.Items
-            .Select(soItem => new DeductBomStockRequestItem(soItem.ProductId, soItem.Qty))
-            .ToList();
-        
-        if (deductItems.Count > 0)
-        {
-            await masterDataClient.DeductBomStockBulkAsync(deductItems, cancellationToken);
-        }
-
-        StartProduction(productionOrder, request, DateTime.UtcNow);
-        salesOrder.Status = SalesOrderStatuses.InProduction;
-        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
-        await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> FinishProductionAsync(
-        Guid salesOrderId,
-        ProductionStatusUpdateRequest request,
-        CancellationToken cancellationToken,
-        bool isPrivileged = false)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders)
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        if (salesOrder is null)
-        {
-            return null;
-        }
-
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before production can finish.");
-
-        ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
-
-        var wasAlreadyFinished = productionOrder.FinishedAtUtc.HasValue;
-        FinishProduction(productionOrder, request, DateTime.UtcNow);
-        salesOrder.Status = SalesOrderStatuses.QC;
-        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
-        if (!wasAlreadyFinished)
-        {
-            await eventPublisher.PublishAsync(
-                new ProductionFinishedEvent(
-                    productionOrder.Id,
-                    salesOrder.SoNumber,
-                    productionOrder.BarcodeUid,
-                    productionOrder.FinishedAtUtc!.Value,
-                    salesOrder.Id,
-                    salesOrder.SoNumber,
-                    salesOrder.QcReviewerUserId,
-                    salesOrder.QcReviewerName,
-                    salesOrder.CustomerDrawingUrl,
-                    salesOrder.DesignReference),
-                cancellationToken);
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> PauseProductionAsync(
-        Guid salesOrderId,
-        ProductionStatusUpdateRequest request,
-        CancellationToken cancellationToken,
-        bool isPrivileged = false)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders)
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        if (salesOrder is null) return null;
-
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before production can be paused.");
-
-        ValidateWorkerRequest(request);
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
-
-        PauseProduction(productionOrder, request, DateTime.UtcNow);
-        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
-        
-        await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
-    }
-
-    public async Task<SalesOrderProductionProgressDto?> ResumeProductionAsync(
-        Guid salesOrderId,
-        ProductionStatusUpdateRequest request,
-        CancellationToken cancellationToken,
-        bool isPrivileged = false)
-    {
-        var salesOrder = await IncludeProduction(db.SalesOrders)
-            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
-
-        if (salesOrder is null) return null;
-
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before production can be resumed.");
-
-        EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
-
-        ResumeProduction(productionOrder, request, DateTime.UtcNow);
-        salesOrder.UpdatedAtUtc = productionOrder.UpdatedAtUtc;
-        
-        await db.SaveChangesAsync(cancellationToken);
-        return await GetSalesOrderProgressAsync(salesOrder.Id, cancellationToken);
-    }
-
-    public async Task<ExecutiveDashboardDto> GetExecutiveDashboardAsync(CancellationToken cancellationToken)
-    {
-        var orders = await db.ProductionOrders.AsNoTracking().ToListAsync(cancellationToken);
-        var goQc = orders.Count(order => IsQcGo(order.QcDecision));
-        var noGoQc = orders.Count(order => IsQcNoGo(order.QcDecision));
-        var reviewedOrders = goQc + noGoQc;
-        var noGoRate = reviewedOrders == 0 ? 0 : decimal.Round((decimal)noGoQc / reviewedOrders * 100, 2);
-
-        return new ExecutiveDashboardDto(
-            orders.Count(order => order.Status == ProductionOrderStatuses.Waiting),
-            orders.Count(order => order.Status == ProductionOrderStatuses.InProgress),
-            orders.Count(order => order.Status == ProductionOrderStatuses.Finished),
-            orders.Count(order => order.Status == ProductionOrderStatuses.Closed),
-            goQc,
-            noGoQc,
-            noGoRate);
-    }
-
-    private async Task<string> GenerateSalesOrderNumberAsync(CancellationToken cancellationToken)
-    {
-        var prefix = $"SO-{DateTime.UtcNow:yyyy}-";
-        var existingNumbers = await db.SalesOrders
-            .AsNoTracking()
-            .Where(order => order.SoNumber.StartsWith(prefix))
-            .Select(order => order.SoNumber)
-            .ToListAsync(cancellationToken);
-
-        return $"{prefix}{NextSequence(existingNumbers, prefix):000}";
-    }
-
-    private static int NextSequence(IEnumerable<string> existingNumbers, string prefix)
-    {
-        var max = 0;
-        foreach (var number in existingNumbers)
-        {
-            if (number.Length <= prefix.Length)
-            {
-                continue;
-            }
-
-            if (int.TryParse(number[prefix.Length..], out var value) && value > max)
-            {
-                max = value;
-            }
-        }
-
-        return max + 1;
     }
 }

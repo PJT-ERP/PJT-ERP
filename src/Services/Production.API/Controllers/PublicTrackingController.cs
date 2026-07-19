@@ -7,7 +7,7 @@ namespace PJT_ERP.Production.Api.Controllers;
 [ApiController]
 [AllowAnonymous]
 [Route("api/v1/production/tracking")]
-public sealed class PublicTrackingController(IProductionService productionService) : ControllerBase
+public sealed class PublicTrackingController(IProductionQueryService queryService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<PublicProductionTrackingDto>> GetByQuery(
@@ -31,7 +31,7 @@ public sealed class PublicTrackingController(IProductionService productionServic
     {
         try
         {
-            var tracking = await productionService.GetPublicTrackingAsync(trackingCode, cancellationToken);
+            var tracking = await queryService.GetPublicTrackingAsync(trackingCode, cancellationToken);
             return tracking is null
                 ? NotFound(new { message = "Production tracking was not found." })
                 : Ok(tracking);

@@ -13,6 +13,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<SalesOrderDesignRevision> SalesOrderDesignRevisions => Set<SalesOrderDesignRevision>();
+    public DbSet<ConsultationRequest> ConsultationRequests => Set<ConsultationRequest>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -42,11 +43,27 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(product => product.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
+        modelBuilder.Entity<ConsultationRequest>(builder =>
+        {
+            builder.ToTable("consultation_requests");
+            builder.HasKey(req => req.Id);
+            builder.Property(req => req.Id).HasColumnName("id");
+            builder.Property(req => req.Name).HasMaxLength(150).HasColumnName("name");
+            builder.Property(req => req.Phone).HasMaxLength(50).HasColumnName("phone");
+            builder.Property(req => req.Email).HasMaxLength(150).HasColumnName("email");
+            builder.Property(req => req.ServiceDescription).HasMaxLength(500).HasColumnName("service_description");
+            builder.Property(req => req.Message).HasMaxLength(2000).HasColumnName("message");
+            builder.Property(req => req.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(req => req.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(req => req.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        });
+
         modelBuilder.Entity<SalesOrder>(builder =>
         {
             builder.ToTable("sales_orders");
             builder.HasKey(order => order.Id);
             builder.HasIndex(order => order.SoNumber).IsUnique();
+            builder.HasIndex(order => order.CustomerId);
             builder.Property(order => order.SoNumber).HasMaxLength(100).HasColumnName("so_number");
             builder.Property(order => order.CustomerId).HasColumnName("customer_id");
             builder.Property(order => order.CustomerCode).HasMaxLength(50).HasColumnName("customer_code");
@@ -121,6 +138,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.BarcodeUid).HasMaxLength(255).HasColumnName("barcode_uid");
             builder.Property(order => order.OrderQty).HasColumnName("order_qty");
             builder.Property(order => order.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(order => order.CompletionNote).HasColumnName("completion_note");
             builder.Property(order => order.StartedAtUtc).HasColumnName("started_at_utc");
             builder.Property(order => order.StartedByUserId).HasColumnName("started_by_user_id");
             builder.Property(order => order.StartedByName).HasMaxLength(160).HasColumnName("started_by_name");

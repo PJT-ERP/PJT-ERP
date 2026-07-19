@@ -279,15 +279,15 @@ export function FinancePoDetail() {
           </div>
 
           {/* PRINT ONLY: Signatures */}
-          <div className="hidden print:flex mt-8 justify-between px-10">
+          <div className="hidden print:flex mt-16 justify-between px-10">
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-800 mb-12">Diterima Oleh,</p>
-              <div className="w-40 border-b border-slate-400 mx-auto"></div>
+              <p className="text-sm font-medium text-slate-800 mb-24">Diterima Oleh,</p>
+              <div className="w-48 border-b border-slate-400 mx-auto"></div>
               <p className="text-xs text-slate-500 mt-2">PT PJT JAYA (Finance)</p>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-800 mb-12">Hormat Kami,</p>
-              <div className="w-40 border-b border-slate-400 mx-auto"></div>
+              <p className="text-sm font-medium text-slate-800 mb-24">Hormat Kami,</p>
+              <div className="w-48 border-b border-slate-400 mx-auto"></div>
               <p className="text-xs text-slate-500 mt-2">{detail.supplier}</p>
             </div>
           </div>
@@ -398,7 +398,9 @@ export function FinancePoDetail() {
                       <p>Browser tidak mendukung PDF. <a href={proofFileUrl} target="_blank" className="text-blue-600 underline">Download PDF</a></p>
                     </object>
                   ) : (
-                    <img src={proofFileUrl} alt="Bukti Transfer" className="max-w-full h-auto rounded border border-slate-200" />
+                    <a href={proofFileUrl} target="_blank" rel="noopener noreferrer" className="block cursor-pointer hover:opacity-90 transition-opacity" title="Klik untuk memperbesar">
+                      <img src={proofFileUrl} alt="Bukti Transfer" className="max-w-full h-auto rounded border border-slate-200" />
+                    </a>
                   )}
                 </div>
               ) : (

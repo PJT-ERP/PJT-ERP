@@ -22,9 +22,29 @@ public class SettingsController(IFinanceService financeService) : ControllerBase
         await financeService.UpdateOpeningBalanceAsync(request.OpeningBalance, cancellationToken);
         return NoContent();
     }
+
+    [HttpGet("monthly-target")]
+    public async Task<ActionResult<decimal>> GetMonthlyTarget(CancellationToken cancellationToken)
+    {
+        var target = await financeService.GetMonthlyTargetAsync(cancellationToken);
+        return Ok(target);
+    }
+
+    [HttpPut("monthly-target")]
+    [Authorize(Roles = "Admin,Finance")]
+    public async Task<IActionResult> UpdateMonthlyTarget([FromBody] UpdateMonthlyTargetRequest request, CancellationToken cancellationToken)
+    {
+        await financeService.UpdateMonthlyTargetAsync(request.MonthlyTarget, cancellationToken);
+        return NoContent();
+    }
 }
 
 public class UpdateOpeningBalanceRequest
 {
     public decimal OpeningBalance { get; set; }
+}
+
+public class UpdateMonthlyTargetRequest
+{
+    public decimal MonthlyTarget { get; set; }
 }

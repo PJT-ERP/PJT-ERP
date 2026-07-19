@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Download, TrendingUp, FileText,
-  BarChart3, PieChart as PieIcon
+  BarChart3, PieChart as PieIcon, Pencil, Check
 } from 'lucide-react';
 import {
   formatIDR, type Invoice
@@ -88,7 +88,9 @@ function buildTopCustomersData(invoices: Invoice[]) {
 export function FinanceReports() {
   const [activeTab, setActiveTab] = useState('revenue');
   const [dateRange, setDateRange] = useState('6M');
-  const { invoices, monthlyRevenueData, invoiceStatusData } = useFinanceData();
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const { invoices, monthlyRevenueData, invoiceStatusData, monthlyTarget, updateMonthlyTarget } = useFinanceData();
+  const [targetInput, setTargetInput] = useState(formatIDR(monthlyTarget));
 
   const monthlyTableData = useMemo(() => buildMonthlyTableData(invoices), [invoices]);
   const topCustomersData = useMemo(() => buildTopCustomersData(invoices), [invoices]);
@@ -197,10 +199,50 @@ export function FinanceReports() {
             </div>
 
             {/* Monthly Bar */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-800">Perbandingan Target vs Realisasi</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Target bulanan Rp 1M</p>
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm group">
+              <div className="mb-4 flex items-start justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Perbandingan Target vs Realisasi</h3>
+                  {isEditingTarget ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={targetInput}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setTargetInput(formatIDR(parseInt(raw || '0', 10)));
+                        }}
+                        className="text-xs font-semibold text-slate-900 border-b border-slate-300 focus:border-red-600 focus:outline-none bg-transparent p-0 m-0 w-32"
+                        autoFocus
+                        onBlur={() => {
+                          const val = parseInt(targetInput.replace(/\D/g, ''), 10) || 0;
+                          updateMonthlyTarget(val);
+                          setIsEditingTarget(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const val = parseInt(targetInput.replace(/\D/g, ''), 10) || 0;
+                            updateMonthlyTarget(val);
+                            setIsEditingTarget(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-slate-400">Target bulanan {formatIDRShort(monthlyTarget)}</p>
+                      <button 
+                        onClick={() => {
+                          setTargetInput(formatIDR(monthlyTarget));
+                          setIsEditingTarget(true);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={monthlyRevenueData} barGap={4}>

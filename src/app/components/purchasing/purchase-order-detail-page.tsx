@@ -328,9 +328,16 @@ export function PurchaseOrderDetailPage() {
                 </thead>
                 <tbody>
                   {detail.items.map((item, i) => {
-                    const invItem = inventoryItems.find((inv: any) => inv.name.toLowerCase().trim() === (item.name || "").toLowerCase().trim());
+                    const itemNameLower = (item.name || "").toLowerCase().trim();
+                    const invItem = inventoryItems.find((inv: any) => 
+                      inv.name.toLowerCase().trim() === itemNameLower || 
+                      itemNameLower === `${(inv.code || "").toLowerCase().trim()} - ${inv.name.toLowerCase().trim()}`
+                    );
                     const actualCode = invItem ? invItem.code : item.code;
                     const isSpecActuallyCode = invItem && invItem.code && item.spec && item.spec.toLowerCase().trim() === invItem.code.toLowerCase().trim();
+                    const actualName = invItem && itemNameLower.startsWith(`${(invItem.code || "").toLowerCase().trim()} - `) 
+                      ? (item.name || "").substring((invItem.code || "").length + 3).trim()
+                      : item.name;
 
                     const canReceive = detail.financeApproval === "Approved";
                     const isReceived = item.purchaseStatus === "Received";
@@ -338,7 +345,7 @@ export function PurchaseOrderDetailPage() {
                     return (
                       <tr key={i} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
                         <td className="p-3 text-xs text-slate-500 font-mono">{actualCode}</td>
-                        <td className="p-3 text-sm font-medium text-slate-900">{item.name}</td>
+                        <td className="p-3 text-sm font-medium text-slate-900">{actualName}</td>
                         <td className="p-3 text-xs text-slate-500">{item.spec && item.spec !== "-" && !isSpecActuallyCode ? item.spec : "-"}</td>
                         <td className="p-3 text-sm font-medium text-right text-slate-900">{item.qty} {item.unit}</td>
                         <td className="p-3 text-sm font-semibold text-right" style={{ color: isReceived ? "#16a34a" : item.received > 0 ? "#d97706" : "#94a3b8" }}>

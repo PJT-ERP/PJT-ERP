@@ -1,20 +1,42 @@
 import { useState } from "react";
 import { MapPin, Send, CheckCircle } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { salesApi } from "../../services/salesApi";
 
 export function ContactSection() {
   const { landingPageContent } = useApp();
   const { contactTitle, contactSubtitle, contactLocations } = landingPageContent;
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({ name: "", company: "", email: "", phone: "", message: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setErrorMsg("");
+    try {
+      await salesApi.submitConsultation({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        serviceDescription: form.company,
+        message: form.message
+      });
+      setSubmitted(true);
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        setErrorMsg("Too many requests. Please try again later.");
+      } else {
+        setErrorMsg("Failed to send message. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -152,6 +174,11 @@ export function ContactSection() {
                   <div className="mb-6">
                     <div style={{ color: "#C8102E", fontFamily: "Inter, sans-serif", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Free Consultation</div>
                     <h3 style={{ color: "#111827", fontFamily: "Inter, sans-serif", fontSize: "24px", fontWeight: 800 }}>Get a Free Quote for Your Next Project</h3>
+                    {errorMsg && (
+                      <div style={{ marginTop: "12px", padding: "10px", backgroundColor: "#FEF2F2", color: "#991B1B", borderRadius: "6px", fontSize: "13px", fontWeight: 500 }}>
+                        {errorMsg}
+                      </div>
+                    )}
                   </div>
                   <div className="grid sm:grid-cols-1 gap-5">
                     <div>
@@ -225,17 +252,19 @@ export function ContactSection() {
                   </div>
                   <button
                     type="submit"
+                    disabled={isSubmitting}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
                     style={{
-                      backgroundColor: "#1F1F1F",
+                      backgroundColor: isSubmitting ? "#475569" : "#1F1F1F",
                       color: "#FFFFFF",
                       fontFamily: "Inter, sans-serif",
                       fontSize: "15px",
                       fontWeight: 600,
+                      cursor: isSubmitting ? "not-allowed" : "pointer"
                     }}
                   >
                     <Send className="w-4 h-4" />
-                    Send Message
+                    {isSubmitting ? "Sending..." : "Send Message"}
                   </button>
                   <p
                     style={{ color: "#94A3B8", fontFamily: "Inter, sans-serif", fontSize: "12px", textAlign: "center" }}

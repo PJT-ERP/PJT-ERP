@@ -16,6 +16,50 @@ public sealed record CreateSalesOrderRequest(
 
 public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes, string? DesignReference = null, string? CustomerDrawingUrl = null);
 
+public sealed record CompleteSalesOrderRequest(
+    CompleteSalesOrderCustomerRequest Customer,
+    IReadOnlyCollection<CompleteSalesOrderProductRequest> Products,
+    CompleteSalesOrderDetailsRequest Order
+);
+
+public sealed record CompleteSalesOrderCustomerRequest(
+    string Code,
+    string Name,
+    string? Address = null,
+    string? ContactPerson = null,
+    string? Email = null,
+    string? Phone = null
+);
+
+public sealed record CompleteSalesOrderProductRequest(
+    string TempId,
+    string Description,
+    string Unit,
+    string? MaterialSpec = null
+);
+
+public sealed record CompleteSalesOrderDetailsRequest(
+    DateOnly SoDate,
+    DateOnly? TargetDate,
+    IReadOnlyCollection<CompleteSalesOrderItemRequest> Items,
+    EngineerAssignment? DesignWorker = null,
+    EngineerAssignment? ProductionWorker = null,
+    EngineerAssignment? QcReviewer = null,
+    string? CustomerDrawingUrl = null,
+    string? DesignReference = null,
+    string? DesignStatus = null
+);
+
+public sealed record CompleteSalesOrderItemRequest(
+    string? ProductTempId,
+    Guid? ExistingProductId,
+    int Qty,
+    decimal UnitPrice,
+    string? Notes,
+    string? DesignReference = null,
+    string? CustomerDrawingUrl = null
+);
+
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? DesignWorker,
     EngineerAssignment? ProductionWorker,
@@ -75,6 +119,7 @@ public sealed record SalesOrderDto(
     string? PauseReason,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    string? CompletionNote,
     decimal? EstimatedAmount,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items,
@@ -136,6 +181,7 @@ public sealed record SalesOrderProductionProgressDto(
     long? DurationSeconds,
     string? QcDecision,
     string? PauseReason,
+    string? CompletionNote,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
 

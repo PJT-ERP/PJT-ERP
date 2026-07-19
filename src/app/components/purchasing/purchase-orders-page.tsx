@@ -102,11 +102,16 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           rcv = item.qty;
         }
 
+        const matchedInv = inventoryItems.find(inv => 
+          inv.name?.toLowerCase() === item.itemName?.toLowerCase() || 
+          item.itemName?.toLowerCase() === `${inv.code?.toLowerCase()} - ${inv.name?.toLowerCase()}`
+        );
+
         const poItem: POItem = {
           purchaseRequestId: request.id,
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
-          code: inventoryItems.find(inv => inv.name?.toLowerCase() === item.itemName?.toLowerCase())?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
+          code: matchedInv?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
           name: item.itemName,
           spec: item.size || "-",
           qty: item.qty,
@@ -387,7 +392,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
           />
         </div>
         <Select value={filterStatus} onValueChange={(val) => { setFilterStatus(val); setCurrentPage(1); }}>
-          <SelectTrigger className="h-9 w-40 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+          <SelectTrigger className="h-9 w-48 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <Filter size={12} className="mr-1" />
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -475,9 +480,16 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
                         <span style={{ fontSize: 12, color: "#475569" }}>{po.dueDate}</span>
                       </TD>
                       <TD className="hidden sm:table-cell">
-                        <Pill bg={dc.bg} color={dc.color}>
-                          {po.deliveryStatus}
-                        </Pill>
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <Pill bg={dc.bg} color={dc.color}>
+                            {po.deliveryStatus}
+                          </Pill>
+                          {po.paymentStatus === 'Unpaid' && (
+                            <Pill bg={paymentCfg[po.paymentStatus].bg} color={paymentCfg[po.paymentStatus].color}>
+                              Unpaid
+                            </Pill>
+                          )}
+                        </div>
                       </TD>
                       <TD className="hidden xl:table-cell">
                         {po.financeApproval ? <Pill bg={fc.bg} color={fc.color}>{po.financeApproval}</Pill> : <Pill bg="#f1f5f9" color="#475569">Approved</Pill>}
