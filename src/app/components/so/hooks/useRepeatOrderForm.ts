@@ -105,7 +105,7 @@ export function useRepeatOrderForm(initialData?: { customerId?: string; soId?: s
 
   useEffect(() => {
     const total = repeatProducts.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
-    setValue("repeatForm.estimatedAmount", total);
+    setValue("repeatForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
   }, [repeatProducts, setValue]);
 
   return methods;

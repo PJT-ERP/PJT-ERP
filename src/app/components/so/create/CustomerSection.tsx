@@ -61,12 +61,13 @@ export function CustomerSection({ isExistingCustomer, onToggleExisting, customer
             onChange={val => {
               const c = customers.find(cust => cust.code === val);
               if (c) {
-                setValue("customerForm.customerCode", c.code);
-                setValue("customerForm.customerName", c.contactPerson || c.name);
-                setValue("customerForm.company", c.name);
-                setValue("customerForm.phone", c.phone || "");
-                setValue("customerForm.email", c.email || c.contact || "");
-                setValue("customerForm.address", c.address || "");
+                const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
+                setValue("customerForm.customerCode", c.code, options);
+                setValue("customerForm.customerName", c.contactPerson || c.name, options);
+                setValue("customerForm.company", c.name, options);
+                setValue("customerForm.phone", c.phone || "", options);
+                setValue("customerForm.email", c.email || c.contact || "", options);
+                setValue("customerForm.address", c.address || "", options);
               }
             }}
           />

@@ -138,6 +138,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.BarcodeUid).HasMaxLength(255).HasColumnName("barcode_uid");
             builder.Property(order => order.OrderQty).HasColumnName("order_qty");
             builder.Property(order => order.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(order => order.CompletionNote).HasColumnName("completion_note");
             builder.Property(order => order.StartedAtUtc).HasColumnName("started_at_utc");
             builder.Property(order => order.StartedByUserId).HasColumnName("started_by_user_id");
             builder.Property(order => order.StartedByName).HasMaxLength(160).HasColumnName("started_by_name");

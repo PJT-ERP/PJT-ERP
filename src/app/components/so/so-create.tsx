@@ -155,14 +155,14 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {newOrderFields.map((field, idx) => (
-                  <ProductLineItem
-                    key={field.id}
-                    row={newOrderMethods.watch(`products.${idx}`)}
-                    index={idx} total={newOrderFields.length}
-                    productOptions={catalogProductOptions}
-                    onChange={updated => newOrderUpdate(idx, updated)}
-                    onRemove={() => newOrderRemove(idx)}
-                  />
+                    <ProductLineItem
+                      key={field.id}
+                      row={newOrderMethods.watch(`products.${idx}`)}
+                      index={idx} total={newOrderFields.length}
+                      productOptions={catalogProductOptions}
+                      onChange={updated => newOrderMethods.setValue(`products.${idx}`, updated, { shouldDirty: true, shouldTouch: true })}
+                      onRemove={() => newOrderRemove(idx)}
+                    />
                 ))}
               </div>
             </SectionCard>
@@ -244,14 +244,14 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               {repeatOrderMethods.watch("repeatForm.previousSoId") ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {repeatOrderFields.map((field, idx) => (
-                    <ProductLineItem
-                      key={field.id}
-                      row={repeatOrderMethods.watch(`repeatProducts.${idx}`)}
-                      index={idx} total={repeatOrderFields.length}
-                      productOptions={catalogProductOptions}
-                      onChange={updated => repeatOrderUpdate(idx, updated)}
-                      onRemove={() => repeatOrderRemove(idx)}
-                    />
+                      <ProductLineItem
+                        key={field.id}
+                        row={repeatOrderMethods.watch(`repeatProducts.${idx}`)}
+                        index={idx} total={repeatOrderFields.length}
+                        productOptions={catalogProductOptions}
+                        onChange={updated => repeatOrderMethods.setValue(`repeatProducts.${idx}`, updated, { shouldDirty: true, shouldTouch: true })}
+                        onRemove={() => repeatOrderRemove(idx)}
+                      />
                   ))}
                 </div>
               ) : (

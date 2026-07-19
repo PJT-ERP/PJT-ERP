@@ -62,7 +62,7 @@ export function useNewOrderForm(initialData?: { customerId?: string; mode?: stri
 
   useEffect(() => {
     const total = products.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
-    setValue("customerForm.estimatedAmount", total);
+    setValue("customerForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
   }, [products, setValue]);
 
   return methods;
