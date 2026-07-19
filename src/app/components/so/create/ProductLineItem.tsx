@@ -77,7 +77,17 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
             <button
               key={t}
               type="button"
-              onClick={() => onChange({ ...row, type: t })}
+              onClick={() => {
+                if (row.type !== t) {
+                  onChange({
+                    ...row,
+                    type: t,
+                    materials: [],
+                    designId: "",
+                    materialSpec: null
+                  });
+                }
+              }}
               style={{
                 padding: "4px 16px", border: "none", cursor: "pointer", borderRadius: "6px",
                 fontSize: "11.5px", fontWeight: row.type === t ? 600 : 500, fontFamily: S.font,
