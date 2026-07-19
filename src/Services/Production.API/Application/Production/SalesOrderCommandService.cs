@@ -83,7 +83,7 @@ public class SalesOrderCommandService(
         var status = SalesOrderStatuses.Draft;
         if (isApproved)
         {
-            status = estimatedAmount > 0 ? "Waiting Payment" : "Waiting Pricing";
+            status = "Waiting Pricing";
         }
 
         var order = new SalesOrder
@@ -128,29 +128,6 @@ public class SalesOrderCommandService(
 
         await db.SalesOrders.AddAsync(order, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-
-        if (status == "Waiting Payment")
-        {
-            var integrationEvent = new SalesOrderReadyForInvoiceEvent(
-                order.Id,
-                order.SoNumber,
-                order.CustomerId,
-                order.CustomerCode,
-                order.CustomerName,
-                order.CustomerEmail,
-                order.TargetDate,
-                DateTime.UtcNow,
-                order.Items.Select(item => new SalesOrderReadyForInvoiceItem(
-                    item.Id,
-                    item.ProductId,
-                    item.ProductPartNumber,
-                    item.ProductDescription,
-                    item.Qty,
-                    item.UnitPrice
-                )).ToList()
-            );
-            await eventPublisher.PublishAsync(integrationEvent, cancellationToken);
-        }
 
         return ToDto(order);
     }
