@@ -160,7 +160,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                       row={newOrderMethods.watch(`products.${idx}`)}
                       index={idx} total={newOrderFields.length}
                       productOptions={catalogProductOptions}
-                      onChange={updated => newOrderMethods.setValue(`products.${idx}`, updated, { shouldDirty: true, shouldTouch: true })}
+                      onChange={updated => newOrderUpdate(idx, updated)}
                       onRemove={() => newOrderRemove(idx)}
                     />
                 ))}
@@ -249,7 +249,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                         row={repeatOrderMethods.watch(`repeatProducts.${idx}`)}
                         index={idx} total={repeatOrderFields.length}
                         productOptions={catalogProductOptions}
-                        onChange={updated => repeatOrderMethods.setValue(`repeatProducts.${idx}`, updated, { shouldDirty: true, shouldTouch: true })}
+                        onChange={updated => repeatOrderUpdate(idx, updated)}
                         onRemove={() => repeatOrderRemove(idx)}
                       />
                   ))}
