@@ -47,7 +47,7 @@ export function useProductionBoard() {
       const invItem = inventory.find(inv => 
         inv.name?.toLowerCase() === m.itemName.toLowerCase()
       );
-      const reqQty = (m.quantity ?? 0) * (so.quantity || 1);
+      const reqQty = m.quantity ?? 0;
       const stock = invItem?.currentStock ?? 0;
       return reqQty > 0 && stock < reqQty;
     });
