@@ -160,7 +160,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                       row={newOrderMethods.watch(`products.${idx}`)}
                       index={idx} total={newOrderFields.length}
                       productOptions={catalogProductOptions}
-                      onChange={updated => newOrderUpdate(idx, updated)}
+                      onChange={updated => {
+                        newOrderMethods.setValue(`products.${idx}`, updated, { shouldDirty: true, shouldTouch: true });
+                        const allProducts = newOrderMethods.getValues("products");
+                        const total = allProducts.reduce((acc: number, p: any) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+                        newOrderMethods.setValue("customerForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true });
+                      }}
                       onRemove={() => newOrderRemove(idx)}
                     />
                 ))}
@@ -249,7 +254,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                         row={repeatOrderMethods.watch(`repeatProducts.${idx}`)}
                         index={idx} total={repeatOrderFields.length}
                         productOptions={catalogProductOptions}
-                        onChange={updated => repeatOrderUpdate(idx, updated)}
+                        onChange={updated => {
+                          repeatOrderMethods.setValue(`repeatProducts.${idx}`, updated, { shouldDirty: true, shouldTouch: true });
+                          const allProducts = repeatOrderMethods.getValues("repeatProducts");
+                          const total = allProducts.reduce((acc: number, p: any) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+                          repeatOrderMethods.setValue("repeatForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true });
+                        }}
                         onRemove={() => repeatOrderRemove(idx)}
                       />
                   ))}
