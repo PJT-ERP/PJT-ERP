@@ -36,8 +36,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const { customers, salesOrders, productCatalog } = useApp();
   const submitSO = useSubmitSO();
   const newOrderMethods = useNewOrderForm(initialData);
-  const repeatOrderMethods = useRepeatOrderForm(initialData);
-
+  const tempRepeatMethods = useRepeatOrderForm(initialData);
+  
   const [orderType, setOrderType] = useState<"new" | "repeat" | null>(initialData?.mode === "edit" ? "new" : initialData?.orderType ?? null);
   const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
 
@@ -46,10 +46,25 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     name: "products"
   });
 
-  const { fields: repeatOrderFields, append: repeatOrderAppend, remove: repeatOrderRemove, update: repeatOrderUpdate } = useFieldArray({
-    control: repeatOrderMethods.control,
+  const { fields: repeatOrderFields, append: repeatOrderAppend, remove: repeatOrderRemove, update: repeatOrderUpdate, replace: repeatOrderReplace } = useFieldArray({
+    control: tempRepeatMethods.control,
     name: "repeatProducts"
   });
+  
+  const repeatOrderMethods = tempRepeatMethods;
+
+  const previousSoId = repeatOrderMethods.watch("repeatForm.previousSoId");
+  React.useEffect(() => {
+    if (previousSoId && salesOrders.length > 0) {
+      const selectedSo = salesOrders.find(so => so.id === previousSoId || so.soNumber === previousSoId);
+      if (selectedSo) {
+        import("./hooks/useRepeatOrderForm").then(({ mapRepeatProducts }) => {
+          const mapped = mapRepeatProducts(selectedSo, productCatalog);
+          repeatOrderReplace(mapped);
+        });
+      }
+    }
+  }, [previousSoId, salesOrders, productCatalog, repeatOrderReplace]);
 
   const handleBack = () => {
     if (orderType) { handleReset(); } else { onNavigate("so-list"); }
@@ -63,14 +78,27 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     repeatOrderMethods.reset();
   };
 
-  const catalogProductOptions = productCatalog.map(product => ({
-    id: product.id,
-    label: `${product.partNumber} - ${product.description}`,
-    partNumber: product.partNumber,
-    unit: product.unit || "pcs",
-    materialSpec: product.materialSpec,
-    bomItems: product.bomItems,
-  }));
+  const catalogProductOptions = productCatalog.map(product => {
+    const sosWithThisProduct = salesOrders.filter(so => 
+      so.items?.some((i: any) => i.productId === product.id || i.productPartNumber === product.partNumber) ||
+      so.partNumber === product.partNumber
+    );
+    const hasHistoricalDesign = sosWithThisProduct.some(so => 
+      so.status !== 'Pending Design' && 
+      so.status !== 'Rejected' &&
+      (so.backendDesignStatus === 'Approved' || so.designLink || so.customerDrawingUrl)
+    );
+    
+    return {
+      id: product.id,
+      label: `${product.partNumber} - ${product.description}`,
+      partNumber: product.partNumber,
+      unit: product.unit || "pcs",
+      materialSpec: product.materialSpec,
+      bomItems: product.bomItems,
+      hasHistoricalDesign
+    };
+  });
 
   const selectedCustomerId = repeatOrderMethods.watch("repeatForm.customerId");
   const selectedCustomer = customers.find(c => c.code === selectedCustomerId);

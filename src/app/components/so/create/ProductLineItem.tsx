@@ -1,5 +1,5 @@
 import React from "react";
-import { GripVertical, Trash2, Hash, Link as LinkIcon, Plus, AlertCircle } from "lucide-react";
+import { GripVertical, Trash2, Hash, Link as LinkIcon, Plus, AlertCircle, Info } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../../data/mockData";
 import { Label, Input, CurrencyInput, Select } from "./FormHelpers";
 
@@ -33,6 +33,7 @@ export interface ProductOption {
   unit: string;
   materialSpec?: string | null;
   bomItems?: { inventoryItemId: string; inventoryItemCode: string; inventoryItemName: string; quantity: number; unit: string; }[];
+  hasHistoricalDesign?: boolean;
 }
 
 export const emptyProduct = (): ProductLineItemType => ({
@@ -168,28 +169,69 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               )}
             </div>
           ) : (
-            <Select value={row.productName} onChange={e => {
-              const pName = e.target.value;
-              const selected = productOptions.find(product => product.label === pName);
-              onChange({
-                ...row,
-                productName: pName,
-                designId: "",
-                unit: selected?.unit.toLowerCase() || row.unit,
-                materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
-                  id: b.inventoryItemId,
-                  name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-                  specification: "",
-                  quantity: String(b.quantity),
-                  unit: b.unit,
-                })) : [],
-              });
-            }} required>
-              <option value="">— Pilih produk —</option>
-              {productOptions.map(product => (
-                <option key={product.id} value={product.label}>{product.label}</option>
-              ))}
-            </Select>
+            <div>
+              <Select value={row.productName} onChange={e => {
+                const pName = e.target.value;
+                const selected = productOptions.find(product => product.label === pName);
+                onChange({
+                  ...row,
+                  productName: pName,
+                  designId: "",
+                  unit: selected?.unit.toLowerCase() || row.unit,
+                  materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
+                    id: b.inventoryItemId,
+                    name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                    specification: "",
+                    quantity: String(b.quantity),
+                    unit: b.unit,
+                  })) : [],
+                });
+              }} required>
+                <option value="">— Pilih produk —</option>
+                {productOptions.map(product => (
+                  <option key={product.id} value={product.label}>{product.label}</option>
+                ))}
+              </Select>
+              
+              {(() => {
+                const selected = productOptions.find(p => p.label === row.productName);
+                if (selected) {
+                  return (
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: selected.hasHistoricalDesign ? "#F0FDF4" : "#FEF2F2", border: `1px solid ${selected.hasHistoricalDesign ? "#BBF7D0" : "#FECACA"}`, borderRadius: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Info size={14} style={{ color: selected.hasHistoricalDesign ? "#16A34A" : "#EF4444", flexShrink: 0 }} />
+                        <span style={{ fontSize: "11.5px", color: selected.hasHistoricalDesign ? "#15803D" : "#B91C1C", fontFamily: S.font, fontWeight: 500 }}>
+                          {selected.hasHistoricalDesign ? "Desain untuk produk ini sudah tersedia di sistem." : "Produk ini belum memiliki desain yang disetujui (Akan masuk ke antrean Pending Design)."}
+                        </span>
+                      </div>
+                      {selected.hasHistoricalDesign && (
+                        <>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "11.5px", color: S.slate, marginTop: 4 }}>
+                            <input 
+                              type="checkbox" 
+                              checked={row.designId === "none" || row.designId === "customer"} 
+                              onChange={e => onChange({ ...row, designId: e.target.checked ? "none" : "", customerDesignUrl: "" })}
+                              style={{ margin: 0, cursor: "pointer" }}
+                            />
+                            Request desain baru (Butuh revisi / custom khusus pesanan ini)
+                          </label>
+                          {(row.designId === "none" || row.designId === "customer") && (
+                            <div style={{ marginTop: 8, padding: "8px 12px", background: "#fff", borderRadius: 6, border: `1px dashed ${S.border}` }}>
+                              <Label text="URL Gambar/Referensi (Opsional)" />
+                              <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://link-referensi-desain..." value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value, designId: e.target.value.trim() ? "customer" : "none" })} />
+                              <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                                *Jika diisi, Tim Engineering akan menunggu link referensi ini. Jika dikosongkan, desain akan dibuat dari awal.
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           )}
         </div>
 
