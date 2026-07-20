@@ -90,7 +90,7 @@ describe('ProductionDetailModal', () => {
       status: 'Produksi',
       quantity: 2,
       materials: [
-        { itemName: 'batu', specification: 'bata', quantity: 5 } // Butuh: 10
+        { itemName: 'batu', specification: 'bata', quantity: 10 } // Butuh: 10
       ]
     } as any;
 
