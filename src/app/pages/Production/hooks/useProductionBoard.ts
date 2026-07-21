@@ -136,11 +136,17 @@ export function useProductionBoard() {
     return hasBom && !isShortage;
   };
 
-  const pendingMaterialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && !checkMaterialComplete(so));
-  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && checkMaterialComplete(so));
-  const readyToStart = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so));
-  const inProduction = mergedSalesOrders.filter(so => (so.status === 'In Production' || so.status === 'Paused') && isAssignedToCurrentUser(so));
-  const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC');
+  const sortByDeadline = (a: SalesOrder, b: SalesOrder) => {
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+  };
+
+  const pendingMaterialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && !checkMaterialComplete(so)).sort(sortByDeadline);
+  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && checkMaterialComplete(so)).sort(sortByDeadline);
+  const readyToStart = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so)).sort(sortByDeadline);
+  const inProduction = mergedSalesOrders.filter(so => (so.status === 'In Production' || so.status === 'Paused') && isAssignedToCurrentUser(so)).sort(sortByDeadline);
+  const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC').sort(sortByDeadline);
 
   const approveMaterialRequest = async (so: SalesOrder) => {
     const request = getMaterialRequest(so);

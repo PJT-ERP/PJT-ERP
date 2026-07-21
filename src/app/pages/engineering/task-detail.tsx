@@ -37,7 +37,7 @@ const defaultCategory = 'Project';
 export function EngineeringTaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { salesOrders, updateSalesOrder, customers, currentUser, refreshBackendData, productCatalog } = useApp();
+  const { salesOrders, setSalesOrders, updateSalesOrder, customers, currentUser, refreshBackendData, productCatalog } = useApp();
 
   const qut = salesOrders.find(so => so.id === id || so.backendId === id || so.id.replace(/-/g, '') === id);
 
@@ -236,7 +236,28 @@ export function EngineeringTaskDetailPage() {
           const mats = itemMaterials[item.id] || [];
           const resolvedBomItems = mats.filter(m => m.inventoryItemId && m.quantity > 0).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
           if (resolvedBomItems.length > 0) {
-            try { await salesApi.updateProductBom(item.productId, { bomItems: resolvedBomItems }); } catch (err) { console.warn(`Failed to attach BOM to ${item.productId}`, err); }
+            try { 
+              await salesApi.updateProductBom(item.productId, { bomItems: resolvedBomItems }); 
+              
+              // Cascade mock state to other pending Sales Orders using this product
+              if (setSalesOrders && salesOrders && salesOrders.length > 0) {
+                const updatedSOs = salesOrders.map((otherSo: any) => {
+                  if (otherSo.id !== qut.id && ['Pending Design', 'Waiting Pricing', 'In Production'].includes(otherSo.status)) {
+                    let changed = false;
+                    const otherBoms = { ...(otherSo.bomsPerItem || {}) };
+                    (otherSo.items || []).forEach((otherItem: any) => {
+                      if (otherItem.productId === item.productId) {
+                        otherBoms[otherItem.productId] = mats; // mats contains the full UI material objects
+                        changed = true;
+                      }
+                    });
+                    if (changed) return { ...otherSo, bomsPerItem: otherBoms };
+                  }
+                  return otherSo;
+                });
+                setSalesOrders(updatedSOs);
+              }
+            } catch (err) { console.warn(`Failed to attach BOM to ${item.productId}`, err); }
           }
         }
       }

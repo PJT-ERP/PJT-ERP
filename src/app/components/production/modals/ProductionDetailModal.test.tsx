@@ -19,6 +19,7 @@ vi.mock('../../../services/productionApi', () => ({
 vi.mock('../../../services/masterDataApi', () => ({
   masterDataApi: {
     listInventory: vi.fn(),
+    updateProductBom: vi.fn(),
   },
 }));
 
@@ -36,8 +37,15 @@ describe('ProductionDetailModal', () => {
     vi.clearAllMocks();
     vi.mocked(useApp).mockReturnValue({
       purchasingRequests: [],
+      salesOrders: [],
+      setSalesOrders: vi.fn(),
+      updateSalesOrder: vi.fn(),
+      currentUser: { role: 'Supervisor' }
     } as any);
-    vi.mocked(masterDataApi.listInventory).mockResolvedValue([]);
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([
+      { id: 'INV-1', name: 'Plastik', code: 'P-01', unit: 'kg' }
+    ] as any);
+    vi.mocked(masterDataApi as any).updateProductBom = vi.fn().mockResolvedValue({});
   });
 
   it('renders custom BOM specifications even when Material Tracking data is loaded', async () => {
@@ -110,5 +118,75 @@ describe('ProductionDetailModal', () => {
     
     // The stock should be 121, meaning it matched successfully
     expect(screen.getByText('121')).toBeInTheDocument(); // Stok Gudang: 121
+  });
+
+  it('allows adding a new BOM if materials are empty', async () => {
+    const { updateSalesOrder } = vi.mocked(useApp)();
+    
+    const so = {
+      id: 'SO-TAMBAH',
+      status: 'Produksi',
+      quantity: 1,
+      materials: [], // Empty BOM triggers "Tambah BOM" badge and button
+      items: [
+        { productId: 'PROD-X', productName: 'Produk Baru X' }
+      ]
+    } as any;
+
+    render(<ProductionDetailModal so={so} onClose={vi.fn()} />);
+
+    // Wait for inventory fetch
+    await waitFor(() => {
+      expect(masterDataApi.listInventory).toHaveBeenCalled();
+    });
+
+    // Should render the Tambah BOM button
+    const tambahBtn = screen.getByText('+ Tambah BOM');
+    expect(tambahBtn).toBeInTheDocument();
+
+    const { fireEvent } = await import('@testing-library/react');
+
+    // Click Tambah BOM
+    fireEvent.click(tambahBtn);
+
+    // Check if the form is rendered for the product
+    expect(screen.getByText('Produk Baru X')).toBeInTheDocument();
+    
+    // Add a material row
+    const addMaterialBtn = screen.getByText('+ Tambah Material');
+    fireEvent.click(addMaterialBtn);
+
+    // Select inventory item using MaterialAutocomplete input
+    const autocompleteInput = screen.getByPlaceholderText('Pilih dari Master Data atau ketik manual...');
+    expect(autocompleteInput).toBeInTheDocument();
+    
+    // Type into autocomplete
+    fireEvent.change(autocompleteInput, { target: { value: 'Pla' } });
+    
+    // Select the option from dropdown
+    const option = await screen.findByText('Plastik');
+    fireEvent.mouseDown(option);
+
+    // Set quantity
+    const input = screen.getByPlaceholderText('Qty');
+    fireEvent.change(input, { target: { value: '5' } });
+
+    // Save
+    const saveBtn = screen.getByText('Simpan BOM');
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      // 1. Should save to MasterData
+      expect(masterDataApi.updateProductBom).toHaveBeenCalledWith('PROD-X', {
+        bomItems: [{ inventoryItemId: 'INV-1', quantity: 5 }]
+      });
+
+      // 2. Should update current SO
+      expect(updateSalesOrder).toHaveBeenCalledWith('SO-TAMBAH', {
+        bomsPerItem: {
+          'PROD-X': [{ inventoryItemId: 'INV-1', name: 'Plastik', quantity: 5, unit: 'kg' }]
+        }
+      });
+    });
   });
 });

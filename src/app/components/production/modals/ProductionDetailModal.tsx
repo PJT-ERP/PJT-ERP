@@ -5,15 +5,18 @@ import { SalesOrder } from "../../data/mockData";
 import { S, StatusBadge, getDrawingUrl, getMaterialOptions, getBackendSalesOrderId } from "../ProductionHelpers";
 import { isGuid } from "../../../services/backendIds";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
+import { MaterialAutocomplete } from "../../../pages/engineering/task-detail/MaterialAutocomplete";
 
 export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { purchasingRequests, updateSalesOrder, currentUser } = useApp();
+  const { purchasingRequests, updateSalesOrder, currentUser, salesOrders, setSalesOrders } = useApp();
   const materials = getMaterialOptions(so);
   const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
   const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; materialSpec?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
   const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
 
   const [isEditingBOM, setIsEditingBOM] = useState(false);
+  const [isAddingBOM, setIsAddingBOM] = useState(false);
+  const [newBomsPerProduct, setNewBomsPerProduct] = useState<Record<string, { inventoryItemId: string, name: string, quantity: number, unit: string }[]>>({});
   const [editedBOM, setEditedBOM] = useState(materials);
   const isSpv = currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
@@ -31,6 +34,69 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
       );
     }
   }, [so]);
+
+  const handleSaveNewBOM = async () => {
+    try {
+      // 1. Update Master Data Product BOMs
+      for (const [productId, boms] of Object.entries(newBomsPerProduct)) {
+        const payload = boms.filter(b => b.inventoryItemId && b.quantity > 0).map(b => ({
+          inventoryItemId: b.inventoryItemId,
+          quantity: b.quantity
+        }));
+        if (payload.length > 0) {
+          await masterDataApi.updateProductBom(productId, { bomItems: payload });
+        }
+      }
+
+      // 2. Update Current SO Locally
+      const updatedBomsPerItem = { ...(so.bomsPerItem || {}) };
+      for (const [productId, boms] of Object.entries(newBomsPerProduct)) {
+        const validBoms = boms.filter(b => b.inventoryItemId && b.quantity > 0).map(b => ({
+          name: b.name,
+          quantity: b.quantity,
+          unit: b.unit,
+          inventoryItemId: b.inventoryItemId
+        }));
+        if (validBoms.length > 0) {
+          updatedBomsPerItem[productId] = validBoms;
+        }
+      }
+      
+      updateSalesOrder(so.id, { bomsPerItem: updatedBomsPerItem });
+
+      // 3. Autofill Pending SOs with the same product in the local context state
+      if (setSalesOrders && salesOrders && salesOrders.length > 0) {
+        const updatedSOs = salesOrders.map((otherSo: SalesOrder) => {
+          if (otherSo.status === 'Pending Design' || otherSo.status === 'Waiting Pricing' || otherSo.status === 'In Production') {
+             let changed = false;
+             const otherBoms = { ...(otherSo.bomsPerItem || {}) };
+             (otherSo.items || []).forEach((item: any) => {
+               const pId = item.productId || item.id;
+               if (newBomsPerProduct[pId]) {
+                 const valid = newBomsPerProduct[pId].filter(b => b.inventoryItemId && b.quantity > 0).map(b => ({
+                    name: b.name, quantity: b.quantity, unit: b.unit, inventoryItemId: b.inventoryItemId
+                 }));
+                 if (valid.length > 0) {
+                   otherBoms[pId] = valid;
+                   changed = true;
+                 }
+               }
+             });
+             if (changed) return { ...otherSo, bomsPerItem: otherBoms };
+          }
+          return otherSo;
+        });
+        setSalesOrders(updatedSOs);
+      }
+
+      setIsAddingBOM(false);
+      alert('BOM berhasil disimpan ke produk dan SO yang berkaitan.');
+    } catch (err) {
+      console.error('Failed to save BOM', err);
+      alert('Gagal menyimpan BOM.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 500, fontFamily: S.font, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
@@ -91,13 +157,88 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
               <p style={{ fontSize: "13px", color: S.secondary, margin: 0, fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
-              {isSpv && !isEditingBOM && (
-                <button onClick={() => { setEditedBOM(materials); setIsEditingBOM(true); }} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                  <Edit2 size={12} /> Edit BOM
-                </button>
+              {isSpv && !isEditingBOM && !isAddingBOM && (
+                materials.length > 0 ? (
+                  <button onClick={() => { setEditedBOM(materials); setIsEditingBOM(true); }} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    <Edit2 size={12} /> Edit BOM
+                  </button>
+                ) : (
+                  <button onClick={() => { setNewBomsPerProduct({}); setIsAddingBOM(true); }} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.cyan, color: "#fff", border: "none", borderRadius: 4, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    + Tambah BOM
+                  </button>
+                )
               )}
             </div>
-            {isEditingBOM ? (
+            
+            {isAddingBOM ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p style={{ fontSize: "12.5px", color: S.secondary, margin: "0 0 8px" }}>Tambahkan material BOM untuk setiap produk dalam pesanan ini:</p>
+                {(so.items || []).map((item: any, itemIdx: number) => {
+                  const pId = item.productId || item.id || `temp-${itemIdx}`;
+                  const boms = newBomsPerProduct[pId] || [];
+                  return (
+                    <div key={pId} style={{ padding: "12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: "13px", color: S.slate, marginBottom: 8 }}>
+                        {item.productName || item.description || "Produk"}
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {boms.map((bom, i) => (
+                          <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <div style={{ flex: 1, minWidth: 200 }}>
+                              <MaterialAutocomplete
+                                value={bom.name || ''}
+                                onChange={val => {
+                                  const updated = [...boms];
+                                  updated[i] = { ...updated[i], name: val };
+                                  setNewBomsPerProduct({ ...newBomsPerProduct, [pId]: updated });
+                                }}
+                                onSelectProduct={inv => {
+                                  const updated = [...boms];
+                                  updated[i] = { ...updated[i], inventoryItemId: inv.id, name: inv.name, unit: inv.unit || 'pcs' };
+                                  setNewBomsPerProduct({ ...newBomsPerProduct, [pId]: updated });
+                                }}
+                                options={inventory}
+                                disabled={false}
+                              />
+                            </div>
+                            <input 
+                              type="number" 
+                              placeholder="Qty" 
+                              value={bom.quantity || ''} 
+                              onChange={e => {
+                                const updated = [...boms];
+                                updated[i].quantity = Number(e.target.value);
+                                setNewBomsPerProduct({ ...newBomsPerProduct, [pId]: updated });
+                              }}
+                              style={{ width: 70, padding: "6px 8px", borderRadius: 4, border: `1px solid ${S.border}`, fontSize: "13px", fontFamily: S.font }}
+                            />
+                            <button onClick={() => {
+                              const updated = boms.filter((_, idx) => idx !== i);
+                              setNewBomsPerProduct({ ...newBomsPerProduct, [pId]: updated });
+                            }} style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "#EF4444" }}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                        <button onClick={() => {
+                          setNewBomsPerProduct({ ...newBomsPerProduct, [pId]: [...boms, { inventoryItemId: '', name: '', quantity: 1, unit: 'pcs' }] });
+                        }} style={{ alignSelf: "flex-start", marginTop: 4, fontSize: "12px", color: S.cyan, background: "none", border: "none", fontWeight: 600, cursor: "pointer" }}>
+                          + Tambah Material
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                  <button onClick={() => setIsAddingBOM(false)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.white, border: `1px solid ${S.border}`, borderRadius: 4, color: S.slate, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    Batal
+                  </button>
+                  <button onClick={handleSaveNewBOM} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.cyan, border: "none", borderRadius: 4, color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    <Check size={12} /> Simpan BOM
+                  </button>
+                </div>
+              </div>
+            ) : isEditingBOM ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {editedBOM.map((m, i) => (
                   <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

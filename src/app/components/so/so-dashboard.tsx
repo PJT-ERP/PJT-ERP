@@ -79,6 +79,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
     { label: "Waiting Payment", count: salesOrders.filter(o => (o.status as any) === "Waiting Payment").length, color: "#F59E0B" },
     { label: "Pending Design", count: salesOrders.filter(o => o.status === "Pending Design").length, color: "#94A3B8" },
     { label: "Waiting Approval", count: salesOrders.filter(o => o.status === "Waiting Approval").length, color: "#F59E0B" },
+    { label: "Waiting Pricing", count: salesOrders.filter(o => (o.status as any) === "Waiting Pricing").length, color: "#8B5CF6" },
     { label: "Revision Required", count: salesOrders.filter(o => o.status === "Revision Required").length, color: "#EF4444" },
     { label: "In Production", count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
     { label: "QC", count: salesOrders.filter(o => o.status === "QC").length, color: "#3B82F6" },

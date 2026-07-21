@@ -4,13 +4,15 @@ import { EngineeringTaskDetailPage } from '../task-detail';
 import * as appContext from '../../../components/context/AppContext';
 import { salesApi } from '../../../services/salesApi';
 import { productionApi } from '../../../services/productionApi';
+import { masterDataApi } from '../../../services/masterDataApi';
 import { MemoryRouter, Route, Routes } from 'react-router';
 
 vi.mock('../../../services/salesApi', () => ({
   salesApi: {
     updateSalesOrderDesignStatus: vi.fn().mockResolvedValue({}),
     submitSalesOrderDesign: vi.fn().mockResolvedValue({}),
-    updateSalesOrderItems: vi.fn().mockResolvedValue({})
+    updateSalesOrderItems: vi.fn().mockResolvedValue({}),
+    updateProductBom: vi.fn().mockResolvedValue({})
   }
 }));
 
@@ -22,7 +24,8 @@ vi.mock('../../../services/productionApi', () => ({
 
 vi.mock('../../../services/masterDataApi', () => ({
   masterDataApi: {
-    listInventory: vi.fn().mockResolvedValue([])
+    listInventory: vi.fn().mockResolvedValue([]),
+    createInventoryItem: vi.fn().mockResolvedValue({ id: 'INV-NEW', name: 'Baja' })
   }
 }));
 
@@ -125,6 +128,94 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
       // Look for the canvas element by id (can't directly query getElementById with rtl but we can use container or querySelector)
       const downloadBtn = screen.getByRole('button', { name: /Download QR/i });
       expect(downloadBtn).toBeInTheDocument();
+    });
+  });
+
+  it('cascades BOM updates to other pending Sales Orders with the same product', async () => {
+    const setSalesOrdersMock = vi.fn();
+    
+    vi.spyOn(appContext, 'useApp').mockReturnValue({
+      customers: [{ code: 'CUST-1', name: 'Customer A' }],
+      currentUser: { id: 'u1', name: 'Spv 1', role: 'Engineering Supervisor' },
+      updateSalesOrder: updateSalesOrderMock,
+      setSalesOrders: setSalesOrdersMock,
+      refreshBackendData: vi.fn(),
+      productCatalog: [{ id: 'PROD-A', bomItems: [] }], // Empty BOM triggers the logic
+      salesOrders: [
+        {
+          id: 'so-eng-1', // The one being edited
+          backendId: '123e4567-e89b-12d3-a456-426614174001',
+          status: 'Pending Design',
+          items: [{ id: 'item-1', productId: 'PROD-A', quantity: 10, productName: 'Product A' }]
+        },
+        {
+          id: 'so-prod-wait', // The one waiting in production
+          backendId: '123e4567-e89b-12d3-a456-426614174002',
+          status: 'In Production',
+          bomsPerItem: {}, // Empty BOM
+          items: [{ id: 'item-2', productId: 'PROD-A', quantity: 5, productName: 'Product A' }]
+        },
+        {
+          id: 'so-other', // Uses different product
+          backendId: '123e4567-e89b-12d3-a456-426614174003',
+          status: 'In Production',
+          bomsPerItem: {},
+          items: [{ id: 'item-3', productId: 'PROD-B', quantity: 1, productName: 'Product B' }]
+        }
+      ]
+    } as any);
+
+    render(
+      <MemoryRouter initialEntries={['/erp/engineer-tasks/so-eng-1']}>
+        <Routes>
+          <Route path="/erp/engineer-tasks/:id" element={<EngineeringTaskDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // Wait for the "Tambah Material" button to appear, which indicates BomEditor is rendered
+    const addMaterialBtn = await screen.findByRole('button', { name: /Tambah Material/i });
+
+    // Enter design link (required)
+    const urlInput = screen.getByPlaceholderText('https://drive.google.com/...');
+    fireEvent.change(urlInput, { target: { value: 'https://design.com' } });
+
+    // Click Add material
+    fireEvent.click(addMaterialBtn);
+
+    // Type name
+    const nameInputs = screen.getByPlaceholderText(/Pilih dari Master Data atau ketik manual.../i);
+    fireEvent.change(nameInputs, { target: { value: 'Baja' } });
+    
+    // Set quantity
+    const qtyInputs = screen.getAllByRole('spinbutton');
+    fireEvent.change(qtyInputs[0], { target: { value: '5' } });
+
+    // Click next (transition to confirm step)
+    const submitBtn = screen.getByRole('button', { name: /Simpan Desain/i });
+    fireEvent.click(submitBtn);
+
+    // Wait for confirmation step to render
+    await screen.findByText(/Konfirmasi menyimpan/i);
+
+    // Click confirm (actually submit)
+    const confirmBtn = screen.getByRole('button', { name: /Simpan Desain/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(masterDataApi.createInventoryItem).toHaveBeenCalled();
+      expect(salesApi.updateProductBom).toHaveBeenCalled();
+      
+      // Should cascade
+      expect(setSalesOrdersMock).toHaveBeenCalled();
+      const updatedSOs = setSalesOrdersMock.mock.calls[0][0];
+      
+      const soWait = updatedSOs.find((o: any) => o.id === 'so-prod-wait');
+      expect(soWait.bomsPerItem['PROD-A']).toBeDefined();
+      expect(soWait.bomsPerItem['PROD-A'][0].name).toBe('Baja');
+
+      const soOther = updatedSOs.find((o: any) => o.id === 'so-other');
+      expect(soOther.bomsPerItem['PROD-B']).toBeUndefined(); // Should not be modified
     });
   });
 });

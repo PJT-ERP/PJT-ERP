@@ -62,17 +62,23 @@ export function QCInspectionsPage() {
     void loadInspections();
   }, []);
 
+  const sortByDeadline = (a: SalesOrder, b: SalesOrder) => {
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+  };
+
   const hasBackendInspections = inspections.length > 0;
-  const qcQueue = hasBackendInspections
+  const qcQueue = (hasBackendInspections
     ? inspections
       .filter(inspection => inspection.status === "ReadyForInspection")
       .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
-    : salesOrders.filter(so => so.status === 'QC');
-  const recentCompleted = hasBackendInspections
+    : salesOrders.filter(so => so.status === 'QC')).sort(sortByDeadline);
+  const recentCompleted = (hasBackendInspections
     ? inspections
       .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
       .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
-    : salesOrders.filter(so => so.status === 'Completed');
+    : salesOrders.filter(so => so.status === 'Completed')).sort(sortByDeadline);
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
   const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
 
@@ -170,8 +176,12 @@ export function QCInspectionsPage() {
                       <StatusBadge status={so.status} />
                     </div>
                     <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
-                      <span>{customer?.name}</span><span>·</span><span>{so.quantity} {so.unit}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary, flexWrap: "wrap" }}>
+                      <span>Pelanggan: <strong style={{ color: S.slate }}>{customer?.name || so.customerId || '-'}</strong></span>
+                      <span>·</span>
+                      <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline || '-'}</strong></span>
+                      <span>·</span>
+                      <span>{so.quantity} {so.unit}</span>
                       {durationHours !== null && <><span>·</span><span>Durasi Produksi: {durationHours} jam</span></>}
                       {inspection?.refNo && <><span>·</span><span>{inspection.refNo}</span></>}
                     </div>
