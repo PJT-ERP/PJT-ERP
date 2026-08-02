@@ -1,3 +1,4 @@
-# False positive: Missing binary integrity verification in Deno module
-# Does not affect us because we do not use Deno in our stack.
-GHSA-gv7w-rqvm-qjhr
+# React Router: RSC Mode CSRF Bypass Allows Action Execution
+# This project is a client-side SPA without RSC (React Server Components) enabled, so it is not affected by this vulnerability.
+# The fix in 8.3.0 requires React 19 which would break other dependencies (e.g., MUI).
+GHSA-qwww-vcr4-c8h2
