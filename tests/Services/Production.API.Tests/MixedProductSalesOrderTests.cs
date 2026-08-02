@@ -94,7 +94,7 @@ public sealed class MixedProductSalesOrderTests
             CancellationToken.None);
 
         Assert.Equal(SalesOrderDesignStatuses.Approved, so.DesignStatus);
-        Assert.Equal("Waiting Pricing", so.Status);
+        Assert.Equal("Ready for Production", so.Status);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class MixedProductSalesOrderTests
             CancellationToken.None);
 
         Assert.Equal(SalesOrderDesignStatuses.PendingDesign, so.DesignStatus);
-        Assert.Equal("Draft", so.Status);
+        Assert.Equal("Pending Design", so.Status);
         Assert.Single(so.Items);
     }
 
