@@ -395,8 +395,8 @@ public abstract partial class ProductionServiceBase
 
         if (assignment.UserId == Guid.Empty)
         {
-            // Allow unassigning by passing an empty Guid. The Name will be ignored or set to null.
-            return assignment with { Name = null };
+            // Allow unassigning by passing an empty Guid. The Name will be ignored or set to empty.
+            return assignment with { Name = "" };
         }
 
         if (string.IsNullOrWhiteSpace(assignment.Name))

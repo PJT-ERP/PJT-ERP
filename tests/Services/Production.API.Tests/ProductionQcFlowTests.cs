@@ -133,6 +133,7 @@ public sealed class ProductionQcFlowTests
             Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-STUB", "Stub Desc", "pcs", null, true));
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(Array.Empty<BomStockDto>());
     }
 
     private sealed class TrackingMasterDataClient(List<Guid> productIds, List<int> qtys) : IMasterDataClient
@@ -152,6 +153,6 @@ public sealed class ProductionQcFlowTests
             foreach (var item in items) { productIds.Add(item.ProductId); qtys.Add(item.ProductionQuantity); }
             return Task.CompletedTask;
         }
+        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(Array.Empty<BomStockDto>());
     }
 }
-
