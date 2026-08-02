@@ -17,8 +17,8 @@ describe('Engineering Dashboard - Strict Stats Integration', () => {
     // Provide mocked SalesOrders with specific statuses to verify the local filtering logic
     vi.spyOn(queries, 'useSalesOrdersQuery').mockReturnValue({
       data: [
-        { id: '1', status: 'InProduction' },
-        { id: '2', status: 'InProduction' },
+        { id: '1', status: 'In Production' },
+        { id: '2', status: 'In Production' },
         { id: '3', status: 'Ready for Production' },
       ]
     } as any);

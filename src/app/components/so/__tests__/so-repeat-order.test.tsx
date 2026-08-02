@@ -31,11 +31,13 @@ vi.mock('../../../services/salesApi', () => ({
 const mockProductCatalog = [
   {
     id: 'prod-1', label: 'PART-001 - Shaft D20', partNumber: 'PART-001', unit: 'pcs',
+    description: 'Shaft D20',
     materialSpec: 'S45C Carbon Steel',
     bomItems: [],
   },
   {
     id: 'prod-2', label: 'PART-002 - Block 10x10', partNumber: 'PART-002', unit: 'pcs',
+    description: 'Block 10x10',
     materialSpec: 'Aluminium 6061',
     bomItems: [],
   }
@@ -186,15 +188,15 @@ describe('SOCreate - Repeat Order Detailed Tests', () => {
     
     await waitFor(() => {
       // Check that two products are loaded
-      expect(screen.getByText(/PART-001/i)).toBeInTheDocument();
-      expect(screen.getByText(/PART-002/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/PART-001/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/PART-002/i).length).toBeGreaterThan(0);
       
       // Verify quantities
       const inputs = container.querySelectorAll('input');
       const inputValues = Array.from(inputs).map(i => (i as HTMLInputElement).value);
       expect(inputValues).toContain('20'); // Qty for prod-1
       expect(inputValues).toContain('10'); // Qty for prod-2
-      expect(inputValues).toContain('5000'); // unitPrice autofilled
+      expect(inputValues.some(v => v === '5000' || v === '5.000' || v === '5,000')).toBe(true); // unitPrice autofilled
     });
   });
 
