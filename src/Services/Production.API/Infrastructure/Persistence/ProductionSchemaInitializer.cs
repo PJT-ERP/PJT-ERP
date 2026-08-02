@@ -72,6 +72,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_photos text[] DEFAULT ARRAY[]::text[];
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_photos text[] DEFAULT ARRAY[]::text[];
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS estimated_amount numeric;
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS is_costing_completed boolean NOT NULL DEFAULT false;
 
             UPDATE sales_orders
             SET design_status = 'PendingDesign'
