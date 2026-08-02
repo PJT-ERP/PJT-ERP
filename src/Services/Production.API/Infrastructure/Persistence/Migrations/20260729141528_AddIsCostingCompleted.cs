@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -16,7 +16,7 @@ namespace PJT_ERP.Production.Api.Infrastructure.Persistence.Migrations
                 newName: "completion_note");
 
             migrationBuilder.AddColumn<bool>(
-                name: "IsCostingCompleted",
+                name: "is_costing_completed",
                 table: "sales_orders",
                 type: "boolean",
                 nullable: false,
@@ -27,7 +27,7 @@ namespace PJT_ERP.Production.Api.Infrastructure.Persistence.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "IsCostingCompleted",
+                name: "is_costing_completed",
                 table: "sales_orders");
 
             migrationBuilder.RenameColumn(

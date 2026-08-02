@@ -92,6 +92,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.ProductionPhotos).HasColumnName("production_photos");
             builder.Property(order => order.QcPhotos).HasColumnName("qc_photos");
             builder.Property(order => order.EstimatedAmount).HasColumnName("estimated_amount");
+            builder.Property(order => order.IsCostingCompleted).HasColumnName("is_costing_completed");
             builder.HasMany(order => order.Items)
                 .WithOne(item => item.SalesOrder)
                 .HasForeignKey(item => item.SalesOrderId)
