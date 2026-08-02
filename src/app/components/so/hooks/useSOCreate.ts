@@ -279,8 +279,8 @@ export function useSOCreate(initialData?: { customerId?: string; orderType?: "ne
       return await salesApi.createSalesOrder({
         customerId, soDate: today, targetDate,
         customerDrawingUrl: customerDrawingUrl || null,
-        designReference: rows.some(r => r.type === "custom" && r.designId === "none") ? "INTERNAL_DESIGN" : null,
-        designStatus: designStatus ?? (rows.some(r => r.type === "custom") ? "PendingDesign" : "Approved"),
+        designReference: rows.some(r => r.designId === "none") ? "INTERNAL_DESIGN" : null,
+        designStatus: designStatus ?? (rows.some(r => r.type === "custom" || r.designId === "none" || r.designId === "customer") ? "PendingDesign" : "Approved"),
         items,
       });
     } catch (error) {
@@ -372,7 +372,7 @@ export function useSOCreate(initialData?: { customerId?: string; orderType?: "ne
       try {
         const custRepeatProduct = repeatProducts.find(p => p.type === "custom" && p.designId === "customer");
         const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
-        const created = await createSalesOrderFromRows(customerRes.id, repeatForm.deadline, finalImageUrl, repeatProducts, "Approved");
+        const created = await createSalesOrderFromRows(customerRes.id, repeatForm.deadline, finalImageUrl, repeatProducts);
         if (repeatForm.estimatedAmount) {
           updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
         }

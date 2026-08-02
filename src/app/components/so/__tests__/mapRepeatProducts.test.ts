@@ -99,7 +99,7 @@ describe('mapRepeatProducts', () => {
     expect(result[0].quantity).toBe('15');
     expect(result[0].unitPrice).toBe(0);
     expect(result[0].materials).toHaveLength(1);
-    expect(result[0].materials[0].name).toBe('INV-001 - Steel Sheet');
+    expect(result[0].materials[0].name).toBe('Steel Sheet');
     expect(result[0].materials[0].quantity).toBe('2');
   });
 

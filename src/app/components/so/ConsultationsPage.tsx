@@ -8,10 +8,6 @@ export function ConsultationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedConsultation, setSelectedConsultation] = useState<any | null>(null);
 
-  useEffect(() => {
-    fetchConsultations();
-  }, []);
-
   const fetchConsultations = async () => {
     try {
       setLoading(true);
@@ -23,6 +19,10 @@ export function ConsultationsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {

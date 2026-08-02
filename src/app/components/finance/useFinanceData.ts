@@ -153,7 +153,9 @@ function mapPayments(invoices: InvoiceDto[], verificationRequests: PaymentVerifi
 function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
   const rows: Array<Omit<Transaction, 'balance'>> = [];
 
-  invoices.forEach(invoice => {
+  invoices.filter(invoice => {
+    return invoice.payments.length > 0 || invoice.paidAmount > 0 || invoice.status !== 'PENDING';
+  }).forEach(invoice => {
     rows.push({
       id: invoice.id,
       type: 'INVOICE',

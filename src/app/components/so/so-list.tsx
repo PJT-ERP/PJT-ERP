@@ -1,53 +1,26 @@
 import React from "react";
 import {
-  Search, Plus, Download, Eye, Edit, Copy, Printer,
-  ChevronLeft, ChevronRight, X, SlidersHorizontal, LayoutGrid, List,
+  Search, Plus, Eye, Edit,
+  X, SlidersHorizontal, LayoutGrid, List,
 } from "lucide-react";
 import { SalesOrder, SOStatus } from "../data/mockData";
-import { getSalesOrderInvoiceStatus, type SalesInvoiceStatus } from "./invoice-sync";
+import { type SalesInvoiceStatus } from "./invoice-sync";
 import { useSOList, PAGE_SIZE } from "./hooks/useSOList";
 import { 
   S, STATUS_OPTIONS, StatusBadge, InvoiceBadge, FilterDropdown, 
-  ActionBtn, HoverBtn, MobileActionBtn, Pagination, invoiceStatusConfig
+  ActionBtn, HoverBtn, MobileActionBtn, Pagination
 } from "./components/so-list/SOListHelpers";
 
 interface SOListProps {
   onNavigate: (page: string, data?: unknown) => void;
 }
 
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows
-    .map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+
 
 export function SOList({ onNavigate }: SOListProps) {
   const board = useSOList();
 
-  const exportOrders = () => {
-    downloadCsv("sales-orders.csv", [
-      ["No. SO", "Customer", "Company", "Product", "Qty", "Unit", "Deadline", "Invoice Status", "Workflow Status"],
-      ...board.filtered.map(order => {
-        const cust = board.customers.find(c => c.code === order.customerId);
-        return [
-        order.id,
-        cust?.name || "",
-        cust?.name || "",
-        order.description,
-        String(order.quantity),
-        order.unit,
-        order.deadline,
-        invoiceStatusConfig[getSalesOrderInvoiceStatus(order, board.invoices)].label,
-        order.status,
-      ]})
-    ]);
-  };
+
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, fontFamily: S.font }}>
@@ -240,7 +213,15 @@ export function SOList({ onNavigate }: SOListProps) {
               </tr>
             </thead>
             <tbody>
-              {board.paginated.length === 0 ? (
+              {board.isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={9} style={{ padding: "12px 14px" }}>
+                      <div className="animate-pulse" style={{ height: 20, background: "#f1f5f9", borderRadius: 4, width: "100%" }} />
+                    </td>
+                  </tr>
+                ))
+              ) : board.paginated.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
                     Tidak ada data yang sesuai dengan filter
@@ -254,8 +235,6 @@ export function SOList({ onNavigate }: SOListProps) {
                   isLast={idx === board.paginated.length - 1}
                   onView={() => onNavigate("so-detail", order.id)}
                   onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
-                  onDuplicate={() => onNavigate("so-create")}
-                  onPrint={() => window.print()}
                 />
               ))}
             </tbody>
@@ -279,7 +258,15 @@ export function SOList({ onNavigate }: SOListProps) {
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
             gap: 16
           }}>
-            {board.paginated.length === 0 ? (
+            {board.isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse" style={{ background: S.white, borderRadius: 8, border: `1px solid ${S.border}`, padding: 16, height: 180, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ height: 24, background: "#f1f5f9", borderRadius: 4, width: "60%" }} />
+                  <div style={{ height: 40, background: "#f1f5f9", borderRadius: 4, width: "100%" }} />
+                  <div style={{ height: 32, background: "#f1f5f9", borderRadius: 4, width: "100%", marginTop: "auto" }} />
+                </div>
+              ))
+            ) : board.paginated.length === 0 ? (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 8, border: `1px solid ${S.border}` }}>
                 Tidak ada data yang sesuai dengan filter
               </div>
@@ -346,14 +333,12 @@ export function SOList({ onNavigate }: SOListProps) {
 }
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
-function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, onPrint }: {
+function TableRow({ order, customerName, isLast, onView, onEdit }: {
   order: SalesOrder;
   customerName: string;
   isLast: boolean;
   onView: () => void;
   onEdit: () => void;
-  onDuplicate: () => void;
-  onPrint: () => void;
 }) {
   const [hov, React_useState] = React.useState(false);
 

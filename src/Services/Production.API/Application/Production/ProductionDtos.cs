@@ -23,7 +23,7 @@ public sealed record CompleteSalesOrderRequest(
 );
 
 public sealed record CompleteSalesOrderCustomerRequest(
-    string Code,
+    string? Code,
     string Name,
     string? Address = null,
     string? ContactPerson = null,
@@ -82,6 +82,15 @@ public sealed record UpdateSalesOrderDesignStatusRequest(
     string? CustomerDrawingUrl = null,
     string? Notes = null);
 
+public sealed record UpdateSalesOrderGeneralRequest(
+    string? Description = null,
+    int? Quantity = null,
+    string? Unit = null,
+    DateOnly? Deadline = null,
+    string? Notes = null,
+    string? CustomerDrawingUrl = null,
+    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null);
+
 public sealed record UpdateCustomerDrawingUrlRequest(
     string? CustomerDrawingUrl,
     string UpdatedByName);
@@ -121,10 +130,22 @@ public sealed record SalesOrderDto(
     DateTime UpdatedAtUtc,
     string? CompletionNote,
     decimal? EstimatedAmount,
+    bool IsCostingCompleted,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items,
     IReadOnlyCollection<string>? ProductionPhotos,
-    IReadOnlyCollection<string>? QcPhotos);
+    IReadOnlyCollection<string>? QcPhotos,
+    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null);
+
+public sealed record SalesOrderMaterialDto(
+    string Id,
+    string? InventoryItemId,
+    string Name,
+    string? Code,
+    string? Spec,
+    string? Specification,
+    int Quantity,
+    string Unit);
 
 public sealed record SalesOrderDesignRevisionDto(
     int Version,
@@ -258,3 +279,14 @@ public sealed record SubmitProductionMaterialRequestItem(
     string? SuggestedSupplier = null,
     string? Notes = null,
     string? PurchaseCategory = null);
+
+public sealed record QcQueuesDto(
+    IReadOnlyCollection<SalesOrderDto> ReadyForInspection,
+    IReadOnlyCollection<SalesOrderDto> InspectionHistory);
+
+public sealed record ProductionBoardQueuesDto(
+    IReadOnlyCollection<SalesOrderDto> PendingAssignment,
+    IReadOnlyCollection<SalesOrderDto> ReadyToStart,
+    IReadOnlyCollection<SalesOrderDto> InProduction,
+    IReadOnlyCollection<SalesOrderDto> Paused,
+    IReadOnlyCollection<SalesOrderDto> WaitingQc);

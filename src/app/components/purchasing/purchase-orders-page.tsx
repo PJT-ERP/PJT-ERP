@@ -112,7 +112,7 @@ export function mapPurchaseRequestsToPos(requests: PurchaseRequestDto[], payment
           purchaseRequestItemId: item.id,
           purchaseStatus: item.purchaseStatus,
           code: matchedInv?.code || item.materialRequirementId?.slice(0, 8).toUpperCase() || item.id.slice(0, 8).toUpperCase(),
-          name: item.itemName,
+          name: matchedInv?.name || (item.itemName?.includes(' - ') ? item.itemName.split(' - ').slice(1).join(' - ') : item.itemName),
           spec: item.size || "-",
           qty: item.qty,
           unit: "pcs",
@@ -304,7 +304,11 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
 
   const toggleExpand = (id: string) => {
     const next = new Set(expanded);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     setExpanded(next);
   };
 

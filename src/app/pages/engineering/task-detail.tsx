@@ -3,11 +3,12 @@ import { useParams, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCustomersQuery, useProductsQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
 import { salesApi } from "../../services/salesApi";
 import { masterDataApi, InventoryItemDto } from "../../services/masterDataApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
-import { MaterialAutocomplete } from "./task-detail/MaterialAutocomplete";
 import { BomEditor } from "./task-detail/BomEditor";
 import { StepDone, StepRejected, StepRejectForm, StepConfirm, InfoBanner } from "./task-detail/StepScreens";
 import { FooterActions } from "./task-detail/FooterActions";
@@ -37,9 +38,14 @@ const defaultCategory = 'Project';
 export function EngineeringTaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { salesOrders, setSalesOrders, updateSalesOrder, customers, currentUser, refreshBackendData, productCatalog } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
+  const { data: customers = [] } = useCustomersQuery();
+  const { data: productCatalog = [] } = useProductsQuery();
 
-  const qut = salesOrders.find(so => so.id === id || so.backendId === id || so.id.replace(/-/g, '') === id);
+  const { data: localOrders = [] } = useSalesOrdersQuery();
+  
+  const qut = useMemo(() => localOrders.find((so: any) => so.id === id || so.backendId === id || so.id.replace(/-/g, '') === id), [localOrders, id]);
 
   const [designLink, setDesignLink] = useState('');
   const [itemMaterials, setItemMaterials] = useState<Record<string, any[]>>({});
@@ -60,16 +66,28 @@ export function EngineeringTaskDetailPage() {
   useEffect(() => {
     if (qut && !isInitialized.current) {
       const designRef = qut.designReference !== 'INTERNAL_DESIGN' ? qut.designReference : '';
-      const initialDesignLink = designRef || qut.designLink || qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
+      const initialDesignLink = designRef || qut.designLink || qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
       setDesignLink(initialDesignLink);
       setIsEditingLink(!initialDesignLink);
 
       const boms = qut.bomsPerItem || {};
       const initialMaterials: Record<string, any[]> = {};
       if (Object.keys(boms).length === 0 && qut.materials && qut.materials.length > 0 && qut.items && qut.items.length > 0) {
-        initialMaterials[qut.items[0].id] = qut.materials;
+        initialMaterials[qut.items[0].id] = qut.materials.map((m: any) => {
+          let name = m.name || '';
+          const code = m.code || (name.match(/^([A-Z]+-\d+)/) || [])[1];
+          if (code && name.startsWith(`${code} - `)) name = name.slice(code.length + 3);
+          return { ...m, name, code: code || m.code };
+        });
       } else {
-        qut.items?.forEach(item => { initialMaterials[item.id] = boms[item.id] || []; });
+        qut.items?.forEach((item: any) => {
+          initialMaterials[item.id] = (boms[item.id] || []).map((m: any) => {
+            let name = m.name || '';
+            const code = m.code || (name.match(/^([A-Z]+-\d+)/) || [])[1];
+            if (code && name.startsWith(`${code} - `)) name = name.slice(code.length + 3);
+            return { ...m, name, code: code || m.code };
+          });
+        });
       }
       setItemMaterials(initialMaterials);
       setLocalRejectionReason(qut.rejectionReason);
@@ -83,21 +101,25 @@ export function EngineeringTaskDetailPage() {
     const result: { name: string; spec: string }[] = [];
     if (!qut) return result;
     const seen = new Set<string>();
+    const inventoryItemsById = new Map(inventoryItems.map(ci => [ci.id.toLowerCase(), ci]));
     for (const item of qut.items || []) {
       const mats = itemMaterials[item.id] || [];
       for (const m of mats) {
         if (!m.name?.trim()) continue;
         const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
         if (seen.has(key)) continue;
-        const matchedByName = inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-        const isNew = !m.inventoryItemId || !matchedByName || matchedByName.id !== m.inventoryItemId;
+        const mid = (m.inventoryItemId || '').toLowerCase();
+        const matchedById = mid ? inventoryItemsById.get(mid) : null;
+        const matchedByName = !matchedById ? inventoryItems.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase()) : null;
+        const matched = matchedById || matchedByName;
+        const isNew = !matched || (!!mid && matched.id.toLowerCase() !== mid);
         if (isNew) { seen.add(key); result.push({ name: m.name.trim(), spec: (m.spec || '').trim() }); }
       }
     }
     return result;
   }, [qut, itemMaterials, inventoryItems]);
 
-  const hasDuplicateMaterials = qut?.items?.some(item => {
+  const hasDuplicateMaterials = qut?.items?.some((item: any) => {
     const mats = itemMaterials[item.id] || [];
     return mats.some((m, idx) => {
       if (!m.name.trim()) return false;
@@ -109,7 +131,7 @@ export function EngineeringTaskDetailPage() {
     });
   }) || false;
 
-  const hasCategoryConflict = qut?.items?.some(item => {
+  const hasCategoryConflict = qut?.items?.some((item: any) => {
     const mats = itemMaterials[item.id] || [];
     return mats.some(m => {
       if (!m.name.trim()) return false;
@@ -161,8 +183,8 @@ export function EngineeringTaskDetailPage() {
   const isDoingSpvApproval = isSpv && isPendingSpv;
   const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
 
-  const addMaterial = (itemId: string) => {
-    setItemMaterials(prev => ({ ...prev, [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: '', quantity: 0, unit: '', spec: '', inventoryItemId: '', category: defaultCategory }] }));
+  const addMaterial = (itemId: string, initial?: Partial<{ name: string; quantity: number; unit: string; spec: string; inventoryItemId: string; code: string }>) => {
+    setItemMaterials(prev => ({ ...prev, [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: initial?.name || '', quantity: initial?.quantity || 0, unit: initial?.unit || '', spec: initial?.spec || '', inventoryItemId: initial?.inventoryItemId || '', code: initial?.code, category: defaultCategory }] }));
   };
   const removeMaterial = (itemId: string, mId: string) => {
     setItemMaterials(prev => ({ ...prev, [itemId]: (prev[itemId] || []).filter(m => m.id !== mId) }));
@@ -179,10 +201,12 @@ export function EngineeringTaskDetailPage() {
   };
 
   const handleForward = async () => {
+    console.log(">>> handleForward CALLED. canProcess:", canProcess, "isDoingSpvApproval:", isDoingSpvApproval);
     if (!canProcess) return;
     setIsSubmitting(true);
     try {
       const backendId = qut.backendId || qut.id;
+      console.log(">>> backendId:", backendId, "isGuid:", isGuid(backendId));
       if (!isGuid(backendId)) { alert("Gagal: Dokumen ini belum tersinkronisasi dengan server."); setIsSubmitting(false); return; }
 
       if (designLink && designLink.trim() !== '') {
@@ -190,11 +214,15 @@ export function EngineeringTaskDetailPage() {
       }
 
       let currentInv: any[] = [];
-      try { currentInv = await masterDataApi.listInventory(); } catch (e) { }
-      for (const item of qut.items || []) {
-        const mats = itemMaterials[item.id] || [];
-        for (const m of mats) {
-          if (!m.name?.trim() || !(m.quantity > 0)) continue;
+      try { currentInv = await masterDataApi.listInventory(); } catch (e) { console.error("Failed to load inventory for submission", e); }
+      const updatedItems: any[] = [];
+      const allResolvedBoms: Record<string, any[]> = {};
+      for (const it of qut.items || []) {
+        const mats = itemMaterials[it.id] || [];
+        const newMats = [];
+        for (const originalM of mats) {
+          if (!originalM.name?.trim() || !(originalM.quantity > 0)) continue;
+          const m = { ...originalM };
           let invId = m.inventoryItemId;
           if (!invId) {
             const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
@@ -208,55 +236,34 @@ export function EngineeringTaskDetailPage() {
           }
           m.inventoryItemId = invId;
           if (!m.code && invId) { const inv = currentInv.find(ci => ci.id === invId); if (inv?.code) m.code = inv.code; }
+          newMats.push(m);
         }
+        updatedItems.push({ salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, unitPrice: (it as any).unitPrice || 0, notes: (newMats && newMats.length > 0) ? JSON.stringify(newMats) : (it.notes || "") });
+        allResolvedBoms[it.id] = newMats.filter(m => m.inventoryItemId && m.quantity > 0).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
       }
-
-      const updatedItems = qut.items?.map(it => {
-        const mats = itemMaterials[it.id];
-        return { salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, notes: (mats && mats.length > 0) ? JSON.stringify(mats) : (it.notes || "") };
-      }) || [];
       if (updatedItems.length > 0) {
         try { await salesApi.updateSalesOrderItems(backendId, { items: updatedItems }); } catch (e) { console.warn("Failed to update BOM", e); }
       }
 
-      if (isDoingSpvApproval) {
-        await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'Approved', notes: 'Approved by SPV', reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || '', designReference: designLink });
+      const bypassSpv = isSpv && (qut.status === 'Pending Design' || qut.status === 'Revision Required');
+
+      if (isDoingSpvApproval || bypassSpv) {
+        await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'Approved', notes: bypassSpv ? 'Auto-approved by SPV submitting design' : 'Approved by SPV', reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || '', designReference: designLink });
         setCompletedAsSpv(true);
-        await refreshBackendData();
-        updateSalesOrder(qut.id, { designLink, designId: designLink, designReference: designLink, status: 'Ready for Production', backendDesignStatus: 'Approved', designApprovedAt: new Date().toISOString().split('T')[0] });
+        await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       } else {
-        await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'Approved', notes: 'Design Inputted & Approved by SPV', reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || 'Supervisor', designReference: designLink && designLink.trim() !== '' ? designLink : undefined });
-        updateSalesOrder(qut.id, { designLink, designId: designLink, designReference: designLink, materials: Object.values(itemMaterials).flat(), bomsPerItem: itemMaterials, status: 'Ready for Production', backendDesignStatus: 'Approved', designApprovedAt: new Date().toISOString().split('T')[0] });
-        setCompletedAsSpv(true);
+        setStep('done');
       }
 
       for (const item of qut.items || []) {
         const productInCatalog = productCatalog.find(p => p.id === item.productId);
         if (!productInCatalog?.bomItems?.length) {
-          const mats = itemMaterials[item.id] || [];
-          const resolvedBomItems = mats.filter(m => m.inventoryItemId && m.quantity > 0).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
+          const resolvedBomItems = allResolvedBoms[item.id] || [];
           if (resolvedBomItems.length > 0) {
             try { 
               await salesApi.updateProductBom(item.productId, { bomItems: resolvedBomItems }); 
               
-              // Cascade mock state to other pending Sales Orders using this product
-              if (setSalesOrders && salesOrders && salesOrders.length > 0) {
-                const updatedSOs = salesOrders.map((otherSo: any) => {
-                  if (otherSo.id !== qut.id && ['Pending Design', 'Waiting Pricing', 'In Production'].includes(otherSo.status)) {
-                    let changed = false;
-                    const otherBoms = { ...(otherSo.bomsPerItem || {}) };
-                    (otherSo.items || []).forEach((otherItem: any) => {
-                      if (otherItem.productId === item.productId) {
-                        otherBoms[otherItem.productId] = mats; // mats contains the full UI material objects
-                        changed = true;
-                      }
-                    });
-                    if (changed) return { ...otherSo, bomsPerItem: otherBoms };
-                  }
-                  return otherSo;
-                });
-                setSalesOrders(updatedSOs);
-              }
+              // Cascade mock state to other pending Sales Orders using this product is omitted since backend updates BOMs.
             } catch (err) { console.warn(`Failed to attach BOM to ${item.productId}`, err); }
           }
         }
@@ -275,10 +282,9 @@ export function EngineeringTaskDetailPage() {
       const backendId = qut.backendId || qut.id;
       if (!isGuid(backendId)) { alert("Gagal: Dokumen belum tersinkronisasi."); setIsSubmitting(false); return; }
       await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'RevisionRequired', notes: rejectReason, reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || '' });
-      const updatedItems = qut.items?.map(it => { const mats = itemMaterials[it.id]; return { salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, notes: (mats && mats.length > 0) ? JSON.stringify(mats) : "" }; }) || [];
+      const updatedItems = qut.items?.map((it: any) => { const mats = itemMaterials[it.id]; return { salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, notes: (mats && mats.length > 0) ? JSON.stringify(mats) : "" }; }) || [];
       if (updatedItems.length > 0) { try { await salesApi.updateSalesOrderItems(backendId, { items: updatedItems }); } catch (e) { console.warn("Failed to update BOM", e); } }
-      updateSalesOrder(qut.id, { status: 'Revision Required', backendDesignStatus: 'RevisionRequired', notes: rejectReason, rejectionReason: rejectReason, materials: Object.values(itemMaterials).flat(), bomsPerItem: itemMaterials, designLink });
-      if (isDoingSpvApproval) await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       setStep('rejected');
     } catch (err: any) {
       console.error(err);
@@ -331,7 +337,7 @@ export function EngineeringTaskDetailPage() {
                   <div style={{ flex: "1 1 250px" }}>
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Daftar Item / Produk:</span>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {qut.items?.map((item, idx) => (
+                      {qut.items?.map((item: any, idx: number) => (
                         <div key={idx} style={{ fontSize: "14px", color: S.slate, display: "flex", justifyContent: "space-between", background: "#F8FAFC", padding: "10px 16px", borderRadius: 6, border: `1px solid ${S.border}` }}>
                           <span>{item.productName || "Custom Product"}</span>
                           <span style={{ fontWeight: 600 }}>{item.quantity} {item.unit}</span>
@@ -348,9 +354,9 @@ export function EngineeringTaskDetailPage() {
                   <div style={{ flex: "1 1 250px" }}>
                     <span style={{ fontSize: "13px", color: S.secondary, display: "block", marginBottom: 8 }}>Link Referensi Desain dari Sales:</span>
                     <div style={{ fontSize: "13.5px", background: "#F8FAFC", padding: "12px 16px", borderRadius: 6, border: `1px solid ${S.border}`, minHeight: 60, display: "flex", alignItems: "center", wordBreak: "break-all" }}>
-                      {(qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl) ? (
-                        <a href={qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, textDecoration: "none" }}>
-                          {qut.customerDrawingUrl || qut.items?.find(it => (it as any).customerDrawingUrl)?.customerDrawingUrl}
+                      {(qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl) ? (
+                        <a href={qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, textDecoration: "none" }}>
+                          {qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl}
                         </a>
                       ) : <span style={{ color: S.secondary, fontStyle: "italic" }}>Tidak ada link referensi dari Sales.</span>}
                     </div>
@@ -400,7 +406,7 @@ export function EngineeringTaskDetailPage() {
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Bill of Materials (BOM) <span style={{ color: "#EF4444" }}>*</span></label>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                  {qut.items?.map(item => {
+                  {qut.items?.map((item: any) => {
                     const mats = itemMaterials[item.id] || [];
                     const productInCatalog = productCatalog.find(p => p.id === item.productId);
                     const isStandardProduct = !!productInCatalog?.bomItems?.length;

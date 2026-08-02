@@ -32,7 +32,7 @@ interface BomEditorProps {
   isStandardProduct: boolean;
   canEdit: boolean;
   inventoryItems: InventoryItemDto[];
-  onAddMaterial: (itemId: string) => void;
+  onAddMaterial: (itemId: string, initial?: Partial<{ name: string; quantity: number; unit: string; spec: string; inventoryItemId: string; code: string }>) => void;
   onRemoveMaterial: (itemId: string, mId: string) => void;
   onUpdateMaterial: (itemId: string, mId: string, field: string, value: any) => void;
 }
@@ -65,17 +65,33 @@ export function BomEditor({
             <div style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               BOM Master Data (Otomatis)
             </div>
-            {standardBomItems.map((bom, idx) => (
-              <div key={idx} style={{ display: "flex", gap: 12, alignItems: "center", background: "#F8FAFC", padding: "10px 12px", borderRadius: 6, border: `1px solid ${S.border}` }}>
-                <div style={{ flex: 1.5, fontSize: "13.5px", color: S.slate, fontWeight: 500 }}>{bom.inventoryItemName || bom.inventoryItemCode}</div>
-                <div style={{ width: 80, fontSize: "13.5px", color: S.slate, textAlign: "right", fontWeight: 600 }}>{bom.quantity}</div>
-                <div style={{ width: 100, fontSize: "13.5px", color: S.secondary, textAlign: "center" }}>{bom.unit}</div>
-                <div style={{ width: 34 }}></div>
-              </div>
-            ))}
+            {standardBomItems.map((bom, idx) => {
+              const existsInCustom = materials.some(m => m.inventoryItemId === bom.inventoryItemId || (m.code && m.code === bom.inventoryItemCode) || m.name === bom.inventoryItemName);
+              if (existsInCustom) return null;
+              return (
+                <div key={idx} style={{ display: "flex", gap: 12, alignItems: "center", background: "#F8FAFC", padding: "10px 12px", borderRadius: 6, border: `1px solid ${S.border}` }}>
+                  <div style={{ flex: 1, fontSize: "13.5px", color: S.slate, fontWeight: 500 }}>{bom.inventoryItemName || bom.inventoryItemCode}</div>
+                  <div style={{ width: 80, fontSize: "13.5px", color: S.slate, textAlign: "right", fontWeight: 600 }}>{bom.quantity}</div>
+                  <div style={{ width: 80, fontSize: "13.5px", color: S.secondary, textAlign: "center" }}>{bom.unit}</div>
+                  {canEdit && (
+                    <button onClick={() => onAddMaterial(itemId, {
+                      name: bom.inventoryItemName || bom.inventoryItemCode,
+                      quantity: bom.quantity,
+                      unit: bom.unit,
+                      inventoryItemId: bom.inventoryItemId,
+                      code: bom.inventoryItemCode,
+                      spec: '',
+                    })} title="Tambahkan ke daftar untuk diedit"
+                      style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: S.cyan, color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: "16px", fontWeight: 700, lineHeight: 1, flexShrink: 0 }}>
+                      +
+                    </button>
+                  )}
+                </div>
+              );
+            })}
             {materials.length === 0 && canEdit && (
               <div style={{ fontSize: "12.5px", color: S.secondary, marginTop: 8, fontStyle: "italic" }}>
-                * Tekan "Tambahan Khusus" jika ada material ekstra di luar BOM Master Data ini.
+                * Klik + untuk menambahkan material ke daftar edit. Gunakan "Tambahan Khusus" untuk material ekstra.
               </div>
             )}
           </div>

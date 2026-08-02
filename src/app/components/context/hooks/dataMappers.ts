@@ -33,8 +33,7 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
   const legacyMaterials: any[] = [];
   const productsById = new Map(products.map(product => [product.id, product]));
 
-  order.items.forEach(item => {
-    const product = productsById.get(item.productId);
+  (order.items || []).forEach(item => {
     // Process custom materials (notes) regardless of whether it has standard BOM
     if (item.notes?.startsWith("[")) {
       try {
@@ -105,7 +104,7 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
     }
   });
 
-  order.items.forEach(item => {
+  (order.items || []).forEach(item => {
     const product = productsById.get(item.productId);
     product?.bomItems?.forEach(bomItem => {
       // If the engineering team explicitly provided custom specs for this inventory item, skip the standard BOM entry
@@ -147,7 +146,7 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
 
 export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
   const bomsPerItem: Record<string, any[]> = {};
-  order.items.forEach(item => {
+  (order.items || []).forEach(item => {
     if (!item.notes?.startsWith("[")) {
       bomsPerItem[item.id] = [];
       return;
@@ -166,9 +165,9 @@ export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
   return bomsPerItem;
 }
 
-export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], products: ProductDto[] = [], inventoryItems: InventoryItemDto[] = []): SalesOrder {
-  const primaryItem = order.items[0];
-  const materials = mapSalesOrderMaterials(order, products, inventoryItems);
+export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
+  const primaryItem = order.items?.[0];
+  const materials = order.materials || undefined;
   const bomsPerItem = mapBomsPerItem(order);
 
   return {
@@ -182,11 +181,11 @@ export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], pro
     customerDrawingUrl: order.customerDrawingUrl || "",
     partNumber: primaryItem?.productPartNumber || "-",
     description: primaryItem?.productDescription || order.soNumber,
-    quantity: order.items.reduce((sum, item) => sum + item.qty, 0),
+    quantity: (order.items || []).reduce((sum, item) => sum + item.qty, 0),
     unit: "PCS",
     material: (primaryItem?.notes?.startsWith('[')) ? undefined : (primaryItem?.notes || undefined),
     deadline: order.targetDate || order.soDate,
-    status: mapSalesOrderStatus(order, invoices),
+    status: order.status as any,
     createdBy: "backend",
     createdAt: order.soDate,
     designReference: order.designReference,
@@ -206,7 +205,7 @@ export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], pro
     qcPhotos: order.qcPhotos || undefined,
     productionPhotos: order.productionPhotos ? [...order.productionPhotos] : [],
     completionNote: order.completionNote || undefined,
-    estimatedAmount: order.estimatedAmount ?? order.items.reduce((sum, item) => sum + ((item as any).unitPrice || 0) * (item.qty || 0), 0) ?? undefined,
+    estimatedAmount: order.estimatedAmount ?? (order.items || []).reduce((sum, item) => sum + ((item as any).unitPrice || 0) * (item.qty || 0), 0) ?? undefined,
     pauseReason: (order as any).pauseReason || undefined,
     rejectionReason: (order as any).rejectionReason || undefined,
     designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
@@ -214,11 +213,13 @@ export function mapSalesOrderDto(order: SalesOrderDto, invoices: any[] = [], pro
     assignedName: order.productionWorkerName || undefined,
     designAssignedTo: order.designWorkerUserId || undefined,
     designAssignedName: order.designWorkerName || undefined,
-    notes: order.items.map(item => (item.notes && item.notes.startsWith('[')) ? null : item.notes).filter(Boolean).join("; ") || undefined,
+    designApprovedByName: order.designApprovedByName || undefined,
+    designApprovedByUserId: order.designApprovedByUserId || undefined,
+    notes: (order.items || []).map(item => (item.notes && item.notes.startsWith("[") ? item.notes.replace(/\[.*?\]\s*/, "") : item.notes)).filter(Boolean).join(" | "),
     materials,
     bomsPerItem,
     backendDesignStatus: order.designStatus,
-    items: order.items.map(item => ({
+    items: (order.items || []).map(item => ({
       id: item.id,
       productId: item.productId,
       productName: item.productDescription,

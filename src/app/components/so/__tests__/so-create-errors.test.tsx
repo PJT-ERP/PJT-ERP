@@ -2,8 +2,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SOCreate } from '../so-create';
 import { useApp } from '../../context/AppContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useProductsQuery } from '../../../services/queries';
 
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
+vi.mock('../../../services/queries', () => ({
+  useSalesOrdersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useProductsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useUpdateSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn() })),
+  useUpdateCustomerMutation: vi.fn(() => ({ mutate: vi.fn() })),
+}));
 
 vi.mock('../../../services/salesApi', () => ({
   salesApi: {
@@ -14,8 +23,15 @@ vi.mock('../../../services/salesApi', () => ({
 const mockNavigate = vi.fn();
 
 describe('SOCreate — error states', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     vi.clearAllMocks();
+    vi.mocked(useProductsQuery).mockReturnValue({
+      data: [],
+      isLoading: false
+    } as any);
     vi.mocked(useApp).mockReturnValue({
       customers: [],
       productCatalog: [],
@@ -28,14 +44,22 @@ describe('SOCreate — error states', () => {
     } as any);
   });
 
+  const renderWithClient = (ui: React.ReactElement) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>
+    );
+  };
+
   it('renders empty state without crashing when no product catalog', () => {
-    render(<SOCreate onNavigate={mockNavigate} />);
+    renderWithClient(<SOCreate onNavigate={mockNavigate} />);
     expect(screen.getByText('Pesanan Baru (New Order)')).toBeInTheDocument();
     expect(screen.getByText('Repeat Order')).toBeInTheDocument();
   });
 
   it('shows Pesanan Baru form with submit button', async () => {
-    render(<SOCreate onNavigate={mockNavigate} />);
+    renderWithClient(<SOCreate onNavigate={mockNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
 
     await waitFor(() => {
@@ -45,7 +69,7 @@ describe('SOCreate — error states', () => {
   });
 
   it('shows Kode Pelanggan as Auto-generated', async () => {
-    render(<SOCreate onNavigate={mockNavigate} />);
+    renderWithClient(<SOCreate onNavigate={mockNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
 
     await waitFor(() => {

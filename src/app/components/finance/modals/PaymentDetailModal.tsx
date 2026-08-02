@@ -27,11 +27,23 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
 
   const getFullProofUrl = () => {
     if (!payment.proofFileUrl) return '';
-    if (payment.proofFileUrl.startsWith('http')) return payment.proofFileUrl;
-    // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
     let proofPath = payment.proofFileUrl;
-    if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
-    return proofPath;
+    
+    let finalUrl = proofPath;
+    if (proofPath.startsWith('http')) {
+      try {
+        const urlObj = new URL(proofPath);
+        urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+        finalUrl = urlObj.toString();
+      } catch (err) {
+        console.warn("Failed to parse proof URL", err);
+      }
+    } else {
+      if (!proofPath.startsWith('/')) proofPath = '/' + proofPath;
+      finalUrl = proofPath.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+    }
+    
+    return finalUrl;
   };
 
   const openProof = () => {

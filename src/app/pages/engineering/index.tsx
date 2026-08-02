@@ -5,7 +5,9 @@ import {
   ArrowUpRight, Users, CheckSquare, List
 } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
+import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
+import { productionApi, DashboardCountersDto } from "../../services/productionApi";
 import { useNavigate } from "react-router";
 import {
   Bar,
@@ -46,7 +48,9 @@ function StatusBadge({ status }: { status: string }) {
 
 export function EngineeringPage() {
   const navigate = useNavigate();
-  const { salesOrders, customers, currentUser, users } = useApp();
+  const { currentUser, users } = useApp();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const { data: customers = [] } = useCustomersQuery();
   const [showScanner, setShowScanner] = useState(false);
 
   const handleScan = (barcode: string) => {
@@ -64,6 +68,12 @@ export function EngineeringPage() {
       alert("Barcode tidak valid. Pastikan Anda men-scan tiket Sales Order (SO).");
     }
   };
+
+  const [counters, setCounters] = useState<DashboardCountersDto | null>(null);
+
+  React.useEffect(() => {
+    productionApi.getDashboardCounters().then(setCounters).catch(console.error);
+  }, []);
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
@@ -83,15 +93,17 @@ export function EngineeringPage() {
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   const pendingDesignCount = designQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
-  const designReviewCount = designQueue.filter(item => item.status === 'Waiting Spv Approval').length;
 
   const myProdOrders = salesOrders
     .filter(so => so.assignedTo === currentUser?.id && !['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Completed', 'Delivered'].includes(so.status))
     .sort((a, b) => new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime());
 
-  // Production Stats
-  const inProductionCount = salesOrders.filter(so => so.status === 'In Production' || so.status === 'Ready for Production').length;
-  const qcCount = salesOrders.filter(so => so.status === 'QC').length;
+  // Production Stats calculated from local data for accuracy
+  const inProductionCount = salesOrders.filter(so => so.status === "In Production").length;
+  const readyForProductionCount = salesOrders.filter(so => so.status === "Ready for Production").length;
+  const qcCount = salesOrders.filter(so => so.status === "QC").length;
+  const completedCount = salesOrders.filter(so => so.status === "Completed").length;
+  const pausedCount = salesOrders.filter(so => so.status === "Paused").length;
 
   const summaryCards = [
     {
@@ -103,27 +115,37 @@ export function EngineeringPage() {
       change: isSpv ? "Dari Tim Sales" : "Dari Supervisor",
     },
     {
-      label: "Waiting Spv Approval",
-      value: designReviewCount,
-      icon: <Clock size={18} />,
-      accent: "#8B5CF6",
-      bg: "rgba(139,92,246,0.08)",
-      change: "Review Supervisor",
+      label: "Siap Produksi",
+      value: readyForProductionCount,
+      icon: <CheckCircle size={18} />,
+      accent: "#10B981",
+      bg: "rgba(16,185,129,0.08)",
+      change: "Menunggu dimulai",
     },
     {
-      label: "Proses Produksi",
+      label: "Sedang Produksi",
       value: inProductionCount,
       icon: <Factory size={18} />,
       accent: "#3B82F6",
       bg: "rgba(59,130,246,0.08)",
       change: "Aktif di workshop",
     },
+    {
+      label: "Menunggu QC",
+      value: qcCount,
+      icon: <Clock size={18} />,
+      accent: "#8B5CF6",
+      bg: "rgba(139,92,246,0.08)",
+      change: "Butuh inspeksi",
+    },
   ];
 
   const workflowStats = [
     { label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" },
-    { label: "Waiting Spv", count: designReviewCount, color: "#8B5CF6" },
-    { label: "In Production", count: inProductionCount, color: "#3B82F6" },
+    { label: "Siap Produksi", count: readyForProductionCount, color: "#10B981" },
+    { label: "Sedang Produksi", count: inProductionCount, color: "#3B82F6" },
+    { label: "Dipause", count: pausedCount, color: "#F59E0B" },
+    { label: "Menunggu QC", count: qcCount, color: "#8B5CF6" },
   ];
 
   const workerTaskData = users
@@ -374,7 +396,7 @@ export function EngineeringPage() {
               {[
                 { label: "Scan Barcode / QR Ticket", icon: <QrCode size={13} />, action: "scan", primary: false },
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
-                { label: "Daftar Tugas", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
+                { label: "Tugas Desain", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: true },
               ].filter(action => action.action === "scan" || (isSpv || action.path === "/erp/production")).map((action) => (
                 <button

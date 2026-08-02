@@ -6,9 +6,8 @@ import {
   ChevronLeft, ChevronRight,
   Hash, RefreshCw, CheckCircle2, LayoutGrid, List,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
 import type { Customer } from "../data/mockData";
-
+import { useCustomersQuery, useSalesOrdersQuery, useCreateCustomerMutation, useUpdateCustomerMutation } from "../../services/queries";
 
 interface CustomerListProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -72,7 +71,7 @@ function CustomerModal({ state, onSave, onClose }: {
   onSave: (c: Partial<Customer>) => void;
   onClose: () => void;
 }) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const [form, setForm] = useState<Partial<Customer>>(state.customer);
 
   const set = (key: keyof Customer, val: string) => setForm(f => ({ ...f, [key]: val }));
@@ -189,7 +188,11 @@ function CustomerModal({ state, onSave, onClose }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function CustomerList({ onNavigate }: CustomerListProps) {
-  const { customers, salesOrders, addCustomer, updateCustomer } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const createCustomer = useCreateCustomerMutation();
+  const updateCustomer = useUpdateCustomerMutation();
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
@@ -235,18 +238,27 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
         }, 0);
         return `CUST-${String(maxNum + 1).padStart(3, "0")}`;
       };
-      const newCustomer: Customer = {
+      
+      createCustomer.mutate({
         code: generateCode(),
         name: data.name ?? "",
-        contactPerson: data.contactPerson ?? "",
-        contact: data.contact ?? "",
-        phone: data.phone ?? "",
         address: data.address ?? "",
+        contactPerson: data.contactPerson ?? "",
         email: data.email ?? "",
-      };
-      addCustomer(newCustomer);
+        phone: data.phone ?? "",
+      });
     } else if (modal?.mode === "edit" && data.code) {
-      updateCustomer(data.code, data);
+      updateCustomer.mutate({
+        code: data.code,
+        data: {
+          name: data.name ?? "",
+          address: data.address ?? "",
+          contactPerson: data.contactPerson ?? "",
+          email: data.email ?? "",
+          phone: data.phone ?? "",
+          isActive: true
+        }
+      });
     }
     setModal(null);
   };

@@ -525,7 +525,7 @@ export function FinanceDashboard() {
                     <p className="text-sm font-semibold text-blue-800">Tugas Estimasi Harga</p>
                     <p className="text-xs text-blue-600 mt-0.5">{pendingPricingOrders.length} Sales Order menunggu estimasi harga</p>
                     <button onClick={() => navigate('/erp/finance/costing')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
-                      Buka Costing & Pricing →
+                      Buka Penetapan Harga →
                     </button>
                   </div>
                 </div>

@@ -2,8 +2,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SOCreate } from '../so-create';
 import { useApp } from '../../context/AppContext';
+import { useSalesOrdersQuery, useCustomersQuery, useProductsQuery } from '../../../services/queries';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
+vi.mock('../../../services/queries', () => ({
+  useSalesOrdersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useProductsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useUpdateSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn() })),
+  useUpdateCustomerMutation: vi.fn(() => ({ mutate: vi.fn() })),
+}));
 
 vi.mock('../../../services/salesApi', () => ({
   salesApi: {
@@ -29,8 +38,10 @@ const mockProductCatalog = [
 
 describe('SOCreate Component', () => {
   const onNavigate = vi.fn();
+  let queryClient: QueryClient;
 
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     vi.clearAllMocks();
     vi.mocked(useApp).mockReturnValue({
       customers: [{ code: 'CUST-001', name: 'PT Maju Jaya', contactPerson: 'Budi', phone: '0812', email: 'budi@maju.com', address: 'Jakarta', contact: 'budi@maju.com' }],
@@ -63,22 +74,66 @@ describe('SOCreate Component', () => {
       refreshBackendData: vi.fn().mockResolvedValue(undefined),
       purchasingRequests: [],
     } as any);
+
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({
+      data: [
+        {
+          id: 'so-unpriced',
+          soNumber: 'SO-2026-001',
+          customerId: 'CUST-001',
+          description: 'Test Repeat Unpriced',
+          estimatedAmount: 5000,
+          items: [
+            { productId: 'prod-1', productName: 'PART-001', qty: 10, unitPrice: 0 }
+          ]
+        },
+        {
+          id: 'so-priced',
+          soNumber: 'SO-2026-002',
+          customerId: 'CUST-001',
+          description: 'Test Repeat Priced',
+          estimatedAmount: 5000,
+          items: [
+            { productId: 'prod-1', productName: 'PART-001', qty: 10, unitPrice: 500 }
+          ]
+        }
+      ],
+      isLoading: false
+    } as any);
+
+    vi.mocked(useCustomersQuery).mockReturnValue({
+      data: [{ code: 'CUST-001', name: 'PT Maju Jaya', contactPerson: 'Budi', phone: '0812', email: 'budi@maju.com', address: 'Jakarta', contact: 'budi@maju.com' }],
+      isLoading: false
+    } as any);
+
+    vi.mocked(useProductsQuery).mockReturnValue({
+      data: mockProductCatalog,
+      isLoading: false
+    } as any);
   });
 
+  const renderWithClient = (ui: React.ReactElement) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>
+    );
+  };
+
   it('renders order type selection cards', () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     expect(screen.getByText('Pesanan Baru (New Order)')).toBeInTheDocument();
     expect(screen.getByText('Repeat Order')).toBeInTheDocument();
   });
 
   it('navigates to new order form', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => expect(screen.getByText('Submit Sales Order')).toBeInTheDocument());
   });
 
   it('shows customer info and detail order sections', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => {
       expect(screen.getByText('Informasi Pelanggan')).toBeInTheDocument();
@@ -87,14 +142,14 @@ describe('SOCreate Component', () => {
   });
 
   it('allows switching to Pelanggan Terdaftar tab', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => fireEvent.click(screen.getByText('Pelanggan Terdaftar')));
     await waitFor(() => expect(screen.getByPlaceholderText('Cari nama, kode, atau PIC pelanggan...')).toBeInTheDocument());
   });
 
   it('shows Terdaftar / Custom product type toggle', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => {
       expect(screen.getByText('Terdaftar')).toBeInTheDocument();
@@ -103,18 +158,18 @@ describe('SOCreate Component', () => {
   });
 
   it('shows Add Product button in product list', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => expect(screen.getByText('Tambah Produk')).toBeInTheDocument());
   });
 
   it('shows Penetapan Harga section in new order form', async () => {
-    render(<SOCreate onNavigate={onNavigate} />);
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
     await waitFor(() => expect(screen.getByText('Penetapan Harga')).toBeInTheDocument());
   });
   it('does NOT fallback to estimated amount if original SO is unpriced by Finance', async () => {
-    const { container } = render(<SOCreate onNavigate={onNavigate} />);
+    const { container } = renderWithClient(<SOCreate onNavigate={onNavigate} />);
     
     // Select Repeat Order
     fireEvent.click(screen.getByText('Repeat Order'));
@@ -141,7 +196,7 @@ describe('SOCreate Component', () => {
   });
 
   it('autofills unit price correctly if original SO was already priced by Finance', async () => {
-    const { container } = render(<SOCreate onNavigate={onNavigate} />);
+    const { container } = renderWithClient(<SOCreate onNavigate={onNavigate} />);
     
     // Select Repeat Order
     fireEvent.click(screen.getByText('Repeat Order'));

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../../../components/context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFinanceData } from "../../../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../../../components/so/invoice-sync";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
@@ -8,18 +9,23 @@ import { purchasingApi } from "../../../services/purchasingApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
 import { getBackendSalesOrderId, getMaterialOptions, SystemMessage } from "../../../components/production/ProductionHelpers";
 import { SalesOrder } from "../../../components/data/mockData";
+import { mapSalesOrderDto } from "../../../components/context/hooks/dataMappers";
+import type { SalesOrderDto } from "../../../services/salesApi";
+
+import { useSalesOrdersQuery, usePurchasingRequestsQuery } from "../../../services/queries";
 
 export function useProductionBoard() {
-  const { salesOrders, currentUser, users, purchasingRequests, refreshBackendData } = useApp();
+  const { currentUser, users } = useApp();
+  const queryClient = useQueryClient();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const { data: purchasingRequests = [] } = usePurchasingRequestsQuery();
   const canReadFinanceData = currentUser?.role === "Finance"
     || currentUser?.role === "Admin"
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
   const { invoices } = useFinanceData(canReadFinanceData);
-  const mergedSalesOrders = salesOrders.map(so => mergeSalesOrderInvoice(so, invoices));
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
-  const currentBackendUserId = toBackendUserId(currentUser);
 
   const [assignModal, setAssignModal] = useState<SalesOrder | null>(null);
   const [startModal, setStartModal] = useState<SalesOrder | null>(null);
@@ -34,10 +40,30 @@ export function useProductionBoard() {
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
   
   const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
+  const [productionQueues, setProductionQueues] = useState<any>({
+    pendingAssignment: [],
+    readyToStart: [],
+    inProduction: [],
+    waitingQc: [],
+    pendingDesign: []
+  });
   
   useEffect(() => {
     masterDataApi.listInventory().then(setInventory).catch(console.error);
-  }, [salesOrders]);
+    Promise.all([
+      productionApi.getProductionBoardQueues(),
+      productionApi.getEngineeringQueues()
+    ]).then(([prodQueues, engQueues]) => {
+      setProductionQueues({
+        pendingAssignment: (prodQueues.pendingAssignment || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        readyToStart: (prodQueues.readyToStart || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        inProduction: (prodQueues.inProduction || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        paused: (prodQueues.paused || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        waitingQc: (prodQueues.waitingQc || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        pendingDesign: (engQueues.pendingDesign || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+      });
+    }).catch(console.error);
+  }, [salesOrders, currentUser]);
 
   const checkMaterialShortage = (so: SalesOrder) => {
     const materials = getMaterialOptions(so);
@@ -69,7 +95,8 @@ export function useProductionBoard() {
         workerUserId,
         workerName: currentUser?.name || so.assignedName || "Engineering",
       });
-      await refreshBackendData();
+      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
     } catch (error: unknown) {
       console.warn("Failed to resume production in backend.", error);
       const axiosError = error as { response?: { data?: { message?: string } } };
@@ -78,14 +105,7 @@ export function useProductionBoard() {
     }
   };
 
-  const isAssignedToCurrentUser = (so: SalesOrder) => !so.assignedTo || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId || isSupervisor;
 
-  const isReadyForProd = (so: SalesOrder) => {
-    if (so.status === 'Ready for Production') return true;
-    if (so.startTime || (so as any).qcDecision) return false;
-    if (so.backendDesignStatus === 'Approved' && ['Waiting Pricing', 'Waiting Payment', 'Pending Design', 'Waiting Approval'].includes(so.status)) return true;
-    return false;
-  };
 
   const getMaterialRequest = (so: SalesOrder) => {
     const backendId = getBackendSalesOrderId(so);
@@ -142,11 +162,13 @@ export function useProductionBoard() {
     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   };
 
-  const pendingMaterialPrep = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && !checkMaterialComplete(so)).sort(sortByDeadline);
-  const pendingAssignment = mergedSalesOrders.filter(so => isReadyForProd(so) && !so.assignedTo && checkMaterialComplete(so)).sort(sortByDeadline);
-  const readyToStart = mergedSalesOrders.filter(so => isReadyForProd(so) && !!so.assignedTo && isAssignedToCurrentUser(so)).sort(sortByDeadline);
-  const inProduction = mergedSalesOrders.filter(so => (so.status === 'In Production' || so.status === 'Paused') && isAssignedToCurrentUser(so)).sort(sortByDeadline);
-  const waitingQC = mergedSalesOrders.filter(so => so.status === 'QC').sort(sortByDeadline);
+  const backendPendingAssignment = (productionQueues?.pendingAssignment || []).map((so: any) => mergeSalesOrderInvoice(so, invoices));
+  const pendingMaterialPrep = backendPendingAssignment.filter((so: SalesOrder) => !checkMaterialComplete(so)).sort(sortByDeadline);
+  const pendingAssignment = backendPendingAssignment.filter((so: SalesOrder) => checkMaterialComplete(so)).sort(sortByDeadline);
+  const readyToStart = (productionQueues?.readyToStart || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const inProduction = (productionQueues?.inProduction || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const waitingQC = (productionQueues?.waitingQc || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const pendingDesign = (productionQueues?.pendingDesign || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
 
   const approveMaterialRequest = async (so: SalesOrder) => {
     const request = getMaterialRequest(so);
@@ -162,7 +184,7 @@ export function useProductionBoard() {
     }
 
     if (request.backendStatus && request.backendStatus !== 'Submitted') {
-      await refreshBackendData();
+      queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
       if (request.backendStatus === 'SupervisorApproved') {
         setSystemMessage({
           tone: "info",
@@ -192,7 +214,7 @@ export function useProductionBoard() {
         reviewedByUserId: reviewerId,
         decision: 'Accept',
       });
-      await refreshBackendData();
+      queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
       setSystemMessage({
         tone: "success",
         title: "MR Disetujui Supervisor",
@@ -237,7 +259,7 @@ export function useProductionBoard() {
         decision: 'Reject',
         rejectionReason: reason,
       });
-      await refreshBackendData();
+      queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
       setSystemMessage({
         tone: "success",
         title: "MR Ditolak",
@@ -275,6 +297,7 @@ export function useProductionBoard() {
     readyToStart,
     inProduction,
     waitingQC,
+    pendingDesign,
     checkMaterialShortage,
     getMaterialRequestState,
     handleResume,

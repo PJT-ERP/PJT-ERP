@@ -14,7 +14,7 @@ import { PricingSection } from "./create/PricingSection";
 import { useNewOrderForm } from "./hooks/useNewOrderForm";
 import { useRepeatOrderForm } from "./hooks/useRepeatOrderForm";
 import { useSubmitSO } from "./hooks/useSubmitSO";
-import { useApp } from "../context/AppContext";
+import { useCustomersQuery, useSalesOrdersQuery, useProductsQuery } from "../../services/queries";
 
 interface SOCreateProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -33,7 +33,9 @@ const S = {
 };
 
 export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
-  const { customers, salesOrders, productCatalog } = useApp();
+  const { data: productCatalog = [] } = useProductsQuery();
+  const { data: salesOrders = [], isLoading: isLoadingOrders } = useSalesOrdersQuery();
+  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomersQuery();
   const submitSO = useSubmitSO();
   const newOrderMethods = useNewOrderForm(initialData);
   const tempRepeatMethods = useRepeatOrderForm(initialData);
@@ -41,12 +43,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const [orderType, setOrderType] = useState<"new" | "repeat" | null>(initialData?.mode === "edit" ? "new" : initialData?.orderType ?? null);
   const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
 
-  const { fields: newOrderFields, append: newOrderAppend, remove: newOrderRemove, update: newOrderUpdate } = useFieldArray({
+  const { fields: newOrderFields, append: newOrderAppend, remove: newOrderRemove } = useFieldArray({
     control: newOrderMethods.control,
     name: "products"
   });
 
-  const { fields: repeatOrderFields, append: repeatOrderAppend, remove: repeatOrderRemove, update: repeatOrderUpdate, replace: repeatOrderReplace } = useFieldArray({
+  const { fields: repeatOrderFields, append: repeatOrderAppend, remove: repeatOrderRemove, replace: repeatOrderReplace } = useFieldArray({
     control: tempRepeatMethods.control,
     name: "repeatProducts"
   });
@@ -162,7 +164,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         })}
       </div>
 
-      {!orderType && <OrderTypeSelector onSelect={setOrderType} />}
+      {isLoadingOrders || isLoadingCustomers ? (
+        <div className="animate-pulse" style={{ height: 200, width: "100%", background: "#f1f5f9", borderRadius: 6, marginTop: 20 }} />
+      ) : (
+        <>
+          {!orderType && <OrderTypeSelector onSelect={setOrderType} />}
 
       {/* ===== New Order Form ===== */}
       {orderType === "new" && (
@@ -285,7 +291,12 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                         onChange={updated => {
                           repeatOrderMethods.setValue(`repeatProducts.${idx}`, updated, { shouldDirty: true, shouldTouch: true });
                           const allProducts = repeatOrderMethods.getValues("repeatProducts");
-                          const total = allProducts.reduce((acc: number, p: any) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+                          const total = allProducts.reduce((acc: number, p: any) => {
+                            if (!p) return acc;
+                            const qty = Number(p.quantity) || 0;
+                            const price = Number(p.unitPrice) || 0;
+                            return acc + qty * price;
+                          }, 0);
                           repeatOrderMethods.setValue("repeatForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true });
                         }}
                         onRemove={() => repeatOrderRemove(idx)}
@@ -320,6 +331,8 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             </div>
           </form>
         </FormProvider>
+      )}
+        </>
       )}
     </div>
   );

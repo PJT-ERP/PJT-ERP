@@ -75,6 +75,8 @@ export interface SalesOrderDto {
   customerDrawingUrl?: string | null;
   designReference?: string | null;
   designStatus: string;
+  designApprovedByUserId?: string | null;
+  designApprovedByName?: string | null;
   designApprovedAtUtc?: string | null;
   soDate: string;
   targetDate?: string | null;
@@ -107,10 +109,22 @@ export interface SalesOrderDto {
     designReference?: string | null;
     customerDrawingUrl?: string | null;
   }>;
+  materials?: Array<{
+    id: string;
+    inventoryItemId?: string | null;
+    name: string;
+    code?: string | null;
+    spec?: string | null;
+    specification?: string | null;
+    quantity: number;
+    unit: string;
+  }> | null;
   qcPhotos?: string[] | null;
   productionPhotos?: string[] | null;
   estimatedAmount?: number | null;
   completionNote?: string | null;
+  createdAtUtc?: string;
+  updatedAtUtc?: string;
 }
 
 export interface CreateSalesOrderRequest {
@@ -280,6 +294,11 @@ export const salesApi = {
 
   async updateSalesOrderItems(salesOrderId: string, request: { items: any[] }) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/items`, request);
+    return response.data;
+  },
+
+  async updateSalesOrder(salesOrderId: string, request: any) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}`, request);
     return response.data;
   },
 

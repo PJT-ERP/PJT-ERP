@@ -1,18 +1,20 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ExternalLink, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Shield, CheckCircle, ChevronLeft, ChevronRight, Search, Image as ImageIcon, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor, calcProductionDuration } from "../../components/data/mockData";
 import { qcApi } from "../../services/qcApi";
 import type { QcInspectionDto } from "../../services/qcApi";
-import { BASE_URL } from "../../services/apiClient";
 import { QCReadOnlyView } from "../QCReadOnlyView";
-import { toBackendUserId, isGuid } from "../../services/backendIds";
-import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
 import { S, isGo, isNoGo, mapInspectionToSalesOrder, findInspectionForSo } from "./components/utils";
-import { QCHistoryModal } from "./components/QCHistoryModal";
+import { QCHistoryModal } from './components/QCHistoryModal';
 import { QCInspectionModal } from "./components/QCInspectionModal";
 import { DrawingLink } from "./components/DrawingLink";
 import { InlineBomDisplay } from "../Production/components/InlineBomDisplay";
+import { productionApi, QcQueuesDto } from "../../services/productionApi";
+import { useCustomersQuery } from "../../services/queries";
+import { mapSalesOrderDto } from "../../components/context/hooks/dataMappers";
+import type { SalesOrderDto } from "../../services/salesApi";
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);
@@ -29,10 +31,13 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function QCInspectionsPage() {
-  const { salesOrders, customers, currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
+  const { data: customers = [] } = useCustomersQuery();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
   const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
+  const [qcQueues, setQcQueues] = useState<QcQueuesDto | null>(null);
 
   const [historySearch, setHistorySearch] = useState("");
   const [historyFilter, setHistoryFilter] = useState("All");
@@ -46,39 +51,53 @@ export function QCInspectionsPage() {
   const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Admin';
   const isReadOnly = (currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin') || isOwner;
 
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setInspections(await qcApi.listInspections());
+      } catch (error) {
+        console.warn("Backend QC inspections unavailable", error);
+      }
+      try {
+        const queues = await productionApi.getQcQueues();
+        setQcQueues({
+          readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+          inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        });
+      } catch (error) {
+        console.error("Failed to load QC queues", error);
+      }
+    };
+
+    void loadData();
+  }, []);
+
   if (isReadOnly) {
     return <QCReadOnlyView />;
   }
 
-  useEffect(() => {
-    const loadInspections = async () => {
-      try {
-        setInspections(await qcApi.listInspections());
-      } catch (error) {
-        console.warn("Backend QC inspections unavailable, using local QC queue.", error);
-      }
-    };
-
-    void loadInspections();
-  }, []);
-
-  const sortByDeadline = (a: SalesOrder, b: SalesOrder) => {
+  const sortByDeadline = (a: any, b: any) => {
     if (!a.deadline) return 1;
     if (!b.deadline) return -1;
     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   };
 
   const hasBackendInspections = inspections.length > 0;
+  const readyForInspection = qcQueues?.readyForInspection || [];
+  const inspectionHistory = qcQueues?.inspectionHistory || [];
+
   const qcQueue = (hasBackendInspections
     ? inspections
-      .filter(inspection => inspection.status === "ReadyForInspection")
-      .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
-    : salesOrders.filter(so => so.status === 'QC')).sort(sortByDeadline);
+      .filter(inspection => inspection.status === "ReadyForInspection" && !inspection.decision)
+      .map(inspection => mapInspectionToSalesOrder(inspection, readyForInspection as any))
+    : readyForInspection).sort(sortByDeadline) as SalesOrder[];
+    
   const recentCompleted = (hasBackendInspections
     ? inspections
       .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
-      .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
-    : salesOrders.filter(so => so.status === 'Completed')).sort(sortByDeadline);
+      .map(inspection => mapInspectionToSalesOrder(inspection, inspectionHistory as any))
+    : inspectionHistory).sort(sortByDeadline) as SalesOrder[];
+    
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
   const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
 
@@ -97,7 +116,7 @@ export function QCInspectionsPage() {
   });
 
   return (
-    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
+    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20, fontFamily: "Inter, sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>Quality Control</h1>
@@ -332,7 +351,13 @@ export function QCInspectionsPage() {
           onClose={() => setSelectedSO(null)}
           onSaved={async (updatedInspection) => {
             setInspections(prev => prev.map(item => item.id === updatedInspection.id ? updatedInspection : item));
-            await refreshBackendData();
+            const queues = await productionApi.getQcQueues();
+            setQcQueues({
+              readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+              inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+            });
+            queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+            queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
           }}
         />
       )}

@@ -3,11 +3,12 @@ import {
   LineChart, Line, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { Package, Clock, CheckCircle, AlertTriangle, Users, DollarSign, PieChart as PieChartIcon, Activity, CheckSquare, Pencil, Factory } from "lucide-react";
-import { useApp } from "../../components/context/AppContext";
+import { Activity, AlertTriangle, CheckCircle, CheckSquare, Clock, DollarSign, Factory, Package, Pencil, PieChart as PieChartIcon, Users } from "lucide-react";
 import { SOStatus } from "../../components/data/mockData";
+import { useApp } from "../../components/context/AppContext";
+import { useSalesOrdersQuery, useCustomersQuery } from "../../services/queries";
 import { analyticsApi, OwnerDashboardDto } from "../../services/analyticsApi";
-import { productionApi, ExecutiveDashboardDto } from "../../services/productionApi";
+import { productionApi, ExecutiveDashboardDto, DashboardCountersDto } from "../../services/productionApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -49,13 +50,32 @@ const formatCurrency = (val: number) => {
 }
 
 export function DashboardPage() {
-  const { salesOrders, customers, users } = useApp();
+  const { data: salesOrdersData = [] } = useSalesOrdersQuery();
+  const { data: customers = [] } = useCustomersQuery();
+  const { users } = useApp();
+  
+  // Need to map frontend SalesOrder shape if strictly required by local logic, 
+  // but let's map the essential fields for Dashboard:
+  const salesOrders = salesOrdersData.map(so => ({
+    id: so.id,
+    soNumber: so.id,
+    status: so.status,
+    deadline: so.deadline,
+    estimatedAmount: so.estimatedAmount,
+    designAssignedTo: so.designAssignedTo,
+    assignedTo: so.assignedTo,
+    customerId: so.customerId,
+    customerName: so.customerName
+  }));
   const [dashboardData, setDashboardData] = useState<OwnerDashboardDto | null>(null);
   const [executiveDashboard, setExecutiveDashboard] = useState<ExecutiveDashboardDto | null>(null);
+  const [counters, setCounters] = useState<DashboardCountersDto | null>(null);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     analyticsApi.getOwnerDashboard().then(setDashboardData).catch(console.error);
     productionApi.getExecutiveDashboard().then(setExecutiveDashboard).catch(console.error);
+    productionApi.getDashboardCounters().then(setCounters).catch(console.error);
   }, []);
 
   const statusCounts = STATUS_ORDER.map(status => ({
@@ -75,11 +95,11 @@ export function DashboardPage() {
 
   const kpis = [
     { label: 'Total Nilai', value: formatCurrency(totalRevenue), icon: <DollarSign size={18} />, bg: '#FEF2F2', accent: S.cyan },
-    { label: 'SO Aktif', value: executiveDashboard?.totalOrders ?? salesOrders.filter(s => s.status !== 'Completed' && s.status !== 'Rejected').length, icon: <Package size={18} />, bg: '#eff6ff', accent: '#1d4ed8' },
-    { label: 'Selesai', value: executiveDashboard?.completed ?? salesOrders.filter(s => s.status === 'Completed').length, icon: <CheckCircle size={18} />, bg: '#f0fdf4', accent: '#15803d' },
-    { label: 'Terlambat', value: executiveDashboard?.overdueCount ?? overdueSOs.length, icon: <AlertTriangle size={18} />, bg: '#fef2f2', accent: '#b91c1c' },
-    { label: 'Di Produksi', value: executiveDashboard?.inProgress ?? salesOrders.filter(s => s.status === 'In Production').length, icon: <Clock size={18} />, bg: '#fff7ed', accent: '#c2410c' },
-    { label: 'Antri QC', value: executiveDashboard?.waitingQC ?? salesOrders.filter(s => s.status === 'QC').length, icon: <Activity size={18} />, bg: '#faf5ff', accent: '#7e22ce' },
+    { label: 'SO Aktif', value: counters?.totalActive ?? 0, icon: <Package size={18} />, bg: '#eff6ff', accent: '#1d4ed8' },
+    { label: 'Selesai', value: executiveDashboard?.completed ?? 0, icon: <CheckCircle size={18} />, bg: '#f0fdf4', accent: '#15803d' },
+    { label: 'Terlambat', value: counters?.overdueCount ?? 0, icon: <AlertTriangle size={18} />, bg: '#fef2f2', accent: '#b91c1c' },
+    { label: 'Di Produksi', value: counters?.inProduction ?? 0, icon: <Clock size={18} />, bg: '#fff7ed', accent: '#c2410c' },
+    { label: 'Antri QC', value: counters?.waitingQc ?? 0, icon: <Activity size={18} />, bg: '#faf5ff', accent: '#7e22ce' },
   ];
 
   const workerTaskData = users
@@ -301,7 +321,7 @@ export function DashboardPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {overdueSOs.map(so => {
-                  const days = Math.ceil((Date.now() - new Date(so.deadline).getTime()) / (1000 * 60 * 60 * 24));
+                  const days = Math.ceil((now - new Date(so.deadline).getTime()) / (1000 * 60 * 60 * 24));
                   return (
                     <div key={so.id} style={{ display: "flex", alignItems: "center", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, gap: 12 }}>
                       <p style={{ color: S.slate, fontSize: "13px", fontWeight: 600, margin: 0, fontFamily: "monospace", minWidth: 90 }}>{so.soNumber || so.id}</p>

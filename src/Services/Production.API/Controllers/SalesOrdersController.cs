@@ -20,6 +20,62 @@ public sealed class SalesOrdersController(
         return Ok(await queryService.ListSalesOrdersAsync(cancellationToken));
     }
 
+    [HttpGet("queues")]
+    [Authorize(Roles = "Admin,Owner,Engineering Supervisor,Engineering,QC")]
+    public async Task<ActionResult<ProductionQueuesDto>> GetQueues(CancellationToken cancellationToken)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid? userId = Guid.TryParse(userIdString, out var parsed) ? parsed : null;
+        
+        var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        
+        var queues = await queryService.GetProductionQueuesAsync(userId, userRole, cancellationToken);
+        return Ok(queues);
+    }
+
+    [HttpGet("queues/engineering")]
+    [Authorize(Roles = "Admin,Owner,Engineering Supervisor,Engineering")]
+    public async Task<ActionResult<EngineeringQueuesDto>> GetEngineeringQueues(CancellationToken cancellationToken)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid? userId = Guid.TryParse(userIdString, out var parsed) ? parsed : null;
+        var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        
+        return Ok(await queryService.GetEngineeringQueuesAsync(userId, userRole, cancellationToken));
+    }
+
+    [HttpGet("queues/finance-costing")]
+    [Authorize(Roles = "Admin,Owner,Finance")]
+    public async Task<ActionResult<FinanceCostingQueuesDto>> GetFinanceCostingQueues(CancellationToken cancellationToken)
+    {
+        return Ok(await queryService.GetFinanceCostingQueuesAsync(cancellationToken));
+    }
+
+    [HttpGet("queues/approvals")]
+    [Authorize(Roles = "Admin,Owner,Sales")]
+    public async Task<ActionResult<ApprovalQueuesDto>> GetApprovalQueues(CancellationToken cancellationToken)
+    {
+        return Ok(await queryService.GetApprovalQueuesAsync(cancellationToken));
+    }
+
+    [HttpGet("queues/qc")]
+    [Authorize(Roles = "Admin,Owner,QC,Engineering Supervisor")]
+    public async Task<ActionResult<QcQueuesDto>> GetQcQueues(CancellationToken cancellationToken)
+    {
+        return Ok(await queryService.GetQcQueuesAsync(cancellationToken));
+    }
+
+    [HttpGet("queues/board")]
+    [Authorize(Roles = "Admin,Owner,Engineering Supervisor,Engineering,Production")]
+    public async Task<ActionResult<ProductionBoardQueuesDto>> GetProductionBoardQueues(CancellationToken cancellationToken)
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Guid? userId = Guid.TryParse(userIdString, out var parsed) ? parsed : null;
+        var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        
+        return Ok(await queryService.GetProductionBoardQueuesAsync(userId, userRole, cancellationToken));
+    }
+
     [HttpGet("{id:guid}/progress")]
     [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> GetProgress(Guid id, CancellationToken cancellationToken)
@@ -56,6 +112,24 @@ public sealed class SalesOrdersController(
         catch (InvalidOperationException ex)
         {
             Console.WriteLine($"[DEBUG] InvalidOperationException: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin,Sales,Engineering Supervisor,Engineering,Owner,Sales Order")]
+    public async Task<ActionResult<SalesOrderDto>> UpdateGeneral(
+        Guid id, 
+        UpdateSalesOrderGeneralRequest request, 
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var order = await salesOrderCommandService.UpdateSalesOrderGeneralAsync(id, request, cancellationToken);
+            return order is null ? NotFound() : Ok(order);
+        }
+        catch (InvalidOperationException ex)
+        {
             return BadRequest(new { message = ex.Message });
         }
     }

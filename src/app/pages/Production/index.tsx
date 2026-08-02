@@ -15,6 +15,7 @@ import { PendingAssignmentPanel } from "./components/panels/PendingAssignmentPan
 import { ReadyToStartPanel } from "./components/panels/ReadyToStartPanel";
 import { InProductionPanel } from "./components/panels/InProductionPanel";
 import { WaitingQCPanel } from "./components/panels/WaitingQCPanel";
+import { PendingDesignPanel } from "./components/panels/PendingDesignPanel";
 
 export function ProductionPage() {
   const board = useProductionBoard();
@@ -30,6 +31,7 @@ export function ProductionPage() {
         </div>
       </div>
 
+      {board.currentUser?.role === 'Engineering Supervisor' && <PendingDesignPanel board={board} />}
       <MaterialPrepPanel board={board} />
       <PendingAssignmentPanel board={board} />
       <ReadyToStartPanel board={board} />

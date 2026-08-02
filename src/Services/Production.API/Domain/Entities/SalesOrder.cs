@@ -29,6 +29,7 @@ public sealed class SalesOrder
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public decimal? EstimatedAmount { get; set; }
+    public bool IsCostingCompleted { get; set; } = false;
     public List<SalesOrderItem> Items { get; set; } = [];
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
     public List<SalesOrderDesignRevision> DesignRevisions { get; set; } = [];

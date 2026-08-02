@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { MaterialReviewModal } from '../MaterialReviewModal';
 
@@ -32,23 +33,25 @@ describe('MaterialReviewModal - Supervisor Rejection Flow', () => {
       />
     );
 
+    const user = userEvent.setup();
+
     // 1. Verify modal is open
     expect(screen.getByText('PR-123')).toBeInTheDocument();
     
     // 2. Click "Tolak" button
-    const tolakBtn = screen.getByRole('button', { name: /Tolak/i });
-    fireEvent.click(tolakBtn);
+    const tolakBtn = screen.getByRole('button', { name: 'Tolak' });
+    await user.click(tolakBtn);
 
     // 3. Reject reason input appears
     expect(screen.getByText('Catatan Penolakan Supervisor')).toBeInTheDocument();
     const reasonInput = screen.getByPlaceholderText(/Contoh: qty terlalu banyak/i);
 
     // 4. Input reason
-    fireEvent.change(reasonInput, { target: { value: 'Qty terlalu banyak' } });
+    await user.type(reasonInput, 'Qty terlalu banyak');
 
     // 5. Submit rejection
     const confirmBtn = screen.getByRole('button', { name: /Konfirmasi Tolak/i });
-    fireEvent.click(confirmBtn);
+    await user.click(confirmBtn);
 
     // 6. Verify callbacks
     await waitFor(() => {

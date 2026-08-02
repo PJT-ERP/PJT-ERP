@@ -43,7 +43,7 @@ function QrCodeCard({ order }: { order: SalesOrder }) {
     const canvas = document.getElementById("so-qr-canvas") as HTMLCanvasElement;
     if (!canvas) return;
     const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-    let downloadLink = document.createElement("a");
+    const downloadLink = document.createElement("a");
     downloadLink.href = pngUrl;
     downloadLink.download = `QR_${order.id}.png`;
     document.body.appendChild(downloadLink);

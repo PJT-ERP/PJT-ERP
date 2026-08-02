@@ -80,11 +80,7 @@ public class SalesOrderCommandService(
         var estimatedAmount = request.Items.Sum(item => item.Qty * item.UnitPrice);
         
         var isApproved = NormalizeDesignStatus(request.DesignStatus) == "Approved";
-        var status = SalesOrderStatuses.Draft;
-        if (isApproved)
-        {
-            status = "Waiting Pricing";
-        }
+        var status = isApproved ? "Ready for Production" : "Pending Design";
 
         var order = new SalesOrder
         {
@@ -134,8 +130,10 @@ public class SalesOrderCommandService(
 
     public async Task<SalesOrderDto> CreateCompleteSalesOrderAsync(CompleteSalesOrderRequest request, CancellationToken cancellationToken)
     {
-        var customerCode = request.Customer.Code.Trim().ToUpperInvariant();
-        var existingCustomer = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Code.ToUpper() == customerCode, cancellationToken);
+        var customerCode = request.Customer.Code?.Trim().ToUpperInvariant() ?? "";
+        var existingCustomer = string.IsNullOrWhiteSpace(customerCode) 
+            ? null 
+            : await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Code.ToUpper() == customerCode, cancellationToken);
         Guid customerId;
 
         if (existingCustomer != null)
@@ -312,7 +310,7 @@ public class SalesOrderCommandService(
                 ProductPartNumber = products[item.ProductId].PartNumber,
                 ProductDescription = products[item.ProductId].Description,
                 Qty = item.Qty,
-                UnitPrice = item.UnitPrice,
+                UnitPrice = item.UnitPrice != 0 ? item.UnitPrice : (existingItem?.UnitPrice ?? 0),
                 Notes = item.Notes,
                 CustomerDrawingUrl = existingItem?.CustomerDrawingUrl,
                 DesignReference = existingItem?.DesignReference
@@ -358,6 +356,8 @@ public class SalesOrderCommandService(
         {
             salesOrder.Status = "Waiting Payment";
         }
+        
+        salesOrder.IsCostingCompleted = true;
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         var integrationEvent = new SalesOrderReadyForInvoiceEvent(
@@ -472,7 +472,7 @@ public class SalesOrderCommandService(
         salesOrder.DesignStatus = designStatus;
         if (designStatus == SalesOrderDesignStatuses.Approved)
         {
-            salesOrder.Status = "Waiting Pricing";
+            salesOrder.Status = "Ready for Production";
             salesOrder.RejectionReason = null;
         }
         else if (designStatus == SalesOrderDesignStatuses.RevisionRequired || designStatus == SalesOrderDesignStatuses.Rejected)
@@ -603,5 +603,58 @@ public class SalesOrderCommandService(
         await db.SaveChangesAsync(cancellationToken);
         return await GetSalesOrderProgressInternalAsync(salesOrder.Id, cancellationToken)
             ?? throw new InvalidOperationException("Sales order tracking was not found after confirmation.");
+    }
+
+    public async Task<SalesOrderDto?> UpdateSalesOrderGeneralAsync(Guid salesOrderId, UpdateSalesOrderGeneralRequest request, CancellationToken cancellationToken)
+    {
+        var order = await db.SalesOrders
+            .Include(o => o.Items)
+            .Include(o => o.DesignRevisions)
+            .FirstOrDefaultAsync(o => o.Id == salesOrderId, cancellationToken);
+
+        if (order is null) return null;
+
+        if (request.Deadline.HasValue)
+        {
+            order.TargetDate = request.Deadline;
+        }
+        
+        if (request.CustomerDrawingUrl != null)
+        {
+            order.CustomerDrawingUrl = request.CustomerDrawingUrl;
+        }
+
+        if (request.DesignRevisions != null)
+        {
+            order.DesignRevisions.Clear();
+            foreach (var rev in request.DesignRevisions)
+            {
+                order.DesignRevisions.Add(new SalesOrderDesignRevision
+                {
+                    SalesOrderId = order.Id,
+                    Version = rev.Version,
+                    Url = rev.Url,
+                    ChangedBy = rev.ChangedBy,
+                    ChangedAtUtc = rev.ChangedAtUtc
+                });
+            }
+        }
+
+        // For legacy support: if description/quantity/notes/unit are updated generically on a single-item SO
+        if (order.Items.Count > 0 && (request.Description != null || request.Quantity.HasValue || request.Notes != null))
+        {
+            var item = order.Items.First();
+            if (request.Description != null) item.ProductDescription = request.Description;
+            if (request.Quantity.HasValue) item.Qty = request.Quantity.Value;
+            if (request.Notes != null) item.Notes = request.Notes;
+            
+            // Note: 'Unit' is not strictly stored on SalesOrderItem in the backend anymore but in ProductReplica, 
+            // so we skip updating it to avoid breaking changes or add it if necessary.
+        }
+
+        order.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ToDto(order);
     }
 }

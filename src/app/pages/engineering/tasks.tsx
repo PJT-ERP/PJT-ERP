@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { Send, CheckCircle, ExternalLink, List, Plus, Trash2, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { CheckCircle, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
-import { SalesOrder, getStatusColor } from "../../components/data/mockData";
-import { salesApi } from "../../services/salesApi";
-import { toBackendUserId, isGuid } from "../../services/backendIds";
+import { useCustomersQuery } from "../../services/queries";
+import { getStatusColor } from "../../components/data/mockData";
+import { productionApi, EngineeringQueuesDto } from "../../services/productionApi";
 import { useNavigate } from "react-router";
-import { toast } from "sonner";
 
 const S = {
   font: "Inter, sans-serif",
@@ -30,31 +29,35 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 
+import { mapSalesOrderDto } from "../../components/context/hooks/dataMappers";
+
 export function EngineeringTasksPage() {
-  const { salesOrders, customers, currentUser, users } = useApp();
+  const { currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const navigate = useNavigate();
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
+  const [queues, setQueues] = useState<EngineeringQueuesDto | null>(null);
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+  React.useEffect(() => {
+    productionApi.getEngineeringQueues().then(setQueues).catch(console.error);
+  }, [currentUser]);
+
+  const rawPending = [
+    ...(queues?.pendingDesign || []),
+    ...(queues?.revisionRequired || []),
+    ...(queues?.waitingApproval || [])
+  ].map(dto => mapSalesOrderDto(dto as any));
+  const rawCompleted = (queues?.completed || []).map(dto => mapSalesOrderDto(dto as any));
+
+  const pendingSalesOrders = rawPending;
+  const completedSalesOrders = rawCompleted;
   
-  const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Rejected'];
-  
-  const pendingSalesOrders = salesOrders.filter(so => engineeringStatuses.includes(so.status) || so.backendDesignStatus === 'PendingDesign' || so.backendDesignStatus === 'RevisionRequired' || so.backendDesignStatus === 'WaitingApproval');
-  const completedSalesOrders = salesOrders.filter(so => 
-    !engineeringStatuses.includes(so.status) && 
-    so.backendDesignStatus === 'Approved' &&
-    (so.designAssignedTo || so.designLink || (so.designRevisions && so.designRevisions.length > 0))
-  );
   const allQueue = activeTab === 'pending' ? pendingSalesOrders : completedSalesOrders;
   
   const queue = allQueue
-    .filter(q => {
-      if (isSpv) return true;
-      return q.designAssignedTo === currentUser?.id || q.designAssignedTo === currentUser?.name || q.designAssignedName === currentUser?.name;
-    })
     .sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   return (
@@ -101,8 +104,8 @@ export function EngineeringTasksPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "95px 1.2fr 1.2fr 210px 105px 150px 140px", gap: "14px", padding: "10px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
-          {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Deadline", "Status", "Aksi"].map((h) => (
+        <div style={{ display: "grid", gridTemplateColumns: activeTab === 'completed' ? "95px 1.2fr 1.2fr 210px 105px 150px 140px" : "95px 1.2fr 1.2fr 105px 150px 140px", gap: "14px", padding: "10px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
+          {(activeTab === 'completed' ? ["No. SO", "Pelanggan", "Produk", "Desain Ditugaskan", "Deadline", "Status", "Aksi"] : ["No. SO", "Pelanggan", "Produk", "Deadline", "Status", "Aksi"]).map((h) => (
             <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
           ))}
         </div>
@@ -124,7 +127,7 @@ export function EngineeringTasksPage() {
                   navigate(`/erp/engineer-tasks/${qut.id}`);
                 }}
                 style={{
-                  display: "grid", gridTemplateColumns: "95px 1.2fr 1.2fr 210px 105px 150px 140px", gap: "14px", alignItems: "center",
+                  display: "grid", gridTemplateColumns: activeTab === 'completed' ? "95px 1.2fr 1.2fr 210px 105px 150px 140px" : "95px 1.2fr 1.2fr 105px 150px 140px", gap: "14px", alignItems: "center",
                   padding: "12px 18px", cursor: "pointer",
                   borderBottom: idx < queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length - 1 ? `1px solid ${S.border}` : "none",
                   transition: "background 0.1s",
@@ -132,20 +135,22 @@ export function EngineeringTasksPage() {
                 onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.id}</span>
+                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{qut.soNumber || qut.id}</span>
                 <div style={{ minWidth: 0, paddingRight: 6 }}>
-                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
+                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{qut.customerName || customers.find(c => c.code === qut.customerId)?.name || "-"}</p>
                 </div>
-                <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 6 }}>{qut.description || qut.partNumber || "-"}</span>
-                <div style={{ minWidth: 0 }}>
-                  {qut.designAssignedName || (qut as any).designWorkerName ? (
-                    <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "4px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {qut.designAssignedName || (qut as any).designWorkerName}
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
-                  )}
-                </div>
+                <span style={{ color: S.slate, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 6 }}>{qut.items && qut.items.length > 0 ? (qut.items.length === 1 ? qut.items[0].productDescription || qut.items[0].productPartNumber : `${qut.items.length} Items`) : qut.description || qut.partNumber || "-"}</span>
+                {activeTab === 'completed' && (
+                  <div style={{ minWidth: 0 }}>
+                    {qut.designAssignedName || (qut as any).designWorkerName || (qut as any).designApprovedByName ? (
+                      <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "4px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {qut.designAssignedName || (qut as any).designWorkerName || (qut as any).designApprovedByName}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                    )}
+                  </div>
+                )}
                 <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, whiteSpace: "nowrap" }}>{qut.deadline}</span>
                 <div>
                   <StatusBadge status={activeTab === 'completed' ? 'Design Selesai' : qut.status} />
@@ -157,7 +162,7 @@ export function EngineeringTasksPage() {
                         event.stopPropagation();
                         navigate(`/erp/engineer-tasks/${qut.id}`);
                       }}
-                      style={{ fontSize: "11px", background: "#2563EB", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                      style={{ fontSize: "11px", background: "#DC2626", color: "#fff", border: "none", padding: "5px 10px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                     >
                       Input Desain
                     </button>

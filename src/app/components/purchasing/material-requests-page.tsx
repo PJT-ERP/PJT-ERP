@@ -125,7 +125,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         extCode = bracketMatch[1];
         extName = bracketMatch[2];
       } else {
-        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:-[A-Z0-9]+)*)\s*-\s*(.*)/i);
         if (dashMatch) {
           extCode = dashMatch[1].toUpperCase();
           extName = dashMatch[2];

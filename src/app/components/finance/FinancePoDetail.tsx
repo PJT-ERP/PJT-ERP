@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, DollarSign, UploadCloud, Printer, FileText } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { financeApi } from "../../services/financeApi";
-import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
+import { masterDataApi, SupplierDto, InventoryItemDto } from "../../services/masterDataApi";
 import { useApp } from "../context/AppContext";
 import {
   PO,
@@ -52,25 +52,35 @@ export function FinancePoDetail() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [requests, paymentsRes, suppliersRes] = await Promise.all([
+        const [requests, paymentsRes, suppliersRes, inventoryItems] = await Promise.all([
           purchasingApi.listPurchaseRequests(),
           financeApi.listSupplierPayments(),
-          masterDataApi.listSuppliers()
+          masterDataApi.listSuppliers(),
+          masterDataApi.listInventory(),
         ]);
         setSuppliers(suppliersRes);
-        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes);
+        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes, inventoryItems);
         const po = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (po) {
           setDetail(po);
           const payment = paymentsRes.find(p => p.poNumber === po.id);
           if (payment?.proofFileUrl) {
-            // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
-            const url = payment.proofFileUrl.startsWith('http') 
-              ? payment.proofFileUrl 
-              : payment.proofFileUrl;
+            let url = payment.proofFileUrl;
+            if (url.startsWith('http')) {
+              try {
+                const urlObj = new URL(url);
+                urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                url = urlObj.toString();
+              } catch (err) {
+                console.warn("Failed to parse proof URL", err);
+              }
+            } else {
+              if (!url.startsWith('/')) url = '/' + url;
+              url = url.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+            }
             setProofFileUrl(url);
           } else if (payment?.proofFileName) {
-            setProofFileUrl(`/proofs/${payment.proofFileName}`);
+            setProofFileUrl(`/proofs/${encodeURIComponent(payment.proofFileName)}`);
           }
         } else {
           setDetail(null);
@@ -102,7 +112,8 @@ export function FinancePoDetail() {
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
       const paymentsRes = await financeApi.listSupplierPayments();
-      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers);
+      const inventoryItems = await masterDataApi.listInventory();
+      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers, inventoryItems);
       const refreshedPo = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (refreshedPo) {
           setDetail(refreshedPo);

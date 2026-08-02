@@ -123,8 +123,27 @@ public class ProductionCommandService(
             return null;
         }
 
-        var productionOrder = GetPrimaryProductionOrder(salesOrder)
-            ?? throw new InvalidOperationException("Sales order must be confirmed before production can start.");
+        EnsureDesignApproved(salesOrder);
+
+        var productionOrder = GetPrimaryProductionOrder(salesOrder);
+        if (productionOrder is null)
+        {
+            var now = DateTime.UtcNow;
+            var firstItem = salesOrder.Items.OrderBy(item => item.CreatedAtUtc).First();
+            productionOrder = new ProductionOrder
+            {
+                SalesOrderId = salesOrder.Id,
+                SalesOrder = salesOrder,
+                SalesOrderItemId = firstItem.Id,
+                PoNumber = salesOrder.SoNumber,
+                DrawingRef = salesOrder.SoNumber,
+                BarcodeUid = $"PJT|SO|{now:yyyyMMdd}|{salesOrder.Id:N}",
+                OrderQty = salesOrder.Items.Sum(item => item.Qty)
+            };
+
+            await db.ProductionOrders.AddAsync(productionOrder, cancellationToken);
+            salesOrder.ProductionOrders.Add(productionOrder);
+        }
 
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");

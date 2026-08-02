@@ -32,11 +32,6 @@ export function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: 
         qcReviewer: { userId: reviewerBackendId, name: reviewer.name },
       });
 
-      try {
-        await salesApi.confirmSalesOrder(salesOrderId, toBackendUserId(currentUser) || reviewerBackendId);
-      } catch (confirmError) {
-        console.warn("Operator assigned, but SO confirmation is not ready yet.", confirmError);
-      }
       await refreshBackendData();
       toast.success(`Tugas ini berhasil di-assign ke ${operator.name}`, {
         style: {

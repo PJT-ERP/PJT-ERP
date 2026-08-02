@@ -6,6 +6,7 @@ import { SalesOrder } from "../../../components/data/mockData";
 import { QcInspectionDto, qcApi } from "../../../services/qcApi";
 import { toBackendUserId, isGuid } from "../../../services/backendIds";
 import { compressImage, S } from "./utils";
+import { useCustomersQuery, useUpdateSalesOrderMutation } from "../../../services/queries";
 
 export function QCInspectionModal({
   so,
@@ -18,7 +19,8 @@ export function QCInspectionModal({
   onClose: () => void;
   onSaved: (inspection: QcInspectionDto) => Promise<void>;
 }) {
-  const { updateSalesOrder, customers, currentUser } = useApp();
+  const { currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const productionFileInputRef = useRef<HTMLInputElement>(null);
   const qcFileInputRef = useRef<HTMLInputElement>(null);
   const customer = customers.find(c => c.code === so.customerId);
@@ -125,31 +127,6 @@ export function QCInspectionModal({
       return;
     }
 
-    if (result === 'Go') {
-      updateSalesOrder(so.id, {
-        status: 'Completed',
-        qcStatus: 'Go',
-        qcNotes: notes,
-        qcAt: new Date().toISOString(),
-        completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: qcPhotos.map(p => p.url),
-        productionPhotos: productionPhotos.map(p => p.url),
-        customerDrawingUrl: drawingLink,
-        designLink: drawingLink,
-      });
-    } else {
-      updateSalesOrder(so.id, {
-        status: 'Ready for Production',
-        qcStatus: 'NoGo',
-        qcNotes: notes,
-        qcAt: new Date().toISOString(),
-        qcPhotos: qcPhotos.map(p => p.url),
-        productionPhotos: productionPhotos.map(p => p.url),
-        isRework: true,
-        customerDrawingUrl: drawingLink,
-        designLink: drawingLink,
-      });
-    }
     setDone(true);
   };
 

@@ -4,6 +4,23 @@ public record MasterDataCustomerDto(Guid Id, string Code, string Name, string? E
 public record MasterDataProductDto(Guid Id, string PartNumber, string Description, string Unit, string? MaterialSpec,
                                    bool IsActive);
 
+public sealed record BomStockDto(
+    Guid ProductId,
+    string? ProductPartNumber,
+    string? ProductDescription,
+    IReadOnlyCollection<BomStockItemDto> Items);
+
+public sealed record BomStockItemDto(
+    Guid BomItemId,
+    Guid InventoryItemId,
+    string? InventoryItemCode,
+    string InventoryItemName,
+    [property: System.Text.Json.Serialization.JsonPropertyName("bomQuantity")] decimal BomQuantity,
+    string Unit,
+    string? Spec,
+    int CurrentStock,
+    string Note);
+
 public record BulkDeductBomStockRequest(IReadOnlyCollection<DeductBomStockRequestItem> Items);
 public record DeductBomStockRequestItem(Guid ProductId, int ProductionQuantity);
 
@@ -18,4 +35,5 @@ public interface IMasterDataClient
     Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken cancellationToken);
     Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken);
     Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken);
 }

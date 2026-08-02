@@ -1,6 +1,7 @@
-import React, { useState, useMemo, Fragment } from "react";
+import React, { useState, useMemo } from "react";
 import { Users, Activity, CalendarClock, AlertTriangle, ChevronDown, ChevronRight, DollarSign } from "lucide-react";
-import { useApp } from "../../components/context/AppContext";
+import { useSalesOrdersQuery, useCustomersQuery } from "../../services/queries";
+import { SalesOrderDto } from "../../services/salesApi";
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
 const TODAY = new Date();
@@ -123,30 +124,50 @@ function MiniLineChart({ data }: { data: { label: string; value: number }[] }) {
 }
 
 export function CustomerAnalyticsPage() {
-  const { salesOrders, customers } = useApp();
-  const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'completed' | 'all'>('all');
+  const { data: customers = [] } = useCustomersQuery();
+  const { data: salesOrdersData = [] } = useSalesOrdersQuery();
+  
+  // Need to map frontend SalesOrder to SalesOrderDto shape since analytics relies on it
+  const salesOrders = useMemo(() => salesOrdersData.map(so => ({
+    id: so.id,
+    soNumber: so.id,
+    soDate: so.createdAt,
+    customerId: so.customerId,
+    status: so.status,
+    estimatedAmount: so.estimatedAmount,
+    createdAtUtc: so.createdAt,
+    items: [{ productDescription: so.description }]
+  } as unknown as SalesOrderDto)), [salesOrdersData]);
 
-  const validOrders = useMemo(() =>
-    viewMode === 'completed'
-      ? salesOrders.filter(so => so.status === 'Completed')
-      : salesOrders,
-    [salesOrders, viewMode]
-  );
+  const [viewMode, setViewMode] = useState<'all' | 'completed'>('all');
+  const [selectedCustomer, setSelectedCustomer] = useState<string>('all');
+  const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
+
+  const validOrders = useMemo(() => {
+    return salesOrders.filter(so => 
+      so.status !== 'Draft' && 
+      so.status !== 'Menunggu Approval'
+    );
+  }, [salesOrders]);
 
   const customerStats = useMemo(() => {
     return customers.map((c, idx) => {
       const orders = validOrders
         .filter(so => so.customerId === c.code || (so as any).customerCode === c.code)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        .sort((a, b) => {
+          const dateA = a.createdAtUtc || a.soDate;
+          const dateB = b.createdAtUtc || b.soDate;
+          return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
 
       const totalOrders = orders.length;
       const totalRevenue = orders.reduce((acc, so) => acc + (so.estimatedAmount ?? 0), 0);
 
       const intervals: number[] = [];
       for (let i = 1; i < orders.length; i++) {
-        intervals.push(daysBetween(orders[i - 1].createdAt, orders[i].createdAt));
+        const current = orders[i].createdAtUtc || orders[i].soDate;
+        const prev = orders[i - 1].createdAtUtc || orders[i - 1].soDate;
+        intervals.push(daysBetween(prev, current));
       }
       const avgInterval = intervals.length > 0
         ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
@@ -159,7 +180,7 @@ export function CustomerAnalyticsPage() {
 
       if (avgInterval !== null && orders.length > 0) {
         const lastOrder = orders[orders.length - 1];
-        predictedDate = addDays(lastOrder.createdAt, avgInterval);
+        predictedDate = addDays(lastOrder.createdAtUtc || lastOrder.soDate, avgInterval);
         predictedMonth = monthLabel(predictedDate.getFullYear(), predictedDate.getMonth());
         daysUntilNext = Math.round((predictedDate.getTime() - TODAY.getTime()) / (1000 * 60 * 60 * 24));
         isOverdue = daysUntilNext < 0;
@@ -168,7 +189,7 @@ export function CustomerAnalyticsPage() {
       const monthlyMap: Record<number, number> = {};
       const monthlyRevenueMap: Record<number, number> = {};
       orders.forEach(so => {
-        const key = monthKey(so.createdAt);
+        const key = monthKey(so.createdAtUtc || so.soDate);
         monthlyMap[key] = (monthlyMap[key] ?? 0) + 1;
         monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + (so.estimatedAmount ?? 0);
       });
@@ -186,7 +207,7 @@ export function CustomerAnalyticsPage() {
         monthlyMap,
         monthlyRevenueMap,
         color: CUSTOMER_COLORS[idx % CUSTOMER_COLORS.length],
-        lastOrderDate: orders.length > 0 ? orders[orders.length - 1].createdAt : null,
+        lastOrderDate: orders.length > 0 ? (orders[orders.length - 1].createdAtUtc || orders[orders.length - 1].soDate) : null,
       };
     }).filter(s => viewMode === 'all' || s.totalOrders > 0)
       .sort((a, b) => b.totalRevenue - a.totalRevenue); // Sort by revenue by default
@@ -433,13 +454,13 @@ export function CustomerAnalyticsPage() {
                                   cs.orders.map(so => (
                                     <tr key={so.id} className="hover:bg-slate-50">
                                       <td className="px-4 py-2.5 font-mono text-slate-500">{so.soNumber || so.id}</td>
-                                      <td className="px-4 py-2.5 truncate max-w-[250px]">{so.description || '-'}</td>
+                                      <td className="px-4 py-2.5 truncate max-w-[250px]">{so.items?.[0]?.productDescription || '-'}</td>
                                       <td className="px-4 py-2.5">
                                         <span className="px-2 py-0.5 rounded-full border border-slate-200 bg-slate-100 text-slate-600">
                                           {so.status}
                                         </span>
                                       </td>
-                                      <td className="px-4 py-2.5">{so.createdAt}</td>
+                                      <td className="px-4 py-2.5">{so.createdAtUtc?.slice(0, 10) || so.soDate}</td>
                                       <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(so.estimatedAmount ?? 0)}</td>
                                     </tr>
                                   ))

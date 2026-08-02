@@ -1,10 +1,18 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { CustomerList } from '../customer-list';
-import { useApp } from '../../context/AppContext';
+import { useApp } from "../../../components/context/AppContext";
+import * as queries from '../../../services/queries';
 
-vi.mock('../../context/AppContext', () => ({
+vi.mock('../../../components/context/AppContext', () => ({
   useApp: vi.fn(),
+}));
+
+vi.mock('../../../services/queries', () => ({
+  useCustomersQuery: vi.fn(),
+  useSalesOrdersQuery: vi.fn(),
+  useCreateCustomerMutation: vi.fn(),
+  useUpdateCustomerMutation: vi.fn(),
 }));
 
 describe('CustomerList Edit', () => {
@@ -21,6 +29,11 @@ describe('CustomerList Edit', () => {
         email: 'budi@test.com'
       }
     ];
+
+    vi.mocked(queries.useCustomersQuery).mockReturnValue({ data: mockCustomers } as any);
+    vi.mocked(queries.useSalesOrdersQuery).mockReturnValue({ data: [] } as any);
+    vi.mocked(queries.useCreateCustomerMutation).mockReturnValue({ mutate: vi.fn() } as any);
+    vi.mocked(queries.useUpdateCustomerMutation).mockReturnValue({ mutate: updateCustomerMock } as any);
 
     vi.mocked(useApp).mockReturnValue({
       customers: mockCustomers,
@@ -46,8 +59,11 @@ describe('CustomerList Edit', () => {
 
     // Verify API/update function is called
     await waitFor(() => {
-      expect(updateCustomerMock).toHaveBeenCalledWith('CUST-001', expect.objectContaining({
-        name: 'Test Customer Updated'
+      expect(updateCustomerMock).toHaveBeenCalledWith(expect.objectContaining({
+        code: 'CUST-001',
+        data: expect.objectContaining({
+          name: 'Test Customer Updated'
+        })
       }));
     });
   });

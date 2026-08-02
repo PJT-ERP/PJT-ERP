@@ -1,8 +1,8 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RepeatOrderFormSchema, RepeatOrderFormType, ProductLineItemType } from "../schema/soCreateSchema";
 import { useEffect } from "react";
-import { useApp } from "../../context/AppContext";
+import { useSalesOrdersQuery } from "../../../services/queries";
 
 export function mapRepeatProducts(selectedSo: any, productCatalog: any[]) {
   const catalogProductOptions = productCatalog.map(product => ({
@@ -25,7 +25,9 @@ export function mapRepeatProducts(selectedSo: any, productCatalog: any[]) {
       if (matchedProduct && matchedProduct.bomItems?.length) {
         materials = matchedProduct.bomItems.map((b: any) => ({
           id: b.inventoryItemId,
+          inventoryItemId: b.inventoryItemId,
           name: b.inventoryItemName,
+          code: b.inventoryItemCode,
           specification: "",
           quantity: String(b.quantity || b.qty),
           unit: b.unit,
@@ -46,12 +48,14 @@ export function mapRepeatProducts(selectedSo: any, productCatalog: any[]) {
       } as ProductLineItemType;
     });
   } else {
-    const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description));
+    const matchedProduct = catalogProductOptions.find(p => p.label.includes(selectedSo.description || ''));
     let materials: any[] = [];
     if (matchedProduct && matchedProduct.bomItems?.length) {
       materials = matchedProduct.bomItems.map((b: any) => ({
         id: b.inventoryItemId,
-        name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+        inventoryItemId: b.inventoryItemId,
+        name: b.inventoryItemName,
+        code: b.inventoryItemCode,
         specification: "",
         quantity: String(b.quantity),
         unit: b.unit,
@@ -61,10 +65,10 @@ export function mapRepeatProducts(selectedSo: any, productCatalog: any[]) {
     return [{
       id: crypto.randomUUID(),
       type: matchedProduct ? "existing" : "custom",
-      productName: matchedProduct ? matchedProduct.label : selectedSo.description,
-      customName: selectedSo.description,
+      productName: matchedProduct ? matchedProduct.label : (selectedSo.description || 'Produk Repeat'),
+      customName: selectedSo.description || 'Produk Repeat',
       designId: "",
-      quantity: String(selectedSo.quantity),
+      quantity: String(selectedSo.quantity || 1),
       unit: selectedSo.unit || "pcs",
       unitPrice: 0,
       materials,
@@ -74,7 +78,7 @@ export function mapRepeatProducts(selectedSo: any, productCatalog: any[]) {
 }
 
 export function useRepeatOrderForm(initialData?: { customerId?: string; soId?: string }) {
-  const { salesOrders, productCatalog } = useApp();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
   
   const methods = useForm<RepeatOrderFormType>({
     resolver: zodResolver(RepeatOrderFormSchema),
@@ -90,9 +94,9 @@ export function useRepeatOrderForm(initialData?: { customerId?: string; soId?: s
     }
   });
 
-  const { watch, setValue } = methods;
-  const previousSoId = watch("repeatForm.previousSoId");
-  const repeatProducts = watch("repeatProducts");
+  const { setValue, control } = methods;
+  const previousSoId = useWatch({ control, name: "repeatForm.previousSoId" });
+  const repeatProducts = useWatch({ control, name: "repeatProducts" });
 
   useEffect(() => {
     if (previousSoId && salesOrders.length > 0) {
@@ -106,7 +110,12 @@ export function useRepeatOrderForm(initialData?: { customerId?: string; soId?: s
   }, [previousSoId, salesOrders, setValue]);
 
   useEffect(() => {
-    const total = repeatProducts.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+    const total = repeatProducts.reduce((acc, p) => {
+      if (!p) return acc;
+      const qty = Number(p.quantity) || 0;
+      const price = Number(p.unitPrice) || 0;
+      return acc + qty * price;
+    }, 0);
     setValue("repeatForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
   }, [repeatProducts, setValue]);
 

@@ -55,7 +55,7 @@ export function usePurchaseRequestDetail() {
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {
             const actualSupplierName = item.supplierName && item.supplierName.trim() !== "-" ? item.supplierName : null;
-            let supplierToUse = actualSupplierName || "";
+            const supplierToUse = actualSupplierName || "";
             
             let uPrice = "";
             if (item.estimatedPrice && item.qty) {

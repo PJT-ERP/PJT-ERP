@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useApp } from "../../../../components/context/AppContext";
+import { useCustomersQuery } from "../../../../services/queries";
 import { S, StatusBadge, DrawingLinks } from "../../../../components/production/ProductionHelpers";
 import { PaginationControl } from "../../../../components/production/PaginationControl";
 import { InlineBomDisplay } from "../InlineBomDisplay";
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function WaitingQCPanel({ board }: Props) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
 

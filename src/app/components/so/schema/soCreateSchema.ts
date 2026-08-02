@@ -39,7 +39,7 @@ export const ProductLineItemSchema = z.object({
 });
 
 export const CustomerFormSchema = z.object({
-  customerCode: z.string().min(1, "Kode wajib diisi"),
+  customerCode: z.string().optional(),
   customerName: z.string().min(1, "Nama wajib diisi"),
   company: z.string().min(1, "Perusahaan wajib diisi"),
   phone: z.string().optional(),

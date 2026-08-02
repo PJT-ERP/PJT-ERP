@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Plus, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
+import { usePurchasingRequestsQuery } from "../../../services/queries";
 import { PurchasingRequest } from "../../../components/data/mockData";
 import { S, URGENCY_COLORS, PR_STATUS_COLORS } from "./constants";
 import { PurchasingFormModal } from "./PurchasingFormModal";
 import { PRDetailModal } from "./PRDetailModal";
 
 export function EngineeringPurchasingPage() {
-  const { purchasingRequests, refreshBackendData, currentUser, users } = useApp();
+  const { currentUser, users } = useApp();
+  const { data: purchasingRequests = [] } = usePurchasingRequestsQuery();
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
@@ -18,8 +20,8 @@ export function EngineeringPurchasingPage() {
   const spvItemsPerPage = 4;
 
   useEffect(() => {
-    void refreshBackendData();
-  }, [refreshBackendData]);
+    // Queries handle their own fetching now
+  }, []);
 
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
 

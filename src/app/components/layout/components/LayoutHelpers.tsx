@@ -26,7 +26,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
-    { label: "Daftar Tugas", icon: <List size={15} />, path: "/erp/engineer-tasks" },
+    { label: "Tugas Desain", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Req. Pembelian", icon: <Package size={15} />, path: "/erp/engineer-purchasing" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
   ],
@@ -66,7 +66,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },
     { label: "Laporan", icon: <BarChart2 size={15} />, path: "/erp/finance/reports" },
-    { label: "Costing & Pricing", icon: <DollarSign size={15} />, path: "/erp/finance/costing" },
+    { label: "Penetapan Harga", icon: <DollarSign size={15} />, path: "/erp/finance/costing" },
     { label: "Daftar Tagihan", icon: <FileText size={15} />, path: "/erp/finance/invoices" },
     { label: "Verifikasi Bayar", icon: <FileText size={15} />, path: "/erp/finance/payment-verification" },
     { label: "Tagihan Supplier", icon: <CheckSquare size={15} />, path: "/erp/finance/approval-po" },

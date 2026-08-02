@@ -27,14 +27,12 @@ export function BarcodeDisplay({ value, width = 280, height = 70, showText = tru
   const totalUnits = bars.reduce((a, b) => a + b, 0);
   const unitWidth = width / totalUnits;
 
-  let x = 0;
   const rects = bars.map((units, idx) => {
     const barWidth = units * unitWidth;
-    const rect = idx % 2 === 0 ? (
+    const x = bars.slice(0, idx).reduce((sum, u) => sum + u, 0) * unitWidth;
+    return idx % 2 === 0 ? (
       <rect key={idx} x={x} y={0} width={barWidth} height={height} fill="#1a1a1a" />
     ) : null;
-    x += barWidth;
-    return rect;
   });
 
   return (

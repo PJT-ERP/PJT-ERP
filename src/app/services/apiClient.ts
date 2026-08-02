@@ -44,17 +44,35 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+let _unauthorizedDispatched = false;
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Successful response means the token is valid — reset the debounce flag
+    _unauthorizedDispatched = false;
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("auth_user");
-      localStorage.removeItem("auth_token");
-      const isLoginRequest = error.config?.url?.includes("/auth/login");
-      if (window.location.pathname.includes("/login") || isLoginRequest) {
+      // Never clear token or dispatch for auth-related endpoints — prevents cascade
+      const url = error.config?.url || '';
+      if (url.includes('/auth/login') || url.includes('/auth/logout') || url.includes('/auth/me')) {
         return Promise.reject(error);
       }
-      window.dispatchEvent(new CustomEvent('unauthorized'));
+
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("auth_token");
+
+      // Already on login page — no need to dispatch
+      if (window.location.pathname.includes("/login")) {
+        return Promise.reject(error);
+      }
+
+      // Debounce: only dispatch once per cascade of 401s
+      if (!_unauthorizedDispatched) {
+        _unauthorizedDispatched = true;
+        window.dispatchEvent(new CustomEvent('unauthorized'));
+      }
       return Promise.reject(error);
     }
     return Promise.reject(error);

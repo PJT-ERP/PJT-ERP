@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { formatIDR } from "./mockData";
 
 const S = {
@@ -17,54 +17,33 @@ import { useApp } from "../context/AppContext";
 import { SalesOrder, SOStatus } from "../data/mockData";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
+import { productionApi, FinanceCostingQueuesDto } from "../../services/productionApi";
 import { useFinanceData } from "./useFinanceData";
+import { useSalesOrdersQuery } from "../../services/queries";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function FinanceCosting() {
-  const { salesOrders, customers, updateSalesOrder } = useApp();
-  const { invoiceCandidates } = useFinanceData(true, false);
+  const { customers, updateSalesOrder } = useApp();
+  const { invoices } = useFinanceData(true, false);
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
+  const [queues, setQueues] = useState<FinanceCostingQueuesDto | null>(null);
 
-  const historyStatuses = [
-    'Waiting Payment',
-    'Waiting Client Approval',
-    'Ready for Production',
-    'In Production',
-    'QC',
-    'Completed'
-  ];
+  useEffect(() => {
+    productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
+  }, [salesOrders]);
 
-  const isUnpriced = (so: any) => !so.items || so.items.length === 0 || so.items.some((item: any) => !item.unitPrice || item.unitPrice === 0);
-  const hasInvoiceCandidate = (so: any) => invoiceCandidates.some(candidate =>
-    candidate.status !== "Invoiced" && (
-      candidate.salesOrderId === (so.backendId || so.id) ||
-      candidate.salesOrderNumber === (so.soNumber || so.id)
-    )
-  );
-  const isWaitingPricing = (so: any) => {
-    if (so.status === "Rejected" || so.status === "Cancelled" || so.status === "Ditolak" || so.status === "Dibatalkan") {
-      return false;
-    }
-    if (so.backendStatus === "Waiting Pricing" || so.status === "Waiting Pricing" || isUnpriced(so)) {
-      return true;
-    }
-    return false;
-  };
-
-  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingSO = salesOrders.filter(so => 
-    isWaitingPricing(so)
-  ).map(so => ({
+  const waitingPricingSO = (queues?.waitingPricing || []).map(so => ({
     ...so,
     isQuotation: false
   }));
 
-  const historySO = salesOrders.filter(so => 
-    !isWaitingPricing(so) && historyStatuses.includes(so.status) && !isUnpriced(so)
-  ).map(so => ({
+  const historySO = (queues?.pricingHistory || []).map(so => ({
     ...so,
     isQuotation: false
   })).sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
@@ -121,7 +100,7 @@ export function FinanceCosting() {
         };
       });
 
-      const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
+      const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || item.qty || 1), 0);
       const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production"].includes(selectedItem.status);
       const newStatus = preserveStatus ? selectedItem.status : "Waiting Payment";
       const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || "Waiting Payment") : "Waiting Payment";
@@ -153,6 +132,9 @@ export function FinanceCosting() {
         });
       }
       
+      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
+      
       setIsSubmitting(false);
       setSubmitSuccess(true);
     }, 800);
@@ -162,7 +144,7 @@ export function FinanceCosting() {
     if (!selectedItem || !selectedItem.items) return 0;
     return selectedItem.items.reduce((total: number, item: any, idx: number) => {
       const key = item.id || item.productId || idx.toString();
-      return total + (itemPrices[key] || 0) * item.quantity;
+      return total + (itemPrices[key] || 0) * (item.quantity || item.qty || 1);
     }, 0);
   };
 
@@ -170,13 +152,13 @@ export function FinanceCosting() {
     const key = item.id || item.productId || idx.toString();
     return (itemPrices[key] || 0) > 0;
   });
-  const isReadOnly = selectedItem && activeTab === 'history';
+  const isReadOnly = selectedItem && (selectedItem.status === 'Completed' || selectedItem.status === 'Closed' || selectedItem.backendStatus === 'Invoiced' || invoices?.some((inv: any) => inv.soNumber === selectedItem.soNumber));
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
       {/* Header */}
       <div>
-        <h1 style={{ color: S.slate, margin: "0 0 8px 0", fontSize: "24px" }}>Costing & Pricing</h1>
+        <h1 style={{ color: S.slate, margin: "0 0 8px 0", fontSize: "24px" }}>Penetapan Harga</h1>
         <p style={{ color: S.secondary, margin: 0, fontSize: "14px" }}>
           Tentukan harga modal (HPP) dan tetapkan harga jual berdasarkan BOM dari tim Engineering.
         </p>
@@ -252,10 +234,10 @@ export function FinanceCosting() {
                 <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.soNumber || so.id}</span>
                 <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers?.find(c => c.code === so.customerId)?.name || so.customerName || so.customerId}</span>
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.productName || so.description || "-"}</span>
+                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.items?.[0]?.productDescription || so.items?.[0]?.productPartNumber || so.productName || so.description || "-"}</span>
                   <span style={{ color: S.secondary, fontSize: "11px" }}>{itemCount} items</span>
                 </div>
-                <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
+                <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || so.targetDate || "-"}</span>
                 <div style={{ alignSelf: "center", display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                   <StatusBadge status={so.status as SOStatus} />
                   {isPricedBySales && (
@@ -284,7 +266,7 @@ export function FinanceCosting() {
           <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 800, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
               <div>
-                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Costing & Pricing - {selectedItem.soNumber || selectedItem.id}</h2>
+                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Penetapan Harga - {selectedItem.soNumber || selectedItem.id}</h2>
                 <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "13px" }}>
                   Pelanggan: {selectedItem.customerName || selectedItem.customerId}
                 </p>
@@ -414,11 +396,11 @@ export function FinanceCosting() {
                     {selectedItem.items?.map((item: any, idx: number) => {
                       const key = item.id || item.productId || idx.toString();
                       const price = itemPrices[key] || 0;
-                      const subtotal = price * item.quantity;
+                      const subtotal = price * (item.quantity || item.qty || 1);
                       return (
                         <tr key={key} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
-                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName}</td>
-                          <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity} {item.unit}</td>
+                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName || item.productDescription || item.productPartNumber}</td>
+                          <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity || item.qty || 1} {item.unit || "pcs"}</td>
                           <td style={{ padding: "12px 14px" }}>
                             <div style={{ position: "relative" }}>
                               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>

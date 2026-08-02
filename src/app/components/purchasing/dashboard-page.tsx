@@ -35,7 +35,10 @@ export function DashboardPage() {
 
   // Metrics
   const taskNeedSourcing = useMemo(() => {
-    return purchaseRequests.filter(pr => pr.status === "SupervisorApproved" && !calculateIsReadyForPo(pr));
+    return purchaseRequests.filter(pr => 
+      (pr.status === "SupervisorApproved" && !calculateIsReadyForPo(pr)) ||
+      pr.status === "FinanceRejected" || pr.status === "Rejected"
+    );
   }, [purchaseRequests]);
 
   const taskReadyForPo = useMemo(() => {

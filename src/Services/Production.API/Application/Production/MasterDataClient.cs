@@ -144,5 +144,30 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
+    public async Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken)
+    {
+        try
+        {
+            AttachAuthorizationHeader();
+            var idsParam = string.Join(",", productIds);
+            if (string.IsNullOrWhiteSpace(idsParam))
+            {
+                return Array.Empty<BomStockDto>();
+            }
+            
+            var response = await httpClient.GetAsync($"api/v1/master-data/products/bom-stock?ids={idsParam}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<IReadOnlyCollection<BomStockDto>>(
+                    cancellationToken: cancellationToken) ?? Array.Empty<BomStockDto>();
+            }
+            return Array.Empty<BomStockDto>();
+        }
+        catch (HttpRequestException)
+        {
+            return Array.Empty<BomStockDto>();
+        }
+    }
+
     private record ErrorResponse(string Message);
 }

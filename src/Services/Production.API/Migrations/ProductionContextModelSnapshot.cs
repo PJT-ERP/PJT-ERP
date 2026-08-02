@@ -172,7 +172,8 @@ namespace PJT_ERP.Production.Api.Migrations
                         .HasColumnName("barcode_uid");
 
                     b.Property<string>("CompletionNote")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("completion_note");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -359,6 +360,9 @@ namespace PJT_ERP.Production.Api.Migrations
                     b.Property<decimal?>("EstimatedAmount")
                         .HasColumnType("numeric")
                         .HasColumnName("estimated_amount");
+
+                    b.Property<bool>("IsCostingCompleted")
+                        .HasColumnType("boolean");
 
                     b.PrimitiveCollection<List<string>>("ProductionPhotos")
                         .IsRequired()

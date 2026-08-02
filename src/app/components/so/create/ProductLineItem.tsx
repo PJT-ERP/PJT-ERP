@@ -151,7 +151,9 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                           unit: matched.unit.toLowerCase() || row.unit,
                           materials: matched.bomItems?.length ? matched.bomItems.map(b => ({
                             id: b.inventoryItemId,
-                            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                            inventoryItemId: b.inventoryItemId,
+                            name: b.inventoryItemName,
+                            code: b.inventoryItemCode,
                             specification: "",
                             quantity: String(b.quantity),
                             unit: b.unit,
@@ -180,7 +182,9 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                   unit: selected?.unit.toLowerCase() || row.unit,
                   materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
                     id: b.inventoryItemId,
-                    name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                    inventoryItemId: b.inventoryItemId,
+                    name: b.inventoryItemName,
+                    code: b.inventoryItemCode,
                     specification: "",
                     quantity: String(b.quantity),
                     unit: b.unit,
@@ -300,6 +304,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: S.font }}>
                 <thead>
                   <tr style={{ background: "#E2E8F0", textAlign: "left", color: S.secondary }}>
+                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Kode</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Material</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Spesifikasi</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, textAlign: "right" }}>Total Dibutuhkan</th>
@@ -308,10 +313,15 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                 <tbody>
                   {row.materials.map((mat: any, i) => {
                     const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
+                    const embeddedCode = !mat.code && mat.name ? (mat.name.match(/^([A-Z]+-\d+)/) || [])[1] : null;
+                    const displayCode = mat.code || embeddedCode || "-";
+                    const displayName = embeddedCode && mat.name ? mat.name.slice(embeddedCode.length + 3) : mat.name;
+                    const displaySpec = mat.specification || mat.spec || "-";
                     return (
                       <tr key={mat.id}>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, fontFamily: "monospace", fontSize: "10.5px", whiteSpace: "nowrap" }}>{displayCode}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{displayName}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{displaySpec}</td>
                         <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{totalQty} {mat.unit}</td>
                       </tr>
                     );

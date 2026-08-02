@@ -6,7 +6,8 @@ import {
   Edit, Copy, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "../context/AppContext";
+import { useApp } from "../../components/context/AppContext";
+import { useSalesOrdersQuery, useCustomersQuery, useUpdateCustomerMutation, useUpdateSalesOrderMutation, useProductsQuery } from "../../services/queries";
 import { getStatusColor, SOStatus } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
@@ -29,8 +30,20 @@ interface SODetailProps {
 }
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
-  const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
-  const { invoices, payments } = useFinanceData(true, false, false);
+  const { currentUser } = useApp();
+  const { data: productCatalog = [] } = useProductsQuery();
+  const { data: salesOrders = [], isLoading: isLoadingOrders } = useSalesOrdersQuery();
+  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomersQuery();
+  
+  const updateSalesOrderMutation = useUpdateSalesOrderMutation();
+  const updateCustomerMutation = useUpdateCustomerMutation();
+  
+  const updateSalesOrder = (id: string, data: any) => updateSalesOrderMutation.mutate({ id, data });
+  const updateCustomer = (code: string, data: any) => updateCustomerMutation.mutate({ code, data });
+
+  const { currentUser: appUser } = useApp();
+  const isSalesOrHigher = appUser?.role === 'Sales' || appUser?.role === 'Finance' || appUser?.role === 'Admin' || appUser?.role === 'Owner';
+  const { invoices, payments } = useFinanceData(isSalesOrHigher, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
@@ -44,7 +57,6 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
-  const currentUser = useApp().currentUser;
 
   const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");
   const isCustomBackend = order?.backendDesignStatus === "PendingDesign" || order?.backendDesignStatus === "RevisionRequired" || order?.partNumber?.startsWith("FG-") || false;
@@ -54,15 +66,42 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   if (isStandard && productCatalog && order) {
     const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
     if (matchedProduct && matchedProduct.materialSpec) {
-      displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
-        id: matchedProduct.id + "-mat-" + idx,
-        name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-        spec: specPart.trim(),
-        quantity: "1",
-        unit: matchedProduct.unit.toLowerCase(),
-      }));
+      displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => {
+        const bomItem = matchedProduct.bomItems?.[idx];
+        return {
+          id: `${matchedProduct.partNumber || matchedProduct.id}-mat-${idx}`,
+          name: bomItem?.inventoryItemName || `MAT-${String(parseInt(matchedProduct.partNumber?.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+          code: bomItem?.inventoryItemCode || null,
+          spec: specPart.trim(),
+          quantity: bomItem?.quantity || 1,
+          unit: matchedProduct.unit?.toLowerCase() || "pcs",
+        };
+      });
     }
   }
+
+  displayMaterials = displayMaterials.map((mat: any) => {
+    let code = mat.code;
+    let name = mat.name;
+    if (!code || code.length > 20) {
+      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+      const matchedProduct = productCatalog.find(p => p.bomItems?.some(b => b.inventoryItemId === invId));
+      if (matchedProduct) {
+        const bomItem = matchedProduct.bomItems?.find(b => b.inventoryItemId === invId);
+        code = bomItem?.inventoryItemCode || null;
+      }
+    }
+    if (!code && name) {
+      const embeddedMatch = name.match(/^([A-Z]+-\d+)/);
+      if (embeddedMatch) code = embeddedMatch[1];
+    }
+    if (code && name) {
+      const codePrefix = `${code} - `;
+      if (name.startsWith(codePrefix)) name = name.slice(codePrefix.length);
+    }
+    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+    return { ...mat, code: code || finalInvId || null, name };
+  });
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
@@ -191,6 +230,19 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     }
     setIsEditMode(false);
   };
+
+  if (isLoadingOrders || isLoadingCustomers) {
+    return (
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="animate-pulse" style={{ height: 40, width: "30%", background: "#f1f5f9", borderRadius: 6 }} />
+        <div className="animate-pulse" style={{ height: 100, width: "100%", background: "#f1f5f9", borderRadius: 6 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 14 }}>
+          <div className="animate-pulse" style={{ height: 300, background: "#f1f5f9", borderRadius: 6 }} />
+          <div className="animate-pulse" style={{ height: 300, background: "#f1f5f9", borderRadius: 6 }} />
+        </div>
+      </div>
+    );
+  }
 
   if (!order) {
     return (

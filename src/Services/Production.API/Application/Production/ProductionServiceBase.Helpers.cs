@@ -46,6 +46,11 @@ public abstract partial class ProductionServiceBase
 
     protected static SalesOrderDto ToDto(SalesOrder order)
     {
+        return ToDto(order, null);
+    }
+
+    protected static SalesOrderDto ToDto(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
+    {
         var productionOrder = GetPrimaryProductionOrder(order);
 
         return new SalesOrderDto(
@@ -81,10 +86,119 @@ public abstract partial class ProductionServiceBase
             order.UpdatedAtUtc,
             productionOrder?.CompletionNote,
             order.EstimatedAmount,
+            order.IsCostingCompleted,
             order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray(),
             order.ProductionPhotos,
-            order.QcPhotos);
+            order.QcPhotos,
+            MapMaterials(order, boms));
+    }
+
+    private static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
+    {
+        if (boms == null || boms.Count == 0) return null;
+
+        var materialsByKey = new Dictionary<string, SalesOrderMaterialDto>();
+        var legacyMaterials = new List<SalesOrderMaterialDto>();
+
+        foreach (var item in order.Items)
+        {
+            var productBom = boms.FirstOrDefault(b => b.ProductId == item.ProductId);
+            
+            if (item.Notes != null && item.Notes.StartsWith("["))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(item.Notes);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        int index = 0;
+                        foreach (var element in doc.RootElement.EnumerateArray())
+                        {
+                            var legacy = new SalesOrderMaterialDto(
+                                element.GetProperty("id").GetString() ?? $"{item.Id}-legacy-{index}",
+                                element.TryGetProperty("inventoryItemId", out var invIdProp) ? invIdProp.GetString() : null,
+                                element.GetProperty("name").GetString() ?? "",
+                                element.TryGetProperty("code", out var codeProp) ? codeProp.GetString() : null,
+                                element.TryGetProperty("spec", out var specProp) ? specProp.GetString() : null,
+                                element.TryGetProperty("specification", out var specificationProp) ? specificationProp.GetString() : null,
+                                element.TryGetProperty("quantity", out var qtyProp) ? (qtyProp.ValueKind == System.Text.Json.JsonValueKind.Number ? qtyProp.GetInt32() : (int.TryParse(qtyProp.GetString(), out int q) ? q : 0)) : 0,
+                                element.TryGetProperty("unit", out var unitProp) ? unitProp.GetString() ?? "" : ""
+                            );
+                            legacyMaterials.Add(legacy);
+                            index++;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore parsing errors for legacy notes
+                }
+            }
+
+            var overriddenInventoryItemIds = new HashSet<string>();
+            foreach (var legacy in legacyMaterials)
+            {
+                var resolvedInvId = legacy.InventoryItemId ?? legacy.Id;
+                if (!string.IsNullOrEmpty(resolvedInvId) && !resolvedInvId.Contains("-legacy-"))
+                {
+                    overriddenInventoryItemIds.Add(resolvedInvId);
+                }
+            }
+            
+            if (productBom?.Items != null)
+            {
+                foreach (var bomItem in productBom.Items)
+                {
+                    if (overriddenInventoryItemIds.Contains(bomItem.InventoryItemId.ToString()))
+                    {
+                        continue;
+                    }
+
+                    var specVal = bomItem.Spec ?? "";
+                    var specKey = specVal != "" ? specVal : (bomItem.InventoryItemCode ?? "");
+                    var key = $"{bomItem.InventoryItemId}|{specKey}|{bomItem.Unit}";
+                    var quantity = (int)(bomItem.BomQuantity * Math.Max(item.Qty, 1));
+                    
+                    if (materialsByKey.TryGetValue(key, out var existing))
+                    {
+                        materialsByKey[key] = existing with { Quantity = existing.Quantity + quantity };
+                    }
+                    else
+                    {
+                        materialsByKey[key] = new SalesOrderMaterialDto(
+                            $"{item.Id}-{bomItem.BomItemId}",
+                            bomItem.InventoryItemId.ToString(),
+                            bomItem.InventoryItemName,
+                            bomItem.InventoryItemCode,
+                            specVal,
+                            specVal,
+                            quantity,
+                            bomItem.Unit
+                        );
+                    }
+                }
+            }
+        }
+        
+        foreach (var legacy in legacyMaterials)
+        {
+            var resolvedInvId = legacy.InventoryItemId ?? legacy.Id;
+            var specKey = legacy.Spec ?? legacy.Specification ?? "";
+            var key = $"{resolvedInvId}|{specKey}|{legacy.Unit}";
+            
+            if (materialsByKey.TryGetValue(key, out var existing))
+            {
+                materialsByKey[key] = existing with { Quantity = existing.Quantity + legacy.Quantity };
+            }
+            else
+            {
+                materialsByKey[key] = legacy;
+            }
+        }
+
+        var results = materialsByKey.Values.ToList();
+        return results.Count > 0 ? results : null;
     }
 
     protected static SalesOrderItemDto ToDto(SalesOrderItem item)
