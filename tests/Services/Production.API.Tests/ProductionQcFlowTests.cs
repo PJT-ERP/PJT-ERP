@@ -101,7 +101,7 @@ public sealed class ProductionQcFlowTests
         Assert.NotNull(updatedSo);
         Assert.Equal("NoGo", updatedPo.QcDecision);
         Assert.Equal(ProductionOrderStatuses.Waiting, updatedPo.Status);
-        Assert.Equal(SalesOrderStatuses.Confirmed, updatedSo.Status);
+        Assert.Equal(SalesOrderStatuses.QC, updatedSo.Status);
         
         // Ensure no invoice candidate event was published
         Assert.Empty(publisher.PublishedEvents.OfType<SalesOrderReadyForInvoiceEvent>());
