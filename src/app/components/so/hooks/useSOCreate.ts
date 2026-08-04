@@ -119,7 +119,7 @@ export function useSOCreate(initialData?: { customerId?: string; orderType?: "ne
             }
 
             const itemQty = item.quantity || item.qty || 1;
-            let unitPrice = item.unitPrice || 0;
+            const unitPrice = item.unitPrice || 0;
 
             return {
               ...emptyProduct(),

@@ -36,7 +36,7 @@ export function WaitingQCPanel({ board }: Props) {
               <div key={so.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "24px 18px", borderBottom: idx < waitingQC.slice((page - 1) * itemsPerPage, page * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none", background: "#F8FAFC" }}>
                 <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                    <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id} - {so.description}</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.soNumber || so.id}</span>
                     <StatusBadge status={so.status} />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, marginBottom: 8, flexWrap: "wrap" }}>

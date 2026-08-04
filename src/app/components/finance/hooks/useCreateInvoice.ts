@@ -68,9 +68,15 @@ export function useCreateInvoice() {
     }
   });
 
-  // Filter out already invoiced SOs
+  // Filter out already invoiced SOs and require Costing to be completed
   const invoicedSoNumbers = new Set((invoices || []).map(inv => inv.soNumber));
-  allCandidates = allCandidates.filter(c => !invoicedSoNumbers.has(c.salesOrderNumber) && c.status !== 'Invoiced');
+  allCandidates = allCandidates.filter(c => {
+    if (invoicedSoNumbers.has(c.salesOrderNumber) || c.status === 'Invoiced') return false;
+    
+    // Strict rule: Penetapan Harga (Costing) must be completed before an invoice can be made.
+    const localSO = salesOrders.find(o => o.backendId === c.salesOrderId || o.id === c.salesOrderNumber || o.id === c.salesOrderId);
+    return localSO ? localSO.isCostingCompleted === true : false;
+  });
 
   const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO);
   
@@ -96,7 +102,7 @@ export function useCreateInvoice() {
           description: item.productDescription,
           quantity: item.qty,
           unit: 'Pcs',
-          unitPrice: item.unitPrice || localItem?.unitPrice || (activeCandidate.items.length === 1 && localSO?.estimatedAmount ? localSO.estimatedAmount / item.qty : 0),
+          unitPrice: localItem?.unitPrice || item.unitPrice || (activeCandidate.items.length === 1 && localSO?.estimatedAmount ? localSO.estimatedAmount / item.qty : 0),
         };
       }));
       if (activeCandidate.targetDate && !dueDate) {

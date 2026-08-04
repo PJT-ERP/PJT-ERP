@@ -95,7 +95,7 @@ export function QCInspectionsPage() {
   const recentCompleted = (hasBackendInspections
     ? inspections
       .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
-      .map(inspection => mapInspectionToSalesOrder(inspection, inspectionHistory as any))
+      .map(inspection => mapInspectionToSalesOrder(inspection, [...(inspectionHistory as any), ...(readyForInspection as any)]))
     : inspectionHistory).sort(sortByDeadline) as SalesOrder[];
     
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;

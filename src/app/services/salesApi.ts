@@ -125,6 +125,7 @@ export interface SalesOrderDto {
   completionNote?: string | null;
   createdAtUtc?: string;
   updatedAtUtc?: string;
+  isCostingCompleted?: boolean;
 }
 
 export interface CreateSalesOrderRequest {

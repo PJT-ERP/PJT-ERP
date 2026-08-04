@@ -152,7 +152,7 @@ export function FinanceCosting() {
     const key = item.id || item.productId || idx.toString();
     return (itemPrices[key] || 0) > 0;
   });
-  const isReadOnly = selectedItem && (selectedItem.status === 'Completed' || selectedItem.status === 'Closed' || selectedItem.backendStatus === 'Invoiced' || invoices?.some((inv: any) => inv.soNumber === selectedItem.soNumber));
+  const isReadOnly = selectedItem && (selectedItem.backendStatus === 'Invoiced' || invoices?.some((inv: any) => inv.soNumber === selectedItem.soNumber || inv.soNumber === selectedItem.id));
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>

@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { usePurchaseRequestDetail } from "./hooks/usePurchaseRequestDetail";
 import { PRDetailHeader } from "./components/pr-detail/PRDetailHeader";
@@ -26,9 +26,15 @@ export function PurchaseRequestDetailPage() {
 
   return (
     <div className="p-5 max-w-5xl mx-auto space-y-6">
-      <PRDetailHeader board={board} />
+      <div className="flex items-center gap-4">
+        <button onClick={() => window.history.length > 2 ? board.navigate(-1) : board.navigate("/erp/purchasing/requests")} className="rounded p-2 hover:bg-slate-200 transition">
+          <ArrowLeft size={20} className="text-slate-600" />
+        </button>
+        <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Purchase Request</h1>
+      </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm -mt-6">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <PRDetailHeader board={board} />
         <PRDetailItemsTable board={board} />
 
         <div className="px-6 py-6 space-y-6">

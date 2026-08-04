@@ -80,6 +80,7 @@ public class ProductionQueryService(
         bool IsReadyForProd(SalesOrderDto so)
         {
             if (so.Status == "Ready for Production") return true;
+            if (so.QcDecision == "NoGo") return true;
             if (so.StartedAtUtc.HasValue || !string.IsNullOrEmpty(so.QcDecision)) return false;
             
             var validStatuses = new[] { "Waiting Pricing", "Waiting Payment", "Pending Design", "Waiting Approval" };
@@ -90,9 +91,9 @@ public class ProductionQueryService(
 
         var pendingAssignment = allOrders.Where(so => !so.ProductionWorkerUserId.HasValue && IsReadyForProd(so)).ToList();
         
-        var readyToStart = allOrders.Where(so => so.ProductionWorkerUserId.HasValue && IsAssignedToUser(so) && !so.StartedAtUtc.HasValue && IsReadyForProd(so)).ToList();
+        var readyToStart = allOrders.Where(so => so.ProductionWorkerUserId.HasValue && IsAssignedToUser(so) && (!so.StartedAtUtc.HasValue || so.QcDecision == "NoGo") && IsReadyForProd(so)).ToList();
         
-        var inProduction = allOrders.Where(so => so.StartedAtUtc.HasValue && !so.FinishedAtUtc.HasValue && IsAssignedToUser(so)).ToList();
+        var inProduction = allOrders.Where(so => so.StartedAtUtc.HasValue && !so.FinishedAtUtc.HasValue && so.QcDecision != "NoGo" && IsAssignedToUser(so)).ToList();
         
         var waitingQc = allOrders.Where(so => so.FinishedAtUtc.HasValue && string.IsNullOrEmpty(so.QcDecision) && IsAssignedToUser(so)).ToList();
 
@@ -124,7 +125,7 @@ public class ProductionQueryService(
     {
         var allOrders = await ListSalesOrdersAsync(cancellationToken);
         
-        var waitingPricing = allOrders.Where(so => !so.IsCostingCompleted && (so.Status == "Waiting Pricing" || so.Status == "Ready for Production" || so.Status == "InProduction" || so.Status == "QC")).ToList();
+        var waitingPricing = allOrders.Where(so => !so.IsCostingCompleted && (so.Status == "Waiting Pricing" || so.Status == "Ready for Production" || so.Status == "InProduction" || so.Status == "QC" || so.Status == "Completed")).ToList();
         var pricingHistory = allOrders.Where(so => so.IsCostingCompleted).ToList();
 
         return new FinanceCostingQueuesDto(waitingPricing, pricingHistory);
@@ -166,7 +167,7 @@ public class ProductionQueryService(
         var allOrders = await ListSalesOrdersAsync(cancellationToken);
         
         var readyForInspection = allOrders.Where(so => so.Status == "QC").ToList();
-        var inspectionHistory = allOrders.Where(so => so.Status == "Completed" || so.Status == "Rejected").ToList();
+        var inspectionHistory = allOrders.Where(so => so.Status == "Completed" || so.Status == "Rejected" || !string.IsNullOrEmpty(so.QcDecision)).ToList();
 
         return new QcQueuesDto(readyForInspection, inspectionHistory);
     }
@@ -180,11 +181,11 @@ public class ProductionQueryService(
             so.ProductionWorkerUserId == userId || 
             userRole == "Admin" || userRole == "Owner" || userRole == "Engineering Supervisor";
         
-        var pendingAssignment = allOrders.Where(so => so.Status == "Ready for Production" && so.ProductionWorkerUserId == null).ToList();
-        var readyToStart = allOrders.Where(so => so.Status == "Ready for Production" && so.ProductionWorkerUserId != null && IsAssignedToUser(so)).ToList();
+        var pendingAssignment = allOrders.Where(so => (so.Status == "Ready for Production" || (so.Status == "QC" && so.QcDecision == "NoGo")) && so.ProductionWorkerUserId == null).ToList();
+        var readyToStart = allOrders.Where(so => (so.Status == "Ready for Production" || (so.Status == "QC" && so.QcDecision == "NoGo")) && so.ProductionWorkerUserId != null && IsAssignedToUser(so)).ToList();
         var inProduction = allOrders.Where(so => so.Status == "InProduction" && IsAssignedToUser(so)).ToList();
         var paused = allOrders.Where(so => so.Status == "Paused" && IsAssignedToUser(so)).ToList();
-        var waitingQc = allOrders.Where(so => so.Status == "QC" && IsAssignedToUser(so)).ToList();
+        var waitingQc = allOrders.Where(so => so.Status == "QC" && string.IsNullOrEmpty(so.QcDecision) && IsAssignedToUser(so)).ToList();
 
         return new ProductionBoardQueuesDto(pendingAssignment, readyToStart, inProduction, paused, waitingQc);
     }

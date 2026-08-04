@@ -71,6 +71,42 @@ public sealed class ProductionQcFlowTests
         Assert.True(finishEvent.ProductionOrderId != Guid.Empty);
     }
 
+    [Fact]
+    public async Task Qc_NoGo_sets_production_waiting_and_so_ready_for_production()
+    {
+        await using var db = CreateDbContext();
+        var (so, po) = await SeedWaitingProductionOrderAsync(db);
+        so.Status = SalesOrderStatuses.QC;
+        po.Status = ProductionOrderStatuses.Finished;
+        await db.SaveChangesAsync();
+
+        var publisher = new RecordingEventPublisher();
+        var handler = new PJT_ERP.Production.Api.Application.IntegrationEvents.QcCheckCompletedEventHandler(db, publisher);
+
+        var noGoEvent = new QcCheckCompletedEvent(
+            Guid.NewGuid(),
+            po.Id,
+            "NoGo",
+            DateTime.UtcNow,
+            Array.Empty<string>(),
+            Array.Empty<string>()
+        );
+
+        await handler.Handle(noGoEvent, CancellationToken.None);
+
+        var updatedPo = await db.ProductionOrders.FindAsync(po.Id);
+        var updatedSo = await db.SalesOrders.FindAsync(so.Id);
+
+        Assert.NotNull(updatedPo);
+        Assert.NotNull(updatedSo);
+        Assert.Equal("NoGo", updatedPo.QcDecision);
+        Assert.Equal(ProductionOrderStatuses.Waiting, updatedPo.Status);
+        Assert.Equal(SalesOrderStatuses.Confirmed, updatedSo.Status);
+        
+        // Ensure no invoice candidate event was published
+        Assert.Empty(publisher.PublishedEvents.OfType<SalesOrderReadyForInvoiceEvent>());
+    }
+
     // ── Helpers ──
 
     private static ProductionContext CreateDbContext()

@@ -542,6 +542,7 @@ public abstract partial class ProductionServiceBase
         productionOrder.StartedAtUtc ??= timestampUtc;
         productionOrder.StartedByUserId ??= request.WorkerUserId;
         productionOrder.StartedByName ??= request.WorkerName.Trim();
+        productionOrder.QcDecision = null;
         productionOrder.UpdatedAtUtc = timestampUtc;
     }
 

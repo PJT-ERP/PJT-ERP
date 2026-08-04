@@ -125,6 +125,64 @@ describe('mapSalesOrderStatus', () => {
     expect(result).toBe('QC');
   });
 
+  it('maps "QC" with "NoGo" decision to "Ready for Production" for rework', () => {
+    const result = mapSalesOrderStatus({
+      id: 'so-1',
+      soNumber: 'SO-001',
+      customerId: 'c1',
+      customerCode: 'CUST-1',
+      customerName: 'Test',
+      status: 'QC',
+      qcDecision: 'NoGo',
+      orderDate: '2026-01-01',
+      targetDate: '2026-02-01',
+      items: [],
+      designStatus: 'Approved',
+      productionStatus: 'Waiting',
+    } as any);
+
+    expect(result).toBe('Ready for Production');
+  });
+
+  it('maps "InProduction" with "Waiting" production order to "Ready for Production"', () => {
+    const result = mapSalesOrderStatus({
+      id: 'so-1',
+      soNumber: 'SO-001',
+      customerId: 'c1',
+      customerCode: 'CUST-1',
+      customerName: 'Test',
+      status: 'InProduction',
+      orderDate: '2026-01-01',
+      targetDate: '2026-02-01',
+      items: [],
+      designStatus: 'Approved',
+      productionStatus: 'Waiting',
+    } as any);
+
+    expect(result).toBe('Ready for Production');
+  });
+
+  it('maps "QC" with "NoGo" decision and NO assigned worker (returned to SPV) to "Ready for Production"', () => {
+    const result = mapSalesOrderStatus({
+      id: 'so-1',
+      soNumber: 'SO-001',
+      customerId: 'c1',
+      customerCode: 'CUST-1',
+      customerName: 'Test',
+      status: 'QC',
+      qcDecision: 'NoGo',
+      orderDate: '2026-01-01',
+      targetDate: '2026-02-01',
+      items: [],
+      designStatus: 'Approved',
+      productionStatus: 'Waiting',
+      productionWorkerUserId: null,
+      productionWorkerName: null,
+    } as any);
+
+    expect(result).toBe('Ready for Production');
+  });
+
   // Regression: "Waiting Payment" must NEVER map back to "Ready for Production"
   // or any other status that would land in the production or finance queue.
   it('"Waiting Payment" never maps to production statuses', () => {

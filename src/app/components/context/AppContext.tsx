@@ -188,6 +188,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await backendSync.refreshBackendData(callbacksRef.current);
     queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
     queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
+    queryClient.invalidateQueries({ queryKey: ['productionBoardQueues'] });
   }, [backendSync, queryClient]);
 
   const refreshRef = useRef(refreshBackendData);

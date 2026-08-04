@@ -166,7 +166,7 @@ export function useProductionBoard() {
   const pendingMaterialPrep = backendPendingAssignment.filter((so: SalesOrder) => !checkMaterialComplete(so)).sort(sortByDeadline);
   const pendingAssignment = backendPendingAssignment.filter((so: SalesOrder) => checkMaterialComplete(so)).sort(sortByDeadline);
   const readyToStart = (productionQueues?.readyToStart || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
-  const inProduction = (productionQueues?.inProduction || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const inProduction = [...(productionQueues?.inProduction || []), ...(productionQueues?.paused || [])].map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const waitingQC = (productionQueues?.waitingQc || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const pendingDesign = (productionQueues?.pendingDesign || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
 
