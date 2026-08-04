@@ -20,7 +20,7 @@ on:
       - 'vite.config.ts'
       - 'tsconfig*.json'
   workflow_dispatch:
-
+  workflow_call:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

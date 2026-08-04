@@ -19,8 +19,15 @@ env:
   VPS_APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/pjt-erp' }}
 
 jobs:
+  test-frontend:
+    uses: ./.github/workflows/frontend-ci.yml
+
+  test-backend:
+    uses: ./.github/workflows/backend-ci.yml
+
   deploy:
     name: Build and deploy
+    needs: [test-frontend, test-backend]
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 30
 
