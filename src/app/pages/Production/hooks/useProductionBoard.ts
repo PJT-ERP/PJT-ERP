@@ -109,12 +109,29 @@ export function useProductionBoard() {
 
   const getMaterialRequest = (so: SalesOrder) => {
     const backendId = getBackendSalesOrderId(so);
-    return purchasingRequests.slice().reverse().find(request =>
+    const soRequests = purchasingRequests.filter(request =>
       request.salesOrderId === backendId ||
       request.salesOrderId === so.backendId ||
       request.soId === so.id ||
       request.soId === so.soNumber
     );
+
+    if (soRequests.length === 0) return undefined;
+
+    soRequests.sort((a, b) => {
+      const timeA = new Date(a.requestedAt || 0).getTime();
+      const timeB = new Date(b.requestedAt || 0).getTime();
+      if (timeA === timeB) return b.id.localeCompare(a.id);
+      return timeB - timeA;
+    });
+
+    const isActive = (req: any) => {
+      const status = req.backendStatus || req.status;
+      return status !== 'Completed' && status !== 'Selesai' &&
+             status !== 'Rejected' && status !== 'SupervisorRejected' && status !== 'FinanceRejected' && status !== 'Ditolak';
+    };
+
+    return soRequests.find(isActive) || soRequests[0];
   };
 
   const rememberMaterialRequest = (so: SalesOrder) => {
@@ -299,6 +316,7 @@ export function useProductionBoard() {
     waitingQC,
     pendingDesign,
     checkMaterialShortage,
+    getMaterialRequest,
     getMaterialRequestState,
     handleResume,
     approveMaterialRequest,

@@ -21,6 +21,7 @@ export function MaterialPrepPanel({ board }: Props) {
     currentUser,
     pendingMaterialPrep,
     checkMaterialShortage,
+    getMaterialRequest,
     getMaterialRequestState,
     setDetailModal,
     setReviewMrModal
@@ -76,7 +77,7 @@ export function MaterialPrepPanel({ board }: Props) {
                         Review MR
                       </button>
                     )}
-                    {isShortage && (mrState === 'none' || mrState === 'completed') && isSupervisor && (
+                    {isShortage && (mrState === 'none' || (mrState === 'completed' && getMaterialRequest(so)?.items?.every((i: any) => i.purchaseStatus === 'Received' || i.receivedDate))) && isSupervisor && (
                       <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/production/mr/${so.id}`); }}
                         style={{ padding: "7px 12px", background: S.white, border: `1px solid ${S.border}`, color: S.slate, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
                         <FileWarning size={14} /> Material Kurang

@@ -21,7 +21,7 @@ export function PaymentVerification() {
   const { payments: financePayments, invoices, refresh, isLoading } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL' | 'OVERDUE'>('ALL');
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<(Payment & { previousAttempts?: Payment[] }) | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState<Invoice | null>(null);
   const [hiddenInvoiceIds, setHiddenInvoiceIds] = useState<Set<string>>(() => new Set());
@@ -48,20 +48,50 @@ export function PaymentVerification() {
     }
   };
 
-  const handleVerifyInvoice = async () => {
-    await refresh();
-    setSelectedInvoiceDetail(null);
-  };
 
-  const handleRejectInvoice = () => {
-    setSelectedInvoiceDetail(null);
-  };
+
+  const collapsedPaymentData: (Payment & { previousAttempts?: Payment[] })[] = [];
+  const paymentsByInvoice = paymentData.reduce((acc, payment) => {
+    if (!acc[payment.invoiceId]) acc[payment.invoiceId] = [];
+    acc[payment.invoiceId].push(payment);
+    return acc;
+  }, {} as Record<string, Payment[]>);
+
+  Object.values(paymentsByInvoice).forEach(paymentsForInvoice => {
+    const sorted = [...paymentsForInvoice].sort((a, b) => {
+      const timeA = new Date(a.submittedAt || a.paymentDate).getTime();
+      const timeB = new Date(b.submittedAt || b.paymentDate).getTime();
+      if (timeA === timeB) return a.id.localeCompare(b.id);
+      return timeA - timeB;
+    });
+
+    let currentPreviousAttempts: Payment[] = [];
+    sorted.forEach(payment => {
+      if (payment.status === 'REJECTED') {
+        currentPreviousAttempts.push(payment);
+      } else {
+        collapsedPaymentData.push({ ...payment, previousAttempts: currentPreviousAttempts });
+        currentPreviousAttempts = [];
+      }
+    });
+
+    if (currentPreviousAttempts.length > 0) {
+      const latestRejected = currentPreviousAttempts.pop()!;
+      collapsedPaymentData.push({ ...latestRejected, previousAttempts: currentPreviousAttempts });
+    }
+  });
+
+  collapsedPaymentData.sort((a, b) => {
+    const timeA = new Date(a.submittedAt || a.paymentDate).getTime();
+    const timeB = new Date(b.submittedAt || b.paymentDate).getTime();
+    return timeB - timeA;
+  });
 
   const filteredPayments = filterStatus === 'ALL'
-    ? paymentData
-    : paymentData.filter(payment => payment.status === filterStatus);
+    ? collapsedPaymentData
+    : collapsedPaymentData.filter(payment => payment.status === filterStatus);
 
-  const pendingPayments = paymentData.filter(payment => payment.status === 'PENDING');
+  const pendingPayments = collapsedPaymentData.filter(payment => payment.status === 'PENDING');
   const todayStr = todayInputValue();
 
   const unpaidInvoices = invoices
@@ -122,10 +152,10 @@ export function PaymentVerification() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Total Pembayaran', value: paymentData.length, sub: 'Semua transaksi' },
+            { label: 'Total Pembayaran', value: collapsedPaymentData.length, sub: 'Semua transaksi' },
             { label: 'Menunggu Verifikasi', value: pendingPayments.length, sub: `${pendingPayments.length} bukti baru` },
-            { label: 'Terverifikasi', value: paymentData.filter(p => p.status === 'VERIFIED').length, sub: 'Selesai divalidasi' },
-            { label: 'Ditolak', value: paymentData.filter(p => p.status === 'REJECTED').length, sub: 'Bukti tidak valid' },
+            { label: 'Terverifikasi', value: collapsedPaymentData.filter(p => p.status === 'VERIFIED').length, sub: 'Selesai divalidasi' },
+            { label: 'Ditolak', value: collapsedPaymentData.filter(p => p.status === 'REJECTED').length, sub: 'Bukti tidak valid' },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -149,12 +179,12 @@ export function PaymentVerification() {
             { key: 'REJECTED', label: 'Ditolak' },
           ].map((tab) => {
             const count = tab.key === 'ALL' 
-              ? paymentData.length + unpaidInvoices.length
+              ? collapsedPaymentData.length + unpaidInvoices.length
               : tab.key === 'PENDING'
-                ? paymentData.filter(p => p.status === 'PENDING').length + unpaidMenunggu.length
+                ? collapsedPaymentData.filter(p => p.status === 'PENDING').length + unpaidMenunggu.length
                 : tab.key === 'OVERDUE'
                   ? unpaidOverdue.length
-                  : paymentData.filter(p => p.status === tab.key).length;
+                  : collapsedPaymentData.filter(p => p.status === tab.key).length;
                 
             const isActive = filterStatus === tab.key;
             return (
@@ -387,8 +417,6 @@ export function PaymentVerification() {
           <InvoiceVerificationDetailModal
             invoice={selectedInvoiceDetail}
             onClose={() => setSelectedInvoiceDetail(null)}
-            onVerify={handleVerifyInvoice}
-            onReject={handleRejectInvoice}
           />
         )}
       </div>

@@ -1,42 +1,14 @@
-import { useState } from 'react';
-import { CheckCircle2, XCircle, X, Banknote } from 'lucide-react';
-import { formatIDR, formatDate, type Invoice } from '../mockData';
-import { financeApi } from '../../../services/financeApi';
-import { todayInputValue, getRemainingAmount, getNextSchedule } from '../paymentUtils';
 
-export function InvoiceVerificationDetailModal({ invoice, onClose, onVerify, onReject }: {
+import { X, Banknote } from 'lucide-react';
+import { formatIDR, formatDate, type Invoice } from '../mockData';
+import { getRemainingAmount, getNextSchedule } from '../paymentUtils';
+
+export function InvoiceVerificationDetailModal({ invoice, onClose }: {
   invoice: Invoice;
   onClose: () => void;
-  onVerify: () => Promise<void>;
-  onReject: () => void;
 }) {
-  const [isSaving, setIsSaving] = useState(false);
   const remainingAmount = getRemainingAmount(invoice);
   const nextSchedule = getNextSchedule(invoice);
-
-  const handleVerify = async () => {
-    try {
-      setIsSaving(true);
-      const verifyAmount = nextSchedule ? Math.min(nextSchedule.amount, remainingAmount) : remainingAmount;
-      await financeApi.recordPayment(invoice.id, {
-        paymentDate: todayInputValue(),
-        amount: verifyAmount,
-        notes: "Diverifikasi otomatis",
-      });
-      await onVerify();
-      onClose();
-    } catch (err) {
-      console.error(err);
-      alert('Gagal verifikasi pembayaran');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleReject = () => {
-    onReject();
-    onClose();
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -105,25 +77,9 @@ export function InvoiceVerificationDetailModal({ invoice, onClose, onVerify, onR
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button onClick={onClose} disabled={isSaving} className="flex-1 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
+          <div className="flex pt-2">
+            <button onClick={onClose} className="w-full border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg py-2.5 text-sm font-medium transition-colors">
               Tutup
-            </button>
-            <button
-              onClick={handleReject}
-              disabled={isSaving}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg py-2.5 text-sm font-medium transition-colors"
-            >
-              <XCircle size={15} />
-              Tolak
-            </button>
-            <button
-              onClick={handleVerify}
-              disabled={isSaving}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-lg py-2.5 text-sm font-medium transition-colors shadow-sm"
-            >
-              <CheckCircle2 size={15} />
-              {isSaving ? "Memproses..." : "Verifikasi"}
             </button>
           </div>
         </div>

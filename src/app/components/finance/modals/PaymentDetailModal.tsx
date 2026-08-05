@@ -10,7 +10,7 @@ const STATUS_CONFIG: Record<any, { label: string; color: string }> = {
 };
 
 export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
-  payment: Payment;
+  payment: Payment & { previousAttempts?: Payment[] };
   onClose: () => void;
   onVerify: (id: string) => void | Promise<void>;
   onReject: (id: string, reason: string) => void | Promise<void>;
@@ -177,6 +177,55 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             </div>
           )}
 
+          {payment.previousAttempts && payment.previousAttempts.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-slate-700 mb-3">Riwayat Penolakan Sebelumnya</p>
+              <div className="space-y-3">
+                {payment.previousAttempts.map((attempt, idx) => (
+                  <div key={idx} className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle size={16} className="text-red-600 flex-shrink-0" />
+                      <span className="text-xs font-semibold text-red-800">Ditolak</span>
+                      <span className="text-xs text-red-600">• {attempt.paymentDate ? formatDate(attempt.paymentDate) : 'Unknown Date'}</span>
+                    </div>
+                    
+                    <div className="text-xs text-red-700 mb-3 bg-red-100/50 p-2.5 rounded-lg border border-red-100">
+                      <span className="font-semibold block mb-0.5 text-red-800">Alasan Penolakan:</span>
+                      {attempt.rejectionReason || 'Tidak ada alasan'}
+                    </div>
+
+                    {attempt.proofFileUrl && (
+                      <button
+                        onClick={() => {
+                          let finalUrl = attempt.proofFileUrl!;
+                          if (!finalUrl.startsWith('http')) {
+                            if (!finalUrl.startsWith('/')) finalUrl = '/' + finalUrl;
+                            finalUrl = finalUrl.split('/').map(p => encodeURIComponent(p)).join('/');
+                          } else {
+                            try {
+                              const urlObj = new URL(finalUrl);
+                              urlObj.pathname = urlObj.pathname.split('/').map(p => encodeURIComponent(p)).join('/');
+                              finalUrl = urlObj.toString();
+                            } catch (e) {
+                              console.warn("Failed to parse previous attempt proof URL", e);
+                            }
+                          }
+                          window.open(finalUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-800 bg-white border border-red-200 px-3 py-1.5 rounded-lg transition-colors max-w-full"
+                      >
+                        <Eye size={14} className="flex-shrink-0" />
+                        <span className="truncate">
+                          Lihat Bukti ({attempt.proofFileName || `bukti_${attempt.bankRef}.pdf`})
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {payment.status === 'VERIFIED' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-2">
               <CheckCircle2 size={14} className="text-green-600 mt-0.5 flex-shrink-0" />
@@ -187,7 +236,7 @@ export function PaymentDetailModal({ payment, onClose, onVerify, onReject }: {
             </div>
           )}
 
-          {payment.status === 'PENDING' && !rejectMode && !verifyMode && (
+          {payment.status === 'PENDING' && payment.proofAvailable && !rejectMode && !verifyMode && (
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setVerifyMode(true)}
