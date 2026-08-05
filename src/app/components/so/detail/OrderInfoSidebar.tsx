@@ -96,7 +96,7 @@ function OrderHistory({ order }: { order: SalesOrder }) {
     { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
   ];
 
-  if (order.invoice?.rejectedPayments) {
+  if (order.invoice?.rejectedPayments && !order.invoice?.paymentDate) {
     order.invoice.rejectedPayments.forEach(rp => {
       historySteps.push({
         label: 'Pembayaran Ditolak',

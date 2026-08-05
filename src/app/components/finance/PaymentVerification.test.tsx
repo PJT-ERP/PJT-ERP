@@ -74,6 +74,7 @@ describe('PaymentVerification Component', () => {
           paymentDate: '2026-06-10',
           amount: 5000000,
           status: 'PENDING',
+          proofAvailable: true,
         }
       ],
       invoices: [],
@@ -119,6 +120,7 @@ describe('PaymentVerification Component', () => {
           paymentDate: '2026-06-11',
           amount: 2000000,
           status: 'PENDING',
+          proofAvailable: true,
         }
       ],
       invoices: [],
