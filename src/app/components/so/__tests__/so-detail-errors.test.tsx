@@ -13,6 +13,7 @@ vi.mock('../../../services/queries', () => ({
   useCustomersQuery: vi.fn(),
   useProductsQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useUpdateSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn() })),
+  useDeleteSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateCustomerMutation: vi.fn(() => ({ mutate: vi.fn() })),
 }));
 vi.mock('../../finance/useFinanceData', () => ({ useFinanceData: vi.fn() }));
