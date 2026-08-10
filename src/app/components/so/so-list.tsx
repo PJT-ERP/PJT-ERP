@@ -1,8 +1,10 @@
 import React from "react";
 import {
-  Search, Plus, Eye, Edit,
+  Search, Plus, Eye, Edit, Trash2,
   X, SlidersHorizontal, LayoutGrid, List,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useDeleteSalesOrderMutation } from "../../services/queries";
 import { SalesOrder, SOStatus } from "../data/mockData";
 import { type SalesInvoiceStatus } from "./invoice-sync";
 import { useSOList, PAGE_SIZE } from "./hooks/useSOList";
@@ -19,6 +21,21 @@ interface SOListProps {
 
 export function SOList({ onNavigate }: SOListProps) {
   const board = useSOList();
+  const deleteMutation = useDeleteSalesOrderMutation();
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string } | null>(null);
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast.success(`Sales Order ${deleteTarget.id} berhasil dihapus.`);
+        setDeleteTarget(null);
+      },
+      onError: (err: any) => {
+        toast.error(`Gagal menghapus SO: ${err?.response?.data?.message || err.message}`);
+      }
+    });
+  };
 
 
 
@@ -235,6 +252,7 @@ export function SOList({ onNavigate }: SOListProps) {
                   isLast={idx === board.paginated.length - 1}
                   onView={() => onNavigate("so-detail", order.id)}
                   onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
+                  onDelete={() => setDeleteTarget({ id: order.id })}
                 />
               ))}
             </tbody>
@@ -311,6 +329,7 @@ export function SOList({ onNavigate }: SOListProps) {
                     {!(order.status === "Completed" && order.invoice?.status === "paid") && (
                       <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
                     )}
+                    <MobileActionBtn label="Hapus" bg="#FEF2F2" color="#EF4444" action={() => setDeleteTarget({ id: order.id })} />
                   </div>
                 </div>
               );
@@ -328,17 +347,61 @@ export function SOList({ onNavigate }: SOListProps) {
           </div>
         </div>
       )}
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 12, border: `1px solid ${S.border}`,
+            maxWidth: 420, width: "100%", padding: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            fontFamily: S.font
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#EF4444", flexShrink: 0 }}>
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 700 }}>Hapus Sales Order?</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>Konfirmasi Hapus Permanen</p>
+              </div>
+            </div>
+            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5, marginBottom: 20 }}>
+              Apakah Anda yakin ingin menghapus <strong>{deleteTarget.id}</strong> secara permanen? Data yang sudah dihapus tidak dapat dikembalikan lagi.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: `1px solid ${S.border}`, background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#EF4444", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 8px rgba(239,68,68,0.3)" }}
+              >
+                {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus SO"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
-function TableRow({ order, customerName, isLast, onView, onEdit }: {
+function TableRow({ order, customerName, isLast, onView, onEdit, onDelete }: {
   order: SalesOrder;
   customerName: string;
   isLast: boolean;
   onView: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   const [hov, React_useState] = React.useState(false);
 
@@ -391,6 +454,7 @@ function TableRow({ order, customerName, isLast, onView, onEdit }: {
           {!(order.status === "Completed" && order.invoice?.status === "paid") && (
             <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
           )}
+          <ActionBtn icon={<Trash2 size={12} />}  label="Hapus"    hoverBg="#FEF2F2" hoverColor="#EF4444" onClick={onDelete}    title="Hapus Sales Order" />
         </div>
       </td>
     </tr>

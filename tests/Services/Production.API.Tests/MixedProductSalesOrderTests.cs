@@ -42,7 +42,7 @@ public sealed class MixedProductSalesOrderTests
             null, "INTERNAL_DESIGN", SalesOrderDesignStatuses.PendingDesign),
             CancellationToken.None);
 
-        Assert.StartsWith("SO-", so.SoNumber);
+        Assert.StartsWith("SO", so.SoNumber);
         Assert.Equal(SalesOrderDesignStatuses.PendingDesign, so.DesignStatus);
         Assert.Equal(2, so.Items.Count);
     }

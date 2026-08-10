@@ -328,5 +328,10 @@ export const salesApi = {
   async updateConsultationStatus(id: string, status: string) {
     const response = await apiClient.put(`/api/v1/production/consultations/${id}/status`, { status });
     return response.data;
+  },
+
+  async deleteSalesOrder(salesOrderId: string) {
+    const response = await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}`);
+    return response.data;
   }
 };

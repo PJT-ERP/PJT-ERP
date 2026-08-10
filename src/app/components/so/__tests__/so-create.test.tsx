@@ -11,6 +11,7 @@ vi.mock('../../../services/queries', () => ({
   useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useProductsQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useUpdateSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn() })),
+  useDeleteSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateCustomerMutation: vi.fn(() => ({ mutate: vi.fn() })),
 }));
 

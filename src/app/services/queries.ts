@@ -51,6 +51,26 @@ export const useUpdateSalesOrderMutation = () => {
   });
 };
 
+export const useUpdateSalesOrderItemsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, items }: { id: string; items: any[] }) => salesApi.updateSalesOrderItems(id, { items }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+    },
+  });
+};
+
+export const useDeleteSalesOrderMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => salesApi.deleteSalesOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+    },
+  });
+};
+
 export const useCreateCustomerMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

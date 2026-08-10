@@ -113,6 +113,7 @@ vi.mock('../../../services/queries', () => {
     useCustomersQuery: vi.fn().mockReturnValue({ data: [mockCustomer] }),
     useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [registeredOrder, customOrder] }),
     useUpdateSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn() }),
+    useDeleteSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
     useUpdateCustomerMutation: vi.fn().mockReturnValue({ mutate: vi.fn() }),
   };
 });

@@ -119,6 +119,8 @@ export function ProductInfoCard({
 }: ProductInfoCardProps) {
   const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
 
+  const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;
+
   return (
     <>
       <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
@@ -172,7 +174,29 @@ export function ProductInfoCard({
                   return <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>;
                 })()}
               </div>
-              <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
+              <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>
+                {isEditMode ? (
+                  isLockedForQty ? (
+                    <div>
+                      <span style={{ fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</span>
+                      <span style={{ display: "block", fontSize: "10px", color: "#94A3B8" }} title="Terkunci - SO sudah masuk tahap pembayaran/produksi">🔒 Terkunci</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input
+                        type="number"
+                        min={1}
+                        value={editForm.quantity}
+                        onChange={e => setEditForm(prev => ({ ...prev, quantity: e.target.value }))}
+                        style={{ width: "65px", padding: "4px 6px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none" }}
+                      />
+                      <span style={{ fontSize: "11px", color: S.secondary }}>{item.unit}</span>
+                    </div>
+                  )
+                ) : (
+                  <span>{item.quantity} {item.unit}</span>
+                )}
+              </div>
               <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>
               <div style={{ padding: "10px", fontSize: "12px", color: S.slate, fontWeight: 600 }}>{formatCurrency(item.lineTotal)}</div>
             </div>
@@ -180,8 +204,10 @@ export function ProductInfoCard({
         </div>
 
         {isEditMode && (
-          <p style={{ margin: "10px 0 0", fontSize: "11px", color: S.secondary }}>
-            Edit multi item SO masih mengikuti kontrak backend. Gunakan Duplikat untuk membuat SO baru dengan item tambahan.
+          <p style={{ margin: "10px 0 0", fontSize: "11px", color: isLockedForQty ? "#EF4444" : S.secondary }}>
+            {isLockedForQty 
+              ? "⚠️ Kuantitas terkunci karena SO sudah masuk tahap pembayaran/produksi."
+              : "💡 Ubah kuantitas di atas lalu klik Simpan Perubahan di bagian kanan atas."}
           </p>
         )}
       </InfoCard>
