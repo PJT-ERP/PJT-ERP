@@ -93,9 +93,9 @@ public sealed class SalesOrdersController(
             var order = await salesOrderCommandService.CreateSalesOrderAsync(request, cancellationToken);
             return CreatedAtAction(nameof(List), new { id = order.Id }, order);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"[DEBUG] InvalidOperationException: {ex.Message}");
+            Console.WriteLine($"[DEBUG] Create SalesOrder Exception: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -109,9 +109,9 @@ public sealed class SalesOrdersController(
             var order = await salesOrderCommandService.CreateCompleteSalesOrderAsync(request, cancellationToken);
             return CreatedAtAction(nameof(List), new { id = order.Id }, order);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"[DEBUG] InvalidOperationException: {ex.Message}");
+            Console.WriteLine($"[DEBUG] CreateComplete SalesOrder Exception: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -360,6 +360,21 @@ public sealed class SalesOrdersController(
             var isPrivileged = User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("Engineering Supervisor");
             var result = await productionCommandService.ResumeProductionAsync(id, request, cancellationToken, isPrivileged);
             return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Owner")]
+    public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var success = await salesOrderCommandService.DeleteSalesOrderAsync(id, cancellationToken);
+            return success ? NoContent() : NotFound();
         }
         catch (InvalidOperationException ex)
         {
