@@ -159,7 +159,7 @@ public class SalesOrderCommandService(
         {
             try
             {
-                var masterReq = new CreateCustomerMasterDataRequest(request.Customer.Code ?? "", request.Customer.Name, request.Customer.Address, request.Customer.ContactPerson, request.Customer.Email, request.Customer.Phone);
+                var masterReq = new CreateCustomerMasterDataRequest(request.Customer.Code ?? "", request.Customer.Name ?? "Pelanggan", request.Customer.Address, request.Customer.ContactPerson, request.Customer.Email, request.Customer.Phone);
                 var newCust = await masterDataClient.CreateCustomerAsync(masterReq, cancellationToken);
                 customerId = newCust.Id;
             }
