@@ -5,7 +5,7 @@ import { S } from "../../../components/production/ProductionHelpers";
 import { getMaterialOptions } from "./material-request/MaterialRequestHelpers";
 
 export function InlineBomDisplay({ so }: { so: SalesOrder }) {
-  const materials = getMaterialOptions(so);
+  const materials = getMaterialOptions(so, true);
   
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginTop: 12 }} onClick={e => e.stopPropagation()}>
@@ -74,6 +74,11 @@ export function InlineBomDisplay({ so }: { so: SalesOrder }) {
                  <tr key={m.key || idx} style={{ borderBottom: idx < materials.length - 1 ? `1px solid #E2E8F0` : "none", background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC" }}>
                    <td style={{ padding: "8px 12px", fontWeight: 600, color: S.slate }}>
                      {m.itemName || "-"}
+                     {m.isCustomerMaterial && (
+                       <span style={{ marginLeft: 6, fontSize: "10px", padding: "2px 4px", background: "#FDE68A", color: "#92400E", borderRadius: 4, fontWeight: 600 }}>
+                         Dari Pelanggan
+                       </span>
+                     )}
                    </td>
                    <td style={{ padding: "8px 12px", color: S.secondary }}>
                      {m.specification ? (

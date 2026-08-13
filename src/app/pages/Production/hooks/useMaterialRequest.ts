@@ -163,16 +163,26 @@ export function useMaterialRequest() {
           }
         }
 
-        const productQty = (soItem as any).qty || soItem.quantity || 1;
+
         for (const item of aggregatedItems.values()) {
-          const required = item.bomQuantity * productQty;
+          const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
+          
+          const customerProvidedQty = matchingCustomBoms
+            .filter(cb => cb.isCustomerMaterial)
+            .reduce((sum, cb) => sum + (cb.quantity || 1), 0);
+
+          // Do not multiply by productQty; use exact BOM quantity. Subtract customer provided materials.
+          const required = item.bomQuantity - customerProvidedQty;
           const available = item.currentStock;
           
-          const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
-          const specs = matchingCustomBoms.map(cb => ({
-            spec: cb.spec || "",
-            quantity: (cb.quantity || 1) * productQty
-          }));
+          if (required <= 0) continue; // Customer provided all of it or none required
+          
+          const specs = matchingCustomBoms
+            .filter(cb => !cb.isCustomerMaterial)
+            .map(cb => ({
+              spec: cb.spec || "",
+              quantity: (cb.quantity || 1)
+            }));
           
           if (available < required) {
             const existing = issues.find(i => i.itemName === item.inventoryItemName);
@@ -186,8 +196,8 @@ export function useMaterialRequest() {
                 itemName: item.inventoryItemName,
                 required,
                 available,
-                bomQty: item.bomQuantity,
-                productQty,
+                bomQty: required, // Record the exact required amount
+                productQty: 1, // Fix display to just show the required amount without multiplication
                 specs: specs.length > 0 ? specs : undefined
               });
             }

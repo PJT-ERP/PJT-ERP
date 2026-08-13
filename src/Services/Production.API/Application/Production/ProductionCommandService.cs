@@ -147,14 +147,22 @@ public class ProductionCommandService(
 
         ValidateWorkerRequest(request);
         EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.WorkerUserId, isPrivileged, "production worker");
-        
-        var deductItems = salesOrder.Items
-            .Select(soItem => new DeductBomStockRequestItem(soItem.ProductId, soItem.Qty))
-            .ToList();
-        
-        if (deductItems.Count > 0)
+
+        var productIds = salesOrder.Items.Select(i => i.ProductId).Distinct().ToList();
+        var boms = productIds.Count > 0 ? await masterDataClient.GetBomStockAsync(productIds, cancellationToken) : Array.Empty<BomStockDto>();
+        var mappedMaterials = MapMaterials(salesOrder, boms);
+
+        if (mappedMaterials != null && mappedMaterials.Count > 0)
         {
-            await masterDataClient.DeductBomStockBulkAsync(deductItems, cancellationToken);
+            var deductItems = mappedMaterials
+                .Where(m => !string.IsNullOrEmpty(m.InventoryItemId) && Guid.TryParse(m.InventoryItemId, out _))
+                .Select(m => new DeductCustomBomRequestItem(Guid.Parse(m.InventoryItemId!), m.Quantity))
+                .ToList();
+
+            if (deductItems.Count > 0)
+            {
+                await masterDataClient.DeductCustomBomAsync(deductItems, cancellationToken);
+            }
         }
 
         StartProduction(productionOrder, request, DateTime.UtcNow);

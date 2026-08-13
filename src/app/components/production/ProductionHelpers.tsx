@@ -68,6 +68,9 @@ export type MaterialOption = {
   itemName: string;
   specification: string;
   quantity?: number;
+  isCustomerMaterial?: boolean;
+  inventoryItemId?: string;
+  name?: string;
 };
 
 export function parseMaterialText(value?: string | null): MaterialOption[] {
@@ -92,11 +95,11 @@ export function parseMaterialText(value?: string | null): MaterialOption[] {
     .filter(Boolean) as MaterialOption[];
 }
 
-export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
+export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boolean = false): MaterialOption[] {
   const options: MaterialOption[] = [];
   const seen = new Set<string>();
 
-  const addOption = (materialObj: any, item: string, spec: string, qty?: number) => {
+  const addOption = (materialObj: any, item: string, spec: string, qty?: number, isCustomerMaterial?: boolean) => {
     const key = `${item.toLowerCase().replace(/[^a-z0-9]/g, '')}|${spec.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
@@ -105,7 +108,8 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
         key: materialObj?.key || `mat-${seen.size}`, 
         itemName: item.trim(), 
         specification: spec.trim(), 
-        quantity: qty 
+        quantity: qty,
+        isCustomerMaterial
       });
     }
   };
@@ -113,25 +117,25 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   // Use bomsPerItem for correct per-product-line aggregation
   if (so.bomsPerItem && so.items && so.items.length > 0) {
     let hasValidEngineerMaterials = false;
-    const aggregated = new Map<string, { materialObj: any, itemName: string, spec: string, quantity: number }>();
+    const aggregated = new Map<string, { materialObj: any, itemName: string, spec: string, quantity: number, isCustomerMaterial: boolean }>();
 
     so.items.forEach((item: any) => {
       const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
       if (boms && Array.isArray(boms)) {
         boms.forEach((material: any) => {
+          if (material.isCustomerMaterial && !includeCustomerMaterials) return;
           const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
           const specification = String(material?.specification || material?.spec || material?.size || "").trim();
           
           if (itemName && itemName.toLowerCase() !== "pppp") {
             const rawQty = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
             const matQty = isNaN(rawQty) ? 0 : rawQty;
-            const itemQty = Number(item.quantity) || 1;
             
             const key = `${itemName.toLowerCase().replace(/[^a-z0-9]/g, '')}|${specification.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
             if (!aggregated.has(key)) {
-              aggregated.set(key, { materialObj: material, itemName, spec: specification, quantity: 0 });
+              aggregated.set(key, { materialObj: material, itemName, spec: specification, quantity: 0, isCustomerMaterial: !!material.isCustomerMaterial });
             }
-            aggregated.get(key)!.quantity += (matQty * itemQty);
+            aggregated.get(key)!.quantity += matQty;
             hasValidEngineerMaterials = true;
           }
         });
@@ -140,7 +144,7 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
 
     if (hasValidEngineerMaterials) {
       aggregated.forEach((val) => {
-        addOption(val.materialObj, val.itemName, val.spec, val.quantity);
+        addOption(val.materialObj, val.itemName, val.spec, val.quantity, val.isCustomerMaterial);
       });
       return options;
     }
@@ -149,12 +153,13 @@ export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
   if (Array.isArray(so.materials) && so.materials.length > 0) {
     let hasValidEngineerMaterials = false;
     so.materials.forEach((material: any) => {
+      if (material.isCustomerMaterial && !includeCustomerMaterials) return;
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
       const quantity = typeof material?.quantity === 'number' ? material.quantity : (material?.quantity ? Number(material.quantity) : undefined);
 
       if (itemName && itemName.toLowerCase() !== "pppp") {
-        addOption(material, itemName, specification, Number.isNaN(quantity) ? undefined : quantity);
+        addOption(material, itemName, specification, Number.isNaN(quantity) ? undefined : quantity, !!material.isCustomerMaterial);
         hasValidEngineerMaterials = true;
       }
     });

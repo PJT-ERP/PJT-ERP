@@ -184,8 +184,9 @@ describe('ProductionDetailModal', () => {
       // 2. Should update current SO
       expect(updateSalesOrder).toHaveBeenCalledWith('SO-TAMBAH', {
         bomsPerItem: {
-          'PROD-X': [{ inventoryItemId: 'INV-1', name: 'Plastik', quantity: 5, unit: 'kg' }]
-        }
+          'PROD-X': [{ inventoryItemId: 'INV-1', name: 'Plastik', quantity: 5, unit: 'kg', isCustomerMaterial: undefined }]
+        },
+        notes: "[{\"name\":\"Plastik\",\"quantity\":5,\"unit\":\"kg\",\"inventoryItemId\":\"INV-1\"}]"
       });
     });
   });

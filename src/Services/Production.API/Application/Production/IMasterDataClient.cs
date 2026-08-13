@@ -24,6 +24,9 @@ public sealed record BomStockItemDto(
 public record BulkDeductBomStockRequest(IReadOnlyCollection<DeductBomStockRequestItem> Items);
 public record DeductBomStockRequestItem(Guid ProductId, int ProductionQuantity);
 
+public record DeductCustomBomRequest(IReadOnlyCollection<DeductCustomBomRequestItem> Items);
+public record DeductCustomBomRequestItem(Guid InventoryItemId, decimal Quantity);
+
 public record CreateCustomerMasterDataRequest(string Code, string Name, string? Address, string? ContactPerson, string? Email, string? Phone);
 public record CreateProductMasterDataRequest(string PartNumber, string Description, string Unit, string? MaterialSpec);
 
@@ -35,5 +38,6 @@ public interface IMasterDataClient
     Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken cancellationToken);
     Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken);
     Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken);
+    Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken);
 }

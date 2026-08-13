@@ -20,6 +20,7 @@ interface BomMaterial {
   inventoryItemId: string;
   code?: string;
   category?: string;
+  isCustomerMaterial?: boolean;
 }
 
 interface BomEditorProps {
@@ -110,40 +111,46 @@ export function BomEditor({
               {isStandardProduct ? "Material Tambahan (Khusus SO Ini)" : "BOM Custom"}
             </div>
             {materials.map((m) => (
-              <div key={m.id} style={{ display: "flex", flexDirection: "row", gap: 12, background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)", alignItems: "center" }}>
-                <div style={{ position: "relative", display: "flex", flex: 1, gap: 12, alignItems: "center", minWidth: 0 }}>
-                  <MaterialAutocomplete
-                    value={m.name}
-                    onChange={val => onUpdateMaterial(itemId, m.id, 'name', val)}
-                    onSelectProduct={p => {
-                      onUpdateMaterial(itemId, m.id, 'name', p.name);
-                      onUpdateMaterial(itemId, m.id, 'unit', p.unit);
-                      onUpdateMaterial(itemId, m.id, 'inventoryItemId', p.id);
-                      onUpdateMaterial(itemId, m.id, 'code', p.code);
-                      if (p.category) onUpdateMaterial(itemId, m.id, 'category', p.category);
-                    }}
-                    options={inventoryItems}
-                    disabled={!canEdit}
-                  />
-                  <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => onUpdateMaterial(itemId, m.id, 'spec', e.target.value)} disabled={!canEdit}
-                    style={{ flex: 1, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canEdit ? "#fff" : "#F8FAFC" }} />
+              <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: 8, background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center" }}>
+                  <div style={{ position: "relative", display: "flex", flex: 1, gap: 12, alignItems: "center", minWidth: 0 }}>
+                    <MaterialAutocomplete
+                      value={m.name}
+                      onChange={val => onUpdateMaterial(itemId, m.id, 'name', val)}
+                      onSelectProduct={p => {
+                        onUpdateMaterial(itemId, m.id, 'name', p.name);
+                        onUpdateMaterial(itemId, m.id, 'unit', p.unit);
+                        onUpdateMaterial(itemId, m.id, 'inventoryItemId', p.id);
+                        onUpdateMaterial(itemId, m.id, 'code', p.code);
+                        if (p.category) onUpdateMaterial(itemId, m.id, 'category', p.category);
+                      }}
+                      options={inventoryItems}
+                      disabled={!canEdit}
+                    />
+                    <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => onUpdateMaterial(itemId, m.id, 'spec', e.target.value)} disabled={!canEdit}
+                      style={{ flex: 1, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canEdit ? "#fff" : "#F8FAFC" }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+                    <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => onUpdateMaterial(itemId, m.id, 'quantity', Number(e.target.value))} disabled={!canEdit}
+                      style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canEdit ? "#fff" : "#F8FAFC", textAlign: "center" }} />
+                    {!m.inventoryItemId ? (
+                      <UnitSelect value={m.unit || 'pcs'} onChange={v => onUpdateMaterial(itemId, m.id, 'unit', v)} disabled={!canEdit} />
+                    ) : (
+                      <input type="text" value={m.unit} readOnly placeholder="pcs" disabled={!canEdit}
+                        style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }} />
+                    )}
+                    {canEdit && (
+                      <button onClick={() => onRemoveMaterial(itemId, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
-                  <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => onUpdateMaterial(itemId, m.id, 'quantity', Number(e.target.value))} disabled={!canEdit}
-                    style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canEdit ? "#fff" : "#F8FAFC", textAlign: "center" }} />
-                  {!m.inventoryItemId ? (
-                    <UnitSelect value={m.unit || 'pcs'} onChange={v => onUpdateMaterial(itemId, m.id, 'unit', v)} disabled={!canEdit} />
-                  ) : (
-                    <input type="text" value={m.unit} readOnly placeholder="pcs" disabled={!canEdit}
-                      style={{ width: 100, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }} />
-                  )}
-                  {canEdit && (
-                    <button onClick={() => onRemoveMaterial(itemId, m.id)} style={{ padding: 8, background: "none", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", borderRadius: 4, transition: "background 0.2s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "#FEF2F2"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                </div>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, alignSelf: "flex-start", cursor: canEdit ? "pointer" : "default" }}>
+                  <input type="checkbox" checked={m.isCustomerMaterial || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isCustomerMaterial', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
+                  Material dari Pelanggan
+                </label>
               </div>
             ))}
           </div>

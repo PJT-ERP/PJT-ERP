@@ -249,7 +249,8 @@ public sealed class MixedProductSalesOrderTests
             Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-STUB", "Stub", "pcs", null, true));
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(Array.Empty<BomStockDto>());
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(productIds.Select(id => new BomStockDto(id, "PART", "PARTNAME", new List<BomStockItemDto> { new BomStockItemDto(id, id, null, "INV", 1m, "kg", null, 100, "") })).ToArray());
     }
 }
 

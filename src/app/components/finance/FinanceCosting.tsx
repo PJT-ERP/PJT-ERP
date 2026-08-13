@@ -21,6 +21,7 @@ import { productionApi, FinanceCostingQueuesDto } from "../../services/productio
 import { useFinanceData } from "./useFinanceData";
 import { useSalesOrdersQuery } from "../../services/queries";
 import { useQueryClient } from "@tanstack/react-query";
+import { getMaterialOptions } from "../production/ProductionHelpers";
 
 export function FinanceCosting() {
   const { customers, updateSalesOrder } = useApp();
@@ -354,29 +355,52 @@ export function FinanceCosting() {
                   <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
                     Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                   </p>
-                  {selectedItem.materials && selectedItem.materials.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
-                        <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
-                          <tr>
-                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
-                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
-                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedItem.materials.map((m: any, i: number) => (
-                            <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
-                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
-                              <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
-                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                  {(() => {
+                    const { getMaterialOptions } = require("../production/ProductionHelpers");
+                    
+                    // Robustly extract bomsPerItem from raw selectedItem DTO
+                    const bomsPerItem: Record<string, any[]> = {};
+                    (selectedItem.items || []).forEach((item: any) => {
+                      if (item.notes?.startsWith("[")) {
+                        try {
+                          const parsed = JSON.parse(item.notes);
+                          if (Array.isArray(parsed)) bomsPerItem[item.id] = parsed;
+                        } catch {}
+                      }
+                    });
+                    
+                    const itemWithBoms = { ...selectedItem, bomsPerItem };
+                    const displayMaterials = getMaterialOptions(itemWithBoms, true);
+                    
+                    return displayMaterials && displayMaterials.length > 0 ? (
+                      <div style={{ marginTop: 12 }}>
+                        <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
+                          <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
+                            <tr>
+                              <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
+                              <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
+                              <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                          </thead>
+                          <tbody>
+                            {displayMaterials.map((m: any, i: number) => (
+                              <tr key={m.id || i} style={{ borderBottom: i < displayMaterials.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                                <td style={{ padding: "6px 10px", color: S.slate }}>
+                                  {m.name}
+                                  {m.isCustomerMaterial && (
+                                    <span style={{ marginLeft: 6, display: "inline-block", background: "#DBEAFE", color: "#1E3A8A", padding: "2px 6px", borderRadius: 4, fontSize: "10px", fontWeight: 600, border: "1px solid #BFDBFE", verticalAlign: "middle" }}>Dari Pelanggan</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
+                                <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
 

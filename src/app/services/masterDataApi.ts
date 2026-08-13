@@ -202,9 +202,5 @@ export const masterDataApi = {
     getProduct: async (id: string): Promise<ProductDto> => {
         const response = await apiClient.get<ProductDto>(`/api/v1/master-data/products/${id}`);
         return response.data;
-    },
-
-    deductBomMaterials: async (request: { salesOrderId: string, items: { inventoryItemId: string, quantity: number }[] }): Promise<void> => {
-        await apiClient.post('/api/v1/master-data/inventory/deduct-bom', request);
-    },
+    }
 };

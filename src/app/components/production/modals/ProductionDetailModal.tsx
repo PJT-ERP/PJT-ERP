@@ -9,14 +9,14 @@ import { MaterialAutocomplete } from "../../../pages/engineering/task-detail/Mat
 
 export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { purchasingRequests, updateSalesOrder, currentUser, salesOrders, setSalesOrders } = useApp();
-  const materials = getMaterialOptions(so);
+  const materials = getMaterialOptions(so, true);
   const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
   const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; materialSpec?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
   const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
 
   const [isEditingBOM, setIsEditingBOM] = useState(false);
   const [isAddingBOM, setIsAddingBOM] = useState(false);
-  const [newBomsPerProduct, setNewBomsPerProduct] = useState<Record<string, { inventoryItemId: string, name: string, quantity: number, unit: string }[]>>({});
+  const [newBomsPerProduct, setNewBomsPerProduct] = useState<Record<string, { inventoryItemId: string, name: string, quantity: number, unit: string, isCustomerMaterial?: boolean }[]>>({});
   const [editedBOM, setEditedBOM] = useState(materials);
   const isSpv = currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
@@ -51,18 +51,32 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
       // 2. Update Current SO Locally
       const updatedBomsPerItem = { ...(so.bomsPerItem || {}) };
       for (const [productId, boms] of Object.entries(newBomsPerProduct)) {
-        const validBoms = boms.filter(b => b.inventoryItemId && b.quantity > 0).map(b => ({
-          name: b.name,
-          quantity: b.quantity,
-          unit: b.unit,
-          inventoryItemId: b.inventoryItemId
-        }));
+        const validBoms = boms.filter(b => (b.inventoryItemId || inventory.some(i => i.name.toLowerCase() === b.name.toLowerCase())) && b.quantity > 0).map(b => {
+          let invId = b.inventoryItemId;
+          if (!invId) {
+            const match = inventory.find(i => i.name.toLowerCase() === b.name.toLowerCase());
+            if (match) invId = match.id;
+          }
+          return {
+            name: b.name,
+            quantity: b.quantity,
+            unit: b.unit,
+            inventoryItemId: invId,
+            isCustomerMaterial: b.isCustomerMaterial
+          };
+        });
         if (validBoms.length > 0) {
           updatedBomsPerItem[productId] = validBoms;
         }
       }
       
-      updateSalesOrder(so.id, { bomsPerItem: updatedBomsPerItem });
+      let jsonNotes = undefined;
+      if (so.items && so.items.length > 0) {
+        const firstItem = so.items[0];
+        jsonNotes = JSON.stringify(updatedBomsPerItem[firstItem.productId || firstItem.id] || []);
+      }
+      
+      updateSalesOrder(so.id, { bomsPerItem: updatedBomsPerItem, notes: jsonNotes });
 
       // 3. Autofill Pending SOs with the same product in the local context state
       if (setSalesOrders && salesOrders && salesOrders.length > 0) {
@@ -282,15 +296,20 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
                   // getMaterialOptions already returns the total aggregated quantity
                   const reqQty = m.quantity ?? 0;
                   const stock = invItem?.currentStock ?? 0;
-                  const isShort = reqQty > 0 && stock < reqQty;
+                  const isShort = !m.isCustomerMaterial && reqQty > 0 && stock < reqQty;
                   
                   return (
                     <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${isShort ? '#FECACA' : S.border}`, borderRadius: 6, fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
                         <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
                         {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
+                        {m.isCustomerMaterial && (
+                          <span style={{ marginLeft: 6, fontSize: "10px", padding: "2px 4px", background: "#FDE68A", color: "#92400E", borderRadius: 4, fontWeight: 600 }}>
+                            Dari Pelanggan
+                          </span>
+                        )}
                       </div>
-                      {(reqQty > 0 || stock > 0 || isShort) && (
+                      {!m.isCustomerMaterial && (reqQty > 0 || stock > 0 || isShort) && (
                         <div style={{ display: "flex", gap: 12, fontSize: "12px", color: S.secondary, textAlign: "right" }}>
                           {reqQty > 0 && <span>Butuh: <strong style={{ color: S.slate }}>{reqQty}</strong></span>}
                           <span>Stok Gudang: <strong style={{ color: isShort ? '#DC2626' : S.slate }}>{stock}</strong></span>

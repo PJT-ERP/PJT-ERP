@@ -40,6 +40,13 @@ public record DeductBomStockRequestItem(
     Guid ProductId,
     int ProductionQuantity);
 
+public record DeductCustomBomRequest(
+    IReadOnlyCollection<DeductCustomBomRequestItem> Items);
+
+public record DeductCustomBomRequestItem(
+    Guid InventoryItemId,
+    decimal Quantity);
+
 public interface IInventoryService
 {
     Task<IReadOnlyCollection<InventoryItemDto>> ListInventoryAsync(CancellationToken cancellationToken);
@@ -48,4 +55,5 @@ public interface IInventoryService
     Task DeleteInventoryItemAsync(Guid id, CancellationToken cancellationToken);
     Task DeductBomStockAsync(DeductBomStockRequest request, CancellationToken cancellationToken);
     Task DeductBomStockBulkAsync(BulkDeductBomStockRequest request, CancellationToken cancellationToken);
+    Task DeductCustomBomAsync(DeductCustomBomRequest request, CancellationToken cancellationToken);
 }

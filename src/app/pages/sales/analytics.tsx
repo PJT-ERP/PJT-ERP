@@ -130,11 +130,11 @@ export function CustomerAnalyticsPage() {
   // Need to map frontend SalesOrder to SalesOrderDto shape since analytics relies on it
   const salesOrders = useMemo(() => salesOrdersData.map(so => ({
     id: so.id,
-    soNumber: so.id,
+    soNumber: so.soNumber || so.id,
     soDate: so.createdAt,
     customerId: so.customerId,
     status: so.status,
-    estimatedAmount: so.estimatedAmount,
+    estimatedAmount: so.estimatedAmount || so.items?.reduce((sum, item) => sum + (item.unitPrice || 0) * (item.quantity || 0), 0) || 0,
     createdAtUtc: so.createdAt,
     items: [{ productDescription: so.description }]
   } as unknown as SalesOrderDto)), [salesOrdersData]);
@@ -422,8 +422,13 @@ export function CustomerAnalyticsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {cs.predictedMonth ? `${cs.predictedMonth} (Jeda: ${cs.avgInterval}h)` : '—'}
+                      <td className="px-5 py-3">
+                        {cs.predictedMonth ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-slate-700 font-medium">{cs.predictedMonth} <span className="text-slate-400 font-normal">(Jeda: {cs.avgInterval} hari)</span></span>
+                            <span className="text-xs text-slate-500">Est. Potensi: <span className="font-medium text-emerald-600">{formatCurrency(cs.totalRevenue / cs.totalOrders)}</span></span>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="px-5 py-3 text-slate-400">
                         {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}

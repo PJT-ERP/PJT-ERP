@@ -254,7 +254,7 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
                     alert('Gagal mengunduh PDF invoice.');
                   }
                 }} />
-                {(status === "waiting" || status === "verified") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
+                {(status === "waiting" || status === "verified" || status === "overdue") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn
                       icon={<Upload size={12} />}
@@ -288,6 +288,7 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
             invoiceId={invoice?.invoiceId}
             invoiceNumber={invoice?.invoiceNumber || ""}
             amount={defaultAmount}
+            isOverdue={status === "overdue"}
             onClose={() => setShowUploadModal(false)}
             onSubmit={() => {
               setPaymentReported(true);
@@ -300,7 +301,7 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
   );
 }
 
-function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
+function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, isOverdue?: boolean, onClose: () => void, onSubmit: () => void }) {
   const [isUploading, setIsUploading] = useState(false);
   const [bankName, setBankName] = useState("");
   const [amountText, setAmountText] = useState(amount > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : "");
@@ -377,6 +378,16 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: 20 }}>
+          {isOverdue && (
+            <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, marginBottom: 16 }}>
+              <p style={{ margin: 0, fontSize: "12.5px", color: "#B91C1C", fontWeight: 500 }}>
+                ⚠️ Perhatian: Invoice Overdue
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#991B1B" }}>
+                Invoice ini telah melewati batas waktu pembayaran (jatuh tempo).
+              </p>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Bank Tujuan</label>

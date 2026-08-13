@@ -50,8 +50,6 @@ export function SOPrintView({ order, customer, displayMaterials, currentUser }: 
                 <th className="p-4 text-left text-sm font-bold text-slate-500 uppercase tracking-wider w-12">No</th>
                 <th className="p-4 text-left text-sm font-bold text-slate-500 uppercase tracking-wider">Deskripsi Produk / Material</th>
                 <th className="p-4 text-right text-sm font-bold text-slate-500 uppercase tracking-wider">Qty</th>
-                <th className="p-4 text-right text-sm font-bold text-slate-500 uppercase tracking-wider">Harga Satuan</th>
-                <th className="p-4 text-right text-sm font-bold text-slate-500 uppercase tracking-wider">Total Harga</th>
               </tr>
             </thead>
             <tbody>
@@ -64,8 +62,6 @@ export function SOPrintView({ order, customer, displayMaterials, currentUser }: 
                       <div className="text-sm text-slate-500 font-normal mt-1">Part No: {item.productPartNumber || order.partNumber}</div>
                     </td>
                     <td className="p-4 text-base font-semibold text-right text-slate-900">{item.qty || order.quantity} {item.unit || order.unit}</td>
-                    <td className="p-4 text-base text-right text-slate-700">Rp {((item.totalPrice || order.estimatedAmount || 0) / (item.qty || order.quantity || 1)).toLocaleString('id-ID')}</td>
-                    <td className="p-4 text-base text-right font-bold text-slate-900">Rp {(item.totalPrice || order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
                   </tr>
                 ))
               ) : (
@@ -76,17 +72,9 @@ export function SOPrintView({ order, customer, displayMaterials, currentUser }: 
                     <div className="text-sm text-slate-500 font-normal mt-1">Part No: {order.partNumber}</div>
                   </td>
                   <td className="p-4 text-base font-semibold text-right text-slate-900">{order.quantity} {order.unit}</td>
-                  <td className="p-4 text-base text-right text-slate-700">Rp {((order.estimatedAmount || 0) / (order.quantity || 1)).toLocaleString('id-ID')}</td>
-                  <td className="p-4 text-base text-right font-bold text-slate-900">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
                 </tr>
               )}
             </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 border-t border-slate-200">
-                <td colSpan={4} className="p-4 text-right text-base font-bold text-slate-700 uppercase tracking-wider">GRAND TOTAL</td>
-                <td className="p-4 text-right text-xl font-black text-blue-700">Rp {(order.estimatedAmount || 0).toLocaleString('id-ID')}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
