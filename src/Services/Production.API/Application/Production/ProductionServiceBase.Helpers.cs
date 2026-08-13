@@ -94,7 +94,7 @@ public abstract partial class ProductionServiceBase
             MapMaterials(order, boms));
     }
 
-    private static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
+    protected static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
     {
         if (boms == null || boms.Count == 0) return null;
 
@@ -136,7 +136,7 @@ public abstract partial class ProductionServiceBase
                 }
             }
 
-            var overriddenInventoryItemIds = new HashSet<string>();
+            var overriddenInventoryItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var legacy in legacyMaterials)
             {
                 var resolvedInvId = legacy.InventoryItemId ?? legacy.Id;

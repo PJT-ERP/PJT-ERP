@@ -1,7 +1,7 @@
 
-import { X, Banknote } from 'lucide-react';
+import { X, Banknote, AlertTriangle, Clock } from 'lucide-react';
 import { formatIDR, formatDate, type Invoice } from '../mockData';
-import { getRemainingAmount, getNextSchedule } from '../paymentUtils';
+import { getRemainingAmount, getNextSchedule, todayInputValue } from '../paymentUtils';
 
 export function InvoiceVerificationDetailModal({ invoice, onClose }: {
   invoice: Invoice;
@@ -9,6 +9,8 @@ export function InvoiceVerificationDetailModal({ invoice, onClose }: {
 }) {
   const remainingAmount = getRemainingAmount(invoice);
   const nextSchedule = getNextSchedule(invoice);
+  const todayStr = todayInputValue();
+  const isOverdue = invoice.dueDate && invoice.dueDate < todayStr;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -20,9 +22,15 @@ export function InvoiceVerificationDetailModal({ invoice, onClose }: {
             <p className="text-xs text-slate-400 mt-0.5">{invoice.invoiceNumber} - {invoice.soNumber}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold px-3 py-1 rounded-full border bg-amber-500 text-white border-transparent shadow-sm">
-              Menunggu Verifikasi
-            </span>
+            {isOverdue ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200 shadow-sm">
+                <AlertTriangle size={12} /> Overdue
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shadow-sm">
+                <Clock size={12} /> Menunggu
+              </span>
+            )}
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1"><X size={20} /></button>
           </div>
         </div>

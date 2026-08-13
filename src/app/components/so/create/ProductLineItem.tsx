@@ -320,7 +320,10 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                     return (
                       <tr key={mat.id}>
                         <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, fontFamily: "monospace", fontSize: "10.5px", whiteSpace: "nowrap" }}>{displayCode}</td>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{displayName}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>
+                          {displayName}
+                          {mat.isCustomerMaterial && <span style={{ marginLeft: 6, padding: "2px 6px", background: "#DBEAFE", color: "#1D4ED8", borderRadius: 4, fontSize: "9px", fontWeight: 600 }}>DARI PELANGGAN</span>}
+                        </td>
                         <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{displaySpec}</td>
                         <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{totalQty} {mat.unit}</td>
                       </tr>

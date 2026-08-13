@@ -609,6 +609,12 @@ public sealed class ProductionServiceTests
             return Task.CompletedTask;
         }
 
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken)
+        {
+            if (ShouldFailDeduct) throw new InvalidOperationException("Insufficient stock");
+            return Task.CompletedTask;
+        }
+
         public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(Array.Empty<BomStockDto>());
     }
 }

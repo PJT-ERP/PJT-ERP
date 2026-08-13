@@ -144,6 +144,42 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
+    public async Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken)
+    {
+        AttachAuthorizationHeader();
+        var request = new { Items = items };
+        var response =
+            await httpClient.PostAsJsonAsync("api/v1/master-data/inventory/deduct-custom-bom", request, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorMessage = $"Failed to deduct custom BOM stock due to insufficient inventory or unauthorized access. Status Code: {response.StatusCode}";
+            try
+            {
+                if (response.Content.Headers.ContentType?.MediaType == "application/json")
+                {
+                    var error = await response.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: cancellationToken);
+                    if (error != null && !string.IsNullOrWhiteSpace(error.Message))
+                    {
+                        errorMessage = error.Message;
+                    }
+                }
+                else
+                {
+                    var rawContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(rawContent) && rawContent.Length < 200)
+                    {
+                        errorMessage = rawContent;
+                    }
+                }
+            }
+            catch
+            {
+            }
+            throw new InvalidOperationException(errorMessage);
+        }
+    }
+
     public async Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken)
     {
         try

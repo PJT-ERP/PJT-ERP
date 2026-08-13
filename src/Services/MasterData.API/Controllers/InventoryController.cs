@@ -75,4 +75,19 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("deduct-custom-bom")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
+    public async Task<IActionResult> DeductCustomBom(DeductCustomBomRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.DeductCustomBomAsync(request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

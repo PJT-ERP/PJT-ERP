@@ -105,7 +105,7 @@ export function EngineeringTaskDetailPage() {
     for (const item of qut.items || []) {
       const mats = itemMaterials[item.id] || [];
       for (const m of mats) {
-        if (!m.name?.trim()) continue;
+        if (!m.name?.trim() || m.isCustomerMaterial) continue;
         const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
         if (seen.has(key)) continue;
         const mid = (m.inventoryItemId || '').toLowerCase();
@@ -223,19 +223,23 @@ export function EngineeringTaskDetailPage() {
         for (const originalM of mats) {
           if (!originalM.name?.trim() || !(originalM.quantity > 0)) continue;
           const m = { ...originalM };
-          let invId = m.inventoryItemId;
-          if (!invId) {
-            const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
-            if (existingItem) { invId = existingItem.id; m.code = existingItem.code; }
-            else {
-              try {
-                const created = await masterDataApi.createInventoryItem({ code: "", name: m.name.trim(), category: m.category || 'Engineering', unit: m.unit || 'pcs', currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0, location: '', supplierName: '', unitPrice: 0 });
-                invId = created.id; m.code = created.code; currentInv.push(created);
-              } catch (err) { console.warn(`Failed to create "${m.name}"`, err); continue; }
+          if (m.isCustomerMaterial) {
+            m.inventoryItemId = '';
+          } else {
+            let invId = m.inventoryItemId;
+            if (!invId) {
+              const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+              if (existingItem) { invId = existingItem.id; m.code = existingItem.code; }
+              else {
+                try {
+                  const created = await masterDataApi.createInventoryItem({ code: "", name: m.name.trim(), category: m.category || 'Engineering', unit: m.unit || 'pcs', currentStock: 0, minStock: 0, maxStock: 0, reorderPoint: 0, location: '', supplierName: '', unitPrice: 0 });
+                  invId = created.id; m.code = created.code; currentInv.push(created);
+                } catch (err) { console.warn(`Failed to create "${m.name}"`, err); continue; }
+              }
             }
+            m.inventoryItemId = invId;
           }
-          m.inventoryItemId = invId;
-          if (!m.code && invId) { const inv = currentInv.find(ci => ci.id === invId); if (inv?.code) m.code = inv.code; }
+          if (!m.code && m.inventoryItemId) { const inv = currentInv.find(ci => ci.id === m.inventoryItemId); if (inv?.code) m.code = inv.code; }
           newMats.push(m);
         }
         updatedItems.push({ salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, unitPrice: (it as any).unitPrice || 0, notes: (newMats && newMats.length > 0) ? JSON.stringify(newMats) : (it.notes || "") });

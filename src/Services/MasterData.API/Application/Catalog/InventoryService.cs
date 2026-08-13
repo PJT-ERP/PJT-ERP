@@ -229,6 +229,54 @@ public sealed class InventoryService(MasterDataContext db) : IInventoryService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DeductCustomBomAsync(DeductCustomBomRequest request, CancellationToken cancellationToken)
+    {
+        var missingMaterials = new List<string>();
+        var itemsToUpdate = new Dictionary<Guid, (InventoryItem item, decimal totalQuantityToDeduct)>();
+
+        foreach (var reqItem in request.Items)
+        {
+            var inventoryItem = await db.InventoryItems
+                .FirstOrDefaultAsync(i => i.Id == reqItem.InventoryItemId, cancellationToken);
+
+            if (inventoryItem == null)
+            {
+                missingMaterials.Add($"Unknown Material ID {reqItem.InventoryItemId} (Not found in inventory)");
+                continue;
+            }
+
+            if (!itemsToUpdate.TryGetValue(inventoryItem.Id, out var existing))
+            {
+                existing = (inventoryItem, 0);
+            }
+
+            existing.totalQuantityToDeduct += reqItem.Quantity;
+            itemsToUpdate[inventoryItem.Id] = existing;
+        }
+
+        foreach (var (invId, data) in itemsToUpdate)
+        {
+            if (data.item.CurrentStock < data.totalQuantityToDeduct)
+            {
+                missingMaterials.Add($"{data.item.Name} (Required: {data.totalQuantityToDeduct}, In Stock: {data.item.CurrentStock})");
+            }
+        }
+
+        if (missingMaterials.Count > 0)
+        {
+            var message = "Insufficient stock for production. Please create a Material Request (PR) first for: " + string.Join(", ", missingMaterials);
+            throw new Exception(message);
+        }
+
+        foreach (var data in itemsToUpdate.Values)
+        {
+            data.item.CurrentStock -= data.totalQuantityToDeduct;
+            data.item.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<string> GenerateSequentialCodeAsync(string prefix, IQueryable<string> existingCodesQuery, CancellationToken cancellationToken)
     {
         var existingCodes = await existingCodesQuery.ToListAsync(cancellationToken);
