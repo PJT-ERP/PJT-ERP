@@ -57,7 +57,7 @@ export function CustomerSection({ isExistingCustomer, onToggleExisting, customer
           <Label text="Pilih Pelanggan Existing" required />
           <SearchableCustomerSelect
             customers={customers}
-            value={customerCode}
+            value={customerCode || ""}
             onChange={val => {
               const c = customers.find(cust => cust.code === val);
               if (c) {

@@ -356,10 +356,21 @@ export function FinanceCosting() {
                     Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                   </p>
                   {(() => {
-                    const mappedSo = salesOrders.find((s: any) => s.backendId === (selectedItem.backendId || selectedItem.id) || s.id === selectedItem.id);
+                    const { getMaterialOptions } = require("../production/ProductionHelpers");
                     
-                    // Use getMaterialOptions to properly merge bomsPerItem and materials so we get isCustomerMaterial flag
-                    const displayMaterials = getMaterialOptions(mappedSo || selectedItem, true);
+                    // Robustly extract bomsPerItem from raw selectedItem DTO
+                    const bomsPerItem: Record<string, any[]> = {};
+                    (selectedItem.items || []).forEach((item: any) => {
+                      if (item.notes?.startsWith("[")) {
+                        try {
+                          const parsed = JSON.parse(item.notes);
+                          if (Array.isArray(parsed)) bomsPerItem[item.id] = parsed;
+                        } catch {}
+                      }
+                    });
+                    
+                    const itemWithBoms = { ...selectedItem, bomsPerItem };
+                    const displayMaterials = getMaterialOptions(itemWithBoms, true);
                     
                     return displayMaterials && displayMaterials.length > 0 ? (
                       <div style={{ marginTop: 12 }}>

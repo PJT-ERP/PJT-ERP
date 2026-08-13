@@ -3,11 +3,11 @@ import {
   ChevronLeft,
   User, Building2, Phone, Mail, MapPin,
   AlertTriangle,
-  Edit, Copy, Printer,
+  Edit, Copy, Printer, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
-import { useSalesOrdersQuery, useCustomersQuery, useUpdateCustomerMutation, useUpdateSalesOrderMutation, useProductsQuery } from "../../services/queries";
+import { useSalesOrdersQuery, useCustomersQuery, useUpdateCustomerMutation, useUpdateSalesOrderMutation, useDeleteSalesOrderMutation, useProductsQuery } from "../../services/queries";
 import { getStatusColor, SOStatus } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
@@ -36,7 +36,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const { data: customers = [], isLoading: isLoadingCustomers } = useCustomersQuery();
   
   const updateSalesOrderMutation = useUpdateSalesOrderMutation();
+  const deleteSalesOrderMutation = useDeleteSalesOrderMutation();
   const updateCustomerMutation = useUpdateCustomerMutation();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   const updateSalesOrder = (id: string, data: any) => updateSalesOrderMutation.mutate({ id, data });
   const updateCustomer = (code: string, data: any) => updateCustomerMutation.mutate({ code, data });
@@ -172,8 +174,33 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     }
   };
 
+  const handleDeleteSO = () => {
+    deleteSalesOrderMutation.mutate(orderId, {
+      onSuccess: () => {
+        toast.success(`Sales Order ${orderId} berhasil dihapus.`, {
+          style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
+        });
+        onNavigate("so-list");
+      },
+      onError: (err: any) => {
+        toast.error(`Gagal menghapus SO: ${err?.response?.data?.message || err.message}`);
+      }
+    });
+  };
+
   const handleSave = () => {
     if (!order) return;
+
+    const isQtyChanged = Number(editForm.quantity) !== Number(order.quantity);
+    const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;
+
+    if (isQtyChanged && isLockedForQty) {
+      toast.error("Kuantitas item tidak dapat diubah setelah Sales Order masuk ke tahap pembayaran atau produksi.", {
+        style: { background: '#7f1d1d', color: '#fca5a5', border: '1px solid #991b1b' },
+        duration: 4000
+      });
+      return;
+    }
 
     const isDesignChanged = editForm.customerDrawingUrl !== order.customerDrawingUrl;
     let newRevisions = order.designRevisions || [];
@@ -326,7 +353,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
           <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => {
             const originalTitle = document.title;
             document.title = order.id;
@@ -334,7 +361,37 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             document.title = originalTitle;
           }} />
           <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
-          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Batal Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
+          {isEditMode ? (
+            <>
+              <button
+                onClick={handleSave}
+                style={{
+                  padding: "7px 14px", borderRadius: 6, border: "none",
+                  background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
+                  color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                }}
+              >
+                Simpan Perubahan
+              </button>
+              <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
+            </>
+          ) : (
+            <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
+          )}
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            title="Hapus Sales Order"
+            style={{
+              padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
+              background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+              transition: "all 0.15s"
+            }}
+          >
+            <Trash2 size={13} />
+            <span>Hapus SO</span>
+          </button>
         </div>
       </div>
 
@@ -435,6 +492,50 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       </div>
       {previewPhoto && <ImagePreviewModal src={previewPhoto} onClose={() => setPreviewPhoto(null)} />}
       <SOPrintView order={order} customer={customer} displayMaterials={displayMaterials} currentUser={currentUser} />
+
+      {/* ===== Delete SO Modal ===== */}
+      {showDeleteModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 12, border: `1px solid ${S.border}`,
+            maxWidth: 420, width: "100%", padding: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            fontFamily: S.font
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#EF4444", flexShrink: 0 }}>
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 700 }}>Hapus Sales Order?</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>Konfirmasi Hapus Permanen</p>
+              </div>
+            </div>
+            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5, marginBottom: 20 }}>
+              Apakah Anda yakin ingin menghapus <strong>{order.id}</strong> secara permanen? Data yang sudah dihapus tidak dapat dikembalikan lagi.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteSalesOrderMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: `1px solid ${S.border}`, background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteSO}
+                disabled={deleteSalesOrderMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#EF4444", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 8px rgba(239,68,68,0.3)" }}
+              >
+                {deleteSalesOrderMutation.isPending ? "Menghapus..." : "Ya, Hapus SO"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

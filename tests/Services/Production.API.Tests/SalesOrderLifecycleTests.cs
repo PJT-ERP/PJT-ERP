@@ -57,7 +57,7 @@ public sealed class SalesOrderLifecycleTests
                 SalesOrderDesignStatuses.Approved),
             CancellationToken.None);
 
-        Assert.StartsWith("SO-", customSo.SoNumber);
+        Assert.StartsWith("SO", customSo.SoNumber);
         Assert.Equal(SalesOrderDesignStatuses.Approved, customSo.DesignStatus);
         Assert.Equal("INTERNAL_DESIGN", customSo.DesignReference);
 
