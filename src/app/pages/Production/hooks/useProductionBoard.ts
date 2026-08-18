@@ -188,6 +188,7 @@ export function useProductionBoard() {
   const inProduction = [...(productionQueues?.inProduction || []), ...(productionQueues?.paused || [])].map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const waitingQC = (productionQueues?.waitingQc || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const pendingDesign = (productionQueues?.pendingDesign || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const completed = (productionQueues?.completed || []).map((so: any) => mergeSalesOrderInvoice(so, invoices));
 
   const approveMaterialRequest = async (so: SalesOrder) => {
     const request = getMaterialRequest(so);
@@ -317,6 +318,8 @@ export function useProductionBoard() {
     inProduction,
     waitingQC,
     pendingDesign,
+    completed,
+    productionQueues,
     checkMaterialShortage,
     getMaterialRequest,
     getMaterialRequestState,

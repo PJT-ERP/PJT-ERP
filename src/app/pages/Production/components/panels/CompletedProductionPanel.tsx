@@ -3,7 +3,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { S } from "../../../../components/production/ProductionHelpers";
 
 export function CompletedProductionPanel({ board }: { board: any }) {
-  const completedQueue = board.productionQueues.completed || [];
+  const completedQueue = board.completed || board.productionQueues?.completed || [];
   
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,7 +80,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
                 </div>
                 <div style={{ fontSize: "14px", color: S.slate, fontWeight: 500, marginBottom: 4 }}>{so.description}</div>
                 <div style={{ fontSize: "12px", color: S.secondary }}>
-                  Selesai pada: {so.productionFinishedAtUtc ? new Date(so.productionFinishedAtUtc).toLocaleString("id-ID") : "-"}
+                  Selesai pada: {so.productionFinishedAtUtc ? (!isNaN(new Date(so.productionFinishedAtUtc).getTime()) ? new Date(so.productionFinishedAtUtc).toLocaleString("id-ID") : "-") : "-"}
                 </div>
               </div>
               
