@@ -111,6 +111,7 @@ export interface ProductionQueuesDto {
   readyToStart: any[];
   inProduction: any[];
   waitingQc: any[];
+  completed: any[];
 }
 
 export interface EngineeringQueuesDto {
@@ -150,6 +151,7 @@ export interface ProductionBoardQueuesDto {
   inProduction: any[];
   paused: any[];
   waitingQc: any[];
+  completed: any[];
 }
 
 export const productionApi = {

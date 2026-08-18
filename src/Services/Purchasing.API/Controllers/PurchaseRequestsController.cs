@@ -85,6 +85,21 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
         return ReviewWithStage(id, request with { ReviewStage = "Finance" }, cancellationToken);
     }
 
+    [HttpPost("{id:guid}/request-revision")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<ActionResult<PurchaseRequestDto>> RequestRevision(Guid id, RequestPrRevisionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await purchaseRequestService.RequestRevisionAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     private async Task<ActionResult<PurchaseRequestDto>> ReviewWithStage(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
         try

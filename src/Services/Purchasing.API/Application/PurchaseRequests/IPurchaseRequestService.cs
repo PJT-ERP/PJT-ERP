@@ -15,4 +15,5 @@ public interface IPurchaseRequestService
     Task<IReadOnlyCollection<MaterialRequirementDto>> ListMaterialRequirementsAsync(Guid? salesOrderId, string? status, CancellationToken cancellationToken);
     Task<SalesOrderMaterialTrackingDto?> GetSalesOrderMaterialTrackingAsync(Guid salesOrderId, CancellationToken cancellationToken);
     Task<string> PreviewNextPoNumberAsync(CancellationToken cancellationToken);
+    Task<PurchaseRequestDto?> RequestRevisionAsync(Guid id, RequestPrRevisionRequest request, CancellationToken cancellationToken);
 }

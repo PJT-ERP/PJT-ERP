@@ -45,6 +45,7 @@ export function useProductionBoard() {
     readyToStart: [],
     inProduction: [],
     waitingQc: [],
+    completed: [],
     pendingDesign: []
   });
   
@@ -60,6 +61,7 @@ export function useProductionBoard() {
         inProduction: (prodQueues.inProduction || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         paused: (prodQueues.paused || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         waitingQc: (prodQueues.waitingQc || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        completed: (prodQueues.completed || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         pendingDesign: (engQueues.pendingDesign || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
       });
     }).catch(console.error);

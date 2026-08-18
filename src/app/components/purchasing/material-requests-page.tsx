@@ -247,7 +247,7 @@ export function MaterialRequestsPage() {
     try {
       const data = await purchasingApi.listPurchaseRequests();
       // Hanya tampilkan PR yang sudah lolos tahap Supervisor di modul Purchasing
-      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") && r.status !== "SupervisorRejected");
+      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") || r.status === "SupervisorRejected");
       setRequests(validForPurchasing.map(mapPurchaseRequestToMr));
     } catch (error) {
       console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
@@ -280,7 +280,8 @@ export function MaterialRequestsPage() {
     Rejected: requests.filter((m) => m.status === "Rejected").length,
   };
 
-  const rejectedByFinanceMrs = requests.filter(r => r.backendStatus === "FinanceRejected" || r.status === "Rejected");
+  const rejectedByFinanceMrs = requests.filter(r => r.backendStatus === "FinanceRejected");
+  const rejectedBySupervisorMrs = requests.filter(r => r.backendStatus === "SupervisorRejected" || r.backendStatus === "Rejected");
 
   return (
     <div className="p-5 space-y-4">
@@ -324,6 +325,37 @@ export function MaterialRequestsPage() {
                       className="px-3 py-1.5 rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors shrink-0 flex items-center gap-1"
                     >
                       <Edit size={12} /> Revisi Sekarang
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectedBySupervisorMrs.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-amber-800">Perhatian: {rejectedBySupervisorMrs.length} Purchase Request Ditolak oleh Supervisor</h3>
+              <p className="text-xs text-amber-700 mt-1 mb-3">
+                Dokumen berikut ditolak atau dikembalikan oleh Supervisor:
+              </p>
+              <div className="space-y-2">
+                {rejectedBySupervisorMrs.map(mr => (
+                  <div key={mr.id} className="flex items-center justify-between bg-white rounded border border-amber-200 p-2.5 text-xs shadow-sm">
+                    <div>
+                      <span className="font-bold text-slate-800">{mr.id}</span>
+                      <span className="text-slate-500 mx-2">·</span>
+                      <span className="text-amber-600 font-medium">Alasan: {mr.rejectionReason || "Spesifikasi tidak disetujui"}</span>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/erp/purchasing/requests/${mr.id}`)}
+                      className="px-3 py-1.5 rounded bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors shrink-0 flex items-center gap-1"
+                    >
+                      <Edit size={12} /> Lihat Detail
                     </button>
                   </div>
                 ))}

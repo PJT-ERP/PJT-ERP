@@ -289,4 +289,5 @@ public sealed record ProductionBoardQueuesDto(
     IReadOnlyCollection<SalesOrderDto> ReadyToStart,
     IReadOnlyCollection<SalesOrderDto> InProduction,
     IReadOnlyCollection<SalesOrderDto> Paused,
-    IReadOnlyCollection<SalesOrderDto> WaitingQc);
+    IReadOnlyCollection<SalesOrderDto> WaitingQc,
+    IReadOnlyCollection<SalesOrderDto> Completed);
