@@ -14,7 +14,8 @@ const S = {
 };
 import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { SalesOrder, SOStatus } from "../data/mockData";
+import { SalesOrder, Product, MaterialRequirement } from "../data/mockData";
+import { formatUrl } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
 import { productionApi, FinanceCostingQueuesDto } from "../../services/productionApi";
@@ -345,7 +346,7 @@ export function FinanceCosting() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
                     <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
                     {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
-                      <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                      <a href={formatUrl(selectedItem.designLink || selectedItem.customerDrawingUrl)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                         Lihat Dokumen <ExternalLink size={12} />
                       </a>
                     ) : (

@@ -37,7 +37,7 @@ public interface IMasterDataClient
     Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken cancellationToken);
     Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken cancellationToken);
     Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken);
-    Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken);
+    Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken);
     Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken);
 }

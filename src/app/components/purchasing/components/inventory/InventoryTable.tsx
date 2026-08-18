@@ -1,5 +1,5 @@
 import React from "react";
-import { Edit, Trash2, Truck } from "lucide-react";
+import { Edit, Trash2, Truck, ArrowRightLeft } from "lucide-react";
 import { InventoryItem, statusCfg, getStatus, TH, TD, formatRp } from "./InventoryHelpers";
 import { useInventory } from "../../hooks/useInventory";
 
@@ -8,7 +8,7 @@ interface InventoryTableProps {
 }
 
 export function InventoryTable({ board }: InventoryTableProps) {
-  const { filtered, invPage, perPage, handleEdit, handleDelete } = board;
+  const { filtered, invPage, perPage, handleEdit, handleDelete, handleMutation } = board;
 
   return (
     <div
@@ -122,6 +122,9 @@ export function InventoryTable({ board }: InventoryTableProps) {
                   </TD>
                   <TD right>
                     <div className="flex justify-end gap-2">
+                      <button onClick={() => handleMutation(item)} className="text-slate-400 hover:text-green-600 transition" title="Mutasi Stok">
+                        <ArrowRightLeft size={16} />
+                      </button>
                       <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-blue-600 transition" title="Edit">
                         <Edit size={16} />
                       </button>

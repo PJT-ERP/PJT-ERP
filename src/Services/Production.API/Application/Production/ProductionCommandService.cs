@@ -31,13 +31,14 @@ public class ProductionCommandService(
         ValidateDrawingUploadRequest(request);
         EnsureAssignedWorker(productionOrder.SalesOrder?.ProductionWorkerUserId, request.UploadedByUserId, isPrivileged, "production worker");
 
-        if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.Absolute, out var drawingUri)
-            || drawingUri.Scheme is not ("http" or "https"))
+        if (!Uri.TryCreate(request.DrawingFileUrl.Trim(), UriKind.RelativeOrAbsolute, out var drawingUri) || 
+            (!drawingUri.IsAbsoluteUri && !request.DrawingFileUrl.Trim().StartsWith('/')) ||
+            (drawingUri.IsAbsoluteUri && drawingUri.Scheme is not ("http" or "https")))
         {
-            throw new InvalidOperationException("Drawing file URL must be a valid HTTP or HTTPS link.");
+            throw new InvalidOperationException("Drawing file URL must be a valid HTTP/HTTPS link or a relative path starting with '/'.");
         }
 
-        productionOrder.DrawingFileUrl = drawingUri.ToString();
+        productionOrder.DrawingFileUrl = request.DrawingFileUrl.Trim();
         productionOrder.DrawingUploadedByUserId = request.UploadedByUserId;
         productionOrder.DrawingUploaderName = request.UploaderName.Trim();
         productionOrder.DrawingUploadedAtUtc = DateTime.UtcNow;
