@@ -87,7 +87,7 @@ export function usePurchaseRequestDetail() {
           (r.id && r.id.trim().toLowerCase() === cleanId)
         );
         
-        if (req && req.status !== "SupervisorRejected") {
+        if (req) {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {
