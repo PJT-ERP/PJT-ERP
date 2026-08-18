@@ -79,6 +79,19 @@ public static class MasterDataSchemaInitializer
                 CONSTRAINT "FK_product_bom_items_products_product_id" FOREIGN KEY ("product_id") REFERENCES products ("Id") ON DELETE CASCADE,
                 CONSTRAINT "FK_product_bom_items_inventory_items_inventory_item_id" FOREIGN KEY ("inventory_item_id") REFERENCES inventory_items ("Id") ON DELETE RESTRICT
             );
+
+            CREATE TABLE IF NOT EXISTS stock_mutation_logs (
+                "Id" uuid NOT NULL,
+                "inventory_item_id" uuid NOT NULL,
+                "item_code" character varying(80),
+                "item_name" character varying(160),
+                "mutation_type" character varying(20),
+                "quantity" numeric NOT NULL,
+                "reason" character varying(500),
+                "created_at_utc" timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_stock_mutation_logs" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_stock_mutation_logs_inventory_items_inventory_item_id" FOREIGN KEY ("inventory_item_id") REFERENCES inventory_items ("Id") ON DELETE CASCADE
+            );
             """,
             cancellationToken);
 

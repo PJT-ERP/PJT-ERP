@@ -1,6 +1,7 @@
 import React from "react";
 import { CheckCircle, Trash2, Download } from "lucide-react";
 import { QRCodeCanvas } from 'qrcode.react';
+import { formatUrl } from "../../../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -96,7 +97,7 @@ export function StepConfirm({ designLink, customerName, qty, unit, newMaterials 
         <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Qty</span><span style={{ color: S.slate, fontWeight: 500 }}>{qty} {unit}</span></div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ color: S.secondary }}>Link Desain</span>
-          <a href={designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
+          <a href={formatUrl(designLink)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
             {designLink}
           </a>
         </div>

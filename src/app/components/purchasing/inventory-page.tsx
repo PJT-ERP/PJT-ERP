@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
@@ -22,12 +22,15 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useInventory } from "./hooks/useInventory";
 import { AddMaterialModal } from "./components/inventory/AddMaterialModal";
+import { StockMutationModal } from "./components/inventory/StockMutationModal";
 import { InventoryTable } from "./components/inventory/InventoryTable";
+import { MutationLogTable } from "./components/inventory/MutationLogTable";
 import { statusCfg, formatRp, CHART_COLORS } from "./components/inventory/InventoryHelpers";
 
 export function InventoryPage() {
   const navigate = useNavigate();
   const board = useInventory();
+  const [activeTab, setActiveTab] = useState<"stock" | "mutations">("stock");
 
   return (
     <div className="p-5 space-y-5">
@@ -65,6 +68,32 @@ export function InventoryPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200 gap-6 mt-2">
+        <button
+          onClick={() => setActiveTab("stock")}
+          className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "stock"
+              ? "border-[#C8102E] text-[#C8102E]"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+          }`}
+        >
+          Stok Saat Ini
+        </button>
+        <button
+          onClick={() => setActiveTab("mutations")}
+          className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "mutations"
+              ? "border-[#C8102E] text-[#C8102E]"
+              : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+          }`}
+        >
+          Riwayat Mutasi
+        </button>
+      </div>
+
+      {activeTab === "stock" ? (
+        <>
       {/* Summary KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -271,6 +300,10 @@ export function InventoryPage() {
       </div>
 
       <InventoryTable board={board} />
+      </>
+      ) : (
+        <MutationLogTable />
+      )}
 
       <AddMaterialModal
         isOpen={board.isAddModalOpen}
@@ -282,6 +315,16 @@ export function InventoryPage() {
         inventoryItems={board.inventory}
         editItem={board.editItem}
         suppliers={board.suppliers}
+      />
+
+      <StockMutationModal
+        isOpen={board.isMutationModalOpen}
+        onClose={() => {
+          board.setIsMutationModalOpen(false);
+          board.setMutationItem(null);
+        }}
+        onSuccess={() => void board.refresh()}
+        item={board.mutationItem}
       />
 
       {board.deleteItem && (

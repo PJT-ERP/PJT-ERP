@@ -60,6 +60,27 @@ function ModalInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+function ModalTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      {...props}
+      style={{
+        width: "100%", boxSizing: "border-box",
+        background: focused ? S.white : "#FAFAFA",
+        border: `1px solid ${focused ? S.cyan : S.border}`,
+        borderRadius: 4, padding: "7px 10px",
+        fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
+        transition: "border-color 0.12s, background 0.12s",
+        resize: "vertical", minHeight: "60px",
+        ...props.style,
+      }}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+    />
+  );
+}
+
 // ─── Customer Add/Edit Modal ───────────────────────────────────────────────────
 interface ModalState {
   mode: "add" | "edit";
@@ -160,7 +181,7 @@ function CustomerModal({ state, onSave, onClose }: {
             </div>
             <div>
               <ModalLabel text="Alamat Lengkap" required />
-              <ModalInput placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required />
+              <ModalTextarea rows={3} placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required />
             </div>
           </div>
 
@@ -340,7 +361,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-                {["Pelanggan", "Kontak", "Kota", "Total Order", "Order Aktif", "Order Terakhir", "Aksi"].map((h, i) => (
+                {["Pelanggan", "Kontak", "Alamat", "Total Order", "Order Aktif", "Order Terakhir", "Aksi"].map((h, i) => (
                   <th key={h} style={{ padding: "9px 14px", textAlign: i === 6 ? "right" : "left", fontSize: "10.5px", fontWeight: 600, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
                     {h}
                   </th>
@@ -489,8 +510,8 @@ function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit
         <p style={{ margin: 0, fontSize: "12px", color: S.slate, display: "flex", alignItems: "center", gap: 5 }}><Phone size={10} style={{ color: "#94A3B8" }} /> {c.phone}</p>
         <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary, display: "flex", alignItems: "center", gap: 5 }}><Mail size={10} style={{ color: "#94A3B8" }} /> {c.contact}</p>
       </td>
-      <td style={{ padding: "10px 14px" }}>
-        <span style={{ fontSize: "12.5px", color: S.slate }}>{c.address.split(",")[0]}</span>
+      <td style={{ padding: "10px 14px", maxWidth: "200px" }}>
+        <span style={{ fontSize: "12.5px", color: S.slate, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.address}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
         <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{total}</span>

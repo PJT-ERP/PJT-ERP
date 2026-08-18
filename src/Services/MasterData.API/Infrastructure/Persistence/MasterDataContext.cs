@@ -13,6 +13,7 @@ public sealed class MasterDataContext(DbContextOptions<MasterDataContext> option
     public DbSet<SupplierContact> SupplierContacts => Set<SupplierContact>();
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
     public DbSet<ProductBomItem> ProductBomItems => Set<ProductBomItem>();
+    public DbSet<StockMutationLog> StockMutationLogs => Set<StockMutationLog>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -125,6 +126,24 @@ public sealed class MasterDataContext(DbContextOptions<MasterDataContext> option
             b.Property(x => x.UnitPrice).HasColumnName("unit_price");
             b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
             b.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        });
+
+        modelBuilder.Entity<StockMutationLog>(b =>
+        {
+            b.ToTable("stock_mutation_logs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.InventoryItemId).HasColumnName("inventory_item_id");
+            b.Property(x => x.ItemCode).HasColumnName("item_code").HasMaxLength(80);
+            b.Property(x => x.ItemName).HasColumnName("item_name").HasMaxLength(160);
+            b.Property(x => x.MutationType).HasColumnName("mutation_type").HasMaxLength(20);
+            b.Property(x => x.Quantity).HasColumnName("quantity");
+            b.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(500);
+            b.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
+
+            b.HasOne(x => x.InventoryItem)
+             .WithMany()
+             .HasForeignKey(x => x.InventoryItemId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());

@@ -129,8 +129,8 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
             {item.designLink && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Link Desain</p>
-                <a href={item.designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
-                  Buka Desain <ExternalLink size={12} />
+                <a href={formatUrl(item.designLink)} target="_blank" rel="noreferrer" style={{ color: S.cyan, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
+                  <FileText size={12} /> Buka Desain <ExternalLink size={12} />
                 </a>
               </div>
             )}

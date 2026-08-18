@@ -8,6 +8,7 @@ import { useCustomersQuery, useProductsQuery, useSalesOrdersQuery } from "../../
 import { getStatusColor } from "../../components/data/mockData";
 import { salesApi } from "../../services/salesApi";
 import { masterDataApi, InventoryItemDto } from "../../services/masterDataApi";
+import { productionApi } from "../../services/productionApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
 import { BomEditor } from "./task-detail/BomEditor";
 import { StepDone, StepRejected, StepRejectForm, StepConfirm, InfoBanner } from "./task-detail/StepScreens";
@@ -56,7 +57,9 @@ export function EngineeringTaskDetailPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
   const [isEditingLink, setIsEditingLink] = useState(false);
   const [localRejectionReason, setLocalRejectionReason] = useState<string | undefined>(undefined);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialized = useRef(false);
 
   useEffect(() => {
@@ -297,9 +300,30 @@ export function EngineeringTaskDetailPage() {
   };
 
   const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
-  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict;
+  const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict || isUploadingFile;
 
   const backToList = () => navigate('/erp/engineer-tasks');
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    try {
+      const url = await productionApi.uploadEngineeringDrawingFile(file);
+      setDesignLink(url);
+      setIsEditingLink(false);
+      toast.success("File desain berhasil diunggah!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Gagal mengunggah file: ${err?.response?.data?.message || err?.message}`);
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto", fontFamily: S.font }}>
@@ -390,17 +414,31 @@ export function EngineeringTaskDetailPage() {
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
-                    placeholder="https://drive.google.com/..." readOnly={!isEditingLink} disabled={!canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))}
+                  <input type="text" value={designLink} onChange={e => setDesignLink(e.target.value)}
+                    placeholder="Tempel link URL desain di sini atau klik tombol 'Unggah File'..." readOnly={!isEditingLink} disabled={!canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))}
                     style={{ flex: 1, padding: "14px 16px", border: `1px solid ${isEditingLink ? S.cyan : S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: (!isEditingLink || !canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))) ? "#F8FAFC" : "#fff", color: !isEditingLink ? S.secondary : S.slate, cursor: !isEditingLink ? "default" : "text", transition: "all 0.2s" }} />
                   {designLink && !isEditingLink && (
-                    <a href={designLink} target="_blank" rel="noreferrer" style={{ padding: "0 16px", background: S.cyan, color: "#fff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: "13.5px", fontWeight: 600, whiteSpace: "nowrap" }}>Buka Link</a>
+                    <a href={designLink.startsWith('/') ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${designLink}` : designLink} target="_blank" rel="noreferrer" style={{ padding: "0 16px", background: S.cyan, color: "#fff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: "13.5px", fontWeight: 600, whiteSpace: "nowrap" }}>Buka Link</a>
                   )}
                   {canProcess && (
-                    <button type="button" onClick={() => setIsEditingLink(!isEditingLink)}
-                      style={{ padding: "0 16px", background: isEditingLink ? "#F8FAFC" : "#fff", color: isEditingLink ? S.slate : S.cyan, border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-                      {isEditingLink ? "Selesai Edit" : "Edit Link"}
-                    </button>
+                    <>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleFileUpload} 
+                        accept="image/*,application/pdf" 
+                      />
+                      <button type="button" onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingFile}
+                        style={{ padding: "0 16px", background: "#fff", color: S.slate, border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: isUploadingFile ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                        {isUploadingFile ? "Mengunggah..." : "Unggah File"}
+                      </button>
+                      <button type="button" onClick={() => setIsEditingLink(!isEditingLink)}
+                        style={{ padding: "0 16px", background: isEditingLink ? "#F8FAFC" : "#fff", color: isEditingLink ? S.slate : S.cyan, border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                        {isEditingLink ? "Selesai Edit" : "Edit Link"}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
