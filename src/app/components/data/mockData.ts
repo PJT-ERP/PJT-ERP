@@ -215,7 +215,7 @@ export function calcProductionDuration(startTime?: string, endTime?: string): nu
 }
 
 export type PurchasingUrgency = 'Normal' | 'Urgent' | 'Critical';
-export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak';
+export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak' | 'Perlu Revisi';
 
 export interface PurchasingItem {
   itemId?: string;
@@ -257,6 +257,7 @@ export interface PurchasingRequest {
   expectedDelivery?: string;
   receivedAt?: string;
   rejectionReason?: string;
+  revisionNote?: string;
 }
 
 export function getDefaultRouteForRole(role: UserRole): string {

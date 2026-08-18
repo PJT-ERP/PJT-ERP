@@ -10,7 +10,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
   const itemsPerPage = 10;
   
   const filteredQueue = completedQueue.filter((so: any) => 
-    so.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (so.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
     (so.description || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
   

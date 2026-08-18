@@ -4,11 +4,13 @@ import { purchasingApi } from "../../../services/purchasingApi";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
 import { useApp } from "../../context/AppContext";
 import { MR, mapPurchaseRequestToMr } from "../material-requests-page";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function usePurchaseRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser, refreshBackendData } = useApp();
+  const queryClient = useQueryClient();
   
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
@@ -53,6 +55,7 @@ export function usePurchaseRequestDetail() {
         message: "Dokumen berhasil dikembalikan ke Supervisor dengan catatan revisi spesifikasi."
       });
       await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
     } catch (e: any) {
       setActionError(e.response?.data?.message || "Gagal mengajukan revisi.");
     } finally {
