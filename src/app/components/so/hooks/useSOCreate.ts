@@ -323,7 +323,7 @@ export function useSOCreate(initialData?: { customerId?: string; orderType?: "ne
         const finalImageUrl = custProduct?.customerDesignUrl || "";
         const created = await createSalesOrderFromRows(customerRes.id, customerForm.deadline, finalImageUrl, products);
         if (customerForm.estimatedAmount) {
-          updateSalesOrder(created.soNumber || created.id, { estimatedAmount: customerForm.estimatedAmount });
+          updateSalesOrder(created.id, { estimatedAmount: customerForm.estimatedAmount });
         }
         await refreshBackendData();
         setGeneratedSONumber(created.soNumber);
@@ -374,7 +374,7 @@ export function useSOCreate(initialData?: { customerId?: string; orderType?: "ne
         const finalImageUrl = custRepeatProduct?.customerDesignUrl || "";
         const created = await createSalesOrderFromRows(customerRes.id, repeatForm.deadline, finalImageUrl, repeatProducts);
         if (repeatForm.estimatedAmount) {
-          updateSalesOrder(created.soNumber || created.id, { estimatedAmount: repeatForm.estimatedAmount });
+          updateSalesOrder(created.id, { estimatedAmount: repeatForm.estimatedAmount });
         }
         await refreshBackendData();
         setGeneratedSONumber(created.soNumber);

@@ -14,15 +14,15 @@ const S = {
 };
 import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { SalesOrder, Product, MaterialRequirement } from "../data/mockData";
+import { SalesOrder, SOStatus } from "../data/mockData";
 import { formatUrl } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
+import { getMaterialOptions } from "../production/ProductionHelpers";
 import { productionApi, FinanceCostingQueuesDto } from "../../services/productionApi";
 import { useFinanceData } from "./useFinanceData";
 import { useSalesOrdersQuery } from "../../services/queries";
 import { useQueryClient } from "@tanstack/react-query";
-import { getMaterialOptions } from "../production/ProductionHelpers";
 
 export function FinanceCosting() {
   const { customers, updateSalesOrder } = useApp();
@@ -357,8 +357,6 @@ export function FinanceCosting() {
                     Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                   </p>
                   {(() => {
-                    const { getMaterialOptions } = require("../production/ProductionHelpers");
-                    
                     // Robustly extract bomsPerItem from raw selectedItem DTO
                     const bomsPerItem: Record<string, any[]> = {};
                     (selectedItem.items || []).forEach((item: any) => {

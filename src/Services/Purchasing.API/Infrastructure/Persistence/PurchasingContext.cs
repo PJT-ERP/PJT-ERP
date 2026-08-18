@@ -80,6 +80,7 @@ public sealed class PurchasingContext(DbContextOptions<PurchasingContext> option
             builder.Property(request => request.FinanceReviewedByUserId).HasColumnName("finance_reviewed_by_user_id");
             builder.Property(request => request.FinanceReviewedAtUtc).HasColumnName("finance_reviewed_at_utc");
             builder.Property(request => request.FinanceRejectionReason).HasColumnName("finance_rejection_reason");
+            builder.Property(request => request.RevisionNote).HasColumnName("revision_note");
             builder.Property(request => request.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(request => request.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.HasMany(request => request.Items)
