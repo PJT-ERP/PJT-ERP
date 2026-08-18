@@ -341,6 +341,7 @@ public sealed class CatalogService(MasterDataContext db, IEventPublisher eventPu
         return await db.Suppliers
             .AsNoTracking()
             .Include(s => s.Contacts)
+            .AsSplitQuery()
             .OrderBy(s => s.Code)
             .Select(s => new SupplierDto(
                 s.Id,

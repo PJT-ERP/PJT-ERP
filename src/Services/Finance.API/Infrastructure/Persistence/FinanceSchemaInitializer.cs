@@ -33,7 +33,8 @@ public static class FinanceSchemaInitializer
 
             CREATE TABLE IF NOT EXISTS finance_settings (
                 id character varying(50) NOT NULL PRIMARY KEY,
-                opening_balance numeric(18,2) NOT NULL
+                opening_balance numeric(18,2) NOT NULL,
+                monthly_target numeric(18,2) NOT NULL DEFAULT 1000000000.00
             );
 
             CREATE TABLE IF NOT EXISTS supplier_payments (
@@ -53,8 +54,8 @@ public static class FinanceSchemaInitializer
             CREATE INDEX IF NOT EXISTS ix_supplier_payments_po_number
                 ON supplier_payments (po_number);
 
-            INSERT INTO finance_settings (id, opening_balance)
-            VALUES ('default', 250000000.00)
+            INSERT INTO finance_settings (id, opening_balance, monthly_target)
+            VALUES ('default', 250000000.00, 1000000000.00)
             ON CONFLICT (id) DO NOTHING;
 
             CREATE INDEX IF NOT EXISTS ix_payment_verification_requests_invoice_id
@@ -67,6 +68,9 @@ public static class FinanceSchemaInitializer
 
             ALTER TABLE invoice_candidate_items
                 ADD COLUMN IF NOT EXISTS unit_price numeric(18,2) NOT NULL DEFAULT 0;
+
+            ALTER TABLE finance_settings
+                ADD COLUMN IF NOT EXISTS monthly_target numeric(18,2) NOT NULL DEFAULT 1000000000.00;
             """,
             cancellationToken);
 

@@ -60,6 +60,23 @@ export interface CreateInventoryItemRequest {
     unitPrice: number;
 }
 
+export interface MutateStockRequest {
+    type: "in" | "out";
+    quantity: number;
+    reason: string;
+}
+
+export interface StockMutationLogDto {
+    id: string;
+    inventoryItemId: string;
+    itemCode: string;
+    itemName: string;
+    mutationType: "in" | "out";
+    quantity: number;
+    reason: string;
+    createdAtUtc: string;
+}
+
 export interface SupplierDto {
     id: string;
     code: string;
@@ -207,4 +224,11 @@ export const masterDataApi = {
     deductBomMaterials: async (request: { salesOrderId: string, items: { inventoryItemId: string, quantity: number }[] }): Promise<void> => {
         await apiClient.post('/api/v1/master-data/inventory/deduct-bom', request);
     },
+    mutateStock: async (id: string, request: MutateStockRequest): Promise<void> => {
+        await apiClient.post(`/api/v1/master-data/inventory/${id}/mutate`, request);
+    },
+    listMutationLogs: async (): Promise<StockMutationLogDto[]> => {
+        const response = await apiClient.get<StockMutationLogDto[]>("/api/v1/master-data/inventory/mutations");
+        return response.data;
+    }
 };

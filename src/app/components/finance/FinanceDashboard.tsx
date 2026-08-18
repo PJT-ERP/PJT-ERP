@@ -12,8 +12,10 @@ import {
 import {
   formatIDR, formatDate
 } from './mockData';
-import { useFinanceData } from './useFinanceData';
 import { useApp } from '../context/AppContext';
+import { useFinanceData } from './useFinanceData';
+import { usePurchasingData } from '../purchasing/usePurchasingData';
+import { mapPurchaseRequestsToPos, calcTotal } from '../purchasing/purchase-orders-page';
 
 const KPI_CARDS = [
   {
@@ -92,7 +94,7 @@ const formatIDRShort = (v: number) => {
   return formatIDR(v);
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, isAdmin }: any) => {
   if (active && payload?.length) {
     return (
       <div className="bg-[#0D1B2A] border border-slate-700 rounded-lg px-4 py-3 shadow-xl text-xs text-white">
@@ -100,7 +102,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         {payload.map((p: any) => (
           <div key={p.name} className="flex justify-between gap-4">
             <span style={{ color: p.color }}>{p.name}</span>
-            <span className="font-medium">{formatIDRShort(p.value)}</span>
+            <span className="font-medium">{isAdmin ? 'Rp ***' : formatIDRShort(p.value)}</span>
           </div>
         ))}
       </div>
@@ -119,10 +121,13 @@ export function FinanceDashboard() {
     isLoading,
     isUsingBackend,
     refresh,
+    supplierPayments,
     monthlyRevenueData,
     invoiceStatusData,
   } = useFinanceData();
-  const { salesOrders, purchasingRequests } = useApp();
+  const { purchaseRequests } = usePurchasingData();
+  const { salesOrders, currentUser } = useApp();
+  const isAdmin = currentUser?.role === 'Admin';
   const [activeTab, setActiveTab] = useState<'GLOBAL' | 'CUSTOMER'>('GLOBAL');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('ALL');
 
@@ -173,10 +178,15 @@ export function FinanceDashboard() {
   const financeSummary = useMemo(() => {
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
     const totalPaid = invoices.reduce((sum, invoice) => sum + invoice.paidAmount, 0);
-    const totalSupplierBills = purchasingRequests.reduce((sum, request) => sum + (request.estimatedPrice || 0), 0);
-    const paidSupplierBills = purchasingRequests
-      .filter(request => request.status === 'Selesai')
-      .reduce((sum, request) => sum + (request.estimatedPrice || 0), 0);
+    
+    const allPos = mapPurchaseRequestsToPos(purchaseRequests, supplierPayments, []);
+    const unpaidSupplierBills = allPos
+      .filter(po => po.paymentStatus !== 'Paid' && po.financeApproval === 'Approved' && po.items.length > 0)
+      .reduce((sum, po) => sum + calcTotal(po.items), 0);
+    
+    const paidSupplierBills = allPos
+      .filter(po => po.paymentStatus === 'Paid' && po.financeApproval === 'Approved' && po.items.length > 0)
+      .reduce((sum, po) => sum + calcTotal(po.items), 0);
     const overdueAmount = invoices
       .filter(invoice => invoice.status === 'OVERDUE')
       .reduce((sum, invoice) => sum + Math.max(0, invoice.amount - invoice.paidAmount), 0);
@@ -184,12 +194,12 @@ export function FinanceDashboard() {
     return {
       outstandingAmount: Math.max(0, totalBilled - totalPaid),
       overdueAmount,
-      supplierPayable: Math.max(0, totalSupplierBills - paidSupplierBills),
+      supplierPayable: unpaidSupplierBills,
       currentBalance: openingBalance + totalPaid - paidSupplierBills,
       openingBalance,
       collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
     };
-  }, [invoices, purchasingRequests, openingBalance]);
+  }, [invoices, purchaseRequests, supplierPayments, openingBalance]);
 
   const displayKPIs = useMemo(() => {
     const custInvoices = activeTab === 'CUSTOMER' && selectedCustomer !== 'ALL'
@@ -315,7 +325,9 @@ export function FinanceDashboard() {
                 <card.icon size={17} className={card.iconColor} />
               </div>
             </div>
-            <p className="text-xl font-semibold text-slate-900 truncate">{card.value}</p>
+            <p className="text-xl font-semibold text-slate-900 truncate">
+              {isAdmin && typeof card.value === 'string' && card.value.includes('Rp') ? 'Rp ***' : card.value}
+            </p>
             <div className="flex items-center justify-between mt-2">
               <p className="text-xs text-slate-400">{card.sub}</p>
               {activeTab === 'GLOBAL' && (
@@ -339,10 +351,10 @@ export function FinanceDashboard() {
           <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative group">
             <div className="flex justify-between items-start">
               <p className="text-xs text-slate-400">{item.label}</p>
-              {item.label === 'Saldo Awal' && !isEditingBalance && (
+              {item.label === 'Saldo Awal' && !isEditingBalance && !isAdmin && (
                 <button 
                   onClick={() => setIsEditingBalance(true)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600"
+                  className="text-slate-400 hover:text-red-600 transition-colors"
                 >
                   <Pencil size={12} />
                 </button>
@@ -366,7 +378,7 @@ export function FinanceDashboard() {
                 </button>
               </div>
             ) : (
-              <p className="text-lg font-semibold text-slate-900 mt-1">{formatIDR(item.value)}</p>
+              <p className="text-lg font-semibold text-slate-900 mt-1">{isAdmin ? 'Rp ***' : formatIDR(item.value)}</p>
             )}
             <p className="text-[11px] text-slate-400 mt-1">{item.sub}</p>
           </div>
@@ -402,8 +414,8 @@ export function FinanceDashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(v) => formatIDRShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={75} />
-                <Tooltip content={<CustomTooltip />} />
+                <YAxis tickFormatter={(v) => isAdmin ? '***' : formatIDRShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={isAdmin ? 30 : 75} />
+                <Tooltip content={<CustomTooltip isAdmin={isAdmin} />} />
                 <Area type="monotone" dataKey="invoiced" name="Ditagihkan" stroke="#cbd5e1" strokeWidth={2} fill="url(#invGrad)" dot={false} />
                 <Area type="monotone" dataKey="revenue" name="Pendapatan" stroke="#C8102E" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 3, fill: '#C8102E' }} activeDot={{ r: 5 }} />
               </AreaChart>
@@ -458,8 +470,8 @@ export function FinanceDashboard() {
           <BarChart data={customerAnalytics} margin={{ top: 5, right: 5, left: 0, bottom: 0 }} barGap={2} barCategoryGap="20%">
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey={selectedCustomer === 'ALL' ? 'name' : 'fullName'} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatIDRShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={80} />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
+            <YAxis tickFormatter={(v) => isAdmin ? '***' : formatIDRShort(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={isAdmin ? 30 : 80} />
+            <Tooltip content={<CustomTooltip isAdmin={isAdmin} />} cursor={{ fill: '#f8fafc' }} />
             <Bar dataKey="total" name="Total Tagihan" fill="#3b82f6" radius={[2, 2, 0, 0]} />
             <Bar dataKey="paid" name="Terbayar" fill="#22c55e" radius={[2, 2, 0, 0]} />
             <Bar dataKey="remaining" name="Sisa Piutang" fill="#f59e0b" radius={[2, 2, 0, 0]} />
@@ -494,7 +506,7 @@ export function FinanceDashboard() {
                     <p className="text-xs text-slate-400 mt-0.5 truncate">{inv.customerName} · {inv.soNumber}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold text-slate-800">{formatIDR(inv.amount)}</p>
+                    <p className="text-sm font-semibold text-slate-800">{isAdmin ? 'Rp ***' : formatIDR(inv.amount)}</p>
                     <p className="text-xs text-slate-400">Jatuh tempo: {formatDate(inv.dueDate)}</p>
                   </div>
                 </div>
@@ -513,7 +525,7 @@ export function FinanceDashboard() {
                     <p className="text-sm font-semibold text-blue-800">Tugas Estimasi Harga</p>
                     <p className="text-xs text-blue-600 mt-0.5">{pendingPricingOrders.length} Sales Order menunggu estimasi harga</p>
                     <button onClick={() => navigate('/erp/finance/costing')} className="mt-2 text-xs font-medium text-blue-700 hover:text-blue-900 underline">
-                      Buka Costing & Pricing →
+                      Buka Penetapan Harga →
                     </button>
                   </div>
                 </div>
@@ -562,11 +574,11 @@ export function FinanceDashboard() {
             {/* Finance Summary */}
             <div className="bg-[#0D1B2A] rounded-xl p-5 text-white shadow-sm">
               <p className="text-xs text-slate-400 mb-1">Total Piutang Aktif</p>
-              <p className="text-2xl font-bold text-white">{formatIDR(financeSummary.outstandingAmount)}</p>
+              <p className="text-2xl font-bold text-white">{isAdmin ? 'Rp ***' : formatIDR(financeSummary.outstandingAmount)}</p>
               <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[10px] text-slate-500">Overdue</p>
-                  <p className="text-sm font-semibold text-red-400">{formatIDR(financeSummary.overdueAmount)}</p>
+                  <p className="text-sm font-semibold text-red-400">{isAdmin ? 'Rp ***' : formatIDR(financeSummary.overdueAmount)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-slate-500">Collection Rate</p>

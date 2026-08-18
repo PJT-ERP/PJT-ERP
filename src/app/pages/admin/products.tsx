@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, X, Trash2, Edit2 } from 'lucide-react';
-import { useApp } from '../../components/context/AppContext';
 import { salesApi, ProductDto } from '../../services/salesApi';
+import { useProductsQuery } from '../../services/queries';
 import { usePurchasingData } from '../../components/purchasing/usePurchasingData';
 
 const S = {
@@ -14,9 +14,15 @@ const S = {
 };
 
 export function AdminProductsPage() {
-  const { productCatalog, refreshBackendData } = useApp();
+  const { data: productCatalog = [], refetch } = useProductsQuery();
   const { inventoryItems } = usePurchasingData();
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
   
   const [isAdding, setIsAdding] = useState(false);
   const [isEditingId, setIsEditingId] = useState<string | null>(null);
@@ -25,7 +31,7 @@ export function AdminProductsPage() {
   const [newDesc, setNewDesc] = useState('');
   const [newUnit, setNewUnit] = useState('pcs');
   const [newSpec, setNewSpec] = useState(''); 
-  const [bomItems, setBomItems] = useState<{ inventoryItemId: string; quantity: string }[]>([]);
+  const [bomItems, setBomItems] = useState<{ inventoryItemId: string; quantity: string; specification?: string }[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, partNumber: string } | null>(null);
@@ -51,13 +57,16 @@ export function AdminProductsPage() {
     p.description.toLowerCase().includes(search.toLowerCase())
   );
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginatedData = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const handleEdit = (p: ProductDto) => {
     setIsEditingId(p.id);
     setPartNumberPreview(p.partNumber);
     setNewDesc(p.description);
     setNewUnit(p.unit);
     setNewSpec(p.materialSpec || '');
-    setBomItems((p.bomItems || []).map(b => ({ inventoryItemId: b.inventoryItemId, quantity: b.quantity.toString() })));
+    setBomItems((p.bomItems || []).map(b => ({ inventoryItemId: b.inventoryItemId, quantity: b.quantity.toString(), specification: b.specification || (b as any).spec || "" })));
     setIsAdding(true);
   };
 
@@ -70,23 +79,43 @@ export function AdminProductsPage() {
     try {
       setIsDeleting(true);
       await salesApi.deleteProduct(deleteConfirm.id);
-      await refreshBackendData();
+      await refetch();
       setDeleteConfirm(null);
-    } catch (e) {
+    } catch {
       alert("Gagal menghapus produk");
     } finally {
       setIsDeleting(false);
     }
   };
 
+  const getDuplicateIndices = () => {
+    const seenKeys = new Map<string, number>();
+    const dupes = new Set<number>();
+    for (let i = 0; i < bomItems.length; i++) {
+      const b = bomItems[i];
+      if (!b.inventoryItemId) continue;
+      const specKey = (b.specification || "").trim().toLowerCase();
+      const key = `${b.inventoryItemId}|${specKey}`;
+      if (seenKeys.has(key)) {
+        dupes.add(i);
+        dupes.add(seenKeys.get(key)!);
+      } else {
+        seenKeys.set(key, i);
+      }
+    }
+    return dupes;
+  };
+  const duplicateIndices = getDuplicateIndices();
+  const hasDuplicateMaterial = duplicateIndices.size > 0;
+
   const handleSaveProduct = async () => {
-    if (!newDesc) return alert("Deskripsi wajib diisi");
+    if (!newDesc || hasDuplicateMaterial) return alert("Deskripsi wajib diisi atau ada material duplikat");
     try {
       setIsSaving(true);
       
       const formattedBom = bomItems
         .filter(b => b.inventoryItemId && Number(b.quantity) > 0)
-        .map(b => ({ inventoryItemId: b.inventoryItemId, quantity: Number(b.quantity) }));
+        .map(b => ({ inventoryItemId: b.inventoryItemId, quantity: Number(b.quantity), specification: (b.specification || "").trim(), spec: (b.specification || "").trim() }));
 
       if (isEditingId) {
         await salesApi.updateProduct(isEditingId, {
@@ -106,13 +135,13 @@ export function AdminProductsPage() {
         });
       }
       
-      await refreshBackendData();
+      await refetch();
       setIsAdding(false);
       setIsEditingId(null);
       setNewDesc('');
       setNewUnit('pcs');
       setNewSpec('');
-    } catch (e) {
+    } catch {
       alert("Gagal menyimpan produk");
     } finally {
       setIsSaving(false);
@@ -177,7 +206,7 @@ export function AdminProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => (
+              {paginatedData.map(p => (
                 <tr key={p.id} style={{ borderBottom: `1px solid ${S.border}` }}>
                   <td style={{ padding: "12px 16px", fontWeight: 600, color: S.primary }}>{p.partNumber}</td>
                   <td style={{ padding: "12px 16px" }}>{p.description}</td>
@@ -189,7 +218,7 @@ export function AdminProductsPage() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {paginatedData.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ padding: 32, textAlign: "center", color: S.secondary }}>Tidak ada data produk</td>
                 </tr>
@@ -197,6 +226,31 @@ export function AdminProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: `1px solid ${S.border}`, background: "#f8fafc" }}>
+            <span style={{ fontSize: 13, color: S.secondary }}>
+              Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} dari {filtered.length}
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                style={{ padding: "6px 12px", border: `1px solid ${S.border}`, borderRadius: 6, background: currentPage === 1 ? "#f1f5f9" : S.white, color: currentPage === 1 ? "#94a3b8" : S.slate, fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+              >
+                Sebelumnya
+              </button>
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                style={{ padding: "6px 12px", border: `1px solid ${S.border}`, borderRadius: 6, background: currentPage === totalPages ? "#f1f5f9" : S.white, color: currentPage === totalPages ? "#94a3b8" : S.slate, fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+              >
+                Selanjutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {deleteConfirm && (
@@ -277,42 +331,63 @@ export function AdminProductsPage() {
               <div style={{ borderTop: `1px solid ${S.border}`, paddingTop: 16, marginTop: 4 }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: S.slate, marginBottom: 8 }}>Daftar Material (BOM)</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {bomItems.map((item, idx) => (
-                    <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", background: "#F8FAFC", padding: 8, borderRadius: 8, border: `1px solid ${S.border}` }}>
-                      <div style={{ flex: 1 }}>
-                        <select
-                          value={item.inventoryItemId}
-                          onChange={e => {
-                            const newItems = [...bomItems];
-                            newItems[idx].inventoryItemId = e.target.value;
-                            setBomItems(newItems);
-                          }}
-                          style={{ width: "100%", padding: "8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px" }}
-                        >
-                          <option value="">-- Pilih Material --</option>
-                          {inventoryItems.map((inv: any) => (
-                            <option key={inv.id} value={inv.id}>{inv.code} - {inv.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div style={{ width: 70 }}>
-                        <input 
-                          type="number" min="0" step="any" placeholder="Qty"
-                          value={item.quantity}
-                          onChange={e => {
-                            const newItems = [...bomItems];
-                            newItems[idx].quantity = e.target.value;
-                            setBomItems(newItems);
-                          }}
-                          style={{ width: "100%", boxSizing: "border-box", padding: "8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", textAlign: "center" }}
-                        />
-                      </div>
-                      <button onClick={() => setBomItems(bomItems.filter((_, i) => i !== idx))} style={{ padding: "8px", background: "#FEF2F2", color: "#EF4444", border: "none", borderRadius: 4, cursor: "pointer", flexShrink: 0 }}>
-                        <Trash2 size={14} />
-                      </button>
+                  {hasDuplicateMaterial && (
+                    <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", fontSize: "12px", display: "flex", alignItems: "center", gap: 8, fontWeight: 500 }}>
+                      <span>⚠️ Material dengan spesifikasi yang sama sudah ada di daftar BOM! Spesifikasi untuk material yang sama wajib berbeda.</span>
                     </div>
-                  ))}
-                  <button onClick={() => setBomItems([...bomItems, { inventoryItemId: '', quantity: '1' }])} style={{ padding: "8px", background: "transparent", border: `1px dashed ${S.primary}`, color: S.primary, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                  )}
+
+                  {bomItems.map((item, idx) => {
+                    const isDup = duplicateIndices.has(idx);
+                    return (
+                      <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", background: isDup ? "#FEE2E2" : "#F8FAFC", padding: 8, borderRadius: 8, border: isDup ? "1px solid #F87171" : `1px solid ${S.border}` }}>
+                        <div style={{ flex: 1.2 }}>
+                          <select
+                            value={item.inventoryItemId}
+                            onChange={e => {
+                              const newItems = [...bomItems];
+                              newItems[idx].inventoryItemId = e.target.value;
+                              setBomItems(newItems);
+                            }}
+                            style={{ width: "100%", padding: "8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px" }}
+                          >
+                            <option value="">-- Pilih Material --</option>
+                            {inventoryItems.map((inv: any) => (
+                              <option key={inv.id} value={inv.id}>{inv.code} - {inv.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <input 
+                            type="text" placeholder="Spesifikasi (opsional)"
+                            value={item.specification || ""}
+                            onChange={e => {
+                              const newItems = [...bomItems];
+                              newItems[idx].specification = e.target.value;
+                              setBomItems(newItems);
+                            }}
+                            style={{ width: "100%", boxSizing: "border-box", padding: "8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px" }}
+                          />
+                        </div>
+                        <div style={{ width: 65 }}>
+                          <input 
+                            type="number" min="0" step="any" placeholder="Qty"
+                            value={item.quantity}
+                            onChange={e => {
+                              const newItems = [...bomItems];
+                              newItems[idx].quantity = e.target.value;
+                              setBomItems(newItems);
+                            }}
+                            style={{ width: "100%", boxSizing: "border-box", padding: "8px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", textAlign: "center" }}
+                          />
+                        </div>
+                        <button onClick={() => setBomItems(bomItems.filter((_, i) => i !== idx))} style={{ padding: "8px", background: "#FEF2F2", color: "#EF4444", border: "none", borderRadius: 4, cursor: "pointer", flexShrink: 0 }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button onClick={() => setBomItems([...bomItems, { inventoryItemId: '', quantity: '1', specification: '' }])} style={{ padding: "8px", background: "transparent", border: `1px dashed ${S.primary}`, color: S.primary, borderRadius: 6, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
                     <Plus size={14} /> Tambah Material (BOM)
                   </button>
                 </div>
@@ -321,7 +396,7 @@ export function AdminProductsPage() {
             </div>
             <div style={{ padding: "16px 20px", borderTop: `1px solid ${S.border}`, background: "#F8FAFC", borderRadius: "0 0 12px 12px", display: "flex", justifyContent: "flex-end", gap: 12, flexShrink: 0 }}>
               <button onClick={closeModal} style={{ padding: "10px 16px", border: `1px solid ${S.border}`, background: "#fff", borderRadius: 6, fontSize: "13.5px", fontWeight: 500, cursor: "pointer", color: S.secondary }}>Batal</button>
-              <button onClick={handleSaveProduct} disabled={isSaving || !newDesc} style={{ padding: "10px 16px", border: "none", background: !newDesc ? S.secondary : S.primary, color: "#fff", borderRadius: 6, fontSize: "13.5px", fontWeight: 600, cursor: !newDesc ? "not-allowed" : "pointer" }}>
+              <button onClick={handleSaveProduct} disabled={isSaving || !newDesc || hasDuplicateMaterial} style={{ padding: "10px 16px", border: "none", background: (!newDesc || isSaving || hasDuplicateMaterial) ? S.secondary : S.primary, color: "#fff", borderRadius: 6, fontSize: "13.5px", fontWeight: 600, cursor: (!newDesc || isSaving || hasDuplicateMaterial) ? "not-allowed" : "pointer" }}>
                 {isSaving ? "Menyimpan..." : (isEditingId ? "Simpan Perubahan" : "Simpan Produk")}
               </button>
             </div>

@@ -38,19 +38,37 @@ public sealed class SalesOrderReadyForInvoiceEventHandler(FinanceContext db) : I
         candidate.CompletedAtUtc = integrationEvent.CompletedAtUtc;
         candidate.UpdatedAtUtc = DateTime.UtcNow;
 
-        candidate.Items.Clear();
         foreach (var item in integrationEvent.Items)
         {
-            candidate.Items.Add(new InvoiceCandidateItem
+            var existingItem = candidate.Items.FirstOrDefault(i => i.SalesOrderItemId == item.SalesOrderItemId);
+            if (existingItem != null)
             {
-                SalesOrderId = integrationEvent.SalesOrderId,
-                SalesOrderItemId = item.SalesOrderItemId,
-                ProductId = item.ProductId,
-                ProductPartNumber = item.ProductPartNumber,
-                ProductDescription = item.ProductDescription,
-                Qty = item.Qty,
-                UnitPrice = item.UnitPrice
-            });
+                existingItem.ProductId = item.ProductId;
+                existingItem.ProductPartNumber = item.ProductPartNumber;
+                existingItem.ProductDescription = item.ProductDescription;
+                existingItem.Qty = item.Qty;
+                existingItem.UnitPrice = item.UnitPrice;
+            }
+            else
+            {
+                candidate.Items.Add(new InvoiceCandidateItem
+                {
+                    SalesOrderId = integrationEvent.SalesOrderId,
+                    SalesOrderItemId = item.SalesOrderItemId,
+                    ProductId = item.ProductId,
+                    ProductPartNumber = item.ProductPartNumber,
+                    ProductDescription = item.ProductDescription,
+                    Qty = item.Qty,
+                    UnitPrice = item.UnitPrice
+                });
+            }
+        }
+
+        var incomingIds = integrationEvent.Items.Select(i => i.SalesOrderItemId).ToHashSet();
+        var itemsToRemove = candidate.Items.Where(i => !incomingIds.Contains(i.SalesOrderItemId)).ToList();
+        foreach (var toRemove in itemsToRemove)
+        {
+            candidate.Items.Remove(toRemove);
         }
 
         await db.SaveChangesAsync(cancellationToken);

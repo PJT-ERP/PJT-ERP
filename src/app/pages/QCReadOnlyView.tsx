@@ -1,9 +1,14 @@
-import React, { useState } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CheckCircle, XCircle, Search, Clock, FileText, CheckSquare, Layers, AlertCircle, FileCheck, X, AlertTriangle, Shield, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
+import { useCustomersQuery } from "../services/queries";
 import { type SalesOrder } from "../components/data/mockData";
 import { toBackendUserId } from "../services/backendIds";
+import { productionApi, QcQueuesDto } from "../services/productionApi";
 import { BASE_URL } from "../services/apiClient";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { mapSalesOrderDto } from "../components/context/hooks/dataMappers";
+import type { SalesOrderDto } from "../services/salesApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -17,10 +22,12 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const getFullUrl = (url: string) => 
-  url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:') 
-    ? url 
-    : `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+const getFullUrl = (url: string) => {
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${path}`;
+};
 
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';
@@ -38,7 +45,7 @@ function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void 
         </div>
         <div className="p-8 text-center bg-slate-100/50 overflow-y-auto flex-1">
           <div className="max-w-xl mx-auto bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-4">
-            <img src={getFullUrl(src)} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" onError={(e) => { e.currentTarget.src = `https://placehold.co/800x600?text=${encodeURIComponent(src.split('/').pop() || 'Image')}` }} />
+            <ImageWithFallback src={getFullUrl(src)} alt="Foto QC" className="max-w-full h-auto mx-auto rounded border border-slate-200" />
           </div>
           <p className="text-xs text-slate-500 mt-2">Ini adalah representasi visual foto QC yang diunggah.</p>
         </div>
@@ -53,7 +60,7 @@ function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void 
 }
 
 function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const customer = customers.find(c => c.code === so.customerId);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
@@ -108,7 +115,7 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                   {so.productionPhotos.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                      <img src={getFullUrl(p)} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                      <ImageWithFallback src={getFullUrl(p)} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                   ))}
                 </div>
@@ -121,7 +128,7 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                   {so.qcPhotos.map((p, i) => (
                     <div key={i} onClick={() => setPreviewPhoto(p)} style={{ aspectRatio: "1", background: S.border, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                      <img src={getFullUrl(p)} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(p.split('/').pop() || 'Image')}` }} />
+                      <ImageWithFallback src={getFullUrl(p)} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                   ))}
                 </div>
@@ -142,32 +149,48 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
 }
 
 export function QCReadOnlyView() {
-  const { salesOrders, customers, currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
-  const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
+  const [selectedSO, setSelectedSO] = useState<any | null>(null);
   const [filterResult, setFilterResult] = useState<'all' | 'Go' | 'NoGo' | 'Menunggu'>('all');
   const [qcSearch, setQcSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  const [qcQueues, setQcQueues] = useState<QcQueuesDto | null>(null);
 
-  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  useEffect(() => {
+    productionApi.getQcQueues().then((queues) => {
+      setQcQueues({
+        readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+      });
+    }).catch(console.error);
+  }, []);
+
+  const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
   const currentBackendUserId = toBackendUserId(currentUser);
-  const baseOrders = isRegularEngineer 
-    ? salesOrders.filter(so => 
-        (currentUser?.id && so.designAssignedTo === currentUser.id) || 
-        (currentBackendUserId && so.designAssignedTo === currentBackendUserId)
+
+  const pendingQC = qcQueues?.readyForInspection || [];
+  const completedHistory = qcQueues?.inspectionHistory || [];
+  const allQCBase = [...pendingQC, ...completedHistory];
+
+  const allQC = isRegularEngineer 
+    ? allQCBase.filter(so => 
+        (currentUser?.id && so.designWorkerUserId === currentUser.id) || 
+        (currentBackendUserId && so.designWorkerUserId === currentBackendUserId) ||
+        (so.designAssignedTo === currentUser?.id)
       )
-    : salesOrders;
+    : allQCBase;
 
-  const completed = baseOrders.filter(so => so.status === 'Completed');
-  const pendingQC = baseOrders.filter(so => so.status === 'QC');
-  const allQC = [...pendingQC, ...completed];
+  const completed = allQC.filter(so => so.status === 'Completed' || so.status === 'Rejected');
 
-  const passCount = completed.filter(s => s.qcStatus === 'Go').length;
-  const failCount = completed.filter(s => s.qcStatus === 'NoGo').length;
+  const passCount = completed.filter(s => s.qcDecision === 'Go' || s.qcStatus === 'Go').length;
+  const failCount = completed.filter(s => s.qcDecision === 'NoGo' || s.qcStatus === 'NoGo').length;
   const passRate = completed.length > 0 ? Math.round((passCount / completed.length) * 100) : 0;
-  const lateCount = completed.filter(s => s.lateReason).length;
+  const lateCount = completed.filter(s => s.completionNote && s.completionNote.toLowerCase().includes('terlambat')).length;
 
   const filtered = allQC.filter(so => {
     const cust = customers.find(c => c.code === so.customerId);
@@ -178,7 +201,7 @@ export function QCReadOnlyView() {
     const matchFilter =
       filterResult === 'all' ||
       (filterResult === 'Menunggu' && so.status === 'QC') ||
-      (filterResult !== 'Menunggu' && so.qcStatus === filterResult);
+      (filterResult !== 'Menunggu' && (so.qcDecision === filterResult || so.qcStatus === filterResult));
     return matchSearch && matchFilter;
   });
 
@@ -299,8 +322,8 @@ export function QCReadOnlyView() {
                   </div>
                   {!isAdmin && (
                     <div style={{ alignSelf: "center" }}>
-                      {(so.qcPhotos?.length ?? 0) > 0
-                        ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.secondary }}><ImageIcon size={11} /> {so.qcPhotos!.length}</span>
+                      {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0)) > 0
+                        ? <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "11.5px", color: S.secondary }}><ImageIcon size={11} /> {((so.qcPhotos?.length ?? 0) + (so.productionPhotos?.length ?? 0))} foto</span>
                         : <span style={{ fontSize: "11.5px", color: S.border }}>—</span>
                       }
                     </div>

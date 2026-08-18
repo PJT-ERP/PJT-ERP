@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { formatIDR } from "./mockData";
 
 const S = {
@@ -14,57 +14,38 @@ const S = {
 };
 import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { SalesOrder, SOStatus } from "../data/mockData";
+import { SalesOrder, Product, MaterialRequirement } from "../data/mockData";
+import { formatUrl } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
+import { productionApi, FinanceCostingQueuesDto } from "../../services/productionApi";
 import { useFinanceData } from "./useFinanceData";
+import { useSalesOrdersQuery } from "../../services/queries";
+import { useQueryClient } from "@tanstack/react-query";
+import { getMaterialOptions } from "../production/ProductionHelpers";
 
 export function FinanceCosting() {
-  const { salesOrders, customers, updateSalesOrder } = useApp();
-  const { invoiceCandidates } = useFinanceData(true, false);
+  const { customers, updateSalesOrder } = useApp();
+  const { invoices } = useFinanceData(true, false);
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
+  const [queues, setQueues] = useState<FinanceCostingQueuesDto | null>(null);
 
-  const historyStatuses = [
-    'Waiting Payment',
-    'Waiting Client Approval',
-    'Ready for Production',
-    'In Production',
-    'QC',
-    'Completed'
-  ];
+  useEffect(() => {
+    productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
+  }, [salesOrders]);
 
-  const isUnpriced = (so: any) => !so.items || so.items.length === 0 || so.items.some((item: any) => !item.unitPrice || item.unitPrice === 0);
-  const hasInvoiceCandidate = (so: any) => invoiceCandidates.some(candidate =>
-    candidate.status !== "Invoiced" && (
-      candidate.salesOrderId === (so.backendId || so.id) ||
-      candidate.salesOrderNumber === (so.soNumber || so.id)
-    )
-  );
-  const isWaitingPricing = (so: any) => {
-    if (so.status === "Completed" || so.status === "Rejected" || so.status === "Cancelled") {
-      return false;
-    }
-    if (so.backendStatus === "Waiting Pricing" || so.status === "Waiting Pricing") {
-      return true;
-    }
-    return false;
-  };
-
-  // Status that indicates SO is ready for Costing (after SPV Engineering approval)
-  const waitingPricingSO = salesOrders.filter(so => 
-    isWaitingPricing(so)
-  ).map(so => ({
+  const waitingPricingSO = (queues?.waitingPricing || []).map(so => ({
     ...so,
     isQuotation: false
   }));
 
-  const historySO = salesOrders.filter(so => 
-    !isWaitingPricing(so) && historyStatuses.includes(so.status) && !isUnpriced(so)
-  ).map(so => ({
+  const historySO = (queues?.pricingHistory || []).map(so => ({
     ...so,
     isQuotation: false
   })).sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
@@ -73,6 +54,7 @@ export function FinanceCosting() {
 
   const filteredList = activeList.filter(item => 
     (item.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (item.soNumber || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.customerId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.customerName || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -89,13 +71,16 @@ export function FinanceCosting() {
       const hasEstimated = (selectedItem.estimatedAmount || 0) > 0;
       const isSingleItem = selectedItem.items?.length === 1;
 
-      selectedItem.items?.forEach((item: any) => {
+      selectedItem.items?.forEach((item: any, idx: number) => {
+        const key = item.id || item.productId || idx.toString();
         if (item.unitPrice && item.unitPrice > 0) {
-          initialPrices[item.productId] = item.unitPrice;
+          initialPrices[key] = item.unitPrice;
+        } else if (item.totalPrice && item.totalPrice > 0 && item.quantity > 0) {
+          initialPrices[key] = item.totalPrice / item.quantity;
         } else if (hasEstimated && isSingleItem && item.quantity > 0) {
-          initialPrices[item.productId] = selectedItem.estimatedAmount / item.quantity;
+          initialPrices[key] = selectedItem.estimatedAmount / item.quantity;
         } else {
-          initialPrices[item.productId] = 0;
+          initialPrices[key] = 0;
         }
       });
       setItemPrices(initialPrices);
@@ -109,10 +94,18 @@ export function FinanceCosting() {
     
     setTimeout(async () => {
       // Handle SO logic
-      const updatedItems = selectedItem.items!.map((item: any) => ({
-        ...item,
-        unitPrice: itemPrices[item.productId] || 0
-      }));
+      const updatedItems = selectedItem.items!.map((item: any, idx: number) => {
+        const key = item.id || item.productId || idx.toString();
+        return {
+          ...item,
+          unitPrice: itemPrices[key] || 0
+        };
+      });
+
+      const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || item.qty || 1), 0);
+      const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production"].includes(selectedItem.status);
+      const newStatus = preserveStatus ? selectedItem.status : "Waiting Payment";
+      const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || "Waiting Payment") : "Waiting Payment";
 
       try {
         // Backend integration
@@ -126,18 +119,23 @@ export function FinanceCosting() {
         // Local state update for smooth UX
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Waiting Payment",
-          backendStatus: "Waiting Payment",
+          estimatedAmount: totalPriced,
+          status: newStatus,
+          backendStatus: newBackendStatus,
         });
       } catch (error) {
         console.error("Failed to update pricing to backend", error);
         alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
-          status: "Waiting Payment",
-          backendStatus: "Waiting Payment",
+          estimatedAmount: totalPriced,
+          status: newStatus,
+          backendStatus: newBackendStatus,
         });
       }
+      
+      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
       
       setIsSubmitting(false);
       setSubmitSuccess(true);
@@ -146,62 +144,67 @@ export function FinanceCosting() {
 
   const calculateTotal = () => {
     if (!selectedItem || !selectedItem.items) return 0;
-    return selectedItem.items.reduce((total: number, item: any) => {
-      return total + (itemPrices[item.productId] || 0) * item.quantity;
+    return selectedItem.items.reduce((total: number, item: any, idx: number) => {
+      const key = item.id || item.productId || idx.toString();
+      return total + (itemPrices[key] || 0) * (item.quantity || item.qty || 1);
     }, 0);
   };
 
-  const isAllPriced = selectedItem?.items?.every((item: any) => (itemPrices[item.productId] || 0) > 0);
-  const isReadOnly = selectedItem && activeTab === 'history' && selectedItem.status !== "Waiting Payment";
+  const isAllPriced = selectedItem?.items?.every((item: any, idx: number) => {
+    const key = item.id || item.productId || idx.toString();
+    return (itemPrices[key] || 0) > 0;
+  });
+  const isReadOnly = selectedItem && (selectedItem.backendStatus === 'Invoiced' || invoices?.some((inv: any) => inv.soNumber === selectedItem.soNumber || inv.soNumber === selectedItem.id));
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
       {/* Header */}
       <div>
-        <h1 style={{ color: S.slate, margin: "0 0 8px 0", fontSize: "24px" }}>Costing & Pricing</h1>
+        <h1 style={{ color: S.slate, margin: "0 0 8px 0", fontSize: "24px" }}>Penetapan Harga</h1>
         <p style={{ color: S.secondary, margin: 0, fontSize: "14px" }}>
           Tentukan harga modal (HPP) dan tetapkan harga jual berdasarkan BOM dari tim Engineering.
         </p>
       </div>
 
       {/* Toolbar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", background: S.bg, padding: 4, borderRadius: 8, border: `1px solid ${S.border}` }}>
-          <button
-            onClick={() => setActiveTab('queue')}
-            style={{
-              padding: "8px 16px", borderRadius: 6, border: "none",
-              background: activeTab === 'queue' ? S.white : "transparent",
-              color: activeTab === 'queue' ? S.slate : S.secondary,
-              fontWeight: activeTab === 'queue' ? 600 : 500, fontSize: "13px", cursor: "pointer",
-              boxShadow: activeTab === 'queue' ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-              display: "flex", alignItems: "center", gap: 6
-            }}
-          >
-            <List size={14} /> Antrean ({waitingPricingSO.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            style={{
-              padding: "8px 16px", borderRadius: 6, border: "none",
-              background: activeTab === 'history' ? S.white : "transparent",
-              color: activeTab === 'history' ? S.slate : S.secondary,
-              fontWeight: activeTab === 'history' ? 600 : 500, fontSize: "13px", cursor: "pointer",
-              boxShadow: activeTab === 'history' ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-              display: "flex", alignItems: "center", gap: 6
-            }}
-          >
-            <History size={14} /> Riwayat
-          </button>
-        </div>
-        <div style={{ position: "relative", width: 300 }}>
+      <div style={{ display: "flex", gap: "12px", alignItems: "center", background: S.white, border: `1px solid ${S.border}`, padding: "6px 8px", borderRadius: 10 }}>
+        <button
+          onClick={() => setActiveTab('queue')}
+          style={{
+            padding: "8px 16px", borderRadius: 6, border: "none",
+            background: activeTab === 'queue' ? S.bg : "transparent",
+            color: activeTab === 'queue' ? S.slate : S.secondary,
+            fontWeight: activeTab === 'queue' ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 6,
+            transition: "all 0.2s"
+          }}
+        >
+          <List size={14} /> Antrean ({waitingPricingSO.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          style={{
+            padding: "8px 16px", borderRadius: 6, border: "none",
+            background: activeTab === 'history' ? S.bg : "transparent",
+            color: activeTab === 'history' ? S.slate : S.secondary,
+            fontWeight: activeTab === 'history' ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 6,
+            transition: "all 0.2s"
+          }}
+        >
+          <History size={14} /> Riwayat
+        </button>
+
+        <div style={{ width: "1px", height: "28px", background: S.border }} />
+
+        <div style={{ position: "relative", flex: 1 }}>
           <Search size={18} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: S.secondary }} />
           <input 
             type="text" 
             placeholder="Cari No. SO atau Pelanggan..." 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px 10px 38px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none" }}
+            style={{ width: "100%", padding: "8px 12px 8px 38px", border: `1px solid ${S.border}`, background: S.bg, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none" }}
           />
         </div>
       </div>
@@ -233,10 +236,10 @@ export function FinanceCosting() {
                 <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.soNumber || so.id}</span>
                 <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers?.find(c => c.code === so.customerId)?.name || so.customerName || so.customerId}</span>
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.productName || so.description || "-"}</span>
+                  <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.items?.[0]?.productDescription || so.items?.[0]?.productPartNumber || so.productName || so.description || "-"}</span>
                   <span style={{ color: S.secondary, fontSize: "11px" }}>{itemCount} items</span>
                 </div>
-                <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || "-"}</span>
+                <span style={{ color: S.secondary, fontSize: "13px" }}>{so.deadline || so.targetDate || "-"}</span>
                 <div style={{ alignSelf: "center", display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                   <StatusBadge status={so.status as SOStatus} />
                   {isPricedBySales && (
@@ -265,7 +268,7 @@ export function FinanceCosting() {
           <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 800, fontFamily: S.font, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}` }}>
               <div>
-                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Costing & Pricing - {selectedItem.soNumber || selectedItem.id}</h2>
+                <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Penetapan Harga - {selectedItem.soNumber || selectedItem.id}</h2>
                 <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "13px" }}>
                   Pelanggan: {selectedItem.customerName || selectedItem.customerId}
                 </p>
@@ -343,7 +346,7 @@ export function FinanceCosting() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
                     <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
                     {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
-                      <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                      <a href={formatUrl(selectedItem.designLink || selectedItem.customerDrawingUrl)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                         Lihat Dokumen <ExternalLink size={12} />
                       </a>
                     ) : (
@@ -353,29 +356,52 @@ export function FinanceCosting() {
                   <p style={{ fontSize: "12px", color: S.secondary, margin: "8px 0 0" }}>
                     Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                   </p>
-                  {selectedItem.materials && selectedItem.materials.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
-                        <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
-                          <tr>
-                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
-                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
-                            <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedItem.materials.map((m: any, i: number) => (
-                            <tr key={m.id || i} style={{ borderBottom: i < selectedItem.materials.length - 1 ? `1px solid ${S.border}` : "none" }}>
-                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.name}</td>
-                              <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
-                              <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                  {(() => {
+                    const { getMaterialOptions } = require("../production/ProductionHelpers");
+                    
+                    // Robustly extract bomsPerItem from raw selectedItem DTO
+                    const bomsPerItem: Record<string, any[]> = {};
+                    (selectedItem.items || []).forEach((item: any) => {
+                      if (item.notes?.startsWith("[")) {
+                        try {
+                          const parsed = JSON.parse(item.notes);
+                          if (Array.isArray(parsed)) bomsPerItem[item.id] = parsed;
+                        } catch {}
+                      }
+                    });
+                    
+                    const itemWithBoms = { ...selectedItem, bomsPerItem };
+                    const displayMaterials = getMaterialOptions(itemWithBoms, true);
+                    
+                    return displayMaterials && displayMaterials.length > 0 ? (
+                      <div style={{ marginTop: 12 }}>
+                        <h4 style={{ fontSize: "12px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Daftar Material (BOM):</h4>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left", background: S.white, border: `1px solid ${S.border}` }}>
+                          <thead style={{ background: "#F1F5F9", borderBottom: `1px solid ${S.border}` }}>
+                            <tr>
+                              <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Material</th>
+                              <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary }}>Spesifikasi</th>
+                              <th style={{ padding: "6px 10px", fontWeight: 600, color: S.secondary, width: "80px" }}>Qty</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                          </thead>
+                          <tbody>
+                            {displayMaterials.map((m: any, i: number) => (
+                              <tr key={m.id || i} style={{ borderBottom: i < displayMaterials.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                                <td style={{ padding: "6px 10px", color: S.slate }}>
+                                  {m.name}
+                                  {m.isCustomerMaterial && (
+                                    <span style={{ marginLeft: 6, display: "inline-block", background: "#DBEAFE", color: "#1E3A8A", padding: "2px 6px", borderRadius: 4, fontSize: "10px", fontWeight: 600, border: "1px solid #BFDBFE", verticalAlign: "middle" }}>Dari Pelanggan</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "6px 10px", color: S.secondary }}>{m.spec || m.specification || "-"}</td>
+                                <td style={{ padding: "6px 10px", color: S.slate }}>{m.quantity} {m.unit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
 
@@ -393,12 +419,13 @@ export function FinanceCosting() {
                   </thead>
                   <tbody>
                     {selectedItem.items?.map((item: any, idx: number) => {
-                      const price = itemPrices[item.productId] || 0;
-                      const subtotal = price * item.quantity;
+                      const key = item.id || item.productId || idx.toString();
+                      const price = itemPrices[key] || 0;
+                      const subtotal = price * (item.quantity || item.qty || 1);
                       return (
-                        <tr key={item.productId || idx} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
-                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName}</td>
-                          <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity} {item.unit}</td>
+                        <tr key={key} style={{ borderBottom: idx < (selectedItem.items?.length || 0) - 1 ? `1px solid ${S.border}` : "none" }}>
+                          <td style={{ padding: "12px 14px", color: S.slate, fontWeight: 500 }}>{item.productName || item.productDescription || item.productPartNumber}</td>
+                          <td style={{ padding: "12px 14px", color: S.secondary }}>{item.quantity || item.qty || 1} {item.unit || "pcs"}</td>
                           <td style={{ padding: "12px 14px" }}>
                             <div style={{ position: "relative" }}>
                               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: S.secondary, fontSize: "12px" }}>Rp</span>
@@ -406,7 +433,7 @@ export function FinanceCosting() {
                                 type="text"
                                 value={price ? price.toLocaleString("id-ID") : ""}
                                 disabled={isReadOnly}
-                                onChange={(e) => setItemPrices({ ...itemPrices, [item.productId]: Number(e.target.value.replace(/\D/g, "")) })}
+                                onChange={(e) => setItemPrices({ ...itemPrices, [key]: Number(e.target.value.replace(/\D/g, "")) })}
                                 style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px 8px 30px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", fontFamily: S.font, outline: "none", backgroundColor: isReadOnly ? "#F8FAFC" : "#fff" }}
                               />
                             </div>

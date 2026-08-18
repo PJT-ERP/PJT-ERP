@@ -1,4 +1,4 @@
-export type UserRole = 'Sales' | 'Engineering' | 'Engineering Supervisor' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
+export type UserRole = 'Sales' | 'Engineering' | 'Engineering' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
   | 'Waiting Payment'
@@ -58,6 +58,7 @@ export interface SalesOrder {
   designReference?: string | null;
   backendDesignStatus?: string;
   submittedAt?: string;
+  isCostingCompleted?: boolean;
   approvedAt?: string;
   approvedBy?: string;
   rejectionReason?: string;
@@ -69,6 +70,7 @@ export interface SalesOrder {
   qcNotes?: string;
   qcPhotos?: string[];
   productionPhotos?: string[];
+  completionNote?: string;
   qcAt?: string;
   completedAt?: string;
   isRework?: boolean;
@@ -82,6 +84,8 @@ export interface SalesOrder {
   assignedName?: string;
   designAssignedTo?: string;
   designAssignedName?: string;
+  designApprovedByUserId?: string;
+  designApprovedByName?: string;
   materialRequestStatus?: 'none' | 'requested' | 'approved';
   materialShortageDetected?: boolean;
   estimatedAmount?: number;
@@ -264,6 +268,7 @@ export function getDefaultRouteForRole(role: UserRole): string {
     Admin: '/app/admin',
     Finance: '/app/finance',
     Purchasing: '/app/purchasing',
+    QC: '/app/qc',
   };
   return map[role];
 }

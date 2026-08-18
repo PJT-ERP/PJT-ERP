@@ -42,9 +42,9 @@ services:
   identity-api:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/identity-api
+        PROJECT_PATH: "src/Services/Identity.API/Identity.API.csproj"
         ENTRY_DLL: Identity.API.dll
     restart: unless-stopped
     environment: *api-environment
@@ -56,9 +56,9 @@ services:
   masterdata-api:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/masterdata-api
+        PROJECT_PATH: "src/Services/MasterData.API/MasterData.API.csproj"
         ENTRY_DLL: MasterData.API.dll
     restart: unless-stopped
     environment: *api-environment
@@ -70,9 +70,9 @@ services:
   production-api:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/production-api
+        PROJECT_PATH: "src/Services/Production.API/Production.API.csproj"
         ENTRY_DLL: Production.API.dll
     restart: unless-stopped
     environment: *api-environment
@@ -84,9 +84,9 @@ services:
   qc-api:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/qc-api
+        PROJECT_PATH: "src/Services/QC.API/QC.API.csproj"
         ENTRY_DLL: QC.API.dll
     restart: unless-stopped
     environment: *api-environment
@@ -100,9 +100,9 @@ services:
   purchasing-api:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/purchasing-api
+        PROJECT_PATH: "src/Services/Purchasing.API/Purchasing.API.csproj"
         ENTRY_DLL: Purchasing.API.dll
     restart: unless-stopped
     environment: *api-environment
@@ -114,12 +114,14 @@ services:
   finance-api:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/finance-api
+        PROJECT_PATH: "src/Services/Finance.API/Finance.API.csproj"
         ENTRY_DLL: Finance.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_dev_finance_proofs:/app/wwwroot/proofs
     depends_on:
       db:
         condition: service_healthy
@@ -128,9 +130,9 @@ services:
   web-gateway:
     build:
       context: .
-      dockerfile: Dockerfile.runtime
+      dockerfile: Dockerfile.backend
       args:
-        PUBLISH_DIR: publish/web-gateway
+        PROJECT_PATH: "src/ApiGateways/Web.Gateway/Web.Gateway.csproj"
         ENTRY_DLL: Web.Gateway.dll
     restart: unless-stopped
     environment:
@@ -178,3 +180,4 @@ services:
 volumes:
   pjt_dev_db:
   pjt_dev_qc_photos:
+  pjt_dev_finance_proofs:

@@ -31,10 +31,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/proofs': 'http://localhost:5000',
+      '/qc-photos': 'http://localhost:5000',
+    }
+  },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.kilo/**'],
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.

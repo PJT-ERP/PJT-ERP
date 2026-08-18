@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect, useRef, type ChangeEvent, type ReactNode } from "react";
-import { CheckCircle2, Plus, Trash2, ChevronDown } from "lucide-react";
+import { useMemo, useState, useEffect, type ChangeEvent, type ReactNode } from "react";
+import { CheckCircle2, Plus } from "lucide-react";
 
 import { purchasingApi } from "../../services/purchasingApi";
 import { usePurchasingData } from "./usePurchasingData";
@@ -16,6 +16,7 @@ interface FormItem {
   qty: string;
   unit: string;
   totalPrice: string;
+  category: string;
 }
 
 interface FieldLabelProps {
@@ -24,7 +25,6 @@ interface FieldLabelProps {
 
 
 
-const UNITS = ["pcs", "batang", "lembar", "kg", "m", "box", "roll", "liter", "pasang", "kaleng"];
 const TERMS = ["Cash", "Net 7", "Net 14", "Net 30", "Net 45"];
 const PO_CATEGORIES = ["Asset", "Consumable", "Tools", "Project", "Maintenance"];
 
@@ -35,6 +35,7 @@ const emptyItem = (): FormItem => ({
   qty: "",
   unit: "",
   totalPrice: "",
+  category: "",
 });
 
 const formatRp = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
@@ -60,55 +61,10 @@ function inputClass(extra: string = "") {
   return `w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 min-h-[38px] ${extra}`;
 }
 
-function SupplierCombobox({ value, onChange, options, placeholder }: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; }) {
-  const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setQuery(value); }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
-
-  const handleSelect = (v: string) => {
-    setQuery(v);
-    onChange(v);
-    setOpen(false);
-  };
-
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-    onChange(e.target.value);
-    setOpen(true);
-  };
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <div className="relative flex items-center w-full">
-        <input type="text" value={query} onChange={handleChange} onFocus={() => setOpen(true)} placeholder={placeholder} className={inputClass("pr-8")} />
-        <ChevronDown size={14} className="absolute right-3 text-slate-400 pointer-events-none" />
-      </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded shadow-lg max-h-48 overflow-y-auto">
-          {filtered.map(o => (
-            <div key={o} onMouseDown={e => { e.preventDefault(); handleSelect(o); }} className="px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700">
-              {o}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageProps) {
-  const { purchaseRequests, suppliers, inventoryItems, refresh } = usePurchasingData();
-  const supplierNames = useMemo(() => suppliers.map(s => s.name), [suppliers]);
+  const { purchaseRequests, inventoryItems, refresh } = usePurchasingData();
   const [supplier, setSupplier] = useState("");
   const [requestRefs, setRequestRefs] = useState("");
   const [soNumber, setSoNumber] = useState("");
@@ -133,21 +89,14 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
     request.items.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
   ), [purchaseRequests]);
 
-  const availableMaterials = useMemo(() => {
-    const selected = eligibleRequests.find(request => request.id === selectedRequestId);
-    return selected?.items
-      .filter(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
-      .map(item => item.itemName) || [];
-  }, [eligibleRequests, selectedRequestId]);
+
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + (Number(item.totalPrice) || 0), 0),
     [items]
   );
 
-  const removeItem = (index: number) => {
-    setItems(prev => prev.length === 1 ? prev : prev.filter((_, itemIndex) => itemIndex !== index));
-  };
+
 
   const updateItem = (index: number, field: keyof FormItem, value: string) => {
     setMessage(null);
@@ -182,7 +131,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         extractedName = invItem.name;
         unit = invItem.unit || "pcs";
       } else {
-        const match = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        const match = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:-[A-Z0-9]+)*)\s*-\s*(.*)/i);
         if (match) {
           extractedCode = match[1].toUpperCase();
           extractedName = match[2];
@@ -204,6 +153,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         qty: String(item.qty),
         unit: unit,
         totalPrice: item.totalPrice ? String(item.totalPrice) : (item.estimatedPrice ? String(item.estimatedPrice) : ""),
+        category: invItem?.category || item.purchaseCategory || item.category || "Consumable",
       };
     }));
   };
@@ -244,6 +194,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
         applySelectedRequest(request.id);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eligibleRequests, selectedRequestId]);
 
   const submitPO = async () => {
@@ -269,10 +220,9 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
       return;
     }
 
-    const poNumber = await purchasingApi.previewNextPoNumber();
-
     try {
       setIsSubmitting(true);
+      const poNumber = await purchasingApi.previewNextPoNumber();
       await Promise.all(items.map(item => purchasingApi.processPurchaseRequestItem(request.id, item.requestItemId!, {
         supplierName: supplier,
         expectedArrivalDate: dueDate,
@@ -446,9 +396,13 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 <FieldLabel>Kode Item *</FieldLabel>
                 <input readOnly value={item.code} onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "code", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
-              <div className="space-y-1.5 md:col-span-3">
+              <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Nama Material *</FieldLabel>
                 <input value={item.name} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "name", e.target.value)} className={inputClass("cursor-not-allowed opacity-80")} />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <FieldLabel>Kategori</FieldLabel>
+                <input value={item.category} readOnly className={inputClass("cursor-not-allowed opacity-80")} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Spesifikasi</FieldLabel>
@@ -462,7 +416,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
                 <FieldLabel>Satuan</FieldLabel>
                 <input value={item.unit} readOnly onChange={(e: ChangeEvent<HTMLInputElement>) => updateItem(index, "unit", e.target.value)} className={inputClass("px-1 sm:px-3 cursor-not-allowed opacity-80")} />
               </div>
-              <div className="space-y-1.5 md:col-span-3">
+              <div className="space-y-1.5 md:col-span-2">
                 <FieldLabel>Total Harga *</FieldLabel>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 text-slate-400 text-sm">Rp</span>

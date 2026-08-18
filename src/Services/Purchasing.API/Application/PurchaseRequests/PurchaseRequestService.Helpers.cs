@@ -58,7 +58,8 @@ public sealed partial class PurchaseRequestService
     {
         return query
             .Include(request => request.Items)
-            .ThenInclude(item => item.MaterialRequirement);
+            .ThenInclude(item => item.MaterialRequirement)
+            .AsSplitQuery();
     }
 
     private static IQueryable<MaterialRequirement> IncludePurchaseItems(IQueryable<MaterialRequirement> query)
@@ -109,6 +110,7 @@ public sealed partial class PurchaseRequestService
             item.Qty,
             item.Urgency,
             item.PurchaseCategory,
+            item.Unit,
             item.SuggestedSupplier,
             item.SupplierName,
             item.PoNumber,
@@ -204,6 +206,7 @@ public sealed partial class PurchaseRequestService
         DateTime now)
     {
         if (purchaseRequest.Status is not PurchaseRequestStatuses.Submitted
+            and not PurchaseRequestStatuses.SupervisorApproved
             and not PurchaseRequestStatuses.FinanceRejected
             and not PurchaseRequestStatuses.Rejected)
         {
@@ -417,7 +420,7 @@ public sealed partial class PurchaseRequestService
         string? category,
         Guid? materialRequirementId,
         Guid? salesOrderId,
-        string itemName = "")
+        string? itemName = null)
     {
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -433,7 +436,7 @@ public sealed partial class PurchaseRequestService
             var value when value.Equals(PurchaseItemCategories.Tools, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Tools,
             var value when value.Equals(PurchaseItemCategories.Project, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Project,
             var value when value.Equals(PurchaseItemCategories.Maintenance, StringComparison.OrdinalIgnoreCase) => PurchaseItemCategories.Maintenance,
-            _ => throw new InvalidOperationException($"Purchase category must be Asset, Consumable, Tools, Project, or Maintenance. Received: '{category}' for item '{itemName}'")
+            _ => throw new InvalidOperationException($"Purchase category must be Asset, Consumable, Tools, Project, or Maintenance. Received: '{category}'" + (string.IsNullOrWhiteSpace(itemName) ? "" : $" for item '{itemName}'"))
         };
     }
 
@@ -538,9 +541,11 @@ public sealed partial class PurchaseRequestService
             return;
         }
 
-        purchaseRequest.Status = purchaseRequest.SupervisorReviewedAtUtc.HasValue || (purchaseRequest.SalesOrderId == null && string.IsNullOrWhiteSpace(purchaseRequest.SalesOrderNumber))
-            ? PurchaseRequestStatuses.SupervisorApproved
-            : PurchaseRequestStatuses.Submitted;
+        purchaseRequest.Status = purchaseRequest.SupervisorReviewedAtUtc.HasValue
+            || (purchaseRequest.SalesOrderId == null && string.IsNullOrWhiteSpace(purchaseRequest.SalesOrderNumber))
+            || purchaseRequest.Status == PurchaseRequestStatuses.SupervisorApproved
+                ? PurchaseRequestStatuses.SupervisorApproved
+                : PurchaseRequestStatuses.Submitted;
         purchaseRequest.RejectionReason = null;
     }
 

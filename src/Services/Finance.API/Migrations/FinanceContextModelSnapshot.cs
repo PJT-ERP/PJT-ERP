@@ -62,6 +62,25 @@ namespace PJT_ERP.Finance.Api.Migrations
                     b.ToTable("collection_letters", (string)null);
                 });
 
+            modelBuilder.Entity("PJT_ERP.Finance.Api.Domain.Entities.FinanceSetting", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("MonthlyTarget")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("opening_balance");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("finance_settings", (string)null);
+                });
+
             modelBuilder.Entity("PJT_ERP.Finance.Api.Domain.Entities.Invoice", b =>
                 {
                     b.Property<Guid>("Id")

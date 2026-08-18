@@ -22,6 +22,7 @@ public sealed record CreatePurchaseRequestItem(
     string? Notes,
     string? Urgency = null,
     string? PurchaseCategory = null,
+    string? Unit = "PCS",
     decimal? TotalPrice = null);
 
 public sealed record UpdatePurchaseRequest(
@@ -45,6 +46,7 @@ public sealed record UpdatePurchaseRequestItem(
     string? Notes,
     string? Urgency = null,
     string? PurchaseCategory = null,
+    string? Unit = "PCS",
     decimal? TotalPrice = null);
 
 public sealed record ReviewPurchaseRequest(
@@ -115,6 +117,7 @@ public sealed record PurchaseRequestItemDto(
     int Qty,
     string Urgency,
     string PurchaseCategory,
+    string Unit,
     string? SuggestedSupplier,
     string? SupplierName,
     string? PoNumber,

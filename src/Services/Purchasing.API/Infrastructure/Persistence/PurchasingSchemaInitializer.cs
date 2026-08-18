@@ -118,6 +118,7 @@ public static class PurchasingSchemaInitializer
                 item_name character varying(255) NOT NULL,
                 size character varying(100) NULL,
                 qty integer NOT NULL,
+                unit character varying(20) NOT NULL DEFAULT 'PCS',
                 urgency character varying(30) NOT NULL DEFAULT 'Normal',
                 purchase_category character varying(50) NOT NULL DEFAULT 'Project',
                 suggested_supplier character varying(255) NULL,
@@ -183,6 +184,7 @@ public static class PurchasingSchemaInitializer
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_status character varying(50) NOT NULL DEFAULT 'Requested';
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS purchase_notes text;
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS rejection_reason text;
+            ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS unit character varying(20) NOT NULL DEFAULT 'PCS';
             ALTER TABLE purchase_request_items ADD COLUMN IF NOT EXISTS updated_at_utc timestamp with time zone NOT NULL DEFAULT now();
 
             UPDATE purchase_request_items

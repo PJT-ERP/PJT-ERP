@@ -51,7 +51,7 @@ function mapInvoice(invoice: InvoiceDto): Invoice {
   };
 }
 
-function buildMonthlyData(invoices: Invoice[]) {
+function buildMonthlyData(invoices: Invoice[], monthlyTarget: number) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const byMonth = new Map<string, { month: string; revenue: number; invoiced: number; target: number }>();
 
@@ -59,7 +59,7 @@ function buildMonthlyData(invoices: Invoice[]) {
     const date = new Date(invoice.issueDate);
     const key = `${date.getFullYear()}-${date.getMonth()}`;
     const month = months[date.getMonth()] ?? invoice.issueDate.slice(5, 7);
-    const current = byMonth.get(key) ?? { month, revenue: 0, invoiced: 0, target: 1_000_000_000 };
+    const current = byMonth.get(key) ?? { month, revenue: 0, invoiced: 0, target: monthlyTarget };
     current.invoiced += invoice.amount;
     current.revenue += invoice.paidAmount;
     byMonth.set(key, current);
@@ -153,7 +153,9 @@ function mapPayments(invoices: InvoiceDto[], verificationRequests: PaymentVerifi
 function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
   const rows: Array<Omit<Transaction, 'balance'>> = [];
 
-  invoices.forEach(invoice => {
+  invoices.filter(invoice => {
+    return invoice.payments.length > 0 || invoice.paidAmount > 0 || invoice.status !== 'PENDING';
+  }).forEach(invoice => {
     rows.push({
       id: invoice.id,
       type: 'INVOICE',
@@ -192,7 +194,7 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
     });
 }
 
-export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
+export function useFinanceData(enabled = true, fetchSupplierPayments = true, fetchOpeningBalance = true) {
   const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
   const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
   const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
@@ -201,16 +203,18 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
   const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
   const [isUsingBackend, setIsUsingBackend] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [monthlyTarget, setMonthlyTarget] = useState<number>(1_000_000_000);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult, openingBalanceResult] = await Promise.allSettled([
+      const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult, openingBalanceResult, monthlyTargetResult] = await Promise.allSettled([
         financeApi.listInvoices(),
         financeApi.listInvoiceCandidates(),
         financeApi.listPaymentVerifications(),
         fetchSupplierPayments ? financeApi.listSupplierPayments() : Promise.resolve([]),
-        financeApi.getOpeningBalance(),
+        fetchOpeningBalance ? financeApi.getOpeningBalance() : Promise.resolve(250_000_000),
+        financeApi.getMonthlyTarget()
       ]);
 
       const invoices = invoicesResult.status === 'fulfilled' ? invoicesResult.value : [];
@@ -218,6 +222,7 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
       const paymentVerifications = paymentVerificationsResult.status === 'fulfilled' ? paymentVerificationsResult.value : [];
       const supplierPaymentsList = supplierPaymentsResult.status === 'fulfilled' ? supplierPaymentsResult.value : [];
       const balance = openingBalanceResult.status === 'fulfilled' ? openingBalanceResult.value : 250_000_000;
+      const target = monthlyTargetResult.status === 'fulfilled' ? monthlyTargetResult.value : 1_000_000_000;
 
       setBackendInvoices(invoices.map(mapInvoice));
       setBackendPayments(mapPayments(invoices, paymentVerifications));
@@ -225,6 +230,7 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
       setInvoiceCandidates(candidates);
       setSupplierPayments(supplierPaymentsList);
       setOpeningBalance(balance);
+      setMonthlyTarget(target);
       setIsUsingBackend(true);
     } catch (error) {
       console.warn('Finance API unavailable; finance seed data was not loaded.', error);
@@ -243,6 +249,15 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
     if (isUsingBackend) {
       await financeApi.updateOpeningBalance(newBalance);
       setOpeningBalance(newBalance);
+    }
+  };
+
+  const updateMonthlyTarget = async (target: number) => {
+    if (isUsingBackend) {
+      await financeApi.updateMonthlyTarget(target);
+      setMonthlyTarget(target);
+    } else {
+      setMonthlyTarget(target);
     }
   };
 
@@ -266,10 +281,12 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true) {
     supplierPayments,
     openingBalance,
     updateOpeningBalance,
+    monthlyTarget,
+    updateMonthlyTarget,
     isLoading,
     isUsingBackend,
     refresh,
-    monthlyRevenueData: buildMonthlyData(invoices),
+    monthlyRevenueData: buildMonthlyData(invoices, monthlyTarget),
     invoiceStatusData: buildStatusData(invoices),
-  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, openingBalance, isLoading, isUsingBackend, refresh]);
+  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, openingBalance, monthlyTarget, isLoading, isUsingBackend, refresh]);
 }

@@ -71,6 +71,42 @@ public sealed class ProductionQcFlowTests
         Assert.True(finishEvent.ProductionOrderId != Guid.Empty);
     }
 
+    [Fact]
+    public async Task Qc_NoGo_sets_production_waiting_and_so_ready_for_production()
+    {
+        await using var db = CreateDbContext();
+        var (so, po) = await SeedWaitingProductionOrderAsync(db);
+        so.Status = SalesOrderStatuses.QC;
+        po.Status = ProductionOrderStatuses.Finished;
+        await db.SaveChangesAsync();
+
+        var publisher = new RecordingEventPublisher();
+        var handler = new PJT_ERP.Production.Api.Application.IntegrationEvents.QcCheckCompletedEventHandler(db, publisher);
+
+        var noGoEvent = new QcCheckCompletedEvent(
+            Guid.NewGuid(),
+            po.Id,
+            "NoGo",
+            DateTime.UtcNow,
+            Array.Empty<string>(),
+            Array.Empty<string>()
+        );
+
+        await handler.Handle(noGoEvent, CancellationToken.None);
+
+        var updatedPo = await db.ProductionOrders.FindAsync(po.Id);
+        var updatedSo = await db.SalesOrders.FindAsync(so.Id);
+
+        Assert.NotNull(updatedPo);
+        Assert.NotNull(updatedSo);
+        Assert.Equal("NoGo", updatedPo.QcDecision);
+        Assert.Equal(ProductionOrderStatuses.Waiting, updatedPo.Status);
+        Assert.Equal(SalesOrderStatuses.QC, updatedSo.Status);
+        
+        // Ensure no invoice candidate event was published
+        Assert.Empty(publisher.PublishedEvents.OfType<SalesOrderReadyForInvoiceEvent>());
+    }
+
     // ── Helpers ──
 
     private static ProductionContext CreateDbContext()
@@ -125,16 +161,22 @@ public sealed class ProductionQcFlowTests
 
     private sealed class StubMasterDataClient : IMasterDataClient
     {
+                public Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataCustomerDto(Guid.NewGuid(), request.Code, request.Name, request.Email, true));
+        public Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataProductDto(Guid.NewGuid(), request.PartNumber, request.Description, request.Unit, request.MaterialSpec, true));
         public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<MasterDataCustomerDto?>(new MasterDataCustomerDto(id, "STUB", "Stub", "x@test.com", true));
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-STUB", "Stub Desc", "pcs", null, true));
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(productIds.Select(id => new BomStockDto(id, "PART", "PARTNAME", new List<BomStockItemDto> { new BomStockItemDto(id, id, null, "INV", 1m, "kg", null, 100, "") })).ToArray());
     }
 
     private sealed class TrackingMasterDataClient(List<Guid> productIds, List<int> qtys) : IMasterDataClient
     {
+                public Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataCustomerDto(Guid.NewGuid(), request.Code, request.Name, request.Email, true));
+        public Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataProductDto(Guid.NewGuid(), request.PartNumber, request.Description, request.Unit, request.MaterialSpec, true));
         public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<MasterDataCustomerDto?>(new MasterDataCustomerDto(id, "STUB", "Stub", "x@test.com", true));
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) =>
@@ -145,8 +187,10 @@ public sealed class ProductionQcFlowTests
         }
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
         {
-            foreach (var item in items) { productIds.Add(item.ProductId); qtys.Add(item.ProductionQuantity); }
+            foreach(var item in items) { productIds.Add(item.ProductId); qtys.Add(item.ProductionQuantity); }
             return Task.CompletedTask;
         }
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken) { foreach(var item in items) { productIds.Add(item.InventoryItemId); qtys.Add((int)item.Quantity); } return Task.CompletedTask; }
+        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> pIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(pIds.Select(id => new BomStockDto(id, "PART", "PARTNAME", new List<BomStockItemDto> { new BomStockItemDto(id, id, null, "INV", 1m, "kg", null, 100, "") })).ToArray());
     }
 }

@@ -24,7 +24,7 @@ public sealed class ProductsController(ICatalogService catalogService, IInventor
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Engineering,Purchasing")]
     public async Task<ActionResult<ProductDto>> Create(CreateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await catalogService.CreateProductAsync(request, cancellationToken);
@@ -32,7 +32,7 @@ public sealed class ProductsController(ICatalogService catalogService, IInventor
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering Worker,Purchasing")]
+    [Authorize(Roles = "Admin,Sales,Sales Order,Engineering,Purchasing")]
     public async Task<ActionResult<ProductDto>> Update(Guid id, CreateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await catalogService.UpdateProductAsync(id, request, cancellationToken);
@@ -40,7 +40,7 @@ public sealed class ProductsController(ICatalogService catalogService, IInventor
     }
 
     [HttpPut("{id}/bom")]
-    [Authorize(Roles = "Admin,Owner,Engineering Worker,Engineering Supervisor,Purchasing")]
+    [Authorize(Roles = "Admin,Owner,Engineering Supervisor,Purchasing")]
     public async Task<ActionResult> UpdateBom(Guid id, UpdateProductBomRequest request, CancellationToken cancellationToken)
     {
         await catalogService.UpdateProductBomAsync(id, request, cancellationToken);

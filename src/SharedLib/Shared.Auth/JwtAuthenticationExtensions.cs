@@ -24,6 +24,7 @@ public static class JwtAuthenticationExtensions
             {
                 options.DefaultAuthenticateScheme = PjtAuthenticationSchemes.Smart;
                 options.DefaultChallengeScheme = PjtAuthenticationSchemes.Smart;
+                options.DefaultForbidScheme = PjtAuthenticationSchemes.Smart;
             })
             .AddPolicyScheme(PjtAuthenticationSchemes.Smart, "PJT JWT or development master token", options =>
             {

@@ -13,6 +13,7 @@ vi.mock('../../context/AppContext', () => ({
 vi.mock('../../../services/masterDataApi', () => ({
   masterDataApi: {
     getBomStock: vi.fn(),
+    listInventory: vi.fn(),
   },
 }));
 
@@ -100,6 +101,17 @@ describe('StartProductionModal', () => {
   });
 
   it('captures specific material specifications from bomsPerItem when there is a stock shortage', async () => {
+    vi.mocked(useApp).mockReturnValue({
+      currentUser: { role: 'Engineering Supervisor' },
+      productCatalog: [
+        {
+          id: 'PROD-1',
+          bomItems: [{ inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', quantity: 2, unit: 'kg' }]
+        }
+      ],
+      refreshBackendData: vi.fn(),
+    } as any);
+
     const mockNavigate = vi.fn();
     const { useNavigate } = await import('react-router');
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -110,17 +122,14 @@ describe('StartProductionModal', () => {
       items: [{ id: 'ITEM-1', productId: 'PROD-1', quantity: 1 }],
       bomsPerItem: {
         'ITEM-1': [
-          { inventoryItemId: 'INV-1', name: 'Aluminium', spec: '100x50', quantity: 1 },
-          { inventoryItemId: 'INV-1', name: 'Aluminium', spec: '200x300', quantity: 1 }
+          { inventoryItemId: 'INV-1', name: 'Aluminium', specification: '100x50', quantity: 1 },
+          { inventoryItemId: 'INV-1', name: 'Aluminium', specification: '200x300', quantity: 1 }
         ]
       }
     } as any;
 
-    vi.mocked(masterDataApi.getBomStock).mockResolvedValue([
-      {
-        productId: 'PROD-1',
-        items: [{ inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', bomQuantity: 2, currentStock: 1 }]
-      }
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([
+      { id: 'INV-1', name: 'Aluminium', currentStock: 1 }
     ] as any);
 
     render(
@@ -156,6 +165,17 @@ describe('StartProductionModal', () => {
   });
 
   it('aggregates duplicate bomStock items and does not duplicate custom specifications', async () => {
+    vi.mocked(useApp).mockReturnValue({
+      currentUser: { role: 'Engineering Supervisor' },
+      productCatalog: [
+        {
+          id: 'PROD-1',
+          bomItems: [{ inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', quantity: 1, unit: 'kg' }]
+        }
+      ],
+      refreshBackendData: vi.fn(),
+    } as any);
+
     const mockNavigate = vi.fn();
     const { useNavigate } = await import('react-router');
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
@@ -166,21 +186,14 @@ describe('StartProductionModal', () => {
       items: [{ id: 'ITEM-1', productId: 'PROD-1', quantity: 1 }],
       bomsPerItem: {
         'ITEM-1': [
-          { inventoryItemId: 'INV-1', name: 'Aluminium', spec: '100x50', quantity: 1 },
-          { inventoryItemId: 'INV-1', name: 'Aluminium', spec: '200x300', quantity: 1 }
+          { inventoryItemId: 'INV-1', name: 'Aluminium', specification: '100x50', quantity: 1 },
+          { inventoryItemId: 'INV-1', name: 'Aluminium', specification: '200x300', quantity: 1 }
         ]
       }
     } as any;
 
-    vi.mocked(masterDataApi.getBomStock).mockResolvedValue([
-      {
-        productId: 'PROD-1',
-        items: [
-          // Simulate the backend returning the identical item twice (e.g. from Custom Product saving)
-          { inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', bomQuantity: 1, currentStock: 0 },
-          { inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', bomQuantity: 1, currentStock: 0 }
-        ]
-      }
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([
+      { id: 'INV-1', name: 'Aluminium', currentStock: 0 }
     ] as any);
 
     render(
@@ -215,5 +228,50 @@ describe('StartProductionModal', () => {
         ]
       }
     });
+  });
+
+  it('shows Kembalikan ke SPV instead of Buat Material Request for Engineering', async () => {
+    const mockReturnToSpv = vi.fn();
+    vi.mocked(useApp).mockReturnValue({
+      currentUser: { role: 'Engineering' },
+      productCatalog: [
+        {
+          id: 'PROD-1',
+          bomItems: [{ inventoryItemId: 'INV-1', inventoryItemName: 'Aluminium', quantity: 2, unit: 'kg' }]
+        }
+      ],
+      refreshBackendData: vi.fn(),
+    } as any);
+
+    const so = {
+      id: 'SO-123',
+      status: 'Ready',
+      items: [{ id: 'ITEM-1', productId: 'PROD-1', quantity: 1 }],
+      bomsPerItem: {
+        'ITEM-1': [
+          { inventoryItemId: 'INV-1', name: 'Aluminium', quantity: 2, unit: 'kg' }
+        ]
+      }
+    } as any;
+
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([
+      { id: 'INV-1', name: 'Aluminium', currentStock: 0 }
+    ] as any);
+
+    render(
+      <MemoryRouter>
+        <StartProductionModal so={so} onClose={vi.fn()} onReturnToSpv={mockReturnToSpv} />
+      </MemoryRouter>
+    );
+    
+    await waitFor(() => {
+      expect(screen.getByText('Stok Material Tidak Cukup')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Buat Material Request')).not.toBeInTheDocument();
+    const returnButton = screen.getByText('Kembalikan ke SPV');
+    returnButton.click();
+
+    expect(mockReturnToSpv).toHaveBeenCalled();
   });
 });

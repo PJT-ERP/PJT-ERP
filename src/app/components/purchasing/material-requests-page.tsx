@@ -13,6 +13,8 @@ import {
   RefreshCw,
   Plus,
   Edit,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
@@ -103,8 +105,8 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     status,
     soRef: request.salesOrderNumber || undefined,
     category: (firstItem?.purchaseCategory || "Project") as MR["category"],
-    urgency: request.items.map(item => item.notes).filter(Boolean).join("; "),
-    notes: request.items.map(item => item.notes).filter(Boolean).join("; ") || request.projectName || "",
+    urgency: Array.from(new Set(request.items.map(item => item.notes).filter(Boolean))).join("; "),
+    notes: Array.from(new Set(request.items.map(item => item.notes).filter(Boolean))).join("; ") || request.projectName || "",
     approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
     approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
     rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
@@ -123,7 +125,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         extCode = bracketMatch[1];
         extName = bracketMatch[2];
       } else {
-        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:-[A-Z0-9]+)*)\s*-\s*(.*)/i);
         if (dashMatch) {
           extCode = dashMatch[1].toUpperCase();
           extName = dashMatch[2];
@@ -139,7 +141,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         purchaseCategory: item.purchaseCategory || null,
         code: extCode,
         name: extName,
-        spec: item.size || item.notes || "-",
+        spec: item.size || "-",
         qty: item.qty,
         unit: "pcs",
         currentStock: 0,
@@ -237,13 +239,15 @@ export function MaterialRequestsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const loadRequests = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await purchasingApi.listPurchaseRequests();
       // Hanya tampilkan PR yang sudah lolos tahap Supervisor di modul Purchasing
-      const validForPurchasing = data.filter(r => r.status !== "Submitted" && r.status !== "SupervisorRejected");
+      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") && r.status !== "SupervisorRejected");
       setRequests(validForPurchasing.map(mapPurchaseRequestToMr));
     } catch (error) {
       console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
@@ -365,14 +369,14 @@ export function MaterialRequestsPage() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#94a3b8" }} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             placeholder="Cari No. PR, requestor, departemen..."
             className="w-full rounded border pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition"
             style={{ fontSize: 13, borderColor: "#e2e8f0", background: "#f8fafc", color: "#1F1F1F" }}
           />
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="h-9 w-36 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+        <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}>
+          <SelectTrigger className="h-9 w-44 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <Filter size={12} className="mr-1" /><SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -380,8 +384,8 @@ export function MaterialRequestsPage() {
             {Object.keys(statusCfg).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="h-9 w-36 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
+        <Select value={filterPriority} onValueChange={(v) => { setFilterPriority(v); setCurrentPage(1); }}>
+          <SelectTrigger className="h-9 w-44 text-sm" style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <SelectValue placeholder="Prioritas" />
           </SelectTrigger>
           <SelectContent>
@@ -415,7 +419,7 @@ export function MaterialRequestsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((mr) => {
+              {filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((mr) => {
                 const sc = statusCfg[mr.status];
                 const pc = priorityCfg[mr.priority];
                 const fc = mr.financeApproval === "Approved" ? { bg: "#dcfce7", color: "#166534" } : mr.financeApproval === "Rejected" ? { bg: "#fee2e2", color: "#991b1b" } : { bg: "#f1f5f9", color: "#475569" };
@@ -436,7 +440,11 @@ export function MaterialRequestsPage() {
                     </TD>
                     <TD className="hidden sm:table-cell">
                       <p style={{ fontWeight: 500, color: "#1F1F1F" }}>{mr.requestor}</p>
-                      <p style={{ fontSize: 11, color: "#94a3b8" }}>{mr.soRef ?? "Non-project"} · {mr.department}</p>
+                      <p style={{ fontSize: 11, color: "#94a3b8" }}>
+                        {mr.soRef ?? "Non-project"}
+                        {mr.department && mr.soRef && mr.department.trim() !== mr.soRef.trim() && ` · ${mr.department}`}
+                        {mr.department && !mr.soRef && ` · ${mr.department}`}
+                      </p>
                     </TD>
                     <TD className="hidden md:table-cell">
                       <span style={{ color: "#475569" }}>{mr.date}</span>
@@ -524,12 +532,25 @@ export function MaterialRequestsPage() {
 
         {/* Footer */}
         <div
-          className="flex items-center justify-between px-4 py-2.5"
+          className="flex items-center justify-between px-4 py-3"
           style={{ borderTop: "1px solid #f1f5f9", background: "#fafafa" }}
         >
-          <p style={{ fontSize: 11, color: "#94a3b8" }}>
-            Menampilkan {filtered.length} dari {requests.length} permintaan
-          </p>
+          <span style={{ fontSize: "13px", color: "#64748B" }}>
+            {filtered.length === 0 ? "0 dari 0 hasil" : `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filtered.length)} dari ${filtered.length} hasil`}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage === 1 ? "#CBD5E1" : "#64748b", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}>
+              <ChevronLeft size={18} />
+            </button>
+            {Array.from({ length: Math.ceil(filtered.length / itemsPerPage) }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setCurrentPage(p)} style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 28, height: 28, padding: "0 8px", borderRadius: 8, border: "none", background: p === currentPage ? "#dc2626" : "transparent", color: p === currentPage ? "#FFFFFF" : "#475569", fontSize: "13px", fontWeight: p === currentPage ? 600 : 500, cursor: "pointer", transition: "all 0.1s" }}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setCurrentPage(p => Math.min(Math.ceil(filtered.length / itemsPerPage), p + 1))} disabled={currentPage >= Math.ceil(filtered.length / itemsPerPage)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, background: "transparent", border: "none", color: currentPage >= Math.ceil(filtered.length / itemsPerPage) ? "#CBD5E1" : "#64748b", cursor: currentPage >= Math.ceil(filtered.length / itemsPerPage) ? "not-allowed" : "pointer" }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

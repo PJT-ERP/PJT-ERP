@@ -35,6 +35,11 @@ public sealed class ProductionFinishedEventHandler(QcContext db) : IIntegrationE
         inspection.AssignedReviewerName = integrationEvent.QcReviewerName ?? inspection.AssignedReviewerName;
         inspection.CustomerDrawingUrl = integrationEvent.CustomerDrawingUrl ?? inspection.CustomerDrawingUrl;
         inspection.DesignReference = integrationEvent.DesignReference ?? inspection.DesignReference;
+        inspection.Decision = null;
+        inspection.Notes = null;
+        inspection.ReviewedAtUtc = null;
+        inspection.ReviewedByUserId = null;
+        inspection.ReviewerName = null;
         inspection.ProductionFinishedAtUtc = integrationEvent.FinishedAtUtc;
         inspection.UpdatedAtUtc = integrationEvent.FinishedAtUtc;
         await db.SaveChangesAsync(cancellationToken);

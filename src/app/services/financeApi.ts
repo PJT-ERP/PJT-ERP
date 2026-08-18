@@ -225,9 +225,7 @@ export const financeApi = {
     if (request.proofFile) formData.append('proofFile', request.proofFile);
 
     const response = await apiClient.post<PaymentVerificationRequestDto>(`/api/v1/finance/payment-verifications/invoices/${invoiceId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      timeout: 120000,
     });
     return response.data;
   },
@@ -271,9 +269,7 @@ export const financeApi = {
     if (request.proofFile) formData.append('proofFile', request.proofFile);
 
     const response = await apiClient.post<SupplierPaymentDto>('/api/v1/finance/supplier-payments', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      timeout: 120000,
     });
     return response.data;
   },
@@ -306,4 +302,14 @@ export const financeApi = {
     const response = await apiClient.put('/api/v1/finance/settings/opening-balance', { openingBalance });
     return response.data;
   },
+
+  async getMonthlyTarget() {
+    const response = await apiClient.get<number>('/api/v1/finance/settings/monthly-target');
+    return response.data;
+  },
+
+  async updateMonthlyTarget(monthlyTarget: number) {
+    const response = await apiClient.put('/api/v1/finance/settings/monthly-target', { monthlyTarget });
+    return response.data;
+  }
 };

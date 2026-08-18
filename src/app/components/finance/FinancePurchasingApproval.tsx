@@ -49,16 +49,14 @@ export function FinancePurchasingApproval() {
       const allMrs = purchaseRequests.map(mapPurchaseRequestToMr);
       const pendingMrs = allMrs.filter(mr => {
         if (mr.backendStatus === "Completed" || mr.status === "Completed") return false;
-        return mr.backendStatus === "SupervisorApproved" || 
+        
+        // Hanya tampilkan di Finance jika Purchasing sudah submit harga (isReadyForFinance)
+        // ATAU statusnya memang sedang/sudah diproses oleh Finance
+        return mr.isReadyForFinance === true || 
                mr.backendStatus === "FinanceApproved" || 
                mr.backendStatus === "FinanceRejected" ||
-               mr.backendStatus === "Rejected" ||
-               mr.backendStatus === "Submitted" ||
-               mr.backendStatus === "Approved" ||
-               mr.status === "Approved" ||
-               mr.isReadyForFinance === true ||
-               mr.status === "Waiting for Finance Approval" ||
-               mr.status === "Revision Needed";
+               (mr.status as string) === "Waiting for Finance Approval" ||
+               (mr.status as string) === "Revision Needed";
       });
       
       pendingMrs.sort((a, b) => {
@@ -181,7 +179,7 @@ export function FinancePurchasingApproval() {
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Cari No. PR, Departemen..."
+                   placeholder="Cari No. PR, SO Referensi..."
                   className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
                 />
               </div>
@@ -192,7 +190,7 @@ export function FinancePurchasingApproval() {
                   <tr>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PR</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Departemen</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Est. Anggaran</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
@@ -205,7 +203,7 @@ export function FinancePurchasingApproval() {
                       <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
                         <td className="px-5 py-4 text-slate-600">{mr.date}</td>
                         <td className="px-5 py-4 font-medium text-slate-800">{mr.id}</td>
-                        <td className="px-5 py-4 text-slate-600">{mr.department}</td>
+                        <td className="px-5 py-4 text-slate-600">{mr.soRef || mr.department || "-"}</td>
                         <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalEst)}</td>
                         <td className="px-5 py-4 text-center">
                           {mr.backendStatus === "FinanceApproved" || mr.financeApproval === "Approved" ? (
@@ -259,6 +257,7 @@ export function FinancePurchasingApproval() {
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Tagihan</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status Pembayaran</th>
                     <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
@@ -272,6 +271,7 @@ export function FinancePurchasingApproval() {
                         <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
                         <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
                         <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
+                        <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
                         <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
                         <td className="px-5 py-4 text-center">
                           {po.paymentStatus !== 'Paid' ? (
@@ -292,9 +292,9 @@ export function FinancePurchasingApproval() {
                       </tr>
                     );
                   })}
-                  {filteredPos.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td></tr>
-                  )}
+                    {filteredPos.length === 0 && (
+                      <tr><td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td></tr>
+                    )}
                 </tbody>
               </table>
             </div>

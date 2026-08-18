@@ -65,6 +65,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
       await productionApi.finishProduction(salesOrderId, {
         workerUserId,
         workerName: currentUser?.name || so.assignedName || "Engineering",
+        reason: (isLate ? lateReason : earlyReason) || undefined,
       });
       await refreshBackendData();
       onClose();

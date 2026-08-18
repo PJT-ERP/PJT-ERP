@@ -2,20 +2,26 @@ import React, { useState } from "react";
 import {
   ChevronLeft,
   User, Building2, Phone, Mail, MapPin,
-  Package, Hash, Calendar, FileText,
-  CheckCircle2, Circle, Clock,
-  Activity, Printer, Edit, Copy,
-  AlertTriangle, ArrowRight, RefreshCw,
-  Receipt, Download, Eye, Upload, X, Box, Plus, Link as LinkIcon
+  AlertTriangle,
+  Edit, Copy, Printer, Trash2,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
-import { getStatusColor, SOStatus, SalesOrder } from "../data/mockData";
+import { toast } from "sonner";
+import { useApp } from "../../components/context/AppContext";
+import { useSalesOrdersQuery, useCustomersQuery, useUpdateCustomerMutation, useUpdateSalesOrderMutation, useDeleteSalesOrderMutation, useProductsQuery } from "../../services/queries";
+import { getStatusColor, SOStatus } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
 import { SOPrintView } from "./detail/SOPrintView";
-import { apiClient, BASE_URL } from "../../services/apiClient";
+import { WorkflowPipeline } from "./detail/WorkflowPipeline";
+import { ProductInfoCard } from "./detail/ProductInfoCard";
+import { QcReportCard } from "./detail/QcReportCard";
+import { ActionPanels } from "./detail/ActionPanels";
+import { OrderInfoSidebar, QrCodeCard, OrderHistory } from "./detail/OrderInfoSidebar";
+import {
+  S, InfoRow, InfoCard, HeaderBtn,
+} from "./detail/shared";
 
 interface SODetailProps {
   orderId: string;
@@ -23,132 +29,23 @@ interface SODetailProps {
   initialEditMode?: boolean;
 }
 
-const S = {
-  font: "Inter, sans-serif",
-  cyan: "#C8102E",
-  navy: "#1F1F1F",
-  slate: "#111827",
-  secondary: "#64748B",
-  border: "#E2E8F0",
-  bg: "#F8FAFC",
-  white: "#FFFFFF",
-};
-
-const getFullUrl = (url: string) => {
-  if (!url || url === 'undefined' || url === 'null') return '';
-  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-  return `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-};
-
-function isGo(value?: string | null) {
-  return value === 'Go' || value === 'Pass';
-}
-
-const formatCurrency = (value?: number | null) => {
-  if (!value || value <= 0) return "-";
-  return `Rp ${value.toLocaleString("id-ID")}`;
-};
-
-const WORKFLOW_STEPS = [
-  { key: "customer_request", label: "Customer Request", dept: "SO Team" },
-  { key: "finance", label: "Finance", dept: "Finance Dept" },
-  { key: "engineering", label: "Engineering", dept: "Engineering" },
-  { key: "production", label: "Production", dept: "Production Floor" },
-  { key: "qc", label: "QC", dept: "QC Team" },
-  { key: "completed", label: "Completed", dept: "" },
-];
-
-function InfoRow({ icon, label, value, isEdit, onChange, type = "text" }: { icon: React.ReactNode; label: string; value: string; isEdit?: boolean; onChange?: (val: string) => void; type?: string }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8", display: "flex", alignItems: "center", gap: 5 }}>
-        <span style={{ color: "#CBD5E1" }}>{icon}</span>
-        {label}
-      </p>
-      {isEdit ? (
-        <input
-          type={type}
-          value={value}
-          onChange={e => onChange?.(e.target.value)}
-          style={{ padding: "4px 8px", fontSize: "13px", color: S.slate, border: `1px solid ${S.border}`, borderRadius: 4, background: "#fff", outline: "none", width: "100%", fontFamily: S.font, boxSizing: "border-box" }}
-        />
-      ) : (
-        <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>{value}</p>
-      )}
-    </div>
-  );
-}
-
-function ActionBtn({ icon, label, bg, color, border, onClick }: {
-  icon: React.ReactNode; label: string;
-  bg: string; color: string; border?: string;
-  onClick?: () => void;
-}) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: "100%", display: "flex", alignItems: "center", gap: 8,
-        padding: "8px 12px", borderRadius: 4,
-        border: border ?? `1px solid ${S.border}`,
-        background: hov ? (bg === S.white ? S.bg : bg) : bg,
-        color,
-        fontSize: "12.5px", cursor: "pointer", fontFamily: S.font,
-        marginBottom: 6, transition: "opacity 0.1s, background 0.1s",
-        opacity: hov && bg !== S.white ? 0.88 : 1,
-      }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
-function InfoCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-        <span style={{ color: S.cyan }}>{icon}</span>
-        <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate }}>{title}</span>
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
-    </div>
-  );
-}
-
-function HeaderBtn({ icon, label, primary, onClick }: { icon: React.ReactNode; label: string; primary?: boolean; onClick?: () => void }) {
-  const [hov, setHov] = useState(false);
-  const [active, setActive] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      onMouseLeave={() => { setHov(false); setActive(false); }}
-      onMouseEnter={() => setHov(true)}
-      style={{
-        display: "flex", alignItems: "center", gap: 5,
-        padding: "6px 12px", borderRadius: 4,
-        border: primary ? "none" : `1px solid ${S.border}`,
-        background: primary ? (hov ? "#0EA5CF" : S.cyan) : (hov ? S.bg : S.white),
-        color: primary ? "#fff" : hov ? S.slate : S.secondary,
-        fontSize: "12.5px", fontWeight: primary ? 500 : 400,
-        cursor: "pointer", fontFamily: S.font, transition: "all 0.1s",
-        transform: active ? "scale(0.96)" : "scale(1)",
-        boxShadow: active ? "none" : primary ? "0 1px 2px rgba(0,0,0,0.1)" : "0 1px 2px rgba(0,0,0,0.03)",
-        ...(active && primary ? { filter: "brightness(0.9)" } : {}),
-      }}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
-  const { salesOrders, customers, updateSalesOrder, updateCustomer, productCatalog } = useApp();
-  const { invoices, payments } = useFinanceData();
+  const { currentUser } = useApp();
+  const { data: productCatalog = [] } = useProductsQuery();
+  const { data: salesOrders = [], isLoading: isLoadingOrders } = useSalesOrdersQuery();
+  const { data: customers = [], isLoading: isLoadingCustomers } = useCustomersQuery();
+  
+  const updateSalesOrderMutation = useUpdateSalesOrderMutation();
+  const deleteSalesOrderMutation = useDeleteSalesOrderMutation();
+  const updateCustomerMutation = useUpdateCustomerMutation();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  const updateSalesOrder = (id: string, data: any) => updateSalesOrderMutation.mutate({ id, data });
+  const updateCustomer = (code: string, data: any) => updateCustomerMutation.mutate({ code, data });
+
+  const { currentUser: appUser } = useApp();
+  const isSalesOrHigher = appUser?.role === 'Sales' || appUser?.role === 'Finance' || appUser?.role === 'Admin' || appUser?.role === 'Owner';
+  const { invoices, payments } = useFinanceData(isSalesOrHigher, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const baseOrder = salesOrders.find(o => o.id === orderId);
@@ -162,25 +59,51 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
-  const currentUser = useApp().currentUser;
 
   const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");
-  const isCustomBackend = order?.backendDesignStatus === "PendingDesign" || order?.backendDesignStatus === "RevisionRequired" || order?.partNumber?.startsWith("FG-");
+  const isCustomBackend = order?.backendDesignStatus === "PendingDesign" || order?.backendDesignStatus === "RevisionRequired" || order?.partNumber?.startsWith("FG-") || false;
   const isStandard = !isCustomBackend;
 
   let displayMaterials = order?.materials || [];
   if (isStandard && productCatalog && order) {
     const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
     if (matchedProduct && matchedProduct.materialSpec) {
-      displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => ({
-        id: matchedProduct.id + "-mat-" + idx,
-        name: `MAT-${String(parseInt(matchedProduct.partNumber.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
-        spec: specPart.trim(),
-        quantity: "1",
-        unit: matchedProduct.unit.toLowerCase(),
-      }));
+      displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => {
+        const bomItem = matchedProduct.bomItems?.[idx];
+        return {
+          id: `${matchedProduct.partNumber || matchedProduct.id}-mat-${idx}`,
+          name: bomItem?.inventoryItemName || `MAT-${String(parseInt(matchedProduct.partNumber?.split('-')[1] || "0") + idx).padStart(4, '0')} - ${specPart.trim().split(' ')[0]}`,
+          code: bomItem?.inventoryItemCode || null,
+          spec: specPart.trim(),
+          quantity: bomItem?.quantity || 1,
+          unit: matchedProduct.unit?.toLowerCase() || "pcs",
+        };
+      });
     }
   }
+
+  displayMaterials = displayMaterials.map((mat: any) => {
+    let code = mat.code;
+    let name = mat.name;
+    if (!code || code.length > 20) {
+      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+      const matchedProduct = productCatalog.find(p => p.bomItems?.some(b => b.inventoryItemId === invId));
+      if (matchedProduct) {
+        const bomItem = matchedProduct.bomItems?.find(b => b.inventoryItemId === invId);
+        code = bomItem?.inventoryItemCode || null;
+      }
+    }
+    if (!code && name) {
+      const embeddedMatch = name.match(/^([A-Z]+-\d+)/);
+      if (embeddedMatch) code = embeddedMatch[1];
+    }
+    if (code && name) {
+      const codePrefix = `${code} - `;
+      if (name.startsWith(codePrefix)) name = name.slice(codePrefix.length);
+    }
+    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+    return { ...mat, code: code || finalInvId || null, name };
+  });
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
@@ -226,8 +149,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        const nextStatus = 'Pending Design';
-        updateSalesOrder(orderId, { status: nextStatus });
+        updateSalesOrder(orderId, { status: 'Pending Design' });
       } else if (action === 'reject') {
         updateSalesOrder(orderId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
@@ -236,6 +158,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         updateSalesOrder(orderId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
       } else if (action === 'assign_engineer') {
         updateSalesOrder(orderId, { assignedName: actionForm.engineerName });
+        toast.success(`Tugas design berhasil di-assign ke ${actionForm.engineerName}`, {
+          style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
+          duration: 3000
+        });
       } else if (action === 'upload_design') {
         updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
       } else if (action === 'approve_design') {
@@ -248,8 +174,33 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     }
   };
 
+  const handleDeleteSO = () => {
+    deleteSalesOrderMutation.mutate(orderId, {
+      onSuccess: () => {
+        toast.success(`Sales Order ${orderId} berhasil dihapus.`, {
+          style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
+        });
+        onNavigate("so-list");
+      },
+      onError: (err: any) => {
+        toast.error(`Gagal menghapus SO: ${err?.response?.data?.message || err.message}`);
+      }
+    });
+  };
+
   const handleSave = () => {
     if (!order) return;
+
+    const isQtyChanged = Number(editForm.quantity) !== Number(order.quantity);
+    const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;
+
+    if (isQtyChanged && isLockedForQty) {
+      toast.error("Kuantitas item tidak dapat diubah setelah Sales Order masuk ke tahap pembayaran atau produksi.", {
+        style: { background: '#7f1d1d', color: '#fca5a5', border: '1px solid #991b1b' },
+        duration: 4000
+      });
+      return;
+    }
 
     const isDesignChanged = editForm.customerDrawingUrl !== order.customerDrawingUrl;
     let newRevisions = order.designRevisions || [];
@@ -307,6 +258,19 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     setIsEditMode(false);
   };
 
+  if (isLoadingOrders || isLoadingCustomers) {
+    return (
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="animate-pulse" style={{ height: 40, width: "30%", background: "#f1f5f9", borderRadius: 6 }} />
+        <div className="animate-pulse" style={{ height: 100, width: "100%", background: "#f1f5f9", borderRadius: 6 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 14 }}>
+          <div className="animate-pulse" style={{ height: 300, background: "#f1f5f9", borderRadius: 6 }} />
+          <div className="animate-pulse" style={{ height: 300, background: "#f1f5f9", borderRadius: 6 }} />
+        </div>
+      </div>
+    );
+  }
+
   if (!order) {
     return (
       <div style={{ padding: 24, display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh", fontFamily: S.font }}>
@@ -352,14 +316,19 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       unitPrice: order.estimatedAmount && order.quantity ? order.estimatedAmount / order.quantity : 0,
       lineTotal: order.estimatedAmount || order.invoice?.amount || 0,
       notes: order.notes || "",
+      designReference: "",
+      customerDrawingUrl: "",
     }];
-  const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
-  const orderValue = order.invoice?.amount || (hasUnitPrice ? productLines.reduce((sum, item) => sum + item.lineTotal, 0) : order.estimatedAmount) || 0;
+  const orderValue = order.invoice?.amount || (() => {
+    const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
+    return hasUnitPrice ? productLines.reduce((sum, item) => sum + item.lineTotal, 0) : order.estimatedAmount;
+  })() || 0;
 
   return (
     <>
       <div className="print-hide" style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
 
+      {/* ===== Header ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
@@ -375,7 +344,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h1 style={{ color: S.slate, margin: 0 }}>{order.id}</h1>
               <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
-                <span className={`w-[5px] h-[5px] rounded-full shrink-0 bg-current`} />
+                <span className="w-[5px] h-[5px] rounded-full shrink-0 bg-current" />
                 {order.status}
               </span>
             </div>
@@ -384,76 +353,52 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => window.print()} />
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+          <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => {
+            const originalTitle = document.title;
+            document.title = order.id;
+            window.print();
+            document.title = originalTitle;
+          }} />
           <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
-          <HeaderBtn icon={<Edit size={13} />} label={isEditMode ? "Batal Edit" : "Edit"} onClick={() => setIsEditMode(!isEditMode)} primary={!isEditMode} />
+          {isEditMode ? (
+            <>
+              <button
+                onClick={handleSave}
+                style={{
+                  padding: "7px 14px", borderRadius: 6, border: "none",
+                  background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
+                  color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                }}
+              >
+                Simpan Perubahan
+              </button>
+              <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
+            </>
+          ) : (
+            <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
+          )}
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            title="Hapus Sales Order"
+            style={{
+              padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
+              background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+              transition: "all 0.15s"
+            }}
+          >
+            <Trash2 size={13} />
+            <span>Hapus SO</span>
+          </button>
         </div>
       </div>
 
-      {order.status !== "Rejected" && (
-        <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, padding: "18px 20px" }}>
-          <p style={{ margin: "0 0 16px", fontSize: "11px", fontWeight: 700, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Workflow Pipeline
-          </p>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
-            {WORKFLOW_STEPS.map((step, idx) => {
-              const tStep = order.timeline?.find(t => t.step === step.key);
+      {/* ===== Workflow Pipeline ===== */}
+      <WorkflowPipeline order={order} />
 
-              const getWorkflowProgress = (status: string) => {
-                if (status === 'Completed' || order.completedAt || isGo(order.qcStatus)) return 5;
-                if (status === 'QC') return 4;
-                if (['Ready for Production', 'In Production', 'Paused'].includes(status)) return 3;
-                if (['Pending Design', 'Waiting Spv Approval', 'Waiting Approval', 'Revision Required'].includes(status)) return 2;
-                if (['Waiting Pricing', 'Waiting Payment', 'Waiting Client Approval'].includes(status)) return 1;
-                return 0;
-              };
-
-              const currentIdx = getWorkflowProgress(order.status);
-              const isDone = idx < currentIdx;
-              const isCurrent = idx === currentIdx;
-              const isUnpaidCompleted = isCurrent && idx === 5 && order.status === 'Waiting Payment';
-              const isFinancePending = idx === 1 && !order.invoice?.invoiceId && currentIdx > 1;
-
-              return (
-                <React.Fragment key={step.key}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 90, flex: "0 0 auto", position: "relative" }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isUnpaidCompleted || isFinancePending ? "#FEF3C7" : (isDone && !isFinancePending) ? "#ECFDF5" : isCurrent ? S.cyan : "#F1F5F9",
-                      border: `2px solid ${isUnpaidCompleted || isFinancePending ? "#F59E0B" : (isDone && !isFinancePending) ? "#22C55E" : isCurrent ? S.cyan : "#CBD5E1"}`,
-                      color: isUnpaidCompleted || isFinancePending ? "#D97706" : (isDone && !isFinancePending) ? "#22C55E" : isCurrent ? "#fff" : "#94A3B8",
-                      boxShadow: isUnpaidCompleted || isFinancePending ? "0 0 0 3px rgba(245, 158, 11, 0.15)" : isCurrent ? "0 0 0 3px rgba(200,16,46,0.15)" : "none",
-                      flexShrink: 0,
-                    }}>
-                      {isUnpaidCompleted ? <AlertTriangle size={14} /> : isFinancePending ? <Clock size={13} /> : (isDone && !isFinancePending) ? <CheckCircle2 size={14} /> : isCurrent ? <Clock size={13} /> : <Circle size={13} />}
-                    </div>
-                    {(isUnpaidCompleted || isFinancePending) && (
-                      <div style={{ position: "absolute", top: -25, background: "#F59E0B", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: 4, fontWeight: "bold", whiteSpace: "nowrap" }}>
-                        {isFinancePending ? "Pending Invoice" : "Unpaid"}
-                      </div>
-                    )}
-                    <p style={{ margin: "6px 0 2px", fontSize: "11px", fontWeight: isCurrent ? 600 : 400, color: isCurrent ? S.slate : (isDone && !isFinancePending) ? "#334155" : "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>
-                      {step.label}
-                    </p>
-                    {step.dept && (
-                      <p style={{ margin: 0, fontSize: "10px", color: "#94A3B8", textAlign: "center", whiteSpace: "nowrap" }}>{step.dept}</p>
-                    )}
-                    {tStep?.date && (
-                      <p style={{ margin: "2px 0 0", fontSize: "10px", color: S.cyan, textAlign: "center" }}>{tStep.date}</p>
-                    )}
-                  </div>
-                  {idx < WORKFLOW_STEPS.length - 1 && (
-                    <div style={{ flex: 1, minWidth: 16, height: 2, marginTop: 15, background: isDone ? "#A7F3D0" : "#E2E8F0", alignSelf: "flex-start" }} />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
+      {/* ===== Rejected Banner ===== */}
       {order.status === "Rejected" && (
         <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <AlertTriangle size={16} style={{ color: "#EF4444", flexShrink: 0 }} />
@@ -461,10 +406,13 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         </div>
       )}
 
+      {/* ===== Main Content Grid ===== */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 14 }} className="detail-grid">
 
+        {/* ===== Left Column ===== */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
 
+          {/* Customer Info */}
           <InfoCard title="Informasi Pelanggan" icon={<User size={13} />}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
               <InfoRow icon={<User size={11} />} label="Nama" value={isEditMode ? editForm.customerName : (customer?.contactPerson || customer?.contact || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, customerName: v }))} />
@@ -477,139 +425,23 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </div>
           </InfoCard>
 
-          <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 14 }}>
-              <InfoRow icon={<Hash size={11} />} label="No. PO" value={order.soNumber || order.id} isEdit={false} />
-              <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
-              <InfoRow icon={<Receipt size={11} />} label="Nilai SO" value={formatCurrency(orderValue)} isEdit={false} />
-              {isCustomBackend && (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <InfoRow icon={<FileText size={11} />} label="Sumber Desain" value={order.designReference === "INTERNAL_DESIGN" ? "Butuh Desain Engineering Internal" : (order.customerDrawingUrl || order.designLink ? "Referensi Desain dari Customer" : "Belum ditentukan")} isEdit={false} />
-                </div>
-              )}
-              <div style={{ gridColumn: "1 / -1" }}>
-                <InfoRow icon={<FileText size={11} />} label="Catatan Umum" value={isEditMode ? editForm.notes : (order.notes || "-")} isEdit={isEditMode} onChange={v => setEditForm(prev => ({ ...prev, notes: v }))} />
-              </div>
-            </div>
+          {/* Product Info + BOM + Production Schedule */}
+          <ProductInfoCard
+            order={order}
+            customer={customer}
+            isEditMode={isEditMode}
+            editForm={editForm}
+            setEditForm={setEditForm}
+            displayMaterials={displayMaterials}
+            isCustomBackend={isCustomBackend}
+            productLines={productLines}
+            orderValue={orderValue}
+          />
 
-            <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", gap: 0, background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-                {["No.", "Produk", "Qty", "Harga", "Subtotal"].map(label => (
-                  <div key={label} style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                ))}
-              </div>
-              {productLines.map((item, index) => (
-                <div key={item.id} style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", borderBottom: index === productLines.length - 1 ? "none" : "1px solid #F1F5F9", alignItems: "center" }}>
-                  <div style={{ padding: "10px", fontSize: "12px", color: S.secondary }}>{index + 1}</div>
-                  <div style={{ padding: "10px", minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: "13px", color: S.slate, fontWeight: 600 }}>{item.productName}</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>Kode Produk: {item.productCode}</p>
-                    {(() => {
-                      if (!item.notes) return null;
-                      let bomMaterials: { name?: string; spec?: string; specification?: string; quantity?: number; unit?: string }[] | null = null;
-                      try {
-                        const parsed = JSON.parse(item.notes);
-                        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) {
-                          bomMaterials = parsed;
-                        }
-                      } catch { /* not JSON, render as plain text */ }
-                      if (bomMaterials) {
-                        return (
-                          <div style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748B", background: "#F8FAFC", borderRadius: 4, padding: "6px 8px" }}>
-                            <span style={{ fontWeight: 600, color: "#94A3B8" }}>BOM: </span>
-                            {bomMaterials.map((m, i) => (
-                              <span key={i}>
-                                {m.name || m.specification}{m.quantity && ` (${m.quantity} ${m.unit || ''})`}{i < bomMaterials!.length - 1 ? ', ' : ''}
-                              </span>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>;
-                    })()}
-                    {(item as any).designReference === "INTERNAL_DESIGN" && (
-                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#F59E0B", display: "flex", alignItems: "center", gap: 4 }}>
-                        <FileText size={10} /> Engineering akan desain ulang
-                      </p>
-                    )}
-                    {(item as any).customerDrawingUrl && (
-                      <p style={{ margin: "3px 0 0", fontSize: "11px", color: S.cyan, display: "flex", alignItems: "center", gap: 4 }}>
-                        <LinkIcon size={10} />
-                        <a href={(item as any).customerDrawingUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none", color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          Lihat Referensi Klien
-                        </a>
-                      </p>
-                    )}
-                  </div>
-                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
-                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>
-                  <div style={{ padding: "10px", fontSize: "12px", color: S.slate, fontWeight: 600 }}>{formatCurrency(item.lineTotal)}</div>
-                </div>
-              ))}
-            </div>
-
-            {isEditMode && (
-              <p style={{ margin: "10px 0 0", fontSize: "11px", color: S.secondary }}>
-                Edit multi item SO masih mengikuti kontrak backend. Gunakan Duplikat untuk membuat SO baru dengan item tambahan.
-              </p>
-            )}
-          </InfoCard>
-
-          <InfoCard title="Bill of Materials (Kebutuhan Bahan)" icon={<Box size={13} />}>
-            {(displayMaterials && displayMaterials.length > 0) ? (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: S.font }}>
-                  <thead>
-                    <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, color: S.secondary, textAlign: "left" }}>
-                      <th style={{ padding: "8px 12px", fontWeight: 600, whiteSpace: "nowrap" }}>Nama Material</th>
-                      <th style={{ padding: "8px 12px", fontWeight: 600, whiteSpace: "nowrap" }}>Spesifikasi</th>
-                      <th style={{ padding: "8px 12px", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayMaterials.map((mat: any) => (
-                      <tr key={mat.id} style={{ borderBottom: `1px solid ${S.border}` }}>
-                        <td style={{ padding: "8px 12px", color: S.slate }}>{mat.name || "-"}</td>
-                        <td style={{ padding: "8px 12px", color: S.slate }}>{mat.spec || "-"}</td>
-                        <td style={{ padding: "8px 12px", color: S.slate, textAlign: "right", fontWeight: 500, whiteSpace: "nowrap" }}>{mat.quantity} {mat.unit}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p style={{ margin: 0, fontSize: "12px", color: S.secondary, textAlign: "center", padding: "10px 0" }}>Belum ada data material.</p>
-            )}
-          </InfoCard>
-
-          {(order.startTime || order.endTime) && (
-            <InfoCard title="Jadwal Eksekusi Produksi" icon={<Clock size={13} />}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Mulai Mesin</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.startTime ? new Date(order.startTime).toLocaleString("id-ID") : '-'}</p>
-                  </div>
-                  <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 6, border: "1px solid #E2E8F0" }}>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.secondary }}>Waktu Selesai Produksi</p>
-                    <p style={{ margin: "4px 0 0", fontSize: "13px", color: S.slate, fontWeight: 500 }}>{order.endTime ? new Date(order.endTime).toLocaleString("id-ID") : '-'}</p>
-                  </div>
-                </div>
-                {order.lateReason && (
-                  <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", padding: "10px 14px", borderRadius: 6, display: "flex", gap: 10 }}>
-                    <AlertTriangle size={14} style={{ color: "#D97706", flexShrink: 0, marginTop: 2 }} />
-                    <div>
-                      <p style={{ margin: 0, fontSize: "11px", fontWeight: 600, color: "#B45309" }}>Catatan Keterlambatan</p>
-                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#92400E" }}>{order.lateReason}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </InfoCard>
-          )}
-
+          {/* Invoice Section */}
           <InvoiceSection invoice={order.invoice} pendingPaymentProof={pendingPaymentProof} invoicePayments={invoicePayments} />
 
+          {/* Edit Mode Save/Cancel */}
           {isEditMode && (
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
               <button type="button" onClick={() => setIsEditMode(false)}
@@ -630,336 +462,80 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           )}
         </div>
 
+        {/* ===== Right Sidebar ===== */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <OrderInfoSidebar
+            order={order}
+            customer={customer}
+            currentUserRole={currentUser?.role || ''}
+            isEditMode={isEditMode}
+            editForm={editForm}
+            setEditForm={setEditForm}
+            isDesignLocked={isDesignLocked}
+          />
 
-          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-            <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-              <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Info Order</p>
-            </div>
-            <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>No. SO</p>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{order.id}</p>
-              </div>
-              <div style={{ height: 1, background: "#F8FAFC" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Deadline</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{order.deadline}</p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Qty</p>
-                  <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{order.quantity.toLocaleString("id-ID")} {order.unit}</p>
-                </div>
-              </div>
-              {order.notes && (
-                <>
-                  <div style={{ height: 1, background: "#F8FAFC" }} />
-                  <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Catatan</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary, lineHeight: 1.5 }}>{order.notes}</p>
-                  </div>
-                </>
-              )}
-              {(!order.designId || order.designId === "none" || order.designId === "customer") && (
-                <>
-                  <div style={{ height: 1, background: "#F8FAFC" }} />
-                  <div>
-                    {isEditMode ? (
-                      <>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
-                          {order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain"}
-                        </p>
-                        <input
-                          type="text"
-                          placeholder="https://... (Opsional)"
-                          value={editForm.customerDrawingUrl}
-                          onChange={e => setEditForm(prev => ({ ...prev, customerDrawingUrl: e.target.value }))}
-                          disabled={isDesignLocked}
-                          style={{ marginTop: 4, width: "100%", padding: "6px 8px", fontSize: "11.5px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", backgroundColor: isDesignLocked ? "#F1F5F9" : "white", cursor: isDesignLocked ? "not-allowed" : "text" }}
-                        />
-                        {isDesignLocked && (
-                          <p style={{ margin: "4px 0 0", fontSize: "10px", color: "#EF4444" }}>
-                            Desain tidak dapat diubah karena pesanan sudah masuk tahap produksi.
-                          </p>
-                        )}
-                      </>
-                    ) : order.designId === "none" && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain</p>
-                        <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B", fontWeight: 600 }}>Menunggu desain dari tim Engineering</p>
-                      </div>
-                    ) : !order.customerDrawingUrl && !order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain</p>
-                        <p style={{ margin: 0, fontSize: "11.5px", color: "#F59E0B", fontWeight: 600 }}>Menunggu desain dari pelanggan</p>
-                        {currentUser?.role !== 'Engineering' && (
-                          <button onClick={() => setIsEditMode(true)} style={{ padding: "4px 10px", background: "#EFF6FF", border: `1px solid #BFDBFE`, color: "#1D4ED8", borderRadius: 4, fontSize: "10px", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, transition: "background 0.2s" }} onMouseEnter={e => e.currentTarget.style.background = "#DBEAFE"} onMouseLeave={e => e.currentTarget.style.background = "#EFF6FF"}>
-                            <Plus size={10} /> Link Desain
-                          </button>
-                        )}
-                      </div>
-                    ) : order.customerDrawingUrl && order.designLink && order.customerDrawingUrl !== order.designLink ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div>
-                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Referensi Desain (Customer)</p>
-                          <a href={order.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                            {order.customerDrawingUrl}
-                          </a>
-                        </div>
-                        <div>
-                          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain (Engineering)</p>
-                          <a href={order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                            {order.designLink}
-                          </a>
-                        </div>
-                      </div>
-                    ) : order.customerDrawingUrl || order.designLink ? (
-                      <div>
-                        <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>
-                          {order.designLink ? "Link Desain (Engineering)" : (order.designReference === "INTERNAL_DESIGN" ? "Link Desain" : "Referensi Desain")}
-                        </p>
-                        <a href={order.customerDrawingUrl || order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
-                          {order.customerDrawingUrl || order.designLink}
-                        </a>
-                      </div>
-                    ) : (
-                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary }}>Tidak ada referensi desain dari pelanggan</p>
-                    )}
-                  </div>
+          <QcReportCard order={order} onPreviewPhoto={setPreviewPhoto} />
 
-                  {order.designRevisions && order.designRevisions.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <p style={{ margin: "0 0 8px", fontSize: "10.5px", color: "#94A3B8" }}>Riwayat Revisi Desain</p>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 8, borderLeft: `2px solid ${S.border}` }}>
-                        {order.designRevisions.map(rev => (
-                          <div key={rev.version} style={{ position: "relative" }}>
-                            <div style={{ position: "absolute", left: -13, top: 4, width: 6, height: 6, borderRadius: "50%", background: S.cyan }} />
-                            <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>
-                              <span style={{ fontWeight: 600 }}>v{rev.version}</span> oleh {rev.changedBy}
-                            </p>
-                            <a href={rev.url} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "10px", color: S.secondary, textDecoration: "none", display: "inline-block", wordBreak: "break-all" }}>
-                              {rev.url || "(URL Dihapus)"}
-                            </a>
-                            <p style={{ margin: "2px 0 0", fontSize: "9px", color: "#94A3B8" }}>
-                              {new Date(rev.changedAt).toLocaleString("id-ID")}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          <ActionPanels
+            order={order}
+            currentUserRole={currentUser?.role || ''}
+            currentUserName={currentUser?.name || ''}
+            actionForm={actionForm}
+            setActionForm={setActionForm}
+            handleAction={handleAction}
+          />
 
-          {order.qcStatus && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Laporan QC</p>
-                <span style={{ padding: "3px 8px", borderRadius: 4, background: isGo(order.qcStatus) ? "#ECFDF5" : "#FEF2F2", color: isGo(order.qcStatus) ? "#059669" : "#DC2626", border: `1px solid ${isGo(order.qcStatus) ? "#10B981" : "#EF4444"}`, fontSize: "10px", fontWeight: 600 }}>
-                  {isGo(order.qcStatus) ? 'Go' : 'NoGo'}
-                </span>
-              </div>
-              <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-                {order.qcAt && (
-                  <div>
-                    <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Tanggal Inspeksi</p>
-                    <p style={{ margin: "2px 0 0", fontSize: "12.5px", color: S.slate }}>{new Date(order.qcAt).toLocaleString("id-ID")}</p>
-                  </div>
-                )}
-                {order.qcNotes && (
-                  <>
-                    <div style={{ height: 1, background: "#F8FAFC" }} />
-                    <div>
-                      <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Catatan QC</p>
-                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.secondary, lineHeight: 1.5 }}>{order.qcNotes}</p>
-                    </div>
-                  </>
-                )}
-                {order.productionPhotos && order.productionPhotos.length > 0 && (
-                  <div>
-                    <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Hasil Produksi</p>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 80px)", gap: 8 }}>
-                    {order.productionPhotos.map((photo, i) => {
-                      const fullPhoto = getFullUrl(photo);
-                      if (!fullPhoto) return null;
-                      return (
-                      <div key={i} onClick={() => setPreviewPhoto(fullPhoto)} style={{ width: 80, height: 60, background: S.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                        <img src={fullPhoto} alt={`Production Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
-                      </div>
-                      );
-                    })}
-                    </div>
-                  </div>
-                )}
-                {order.qcPhotos && order.qcPhotos.length > 0 && (
-                  <>
-                    <div style={{ height: 1, background: "#F8FAFC", margin: "8px 0" }} />
-                    <div>
-                      <p style={{ margin: "0 0 6px", fontSize: "10.5px", color: "#94A3B8" }}>Foto Bukti</p>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 80px)", gap: 8 }}>
-                      {order.qcPhotos.map((photo, i) => {
-                        const fullPhoto = getFullUrl(photo);
-                        if (!fullPhoto) return null;
-                        return (
-                        <div key={i} onClick={() => setPreviewPhoto(fullPhoto)} style={{ width: 80, height: 60, background: S.border, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer" }}>
-                          <img src={fullPhoto} alt={`QC Photo ${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.src = `https://placehold.co/400x400?text=${encodeURIComponent(photo.split('/').pop() || 'Image')}` }} />
-                        </div>
-                        );
-                      })}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {(currentUser?.role === 'Sales' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && (order.status === 'Waiting Client Approval') && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FFFBEB" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#D97706", display: "flex", alignItems: "center", gap: 6 }}>
-                  <AlertTriangle size={14} /> Validasi Klien
-                </p>
-              </div>
-              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
-                  Finance telah memberikan Estimasi Harga: <strong style={{ color: S.slate }}>Rp {(order.estimatedAmount || 0).toLocaleString("id-ID")}</strong>
-                </p>
-                <ActionBtn icon={<CheckCircle2 size={13} />} label="Klien Deal (Lanjut SO)" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('deal')} />
-                <ActionBtn icon={<RefreshCw size={13} />} label="Nego / Revisi Harga" bg="#FFFBEB" color="#D97706" border="1px solid #F59E0B" onClick={() => handleAction('revise_price')} />
-                <ActionBtn icon={<X size={13} />} label="Gagal / Batal (Rejected)" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('reject')} />
-              </div>
-            </div>
-          )}
-
-          {(currentUser?.role === 'Finance' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Waiting Pricing' && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Finance: Estimasi Harga Jual</p>
-              </div>
-              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{ fontSize: "11px", color: S.secondary }}>Estimasi Total Harga (Rp)</label>
-                <input
-                  type="number"
-                  value={actionForm.estimatedAmount}
-                  onChange={e => setActionForm(prev => ({ ...prev, estimatedAmount: Number(e.target.value) }))}
-                  style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
-                />
-                <ActionBtn icon={<CheckCircle2 size={13} />} label="Submit Harga" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('submit_price')} />
-              </div>
-            </div>
-          )}
-
-          {(currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Spv Engineering: Assign Task</p>
-              </div>
-              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{ fontSize: "11px", color: S.secondary }}>Assign to Engineer</label>
-                <select
-                  value={actionForm.engineerName}
-                  onChange={e => setActionForm(prev => ({ ...prev, engineerName: e.target.value }))}
-                  style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box", background: "#fff" }}
-                >
-                  <option value="">-- Pilih Engineer --</option>
-                  <option value="Budi Santoso">Budi Santoso</option>
-                  <option value="Andi Pratama">Andi Pratama</option>
-                </select>
-                <ActionBtn icon={<CheckCircle2 size={13} />} label="Assign Engineer" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('assign_engineer')} />
-              </div>
-            </div>
-          )}
-
-          {(currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Waiting Spv Approval' && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Spv Engineering: Approval Desain</p>
-              </div>
-              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
-                  Engineer {order.assignedName || "Engineer"} telah mensubmit desain. Mohon review.
-                </p>
-                <ActionBtn icon={<CheckCircle2 size={13} />} label="Approve Desain" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('approve_design')} />
-                <ActionBtn icon={<RefreshCw size={13} />} label="Reject & Minta Revisi" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('reject_design')} />
-              </div>
-            </div>
-          )}
-
-          {(currentUser?.role === 'Engineering' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin') && order.status === 'Pending Design' && (order.assignedName === currentUser?.name || currentUser?.role !== 'Engineering') && (
-            <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-                <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>Engineering: Upload Desain</p>
-              </div>
-              <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <label style={{ fontSize: "11px", color: S.secondary }}>URL Gambar Desain</label>
-                <input
-                  type="text"
-                  value={actionForm.designUrl}
-                  onChange={e => setActionForm(prev => ({ ...prev, designUrl: e.target.value }))}
-                  placeholder="https://example.com/design.png"
-                  style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
-                />
-                <ActionBtn icon={<Upload size={13} />} label="Submit ke Supervisor" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('upload_design')} />
-              </div>
-            </div>
-          )}
-
-          <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
-            <div style={{ padding: "11px 14px", borderBottom: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-              <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: S.slate }}>End-to-End History</p>
-            </div>
-            <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: 14 }}>
-              {(() => {
-                const historySteps: { label: string; date?: string; active: boolean; isRejection?: boolean; reason?: string }[] = [
-                  { label: 'Desain Disetujui', date: order.designApprovedAt, active: !!order.designApprovedAt },
-                  { label: 'Sales Order Rilis', date: order.createdAt, active: !!order.createdAt },
-                  { label: 'Invoice Diterbitkan', date: order.invoice?.invoiceDate, active: !!order.invoice?.invoiceDate }
-                ];
-
-                if (order.invoice?.rejectedPayments) {
-                  order.invoice.rejectedPayments.forEach(rp => {
-                    historySteps.push({
-                      label: 'Pembayaran Ditolak',
-                      date: rp.date,
-                      active: true,
-                      isRejection: true,
-                      reason: rp.reason
-                    });
-                  });
-                }
-
-                historySteps.push(
-                  { label: 'Lunas', date: order.invoice?.paymentDate, active: !!order.invoice?.paymentDate }
-                );
-
-                return historySteps.map((step, idx, arr) => (
-                  <div key={idx} style={{ display: "flex", gap: 10 }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <div style={{ width: 14, height: 14, borderRadius: "50%", background: step.isRejection ? "#FEF2F2" : (step.active ? S.cyan : "#F1F5F9"), border: `2px solid ${step.isRejection ? "#EF4444" : (step.active ? S.cyan : "#CBD5E1")}`, zIndex: 1 }} />
-                      {idx < arr.length - 1 && (
-                        <div style={{ width: 2, flex: 1, background: step.active ? (step.isRejection ? "#F1F5F9" : "#A5F3FC") : "#F1F5F9", marginTop: -2, marginBottom: -4 }} />
-                      )}
-                    </div>
-                    <div style={{ paddingTop: -1, paddingBottom: 4 }}>
-                      <p style={{ margin: 0, fontSize: "12px", fontWeight: step.active ? 600 : 400, color: step.isRejection ? "#DC2626" : (step.active ? S.slate : "#94A3B8") }}>{step.label}</p>
-                      {step.date && <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary }}>{step.date}</p>}
-                      {step.reason && <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#EF4444", fontStyle: "italic" }}>Alasan: {step.reason}</p>}
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
-          </div>
-
+          <QrCodeCard order={order} />
+          <OrderHistory order={order} />
         </div>
       </div>
       </div>
       {previewPhoto && <ImagePreviewModal src={previewPhoto} onClose={() => setPreviewPhoto(null)} />}
       <SOPrintView order={order} customer={customer} displayMaterials={displayMaterials} currentUser={currentUser} />
+
+      {/* ===== Delete SO Modal ===== */}
+      {showDeleteModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 12, border: `1px solid ${S.border}`,
+            maxWidth: 420, width: "100%", padding: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            fontFamily: S.font
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#EF4444", flexShrink: 0 }}>
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 700 }}>Hapus Sales Order?</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>Konfirmasi Hapus Permanen</p>
+              </div>
+            </div>
+            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5, marginBottom: 20 }}>
+              Apakah Anda yakin ingin menghapus <strong>{order.id}</strong> secara permanen? Data yang sudah dihapus tidak dapat dikembalikan lagi.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteSalesOrderMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: `1px solid ${S.border}`, background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteSO}
+                disabled={deleteSalesOrderMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#EF4444", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 8px rgba(239,68,68,0.3)" }}
+              >
+                {deleteSalesOrderMutation.isPending ? "Menghapus..." : "Ya, Hapus SO"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

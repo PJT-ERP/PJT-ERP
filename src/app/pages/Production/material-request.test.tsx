@@ -3,7 +3,8 @@ import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ProductionMaterialRequestPage } from './material-request';
-import { useApp } from '../../components/context/AppContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useApp } from "../../components/context/AppContext";
 import { masterDataApi } from '../../services/masterDataApi';
 
 vi.mock('../../components/context/AppContext', () => ({
@@ -15,6 +16,11 @@ vi.mock('../../services/masterDataApi', () => ({
     listInventory: vi.fn().mockResolvedValue([]),
     createPurchaseRequest: vi.fn(),
   }
+}));
+
+vi.mock('../../services/queries', () => ({
+  useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [{ id: 'SO-123', description: 'Test Order' }] }),
+  usePurchasingRequestsQuery: vi.fn().mockReturnValue({ data: [] }),
 }));
 
 // Mock react-router so we can pass location state
@@ -47,13 +53,16 @@ describe('ProductionMaterialRequestPage', () => {
         { id: 'SO-123', description: 'Test Order' }
       ],
       purchasingRequests: [],
-      currentUser: { role: 'Engineering' },
+      currentUser: { role: 'Engineering Supervisor' },
     } as any);
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter>
-        <ProductionMaterialRequestPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     
     // Aluminium: required 10, available 8 => missing 2
@@ -90,13 +99,16 @@ describe('ProductionMaterialRequestPage', () => {
     vi.mocked(useApp).mockReturnValue({
       salesOrders: [{ id: 'SO-123', description: 'Test Order' }],
       purchasingRequests: [],
-      currentUser: { role: 'Engineering' },
+      currentUser: { role: 'Engineering Supervisor' },
     } as any);
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter>
-        <ProductionMaterialRequestPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
 
     // It should render two rows for Aluminium, one for each spec
@@ -135,10 +147,13 @@ describe('ProductionMaterialRequestPage', () => {
       currentUser: { role: 'Engineering' },
     } as any);
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter>
-        <ProductionMaterialRequestPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
 
     // It should render one row for Besi with its spec in the dropdown

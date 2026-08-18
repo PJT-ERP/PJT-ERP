@@ -16,14 +16,60 @@ public sealed record CreateSalesOrderRequest(
 
 public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes, string? DesignReference = null, string? CustomerDrawingUrl = null);
 
+public sealed record CompleteSalesOrderRequest(
+    CompleteSalesOrderCustomerRequest Customer,
+    IReadOnlyCollection<CompleteSalesOrderProductRequest> Products,
+    CompleteSalesOrderDetailsRequest Order
+);
+
+public sealed record CompleteSalesOrderCustomerRequest(
+    string? Code,
+    string Name,
+    string? Address = null,
+    string? ContactPerson = null,
+    string? Email = null,
+    string? Phone = null
+);
+
+public sealed record CompleteSalesOrderProductRequest(
+    string TempId,
+    string Description,
+    string Unit,
+    string? MaterialSpec = null
+);
+
+public sealed record CompleteSalesOrderDetailsRequest(
+    DateOnly SoDate,
+    DateOnly? TargetDate,
+    IReadOnlyCollection<CompleteSalesOrderItemRequest> Items,
+    EngineerAssignment? DesignWorker = null,
+    EngineerAssignment? ProductionWorker = null,
+    EngineerAssignment? QcReviewer = null,
+    string? CustomerDrawingUrl = null,
+    string? DesignReference = null,
+    string? DesignStatus = null
+);
+
+public sealed record CompleteSalesOrderItemRequest(
+    string? ProductTempId,
+    Guid? ExistingProductId,
+    int Qty,
+    decimal UnitPrice,
+    string? Notes,
+    string? DesignReference = null,
+    string? CustomerDrawingUrl = null
+);
+
 public sealed record AssignSalesOrderEngineersRequest(
     EngineerAssignment? DesignWorker,
     EngineerAssignment? ProductionWorker,
-    EngineerAssignment? QcReviewer);
+    EngineerAssignment? QcReviewer,
+    string? Notes = null);
 
 public sealed record SubmitSalesOrderDesignRequest(
     string DesignReference,
-    string? DrawingFileUrl = null);
+    string? DrawingFileUrl = null,
+    string? UpdatedByName = null);
 
 public sealed record UpdateSalesOrderItemsRequest(
     IReadOnlyCollection<CreateSalesOrderItemRequest> Items);
@@ -35,6 +81,15 @@ public sealed record UpdateSalesOrderDesignStatusRequest(
     string? DesignReference = null,
     string? CustomerDrawingUrl = null,
     string? Notes = null);
+
+public sealed record UpdateSalesOrderGeneralRequest(
+    string? Description = null,
+    int? Quantity = null,
+    string? Unit = null,
+    DateOnly? Deadline = null,
+    string? Notes = null,
+    string? CustomerDrawingUrl = null,
+    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null);
 
 public sealed record UpdateCustomerDrawingUrlRequest(
     string? CustomerDrawingUrl,
@@ -73,11 +128,24 @@ public sealed record SalesOrderDto(
     string? PauseReason,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    string? CompletionNote,
     decimal? EstimatedAmount,
+    bool IsCostingCompleted,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items,
     IReadOnlyCollection<string>? ProductionPhotos,
-    IReadOnlyCollection<string>? QcPhotos);
+    IReadOnlyCollection<string>? QcPhotos,
+    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null);
+
+public sealed record SalesOrderMaterialDto(
+    string Id,
+    string? InventoryItemId,
+    string Name,
+    string? Code,
+    string? Spec,
+    string? Specification,
+    int Quantity,
+    string Unit);
 
 public sealed record SalesOrderDesignRevisionDto(
     int Version,
@@ -134,6 +202,7 @@ public sealed record SalesOrderProductionProgressDto(
     long? DurationSeconds,
     string? QcDecision,
     string? PauseReason,
+    string? CompletionNote,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<SalesOrderProductionProgressItemDto> Items);
 
@@ -210,3 +279,14 @@ public sealed record SubmitProductionMaterialRequestItem(
     string? SuggestedSupplier = null,
     string? Notes = null,
     string? PurchaseCategory = null);
+
+public sealed record QcQueuesDto(
+    IReadOnlyCollection<SalesOrderDto> ReadyForInspection,
+    IReadOnlyCollection<SalesOrderDto> InspectionHistory);
+
+public sealed record ProductionBoardQueuesDto(
+    IReadOnlyCollection<SalesOrderDto> PendingAssignment,
+    IReadOnlyCollection<SalesOrderDto> ReadyToStart,
+    IReadOnlyCollection<SalesOrderDto> InProduction,
+    IReadOnlyCollection<SalesOrderDto> Paused,
+    IReadOnlyCollection<SalesOrderDto> WaitingQc);

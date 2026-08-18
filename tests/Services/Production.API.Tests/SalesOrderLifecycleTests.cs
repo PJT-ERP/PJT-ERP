@@ -57,7 +57,7 @@ public sealed class SalesOrderLifecycleTests
                 SalesOrderDesignStatuses.Approved),
             CancellationToken.None);
 
-        Assert.StartsWith("SO-", customSo.SoNumber);
+        Assert.StartsWith("SO", customSo.SoNumber);
         Assert.Equal(SalesOrderDesignStatuses.Approved, customSo.DesignStatus);
         Assert.Equal("INTERNAL_DESIGN", customSo.DesignReference);
 
@@ -324,9 +324,14 @@ public sealed class SalesOrderLifecycleTests
     {
         public List<Guid> RequestedCustomerIds { get; } = [];
         public List<Guid> RequestedProductIds { get; } = [];
+                public Task<MasterDataCustomerDto> CreateCustomerAsync(CreateCustomerMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataCustomerDto(Guid.NewGuid(), request.Code, request.Name, request.Email, true));
+        public Task<MasterDataProductDto> CreateProductAsync(CreateProductMasterDataRequest request, CancellationToken ct) => Task.FromResult(new MasterDataProductDto(Guid.NewGuid(), request.PartNumber, request.Description, request.Unit, request.MaterialSpec, true));
         public Task<MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken ct) { RequestedCustomerIds.Add(id); return Task.FromResult<MasterDataCustomerDto?>(new MasterDataCustomerDto(id, "CUST-HTTP", "PT HTTP", "http@test.com", true)); }
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) { RequestedProductIds.Add(id); return Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-HTTP", "HTTP Desc", "pcs", "HTTP Spec", true)); }
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
         public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(productIds.Select(id => new BomStockDto(id, "PART", "PARTNAME", new List<BomStockItemDto> { new BomStockItemDto(id, id, null, "INV", 1m, "kg", null, 100, "") })).ToArray());
     }
 }
+

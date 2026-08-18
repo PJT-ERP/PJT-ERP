@@ -16,7 +16,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Purchasing,Engineering Worker,Engineering Supervisor")]
+    [Authorize(Roles = "Admin,Purchasing,Engineering Supervisor")]
     public async Task<ActionResult<InventoryItemDto>> Create(CreateInventoryItemRequest request, CancellationToken cancellationToken)
     {
         var item = await inventoryService.CreateInventoryItemAsync(request, cancellationToken);
@@ -47,7 +47,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost("deduct-bom")]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Production")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
     public async Task<IActionResult> DeductBom(DeductBomStockRequest request, CancellationToken cancellationToken)
     {
         try
@@ -62,7 +62,7 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
     }
 
     [HttpPost("deduct-bom-bulk")]
-    [Authorize(Roles = "Admin,Engineering Worker,Engineering Supervisor,Production")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
     public async Task<IActionResult> DeductBomBulk(BulkDeductBomStockRequest request, CancellationToken cancellationToken)
     {
         try
@@ -74,5 +74,41 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpPost("deduct-custom-bom")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
+    public async Task<IActionResult> DeductCustomBom(DeductCustomBomRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.DeductCustomBomAsync(request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/mutate")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<IActionResult> MutateStock(Guid id, MutateStockRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.MutateStockAsync(id, request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("mutations")]
+    public async Task<ActionResult<IReadOnlyCollection<StockMutationLogDto>>> ListMutations(CancellationToken cancellationToken)
+    {
+        return Ok(await inventoryService.ListMutationsAsync(cancellationToken));
     }
 }

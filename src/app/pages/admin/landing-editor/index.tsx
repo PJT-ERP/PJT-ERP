@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useApp } from "../../../components/context/AppContext";
-import { Save, CheckCircle, Type, AlignLeft, AppWindow } from "lucide-react";
 import { LandingPageContent } from "../../../components/context/AppContext";
-import { landingPageApi } from "../../../services/landingPageApi";
+import { useLandingPageContentQuery, useUpdateLandingPageContentMutation } from "../../../services/queries";
+import { defaultLandingPageContent } from "../../../components/context/defaultLandingPageContent";
+import { Save, CheckCircle, Type, AlignLeft, AppWindow } from "lucide-react";
 import { S_EDITOR } from "./shared";
 import { PortfolioTab } from "./PortfolioTab";
 import { ContactTab } from "./ContactTab";
 
 export function LandingPageEditor() {
-  const { landingPageContent, setLandingPageContent } = useApp();
+  const { data } = useLandingPageContentQuery();
+  const landingPageContent = data || (defaultLandingPageContent as LandingPageContent);
+  const { mutateAsync: updateLandingPageContent } = useUpdateLandingPageContentMutation();
   const [form, setForm] = useState<LandingPageContent>(landingPageContent);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -139,8 +141,7 @@ export function LandingPageEditor() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await landingPageApi.updateLandingPageContent(form);
-      setLandingPageContent(form);
+      await updateLandingPageContent(form);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (err) {

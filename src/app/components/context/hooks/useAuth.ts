@@ -32,10 +32,17 @@ export function mapBackendRoleToUserRole(role?: string | null): UserRole {
     case "engineer":
     case "engineeringworker":
     case "engineeringreviewer":
+    case "production":
+    case "productionworker":
       return "Engineering";
     case "engineeringsupervisor":
     case "supervisorengineering":
+    case "productionsupervisor":
+    case "supervisorproduction":
       return "Engineering Supervisor";
+    case "qc":
+    case "qualitycontrol":
+      return "QC";
     case "sales":
     default:
       return "Sales";
@@ -60,17 +67,12 @@ export function mapAuthProfileToUser(profile: StoredAuthUser): User {
 export function restoreStoredUser(): User | null {
   try {
     const storedAuthUser = localStorage.getItem(AUTH_PROFILE_KEY);
-    const hasToken = Boolean(localStorage.getItem(AUTH_TOKEN_KEY) || HAS_DEV_TOKEN);
 
-    if (storedAuthUser && hasToken) {
+    if (storedAuthUser) {
       return mapAuthProfileToUser(JSON.parse(storedAuthUser));
     }
 
-    if (!localStorage.getItem(AUTH_TOKEN_KEY) && !HAS_DEV_TOKEN) {
-      localStorage.removeItem(AUTH_USER_KEY);
-      return null;
-    }
-
+    localStorage.removeItem(AUTH_USER_KEY);
     return null;
   } catch {
     return null;
@@ -107,13 +109,22 @@ export function useAuth() {
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     void authApi.logout();
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_PROFILE_KEY);
     setCurrentUser(null);
-  };
+    setUsers([]);
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('unauthorized', handleUnauthorized);
+  }, [logout]);
 
   const addUser = async (user: Omit<User, 'id'>): Promise<boolean> => {
     const created = await authApi.createUser({
@@ -169,13 +180,25 @@ export function useAuth() {
       return;
     }
 
-    const latestUser = users.find(user => user.id === currentUser.id && user.isActive);
+    // Try matching by ID first, then fallback to email/username match
+    let latestUser = users.find(user => user.id === currentUser.id && user.isActive);
     if (!latestUser) {
-      logout();
+      // Fallback: try matching by email (IDs may differ between login response and user list)
+      latestUser = users.find(user => user.email === currentUser.email && user.isActive);
+    }
+
+    if (!latestUser) {
+      console.warn(
+        "[useAuth] Current user not found in users list. currentUser:",
+        { id: currentUser.id, email: currentUser.email, username: currentUser.username },
+        "users:",
+        users.map(u => ({ id: u.id, email: u.email, isActive: u.isActive }))
+      );
+      // Don't auto-logout — the users list might just be stale or loading
       return;
     }
 
-    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
+    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name || latestUser.id !== currentUser.id) {
       setCurrentUser(latestUser);
       localStorage.setItem(AUTH_USER_KEY, latestUser.username);
 
@@ -183,6 +206,7 @@ export function useAuth() {
       if (storedAuthUser) {
         try {
           const parsed = JSON.parse(storedAuthUser);
+          parsed.userId = latestUser.id;
           parsed.email = latestUser.email;
           parsed.name = latestUser.name;
           parsed.roles = [latestUser.role];

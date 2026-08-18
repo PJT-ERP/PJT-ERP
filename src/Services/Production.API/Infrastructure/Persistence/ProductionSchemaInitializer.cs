@@ -26,6 +26,29 @@ public static class ProductionSchemaInitializer
                 changed_at_utc timestamp with time zone NOT NULL
             );
 
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 
+                    FROM information_schema.columns 
+                    WHERE table_name='consultation_requests' AND column_name='Id'
+                ) THEN
+                    DROP TABLE consultation_requests;
+                END IF;
+            END $$;
+
+            CREATE TABLE IF NOT EXISTS consultation_requests (
+                id uuid NOT NULL PRIMARY KEY,
+                name character varying(150) NOT NULL,
+                phone character varying(50) NOT NULL,
+                email character varying(150) NOT NULL,
+                service_description character varying(500) NOT NULL,
+                message character varying(2000) NOT NULL,
+                status character varying(50) NOT NULL,
+                created_at_utc timestamp with time zone NOT NULL,
+                updated_at_utc timestamp with time zone
+            );
+
             ALTER TABLE customer_replicas ADD COLUMN IF NOT EXISTS email character varying(160);
 
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_email character varying(160);
@@ -49,6 +72,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS production_photos text[] DEFAULT ARRAY[]::text[];
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS qc_photos text[] DEFAULT ARRAY[]::text[];
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS estimated_amount numeric;
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS is_costing_completed boolean NOT NULL DEFAULT false;
 
             UPDATE sales_orders
             SET design_status = 'PendingDesign'
@@ -63,6 +87,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS finished_by_user_id uuid;
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS finished_by_name character varying(160);
             ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS pause_reason character varying(500);
+            ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS completion_note character varying(1000);
 
             UPDATE production_orders po
             SET sales_order_id = soi.sales_order_id

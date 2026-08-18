@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { CheckCircle, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../../components/context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSalesOrdersQuery } from "../../../services/queries";
 import { PurchasingRequest, PurchasingItem, PurchasingUrgency } from "../../../components/data/mockData";
 import { purchasingApi } from "../../../services/purchasingApi";
 import { toBackendUserId } from "../../../services/backendIds";
 import { S } from "./constants";
 import { SOCombobox } from "./SOCombobox";
 import { PCMaterialAutocomplete } from "./PCMaterialAutocomplete";
+import { UnitCombobox } from "./UnitCombobox";
 
 export interface ItemDraft {
   itemId?: string;
@@ -23,28 +26,13 @@ export interface ItemDraft {
 }
 
 export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () => void; editRequest?: PurchasingRequest | null, onSuccess?: (items?: PurchasingItem[]) => void }) {
-  const { salesOrders, currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
   const [soId, setSoId] = useState(editRequest?.soId || '');
   const [urgency, setUrgency] = useState<PurchasingUrgency>(editRequest?.urgency || 'Normal');
   const [notes, setNotes] = useState(editRequest?.notes || '');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-
-  useEffect(() => {
-    import('../../../services/masterDataApi').then(({ masterDataApi }) => {
-      masterDataApi.listInventory().then(invs => {
-        setInventoryItems(invs);
-        if (editRequest) {
-          setItems(prev => prev.map(item => {
-            const master = invs.find(i => i.name === item.itemName || i.id === item.itemId);
-            if (master && master.unit && master.unit.toUpperCase() !== item.unit.toUpperCase()) {
-              return { ...item, unit: master.unit };
-            }
-            return item;
-          }));
-        }
-      }).catch(console.error);
-    });
-  }, [editRequest]);
 
   const [items, setItems] = useState<ItemDraft[]>(() => {
     const sourceItems = editRequest?.items && editRequest.items.length > 0
@@ -68,6 +56,24 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
         }))
       : [{ itemName: '', specification: '', quantity: '', unit: 'PCS' }];
   });
+
+  useEffect(() => {
+    import('../../../services/masterDataApi').then(({ masterDataApi }) => {
+      masterDataApi.listInventory().then(invs => {
+        setInventoryItems(invs);
+        if (editRequest) {
+          setItems(prev => prev.map(item => {
+            const master = invs.find(i => i.name === item.itemName || i.id === item.itemId);
+            if (master && master.unit && master.unit.toUpperCase() !== item.unit.toUpperCase()) {
+              return { ...item, unit: master.unit };
+            }
+            return item;
+          }));
+        }
+      }).catch(console.error);
+    });
+  }, [editRequest]);
+
   const [done, setDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -105,6 +111,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
     }));
     const selectedSo = salesOrders.find(order => order.id === soId || order.soNumber === soId);
     const requesterId = toBackendUserId(currentUser);
+    const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
 
     if (!requesterId) {
       alert("User lokal belum punya mapping backend untuk membuat pengajuan.");
@@ -133,18 +140,38 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
           urgency,
           purchaseCategory: selectedSo ? "Project" : item.purchaseCategory || "Consumable",
         })),
-        requireSupervisorApproval: true,
+        requireSupervisorApproval: !isSpv,
       };
 
       if (editRequest?.backendId) {
         await purchasingApi.updatePurchaseRequest(editRequest.backendId, payload);
-        await refreshBackendData();
+        if (isSpv) {
+          try {
+            await purchasingApi.supervisorReviewPurchaseRequest(editRequest.backendId, {
+              reviewedByUserId: payload.requestedByUserId || currentUser?.id || 'eng_spv',
+              decision: 'Accept'
+            });
+          } catch (e) {
+            console.warn("Auto review PR failed", e);
+          }
+        }
+        await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
         onSuccess?.(parsedItems);
         onClose();
         return;
       } else {
-        await purchasingApi.createPurchaseRequest(payload);
-        await refreshBackendData();
+        const created: any = await purchasingApi.createPurchaseRequest(payload);
+        if (isSpv && created?.id) {
+          try {
+            await purchasingApi.supervisorReviewPurchaseRequest(created.id, {
+              reviewedByUserId: payload.requestedByUserId || currentUser?.id || 'eng_spv',
+              decision: 'Accept'
+            });
+          } catch (e) {
+            console.warn("Auto review PR failed", e);
+          }
+        }
+        await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
         setDone(true);
       }
     } catch (error: any) {
@@ -180,6 +207,10 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
     .filter(s => ['Ready for Production', 'In Production', 'Pending Design', 'Revision Required', 'Waiting Approval'].includes(s.status))
     .map(s => ({ id: s.id, label: `${s.id} — ${s.description.slice(0, 40)}` }));
 
+  const uniqueUnits = Array.from(new Set(inventoryItems.map(i => i.unit?.toUpperCase()).filter(Boolean))) as string[];
+  if (!uniqueUnits.includes("PCS")) uniqueUnits.push("PCS");
+  uniqueUnits.sort();
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div style={{ background: S.white, borderRadius: 12, width: "100%", maxWidth: 600, maxHeight: "90vh", display: "flex", flexDirection: "column", fontFamily: S.font }}>
@@ -195,13 +226,12 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: "span 2" }}>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Referensi SO (Opsional)</label>
-                <SOCombobox value={soId} onChange={setSoId} options={soOptions} disabled={currentUser?.role === 'Engineering Supervisor'} />
+                <SOCombobox value={soId} onChange={setSoId} options={soOptions} disabled={false} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "13px", color: S.slate, fontWeight: 500, marginBottom: 6 }}>Urgensi</label>
                 <select value={urgency} onChange={e => setUrgency(e.target.value as PurchasingUrgency)}
-                  disabled={currentUser?.role === 'Engineering Supervisor'}
-                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: currentUser?.role === 'Engineering Supervisor' ? "#F8FAFC" : S.white, cursor: currentUser?.role === 'Engineering Supervisor' ? "not-allowed" : "pointer", appearance: currentUser?.role === 'Engineering Supervisor' ? "none" : "auto", WebkitAppearance: currentUser?.role === 'Engineering Supervisor' ? "none" : "auto" } as any}>
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 8, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white, cursor: "pointer" }}>
                   <option>Normal</option><option>Urgent</option><option>Critical</option>
                 </select>
               </div>
@@ -299,12 +329,21 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         placeholder="Qty *"
                         style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
-                      <input
-                        type="text"
-                        value={item.unit}
-                        readOnly
-                        style={{ width: 80, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
-                      />
+                      {item.itemId ? (
+                        <input
+                          type="text"
+                          value={item.unit}
+                          readOnly
+                          placeholder="Satuan"
+                          style={{ width: 80, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: "#F8FAFC", color: S.secondary, cursor: "not-allowed", textAlign: "center" }}
+                        />
+                      ) : (
+                        <UnitCombobox
+                          value={item.unit}
+                          onChange={(val) => updateItem(idx, 'unit', val)}
+                          options={uniqueUnits}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -329,7 +368,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
               Batal
             </button>
             <button type="submit" disabled={!canSubmit || isSubmitting} style={{ padding: "10px 24px", background: "#EAB308", border: "none", borderRadius: 8, color: "#fff", fontSize: "13.5px", fontWeight: 600, cursor: canSubmit && !isSubmitting ? "pointer" : "not-allowed", fontFamily: S.font, opacity: canSubmit && !isSubmitting ? 1 : 0.5 }}>
-              {isSubmitting ? "Menyimpan..." : (editRequest ? "Simpan Perubahan" : "Ajukan ke Supervisor")}
+              {isSubmitting ? "Menyimpan..." : (editRequest ? "Simpan Perubahan" : (currentUser?.role?.toLowerCase().includes("supervisor") ? "Buat Pengajuan" : "Ajukan ke Supervisor"))}
             </button>
           </div>
         </form>

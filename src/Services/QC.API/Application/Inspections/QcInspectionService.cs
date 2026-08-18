@@ -4,6 +4,10 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.QC.Api.Domain.Entities;
 using PJT_ERP.QC.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Infrastructure.Messaging;
+using PJT_ERP.Shared.Infrastructure.Security;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Webp;
 
 namespace PJT_ERP.QC.Api.Application.Inspections;
 
@@ -83,12 +87,27 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
         {
             if (file.Length == 0) continue;
 
-            var extension = Path.GetExtension(file.FileName);
-            var uniqueFileName = $"qc-{Guid.NewGuid():N}{extension}";
+            await FileUploadSecurityValidator.ValidateFileAsync(file, cancellationToken);
+
+            var uniqueFileName = $"qc-{Guid.NewGuid():N}.webp";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream, cancellationToken);
+            try
+            {
+                using var image = await Image.LoadAsync(file.OpenReadStream(), cancellationToken);
+                image.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(1200, 1200),
+                    Mode = ResizeMode.Max
+                }));
+
+                var encoder = new WebpEncoder { Quality = 75 };
+                await image.SaveAsWebpAsync(filePath, encoder, cancellationToken);
+            }
+            catch (UnknownImageFormatException)
+            {
+                throw new InvalidOperationException($"File '{file.FileName}' is not a valid or supported image format.");
+            }
 
             urls.Add($"/qc-photos/{uniqueFileName}");
         }
@@ -129,9 +148,10 @@ public sealed class QcInspectionService(QcContext db, IEventPublisher eventPubli
             throw new InvalidOperationException("Reviewer name is required.");
         }
 
-        if (request.QcPhotos == null || request.QcPhotos.Count == 0)
+        var totalPhotos = (request.QcPhotos?.Count ?? 0) + (request.ProductionPhotos?.Count ?? 0);
+        if (totalPhotos == 0)
         {
-            throw new InvalidOperationException("At least one QC photo must be provided.");
+            throw new InvalidOperationException("At least one QC or Production photo must be provided.");
         }
     }
 

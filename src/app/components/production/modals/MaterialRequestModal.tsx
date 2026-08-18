@@ -115,6 +115,15 @@ export function MaterialRequestModal({
 
     try {
       setIsSubmitting(true);
+      
+      // Auto confirm the Sales Order silently before making the MR API call
+      try {
+        const { salesApi } = await import("../../../services/salesApi");
+        await salesApi.confirmSalesOrder(salesOrderId, requesterId);
+      } catch (e) {
+        console.warn("Auto-confirm SO silently failed or already confirmed", e);
+      }
+
       await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,
         requesterName: currentUser?.name || so.assignedName || "Engineering",
@@ -131,6 +140,23 @@ export function MaterialRequestModal({
           purchaseCategory: item.purchaseCategory,
         })),
       });
+      const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
+      if (isSpvUser) {
+        try {
+          const { purchasingApi } = await import("../../../services/purchasingApi");
+          const reqs = await purchasingApi.listPurchaseRequests({ salesOrderId });
+          for (const req of reqs || []) {
+            if (req.status === 'Submitted' || req.status === 'Pending') {
+              await purchasingApi.supervisorReviewPurchaseRequest(req.id, {
+                reviewedByUserId: requesterId,
+                decision: 'Accept',
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Auto review MR by SPV failed", e);
+        }
+      }
       onSubmitted();
       await refreshBackendData();
       window.setTimeout(() => {
@@ -138,8 +164,10 @@ export function MaterialRequestModal({
       }, 1500);
       onMessage({
         tone: "success",
-        title: "MR Diajukan ke Supervisor",
-        message: `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
+        title: isSpvUser ? "MR Dikirim ke Purchasing" : "MR Diajukan ke Supervisor",
+        message: isSpvUser 
+          ? `Material Request untuk ${so.id} berhasil disimpan dan langsung masuk ke antrian Purchasing.`
+          : `Material Request untuk ${so.id} sudah dibuat dan menunggu approval Engineering Supervisor.`,
       });
       onClose();
     } catch (error: unknown) {
@@ -170,7 +198,7 @@ export function MaterialRequestModal({
           <p style={{ fontSize: "13.5px", color: S.slate, margin: 0 }}>Isi daftar item untuk MR. Pengajuan ini memerlukan approval Supervisor sebelum diteruskan ke Purchasing.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {items.map((item, index) => (
-              <div key={index} style={{ position: "relative", zIndex: 100 - index, background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div key={index} style={{ position: "relative", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ fontSize: "12px", color: S.secondary, fontWeight: 600 }}>Item #{index + 1}</span>
                   {items.length > 1 && (

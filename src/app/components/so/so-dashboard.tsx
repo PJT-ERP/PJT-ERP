@@ -5,18 +5,15 @@ import {
   Factory,
   CheckCircle2,
   Plus,
-  List,
-  Users,
   ArrowRight,
   Activity,
   TrendingUp,
   ArrowUpRight,
-  Circle,
   Receipt,
+  List,
+  Users,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
 import { getStatusColor, SOStatus } from "../data/mockData";
-import { PurchasingRequest } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
 
@@ -54,9 +51,17 @@ function StatusBadge({ status }: { status: SOStatus }) {
   );
 }
 
+import { useSalesOrdersQuery, useCustomersQuery } from "../../services/queries";
+import { useApp } from "../context/AppContext";
+
 export function SODashboard({ onNavigate }: SODashboardProps) {
-  const { salesOrders, customers } = useApp();
-  const { invoices, payments } = useFinanceData();
+  const { currentUser } = useApp();
+  const { data: salesOrders = [], isLoading: isSoLoading } = useSalesOrdersQuery();
+  const { data: customers = [], isLoading: isCustLoading } = useCustomersQuery();
+  const isLoading = isSoLoading || isCustLoading;
+  
+  const canReadFinance = currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.role === 'Finance' || currentUser?.role === 'Sales';
+  const { invoices, payments } = useFinanceData(canReadFinance, false, false);
   const mergedSalesOrders = React.useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
   const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
@@ -79,6 +84,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
     { label: "Waiting Payment", count: salesOrders.filter(o => (o.status as any) === "Waiting Payment").length, color: "#F59E0B" },
     { label: "Pending Design", count: salesOrders.filter(o => o.status === "Pending Design").length, color: "#94A3B8" },
     { label: "Waiting Approval", count: salesOrders.filter(o => o.status === "Waiting Approval").length, color: "#F59E0B" },
+    { label: "Waiting Pricing", count: salesOrders.filter(o => (o.status as any) === "Waiting Pricing").length, color: "#8B5CF6" },
     { label: "Revision Required", count: salesOrders.filter(o => o.status === "Revision Required").length, color: "#EF4444" },
     { label: "In Production", count: salesOrders.filter(o => o.status === "In Production" || o.status === "Ready for Production").length, color: "#C8102E" },
     { label: "QC", count: salesOrders.filter(o => o.status === "QC").length, color: "#3B82F6" },
@@ -174,43 +180,53 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
 
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        {summaryCards.map((card) => (
-          <button
-            key={card.label}
-            onClick={() => onNavigate("so-list", { filter: card.label })}
-            style={{
-              background: S.white,
-              boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)",
-              border: `1px solid ${S.cardBorder}`,
-              borderRadius: 6,
-              padding: "16px 18px",
-              textAlign: "left",
-              cursor: "pointer",
-              transition: "transform 0.2s, box-shadow 0.2s",
-              fontFamily: S.font,
-              width: "100%",
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = "translateY(-3px)";
-              e.currentTarget.style.boxShadow = "0 12px 28px -4px rgba(0,0,0,0.15), 0 4px 12px -4px rgba(0,0,0,0.1)";
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)";
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>{card.label}</p>
-                <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{card.value}</p>
-                <p style={{ color: card.accent, fontSize: "11px", margin: 0 }}>{card.change}</p>
-              </div>
-              <div style={{ width: 36, height: 36, borderRadius: 6, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", color: card.accent, flexShrink: 0 }}>
-                {card.icon}
-              </div>
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px", height: 96, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "40%" }} />
+              <div style={{ height: 28, background: "#f1f5f9", borderRadius: 4, width: "20%" }} />
+              <div style={{ height: 12, background: "#f1f5f9", borderRadius: 4, width: "30%" }} />
             </div>
-          </button>
-        ))}
+          ))
+        ) : (
+          summaryCards.map((card) => (
+            <button
+              key={card.label}
+              onClick={() => onNavigate("so-list", { filter: card.label })}
+              style={{
+                background: S.white,
+                boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)",
+                border: `1px solid ${S.cardBorder}`,
+                borderRadius: 6,
+                padding: "16px 18px",
+                textAlign: "left",
+                cursor: "pointer",
+                transition: "transform 0.2s, box-shadow 0.2s",
+                fontFamily: S.font,
+                width: "100%",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "translateY(-3px)";
+                e.currentTarget.style.boxShadow = "0 12px 28px -4px rgba(0,0,0,0.15), 0 4px 12px -4px rgba(0,0,0,0.1)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)";
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <p style={{ color: S.secondary, fontSize: "12px", margin: 0 }}>{card.label}</p>
+                  <p style={{ color: S.slate, fontSize: "28px", fontWeight: 700, margin: "6px 0 2px", lineHeight: 1 }}>{card.value}</p>
+                  <p style={{ color: card.accent, fontSize: "11px", margin: 0 }}>{card.change}</p>
+                </div>
+                <div style={{ width: 36, height: 36, borderRadius: 6, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", color: card.accent, flexShrink: 0 }}>
+                  {card.icon}
+                </div>
+              </div>
+            </button>
+          ))
+        )}
       </div>
 
       {readyInvoices.length > 0 && (
@@ -347,37 +363,61 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             </div>
 
             {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "10px 18px", background: S.cyan, borderBottom: `1px solid ${S.border}` }}>
               {["No. SO", "Pelanggan", "Produk", "Qty", "Status"].map((h) => (
-                <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+                <span key={h} style={{ color: S.white, fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
 
-            {recentOrders.map((order, idx) => (
-              <div
-                key={order.id}
-                onClick={() => onNavigate("so-detail", order.id)}
-                style={{
-                  display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                  padding: "10px 18px", cursor: "pointer",
-                  borderBottom: idx < recentOrders.length - 1 ? `1px solid ${S.border}` : "none",
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
-                <div>
-                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
-                  <p style={{ color: S.secondary, fontSize: "11px", margin: 0 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="animate-pulse"
+                  style={{
+                    display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
+                    padding: "10px 18px",
+                    borderBottom: `1px solid ${S.border}`,
+                    gap: 12
+                  }}
+                >
+                  <div style={{ height: 16, background: "#f1f5f9", borderRadius: 4, width: "80%" }} />
+                  <div>
+                    <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "60%", marginBottom: 4 }} />
+                    <div style={{ height: 12, background: "#f1f5f9", borderRadius: 4, width: "40%" }} />
+                  </div>
+                  <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "90%", alignSelf: "center" }} />
+                  <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "50%", alignSelf: "center" }} />
+                  <div style={{ height: 18, background: "#f1f5f9", borderRadius: 4, width: "70%", alignSelf: "center" }} />
                 </div>
-                <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.description}</span>
-                <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center" }}>{order.quantity.toLocaleString("id-ID")} {order.unit}</span>
-                <div style={{ alignSelf: "center" }}>
-                  <StatusBadge status={order.status as SOStatus} />
+              ))
+            ) : (
+              recentOrders.map((order, idx) => (
+                <div
+                  key={order.id}
+                  onClick={() => onNavigate("so-detail", order.id)}
+                  style={{
+                    display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
+                    padding: "10px 18px", cursor: "pointer",
+                    borderBottom: idx < recentOrders.length - 1 ? `1px solid ${S.border}` : "none",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
+                  <div>
+                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+                    <p style={{ color: S.secondary, fontSize: "11px", margin: 0 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+                  </div>
+                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.description}</span>
+                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center" }}>{order.quantity.toLocaleString("id-ID")} {order.unit}</span>
+                  <div style={{ alignSelf: "center" }}>
+                    <StatusBadge status={order.status as SOStatus} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           {/* Activity log */}
@@ -387,31 +427,58 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Aktivitas Terbaru</span>
             </div>
             <div>
-              {allActivities.map((act, idx) => (
-                <div key={`${act.id}-${idx}`} style={{
-                  display: "flex", gap: 12, padding: "10px 18px",
-                  borderBottom: idx < allActivities.length - 1 ? `1px solid ${S.border}` : "none",
-                }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%", background: "rgba(200,16,46,0.1)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0, color: S.cyan,
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="animate-pulse" style={{
+                    display: "flex", gap: 12, padding: "10px 18px",
+                    borderBottom: `1px solid ${S.border}`,
                   }}>
-                    <Activity size={12} />
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#f1f5f9", flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "60%", marginBottom: 6 }} />
+                      <div style={{ height: 12, background: "#f1f5f9", borderRadius: 4, width: "40%" }} />
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: "12.5px", color: S.slate }}>
-                      <span style={{ color: S.cyan, fontWeight: 500 }}>{act.soNumber}</span>
-                      {" — "}
-                      {act.action}
-                    </p>
-                    <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#94A3B8" }}>
-                      <span style={{ fontWeight: 500, color: "#64748B" }}>{act.user}</span>
-                      {" · "}{act.role}{" · "}{act.timestamp}
-                    </p>
+                ))
+              ) : (
+                allActivities.map((act, idx) => (
+                  <div key={`${act.id}-${idx}`} style={{
+                    display: "flex", gap: 12, padding: "10px 18px",
+                    borderBottom: idx < allActivities.length - 1 ? `1px solid ${S.border}` : "none",
+                  }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%", background: "rgba(200,16,46,0.1)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, color: S.cyan,
+                    }}>
+                      <Activity size={12} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: S.slate }}>
+                        <span style={{ color: S.cyan, fontWeight: 500 }}>{act.soNumber}</span>
+                        {" — "}
+                        {act.action}
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#94A3B8" }}>
+                        <span style={{ fontWeight: 500, color: "#64748B" }}>{act.user}</span>
+                        {" · "}{act.role}{" · "}{
+                          !act.timestamp ? "-" : (() => {
+                            const d = new Date(act.timestamp);
+                            if (isNaN(d.getTime())) return act.timestamp;
+                            return d.toLocaleString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            }).replace('.', ':');
+                          })()
+                        }
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, DollarSign, UploadCloud, Printer, FileText } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { financeApi } from "../../services/financeApi";
-import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
+import { masterDataApi, SupplierDto, InventoryItemDto } from "../../services/masterDataApi";
 import { useApp } from "../context/AppContext";
 import {
   PO,
@@ -52,26 +52,35 @@ export function FinancePoDetail() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [requests, paymentsRes, suppliersRes] = await Promise.all([
+        const [requests, paymentsRes, suppliersRes, inventoryItems] = await Promise.all([
           purchasingApi.listPurchaseRequests(),
           financeApi.listSupplierPayments(),
-          masterDataApi.listSuppliers()
+          masterDataApi.listSuppliers(),
+          masterDataApi.listInventory(),
         ]);
         setSuppliers(suppliersRes);
-        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes);
+        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes, inventoryItems);
         const po = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (po) {
           setDetail(po);
           const payment = paymentsRes.find(p => p.poNumber === po.id);
           if (payment?.proofFileUrl) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-            const url = payment.proofFileUrl.startsWith('http') 
-              ? payment.proofFileUrl 
-              : `${baseUrl}${payment.proofFileUrl}`;
+            let url = payment.proofFileUrl;
+            if (url.startsWith('http')) {
+              try {
+                const urlObj = new URL(url);
+                urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                url = urlObj.toString();
+              } catch (err) {
+                console.warn("Failed to parse proof URL", err);
+              }
+            } else {
+              if (!url.startsWith('/')) url = '/' + url;
+              url = url.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+            }
             setProofFileUrl(url);
           } else if (payment?.proofFileName) {
-            // Mock URL for display
-            setProofFileUrl(`/assets/uploads/${payment.proofFileName}`);
+            setProofFileUrl(`/proofs/${encodeURIComponent(payment.proofFileName)}`);
           }
         } else {
           setDetail(null);
@@ -103,19 +112,20 @@ export function FinancePoDetail() {
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
       const paymentsRes = await financeApi.listSupplierPayments();
-      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers);
+      const inventoryItems = await masterDataApi.listInventory();
+      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers, inventoryItems);
       const refreshedPo = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (refreshedPo) {
           setDetail(refreshedPo);
           const payment = paymentsRes.find(p => p.poNumber === refreshedPo.id);
           if (payment?.proofFileUrl) {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+            // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
             const url = payment.proofFileUrl.startsWith('http') 
               ? payment.proofFileUrl 
-              : `${baseUrl}${payment.proofFileUrl}`;
+              : payment.proofFileUrl;
             setProofFileUrl(url);
           } else if (payment?.proofFileName) {
-            setProofFileUrl(`/assets/uploads/${payment.proofFileName}`);
+            setProofFileUrl(`/proofs/${payment.proofFileName}`);
           }
         }
     } catch (error) {
@@ -164,7 +174,7 @@ export function FinancePoDetail() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm print:shadow-none print:border-none">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm print-area print:shadow-none print:border-none print:rounded-none print:overflow-visible print:min-h-[100vh]">
         
         {/* PRINT ONLY: Professional Invoice Header */}
         <div className="hidden print:block px-6 pt-10 pb-6 border-b-2 border-slate-800">
@@ -210,6 +220,7 @@ export function FinancePoDetail() {
             </div>
             <p className="text-sm text-slate-500 m-0">
               Supplier: <strong>{detail.supplier}</strong> · Tgl Order: {detail.orderDate}
+              {detail.soRefs?.length > 0 && <span className="ml-2">· SO: <strong>{detail.soRefs.join(", ")}</strong></span>}
             </p>
           </div>
           
@@ -232,10 +243,16 @@ export function FinancePoDetail() {
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Termin Pembayaran</p>
                    <p className="text-sm text-slate-900 mt-1 font-bold">{detail.paymentTerms}</p>
                  </div>
-                 <div className="col-span-2">
-                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Referensi</p>
-                   <p className="text-sm text-slate-900 mt-1 font-medium">{detail.requestRefs.join(", ")}</p>
-                 </div>
+                  <div className="col-span-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Referensi PR</p>
+                    <p className="text-sm text-slate-900 mt-1 font-medium">{detail.requestRefs.join(", ")}</p>
+                  </div>
+                  {detail.soRefs?.length > 0 && (
+                  <div className="col-span-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Referensi SO</p>
+                    <p className="text-sm text-slate-900 mt-1 font-medium">{detail.soRefs.join(", ")}</p>
+                  </div>
+                  )}
               </div>
             </div>
           </div>
@@ -273,15 +290,15 @@ export function FinancePoDetail() {
           </div>
 
           {/* PRINT ONLY: Signatures */}
-          <div className="hidden print:flex mt-8 justify-between px-10">
+          <div className="hidden print:flex mt-16 justify-between px-10">
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-800 mb-12">Diterima Oleh,</p>
-              <div className="w-40 border-b border-slate-400 mx-auto"></div>
+              <p className="text-sm font-medium text-slate-800 mb-24">Diterima Oleh,</p>
+              <div className="w-48 border-b border-slate-400 mx-auto"></div>
               <p className="text-xs text-slate-500 mt-2">PT PJT JAYA (Finance)</p>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-800 mb-12">Hormat Kami,</p>
-              <div className="w-40 border-b border-slate-400 mx-auto"></div>
+              <p className="text-sm font-medium text-slate-800 mb-24">Hormat Kami,</p>
+              <div className="w-48 border-b border-slate-400 mx-auto"></div>
               <p className="text-xs text-slate-500 mt-2">{detail.supplier}</p>
             </div>
           </div>
@@ -392,7 +409,9 @@ export function FinancePoDetail() {
                       <p>Browser tidak mendukung PDF. <a href={proofFileUrl} target="_blank" className="text-blue-600 underline">Download PDF</a></p>
                     </object>
                   ) : (
-                    <img src={proofFileUrl} alt="Bukti Transfer" className="max-w-full h-auto rounded border border-slate-200" />
+                    <a href={proofFileUrl} target="_blank" rel="noopener noreferrer" className="block cursor-pointer hover:opacity-90 transition-opacity" title="Klik untuk memperbesar">
+                      <img src={proofFileUrl} alt="Bukti Transfer" className="max-w-full h-auto rounded border border-slate-200" />
+                    </a>
                   )}
                 </div>
               ) : (

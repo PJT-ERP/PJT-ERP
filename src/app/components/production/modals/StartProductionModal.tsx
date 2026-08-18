@@ -5,8 +5,8 @@ import { useApp } from "../../context/AppContext";
 import { SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
-import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
-import { S, getBackendSalesOrderId, getMaterialOptions } from "../ProductionHelpers";
+import { masterDataApi } from "../../../services/masterDataApi";
+import { S, getBackendSalesOrderId } from "../ProductionHelpers";
 
 interface StockIssue {
   itemName: string;
@@ -17,105 +17,99 @@ interface StockIssue {
   specs?: Array<{ spec: string; quantity: number }>;
 }
 
-export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { currentUser, productCatalog, refreshBackendData } = useApp();
+export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: SalesOrder; onClose: () => void; onReturnToSpv?: () => void }) {
+  const { currentUser, refreshBackendData } = useApp();
+  const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
   const [stockIssues, setStockIssues] = useState<StockIssue[] | null>(null);
-  const [bomStockCache, setBomStockCache] = useState<Awaited<ReturnType<typeof masterDataApi.getBomStock>> | null>(null);
   const [checkingStock, setCheckingStock] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    async function checkBomStock() {
+    async function checkStock() {
       try {
-        // Bypass stock checking if resuming
-        // Because the materials were already allocated/checked when production first started
-        // and any material shortage is handled manually by the operator.
         if (so.status === "Paused") {
           setStockIssues([]);
           setCheckingStock(false);
           return;
         }
 
-        const productIds = (so.items || [])
-          .map(item => (item as any).productId)
-          .filter((id): id is string => !!id);
-
-        if (productIds.length === 0) {
-          setStockIssues([]);
-          setCheckingStock(false);
-          return;
-        }
-
-        const bomStocks = await masterDataApi.getBomStock(productIds);
+        const issues: StockIssue[] = [];
+        
+        // Use the SPV's custom BOMs for checking stock, not the master data BOM
+        // Since we need to know the stock levels, we can fetch all inventory items.
+        // In a real production app we'd fetch only the needed IDs, but listInventory works for now.
+        const allInventory = await masterDataApi.listInventory();
         if (cancelled) return;
 
-        setBomStockCache(bomStocks);
+        // 1. Get the unified list of materials needed for this SO, excluding customer materials
+        // We use getMaterialOptions because it correctly falls back to Master Data BOM if Custom BOM is empty.
+        const { getMaterialOptions } = await import("../ProductionHelpers");
+        const materials = getMaterialOptions(so, false);
 
-        const issues: StockIssue[] = [];
-        for (const soItem of (so.items || [])) {
-          const soProductId = (soItem as any).productId;
-          const soItemId = soItem.id;
-          const customBoms = so.bomsPerItem?.[soItemId] || [];
-          const bomStock = bomStocks.find(bs => bs.productId === soProductId);
-          if (!bomStock?.items?.length) continue;
-
-          // Aggregate bomStock.items by inventoryItemId to prevent duplicate specs and correctly sum quantities
-          const aggregatedItems = new Map<string, typeof bomStock.items[0]>();
-          for (const item of bomStock.items) {
-            const existing = aggregatedItems.get(item.inventoryItemId);
-            if (existing) {
-              existing.bomQuantity += item.bomQuantity;
-            } else {
-              aggregatedItems.set(item.inventoryItemId, { ...item });
-            }
+        // 2. Aggregate required quantities by inventoryItemId
+        const aggregatedCustomBoms = new Map<string, { quantity: number; isCustomerMaterial: boolean; name: string; specs: Array<{ spec: string, quantity: number }> }>();
+        
+        for (const cb of materials) {
+          let invId = cb.inventoryItemId;
+          if (!invId) {
+            const match = allInventory.find(i => i.name.toLowerCase() === (cb.itemName || cb.name || "").toLowerCase());
+            if (match) invId = match.id;
           }
+          if (!invId) continue;
+          
+          const existing = aggregatedCustomBoms.get(invId);
+          if (existing) {
+            existing.quantity += (cb.quantity || 1);
+            existing.specs.push({ spec: cb.specification || "", quantity: cb.quantity || 1 });
+          } else {
+            aggregatedCustomBoms.set(invId, {
+              quantity: cb.quantity || 1,
+              isCustomerMaterial: !!cb.isCustomerMaterial,
+              name: cb.itemName || cb.name || "Unknown Material",
+              specs: [{ spec: cb.specification || "", quantity: cb.quantity || 1 }]
+            });
+          }
+        }
 
-          const productQty = (soItem as any).qty || soItem.quantity || 1;
-          for (const item of aggregatedItems.values()) {
-            const required = item.bomQuantity * productQty;
-            const available = item.currentStock;
-            
-            // Extract matching specifications for this specific master item
-            const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
-            const specs = matchingCustomBoms.map(cb => ({
-              spec: cb.spec || "",
-              quantity: (cb.quantity || 1) * productQty
-            }));
-            
-            if (available < required) {
-              const existing = issues.find(i => i.itemName === item.inventoryItemName);
-              if (existing) {
-                existing.required += required;
-                if (specs.length > 0) {
-                  // Only add specs if they aren't already present for this exact item
-                  existing.specs = [...(existing.specs || []), ...specs];
-                }
-              } else {
-                issues.push({
-                  itemName: item.inventoryItemName,
-                  required,
-                  available,
-                  bomQty: item.bomQuantity,
-                  productQty,
-                  specs: specs.length > 0 ? specs : undefined
-                });
-              }
+        // 3. Check against available stock
+        for (const [invId, req] of aggregatedCustomBoms.entries()) {
+          if (req.isCustomerMaterial || req.quantity <= 0) continue; // Skip customer materials
+
+          const invItem = allInventory.find(i => i.id === invId);
+          const available = invItem?.currentStock || 0;
+          const requiredQty = req.quantity;
+
+          if (available < requiredQty) {
+            const existingIssue = issues.find(i => i.itemName === req.name);
+            if (existingIssue) {
+              existingIssue.required += requiredQty;
+              existingIssue.specs = [...(existingIssue.specs || []), ...req.specs];
+            } else {
+              issues.push({
+                itemName: req.name,
+                required: requiredQty,
+                available,
+                bomQty: requiredQty,
+                productQty: 1, // Already multiplied in getMaterialOptions
+                specs: req.specs.length > 0 ? req.specs : undefined
+              });
             }
           }
         }
+
         if (!cancelled) setStockIssues(issues);
       } catch (err) {
-        console.warn("Failed to check BOM stock for start production", err);
+        console.warn("Failed to check stock for start production", err);
       } finally {
         if (!cancelled) setCheckingStock(false);
       }
     }
-    void checkBomStock();
+    void checkStock();
     return () => { cancelled = true; };
-  }, [so.items, so.id]);
+  }, [so.items, so.id, so.bomsPerItem, so.status]);
 
   const hasStockIssues = stockIssues && stockIssues.length > 0;
   const canStart = !isSubmitting && !checkingStock && !hasStockIssues;
@@ -150,25 +144,7 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
         });
       }
 
-      try {
-        if (bomStockCache && so.status !== 'Paused') {
-          const deductionItems: { inventoryItemId: string; quantity: number }[] = [];
-          for (const soItem of (so.items || [])) {
-            const bomStock = bomStockCache.find(bs => bs.productId === (soItem as any).productId);
-            if (bomStock?.items) {
-              const productQty = (soItem as any).qty || soItem.quantity || 1;
-              for (const item of bomStock.items) {
-                deductionItems.push({ inventoryItemId: item.inventoryItemId, quantity: item.bomQuantity * productQty });
-              }
-            }
-          }
-          if (deductionItems.length > 0) {
-            await masterDataApi.deductBomMaterials({ salesOrderId, items: deductionItems });
-          }
-        }
-      } catch {
-        // BOM deduction is non-critical; proceed even if it fails
-      }
+
 
       await refreshBackendData();
       onClose();
@@ -230,13 +206,23 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
 
               {isStockError && (
                 <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues || [] } })}
-                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                  >
-                    <FileWarning size={14} /> Buat Material Request
-                  </button>
+                  {isSupervisor ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues || [] } })}
+                      style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <FileWarning size={14} /> Buat Material Request
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { onClose(); if (onReturnToSpv) onReturnToSpv(); }}
+                      style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <FileWarning size={14} /> Kembalikan ke SPV
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -266,13 +252,23 @@ export function StartProductionModal({ so, onClose }: { so: SalesOrder; onClose:
                 ))}
               </div>
               <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => { onClose(); navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues! } }); }}
-                  style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <FileWarning size={14} /> Buat Material Request
-                </button>
+                {isSupervisor ? (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); navigate(`/erp/production/mr/${so.id}`, { state: { stockIssues: stockIssues! } }); }}
+                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <FileWarning size={14} /> Buat Material Request
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); if (onReturnToSpv) onReturnToSpv(); }}
+                    style={{ padding: "6px 14px", background: "#B91C1C", color: "white", border: "none", borderRadius: 6, fontSize: "12.5px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <FileWarning size={14} /> Kembalikan ke SPV
+                  </button>
+                )}
               </div>
             </div>
           )}

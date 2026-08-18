@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Edit2, Trash2, Users, Building2, CheckCircle, XCircle, Search, X } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
+import { useCustomersQuery, useCreateCustomerMutation, useUpdateCustomerMutation, useDeleteCustomerMutation } from "../../services/queries";
 import { User, Customer, UserRole } from "../../components/data/mockData";
 
 const S = {
@@ -15,7 +16,7 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
-const ROLES: UserRole[] = ['Sales', 'Engineering', 'Admin', 'Finance', 'Purchasing'];
+const ROLES: UserRole[] = ['Sales', 'Engineering', 'Admin', 'Finance', 'Purchasing', 'QC'];
 
 function getRoleColors(role: string) {
   switch (role) {
@@ -25,6 +26,7 @@ function getRoleColors(role: string) {
     case 'Engineering': return { bg: '#FFE4E6', text: '#E11D48', border: '#FECDD3' }; // Rose / Red
     case 'Finance': return { bg: '#DCFCE7', text: '#16A34A', border: '#BBF7D0' };
     case 'Purchasing': return { bg: '#CCFBF1', text: '#0D9488', border: '#99F6E4' };
+    case 'QC': return { bg: '#FEF9C3', text: '#A16207', border: '#FEF08A' }; // Yellow
     default: return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' }; // Sales
   }
 }
@@ -145,7 +147,9 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
 }
 
 function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose: () => void }) {
-  const { customers, addCustomer, updateCustomer } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { mutateAsync: addCustomer } = useCreateCustomerMutation();
+  const { mutateAsync: updateCustomer } = useUpdateCustomerMutation();
   
   const generateCode = () => {
     const maxNum = customers.reduce((max, c) => {
@@ -169,7 +173,7 @@ function CustomerFormModal({ customer, onClose }: { customer?: Customer; onClose
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (customer) {
-      updateCustomer(customer.code, { ...form, contactPerson: form.contact });
+      updateCustomer({ code: customer.code, data: { ...form, contactPerson: form.contact } });
     } else {
       addCustomer({ ...form, contactPerson: form.contact });
     }
@@ -270,7 +274,9 @@ function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: { isOpen:
 }
 
 export function AdminPage() {
-  const { users, customers, deleteUser, currentUser, deleteCustomerMaster } = useApp();
+  const { users, currentUser, deleteUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { mutate: deleteCustomerMaster } = useDeleteCustomerMutation();
   const [tab, setTab] = useState<'users' | 'customers'>('users');
   const [showUserForm, setShowUserForm] = useState(false);
   const [showCustForm, setShowCustForm] = useState(false);

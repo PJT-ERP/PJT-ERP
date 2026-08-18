@@ -5,6 +5,7 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Finance.Api.Domain.Entities;
 using PJT_ERP.Finance.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Infrastructure.Messaging;
+using PJT_ERP.Shared.Infrastructure.Security;
 
 namespace PJT_ERP.Finance.Api.Application.Finance;
 
@@ -85,35 +86,7 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
 
         if (candidate is null)
         {
-            if (request.FallbackCandidate is not null)
-            {
-                candidate = new InvoiceCandidate
-                {
-                    SalesOrderId = request.SalesOrderId,
-                    SalesOrderNumber = request.FallbackCandidate.SalesOrderNumber,
-                    CustomerId = request.FallbackCandidate.CustomerId,
-                    CustomerCode = request.FallbackCandidate.CustomerCode,
-                    CustomerName = request.FallbackCandidate.CustomerName,
-                    CustomerEmail = request.FallbackCandidate.CustomerEmail,
-                    TargetDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                    CompletedAtUtc = DateTime.UtcNow,
-                    Status = InvoiceCandidateStatuses.ReadyForInvoice,
-                    Items = request.FallbackCandidate.Items.Select(i => new InvoiceCandidateItem
-                    {
-                        SalesOrderItemId = i.SalesOrderItemId,
-                        ProductId = i.ProductId,
-                        ProductPartNumber = i.ProductPartNumber,
-                        ProductDescription = i.ProductDescription,
-                        Qty = i.Qty,
-                        UnitPrice = 0
-                    }).ToList()
-                };
-                await db.InvoiceCandidates.AddAsync(candidate, cancellationToken);
-            }
-            else
-            {
-                throw new InvalidOperationException("Sales order is not ready for invoice yet.");
-            }
+            throw new InvalidOperationException("Sales order is not ready for invoice yet. The SO must go through Costing & Pricing first.");
         }
 
         if (candidate.Status == InvoiceCandidateStatuses.Invoiced
@@ -122,8 +95,8 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
             throw new InvalidOperationException("This sales order already has an invoice.");
         }
 
-        var prices = request.Items.ToDictionary(item => item.SalesOrderItemId, item => item.UnitPrice);
-        if (prices.Count != candidate.Items.Count || candidate.Items.Any(item => !prices.ContainsKey(item.SalesOrderItemId)))
+        var requestPrices = request.Items.ToDictionary(item => item.SalesOrderItemId, item => item.UnitPrice);
+        if (requestPrices.Count != candidate.Items.Count || candidate.Items.Any(item => !requestPrices.ContainsKey(item.SalesOrderItemId)))
         {
             throw new InvalidOperationException("Invoice item prices must match all sales order items.");
         }
@@ -132,7 +105,21 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
             .OrderBy(item => item.ProductPartNumber)
             .Select(item =>
             {
-                var unitPrice = RoundMoney(prices[item.SalesOrderItemId]);
+                var requestedPrice = RoundMoney(requestPrices[item.SalesOrderItemId]);
+                var approvedPrice = RoundMoney(item.UnitPrice);
+
+                if (approvedPrice > 0 && requestedPrice != approvedPrice)
+                {
+                    throw new InvalidOperationException(
+                        $"Price tampering detected for item '{item.ProductPartNumber}'. Requested UnitPrice ({requestedPrice:N2}) does not match Approved Costing Price ({approvedPrice:N2}).");
+                }
+
+                var finalUnitPrice = approvedPrice > 0 ? approvedPrice : requestedPrice;
+                if (finalUnitPrice <= 0)
+                {
+                    throw new InvalidOperationException($"Invoice item unit price for '{item.ProductPartNumber}' must be greater than zero.");
+                }
+
                 return new InvoiceItem
                 {
                     SalesOrderItemId = item.SalesOrderItemId,
@@ -140,8 +127,8 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
                     PartNumber = item.ProductPartNumber,
                     Description = item.ProductDescription,
                     Qty = item.Qty,
-                    UnitPrice = unitPrice,
-                    LineTotal = RoundMoney(unitPrice * item.Qty)
+                    UnitPrice = finalUnitPrice,
+                    LineTotal = RoundMoney(finalUnitPrice * item.Qty)
                 };
             })
             .ToList();
@@ -283,19 +270,20 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
             return ToDto(duplicateRequest);
         }
 
-        // Save file
-        var extension = Path.GetExtension(originalFileName);
+        await FileUploadSecurityValidator.ValidateFileAsync(request.ProofFile, cancellationToken);
+
         var safeInvoiceNumber = invoice.InvoiceNumber.Replace("/", "-");
-        var uniqueFileName = $"bukti-{safeInvoiceNumber}-{Guid.NewGuid():N}{extension}";
+        var sanitizedName = FileUploadSecurityValidator.SanitizeFileName(originalFileName);
+        var uniqueFileName = $"bukti-{safeInvoiceNumber}-{sanitizedName}";
         var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "proofs");
         Directory.CreateDirectory(uploadsFolder);
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-        
+
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
             await request.ProofFile.CopyToAsync(stream, cancellationToken);
         }
-        
+
         var proofFileUrl = $"/proofs/{uniqueFileName}";
 
         var proofRequest = new PaymentVerificationRequest
@@ -488,19 +476,20 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
 
         if (request.ProofFile is not null && request.ProofFile.Length > 0)
         {
+            await FileUploadSecurityValidator.ValidateFileAsync(request.ProofFile, cancellationToken);
             var originalFileName = request.ProofFile.FileName;
-            var extension = Path.GetExtension(originalFileName);
             var safePoNumber = request.PoNumber.Replace("/", "-");
-            var uniqueFileName = $"bukti-{safePoNumber}-{Guid.NewGuid():N}{extension}";
+            var sanitizedName = FileUploadSecurityValidator.SanitizeFileName(originalFileName);
+            var uniqueFileName = $"bukti-{safePoNumber}-{sanitizedName}";
             var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "proofs");
             Directory.CreateDirectory(uploadsFolder);
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-            
+
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await request.ProofFile.CopyToAsync(stream, cancellationToken);
             }
-            
+
             payment.ProofFileName = originalFileName;
             payment.ProofFileUrl = $"/proofs/{uniqueFileName}";
         }
@@ -528,6 +517,28 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
         else
         {
             setting.OpeningBalance = newBalance;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<decimal> GetMonthlyTargetAsync(CancellationToken cancellationToken = default)
+    {
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
+        return setting?.MonthlyTarget ?? 1_000_000_000m;
+    }
+
+    public async Task UpdateMonthlyTargetAsync(decimal newTarget, CancellationToken cancellationToken = default)
+    {
+        var setting = await db.Settings.FirstOrDefaultAsync(s => s.Id == "default", cancellationToken);
+        if (setting == null)
+        {
+            setting = new FinanceSetting { Id = "default", MonthlyTarget = newTarget };
+            db.Settings.Add(setting);
+        }
+        else
+        {
+            setting.MonthlyTarget = newTarget;
         }
 
         await db.SaveChangesAsync(cancellationToken);
