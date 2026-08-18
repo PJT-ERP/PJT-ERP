@@ -43,7 +43,7 @@ export function usePurchaseRequestDetail() {
     setIsRequestingRevision(true);
     setActionError("");
     try {
-      await purchasingApi.requestPrRevision(detail.id, {
+      await purchasingApi.requestPrRevision(detail.backendId, {
         revisionNote,
         items: revisionItems.map(i => ({ itemId: i.itemId, newSpecification: i.size }))
       });
