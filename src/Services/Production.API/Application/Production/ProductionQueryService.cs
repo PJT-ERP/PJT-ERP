@@ -97,7 +97,9 @@ public class ProductionQueryService(
         
         var waitingQc = allOrders.Where(so => so.FinishedAtUtc.HasValue && string.IsNullOrEmpty(so.QcDecision) && IsAssignedToUser(so)).ToList();
 
-        return new ProductionQueuesDto(pendingAssignment, readyToStart, inProduction, waitingQc);
+        var completed = allOrders.Where(so => so.FinishedAtUtc.HasValue && so.QcDecision == "Go" && IsAssignedToUser(so)).ToList();
+
+        return new ProductionQueuesDto(pendingAssignment, readyToStart, inProduction, waitingQc, completed);
     }
 
     public async Task<EngineeringQueuesDto> GetEngineeringQueuesAsync(Guid? userId, string userRole, CancellationToken cancellationToken)
@@ -186,7 +188,8 @@ public class ProductionQueryService(
         var inProduction = allOrders.Where(so => so.Status == "InProduction" && IsAssignedToUser(so)).ToList();
         var paused = allOrders.Where(so => so.Status == "Paused" && IsAssignedToUser(so)).ToList();
         var waitingQc = allOrders.Where(so => so.Status == "QC" && string.IsNullOrEmpty(so.QcDecision) && IsAssignedToUser(so)).ToList();
+        var completed = allOrders.Where(so => so.FinishedAtUtc.HasValue && so.QcDecision == "Go" && IsAssignedToUser(so)).ToList();
 
-        return new ProductionBoardQueuesDto(pendingAssignment, readyToStart, inProduction, paused, waitingQc);
+        return new ProductionBoardQueuesDto(pendingAssignment, readyToStart, inProduction, paused, waitingQc, completed);
     }
 }

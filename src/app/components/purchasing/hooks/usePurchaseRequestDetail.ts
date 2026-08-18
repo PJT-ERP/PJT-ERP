@@ -26,6 +26,40 @@ export function usePurchaseRequestDetail() {
   const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
   const [suppliersList, setSuppliersList] = useState<any[]>([]);
 
+  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+  const [revisionNote, setRevisionNote] = useState("");
+  const [revisionItems, setRevisionItems] = useState<Array<{ itemId: string, size: string }>>([]);
+  const [isRequestingRevision, setIsRequestingRevision] = useState(false);
+
+  const handleOpenRevision = () => {
+    if (!detail) return;
+    setRevisionNote("");
+    setRevisionItems(detail.items.map(item => ({ itemId: item.id, size: item.size || "" })));
+    setShowRevisionDialog(true);
+  };
+
+  const handleSubmitRevision = async () => {
+    if (!detail || !revisionNote.trim()) return;
+    setIsRequestingRevision(true);
+    setActionError("");
+    try {
+      await purchasingApi.requestPrRevision(detail.id, {
+        revisionNote,
+        items: revisionItems.map(i => ({ itemId: i.itemId, newSpecification: i.size }))
+      });
+      setShowRevisionDialog(false);
+      setDialogMsg({
+        title: "Revisi Diajukan",
+        message: "Dokumen berhasil dikembalikan ke Supervisor dengan catatan revisi spesifikasi."
+      });
+      await refreshBackendData();
+    } catch (e: any) {
+      setActionError(e.response?.data?.message || "Gagal mengajukan revisi.");
+    } finally {
+      setIsRequestingRevision(false);
+    }
+  };
+
   const canEditPricing = isPurchasingOrAdmin && 
     detail?.backendStatus !== "FinanceApproved" && 
     detail?.backendStatus !== "Processing" &&
@@ -215,6 +249,11 @@ export function usePurchaseRequestDetail() {
     dialogMsg, setDialogMsg,
     suppliersList,
     handleSavePricing,
-    handleReviewPr
+    handleReviewPr,
+    showRevisionDialog, setShowRevisionDialog,
+    revisionNote, setRevisionNote,
+    revisionItems, setRevisionItems,
+    isRequestingRevision,
+    handleOpenRevision, handleSubmitRevision
   };
 }

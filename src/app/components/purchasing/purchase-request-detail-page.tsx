@@ -33,6 +33,16 @@ export function PurchaseRequestDetailPage() {
         <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Purchase Request</h1>
       </div>
 
+      {board.detail.revisionNote && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl shadow-sm flex items-start gap-3">
+          <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+          <div>
+            <h3 className="font-bold text-amber-900 text-sm mb-1">Revisi Spesifikasi Diminta oleh Purchasing</h3>
+            <p className="text-amber-800 text-sm">{board.detail.revisionNote}</p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <PRDetailHeader board={board} />
         <PRDetailItemsTable board={board} />

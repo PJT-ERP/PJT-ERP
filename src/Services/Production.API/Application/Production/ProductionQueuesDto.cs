@@ -6,7 +6,8 @@ public sealed record ProductionQueuesDto(
     IReadOnlyCollection<SalesOrderDto> PendingAssignment,
     IReadOnlyCollection<SalesOrderDto> ReadyToStart,
     IReadOnlyCollection<SalesOrderDto> InProduction,
-    IReadOnlyCollection<SalesOrderDto> WaitingQc
+    IReadOnlyCollection<SalesOrderDto> WaitingQc,
+    IReadOnlyCollection<SalesOrderDto> Completed
 );
 
 public sealed record EngineeringQueuesDto(
