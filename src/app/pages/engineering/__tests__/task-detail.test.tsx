@@ -105,7 +105,7 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
     fireEvent.click(editLinkBtn);
 
     // 3. Update the design link
-    const linkInput = screen.getByPlaceholderText('https://drive.google.com/...') as HTMLInputElement;
+    const linkInput = screen.getByPlaceholderText("Tempel link URL desain di sini atau klik tombol 'Unggah File'...") as HTMLInputElement;
     fireEvent.change(linkInput, { target: { value: 'https://new-design-link.com' } });
 
     // 4. Click "Simpan Desain & Lanjut ke Produksi" (to enter confirm step)

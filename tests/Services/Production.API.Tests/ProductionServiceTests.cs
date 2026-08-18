@@ -603,7 +603,7 @@ public sealed class ProductionServiceTests
             return Task.CompletedTask;
         }
 
-        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken)
         {
             if (ShouldFailDeduct) throw new InvalidOperationException("Insufficient stock");
             return Task.CompletedTask;
