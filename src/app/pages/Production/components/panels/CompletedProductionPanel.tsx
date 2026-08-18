@@ -9,10 +9,13 @@ export function CompletedProductionPanel({ board }: { board: any }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   
-  const filteredQueue = completedQueue.filter((so: any) => 
-    (so.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (so.description || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredQueue = completedQueue.filter((so: any) => {
+    if (!so) return false;
+    const searchLow = (searchTerm || "").toLowerCase();
+    const idMatch = String(so.id || "").toLowerCase().includes(searchLow);
+    const descMatch = String(so.description || "").toLowerCase().includes(searchLow);
+    return idMatch || descMatch;
+  });
   
   const totalPages = Math.ceil(filteredQueue.length / itemsPerPage) || 1;
   const currentItems = filteredQueue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
