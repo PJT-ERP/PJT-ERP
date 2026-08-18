@@ -414,8 +414,8 @@ export function EngineeringTaskDetailPage() {
                   <label style={{ fontSize: "14px", color: S.slate, fontWeight: 600 }}>Link Desain / Drawing <span style={{ color: "#EF4444" }}>*</span></label>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input type="url" value={designLink} onChange={e => setDesignLink(e.target.value)}
-                    placeholder="https://drive.google.com/... atau /engineering-drawings/..." readOnly={!isEditingLink} disabled={!canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))}
+                  <input type="text" value={designLink} onChange={e => setDesignLink(e.target.value)}
+                    placeholder="Tempel link URL desain di sini atau klik tombol 'Unggah File'..." readOnly={!isEditingLink} disabled={!canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))}
                     style={{ flex: 1, padding: "14px 16px", border: `1px solid ${isEditingLink ? S.cyan : S.border}`, borderRadius: 8, fontSize: "14px", fontFamily: S.font, outline: "none", boxSizing: "border-box", backgroundColor: (!isEditingLink || !canProcess || (!isSpv && (isDoingSpvApproval || isWaitingCustomerDesign))) ? "#F8FAFC" : "#fff", color: !isEditingLink ? S.secondary : S.slate, cursor: !isEditingLink ? "default" : "text", transition: "all 0.2s" }} />
                   {designLink && !isEditingLink && (
                     <a href={designLink.startsWith('/') ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${designLink}` : designLink} target="_blank" rel="noreferrer" style={{ padding: "0 16px", background: S.cyan, color: "#fff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: "13.5px", fontWeight: 600, whiteSpace: "nowrap" }}>Buka Link</a>
