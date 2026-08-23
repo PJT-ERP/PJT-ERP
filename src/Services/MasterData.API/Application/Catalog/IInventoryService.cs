@@ -42,7 +42,8 @@ public record DeductBomStockRequestItem(
     int ProductionQuantity);
 
 public record DeductCustomBomRequest(
-    IReadOnlyCollection<DeductCustomBomRequestItem> Items);
+    IReadOnlyCollection<DeductCustomBomRequestItem> Items,
+    string? Reason = null);
 
 public record DeductCustomBomRequestItem(
     Guid InventoryItemId,

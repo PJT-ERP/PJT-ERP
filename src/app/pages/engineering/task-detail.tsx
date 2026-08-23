@@ -299,7 +299,14 @@ export function EngineeringTaskDetailPage() {
     } finally { setIsSubmitting(false); }
   };
 
-  const isFormIncomplete = !designLink.trim() || Object.values(itemMaterials).flat().some(m => !m.name.trim() || m.quantity <= 0);
+  const isFormIncomplete = !designLink.trim() || (qut.items || []).some((item: any) => {
+    const mats = itemMaterials[item.id] || [];
+    const productInCatalog = productCatalog.find((p: any) => p.id === item.productId);
+    const isStandardProduct = !!productInCatalog?.bomItems?.length;
+    
+    if (!isStandardProduct && mats.length === 0) return true;
+    return mats.some((m: any) => !m.name.trim() || m.quantity <= 0);
+  });
   const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict || isUploadingFile;
 
   const backToList = () => navigate('/erp/engineer-tasks');
