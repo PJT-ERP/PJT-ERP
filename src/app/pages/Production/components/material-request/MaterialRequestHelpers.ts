@@ -90,8 +90,9 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
   }
 
   if (Array.isArray(so.materials) && so.materials.length > 0) {
-    let hasValidEngineerMaterials = false;
+    let hasAnyMaterials = false;
     so.materials.forEach((material: any) => {
+      hasAnyMaterials = true;
       if (material.isCustomerMaterial && !includeCustomerMaterials) return;
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
@@ -99,11 +100,10 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
       if (itemName && itemName.toLowerCase() !== "pppp") {
         const quantity = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
         addOption(itemName, specification, isNaN(quantity) ? undefined : quantity, !!material.isCustomerMaterial);
-        hasValidEngineerMaterials = true;
       }
     });
     
-    if (hasValidEngineerMaterials) {
+    if (hasAnyMaterials) {
       return options;
     }
   }

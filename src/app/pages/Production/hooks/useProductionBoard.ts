@@ -171,9 +171,22 @@ export function useProductionBoard() {
   };
 
   const checkMaterialComplete = (so: SalesOrder) => {
-    const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+    // Check BOM exists from either so.materials or bomsPerItem (notes JSON)
+    const hasMaterialsArray = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+    const hasBomsPerItem = so.bomsPerItem && Object.values(so.bomsPerItem).some((boms: any[]) => boms && boms.length > 0);
+    const hasBom = hasMaterialsArray || hasBomsPerItem;
+    
+    if (!hasBom) return false;
+
+    // Check if ALL materials in the BOM are customer-provided
+    // If so, there's no shortage — material prep is complete
+    const allMaterials = getMaterialOptions(so, true); // include customer materials
+    if (allMaterials.length > 0 && allMaterials.every(m => m.isCustomerMaterial)) {
+      return true; // All materials from customer = complete, no MR needed
+    }
+
     const isShortage = checkMaterialShortage(so);
-    return hasBom && !isShortage;
+    return !isShortage;
   };
 
   const sortByDeadline = (a: SalesOrder, b: SalesOrder) => {
