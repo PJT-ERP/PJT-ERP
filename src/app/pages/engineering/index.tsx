@@ -99,21 +99,25 @@ export function EngineeringPage() {
     .sort((a, b) => new Date(a.createdAt || "").getTime() - new Date(b.createdAt || "").getTime());
 
   // Production Stats calculated from local data for accuracy
-  const inProductionCount = salesOrders.filter(so => so.status === "In Production").length;
-  const readyForProductionCount = salesOrders.filter(so => so.status === "Ready for Production").length;
-  const qcCount = salesOrders.filter(so => so.status === "QC").length;
-  const completedCount = salesOrders.filter(so => so.status === "Completed").length;
-  const pausedCount = salesOrders.filter(so => so.status === "Paused").length;
+  const prodOrdersForStats = isSpv 
+    ? salesOrders 
+    : salesOrders.filter(so => so.assignedTo === currentUser?.id);
+
+  const inProductionCount = prodOrdersForStats.filter(so => so.status === "In Production").length;
+  const readyForProductionCount = prodOrdersForStats.filter(so => so.status === "Ready for Production").length;
+  const qcCount = prodOrdersForStats.filter(so => so.status === "QC").length;
+  const completedCount = prodOrdersForStats.filter(so => so.status === "Completed").length;
+  const pausedCount = prodOrdersForStats.filter(so => so.status === "Paused").length;
 
   const summaryCards = [
-    {
+    ...(isSpv ? [{
       label: "Antrian Desain Baru",
       value: pendingDesignCount,
       icon: <List size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: isSpv ? "Dari Tim Sales" : "Dari Supervisor",
-    },
+      change: "Dari Tim Sales",
+    }] : []),
     {
       label: "Siap Produksi",
       value: readyForProductionCount,
@@ -141,7 +145,7 @@ export function EngineeringPage() {
   ];
 
   const workflowStats = [
-    { label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" },
+    ...(isSpv ? [{ label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" }] : []),
     { label: "Siap Produksi", count: readyForProductionCount, color: "#10B981" },
     { label: "Sedang Produksi", count: inProductionCount, color: "#3B82F6" },
     { label: "Dipause", count: pausedCount, color: "#F59E0B" },
