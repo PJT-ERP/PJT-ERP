@@ -1,10 +1,14 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SODetail } from '../so-detail';
 import { useApp } from '../../context/AppContext';
 import { useFinanceData } from '../../finance/useFinanceData';
+
+afterEach(() => {
+  cleanup();
+});
 
 // Partial mock for lucide-react to avoid SVG syntax errors in jest/vitest environment
 vi.mock('lucide-react', () => ({
@@ -107,12 +111,13 @@ const { registeredOrder, customOrder, mockCustomer } = vi.hoisted(() => {
   return { registeredOrder: registered, customOrder: custom, mockCustomer: customer };
 });
 
+const { mockMutate } = vi.hoisted(() => ({ mockMutate: vi.fn() }));
 vi.mock('../../../services/queries', () => {
   return {
     useProductsQuery: vi.fn().mockReturnValue({ data: [] }),
     useCustomersQuery: vi.fn().mockReturnValue({ data: [mockCustomer] }),
     useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [registeredOrder, customOrder] }),
-    useUpdateSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn() }),
+    useUpdateSalesOrderMutation: vi.fn().mockReturnValue({ mutate: mockMutate }),
     useDeleteSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),
     useUpdateCustomerMutation: vi.fn().mockReturnValue({ mutate: vi.fn() }),
   };
@@ -160,5 +165,32 @@ describe('SODetail Component', () => {
   it('shows BOM section for registered product', async () => {
     renderWithProviders(<SODetail orderId="SO-2026-002" onNavigate={onNavigate} />);
     await waitFor(() => expect(screen.getByText('Bill of Materials (Kebutuhan Bahan)')).toBeInTheDocument());
+  });
+
+  it('can enter edit mode and save quantity changes', async () => {
+    renderWithProviders(<SODetail orderId="SO-2026-001" onNavigate={onNavigate} />);
+    
+    // Ensure data is loaded
+    await waitFor(() => expect(screen.getAllByText('PT Maju Jaya').length).toBeGreaterThan(0));
+
+    // Enter edit mode
+    const editBtn = screen.getByText('Edit');
+    editBtn.click();
+
+    // Change quantity from 10 to 16
+    const qtyInput = await screen.findByRole('spinbutton');
+    fireEvent.change(qtyInput, { target: { value: '16' } });
+
+    // Click Simpan Perubahan
+    const saveBtns = screen.getAllByText('Simpan Perubahan');
+    fireEvent.click(saveBtns[0]);
+
+    // Verify mutation was called with updated quantity
+    expect(mockMutate).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'guid-so-1',
+      data: expect.objectContaining({
+        quantity: 16
+      })
+    }));
   });
 });

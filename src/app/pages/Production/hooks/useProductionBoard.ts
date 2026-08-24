@@ -71,7 +71,8 @@ export function useProductionBoard() {
     const materials = getMaterialOptions(so);
     if (!materials || materials.length === 0) return false;
     
-    return materials.some(m => {
+    return materials.some((m: any) => {
+      if (m.isCustomerMaterial || m.isFromCustomer) return false; // Customer materials don't cause shortage
       const invItem = inventory.find(inv => 
         inv.name?.toLowerCase() === m.itemName.toLowerCase()
       );
@@ -188,6 +189,7 @@ export function useProductionBoard() {
   const inProduction = [...(productionQueues?.inProduction || []), ...(productionQueues?.paused || [])].map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const waitingQC = (productionQueues?.waitingQc || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const pendingDesign = (productionQueues?.pendingDesign || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const completed = (productionQueues?.completed || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort((a: any, b: any) => new Date(b.productionFinishedAtUtc || 0).getTime() - new Date(a.productionFinishedAtUtc || 0).getTime());
 
   const approveMaterialRequest = async (so: SalesOrder) => {
     const request = getMaterialRequest(so);
@@ -317,6 +319,7 @@ export function useProductionBoard() {
     inProduction,
     waitingQC,
     pendingDesign,
+    completed,
     checkMaterialShortage,
     getMaterialRequest,
     getMaterialRequestState,
