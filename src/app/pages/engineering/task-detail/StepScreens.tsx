@@ -62,8 +62,8 @@ export function StepRejectForm({ rejectReason, onReasonChange }: { rejectReason:
   );
 }
 
-export function StepConfirm({ designLink, customerName, qty, unit, newMaterials }: {
-  designLink: string; customerName: string; qty: number; unit: string; newMaterials: { name: string; spec: string }[];
+export function StepConfirm({ designLink, customerName, qty, unit, newMaterials, customerMaterialsSkipped }: {
+  designLink: string; customerName: string; qty: number; unit: string; newMaterials: { name: string; spec: string }[]; customerMaterialsSkipped?: { name: string; spec: string }[];
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -86,6 +86,25 @@ export function StepConfirm({ designLink, customerName, qty, unit, newMaterials 
           <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #FECACA", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
             {newMaterials.map((m, i) => (
               <div key={i} style={{ fontSize: "12px", color: "#991B1B", padding: "4px 0", borderBottom: i < newMaterials.length - 1 ? "1px solid #FECACA" : "none" }}>
+                {m.name}{m.spec ? ` (Spec: ${m.spec})` : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {customerMaterialsSkipped && customerMaterialsSkipped.length > 0 && (
+        <div style={{ background: "#F0FDF4", border: "2px solid #22C55E", borderRadius: 8, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <p style={{ color: "#166534", fontSize: "14px", fontWeight: 700, margin: 0 }}>
+              Material Dari Pelanggan ({customerMaterialsSkipped.length})
+            </p>
+          </div>
+          <p style={{ color: "#14532D", fontSize: "13px", margin: "0 0 12px", lineHeight: 1.5 }}>
+            Material berikut ditandai sebagai <strong>Material dari Pelanggan</strong> dan TIDAK dimasukkan ke dalam BOM Master. Material ini hanya akan dicatat pada SO saat ini dan dilewati saat persiapan produksi di pabrik. <strong>Material ini juga tidak akan muncul jika produk ini dipesan di SO baru (New Order) di masa depan kecuali Anda mencentang "Tetap masukkan BOM Master".</strong>
+          </p>
+          <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #86EFAC", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
+            {customerMaterialsSkipped.map((m, i) => (
+              <div key={i} style={{ fontSize: "12px", color: "#166534", padding: "4px 0", borderBottom: i < customerMaterialsSkipped.length - 1 ? "1px solid #86EFAC" : "none" }}>
                 {m.name}{m.spec ? ` (Spec: ${m.spec})` : ''}
               </div>
             ))}

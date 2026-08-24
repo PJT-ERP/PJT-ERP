@@ -108,7 +108,7 @@ export function EngineeringTaskDetailPage() {
     for (const item of qut.items || []) {
       const mats = itemMaterials[item.id] || [];
       for (const m of mats) {
-        if (!m.name?.trim() || m.isCustomerMaterial) continue;
+        if (!m.name?.trim() || (m.isCustomerMaterial && !m.isAddToMasterBOM)) continue;
         const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
         if (seen.has(key)) continue;
         const mid = (m.inventoryItemId || '').toLowerCase();
@@ -121,6 +121,26 @@ export function EngineeringTaskDetailPage() {
     }
     return result;
   }, [qut, itemMaterials, inventoryItems]);
+
+  const customerMaterialsSkipped = useMemo(() => {
+    const result: { name: string; spec: string }[] = [];
+    if (!qut) return result;
+    const seen = new Set<string>();
+    for (const item of qut.items || []) {
+      const mats = itemMaterials[item.id] || [];
+      for (const m of mats) {
+        if (!m.name?.trim()) continue;
+        if (m.isCustomerMaterial && !m.isAddToMasterBOM) {
+          const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
+          }
+        }
+      }
+    }
+    return result;
+  }, [qut, itemMaterials]);
 
   const hasDuplicateMaterials = qut?.items?.some((item: any) => {
     const mats = itemMaterials[item.id] || [];
@@ -360,7 +380,7 @@ export function EngineeringTaskDetailPage() {
           {step === 'rejected' && <StepRejected onBack={backToList} />}
           {step === 'reject' && <StepRejectForm rejectReason={rejectReason} onReasonChange={setRejectReason} />}
           {step === 'confirm' && (
-            <StepConfirm designLink={designLink} customerName={customer?.name || ''} qty={qut.quantity} unit={qut.unit} newMaterials={newMaterials} />
+            <StepConfirm designLink={designLink} customerName={customer?.name || ''} qty={qut.quantity} unit={qut.unit} newMaterials={newMaterials} customerMaterialsSkipped={customerMaterialsSkipped} />
           )}
           {(step === 'upload') && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>

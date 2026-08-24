@@ -22,7 +22,30 @@ export function mapRepeatProducts(selectedSo: any, productCatalog: any[]) {
         || catalogProductOptions.find(p => p.label.includes(item.productName || itemPartNumber));
 
       let materials: any[] = [];
-      if (matchedProduct && matchedProduct.bomItems?.length) {
+
+      // First, try to load custom BOM (including isCustomerMaterial flags) from the previous SO's notes
+      if (item.notes) {
+        try {
+          const parsedNotes = JSON.parse(item.notes);
+          if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
+            materials = parsedNotes.map((m: any) => ({
+              id: m.id || m.inventoryItemId || crypto.randomUUID(),
+              inventoryItemId: m.inventoryItemId || "",
+              name: m.name || "",
+              code: m.code || "",
+              specification: m.spec || m.specification || "",
+              quantity: String(m.quantity || 0),
+              unit: m.unit || "pcs",
+              isCustomerMaterial: !!m.isCustomerMaterial,
+            }));
+          }
+        } catch {
+          // Not valid JSON, fall through to catalog
+        }
+      }
+
+      // Fallback to master catalog if no custom BOM was found in notes
+      if (materials.length === 0 && matchedProduct && matchedProduct.bomItems?.length) {
         materials = matchedProduct.bomItems.map((b: any) => ({
           id: b.inventoryItemId,
           inventoryItemId: b.inventoryItemId,

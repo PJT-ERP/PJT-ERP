@@ -21,6 +21,7 @@ interface BomMaterial {
   code?: string;
   category?: string;
   isCustomerMaterial?: boolean;
+  isAddToMasterBOM?: boolean;
 }
 
 interface BomEditorProps {
@@ -147,10 +148,18 @@ export function BomEditor({
                     )}
                   </div>
                 </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, alignSelf: "flex-start", cursor: canEdit ? "pointer" : "default" }}>
-                  <input type="checkbox" checked={m.isCustomerMaterial || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isCustomerMaterial', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
-                  Material dari Pelanggan
-                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, alignSelf: "flex-start", marginTop: 4 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, cursor: canEdit ? "pointer" : "default" }}>
+                    <input type="checkbox" checked={m.isCustomerMaterial || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isCustomerMaterial', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
+                    Material dari Pelanggan
+                  </label>
+                  {m.isCustomerMaterial && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, cursor: canEdit ? "pointer" : "default" }}>
+                      <input type="checkbox" checked={m.isAddToMasterBOM || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isAddToMasterBOM', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
+                      Tetap masukkan BOM Master
+                    </label>
+                  )}
+                </div>
               </div>
             ))}
           </div>
