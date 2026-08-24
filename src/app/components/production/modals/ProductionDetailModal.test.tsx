@@ -6,8 +6,14 @@ import { useApp } from '../../context/AppContext';
 import { productionApi } from '../../../services/productionApi';
 import { masterDataApi } from '../../../services/masterDataApi';
 
+import { useUpdateSalesOrderMutation } from '../../../services/queries';
+
 vi.mock('../../context/AppContext', () => ({
   useApp: vi.fn(),
+}));
+
+vi.mock('../../../services/queries', () => ({
+  useUpdateSalesOrderMutation: vi.fn(),
 }));
 
 vi.mock('../../../services/productionApi', () => ({
@@ -38,12 +44,11 @@ describe('ProductionDetailModal', () => {
     vi.mocked(useApp).mockReturnValue({
       purchasingRequests: [],
       salesOrders: [],
-      setSalesOrders: vi.fn(),
-      updateSalesOrder: vi.fn(),
       currentUser: { role: 'Supervisor' }
     } as any);
+    vi.mocked(useUpdateSalesOrderMutation).mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}) } as any);
     vi.mocked(masterDataApi.listInventory).mockResolvedValue([
-      { id: 'INV-1', name: 'Plastik', code: 'P-01', unit: 'kg' }
+      { id: '90000000-0000-4000-8000-000000000001', name: 'Plastik', code: 'P-01', unit: 'kg' }
     ] as any);
     vi.mocked(masterDataApi as any).updateProductBom = vi.fn().mockResolvedValue({});
   });
@@ -121,7 +126,8 @@ describe('ProductionDetailModal', () => {
   });
 
   it('allows adding a new BOM if materials are empty', async () => {
-    const { updateSalesOrder } = vi.mocked(useApp)();
+    const mockMutateAsync = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateSalesOrderMutation).mockReturnValue({ mutateAsync: mockMutateAsync } as any);
     
     const so = {
       id: 'SO-TAMBAH',
@@ -129,7 +135,7 @@ describe('ProductionDetailModal', () => {
       quantity: 1,
       materials: [], // Empty BOM triggers "Tambah BOM" badge and button
       items: [
-        { productId: 'PROD-X', productName: 'Produk Baru X' }
+        { productId: '44444444-5555-4666-8777-888888888888', productName: 'Produk Baru X', id: 'ITEM-NEW' }
       ]
     } as any;
 
@@ -177,16 +183,79 @@ describe('ProductionDetailModal', () => {
 
     await waitFor(() => {
       // 1. Should save to MasterData
-      expect(masterDataApi.updateProductBom).toHaveBeenCalledWith('PROD-X', {
-        bomItems: [{ inventoryItemId: 'INV-1', quantity: 5 }]
+      expect(masterDataApi.updateProductBom).toHaveBeenCalledWith('44444444-5555-4666-8777-888888888888', {
+        bomItems: [{ inventoryItemId: '90000000-0000-4000-8000-000000000001', quantity: 5 }]
       });
 
       // 2. Should update current SO
-      expect(updateSalesOrder).toHaveBeenCalledWith('SO-TAMBAH', {
-        bomsPerItem: {
-          'PROD-X': [{ inventoryItemId: 'INV-1', name: 'Plastik', quantity: 5, unit: 'kg', isCustomerMaterial: undefined }]
-        },
-        notes: "[{\"name\":\"Plastik\",\"quantity\":5,\"unit\":\"kg\",\"inventoryItemId\":\"INV-1\"}]"
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        id: 'SO-TAMBAH',
+        data: {
+          bomsPerItem: {
+            'ITEM-NEW': [{ inventoryItemId: '90000000-0000-4000-8000-000000000001', name: 'Plastik', quantity: 5, unit: 'kg', isCustomerMaterial: undefined }]
+          },
+          notes: "[{\"name\":\"Plastik\",\"quantity\":5,\"unit\":\"kg\",\"inventoryItemId\":\"90000000-0000-4000-8000-000000000001\"}]"
+        }
+      });
+    });
+  });
+
+  it('saves custom BOM and excludes non-GUID materials from Master Data updates (dari pelanggan scenario)', async () => {
+    const mockMutateAsync = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateSalesOrderMutation).mockReturnValue({ mutateAsync: mockMutateAsync } as any);
+    
+    const so = {
+      id: 'SO-125',
+      backendId: '22222222-3333-4444-8555-666666666666',
+      status: 'Persiapan Material',
+      quantity: 1,
+      items: [
+        { productId: '11111111-2222-4333-8444-555555555555', productName: 'Custom Table', id: 'ITEM-1' }
+      ],
+      bomsPerItem: {
+        'ITEM-1': [
+          { inventoryItemId: '33333333-4444-4555-8666-777777777777', name: 'Kayu', quantity: 1, unit: 'pcs' },
+          { inventoryItemId: 'temp-dari-pelanggan', name: 'Cat Khusus', quantity: 2, unit: 'pcs', isCustomerMaterial: true }
+        ]
+      }
+    } as any;
+
+    vi.mocked(masterDataApi.listInventory).mockResolvedValue([] as any);
+
+    render(<ProductionDetailModal so={so} onClose={vi.fn()} />);
+
+    // Wait for the Edit BOM button to be available
+    const editBtn = await screen.findByText('Edit BOM');
+    
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(editBtn);
+
+    // Change quantity of Cat Khusus from 2 to 3
+    const inputs = await screen.findAllByPlaceholderText('Qty');
+    // inputs[0] is Kayu, inputs[1] is Cat Khusus
+    fireEvent.change(inputs[1], { target: { value: '3' } });
+
+    // Save
+    const saveBtn = screen.getByText('Simpan BOM');
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      // 1. Master Data should ONLY receive the valid GUID item (Kayu), not the temp customer material
+      expect(masterDataApi.updateProductBom).toHaveBeenCalledWith('11111111-2222-4333-8444-555555555555', {
+        bomItems: [{ inventoryItemId: '33333333-4444-4555-8666-777777777777', quantity: 1 }]
+      });
+
+      // 2. Sales Order mutation should receive BOTH items to save to the SO notes
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        id: '22222222-3333-4444-8555-666666666666',
+        data: expect.objectContaining({
+          bomsPerItem: {
+            'ITEM-1': [
+              { inventoryItemId: '33333333-4444-4555-8666-777777777777', name: 'Kayu', quantity: 1, unit: 'pcs', isCustomerMaterial: undefined },
+              { inventoryItemId: 'temp-dari-pelanggan', name: 'Cat Khusus', quantity: 3, unit: 'pcs', isCustomerMaterial: true }
+            ]
+          }
+        })
       });
     });
   });
