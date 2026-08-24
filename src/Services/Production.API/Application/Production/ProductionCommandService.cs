@@ -153,7 +153,18 @@ public class ProductionCommandService(
         var boms = productIds.Count > 0 ? await masterDataClient.GetBomStockAsync(productIds, cancellationToken) : Array.Empty<BomStockDto>();
         var mappedMaterials = MapMaterials(salesOrder, boms);
 
+        if (mappedMaterials != null && mappedMaterials.Count > 0)
+        {
+            var deductItems = mappedMaterials
+                .Where(m => !string.IsNullOrEmpty(m.InventoryItemId) && Guid.TryParse(m.InventoryItemId, out _))
+                .Select(m => new DeductCustomBomRequestItem(Guid.Parse(m.InventoryItemId!), m.Quantity))
+                .ToList();
 
+            if (deductItems.Count > 0)
+            {
+                await masterDataClient.DeductCustomBomAsync(deductItems, $"Produksi {salesOrder.SoNumber}", cancellationToken);
+            }
+        }
 
         StartProduction(productionOrder, request, DateTime.UtcNow);
         salesOrder.Status = SalesOrderStatuses.InProduction;
