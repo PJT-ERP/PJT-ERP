@@ -100,7 +100,7 @@ export function StepConfirm({ designLink, customerName, qty, unit, newMaterials,
             </p>
           </div>
           <p style={{ color: "#14532D", fontSize: "13px", margin: "0 0 12px", lineHeight: 1.5 }}>
-            Material berikut ditandai sebagai <strong>Material dari Pelanggan</strong> dan TIDAK dimasukkan ke dalam BOM Master. Material ini hanya akan dicatat pada SO saat ini dan dilewati saat persiapan produksi di pabrik. <strong>Material ini juga tidak akan muncul jika produk ini dipesan di SO baru (New Order) di masa depan kecuali Anda mencentang "Tetap masukkan BOM Master".</strong>
+            Material berikut ditandai sebagai <strong>Material dari Pelanggan</strong>. Material ini akan disuplai langsung oleh pelanggan, sehingga hanya akan dicatat khusus pada SO ini dan otomatis dilewati saat pengecekan stok (MR) maupun persiapan produksi di pabrik.
           </p>
           <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #86EFAC", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
             {customerMaterialsSkipped.map((m, i) => (

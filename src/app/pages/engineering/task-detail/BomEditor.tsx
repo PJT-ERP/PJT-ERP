@@ -153,7 +153,7 @@ export function BomEditor({
                     <input type="checkbox" checked={m.isCustomerMaterial || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isCustomerMaterial', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
                     Material dari Pelanggan
                   </label>
-                  {m.isCustomerMaterial && (
+                  {m.isCustomerMaterial && !(m.inventoryItemId || inventoryItems.some(inv => inv.name.toLowerCase() === (m.name || "").toLowerCase())) && (
                     <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, cursor: canEdit ? "pointer" : "default" }}>
                       <input type="checkbox" checked={m.isAddToMasterBOM || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isAddToMasterBOM', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
                       Tetap masukkan BOM Master

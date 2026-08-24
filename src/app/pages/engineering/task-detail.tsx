@@ -246,8 +246,14 @@ export function EngineeringTaskDetailPage() {
         for (const originalM of mats) {
           if (!originalM.name?.trim() || !(originalM.quantity > 0)) continue;
           const m = { ...originalM };
-          if (m.isCustomerMaterial) {
-            m.inventoryItemId = '';
+          
+          if (m.isCustomerMaterial && !m.isAddToMasterBOM) {
+            let invId = m.inventoryItemId;
+            if (!invId) {
+              const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+              if (existingItem) { invId = existingItem.id; m.code = existingItem.code; }
+            }
+            m.inventoryItemId = invId || '';
           } else {
             let invId = m.inventoryItemId;
             if (!invId) {
@@ -266,7 +272,7 @@ export function EngineeringTaskDetailPage() {
           newMats.push(m);
         }
         updatedItems.push({ salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, unitPrice: (it as any).unitPrice || 0, notes: (newMats && newMats.length > 0) ? JSON.stringify(newMats) : (it.notes || "") });
-        allResolvedBoms[it.id] = newMats.filter(m => m.inventoryItemId && m.quantity > 0).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
+        allResolvedBoms[it.id] = newMats.filter(m => m.inventoryItemId && m.quantity > 0 && (!m.isCustomerMaterial || m.isAddToMasterBOM)).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
       }
       if (updatedItems.length > 0) {
         try { await salesApi.updateSalesOrderItems(backendId, { items: updatedItems }); } catch (e) { console.warn("Failed to update BOM", e); }
