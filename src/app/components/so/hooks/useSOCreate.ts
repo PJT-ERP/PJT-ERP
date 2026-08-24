@@ -107,7 +107,30 @@ export function useSOCreate(initialData?: { customerId?: string; orderType?: "ne
               || catalogProductOptions.find(p => p.label.includes(item.productName || itemPartNumber));
 
             let materials: any[] = [];
-            if (matchedProduct) {
+            
+            // Try to load custom BOM (including isCustomerMaterial flags) from previous SO's notes
+            if (item.notes) {
+              try {
+                const parsedNotes = JSON.parse(item.notes);
+                if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
+                  materials = parsedNotes.map((m: any) => ({
+                    id: m.id || m.inventoryItemId || Date.now().toString() + Math.random(),
+                    inventoryItemId: m.inventoryItemId || "",
+                    name: m.name || "",
+                    code: m.code || "",
+                    specification: m.spec || m.specification || "",
+                    quantity: String(m.quantity || 0),
+                    unit: m.unit || "pcs",
+                    isCustomerMaterial: !!m.isCustomerMaterial
+                  }));
+                }
+              } catch (e) {
+                // Not valid JSON, ignore and fallback to catalog
+              }
+            }
+
+            // Fallback to master catalog if no custom BOM was found
+            if (materials.length === 0 && matchedProduct) {
               materials = matchedProduct.bomItems?.length ? matchedProduct.bomItems.map((b: any) => ({
                 id: b.inventoryItemId,
                 name: b.inventoryItemName,
