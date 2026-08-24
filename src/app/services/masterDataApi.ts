@@ -221,8 +221,8 @@ export const masterDataApi = {
         return response.data;
     },
 
-    deductBomMaterials: async (request: { salesOrderId: string, items: { inventoryItemId: string, quantity: number }[] }): Promise<void> => {
-        await apiClient.post('/api/v1/master-data/inventory/deduct-bom', request);
+    deductCustomBomMaterials: async (request: { items: { inventoryItemId: string, quantity: number }[], reason?: string }): Promise<void> => {
+        await apiClient.post('/api/v1/master-data/inventory/deduct-custom-bom', request);
     },
     mutateStock: async (id: string, request: MutateStockRequest): Promise<void> => {
         await apiClient.post(`/api/v1/master-data/inventory/${id}/mutate`, request);

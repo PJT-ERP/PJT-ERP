@@ -296,6 +296,19 @@ public sealed class InventoryService(MasterDataContext db) : IInventoryService
         {
             data.item.CurrentStock -= data.totalQuantityToDeduct;
             data.item.UpdatedAtUtc = DateTime.UtcNow;
+
+            var log = new StockMutationLog
+            {
+                InventoryItemId = data.item.Id,
+                ItemCode = data.item.Code,
+                ItemName = data.item.Name,
+                MutationType = "out",
+                Quantity = data.totalQuantityToDeduct,
+                Reason = string.IsNullOrWhiteSpace(request.Reason) 
+                    ? "Pemakaian Produksi (Bulk) - Sistem BOM" 
+                    : request.Reason
+            };
+            await db.StockMutationLogs.AddAsync(log, cancellationToken);
         }
 
         await db.SaveChangesAsync(cancellationToken);

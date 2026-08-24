@@ -162,7 +162,7 @@ public class ProductionCommandService(
 
             if (deductItems.Count > 0)
             {
-                await masterDataClient.DeductCustomBomAsync(deductItems, cancellationToken);
+                await masterDataClient.DeductCustomBomAsync(deductItems, $"Produksi {salesOrder.SoNumber}", cancellationToken);
             }
         }
 
