@@ -54,8 +54,7 @@ public static class PdfGeneratorService
                     r.RelativeItem().PaddingLeft(10).Column(column =>
                     {
                         column.Item().Text("PT. PRATAMA JAYA TEKINDO").FontSize(16).SemiBold().FontColor(Colors.Grey.Darken4);
-                        column.Item().Text("design engineering/ maachineries manufacturer/ Jig/").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
-                        column.Item().Text("die / Precision tools").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
+                        column.Item().Text("design engineering/ machineries manufacturer/ Jig/die / Precision tools").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
                         column.Item().PaddingTop(4).Text("Sunrise Bizpark Blok D-3 Kelurahan Kutajaya").FontSize(9).FontColor(Colors.Grey.Medium);
                         column.Item().Text("Kec. Pasar Kemis Kab. Tangerang Prov. Banten").FontSize(9).FontColor(Colors.Grey.Medium);
                     });
@@ -65,8 +64,7 @@ public static class PdfGeneratorService
                     r.RelativeItem().Column(column =>
                     {
                         column.Item().Text("PT. PRATAMA JAYA TEKINDO").FontSize(16).SemiBold().FontColor(Colors.Grey.Darken4);
-                        column.Item().Text("design engineering/ maachineries manufacturer/ Jig/").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
-                        column.Item().Text("die / Precision tools").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
+                        column.Item().Text("design engineering/ machineries manufacturer/ Jig/die / Precision tools").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
                         column.Item().PaddingTop(4).Text("Sunrise Bizpark Blok D-3 Kelurahan Kutajaya").FontSize(9).FontColor(Colors.Grey.Medium);
                         column.Item().Text("Kec. Pasar Kemis Kab. Tangerang Prov. Banten").FontSize(9).FontColor(Colors.Grey.Medium);
                     });

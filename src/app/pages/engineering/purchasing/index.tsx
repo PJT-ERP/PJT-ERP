@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, ShoppingCart, ChevronLeft, ChevronRight, ArrowRightLeft } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
 import { usePurchasingRequestsQuery } from "../../../services/queries";
-import { PurchasingRequest } from "../../../components/data/mockData";
+import { PurchasingRequest, PurchasingStatus } from "../../../components/data/mockData";
 import { S, URGENCY_COLORS, PR_STATUS_COLORS } from "./constants";
 import { PurchasingFormModal } from "./PurchasingFormModal";
 import { PRDetailModal } from "./PRDetailModal";

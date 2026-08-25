@@ -63,6 +63,7 @@ export interface MR {
   isReadyForFinance?: boolean;
   hasUnorderedItems?: boolean;
   rejectionReason?: string;
+  revisionNote?: string | null;
 }
 
 /* ── Pill configs ──────────────────────────────────────────── */
@@ -110,6 +111,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
     approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
     rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+    revisionNote: request.revisionNote || null,
     supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
@@ -247,7 +249,7 @@ export function MaterialRequestsPage() {
     try {
       const data = await purchasingApi.listPurchaseRequests();
       // Hanya tampilkan PR yang sudah lolos tahap Supervisor di modul Purchasing
-      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") || r.status === "SupervisorRejected");
+      const validForPurchasing = data.filter(r => r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner");
       setRequests(validForPurchasing.map(mapPurchaseRequestToMr));
     } catch (error) {
       console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);

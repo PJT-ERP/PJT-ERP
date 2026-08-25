@@ -718,9 +718,9 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             
         if (pr is null) return null;
 
-        if (pr.Status != PurchaseRequestStatuses.SupervisorApproved)
+        if (pr.Status != PurchaseRequestStatuses.SupervisorApproved && pr.Status != PurchaseRequestStatuses.SupervisorRejected)
         {
-            throw new InvalidOperationException("Hanya Purchase Request yang sudah di-approve Supervisor yang bisa diajukan revisi spesifikasi.");
+            throw new InvalidOperationException("Hanya Purchase Request yang sudah di-approve Supervisor atau ditolak revisinya yang bisa diajukan revisi spesifikasi kembali.");
         }
 
         var now = DateTime.UtcNow;

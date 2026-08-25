@@ -36,7 +36,7 @@ export function usePurchaseRequestDetail() {
   const handleOpenRevision = () => {
     if (!detail) return;
     setRevisionNote("");
-    setRevisionItems(detail.items.map(item => ({ itemId: item.id, size: item.size || "" })));
+    setRevisionItems(detail.items.map(item => ({ itemId: item.itemId, size: item.spec || "" })));
     setShowRevisionDialog(true);
   };
 
@@ -67,6 +67,7 @@ export function usePurchaseRequestDetail() {
     detail?.backendStatus !== "FinanceApproved" && 
     detail?.backendStatus !== "Processing" &&
     detail?.backendStatus !== "Completed" &&
+    detail?.backendStatus !== "Submitted" &&
     !(detail?.backendStatus === "SupervisorApproved" && detail?.isReadyForFinance);
 
   useEffect(() => {

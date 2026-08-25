@@ -196,9 +196,10 @@ export function FinancePoDetail() {
         <div className="hidden print:flex px-6 py-8 justify-between">
           <div className="w-1/2 pr-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ditagihkan Kepada:</h3>
-            <p className="font-bold text-slate-900 text-lg">PT. PRATAMA JAYA</p>
-            <p className="text-sm text-slate-600 mt-1">Kawasan Industri MM2100</p>
-            <p className="text-sm text-slate-600">Cikarang Barat, Bekasi 17530</p>
+            <p className="font-bold text-slate-900 text-lg">PT. PRATAMA JAYA TEKINDO</p>
+            <p className="text-sm text-slate-600 mt-1">Sunrise Bizpark Blok D-3 Kelurahan Kutajaya</p>
+            <p className="text-sm text-slate-600">Jl. Industri Raya LOT MM 25, Kec. Pasar Kemis</p>
+            <p className="text-sm text-slate-600">Kab. Tangerang Prov. Banten</p>
           </div>
           <div className="w-1/3 border-l-2 border-slate-100 pl-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informasi Pembayaran:</h3>
