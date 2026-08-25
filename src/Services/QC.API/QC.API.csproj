@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>PJT_ERP.QC.Api</RootNamespace>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <SixLaborsLicenseKey>Community</SixLaborsLicenseKey>
   </PropertyGroup>
 
   <ItemGroup>
