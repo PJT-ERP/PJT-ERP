@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 /**
  * Unit tests for the stock-checking logic that prevents production start
@@ -183,10 +183,12 @@ interface SharedStock {
   currentStock: number;
 }
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 function simulateSoStockCheck(
   soName: string,
   bomStocks: BomStockEntry[],
   sharedStock: Map<string, SharedStock>,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   consumedAfterPreviousSos: number,
 ) {
   // Step 1: SO1 passes stock check initially (stock=100, required=100)

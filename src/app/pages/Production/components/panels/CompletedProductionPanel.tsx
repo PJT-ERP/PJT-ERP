@@ -3,11 +3,11 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { S } from "../../../../components/production/ProductionHelpers";
 
 export function CompletedProductionPanel({ board }: { board: any }) {
-  if (!board) return null;
-  const completedQueue = board?.completed || [];
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  if (!board) return null;
+  const completedQueue = board?.completed || [];
   const itemsPerPage = 10;
   
   const filteredQueue = completedQueue.filter((so: any) => 

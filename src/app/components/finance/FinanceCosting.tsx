@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { formatIDR } from "./mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -12,9 +11,9 @@ const S = {
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
 };
-import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
+import { Search, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { SalesOrder, SOStatus } from "../data/mockData";
+import { SOStatus } from "../data/mockData";
 import { formatUrl } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
@@ -364,7 +363,9 @@ export function FinanceCosting() {
                         try {
                           const parsed = JSON.parse(item.notes);
                           if (Array.isArray(parsed)) bomsPerItem[item.id] = parsed;
-                        } catch {}
+                        } catch {
+                          // Ignore parsing errors for notes that are not JSON
+                        }
                       }
                     });
                     

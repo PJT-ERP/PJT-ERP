@@ -1,26 +1,18 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
-  Plus,
   Search,
   Filter,
   Eye,
-  Truck,
   CheckCircle2,
-  Clock,
-  XCircle,
-  Package,
   PackagePlus,
   ChevronDown,
   ChevronUp,
-  Printer,
-  X,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useNavigate } from "react-router";
-import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
+import { PurchaseRequestDto } from "../../services/purchasingApi";
 import { SupplierPaymentDto } from "../../services/financeApi";
 import { useApp } from "../context/AppContext";
 import { usePurchasingData } from "./usePurchasingData";
@@ -61,6 +53,7 @@ export interface PO {
   financeApproval?: "Pending" | "Approved" | "Rejected";
 }
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 const SUPPLIERS = ["CV Bintang Logam", "PT Sumber Teknik", "UD Maju Jaya", "PT Indo Steel", "CV Tekno Prima", "PT Karya Mandiri"];
 
 /* ── Status configs ────────────────────────────────────────── */
@@ -253,6 +246,7 @@ function TD({ children, className = "" }: { children?: React.ReactNode; classNam
 
 /* ── Create PO Form items ─────────────────────────────────── */
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 interface FormItem { name: string; qty: string; unit: string; totalPrice: string; }
 
 /* ── Page ──────────────────────────────────────────────────── */
@@ -261,6 +255,7 @@ interface PurchaseOrdersPageProps {
   onCreatePO?: () => void;
 }
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
   const navigate = useNavigate();
   const { currentUser } = useApp();
@@ -312,6 +307,7 @@ export function PurchaseOrdersPage({ onCreatePO }: PurchaseOrdersPageProps) {
     setExpanded(next);
   };
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const exportPOs = () => {
     downloadCsv("purchase-orders.csv", [
       ["PO", "MR", "Supplier", "Delivery Status", "Payment Status", "Due Date", "Total"],

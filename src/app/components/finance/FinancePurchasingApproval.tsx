@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { CheckSquare, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
-import { formatDate } from './mockData';
 import { purchasingApi } from '../../services/purchasingApi';
 import { financeApi } from '../../services/financeApi';
-import { PO, mapPurchaseRequestsToPos, calcTotal, calcReceived } from '../purchasing/purchase-orders-page';
+import { PO, mapPurchaseRequestsToPos, calcTotal } from '../purchasing/purchase-orders-page';
 import { usePurchasingData } from '../purchasing/usePurchasingData';
-import { MR, mapPurchaseRequestToMr, statusCfg, Pill } from '../purchasing/material-requests-page';
+import { MR, mapPurchaseRequestToMr } from '../purchasing/material-requests-page';
 import { useApp } from '../context/AppContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 

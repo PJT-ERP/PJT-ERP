@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SOCreate } from '../so-create';
 import { useApp } from '../../context/AppContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { salesApi } from '../../../services/salesApi';
 import { useSalesOrdersQuery, useCustomersQuery, useProductsQuery } from '../../../services/queries';
 
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));

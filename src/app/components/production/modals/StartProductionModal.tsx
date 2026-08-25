@@ -109,7 +109,7 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
     }
     void checkStock();
     return () => { cancelled = true; };
-  }, [so.items, so.id, so.bomsPerItem, so.status]);
+  }, [so, so.items, so.id, so.bomsPerItem, so.status]);
 
   const hasStockIssues = stockIssues && stockIssues.length > 0;
   const canStart = !isSubmitting && !checkingStock && !hasStockIssues;
@@ -169,7 +169,7 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
           if (deductItems.length > 0) {
              await masterDataApi.deductCustomBomMaterials({ 
                items: deductItems,
-               reason: `Pemakaian Produksi PO ${so.poNumber || so.soNumber || so.id} - Sistem BOM`
+               reason: `Pemakaian Produksi PO ${so.soNumber || so.id} - Sistem BOM`
              });
           }
         } catch (err) {

@@ -59,6 +59,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     : [];
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
   const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");

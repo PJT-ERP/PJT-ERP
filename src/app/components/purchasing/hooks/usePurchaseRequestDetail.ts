@@ -36,7 +36,7 @@ export function usePurchaseRequestDetail() {
   const handleOpenRevision = () => {
     if (!detail) return;
     setRevisionNote("");
-    setRevisionItems(detail.items.map(item => ({ itemId: item.id, size: item.size || "" })));
+    setRevisionItems(detail.items.map(item => ({ itemId: item.itemId, size: item.spec || "" })));
     setShowRevisionDialog(true);
   };
 

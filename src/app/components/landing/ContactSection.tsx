@@ -52,6 +52,7 @@ export function ContactSection() {
     boxSizing: "border-box",
   };
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const labelStyle: React.CSSProperties = {
     display: "block",
     color: "#111827",

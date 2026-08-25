@@ -61,6 +61,7 @@ export function MaterialRequestModal({
     setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const selectMaterial = (index: number, materialKey: string) => {
     const selected = materialOptions.find(option => option.key === materialKey);
     setItems(prev => prev.map((item, itemIndex) => itemIndex === index

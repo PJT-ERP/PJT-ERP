@@ -194,18 +194,34 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
     });
 }
 
-export function useFinanceData(enabled = true, fetchSupplierPayments = true, fetchOpeningBalance = true) {
-  const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
-  const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
-  const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
-  const [supplierPayments, setSupplierPayments] = useState<any[]>([]);
-  const [openingBalance, setOpeningBalance] = useState<number>(250_000_000);
-  const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
-  const [isUsingBackend, setIsUsingBackend] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [monthlyTarget, setMonthlyTarget] = useState<number>(1_000_000_000);
+let globalCache = {
+  invoices: null as Invoice[] | null,
+  payments: null as Payment[] | null,
+  transactions: null as Transaction[] | null,
+  candidates: null as InvoiceCandidateDto[] | null,
+  supplierPayments: null as any[] | null,
+  openingBalance: 250_000_000,
+  monthlyTarget: 1_000_000_000,
+  lastFetch: 0,
+};
 
-  const refresh = useCallback(async () => {
+export function useFinanceData(enabled = true, fetchSupplierPayments = true, fetchOpeningBalance = true) {
+  const [backendInvoices, setBackendInvoices] = useState<Invoice[]>(globalCache.invoices || []);
+  const [backendPayments, setBackendPayments] = useState<Payment[]>(globalCache.payments || []);
+  const [backendTransactions, setBackendTransactions] = useState<Transaction[]>(globalCache.transactions || []);
+  const [supplierPayments, setSupplierPayments] = useState<any[]>(globalCache.supplierPayments || []);
+  const [openingBalance, setOpeningBalance] = useState<number>(globalCache.openingBalance);
+  const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>(globalCache.candidates || []);
+  const [isUsingBackend, setIsUsingBackend] = useState(globalCache.lastFetch > 0);
+  const [isLoading, setIsLoading] = useState(globalCache.lastFetch === 0);
+  const [monthlyTarget, setMonthlyTarget] = useState<number>(globalCache.monthlyTarget);
+
+  const refresh = useCallback(async (forceOrEvent?: boolean | any) => {
+    const force = forceOrEvent === true;
+    if (!force && Date.now() - globalCache.lastFetch < 30000) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult, openingBalanceResult, monthlyTargetResult] = await Promise.allSettled([
@@ -224,9 +240,24 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true, fet
       const balance = openingBalanceResult.status === 'fulfilled' ? openingBalanceResult.value : 250_000_000;
       const target = monthlyTargetResult.status === 'fulfilled' ? monthlyTargetResult.value : 1_000_000_000;
 
-      setBackendInvoices(invoices.map(mapInvoice));
-      setBackendPayments(mapPayments(invoices, paymentVerifications));
-      setBackendTransactions(buildTransactionsFromInvoices(invoices));
+      const mappedInvoices = invoices.map(mapInvoice);
+      const mappedPayments = mapPayments(invoices, paymentVerifications);
+      const mappedTransactions = buildTransactionsFromInvoices(invoices);
+
+      globalCache = {
+        invoices: mappedInvoices,
+        payments: mappedPayments,
+        transactions: mappedTransactions,
+        candidates,
+        supplierPayments: supplierPaymentsList,
+        openingBalance: balance,
+        monthlyTarget: target,
+        lastFetch: Date.now()
+      };
+
+      setBackendInvoices(mappedInvoices);
+      setBackendPayments(mappedPayments);
+      setBackendTransactions(mappedTransactions);
       setInvoiceCandidates(candidates);
       setSupplierPayments(supplierPaymentsList);
       setOpeningBalance(balance);
@@ -243,7 +274,7 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true, fet
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchSupplierPayments, fetchOpeningBalance]);
 
   const updateOpeningBalance = async (newBalance: number) => {
     if (isUsingBackend) {

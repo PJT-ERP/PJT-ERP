@@ -4,7 +4,6 @@ import { CreateInvoice } from '../CreateInvoice';
 import { useFinanceData } from '../useFinanceData';
 import { useApp } from '../../context/AppContext';
 import { financeApi } from '../../../services/financeApi';
-import { salesApi } from '../../../services/salesApi';
 
 vi.mock('../useFinanceData', () => ({
   useFinanceData: vi.fn(),
@@ -216,6 +215,7 @@ describe('CreateInvoice', () => {
     render(<CreateInvoice />);
 
     // Check the options in the select dropdown
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const soSelect = screen.getAllByRole('combobox')[0];
     
     // so-1 should be in the document as an option text

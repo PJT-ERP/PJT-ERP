@@ -14,6 +14,12 @@ import type { SalesOrderDto } from "../../../services/salesApi";
 
 import { useSalesOrdersQuery, usePurchasingRequestsQuery } from "../../../services/queries";
 
+let globalProdCache = {
+  inventory: null as InventoryItemDto[] | null,
+  productionQueues: null as any,
+  lastFetch: 0
+};
+
 export function useProductionBoard() {
   const { currentUser, users } = useApp();
   const queryClient = useQueryClient();
@@ -39,8 +45,8 @@ export function useProductionBoard() {
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
   
-  const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
-  const [productionQueues, setProductionQueues] = useState<any>({
+  const [inventory, setInventory] = useState<InventoryItemDto[]>(globalProdCache.inventory || []);
+  const [productionQueues, setProductionQueues] = useState<any>(globalProdCache.productionQueues || {
     pendingAssignment: [],
     readyToStart: [],
     inProduction: [],
@@ -50,12 +56,16 @@ export function useProductionBoard() {
   });
   
   useEffect(() => {
-    masterDataApi.listInventory().then(setInventory).catch(console.error);
+    if (Date.now() - globalProdCache.lastFetch < 30000) {
+      return;
+    }
+    
     Promise.all([
+      masterDataApi.listInventory(),
       productionApi.getProductionBoardQueues(),
       productionApi.getEngineeringQueues()
-    ]).then(([prodQueues, engQueues]) => {
-      setProductionQueues({
+    ]).then(([inv, prodQueues, engQueues]) => {
+      const qs = {
         pendingAssignment: (prodQueues.pendingAssignment || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         readyToStart: (prodQueues.readyToStart || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         inProduction: (prodQueues.inProduction || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
@@ -63,9 +73,18 @@ export function useProductionBoard() {
         waitingQc: (prodQueues.waitingQc || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         completed: (prodQueues.completed || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         pendingDesign: (engQueues.pendingDesign || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
-      });
+      };
+      
+      globalProdCache = {
+        inventory: inv,
+        productionQueues: qs,
+        lastFetch: Date.now()
+      };
+      
+      setInventory(inv);
+      setProductionQueues(qs);
     }).catch(console.error);
-  }, [salesOrders, currentUser]);
+  }, []);
 
   const checkMaterialShortage = (so: SalesOrder) => {
     const materials = getMaterialOptions(so);

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, DollarSign, UploadCloud, Printer, FileText } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
 import { financeApi } from "../../services/financeApi";
-import { masterDataApi, SupplierDto, InventoryItemDto } from "../../services/masterDataApi";
+import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { useApp } from "../context/AppContext";
 import {
   PO,

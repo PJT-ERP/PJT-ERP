@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useSubmitSO } from '../hooks/useSubmitSO';
 import { salesApi } from '../../../services/salesApi';
-import { useSalesOrdersQuery, useProductsQuery, useUpdateSalesOrderMutation } from '../../../services/queries';
+import { useSalesOrdersQuery, useProductsQuery } from '../../../services/queries';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../../../services/queries', () => ({

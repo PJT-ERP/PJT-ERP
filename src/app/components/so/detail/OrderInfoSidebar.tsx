@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { SalesOrder, Customer } from "../../data/mockData";
 import { S } from "./shared";
 import { formatUrl } from "../../../services/backendIds";

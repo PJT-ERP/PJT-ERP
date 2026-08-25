@@ -1,6 +1,6 @@
 import React from "react";
 import { Edit, Trash2, Truck, ArrowRightLeft } from "lucide-react";
-import { InventoryItem, statusCfg, getStatus, TH, TD, formatRp } from "./InventoryHelpers";
+import { statusCfg, getStatus, TH, TD, formatRp } from "./InventoryHelpers";
 import { useInventory } from "../../hooks/useInventory";
 
 interface InventoryTableProps {

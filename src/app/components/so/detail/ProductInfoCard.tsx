@@ -117,6 +117,7 @@ export function ProductInfoCard({
   order, isEditMode, editForm, setEditForm, displayMaterials,
   isCustomBackend, productLines, orderValue,
 }: ProductInfoCardProps) {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
 
   const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;

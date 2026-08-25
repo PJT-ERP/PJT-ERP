@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { SalesOrder } from '../../data/mockData';
 import { salesApi } from '../../../services/salesApi';
 import { toast } from 'sonner';
-import { S, getBackendSalesOrderId } from '../ProductionHelpers';
+import { getBackendSalesOrderId } from '../ProductionHelpers';
 
 export function ReturnToSpvModal({ so, onClose, onSubmitted }: { so: SalesOrder; onClose: () => void; onSubmitted: () => void }) {
   const { refreshBackendData } = useApp();

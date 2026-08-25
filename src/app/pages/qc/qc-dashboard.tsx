@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, X, CheckSquare, Activity, Search, Clock, FileText, Layers, FileCheck, ArrowRight } from "lucide-react";
+import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, X, CheckSquare, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery } from "../../services/queries";

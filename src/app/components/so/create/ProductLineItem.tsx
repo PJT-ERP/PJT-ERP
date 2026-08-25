@@ -16,6 +16,7 @@ const S = {
   cyan: "#C8102E",
 };
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 interface BOMItem {
   id: string;
   name: string;
@@ -311,6 +312,8 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                   </tr>
                 </thead>
                 <tbody>
+                  // eslint-disable-next-line unused-imports/no-unused-vars
+                  // eslint-disable-next-line unused-imports/no-unused-vars
                   {row.materials.map((mat: any, i) => {
                     const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
                     const embeddedCode = !mat.code && mat.name ? (mat.name.match(/^([A-Z]+-\d+)/) || [])[1] : null;

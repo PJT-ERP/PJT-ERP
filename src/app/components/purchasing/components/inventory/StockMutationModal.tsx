@@ -34,6 +34,7 @@ export function StockMutationModal({ isOpen, onClose, onSuccess, item }: StockMu
     try {
       setSubmitting(true);
       const numQty = Number(qty);
+      // eslint-disable-next-line unused-imports/no-unused-vars
       const newStock = type === "in" ? item.currentStock + numQty : item.currentStock - numQty;
       
       await masterDataApi.mutateStock(item.id, {

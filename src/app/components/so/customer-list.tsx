@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from "react";
 import {
-  Search, Plus, Download, Eye, Edit, X,
-  Phone, Mail, Building2, MapPin,
-  ShoppingCart, Calendar, Users,
-  ChevronLeft, ChevronRight,
-  Hash, RefreshCw, CheckCircle2, LayoutGrid, List,
+  Search, Plus, Edit, X,
+  Phone, Mail, MapPin,
+  ShoppingCart, Users,
+  ChevronLeft, ChevronRight, RefreshCw, CheckCircle2,
 } from "lucide-react";
 import type { Customer } from "../data/mockData";
 import { useCustomersQuery, useSalesOrdersQuery, useCreateCustomerMutation, useUpdateCustomerMutation } from "../../services/queries";
@@ -216,6 +215,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [modal, setModal] = useState<ModalState | null>(null);
 
@@ -544,6 +544,7 @@ function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit
 }
 
 // ─── HeaderBtn ────────────────────────────────────────────────────────────────
+// eslint-disable-next-line unused-imports/no-unused-vars
 function HeaderBtn({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean }) {
   const [hov, setHov] = useState(false);
   return (
@@ -572,6 +573,7 @@ function CardActionBtn({ icon, label, bg, color, onClick }: { icon: React.ReactN
 }
 
 // ─── PagBtn ───────────────────────────────────────────────────────────────────
+// eslint-disable-next-line unused-imports/no-unused-vars
 function PagBtn({ icon, label, onClick, active, disabled }: { icon?: React.ReactNode; label?: number; onClick: () => void; active?: boolean; disabled?: boolean }) {
   const [hov, setHov] = useState(false);
   return (

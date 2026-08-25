@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
-  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield,
-  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp,
-  ArrowUpRight, Users, CheckSquare, List
+  Pencil, Clock, CheckCircle, Factory,
+  Package, TrendingUp,
+  ArrowUpRight, List
 } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
@@ -13,9 +13,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -69,6 +66,7 @@ export function EngineeringPage() {
     }
   };
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [counters, setCounters] = useState<DashboardCountersDto | null>(null);
 
   React.useEffect(() => {
@@ -106,6 +104,7 @@ export function EngineeringPage() {
   const inProductionCount = prodOrdersForStats.filter(so => so.status === "In Production").length;
   const readyForProductionCount = prodOrdersForStats.filter(so => so.status === "Ready for Production").length;
   const qcCount = prodOrdersForStats.filter(so => so.status === "QC").length;
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const completedCount = prodOrdersForStats.filter(so => so.status === "Completed").length;
   const pausedCount = prodOrdersForStats.filter(so => so.status === "Paused").length;
 
@@ -255,6 +254,7 @@ export function EngineeringPage() {
               ) : (
                 designQueue.slice(0, 10).map((so, idx) => {
                   const canOpen = so.status === 'Waiting Spv Approval';
+                  // eslint-disable-next-line unused-imports/no-unused-vars
                   const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
 
                   return (

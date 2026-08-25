@@ -1,11 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ProductionMaterialRequestPage } from './material-request';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useApp } from "../../components/context/AppContext";
-import { masterDataApi } from '../../services/masterDataApi';
 
 vi.mock('../../components/context/AppContext', () => ({
   useApp: vi.fn(),

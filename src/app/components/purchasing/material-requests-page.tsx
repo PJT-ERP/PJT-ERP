@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
@@ -7,10 +7,8 @@ import {
   Clock,
   XCircle,
   FileText,
-  X,
   AlertTriangle,
   Eye,
-  RefreshCw,
   Plus,
   Edit,
   ChevronLeft,
@@ -18,7 +16,6 @@ import {
 } from "lucide-react";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
-import { toBackendUserId } from "../../services/backendIds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 /* ── Data ──────────────────────────────────────────────────── */
@@ -63,6 +60,7 @@ export interface MR {
   isReadyForFinance?: boolean;
   hasUnorderedItems?: boolean;
   rejectionReason?: string;
+  revisionNote?: string;
 }
 
 /* ── Pill configs ──────────────────────────────────────────── */
@@ -247,7 +245,7 @@ export function MaterialRequestsPage() {
     try {
       const data = await purchasingApi.listPurchaseRequests();
       // Hanya tampilkan PR yang sudah lolos tahap Supervisor di modul Purchasing
-      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") || r.status === "SupervisorRejected");
+      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") || (r.status as string) === "SupervisorRejected");
       setRequests(validForPurchasing.map(mapPurchaseRequestToMr));
     } catch (error) {
       console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);

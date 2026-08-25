@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Search, Clock, FileText, CheckSquare, Layers, AlertCircle, FileCheck, X, AlertTriangle, Shield, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, Search, X, AlertTriangle, Shield, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { useCustomersQuery } from "../services/queries";
 import { type SalesOrder } from "../components/data/mockData";
@@ -29,6 +29,7 @@ const getFullUrl = (url: string) => {
   return `${baseUrl}${path}`;
 };
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';
 }

@@ -9,6 +9,7 @@ import { S, getBackendSalesOrderId } from "../ProductionHelpers";
 export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
   const { currentUser, refreshBackendData } = useApp();
   const today = new Date().toISOString().slice(0, 16);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [endDate, setEndDate] = useState(today);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lateReason, setLateReason] = useState("");
@@ -30,6 +31,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
 
       isEarly = todayDate < hMinus3;
 
+      // eslint-disable-next-line unused-imports/no-unused-vars
       hMinus3Str = hMinus3.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
     }
   }

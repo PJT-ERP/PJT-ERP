@@ -104,11 +104,12 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             <div>
               <p className="text-sm font-semibold text-slate-700 block mb-2">Penyesuaian Spesifikasi Item</p>
               <div className="space-y-3">
+                // eslint-disable-next-line unused-imports/no-unused-vars
                 {detail.items.map((item, idx) => {
-                  const revItem = board.revisionItems.find(r => r.itemId === item.id);
+                  const revItem = board.revisionItems.find(r => r.itemId === item.itemId);
                   return (
-                    <div key={item.id} className="p-3 border border-slate-200 rounded bg-slate-50">
-                      <p className="text-xs font-bold text-slate-800 mb-1">{item.itemName}</p>
+                    <div key={item.itemId} className="p-3 border border-slate-200 rounded bg-slate-50">
+                      <p className="text-xs font-bold text-slate-800 mb-1">{item.name}</p>
                       <input 
                         type="text" 
                         className="w-full p-2 border border-slate-300 rounded text-sm"
@@ -116,7 +117,7 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
                         value={revItem?.size || ""}
                         onChange={e => {
                           const newItems = [...board.revisionItems];
-                          const idx = newItems.findIndex(r => r.itemId === item.id);
+                          const idx = newItems.findIndex(r => r.itemId === item.itemId);
                           if (idx > -1) newItems[idx].size = e.target.value;
                           board.setRevisionItems(newItems);
                         }}

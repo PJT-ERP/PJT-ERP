@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
-  AlertTriangle, X, Banknote, PlusCircle, ChevronLeft, ChevronRight
+  ShieldCheck, Clock, CheckCircle2, XCircle, Eye,
+  AlertTriangle, Banknote, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { formatIDR, formatDate, type Invoice, type Payment, type PaymentStatus } from './mockData';
 import { financeApi } from '../../services/financeApi';
@@ -18,6 +18,7 @@ const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon:
 };
 
 export function PaymentVerification() {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { payments: financePayments, invoices, refresh, isLoading } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL' | 'OVERDUE'>('ALL');

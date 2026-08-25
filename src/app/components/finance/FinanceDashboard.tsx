@@ -195,6 +195,7 @@ export function FinanceDashboard() {
       outstandingAmount: Math.max(0, totalBilled - totalPaid),
       overdueAmount,
       supplierPayable: unpaidSupplierBills,
+      supplierPaid: paidSupplierBills,
       currentBalance: openingBalance + totalPaid - paidSupplierBills,
       openingBalance,
       collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
@@ -261,7 +262,7 @@ export function FinanceDashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={refresh}
+            onClick={() => refresh(true)}
             disabled={isLoading}
             className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 bg-white rounded-md px-3 py-1.5 transition-colors shadow-md disabled:opacity-60"
           >
@@ -341,11 +342,12 @@ export function FinanceDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {[
           { label: 'Saldo Awal', value: financeSummary.openingBalance, sub: 'Baseline kas presentasi' },
           { label: 'Saldo Saat Ini', value: financeSummary.currentBalance, sub: 'Saldo awal + masuk - keluar' },
           { label: 'Hutang Supplier', value: financeSummary.supplierPayable, sub: 'Tagihan supplier belum lunas' },
+          { label: 'Total Pembayaran Supplier', value: financeSummary.supplierPaid, sub: 'Tagihan supplier yang telah lunas' },
           { label: 'Piutang Aktif', value: financeSummary.outstandingAmount, sub: 'Invoice customer belum lunas' },
         ].map((item) => (
           <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative group">

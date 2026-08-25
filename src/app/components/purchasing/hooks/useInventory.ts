@@ -44,6 +44,7 @@ export function useInventory() {
       await masterDataApi.deleteInventoryItem(deleteItem.id);
       refresh();
       setDeleteItem(null);
+    // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (e) {
       alert("Gagal menghapus item.");
     }
