@@ -9,6 +9,7 @@ import { usePurchasingData } from '../purchasing/usePurchasingData';
 import { MR, mapPurchaseRequestToMr, statusCfg, Pill } from '../purchasing/material-requests-page';
 import { useApp } from '../context/AppContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { PaginationControl } from '../production/PaginationControl';
 
 type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | '';
 
@@ -25,6 +26,10 @@ export function FinancePurchasingApproval() {
   const [category, setCategory] = useState<POCategory>('');
   const [notes, setNotes] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
+
+  // Pagination for history
+  const [historyPage, setHistoryPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // PR Review states
   const [selectedMr, setSelectedMr] = useState<MR | null>(null);
@@ -76,6 +81,10 @@ export function FinancePurchasingApproval() {
     po.id.toLowerCase().includes(search.toLowerCase()) || 
     po.supplier.toLowerCase().includes(search.toLowerCase())
   );
+
+  const pendingPosList = filteredPos.filter(po => po.paymentStatus !== 'Paid');
+  const historyPosList = filteredPos.filter(po => po.paymentStatus === 'Paid');
+  const paginatedHistory = historyPosList.slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE);
 
   const filteredMrs = mrs.filter(mr => 
     mr.id.toLowerCase().includes(search.toLowerCase()) || 
@@ -168,6 +177,9 @@ export function FinancePurchasingApproval() {
           <TabsTrigger value="payment" className="flex items-center gap-2 rounded-sm">
             <CheckSquare size={15} /> Tagihan Supplier (AP)
             {pendingPosCount > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full text-xs ml-1">{pendingPosCount}</span>}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2 rounded-sm" onClick={() => setHistoryPage(1)}>
+            <CheckCircle2 size={15} /> Riwayat (AP)
           </TabsTrigger>
         </TabsList>
 
@@ -264,7 +276,7 @@ export function FinancePurchasingApproval() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {filteredPos.map(po => {
+                  {pendingPosList.map(po => {
                     const totalAmount = calcTotal(po.items);
                     return (
                       <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/po/${po.id}`)}>
@@ -274,30 +286,84 @@ export function FinancePurchasingApproval() {
                         <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
                         <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
                         <td className="px-5 py-4 text-center">
-                          {po.paymentStatus !== 'Paid' ? (
-                            <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">UNPAID</span>
-                          ) : (
-                            <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">LUNAS</span>
-                          )}
+                          <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">UNPAID</span>
                         </td>
                         <td className="px-5 py-4 text-center">
-                          {po.paymentStatus !== 'Paid' ? (
-                              <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
-                              <DollarSign size={14} /> Bayar Tagihan
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 text-xs flex items-center justify-center gap-1"><CheckCircle2 size={14} /> Selesai</span>
-                          )}
+                          <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
+                            <DollarSign size={14} /> Bayar Tagihan
+                          </button>
                         </td>
                       </tr>
                     );
                   })}
-                    {filteredPos.length === 0 && (
+                    {pendingPosList.length === 0 && (
                       <tr><td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td></tr>
                     )}
                 </tbody>
               </table>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+            <div className="p-4 border-b border-slate-100 bg-slate-50">
+              <div className="relative max-w-md">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setHistoryPage(1); }}
+                  placeholder="Cari No. PO, Supplier..."
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
+                />
+              </div>
+            </div>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-white border-b border-slate-100">
+                  <tr>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PO</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Tagihan</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status Pembayaran</th>
+                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {paginatedHistory.map(po => {
+                    const totalAmount = calcTotal(po.items);
+                    return (
+                      <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/po/${po.id}`)}>
+                        <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
+                        <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
+                        <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
+                        <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
+                        <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">LUNAS</span>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <span className="text-slate-400 text-xs flex items-center justify-center gap-1"><Eye size={14} /> Detail</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {paginatedHistory.length === 0 && (
+                    <tr><td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada riwayat tagihan LUNAS.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {historyPosList.length > 0 && (
+              <PaginationControl
+                currentPage={historyPage}
+                totalItems={historyPosList.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setHistoryPage}
+              />
+            )}
           </div>
         </TabsContent>
       </Tabs>
