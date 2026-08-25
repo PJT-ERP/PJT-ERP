@@ -10,10 +10,13 @@ export function CompletedProductionPanel({ board }: { board: any }) {
   const completedQueue = board?.completed || [];
   const itemsPerPage = 10;
   
-  const filteredQueue = completedQueue.filter((so: any) => 
-    (so.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (so.description || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredQueue = completedQueue.filter((so: any) => {
+    if (!so) return false;
+    const searchLow = (searchTerm || "").toLowerCase();
+    const idMatch = String(so.id || "").toLowerCase().includes(searchLow);
+    const descMatch = String(so.description || "").toLowerCase().includes(searchLow);
+    return idMatch || descMatch;
+  });
   
   const totalPages = Math.ceil(filteredQueue.length / itemsPerPage) || 1;
   const currentItems = filteredQueue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -78,7 +81,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
                 </div>
                 <div style={{ fontSize: "14px", color: S.slate, fontWeight: 500, marginBottom: 4 }}>{so.description}</div>
                 <div style={{ fontSize: "12px", color: S.secondary }}>
-                  Selesai pada: {so.productionFinishedAtUtc ? new Date(so.productionFinishedAtUtc).toLocaleString("id-ID") : "-"}
+                  Selesai pada: {so.productionFinishedAtUtc ? (!isNaN(new Date(so.productionFinishedAtUtc).getTime()) ? new Date(so.productionFinishedAtUtc).toLocaleString("id-ID") : "-") : "-"}
                 </div>
               </div>
               

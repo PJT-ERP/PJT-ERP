@@ -67,6 +67,7 @@ export function usePurchaseRequestDetail() {
     detail?.backendStatus !== "FinanceApproved" && 
     detail?.backendStatus !== "Processing" &&
     detail?.backendStatus !== "Completed" &&
+    detail?.backendStatus !== "Submitted" &&
     !(detail?.backendStatus === "SupervisorApproved" && detail?.isReadyForFinance);
 
   useEffect(() => {
