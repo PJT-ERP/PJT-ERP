@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Search, CheckSquare, X, DollarSign, PackageOpen, CheckCircle2, AlertCircle, UploadCloud, Eye, FileText } from 'lucide-react';
-import { formatIDR, formatDate } from './mockData';
+import { CheckSquare, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import { formatDate } from './mockData';
 import { purchasingApi } from '../../services/purchasingApi';
 import { financeApi } from '../../services/financeApi';
 import { PO, mapPurchaseRequestsToPos, calcTotal, calcReceived } from '../purchasing/purchase-orders-page';
@@ -9,14 +8,19 @@ import { usePurchasingData } from '../purchasing/usePurchasingData';
 import { MR, mapPurchaseRequestToMr, statusCfg, Pill } from '../purchasing/material-requests-page';
 import { useApp } from '../context/AppContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { PaginationControl } from '../production/PaginationControl';
 
-type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | '';
+// Sub-components
+import { PrBudgetTab } from './components/PurchasingApproval/PrBudgetTab';
+import { ApPaymentTab } from './components/PurchasingApproval/ApPaymentTab';
+import { ApHistoryTab } from './components/PurchasingApproval/ApHistoryTab';
+import { PrReviewModal } from './components/PurchasingApproval/PrReviewModal';
+import { ApPaymentModal } from './components/PurchasingApproval/ApPaymentModal';
+
+export type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Maintenance' | '';
 
 export function FinancePurchasingApproval() {
   const { purchaseRequests, suppliers, supplierPayments, refresh } = usePurchasingData();
   const { currentUser } = useApp();
-  const navigate = useNavigate();
   const [pos, setPos] = useState<PO[]>([]);
   const [mrs, setMrs] = useState<MR[]>([]);
   const [search, setSearch] = useState('');
@@ -184,258 +188,43 @@ export function FinancePurchasingApproval() {
         </TabsList>
 
         <TabsContent value="budget">
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50">
-              <div className="relative max-w-md">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                   placeholder="Cari No. PR, SO Referensi..."
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
-                />
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-white border-b border-slate-100">
-                  <tr>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PR</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Est. Anggaran</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredMrs.map(mr => {
-                    const totalEst = mr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
-                    return (
-                      <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
-                        <td className="px-5 py-4 text-slate-600">{mr.date}</td>
-                        <td className="px-5 py-4 font-medium text-slate-800">{mr.id}</td>
-                        <td className="px-5 py-4 text-slate-600">{mr.soRef || mr.department || "-"}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalEst)}</td>
-                        <td className="px-5 py-4 text-center">
-                          {mr.backendStatus === "FinanceApproved" || mr.financeApproval === "Approved" ? (
-                            <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">APPROVED</span>
-                          ) : mr.backendStatus === "FinanceRejected" || mr.backendStatus === "Rejected" ? (
-                            <span className="text-red-600 bg-red-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200">REJECTED</span>
-                          ) : (
-                            <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">WAITING</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          {mr.backendStatus !== "FinanceApproved" && mr.financeApproval !== "Approved" && mr.backendStatus !== "Completed" && mr.backendStatus !== "FinanceRejected" && mr.backendStatus !== "Rejected" ? (
-                            <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
-                              <CheckCircle2 size={14} /> Review
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 text-xs flex items-center justify-center gap-1">
-                              <Eye size={14} /> Detail
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {filteredMrs.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-12 text-slate-400">Tidak ada PR yang menunggu persetujuan anggaran.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <PrBudgetTab 
+            filteredMrs={filteredMrs} 
+            search={search} 
+            setSearch={setSearch} 
+          />
         </TabsContent>
 
         <TabsContent value="payment">
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50">
-              <div className="relative max-w-md">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Cari No. PO, Supplier..."
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
-                />
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-white border-b border-slate-100">
-                  <tr>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Tagihan</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status Pembayaran</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {pendingPosList.map(po => {
-                    const totalAmount = calcTotal(po.items);
-                    return (
-                      <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/po/${po.id}`)}>
-                        <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
-                        <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
-                        <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
-                        <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">UNPAID</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
-                            <DollarSign size={14} /> Bayar Tagihan
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                    {pendingPosList.length === 0 && (
-                      <tr><td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada tagihan PO yang menunggu pembayaran.</td></tr>
-                    )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ApPaymentTab 
+            pendingPosList={pendingPosList} 
+            search={search} 
+            setSearch={setSearch} 
+          />
         </TabsContent>
 
         <TabsContent value="history">
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-            <div className="p-4 border-b border-slate-100 bg-slate-50">
-              <div className="relative max-w-md">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); setHistoryPage(1); }}
-                  placeholder="Cari No. PO, Supplier..."
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
-                />
-              </div>
-            </div>
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-white border-b border-slate-100">
-                  <tr>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Supplier</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Total Tagihan</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status Pembayaran</th>
-                    <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {paginatedHistory.map(po => {
-                    const totalAmount = calcTotal(po.items);
-                    return (
-                      <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/po/${po.id}`)}>
-                        <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
-                        <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
-                        <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
-                        <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
-                        <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">LUNAS</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="text-slate-400 text-xs flex items-center justify-center gap-1"><Eye size={14} /> Detail</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {paginatedHistory.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-12 text-slate-400">Tidak ada riwayat tagihan LUNAS.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {historyPosList.length > 0 && (
-              <PaginationControl
-                currentPage={historyPage}
-                totalItems={historyPosList.length}
-                itemsPerPage={ITEMS_PER_PAGE}
-                onPageChange={setHistoryPage}
-              />
-            )}
-          </div>
+          <ApHistoryTab 
+            historyPosList={historyPosList} 
+            paginatedHistory={paginatedHistory} 
+            search={search} 
+            setSearch={setSearch} 
+            historyPage={historyPage} 
+            setHistoryPage={setHistoryPage} 
+            ITEMS_PER_PAGE={ITEMS_PER_PAGE} 
+          />
         </TabsContent>
       </Tabs>
 
       {/* PR Review Modal */}
       {selectedMr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedMr(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <FileText size={18} className="text-[#C8102E]" />
-                  Review Anggaran Purchase Request
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">{selectedMr.id} - {selectedMr.department}</p>
-              </div>
-              <button onClick={() => setSelectedMr(null)} className="text-slate-400 hover:text-slate-600 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm hover:bg-slate-50">
-                <X size={16} />
-              </button>
-            </div>
-            
-            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
-              <div className="bg-red-50/50 border border-red-100 rounded-md p-4 space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Requestor</span>
-                  <span className="font-semibold text-slate-800">{selectedMr.requestor}</span>
-                </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded-md border border-red-100 shadow-sm mt-2">
-                  <span className="text-sm font-bold text-slate-700">Estimasi Total Anggaran</span>
-                  <span className="text-lg font-black text-[#C8102E] flex items-center gap-1">
-                    {formatIDR(selectedMr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0))}
-                  </span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-200 rounded-md">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Material</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Qty</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600">Supplier Tujuan</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600 text-right">Est. Harga Satuan</th>
-                      <th className="px-4 py-2 font-semibold text-slate-600 text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {selectedMr.items.map(item => (
-                      <tr key={item.itemId}>
-                        <td className="px-4 py-3">{item.name}</td>
-                        <td className="px-4 py-3">{item.qty} {item.unit}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.supplierName || '-'}</td>
-                        <td className="px-4 py-3 text-right">{formatIDR((item.estimatedPrice || 0) / (item.qty || 1))}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatIDR(item.estimatedPrice || 0)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button disabled={isApproving} onClick={() => setShowRejectModal(true)} className="px-4 py-2 rounded-md text-sm font-semibold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors">
-                Tolak Anggaran
-              </button>
-              <button disabled={isApproving} onClick={() => handleReviewPr('Accept')} className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors flex items-center gap-2">
-                <CheckCircle2 size={16} /> {isApproving ? "Menyimpan..." : "Setujui Anggaran"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PrReviewModal 
+          selectedMr={selectedMr} 
+          setSelectedMr={setSelectedMr} 
+          isApproving={isApproving} 
+          setShowRejectModal={setShowRejectModal} 
+          handleReviewPr={handleReviewPr} 
+        />
       )}
 
       {showRejectModal && (
@@ -475,113 +264,18 @@ export function FinancePurchasingApproval() {
 
       {/* Payment Modal */}
       {selectedPo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedPo(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <DollarSign size={18} className="text-[#C8102E]" />
-                  Proses Pembayaran Tagihan
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">{selectedPo.id} - {selectedPo.supplier}</p>
-              </div>
-              <button onClick={() => setSelectedPo(null)} className="text-slate-400 hover:text-slate-600 bg-white p-1.5 rounded-full border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">
-                <X size={16} />
-              </button>
-            </div>
-            
-            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
-              {/* Info Box */}
-              <div className="bg-red-50/50 border border-red-100 rounded-md p-4 space-y-3">
-                <div className="flex justify-between items-start text-sm">
-                  <span className="text-slate-500">No. Rekening Tujuan</span>
-                  <div className="text-right">
-                    {(() => {
-                      const supp = suppliers.find(s => s.name === selectedPo.supplier);
-                      if (supp && supp.bankAccount) {
-                        return (
-                          <>
-                            <div className="font-semibold text-slate-800">{supp.bankName} - {supp.bankAccount}</div>
-                            <div className="text-xs text-slate-500 mt-0.5">a.n. {selectedPo.supplier} {supp.bankBranch ? `(${supp.bankBranch})` : ''}</div>
-                          </>
-                        );
-                      }
-                      return <span className="font-semibold text-slate-800">(Terdaftar di Vendor Master)</span>;
-                    })()}
-                  </div>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Termin Pembayaran</span>
-                  <span className="font-semibold text-slate-800">{selectedPo.paymentTerms}</span>
-                </div>
-                <div className="flex justify-between items-center bg-white p-3 rounded-md border border-red-100 shadow-sm mt-2">
-                    <span className="text-sm font-bold text-slate-700">Total Tagihan</span>
-                  <span className="text-lg font-black text-[#C8102E] flex items-center gap-1">
-                    {formatIDR(calcTotal(selectedPo.items))}
-                  </span>
-                </div>
-              </div>
-
-              {/* Finance Form */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Metode Pembayaran <span className="text-red-500">*</span></label>
-                  <select 
-                    value={category}
-                    onChange={e => setCategory(e.target.value as POCategory)}
-                    className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm"
-                  >
-                    <option value="" disabled>-- Pilih Akun Bank --</option>
-                    <option value="BCA">BCA 8820748299 a/n PT. PRATAMA JAYA TEKINDO</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Upload Bukti Transfer <span className="text-red-500">*</span></label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-md p-6 flex flex-col items-center justify-center text-center bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                    <UploadCloud size={24} className="text-slate-400 mb-2" />
-                    <p className="text-sm text-slate-600 font-medium">Tarik & lepas file atau klik untuk browse</p>
-                    <p className="text-xs text-slate-400 mt-1">JPG, PNG, PDF (Max 5MB)</p>
-                    <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" id="proof-upload" onChange={e => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        setProofFile(e.target.files[0]);
-                      }
-                    }} />
-                    <button onClick={() => document.getElementById('proof-upload')?.click()} className="mt-3 bg-white border border-slate-300 text-slate-700 px-4 py-1.5 rounded-md text-xs font-semibold shadow-sm hover:bg-slate-50 transition-colors">
-                      Pilih File
-                    </button>
-                    {proofFile && <p className="mt-2 text-xs text-green-600 font-medium">✓ File terpilih: {proofFile.name}</p>}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Catatan Pembayaran (Opsional)</label>
-                  <textarea 
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    rows={2}
-                    placeholder="Tambahkan catatan (mis: dibayar separuh, dll)"
-                    className="w-full border border-slate-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20 focus:border-[#C8102E] bg-white shadow-sm resize-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button onClick={() => setSelectedPo(null)} className="px-4 py-2 rounded-md text-sm font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors shadow-sm">
-                Batal
-              </button>
-              <button 
-                onClick={handlePay}
-                disabled={!category || !proofFile}
-                className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#C8102E] hover:bg-red-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <DollarSign size={16} /> Simpan & Tandai Lunas
-              </button>
-            </div>
-          </div>
-        </div>
+        <ApPaymentModal 
+          selectedPo={selectedPo} 
+          setSelectedPo={setSelectedPo} 
+          suppliers={suppliers} 
+          category={category} 
+          setCategory={setCategory} 
+          proofFile={proofFile} 
+          setProofFile={setProofFile} 
+          notes={notes} 
+          setNotes={setNotes} 
+          handlePay={handlePay} 
+        />
       )}
 
       {dialogMsg && (
