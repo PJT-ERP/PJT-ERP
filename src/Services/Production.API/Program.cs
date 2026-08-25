@@ -85,6 +85,7 @@ if (app.Environment.IsDevelopment())
 
 app.UsePjtRequestLogging();
 app.UseResponseCompression();
+app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

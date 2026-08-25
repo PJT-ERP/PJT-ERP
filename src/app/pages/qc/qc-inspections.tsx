@@ -185,36 +185,34 @@ export function QCInspectionsPage() {
               const inspection = findInspectionForSo(inspections, so);
               const durationHours = calcProductionDuration(so.startTime, so.endTime);
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < qcQueue.slice((currentPageQc - 1) * itemsPerPageQc, currentPageQc * itemsPerPageQc).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ width: 40, height: 40, background: "rgba(200,16,46,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
-                    <Shield size={20} />
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < qcQueue.slice((currentPageQc - 1) * itemsPerPageQc, currentPageQc * itemsPerPageQc).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
+                        <StatusBadge status={so.status} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{customer?.name || so.customerId || '-'}</strong></span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline || '-'}</strong></span>
+                        <span>{so.quantity} {so.unit}</span>
+                        {durationHours !== null && <span>Durasi Produksi: {durationHours} jam</span>}
+                        {inspection?.refNo && <span>{inspection.refNo}</span>}
+                        <DrawingLink so={so} inspection={inspection} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {currentUser?.role !== 'Admin' && (
+                        <button onClick={() => setSelectedSO(so)}
+                          style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Mulai Inspeksi
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
-                      <StatusBadge status={so.status} />
-                    </div>
-                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary, flexWrap: "wrap" }}>
-                      <span>Pelanggan: <strong style={{ color: S.slate }}>{customer?.name || so.customerId || '-'}</strong></span>
-                      <span>·</span>
-                      <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline || '-'}</strong></span>
-                      <span>·</span>
-                      <span>{so.quantity} {so.unit}</span>
-                      {durationHours !== null && <><span>·</span><span>Durasi Produksi: {durationHours} jam</span></>}
-                      {inspection?.refNo && <><span>·</span><span>{inspection.refNo}</span></>}
-                    </div>
-                    <div style={{ marginTop: 4 }}>
-                      <DrawingLink so={so} inspection={inspection} />
-                    </div>
+                  <div>
                     <InlineBomDisplay so={so} />
                   </div>
-                  {currentUser?.role !== 'Admin' && (
-                    <button onClick={() => setSelectedSO(so)}
-                      style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
-                      Mulai Inspeksi
-                    </button>
-                  )}
                 </div>
               );
             })}

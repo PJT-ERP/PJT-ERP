@@ -217,6 +217,21 @@ export const productionApi = {
     return response.data;
   },
 
+  async uploadEngineeringDrawingFile(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ url: string }>(
+      '/api/v1/production/sales-orders/upload-drawing-file',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.url;
+  },
+
   async submitMaterialRequest(salesOrderId: string, request: SubmitProductionMaterialRequestPayload) {
     const response = await apiClient.post<SalesOrderProductionProgressDto>(
       `/api/v1/production/sales-orders/${salesOrderId}/material-requests`,

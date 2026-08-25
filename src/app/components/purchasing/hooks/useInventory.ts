@@ -20,6 +20,14 @@ export function useInventory() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null);
+  
+  const [isMutationModalOpen, setIsMutationModalOpen] = useState(false);
+  const [mutationItem, setMutationItem] = useState<InventoryItem | null>(null);
+
+  const handleMutation = (item: InventoryItem) => {
+    setMutationItem(item);
+    setIsMutationModalOpen(true);
+  };
 
   const handleEdit = (item: InventoryItem) => {
     setEditItem(item);
@@ -129,7 +137,9 @@ export function useInventory() {
     isAddModalOpen, setIsAddModalOpen,
     editItem, setEditItem,
     deleteItem, setDeleteItem,
-    handleEdit, handleDelete, confirmDelete,
+    isMutationModalOpen, setIsMutationModalOpen,
+    mutationItem, setMutationItem,
+    handleEdit, handleDelete, confirmDelete, handleMutation,
     inventory, categories, chartData, filtered,
     criticalItems, criticalTotalPages, invTotalPages,
     lowItems, incomingItems, totalValue,

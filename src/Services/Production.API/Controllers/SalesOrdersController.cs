@@ -254,7 +254,7 @@ public sealed class SalesOrdersController(
     }
 
     [HttpPut("{id:guid}/engineering-drawing")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> UploadEngineeringDrawing(
         Guid id,
         UploadEngineeringDrawingRequest request,
@@ -272,8 +272,38 @@ public sealed class SalesOrdersController(
         }
     }
 
+    [HttpPost("upload-drawing-file")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
+    public async Task<ActionResult<string>> UploadDrawingFile(
+        [FromForm] IFormFile file,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file uploaded." });
+        }
+
+        var uploadsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "engineering-drawings");
+
+        Directory.CreateDirectory(uploadsFolder);
+
+        var ext = Path.GetExtension(file.FileName);
+        var uniqueFileName = $"drawing-{Guid.NewGuid():N}{ext}";
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        return Ok(new { url = $"/engineering-drawings/{uniqueFileName}" });
+    }
+
     [HttpPost("{id:guid}/material-requests")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> SubmitMaterialRequest(
         Guid id,
         SubmitProductionMaterialRequest request,
@@ -292,7 +322,7 @@ public sealed class SalesOrdersController(
     }
 
     [HttpPut("{id:guid}/production/start")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> StartProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -311,7 +341,7 @@ public sealed class SalesOrdersController(
     }
 
     [HttpPut("{id:guid}/production/finish")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> FinishProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -330,7 +360,7 @@ public sealed class SalesOrdersController(
     }
 
     [HttpPut("{id:guid}/production/pause")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> PauseProduction(
         Guid id,
         ProductionStatusUpdateRequest request,
@@ -349,7 +379,7 @@ public sealed class SalesOrdersController(
     }
 
     [HttpPut("{id:guid}/production/resume")]
-    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> ResumeProduction(
         Guid id,
         ProductionStatusUpdateRequest request,

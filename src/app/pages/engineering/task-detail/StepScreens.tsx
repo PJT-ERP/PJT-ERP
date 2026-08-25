@@ -1,6 +1,7 @@
 import React from "react";
 import { CheckCircle, Trash2, Download } from "lucide-react";
 import { QRCodeCanvas } from 'qrcode.react';
+import { formatUrl } from "../../../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -61,8 +62,8 @@ export function StepRejectForm({ rejectReason, onReasonChange }: { rejectReason:
   );
 }
 
-export function StepConfirm({ designLink, customerName, qty, unit, newMaterials }: {
-  designLink: string; customerName: string; qty: number; unit: string; newMaterials: { name: string; spec: string }[];
+export function StepConfirm({ designLink, customerName, qty, unit, newMaterials, customerMaterialsSkipped }: {
+  designLink: string; customerName: string; qty: number; unit: string; newMaterials: { name: string; spec: string }[]; customerMaterialsSkipped?: { name: string; spec: string }[];
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -91,12 +92,31 @@ export function StepConfirm({ designLink, customerName, qty, unit, newMaterials 
           </div>
         </div>
       )}
+      {customerMaterialsSkipped && customerMaterialsSkipped.length > 0 && (
+        <div style={{ background: "#F0FDF4", border: "2px solid #22C55E", borderRadius: 8, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <p style={{ color: "#166534", fontSize: "14px", fontWeight: 700, margin: 0 }}>
+              Material Dari Pelanggan ({customerMaterialsSkipped.length})
+            </p>
+          </div>
+          <p style={{ color: "#14532D", fontSize: "13px", margin: "0 0 12px", lineHeight: 1.5 }}>
+            Material berikut ditandai sebagai <strong>Material dari Pelanggan</strong>. Material ini akan disuplai langsung oleh pelanggan, sehingga hanya akan dicatat khusus pada SO ini dan otomatis dilewati saat pengecekan stok (MR) maupun persiapan produksi di pabrik.
+          </p>
+          <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #86EFAC", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
+            {customerMaterialsSkipped.map((m, i) => (
+              <div key={i} style={{ fontSize: "12px", color: "#166534", padding: "4px 0", borderBottom: i < customerMaterialsSkipped.length - 1 ? "1px solid #86EFAC" : "none" }}>
+                {m.name}{m.spec ? ` (Spec: ${m.spec})` : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8, padding: 24, display: "flex", flexDirection: "column", gap: 16, fontSize: "14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Customer</span><span style={{ color: S.slate, fontWeight: 500 }}>{customerName}</span></div>
         <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${S.border}`, paddingBottom: 12 }}><span style={{ color: S.secondary }}>Qty</span><span style={{ color: S.slate, fontWeight: 500 }}>{qty} {unit}</span></div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ color: S.secondary }}>Link Desain</span>
-          <a href={designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
+          <a href={formatUrl(designLink)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontSize: "13px", fontWeight: 500, textDecoration: "none", wordBreak: "break-all" }}>
             {designLink}
           </a>
         </div>

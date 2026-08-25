@@ -48,7 +48,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const { invoices, payments } = useFinanceData(isSalesOrHigher, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
-  const baseOrder = salesOrders.find(o => o.id === orderId);
+  const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId);
+  const targetId = baseOrder?.backendId || baseOrder?.id || orderId;
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
   const pendingPaymentProof = !!order?.invoice?.invoiceId
@@ -149,25 +150,25 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        updateSalesOrder(orderId, { status: 'Pending Design' });
+        updateSalesOrder(targetId, { status: 'Pending Design' });
       } else if (action === 'reject') {
-        updateSalesOrder(orderId, { status: 'Rejected' });
+        updateSalesOrder(targetId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
-        updateSalesOrder(orderId, { status: 'Waiting Pricing' });
+        updateSalesOrder(targetId, { status: 'Waiting Pricing' });
       } else if (action === 'submit_price') {
-        updateSalesOrder(orderId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
+        updateSalesOrder(targetId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
       } else if (action === 'assign_engineer') {
-        updateSalesOrder(orderId, { assignedName: actionForm.engineerName });
+        updateSalesOrder(targetId, { assignedName: actionForm.engineerName });
         toast.success(`Tugas design berhasil di-assign ke ${actionForm.engineerName}`, {
           style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
           duration: 3000
         });
       } else if (action === 'upload_design') {
-        updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
+        updateSalesOrder(targetId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
       } else if (action === 'approve_design') {
-        updateSalesOrder(orderId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
+        updateSalesOrder(targetId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
       } else if (action === 'reject_design') {
-        updateSalesOrder(orderId, { status: 'Pending Design' });
+        updateSalesOrder(targetId, { status: 'Pending Design' });
       }
     } finally {
       setIsSubmittingAction(false);
@@ -227,7 +228,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         }
       ];
 
-      updateSalesOrder(orderId, {
+      updateSalesOrder(targetId, {
         description: editForm.description,
         quantity: Number(editForm.quantity),
         unit: editForm.unit,
@@ -237,7 +238,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         designRevisions: newRevisions,
       });
     } else {
-      updateSalesOrder(orderId, {
+      updateSalesOrder(targetId, {
         description: editForm.description,
         quantity: Number(editForm.quantity),
         unit: editForm.unit,

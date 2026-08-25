@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { Edit2, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "../../context/AppContext";
 import { SalesOrder } from "../../data/mockData";
 import { S, StatusBadge, getDrawingUrl, getMaterialOptions, getBackendSalesOrderId } from "../ProductionHelpers";
 import { isGuid } from "../../../services/backendIds";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
 import { MaterialAutocomplete } from "../../../pages/engineering/task-detail/MaterialAutocomplete";
+import { useUpdateSalesOrderMutation } from "../../../services/queries";
 
 export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { purchasingRequests, updateSalesOrder, currentUser, salesOrders, setSalesOrders } = useApp();
+  const { purchasingRequests, currentUser, salesOrders } = useApp();
+  so = salesOrders?.find(s => s.id === so.id) || so;
+  
+  const updateSalesOrderMutation = useUpdateSalesOrderMutation();
+  const updateSalesOrder = (id: string, data: any) => updateSalesOrderMutation.mutateAsync({ id, data });
+  
   const materials = getMaterialOptions(so, true);
   const request = purchasingRequests.find(pr => pr.salesOrderId === so.id || pr.salesOrderId === so.backendId);
   const [materialTracking, setMaterialTracking] = useState<{ items?: Array<{ productId?: string; materialRequirements?: Array<{ inventoryItemName?: string; inventoryItemCode?: string; materialSpec?: string; requiredQty?: number; stockOnHand?: number }> }> } | null>(null);
   const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
 
-  const [isEditingBOM, setIsEditingBOM] = useState(false);
   const [isAddingBOM, setIsAddingBOM] = useState(false);
   const [newBomsPerProduct, setNewBomsPerProduct] = useState<Record<string, { inventoryItemId: string, name: string, quantity: number, unit: string, isCustomerMaterial?: boolean }[]>>({});
-  const [editedBOM, setEditedBOM] = useState(materials);
   const isSpv = currentUser?.role?.includes('Supervisor') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
   useEffect(() => {
@@ -39,12 +44,17 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
     try {
       // 1. Update Master Data Product BOMs
       for (const [productId, boms] of Object.entries(newBomsPerProduct)) {
-        const payload = boms.filter(b => b.inventoryItemId && b.quantity > 0).map(b => ({
+        const payload = boms.filter(b => b.inventoryItemId && isGuid(b.inventoryItemId) && b.quantity > 0).map(b => ({
           inventoryItemId: b.inventoryItemId,
           quantity: b.quantity
         }));
-        if (payload.length > 0) {
-          await masterDataApi.updateProductBom(productId, { bomItems: payload });
+        // Find the actual master product ID from so.items
+        const matchedItem = (so.items || []).find(it => (it.tempId || it.id || it.productId) === productId);
+        const masterProductId = matchedItem?.productId || productId;
+
+        // Only attempt to update if masterProductId is a valid GUID (prevent errors on temp products)
+        if (payload.length > 0 && isGuid(masterProductId)) {
+          await masterDataApi.updateProductBom(masterProductId, { bomItems: payload });
         }
       }
 
@@ -73,41 +83,16 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
       let jsonNotes = undefined;
       if (so.items && so.items.length > 0) {
         const firstItem = so.items[0];
-        jsonNotes = JSON.stringify(updatedBomsPerItem[firstItem.productId || firstItem.id] || []);
+        jsonNotes = JSON.stringify(updatedBomsPerItem[firstItem.tempId || firstItem.id || firstItem.productId] || []);
       }
       
-      updateSalesOrder(so.id, { bomsPerItem: updatedBomsPerItem, notes: jsonNotes });
-
-      // 3. Autofill Pending SOs with the same product in the local context state
-      if (setSalesOrders && salesOrders && salesOrders.length > 0) {
-        const updatedSOs = salesOrders.map((otherSo: SalesOrder) => {
-          if (otherSo.status === 'Pending Design' || otherSo.status === 'Waiting Pricing' || otherSo.status === 'In Production') {
-             let changed = false;
-             const otherBoms = { ...(otherSo.bomsPerItem || {}) };
-             (otherSo.items || []).forEach((item: any) => {
-               const pId = item.productId || item.id;
-               if (newBomsPerProduct[pId]) {
-                 const valid = newBomsPerProduct[pId].filter(b => b.inventoryItemId && b.quantity > 0).map(b => ({
-                    name: b.name, quantity: b.quantity, unit: b.unit, inventoryItemId: b.inventoryItemId
-                 }));
-                 if (valid.length > 0) {
-                   otherBoms[pId] = valid;
-                   changed = true;
-                 }
-               }
-             });
-             if (changed) return { ...otherSo, bomsPerItem: otherBoms };
-          }
-          return otherSo;
-        });
-        setSalesOrders(updatedSOs);
-      }
+      await updateSalesOrder(getBackendSalesOrderId(so), { bomsPerItem: updatedBomsPerItem, notes: jsonNotes });
 
       setIsAddingBOM(false);
-      alert('BOM berhasil disimpan ke produk dan SO yang berkaitan.');
+      toast.success('BOM berhasil disimpan ke produk dan SO yang berkaitan.');
     } catch (err) {
       console.error('Failed to save BOM', err);
-      alert('Gagal menyimpan BOM.');
+      toast.error('Gagal menyimpan BOM.');
     }
   };
 
@@ -171,9 +156,34 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
               <p style={{ fontSize: "13px", color: S.secondary, margin: 0, fontWeight: 600 }}>Bill of Materials (BOM) / Kebutuhan</p>
-              {isSpv && !isEditingBOM && !isAddingBOM && (
+              {isSpv && !isAddingBOM && so.status !== 'Completed' && (so as any).productionStatus !== 'Completed' && (
                 materials.length > 0 ? (
-                  <button onClick={() => { setEditedBOM(materials); setIsEditingBOM(true); }} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                  <button onClick={() => {
+                    let hasBoms = false;
+                    const initialBoms: any = {};
+                    (so.items || []).forEach((item: any) => {
+                      const pId = item.tempId || item.id || item.productId;
+                      const boms = so.bomsPerItem?.[pId];
+                      if (boms && boms.length > 0) {
+                        hasBoms = true;
+                        initialBoms[pId] = boms.map((b: any) => ({ ...b, inventoryItemId: b.inventoryItemId || b.id || '' }));
+                      }
+                    });
+
+                    if (!hasBoms && so.items && so.items.length > 0 && materials.length > 0) {
+                      const pId = so.items[0].tempId || so.items[0].id || so.items[0].productId;
+                      initialBoms[pId] = materials.map((m: any) => ({
+                         inventoryItemId: m.inventoryItemId || m.id || '',
+                         name: m.itemName || m.name,
+                         quantity: m.quantity,
+                         unit: m.unit || 'pcs',
+                         isCustomerMaterial: m.isCustomerMaterial
+                      }));
+                    }
+                    
+                    setNewBomsPerProduct(initialBoms);
+                    setIsAddingBOM(true);
+                  }} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                     <Edit2 size={12} /> Edit BOM
                   </button>
                 ) : (
@@ -188,7 +198,7 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ fontSize: "12.5px", color: S.secondary, margin: "0 0 8px" }}>Tambahkan material BOM untuk setiap produk dalam pesanan ini:</p>
                 {(so.items || []).map((item: any, itemIdx: number) => {
-                  const pId = item.productId || item.id || `temp-${itemIdx}`;
+                  const pId = item.tempId || item.id || item.productId || `temp-${itemIdx}`;
                   const boms = newBomsPerProduct[pId] || [];
                   return (
                     <div key={pId} style={{ padding: "12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 8 }}>
@@ -249,41 +259,6 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
                   </button>
                   <button onClick={handleSaveNewBOM} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.cyan, border: "none", borderRadius: 4, color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                     <Check size={12} /> Simpan BOM
-                  </button>
-                </div>
-              </div>
-            ) : isEditingBOM ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {editedBOM.map((m, i) => (
-                  <div key={i} style={{ padding: "8px 12px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <span style={{ fontWeight: 600, color: S.slate }}>{m.itemName}</span>
-                      {m.specification && <span style={{ color: S.secondary }}> - {m.specification}</span>}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: "12px", color: S.secondary }}>Qty (per pcs):</span>
-                      <input 
-                        type="number" 
-                        value={m.quantity || ''} 
-                        onChange={e => {
-                          const newBOM = [...editedBOM];
-                          newBOM[i].quantity = Number(e.target.value);
-                          setEditedBOM(newBOM);
-                        }}
-                        style={{ width: 60, padding: "4px 8px", borderRadius: 4, border: `1px solid ${S.border}`, fontSize: "13px", fontFamily: S.font }}
-                      />
-                    </div>
-                  </div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
-                  <button onClick={() => setIsEditingBOM(false)} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.white, border: `1px solid ${S.border}`, borderRadius: 4, color: S.slate, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                    <X size={12} /> Batal
-                  </button>
-                  <button onClick={() => {
-                    updateSalesOrder(so.id, { materials: editedBOM });
-                    setIsEditingBOM(false);
-                  }} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: S.cyan, border: "none", borderRadius: 4, color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                    <Check size={12} /> Simpan
                   </button>
                 </div>
               </div>

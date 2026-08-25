@@ -119,4 +119,49 @@ describe('mapRepeatProducts', () => {
     expect(result[0].unitPrice).toBe(0);
     expect(result[0].materials).toHaveLength(0);
   });
+
+  it('should parse custom BOM from notes and respect isCustomerMaterial flag (dari pelanggan scenario)', () => {
+    const selectedSo = {
+      description: 'Repeat Order with Custom Material',
+      items: [
+        {
+          productId: 'prod-1',
+          partNumber: 'PRD-001',
+          productName: 'Test Product 1',
+          quantity: 2,
+          unitPrice: 100,
+          unit: 'pcs',
+          notes: JSON.stringify([
+            {
+              inventoryItemId: 'inv-1',
+              name: 'Steel Sheet',
+              quantity: 2,
+              unit: 'kg'
+            },
+            {
+              inventoryItemId: 'temp-cust-material',
+              name: 'Customer Paint',
+              quantity: 1,
+              unit: 'can',
+              isCustomerMaterial: true
+            }
+          ])
+        }
+      ]
+    };
+
+    const result = mapRepeatProducts(selectedSo, mockProductCatalog);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('existing');
+    expect(result[0].materials).toHaveLength(2);
+
+    // Verify first material (standard)
+    expect(result[0].materials[0].name).toBe('Steel Sheet');
+    expect(result[0].materials[0].isCustomerMaterial).toBeFalsy();
+
+    // Verify second material (dari pelanggan)
+    expect(result[0].materials[1].name).toBe('Customer Paint');
+    expect(result[0].materials[1].isCustomerMaterial).toBe(true);
+  });
 });

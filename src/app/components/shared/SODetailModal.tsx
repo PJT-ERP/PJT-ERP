@@ -1,4 +1,5 @@
 import { X, Printer, ExternalLink, Check } from "lucide-react";
+import { formatUrl } from "../../services/backendIds";
 import { SalesOrder, Customer, SOStatus, STATUS_STEPS } from "../data/mockData";
 import { StatusBadge } from "./StatusBadge";
 import { BarcodeDisplay } from "./BarcodeDisplay";
@@ -112,9 +113,8 @@ export function SODetailModal({ so, customer, onClose }: SODetailModalProps) {
             </div>
             {so.designLink && (
               <div>
-                <p className="text-xs text-gray-500">Link Desain</p>
-                <a href={so.designLink} target="_blank" rel="noreferrer" className="text-sm text-red-600 hover:underline flex items-center gap-1">
-                  Buka Desain <ExternalLink size={12} />
+                <a href={formatUrl(so.designLink)} target="_blank" rel="noreferrer" className="text-sm text-red-600 hover:underline flex items-center gap-1">
+                  Buka Link Referensi / Desain
                 </a>
               </div>
             )}

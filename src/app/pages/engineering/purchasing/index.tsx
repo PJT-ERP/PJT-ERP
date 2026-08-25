@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Plus, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ShoppingCart, ChevronLeft, ChevronRight, ArrowRightLeft } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
 import { usePurchasingRequestsQuery } from "../../../services/queries";
 import { PurchasingRequest, PurchasingStatus } from "../../../components/data/mockData";
 import { S, URGENCY_COLORS, PR_STATUS_COLORS } from "./constants";
 import { PurchasingFormModal } from "./PurchasingFormModal";
 import { PRDetailModal } from "./PRDetailModal";
+import { EngineeringMutationModal } from "./EngineeringMutationModal";
 
 export function EngineeringPurchasingPage() {
   const { currentUser, users } = useApp();
   const { data: purchasingRequests = [] } = usePurchasingRequestsQuery();
   const [showForm, setShowForm] = useState(false);
+  const [showMutationForm, setShowMutationForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,15 +67,27 @@ export function EngineeringPurchasingPage() {
           </p>
         </div>
         {currentUser?.role !== 'Admin' && (
-          <button onClick={() => { setEditRequest(null); setShowForm(true); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", borderRadius: 4, border: "none",
-              background: S.cyan, color: "#fff", cursor: "pointer",
-              fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-            }}>
-            <Plus size={14} /> Ajukan Baru
-          </button>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button onClick={() => setShowMutationForm(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 4, border: "none",
+                background: S.cyan, color: "#fff", cursor: "pointer",
+                fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+              }}
+            >
+              <ArrowRightLeft size={14} /> Mutasi Material
+            </button>
+            <button onClick={() => { setEditRequest(null); setShowForm(true); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 4, border: "none",
+                background: S.cyan, color: "#fff", cursor: "pointer",
+                fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+              }}>
+              <Plus size={14} /> Ajukan Baru
+            </button>
+          </div>
         )}
       </div>
 
@@ -257,6 +271,15 @@ export function EngineeringPurchasingPage() {
             } else {
               setEditRequest(null);
             }
+          }}
+        />
+      )}
+      {showMutationForm && (
+        <EngineeringMutationModal
+          isOpen={showMutationForm}
+          onClose={() => setShowMutationForm(false)}
+          onSuccess={() => {
+            // Ideally trigger a refresh of inventory data if needed
           }}
         />
       )}

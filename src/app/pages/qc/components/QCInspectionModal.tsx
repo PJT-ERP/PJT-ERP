@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { X, CheckCircle, Upload, Trash2 } from "lucide-react";
+import { X, CheckCircle, Upload, Trash2, ExternalLink } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 import { SalesOrder } from "../../../components/data/mockData";
 import { QcInspectionDto, qcApi } from "../../../services/qcApi";
-import { toBackendUserId, isGuid } from "../../../services/backendIds";
+import { toBackendUserId, isGuid, formatUrl } from "../../../services/backendIds";
 import { compressImage, S } from "./utils";
 import { useCustomersQuery, useUpdateSalesOrderMutation } from "../../../services/queries";
 
@@ -190,7 +190,7 @@ export function QCInspectionModal({
               />
               {!isEditingLink && drawingLink && (
                 <a
-                  href={drawingLink}
+                  href={formatUrl(drawingLink)}
                   target="_blank"
                   rel="noreferrer"
                   style={{
@@ -207,7 +207,7 @@ export function QCInspectionModal({
                     whiteSpace: "nowrap"
                   }}
                 >
-                  Buka Link
+                  Buka Link <ExternalLink size={12} style={{ marginLeft: 6 }} />
                 </a>
               )}
               <button

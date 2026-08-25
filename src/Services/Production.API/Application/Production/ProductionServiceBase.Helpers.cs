@@ -96,14 +96,12 @@ public abstract partial class ProductionServiceBase
 
     protected static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
     {
-        if (boms == null || boms.Count == 0) return null;
-
         var materialsByKey = new Dictionary<string, SalesOrderMaterialDto>();
         var legacyMaterials = new List<SalesOrderMaterialDto>();
 
         foreach (var item in order.Items)
         {
-            var productBom = boms.FirstOrDefault(b => b.ProductId == item.ProductId);
+            var productBom = boms?.FirstOrDefault(b => b.ProductId == item.ProductId);
             
             if (item.Notes != null && item.Notes.StartsWith("["))
             {
