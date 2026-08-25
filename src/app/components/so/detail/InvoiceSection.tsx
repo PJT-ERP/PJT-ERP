@@ -404,7 +404,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Tanggal Bayar</label>
-                <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+                <input required type="date" max={todayInputValue()} value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
               </div>
             </div>
 
