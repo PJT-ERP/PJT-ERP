@@ -286,8 +286,14 @@ export function ProductionDetailModal({ so, onClose }: { so: SalesOrder; onClose
                       </div>
                       {!m.isCustomerMaterial && (reqQty > 0 || stock > 0 || isShort) && (
                         <div style={{ display: "flex", gap: 12, fontSize: "12px", color: S.secondary, textAlign: "right" }}>
-                          {reqQty > 0 && <span>Butuh: <strong style={{ color: S.slate }}>{reqQty}</strong></span>}
-                          <span>Stok Gudang: <strong style={{ color: isShort ? '#DC2626' : S.slate }}>{stock}</strong></span>
+                          {so.status === 'Completed' || (so as any).productionStatus === 'Completed' ? (
+                            <span>Terpakai: <strong style={{ color: S.slate }}>{reqQty}</strong></span>
+                          ) : (
+                            <>
+                              {reqQty > 0 && <span>Butuh: <strong style={{ color: S.slate }}>{reqQty}</strong></span>}
+                              <span>Stok Gudang: <strong style={{ color: isShort ? '#DC2626' : S.slate }}>{stock}</strong></span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

@@ -145,7 +145,8 @@ public sealed record SalesOrderMaterialDto(
     string? Spec,
     string? Specification,
     int Quantity,
-    string Unit);
+    string Unit,
+    bool IsCustomerMaterial = false);
 
 public sealed record SalesOrderDesignRevisionDto(
     int Version,

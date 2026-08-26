@@ -156,7 +156,7 @@ public class ProductionCommandService(
         if (mappedMaterials != null && mappedMaterials.Count > 0)
         {
             var deductItems = mappedMaterials
-                .Where(m => !string.IsNullOrEmpty(m.InventoryItemId) && Guid.TryParse(m.InventoryItemId, out _))
+                .Where(m => !m.IsCustomerMaterial && !string.IsNullOrEmpty(m.InventoryItemId) && Guid.TryParse(m.InventoryItemId, out _))
                 .Select(m => new DeductCustomBomRequestItem(Guid.Parse(m.InventoryItemId!), m.Quantity))
                 .ToList();
 

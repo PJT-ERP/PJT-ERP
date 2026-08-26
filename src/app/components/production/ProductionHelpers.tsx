@@ -120,7 +120,8 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
     const aggregated = new Map<string, { materialObj: any, itemName: string, spec: string, quantity: number, isCustomerMaterial: boolean }>();
 
     so.items.forEach((item: any) => {
-      const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
+      const lookupKey = item.tempId || item.id;
+      const boms = so.bomsPerItem![lookupKey] || so.bomsPerItem![item.productId];
       if (boms && Array.isArray(boms)) {
         boms.forEach((material: any) => {
           hasAnyMaterials = true;
@@ -151,6 +152,7 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
   }
 
   if (Array.isArray(so.materials) && so.materials.length > 0) {
+    console.log('[getMaterialOptions] FALLING THROUGH to so.materials path. materials:', JSON.stringify(so.materials).substring(0, 500));
     let hasAnyMaterials = false;
     so.materials.forEach((material: any) => {
       hasAnyMaterials = true;

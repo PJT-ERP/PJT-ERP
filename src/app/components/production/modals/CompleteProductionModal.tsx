@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { CheckSquare, AlertTriangle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
 import { S, getBackendSalesOrderId } from "../ProductionHelpers";
 
 export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const today = new Date().toISOString().slice(0, 16);
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [endDate, setEndDate] = useState(today);
@@ -69,7 +71,8 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
         workerName: currentUser?.name || so.assignedName || "Engineering",
         reason: (isLate ? lateReason : earlyReason) || undefined,
       });
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       onClose();
     } catch (error: unknown) {
       console.warn("Failed to finish production in backend.", error);

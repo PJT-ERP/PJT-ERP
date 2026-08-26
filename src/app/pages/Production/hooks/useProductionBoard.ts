@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../../../components/context/AppContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useFinanceData } from "../../../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../../../components/so/invoice-sync";
-import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
+import { masterDataApi } from "../../../services/masterDataApi";
 import { productionApi } from "../../../services/productionApi";
 import { purchasingApi } from "../../../services/purchasingApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
@@ -13,12 +13,6 @@ import { mapSalesOrderDto } from "../../../components/context/hooks/dataMappers"
 import type { SalesOrderDto } from "../../../services/salesApi";
 
 import { useSalesOrdersQuery, usePurchasingRequestsQuery } from "../../../services/queries";
-
-let globalProdCache = {
-  inventory: null as InventoryItemDto[] | null,
-  productionQueues: null as any,
-  lastFetch: 0
-};
 
 export function useProductionBoard() {
   const { currentUser, users } = useApp();
@@ -45,27 +39,28 @@ export function useProductionBoard() {
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
   
-  const [inventory, setInventory] = useState<InventoryItemDto[]>(globalProdCache.inventory || []);
-  const [productionQueues, setProductionQueues] = useState<any>(globalProdCache.productionQueues || {
+  const { data: inventoryData = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => masterDataApi.listInventory(),
+    staleTime: 30000,
+  });
+
+  const { data: productionQueues = {
     pendingAssignment: [],
     readyToStart: [],
     inProduction: [],
+    paused: [],
     waitingQc: [],
     completed: [],
     pendingDesign: []
-  });
-  
-  useEffect(() => {
-    if (Date.now() - globalProdCache.lastFetch < 30000) {
-      return;
-    }
-    
-    Promise.all([
-      masterDataApi.listInventory(),
-      productionApi.getProductionBoardQueues(),
-      productionApi.getEngineeringQueues()
-    ]).then(([inv, prodQueues, engQueues]) => {
-      const qs = {
+  } } = useQuery({
+    queryKey: ['productionQueues'],
+    queryFn: async () => {
+      const [prodQueues, engQueues] = await Promise.all([
+        productionApi.getProductionBoardQueues(),
+        productionApi.getEngineeringQueues()
+      ]);
+      return {
         pendingAssignment: (prodQueues.pendingAssignment || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         readyToStart: (prodQueues.readyToStart || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         inProduction: (prodQueues.inProduction || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
@@ -74,17 +69,11 @@ export function useProductionBoard() {
         completed: (prodQueues.completed || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         pendingDesign: (engQueues.pendingDesign || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
       };
-      
-      globalProdCache = {
-        inventory: inv,
-        productionQueues: qs,
-        lastFetch: Date.now()
-      };
-      
-      setInventory(inv);
-      setProductionQueues(qs);
-    }).catch(console.error);
-  }, []);
+    },
+    staleTime: 30000,
+  });
+
+  const inventory = inventoryData;
 
   const checkMaterialShortage = (so: SalesOrder) => {
     const materials = getMaterialOptions(so);
@@ -92,7 +81,7 @@ export function useProductionBoard() {
     
     return materials.some((m: any) => {
       if (m.isCustomerMaterial || m.isFromCustomer) return false; // Customer materials don't cause shortage
-      const invItem = inventory.find(inv => 
+      const invItem = inventory.find((inv: any) => 
         inv.name?.toLowerCase() === m.itemName.toLowerCase()
       );
       const reqQty = m.quantity ?? 0;

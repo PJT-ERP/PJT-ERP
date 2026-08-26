@@ -81,7 +81,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
                 </div>
                 <div style={{ fontSize: "14px", color: S.slate, fontWeight: 500, marginBottom: 4 }}>{so.description}</div>
                 <div style={{ fontSize: "12px", color: S.secondary }}>
-                  Selesai pada: {so.productionFinishedAtUtc ? (!isNaN(new Date(so.productionFinishedAtUtc).getTime()) ? new Date(so.productionFinishedAtUtc).toLocaleString("id-ID") : "-") : "-"}
+                  Selesai pada: {so.endTime ? (!isNaN(new Date(so.endTime).getTime()) ? new Date(so.endTime).toLocaleString("id-ID") : "-") : "-"}
                 </div>
               </div>
               

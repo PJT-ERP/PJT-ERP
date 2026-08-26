@@ -98,30 +98,31 @@ public abstract partial class ProductionServiceBase
     {
         var materialsByKey = new Dictionary<string, SalesOrderMaterialDto>();
         var legacyMaterials = new List<SalesOrderMaterialDto>();
+        bool hasCustomBom = false;
 
         foreach (var item in order.Items)
         {
-            var productBom = boms?.FirstOrDefault(b => b.ProductId == item.ProductId);
-            
             if (item.Notes != null && item.Notes.StartsWith("["))
             {
                 try
                 {
                     using var doc = System.Text.Json.JsonDocument.Parse(item.Notes);
-                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
                     {
+                        hasCustomBom = true;
                         int index = 0;
                         foreach (var element in doc.RootElement.EnumerateArray())
                         {
                             var legacy = new SalesOrderMaterialDto(
-                                element.GetProperty("id").GetString() ?? $"{item.Id}-legacy-{index}",
+                                element.TryGetProperty("id", out var idProp) && idProp.ValueKind == System.Text.Json.JsonValueKind.String ? idProp.GetString() ?? $"{item.Id}-legacy-{index}" : $"{item.Id}-legacy-{index}",
                                 element.TryGetProperty("inventoryItemId", out var invIdProp) ? invIdProp.GetString() : null,
-                                element.GetProperty("name").GetString() ?? "",
+                                element.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == System.Text.Json.JsonValueKind.String ? nameProp.GetString() ?? "" : "",
                                 element.TryGetProperty("code", out var codeProp) ? codeProp.GetString() : null,
                                 element.TryGetProperty("spec", out var specProp) ? specProp.GetString() : null,
                                 element.TryGetProperty("specification", out var specificationProp) ? specificationProp.GetString() : null,
                                 element.TryGetProperty("quantity", out var qtyProp) ? (qtyProp.ValueKind == System.Text.Json.JsonValueKind.Number ? qtyProp.GetInt32() : (int.TryParse(qtyProp.GetString(), out int q) ? q : 0)) : 0,
-                                element.TryGetProperty("unit", out var unitProp) ? unitProp.GetString() ?? "" : ""
+                                element.TryGetProperty("unit", out var unitProp) ? unitProp.GetString() ?? "" : "",
+                                element.TryGetProperty("isCustomerMaterial", out var custMatProp) && (custMatProp.ValueKind == System.Text.Json.JsonValueKind.True || (custMatProp.ValueKind == System.Text.Json.JsonValueKind.String && bool.TryParse(custMatProp.GetString(), out bool b) && b))
                             );
                             legacyMaterials.Add(legacy);
                             index++;
@@ -133,65 +134,59 @@ public abstract partial class ProductionServiceBase
                     // Ignore parsing errors for legacy notes
                 }
             }
+        }
 
-            var overriddenInventoryItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (hasCustomBom)
+        {
             foreach (var legacy in legacyMaterials)
             {
                 var resolvedInvId = legacy.InventoryItemId ?? legacy.Id;
-                if (!string.IsNullOrEmpty(resolvedInvId) && !resolvedInvId.Contains("-legacy-"))
+                var specKey = legacy.Spec ?? legacy.Specification ?? "";
+                var key = $"{resolvedInvId}|{specKey}|{legacy.Unit}";
+                
+                if (materialsByKey.TryGetValue(key, out var existing))
                 {
-                    overriddenInventoryItemIds.Add(resolvedInvId);
+                    materialsByKey[key] = existing with { Quantity = existing.Quantity + legacy.Quantity };
                 }
-            }
-            
-            if (productBom?.Items != null)
-            {
-                foreach (var bomItem in productBom.Items)
+                else
                 {
-                    if (overriddenInventoryItemIds.Contains(bomItem.InventoryItemId.ToString()))
-                    {
-                        continue;
-                    }
-
-                    var specVal = bomItem.Spec ?? "";
-                    var specKey = specVal != "" ? specVal : (bomItem.InventoryItemCode ?? "");
-                    var key = $"{bomItem.InventoryItemId}|{specKey}|{bomItem.Unit}";
-                    var quantity = (int)(bomItem.BomQuantity * Math.Max(item.Qty, 1));
-                    
-                    if (materialsByKey.TryGetValue(key, out var existing))
-                    {
-                        materialsByKey[key] = existing with { Quantity = existing.Quantity + quantity };
-                    }
-                    else
-                    {
-                        materialsByKey[key] = new SalesOrderMaterialDto(
-                            $"{item.Id}-{bomItem.BomItemId}",
-                            bomItem.InventoryItemId.ToString(),
-                            bomItem.InventoryItemName,
-                            bomItem.InventoryItemCode,
-                            specVal,
-                            specVal,
-                            quantity,
-                            bomItem.Unit
-                        );
-                    }
+                    materialsByKey[key] = legacy;
                 }
             }
         }
-        
-        foreach (var legacy in legacyMaterials)
+        else
         {
-            var resolvedInvId = legacy.InventoryItemId ?? legacy.Id;
-            var specKey = legacy.Spec ?? legacy.Specification ?? "";
-            var key = $"{resolvedInvId}|{specKey}|{legacy.Unit}";
-            
-            if (materialsByKey.TryGetValue(key, out var existing))
+            foreach (var item in order.Items)
             {
-                materialsByKey[key] = existing with { Quantity = existing.Quantity + legacy.Quantity };
-            }
-            else
-            {
-                materialsByKey[key] = legacy;
+                var productBom = boms?.FirstOrDefault(b => b.ProductId == item.ProductId);
+                if (productBom?.Items != null)
+                {
+                    foreach (var bomItem in productBom.Items)
+                    {
+                        var specVal = bomItem.Spec ?? "";
+                        var specKey = specVal != "" ? specVal : (bomItem.InventoryItemCode ?? "");
+                        var key = $"{bomItem.InventoryItemId}|{specKey}|{bomItem.Unit}";
+                        var quantity = (int)bomItem.BomQuantity; 
+                        
+                        if (materialsByKey.TryGetValue(key, out var existing))
+                        {
+                            materialsByKey[key] = existing with { Quantity = existing.Quantity + quantity };
+                        }
+                        else
+                        {
+                            materialsByKey[key] = new SalesOrderMaterialDto(
+                                $"{item.Id}-{bomItem.BomItemId}",
+                                bomItem.InventoryItemId.ToString(),
+                                bomItem.InventoryItemName,
+                                bomItem.InventoryItemCode,
+                                specVal,
+                                specVal,
+                                quantity,
+                                bomItem.Unit
+                            );
+                        }
+                    }
+                }
             }
         }
 
