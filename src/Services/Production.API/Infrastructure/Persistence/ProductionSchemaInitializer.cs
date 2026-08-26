@@ -60,6 +60,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS unit_price numeric NOT NULL DEFAULT 0;
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
+            ALTER TABLE sales_order_items ALTER COLUMN notes TYPE text;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_at_utc timestamp with time zone;

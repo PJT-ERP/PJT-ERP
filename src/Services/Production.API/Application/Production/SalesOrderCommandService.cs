@@ -184,9 +184,29 @@ public class SalesOrderCommandService(
         var productMap = new Dictionary<string, Guid>();
         foreach (var prodReq in request.Products)
         {
-            var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
-            var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
-            productMap[prodReq.TempId] = newProd.Id;
+            try
+            {
+                var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
+                var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
+                productMap[prodReq.TempId] = newProd.Id;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARNING] MasterDataClient.CreateProductAsync failed: {ex.Message}. Creating local ProductReplica fallback.");
+                var fallbackProduct = new ProductReplica
+                {
+                    Id = Guid.NewGuid(),
+                    PartNumber = $"TMP-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    Description = string.IsNullOrWhiteSpace(prodReq.Description) ? "Custom Product" : prodReq.Description,
+                    Unit = string.IsNullOrWhiteSpace(prodReq.Unit) ? "pcs" : prodReq.Unit,
+                    MaterialSpec = prodReq.MaterialSpec,
+                    IsActive = true,
+                    UpdatedAtUtc = DateTime.UtcNow
+                };
+                await db.ProductReplicas.AddAsync(fallbackProduct, cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+                productMap[prodReq.TempId] = fallbackProduct.Id;
+            }
         }
 
         var createItems = new List<CreateSalesOrderItemRequest>();
