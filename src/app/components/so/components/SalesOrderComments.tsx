@@ -190,26 +190,28 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
                 </span>
 
                 {!c.isDeleted && (
-                  <div className={`absolute top-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ${c.userId === currentUser?.id ? 'right-full mr-2' : 'left-full ml-2'}`}>
+                  <div className={`absolute top-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm border border-gray-100 rounded-md overflow-hidden ${c.userId === currentUser?.id ? 'right-full mr-2' : 'left-full ml-2'}`}>
                     <button 
                       onClick={() => setReplyTo(c)} 
-                      className="text-xs font-medium text-blue-500 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded bg-white shadow-sm border border-gray-100"
+                      className="text-[11px] font-medium text-blue-600 hover:bg-blue-50 flex items-center gap-1 px-2 py-1.5 transition-colors"
                     >
-                      <Reply size={14} /> Balas
+                      <Reply size={13} /> Balas
                     </button>
                     {c.userId === currentUser?.id && (
                       <>
+                        <div className="w-px h-4 bg-gray-100"></div>
                         <button 
                           onClick={() => startEdit(c)} 
-                          className="text-xs font-medium text-gray-600 hover:text-gray-800 flex items-center gap-1 px-2 py-1 rounded bg-white shadow-sm border border-gray-100"
+                          className="text-[11px] font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-1 px-2 py-1.5 transition-colors"
                         >
-                          <Pencil size={14} /> Edit
+                          <Pencil size={13} /> Edit
                         </button>
+                        <div className="w-px h-4 bg-gray-100"></div>
                         <button 
                           onClick={() => handleDelete(c.id)} 
-                          className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded bg-white shadow-sm border border-gray-100"
+                          className="text-[11px] font-medium text-red-600 hover:bg-red-50 flex items-center gap-1 px-2 py-1.5 transition-colors"
                         >
-                          <Trash2 size={14} /> Hapus
+                          <Trash2 size={13} /> Hapus
                         </button>
                       </>
                     )}
