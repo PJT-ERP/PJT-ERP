@@ -104,6 +104,11 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
         finalContent = match[0] + finalContent;
       }
 
+      if (finalContent.length > 2000) {
+        alert("Pesan terlalu panjang (maksimal 2000 karakter termasuk balasan).");
+        return;
+      }
+
       updateCommentMutation.mutate(
         { salesOrderId, commentId: editingComment.id, content: finalContent },
         {
@@ -119,6 +124,11 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
     if (replyTo) {
       const quoted = replyTo.content.split('\n').map(l => `>${l}`).join('\n');
       finalContent = `>**Membalas @${replyTo.userName}**\n${quoted}\n${finalContent}`;
+    }
+
+    if (finalContent.length > 2000) {
+      alert("Pesan terlalu panjang (maksimal 2000 karakter termasuk kutipan balasan). Silakan hapus sebagian teks.");
+      return;
     }
 
     addCommentMutation.mutate(
@@ -232,7 +242,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
                   </div>
                 )}
               </div>
-              <div className={`px-4 py-2 rounded-2xl text-sm shadow-sm ${c.isDeleted ? 'bg-gray-100 border border-gray-200 text-gray-400 italic' : c.userId === currentUser?.id ? 'bg-blue-500 text-white rounded-tr-none' : 'bg-white border border-gray-100 text-gray-700 rounded-tl-none'}`}>
+              <div className={`px-4 py-2 rounded-2xl text-sm shadow-sm break-words whitespace-pre-wrap ${c.isDeleted ? 'bg-gray-100 border border-gray-200 text-gray-400 italic' : c.userId === currentUser?.id ? 'bg-blue-500 text-white rounded-tr-none' : 'bg-white border border-gray-100 text-gray-700 rounded-tl-none'}`}>
                 {c.isDeleted ? (
                   "pesan ini telah dihapus"
                 ) : (
@@ -250,7 +260,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
                             const boldParts = part.split('**');
                             return boldParts.map((bp, bi) => bi % 2 === 1 ? <strong key={bi}>{bp}</strong> : bp);
                           }
-                          return part;
+                          return <span key={i} className="break-words">{part}</span>;
                         })}
                       </div>
                     );
@@ -313,6 +323,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
             className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
             disabled={addCommentMutation.isPending}
             autoComplete="off"
+            maxLength={1800}
           />
             <button
               type="submit"
