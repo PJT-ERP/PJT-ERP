@@ -1,9 +1,11 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApprovalModal } from '../approvals';
-import * as appContext from '../../../components/context/AppContext';
+import * as useAppHook from '../../../components/context/AppContext';
+import * as queriesHook from '../../../services/queries';
 import { productionApi } from '../../../services/productionApi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../../../services/productionApi', () => ({
   productionApi: {
@@ -11,16 +13,21 @@ vi.mock('../../../services/productionApi', () => ({
   }
 }));
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
 describe('Owner Approvals - Design Rejection Flow', () => {
-  const updateSalesOrderMock = vi.fn();
   
   beforeEach(() => {
     vi.clearAllMocks();
     
-    vi.spyOn(appContext, 'useApp').mockReturnValue({
-      customers: [{ code: 'CUST-1', name: 'Customer A' }],
-      currentUser: { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Owner', role: 'Owner' },
-      updateSalesOrder: updateSalesOrderMock
+    vi.spyOn(useAppHook, 'useApp').mockReturnValue({
+      currentUser: { id: '123e4567-e89b-12d3-a456-426614174000', name: 'Owner', role: 'Owner' }
+    } as any);
+
+    vi.spyOn(queriesHook, 'useCustomersQuery').mockReturnValue({
+      data: [{ code: 'CUST-1', name: 'Customer A' }]
     } as any);
   });
 
@@ -39,7 +46,11 @@ describe('Owner Approvals - Design Rejection Flow', () => {
 
     const onCloseMock = vi.fn();
 
-    render(<ApprovalModal item={item} onClose={onCloseMock} />);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ApprovalModal item={item} onClose={onCloseMock} />
+      </QueryClientProvider>
+    );
 
     // 1. Verify modal is open
     expect(screen.getByText('Review Desain — so-rev-1')).toBeInTheDocument();
@@ -67,22 +78,16 @@ describe('Owner Approvals - Design Rejection Flow', () => {
         reviewedByUserId: '123e4567-e89b-12d3-a456-426614174000',
         reviewerName: 'Owner'
       }));
-
-      expect(updateSalesOrderMock).toHaveBeenCalledWith('so-rev-1', expect.objectContaining({
-        status: 'Revision Required',
-        rejectionReason: 'Please fix the dimensions on the top bracket.'
-      }));
     });
 
     // 7. Success message
     expect(screen.getByText('Revisi Diminta')).toBeInTheDocument();
   });
+
   it('allows engineering supervisor to reject a design permanently', async () => {
     // Override currentUser to be Engineering Supervisor
-    vi.spyOn(appContext, 'useApp').mockReturnValue({
-      customers: [{ code: 'CUST-1', name: 'Customer A' }],
-      currentUser: { id: '234e5678-e89b-12d3-a456-426614174000', name: 'Eng Supervisor', role: 'Engineering Supervisor' },
-      updateSalesOrder: updateSalesOrderMock
+    vi.spyOn(useAppHook, 'useApp').mockReturnValue({
+      currentUser: { id: '234e5678-e89b-12d3-a456-426614174000', name: 'Eng Supervisor', role: 'Engineering Supervisor' }
     } as any);
 
     const item = {
@@ -99,7 +104,11 @@ describe('Owner Approvals - Design Rejection Flow', () => {
 
     const onCloseMock = vi.fn();
 
-    render(<ApprovalModal item={item} onClose={onCloseMock} />);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ApprovalModal item={item} onClose={onCloseMock} />
+      </QueryClientProvider>
+    );
 
     // 1. Click "Tolak Desain"
     const rejectButton = screen.getByText(/Tolak Desain/i);
@@ -114,9 +123,6 @@ describe('Owner Approvals - Design Rejection Flow', () => {
     fireEvent.change(reasonInput, { target: { value: 'Design fundamentally flawed, cannot manufacture.' } });
 
     // 4. Submit "Tolak Permanen"
-    const submitButton = screen.getAllByText(/Tolak Permanen/i).find(el => el.tagName.toLowerCase() === 'button' && !el.className.includes('background: #FEF2F2'));
-    // Since there are two texts "Tolak Permanen" (one for tab, one for submit button). 
-    // We can use getByRole.
     const allPermanentBtns = screen.getAllByRole('button', { name: /Tolak Permanen/i });
     fireEvent.click(allPermanentBtns[1]); // the submit button
 
@@ -127,11 +133,6 @@ describe('Owner Approvals - Design Rejection Flow', () => {
         reviewedByUserId: '234e5678-e89b-12d3-a456-426614174000',
         reviewerName: 'Eng Supervisor'
       }));
-
-      expect(updateSalesOrderMock).toHaveBeenCalledWith('so-reject-2', expect.objectContaining({
-        status: 'Rejected',
-        rejectionReason: 'Design fundamentally flawed, cannot manufacture.'
-      }));
     });
 
     // 6. Success message
@@ -140,10 +141,8 @@ describe('Owner Approvals - Design Rejection Flow', () => {
 
   it('allows engineering supervisor to reject a design and request revision', async () => {
     // Override currentUser to be Engineering Supervisor
-    vi.spyOn(appContext, 'useApp').mockReturnValue({
-      customers: [{ code: 'CUST-1', name: 'Customer A' }],
-      currentUser: { id: '234e5678-e89b-12d3-a456-426614174000', name: 'Eng Supervisor', role: 'Engineering Supervisor' },
-      updateSalesOrder: updateSalesOrderMock
+    vi.spyOn(useAppHook, 'useApp').mockReturnValue({
+      currentUser: { id: '234e5678-e89b-12d3-a456-426614174000', name: 'Eng Supervisor', role: 'Engineering Supervisor' }
     } as any);
 
     const item = {
@@ -160,7 +159,11 @@ describe('Owner Approvals - Design Rejection Flow', () => {
 
     const onCloseMock = vi.fn();
 
-    render(<ApprovalModal item={item} onClose={onCloseMock} />);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ApprovalModal item={item} onClose={onCloseMock} />
+      </QueryClientProvider>
+    );
 
     // 1. Click "Tolak Desain"
     const rejectButton = screen.getByText(/Tolak Desain/i);
@@ -184,11 +187,6 @@ describe('Owner Approvals - Design Rejection Flow', () => {
         designStatus: 'RevisionRequired',
         reviewedByUserId: '234e5678-e89b-12d3-a456-426614174000',
         reviewerName: 'Eng Supervisor'
-      }));
-
-      expect(updateSalesOrderMock).toHaveBeenCalledWith('so-rev-2', expect.objectContaining({
-        status: 'Revision Required',
-        rejectionReason: 'Revise the material thickness specification.'
       }));
     });
 

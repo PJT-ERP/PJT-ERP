@@ -34,11 +34,35 @@ public record DeductBomStockRequest(
     int ProductionQuantity);
 
 public record BulkDeductBomStockRequest(
-    IReadOnlyCollection<DeductBomStockRequestItem> Items);
+    IReadOnlyCollection<DeductBomStockRequestItem> Items,
+    string? Reason = null);
 
 public record DeductBomStockRequestItem(
     Guid ProductId,
     int ProductionQuantity);
+
+public record DeductCustomBomRequest(
+    IReadOnlyCollection<DeductCustomBomRequestItem> Items,
+    string? Reason = null);
+
+public record DeductCustomBomRequestItem(
+    Guid InventoryItemId,
+    decimal Quantity);
+
+public record MutateStockRequest(
+    string Type,
+    decimal Quantity,
+    string Reason);
+
+public record StockMutationLogDto(
+    Guid Id,
+    Guid InventoryItemId,
+    string ItemCode,
+    string ItemName,
+    string MutationType,
+    decimal Quantity,
+    string Reason,
+    DateTime CreatedAtUtc);
 
 public interface IInventoryService
 {
@@ -48,4 +72,7 @@ public interface IInventoryService
     Task DeleteInventoryItemAsync(Guid id, CancellationToken cancellationToken);
     Task DeductBomStockAsync(DeductBomStockRequest request, CancellationToken cancellationToken);
     Task DeductBomStockBulkAsync(BulkDeductBomStockRequest request, CancellationToken cancellationToken);
+    Task DeductCustomBomAsync(DeductCustomBomRequest request, CancellationToken cancellationToken);
+    Task MutateStockAsync(Guid id, MutateStockRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<StockMutationLogDto>> ListMutationsAsync(CancellationToken cancellationToken);
 }

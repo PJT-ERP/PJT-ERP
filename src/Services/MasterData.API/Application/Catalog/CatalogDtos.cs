@@ -11,7 +11,7 @@ public sealed record CustomerDto(
     bool IsActive);
 
 public sealed record CreateCustomerRequest(
-    string Code,
+    string? Code,
     string Name,
     string? Address,
     string? ContactPerson,

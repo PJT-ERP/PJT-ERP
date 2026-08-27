@@ -1,10 +1,14 @@
-import React, { useState } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CheckCircle, XCircle, Search, X, AlertTriangle, Shield, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
+import { useCustomersQuery } from "../services/queries";
 import { type SalesOrder } from "../components/data/mockData";
 import { toBackendUserId } from "../services/backendIds";
+import { productionApi, QcQueuesDto } from "../services/productionApi";
 import { BASE_URL } from "../services/apiClient";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { mapSalesOrderDto } from "../components/context/hooks/dataMappers";
+import type { SalesOrderDto } from "../services/salesApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -25,6 +29,7 @@ const getFullUrl = (url: string) => {
   return `${baseUrl}${path}`;
 };
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 function isGo(value?: string | null) {
   return value === 'Go' || value === 'Pass';
 }
@@ -56,7 +61,7 @@ function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void 
 }
 
 function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const customer = customers.find(c => c.code === so.customerId);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
@@ -145,32 +150,48 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
 }
 
 export function QCReadOnlyView() {
-  const { salesOrders, customers, currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
-  const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
+  const [selectedSO, setSelectedSO] = useState<any | null>(null);
   const [filterResult, setFilterResult] = useState<'all' | 'Go' | 'NoGo' | 'Menunggu'>('all');
   const [qcSearch, setQcSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  const [qcQueues, setQcQueues] = useState<QcQueuesDto | null>(null);
+
+  useEffect(() => {
+    productionApi.getQcQueues().then((queues) => {
+      setQcQueues({
+        readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+      });
+    }).catch(console.error);
+  }, []);
 
   const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const isRegularEngineer = currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin';
   const currentBackendUserId = toBackendUserId(currentUser);
-  const baseOrders = isRegularEngineer 
-    ? salesOrders.filter(so => 
-        (currentUser?.id && so.designAssignedTo === currentUser.id) || 
-        (currentBackendUserId && so.designAssignedTo === currentBackendUserId)
+
+  const pendingQC = qcQueues?.readyForInspection || [];
+  const completedHistory = qcQueues?.inspectionHistory || [];
+  const allQCBase = [...pendingQC, ...completedHistory];
+
+  const allQC = isRegularEngineer 
+    ? allQCBase.filter(so => 
+        (currentUser?.id && so.designWorkerUserId === currentUser.id) || 
+        (currentBackendUserId && so.designWorkerUserId === currentBackendUserId) ||
+        (so.designAssignedTo === currentUser?.id)
       )
-    : salesOrders;
+    : allQCBase;
 
-  const completed = baseOrders.filter(so => so.status === 'Completed');
-  const pendingQC = baseOrders.filter(so => so.status === 'QC');
-  const allQC = [...pendingQC, ...completed];
+  const completed = allQC.filter(so => so.status === 'Completed' || so.status === 'Rejected');
 
-  const passCount = completed.filter(s => s.qcStatus === 'Go').length;
-  const failCount = completed.filter(s => s.qcStatus === 'NoGo').length;
+  const passCount = completed.filter(s => s.qcDecision === 'Go' || s.qcStatus === 'Go').length;
+  const failCount = completed.filter(s => s.qcDecision === 'NoGo' || s.qcStatus === 'NoGo').length;
   const passRate = completed.length > 0 ? Math.round((passCount / completed.length) * 100) : 0;
-  const lateCount = completed.filter(s => s.lateReason).length;
+  const lateCount = completed.filter(s => s.completionNote && s.completionNote.toLowerCase().includes('terlambat')).length;
 
   const filtered = allQC.filter(so => {
     const cust = customers.find(c => c.code === so.customerId);
@@ -181,7 +202,7 @@ export function QCReadOnlyView() {
     const matchFilter =
       filterResult === 'all' ||
       (filterResult === 'Menunggu' && so.status === 'QC') ||
-      (filterResult !== 'Menunggu' && so.qcStatus === filterResult);
+      (filterResult !== 'Menunggu' && (so.qcDecision === filterResult || so.qcStatus === filterResult));
     return matchSearch && matchFilter;
   });
 

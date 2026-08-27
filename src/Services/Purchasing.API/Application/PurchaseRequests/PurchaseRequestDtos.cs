@@ -84,6 +84,10 @@ public sealed record ReceivePurchaseItemRequest(DateOnly ReceivedDate, string? P
 
 public sealed record UpdateMaterialStockInfoRequest(int StockOnHand, string? StockNotes);
 
+public sealed record RequestPrRevisionRequest(string RevisionNote, List<PrItemRevisionDto> Items);
+
+public sealed record PrItemRevisionDto(Guid ItemId, string NewSpecification);
+
 public sealed record PurchaseRequestDto(
     Guid Id,
     string PrNumber,
@@ -103,6 +107,7 @@ public sealed record PurchaseRequestDto(
     Guid? FinanceReviewedByUserId,
     DateTime? FinanceReviewedAtUtc,
     string? FinanceRejectionReason,
+    string? RevisionNote,
     DateTime UpdatedAtUtc,
     IReadOnlyCollection<PurchaseRequestItemDto> Items);
 

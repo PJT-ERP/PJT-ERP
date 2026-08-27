@@ -86,35 +86,7 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
 
         if (candidate is null)
         {
-            if (request.FallbackCandidate is not null)
-            {
-                candidate = new InvoiceCandidate
-                {
-                    SalesOrderId = request.SalesOrderId,
-                    SalesOrderNumber = request.FallbackCandidate.SalesOrderNumber,
-                    CustomerId = request.FallbackCandidate.CustomerId,
-                    CustomerCode = request.FallbackCandidate.CustomerCode,
-                    CustomerName = request.FallbackCandidate.CustomerName,
-                    CustomerEmail = request.FallbackCandidate.CustomerEmail,
-                    TargetDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                    CompletedAtUtc = DateTime.UtcNow,
-                    Status = InvoiceCandidateStatuses.ReadyForInvoice,
-                    Items = request.FallbackCandidate.Items.Select(i => new InvoiceCandidateItem
-                    {
-                        SalesOrderItemId = i.SalesOrderItemId,
-                        ProductId = i.ProductId,
-                        ProductPartNumber = i.ProductPartNumber,
-                        ProductDescription = i.ProductDescription,
-                        Qty = i.Qty,
-                        UnitPrice = 0
-                    }).ToList()
-                };
-                await db.InvoiceCandidates.AddAsync(candidate, cancellationToken);
-            }
-            else
-            {
-                throw new InvalidOperationException("Sales order is not ready for invoice yet.");
-            }
+            throw new InvalidOperationException("Sales order is not ready for invoice yet. The SO must go through Costing & Pricing first.");
         }
 
         if (candidate.Status == InvoiceCandidateStatuses.Invoiced

@@ -29,11 +29,13 @@ public sealed class SalesOrder
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public decimal? EstimatedAmount { get; set; }
+    public bool IsCostingCompleted { get; set; } = false;
     public List<SalesOrderItem> Items { get; set; } = [];
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
     public List<SalesOrderDesignRevision> DesignRevisions { get; set; } = [];
-    public List<string> ProductionPhotos { get; set; } = new();
-    public List<string> QcPhotos { get; set; } = new();
+    public List<SalesOrderComment> Comments { get; set; } = [];
+    public List<string>? ProductionPhotos { get; set; } = [];
+    public List<string>? QcPhotos { get; set; } = [];
 }
 
 public static class SalesOrderStatuses

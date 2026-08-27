@@ -6,6 +6,10 @@ export const BOMItemSchema = z.object({
   specification: z.string().optional(),
   quantity: z.string().min(1, "Qty diperlukan"),
   unit: z.string(),
+  isCustomerMaterial: z.boolean().optional(),
+  isAddToMasterBOM: z.boolean().optional(),
+  inventoryItemId: z.string().optional(),
+  code: z.string().optional(),
 });
 
 export const ProductLineItemSchema = z.object({
@@ -39,7 +43,7 @@ export const ProductLineItemSchema = z.object({
 });
 
 export const CustomerFormSchema = z.object({
-  customerCode: z.string().min(1, "Kode wajib diisi"),
+  customerCode: z.string().optional(),
   customerName: z.string().min(1, "Nama wajib diisi"),
   company: z.string().min(1, "Perusahaan wajib diisi"),
   phone: z.string().optional(),

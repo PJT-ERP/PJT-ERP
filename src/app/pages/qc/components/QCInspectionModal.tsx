@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { X, CheckCircle, Upload, Trash2 } from "lucide-react";
+import { X, CheckCircle, Upload, Trash2, ExternalLink } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 import { SalesOrder } from "../../../components/data/mockData";
 import { QcInspectionDto, qcApi } from "../../../services/qcApi";
-import { toBackendUserId, isGuid } from "../../../services/backendIds";
+import { toBackendUserId, isGuid, formatUrl } from "../../../services/backendIds";
 import { compressImage, S } from "./utils";
+import { useCustomersQuery } from "../../../services/queries";
 
 export function QCInspectionModal({
   so,
@@ -18,7 +19,8 @@ export function QCInspectionModal({
   onClose: () => void;
   onSaved: (inspection: QcInspectionDto) => Promise<void>;
 }) {
-  const { updateSalesOrder, customers, currentUser } = useApp();
+  const { currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const productionFileInputRef = useRef<HTMLInputElement>(null);
   const qcFileInputRef = useRef<HTMLInputElement>(null);
   const customer = customers.find(c => c.code === so.customerId);
@@ -125,31 +127,6 @@ export function QCInspectionModal({
       return;
     }
 
-    if (result === 'Go') {
-      updateSalesOrder(so.id, {
-        status: 'Completed',
-        qcStatus: 'Go',
-        qcNotes: notes,
-        qcAt: new Date().toISOString(),
-        completedAt: new Date().toISOString().split('T')[0],
-        qcPhotos: qcPhotos.map(p => p.url),
-        productionPhotos: productionPhotos.map(p => p.url),
-        customerDrawingUrl: drawingLink,
-        designLink: drawingLink,
-      });
-    } else {
-      updateSalesOrder(so.id, {
-        status: 'Ready for Production',
-        qcStatus: 'NoGo',
-        qcNotes: notes,
-        qcAt: new Date().toISOString(),
-        qcPhotos: qcPhotos.map(p => p.url),
-        productionPhotos: productionPhotos.map(p => p.url),
-        isRework: true,
-        customerDrawingUrl: drawingLink,
-        designLink: drawingLink,
-      });
-    }
     setDone(true);
   };
 
@@ -176,7 +153,7 @@ export function QCInspectionModal({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
             <h2 style={{ color: S.slate, margin: 0, fontSize: "18px" }}>Inspeksi QC — {so.id}</h2>
-            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.partNumber} · {customer?.name}</p>
+            <p style={{ color: S.secondary, margin: "2px 0 0", fontSize: "12.5px" }}>{so.partNumber} · {customer?.name}{so.deadline ? ` · Deadline: ${so.deadline}` : ''}</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: S.secondary }}>
             <X size={20} />
@@ -213,7 +190,7 @@ export function QCInspectionModal({
               />
               {!isEditingLink && drawingLink && (
                 <a
-                  href={drawingLink}
+                  href={formatUrl(drawingLink)}
                   target="_blank"
                   rel="noreferrer"
                   style={{
@@ -230,7 +207,7 @@ export function QCInspectionModal({
                     whiteSpace: "nowrap"
                   }}
                 >
-                  Buka Link
+                  Buka Link <ExternalLink size={12} style={{ marginLeft: 6 }} />
                 </a>
               )}
               <button

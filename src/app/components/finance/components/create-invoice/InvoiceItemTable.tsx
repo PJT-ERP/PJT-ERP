@@ -23,7 +23,7 @@ export function InvoiceItemTable({
     <div className="mb-12">
       {activeCandidate && !hasLockedBackendPrices && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
-          Harga hasil nego dari sistem QUT belum tersedia untuk SO ini. Anda dapat memasukkan harga secara manual di bawah, atau memproses Costing & Pricing terlebih dahulu jika diperlukan.
+          Harga hasil nego dari sistem QUT belum tersedia untuk SO ini. Anda dapat memasukkan harga secara manual di bawah, atau memproses Penetapan Harga terlebih dahulu jika diperlukan.
         </div>
       )}
       <div className="w-full overflow-x-auto">

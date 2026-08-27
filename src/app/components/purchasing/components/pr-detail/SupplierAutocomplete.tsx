@@ -46,7 +46,7 @@ export function SupplierAutocomplete({
   );
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", width: "100%", display: "flex", flexDirection: "column" }}>
+    <div ref={wrapperRef} style={{ position: "relative", zIndex: isOpen ? 100 : 1, width: "100%", display: "flex", flexDirection: "column" }}>
       <input
         value={value}
         onChange={e => {

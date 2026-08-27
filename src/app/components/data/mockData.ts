@@ -58,6 +58,14 @@ export interface SalesOrder {
   designReference?: string | null;
   backendDesignStatus?: string;
   submittedAt?: string;
+  comments?: Array<{
+    id: string;
+    userId: string;
+    userName: string;
+    content: string;
+    createdAtUtc: string;
+  }> | null;
+  isCostingCompleted?: boolean;
   approvedAt?: string;
   approvedBy?: string;
   rejectionReason?: string;
@@ -83,6 +91,8 @@ export interface SalesOrder {
   assignedName?: string;
   designAssignedTo?: string;
   designAssignedName?: string;
+  designApprovedByUserId?: string;
+  designApprovedByName?: string;
   materialRequestStatus?: 'none' | 'requested' | 'approved';
   materialShortageDetected?: boolean;
   estimatedAmount?: number;
@@ -212,7 +222,7 @@ export function calcProductionDuration(startTime?: string, endTime?: string): nu
 }
 
 export type PurchasingUrgency = 'Normal' | 'Urgent' | 'Critical';
-export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak';
+export type PurchasingStatus = 'Pending' | 'Diproses' | 'Selesai' | 'Ditolak' | 'Perlu Revisi';
 
 export interface PurchasingItem {
   itemId?: string;
@@ -254,6 +264,7 @@ export interface PurchasingRequest {
   expectedDelivery?: string;
   receivedAt?: string;
   rejectionReason?: string;
+  revisionNote?: string;
 }
 
 export function getDefaultRouteForRole(role: UserRole): string {

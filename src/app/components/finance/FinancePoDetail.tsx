@@ -52,25 +52,35 @@ export function FinancePoDetail() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [requests, paymentsRes, suppliersRes] = await Promise.all([
+        const [requests, paymentsRes, suppliersRes, inventoryItems] = await Promise.all([
           purchasingApi.listPurchaseRequests(),
           financeApi.listSupplierPayments(),
-          masterDataApi.listSuppliers()
+          masterDataApi.listSuppliers(),
+          masterDataApi.listInventory(),
         ]);
         setSuppliers(suppliersRes);
-        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes);
+        const pos = mapPurchaseRequestsToPos(requests, paymentsRes, suppliersRes, inventoryItems);
         const po = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (po) {
           setDetail(po);
           const payment = paymentsRes.find(p => p.poNumber === po.id);
           if (payment?.proofFileUrl) {
-            // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
-            const url = payment.proofFileUrl.startsWith('http') 
-              ? payment.proofFileUrl 
-              : payment.proofFileUrl;
+            let url = payment.proofFileUrl;
+            if (url.startsWith('http')) {
+              try {
+                const urlObj = new URL(url);
+                urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                url = urlObj.toString();
+              } catch (err) {
+                console.warn("Failed to parse proof URL", err);
+              }
+            } else {
+              if (!url.startsWith('/')) url = '/' + url;
+              url = url.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+            }
             setProofFileUrl(url);
           } else if (payment?.proofFileName) {
-            setProofFileUrl(`/proofs/${payment.proofFileName}`);
+            setProofFileUrl(`/proofs/${encodeURIComponent(payment.proofFileName)}`);
           }
         } else {
           setDetail(null);
@@ -102,7 +112,8 @@ export function FinancePoDetail() {
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
       const paymentsRes = await financeApi.listSupplierPayments();
-      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers);
+      const inventoryItems = await masterDataApi.listInventory();
+      const pos = mapPurchaseRequestsToPos(refreshedData, paymentsRes, suppliers, inventoryItems);
       const refreshedPo = pos.find((p: any) => p.id === id || p.id.replace(/^PO-/, "") === id?.replace(/^PO-/, ""));
         if (refreshedPo) {
           setDetail(refreshedPo);
@@ -142,6 +153,11 @@ export function FinancePoDetail() {
 
   const pc = paymentCfg[detail.paymentStatus] || { bg: "#f1f5f9", color: "#64748b" };
   const totalTagihan = calcTotal(detail.items);
+
+  const today = new Date();
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  const todayStr = today.toISOString().slice(0, 10);
+  const isOverdue = detail.paymentStatus !== "Paid" && detail.dueDate && detail.dueDate < todayStr;
 
   return (
     <div className="p-5 max-w-5xl mx-auto space-y-6">
@@ -185,9 +201,10 @@ export function FinancePoDetail() {
         <div className="hidden print:flex px-6 py-8 justify-between">
           <div className="w-1/2 pr-4">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ditagihkan Kepada:</h3>
-            <p className="font-bold text-slate-900 text-lg">PT. PRATAMA JAYA</p>
-            <p className="text-sm text-slate-600 mt-1">Kawasan Industri MM2100</p>
-            <p className="text-sm text-slate-600">Cikarang Barat, Bekasi 17530</p>
+            <p className="font-bold text-slate-900 text-lg">PT. PRATAMA JAYA TEKINDO</p>
+            <p className="text-sm text-slate-600 mt-1">Sunrise Bizpark Blok D-3 Kelurahan Kutajaya</p>
+            <p className="text-sm text-slate-600">Jl. Industri Raya LOT MM 25, Kec. Pasar Kemis</p>
+            <p className="text-sm text-slate-600">Kab. Tangerang Prov. Banten</p>
           </div>
           <div className="w-1/3 border-l-2 border-slate-100 pl-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informasi Pembayaran:</h3>
@@ -206,6 +223,11 @@ export function FinancePoDetail() {
               <span className="inline-flex items-center gap-1.5 rounded px-2.5 py-1" style={{ background: pc.bg, color: pc.color, fontSize: 12, fontWeight: 700 }}>
                 {detail.paymentStatus}
               </span>
+              {isOverdue && (
+                <span className="inline-flex items-center rounded px-2 py-0.5 border border-red-200 bg-red-50 text-red-600 text-[11px] font-bold">
+                  OVERDUE
+                </span>
+              )}
             </div>
             <p className="text-sm text-slate-500 m-0">
               Supplier: <strong>{detail.supplier}</strong> · Tgl Order: {detail.orderDate}

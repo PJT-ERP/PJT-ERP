@@ -75,6 +75,8 @@ export interface SalesOrderDto {
   customerDrawingUrl?: string | null;
   designReference?: string | null;
   designStatus: string;
+  designApprovedByUserId?: string | null;
+  designApprovedByName?: string | null;
   designApprovedAtUtc?: string | null;
   soDate: string;
   targetDate?: string | null;
@@ -107,10 +109,44 @@ export interface SalesOrderDto {
     designReference?: string | null;
     customerDrawingUrl?: string | null;
   }>;
+  materials?: Array<{
+    id: string;
+    inventoryItemId?: string | null;
+    name: string;
+    code?: string | null;
+    spec?: string | null;
+    specification?: string | null;
+    quantity: number;
+    unit: string;
+  }> | null;
   qcPhotos?: string[] | null;
   productionPhotos?: string[] | null;
   estimatedAmount?: number | null;
   completionNote?: string | null;
+  createdAtUtc?: string;
+  updatedAtUtc?: string;
+  isCostingCompleted?: boolean;
+  comments?: SalesOrderCommentDto[] | null;
+}
+
+export interface SalesOrderCommentDto {
+  id: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAtUtc: string;
+  isEdited: boolean;
+  isDeleted: boolean;
+}
+
+export interface AddSalesOrderCommentRequest {
+  userId: string;
+  userName: string;
+  content: string;
+}
+
+export interface UpdateSalesOrderCommentRequest {
+  content: string;
 }
 
 export interface CreateSalesOrderRequest {
@@ -283,6 +319,11 @@ export const salesApi = {
     return response.data;
   },
 
+  async updateSalesOrder(salesOrderId: string, request: any) {
+    const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}`, request);
+    return response.data;
+  },
+
   async updateCustomerDrawing(salesOrderId: string, request: { customerDrawingUrl: string, updatedByName: string }) {
     const response = await apiClient.put<SalesOrderDto>(`/api/v1/production/sales-orders/${salesOrderId}/customer-drawing`, request);
     return response.data;
@@ -308,5 +349,23 @@ export const salesApi = {
   async updateConsultationStatus(id: string, status: string) {
     const response = await apiClient.put(`/api/v1/production/consultations/${id}/status`, { status });
     return response.data;
+  },
+
+  async deleteSalesOrder(salesOrderId: string) {
+    const response = await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}`);
+    return response.data;
+  },
+
+  async addSalesOrderComment(salesOrderId: string, request: AddSalesOrderCommentRequest) {
+    const response = await apiClient.post<SalesOrderCommentDto>(`/api/v1/production/sales-orders/${salesOrderId}/comments`, request);
+    return response.data;
+  },
+  
+  async updateSalesOrderComment(salesOrderId: string, commentId: string, request: UpdateSalesOrderCommentRequest) {
+    await apiClient.put(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`, request);
+  },
+
+  async deleteSalesOrderComment(salesOrderId: string, commentId: string) {
+    await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`);
   }
 };

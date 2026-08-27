@@ -4,7 +4,7 @@ import {
   PlusCircle, Download, LayoutList, Clock3,
   ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
-import { formatIDR, formatDate, type Transaction, type TransactionType } from './mockData';
+import { formatIDR, formatDate, type TransactionType } from './mockData';
 import { useFinanceData } from './useFinanceData';
 
 const TYPE_CONFIG: Record<TransactionType, { label: string; icon: React.ComponentType<any>; color: string; bg: string }> = {
@@ -242,6 +242,8 @@ export function TransactionHistory() {
               <div className="relative">
                 <div className="absolute left-5 top-2 bottom-2 w-px bg-slate-200" />
                 <div className="space-y-4">
+                  // eslint-disable-next-line unused-imports/no-unused-vars
+                  // eslint-disable-next-line unused-imports/no-unused-vars
                   {filtered.map((trx, idx) => {
                     const cfg = TYPE_CONFIG[trx.type];
                     return (

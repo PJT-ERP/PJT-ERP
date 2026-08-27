@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
@@ -7,10 +7,8 @@ import {
   Clock,
   XCircle,
   FileText,
-  X,
   AlertTriangle,
   Eye,
-  RefreshCw,
   Plus,
   Edit,
   ChevronLeft,
@@ -18,7 +16,6 @@ import {
 } from "lucide-react";
 import { purchasingApi, PurchaseRequestDto } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
-import { toBackendUserId } from "../../services/backendIds";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 /* ── Data ──────────────────────────────────────────────────── */
@@ -63,6 +60,7 @@ export interface MR {
   isReadyForFinance?: boolean;
   hasUnorderedItems?: boolean;
   rejectionReason?: string;
+  revisionNote?: string | null;
 }
 
 /* ── Pill configs ──────────────────────────────────────────── */
@@ -110,6 +108,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     approvedBy: request.supervisorReviewedAtUtc ? "Engineering Supervisor" : undefined,
     approvedAt: request.supervisorReviewedAtUtc ? formatDisplayDateTime(request.supervisorReviewedAtUtc) : undefined,
     rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+    revisionNote: request.revisionNote || null,
     supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
     financeApproval: request.financeReviewedAtUtc
       ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
@@ -125,7 +124,7 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         extCode = bracketMatch[1];
         extName = bracketMatch[2];
       } else {
-        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:\-[A-Z0-9]+)*)\s*-\s*(.*)/i);
+        const dashMatch = item.itemName.match(/^([A-Z0-9]+-[A-Z0-9]+(?:-[A-Z0-9]+)*)\s*-\s*(.*)/i);
         if (dashMatch) {
           extCode = dashMatch[1].toUpperCase();
           extName = dashMatch[2];
@@ -247,7 +246,7 @@ export function MaterialRequestsPage() {
     try {
       const data = await purchasingApi.listPurchaseRequests();
       // Hanya tampilkan PR yang sudah lolos tahap Supervisor di modul Purchasing
-      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") && r.status !== "SupervisorRejected");
+      const validForPurchasing = data.filter(r => (r.status !== "Submitted" || r.requesterName?.toLowerCase().includes("supervisor") || r.requesterName?.toLowerCase().includes("spv") || r.requesterName === "Admin" || r.requesterName === "Owner") || (r.status as string) === "SupervisorRejected");
       setRequests(validForPurchasing.map(mapPurchaseRequestToMr));
     } catch (error) {
       console.warn("Purchasing API unavailable; material request seed data was not loaded.", error);
@@ -280,7 +279,8 @@ export function MaterialRequestsPage() {
     Rejected: requests.filter((m) => m.status === "Rejected").length,
   };
 
-  const rejectedByFinanceMrs = requests.filter(r => r.backendStatus === "FinanceRejected" || r.status === "Rejected");
+  const rejectedByFinanceMrs = requests.filter(r => r.backendStatus === "FinanceRejected");
+  const rejectedBySupervisorMrs = requests.filter(r => r.backendStatus === "SupervisorRejected" || r.backendStatus === "Rejected");
 
   return (
     <div className="p-5 space-y-4">
@@ -324,6 +324,37 @@ export function MaterialRequestsPage() {
                       className="px-3 py-1.5 rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors shrink-0 flex items-center gap-1"
                     >
                       <Edit size={12} /> Revisi Sekarang
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectedBySupervisorMrs.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-amber-800">Perhatian: {rejectedBySupervisorMrs.length} Purchase Request Ditolak oleh Supervisor</h3>
+              <p className="text-xs text-amber-700 mt-1 mb-3">
+                Dokumen berikut ditolak atau dikembalikan oleh Supervisor:
+              </p>
+              <div className="space-y-2">
+                {rejectedBySupervisorMrs.map(mr => (
+                  <div key={mr.id} className="flex items-center justify-between bg-white rounded border border-amber-200 p-2.5 text-xs shadow-sm">
+                    <div>
+                      <span className="font-bold text-slate-800">{mr.id}</span>
+                      <span className="text-slate-500 mx-2">·</span>
+                      <span className="text-amber-600 font-medium">Alasan: {mr.rejectionReason || "Spesifikasi tidak disetujui"}</span>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/erp/purchasing/requests/${mr.id}`)}
+                      className="px-3 py-1.5 rounded bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors shrink-0 flex items-center gap-1"
+                    >
+                      <Edit size={12} /> Lihat Detail
                     </button>
                   </div>
                 ))}

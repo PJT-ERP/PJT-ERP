@@ -75,4 +75,40 @@ public sealed class InventoryController(IInventoryService inventoryService) : Co
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("deduct-custom-bom")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Production")]
+    public async Task<IActionResult> DeductCustomBom(DeductCustomBomRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.DeductCustomBomAsync(request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/mutate")]
+    [Authorize(Roles = "Admin,Purchasing")]
+    public async Task<IActionResult> MutateStock(Guid id, MutateStockRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inventoryService.MutateStockAsync(id, request, cancellationToken);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("mutations")]
+    public async Task<ActionResult<IReadOnlyCollection<StockMutationLogDto>>> ListMutations(CancellationToken cancellationToken)
+    {
+        return Ok(await inventoryService.ListMutationsAsync(cancellationToken));
+    }
 }

@@ -32,7 +32,7 @@ export function useCreateInvoice() {
   // Combine backend candidates with local SOs that bypassed costing or were priced during production
   const localBypassedCandidates = salesOrders
     .filter(so => 
-      (['Pending Design', 'Waiting Pricing', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'Paused', 'QC', 'Completed'].includes(so.status)) && 
+      (['Pending Design', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'Paused', 'QC', 'Completed'].includes(so.status)) && 
       (so.items?.some((i: any) => i.unitPrice && i.unitPrice > 0) || (so.estimatedAmount && so.estimatedAmount > 0))
     )
     .map(so => ({
@@ -68,9 +68,15 @@ export function useCreateInvoice() {
     }
   });
 
-  // Filter out already invoiced SOs
+  // Filter out already invoiced SOs and require Costing to be completed
   const invoicedSoNumbers = new Set((invoices || []).map(inv => inv.soNumber));
-  allCandidates = allCandidates.filter(c => !invoicedSoNumbers.has(c.salesOrderNumber) && c.status !== 'Invoiced');
+  allCandidates = allCandidates.filter(c => {
+    if (invoicedSoNumbers.has(c.salesOrderNumber) || c.status === 'Invoiced') return false;
+    
+    // Strict rule: Penetapan Harga (Costing) must be completed before an invoice can be made.
+    const localSO = salesOrders.find(o => o.backendId === c.salesOrderId || o.id === c.salesOrderNumber || o.id === c.salesOrderId);
+    return localSO ? localSO.isCostingCompleted === true : false;
+  });
 
   const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO);
   
@@ -96,7 +102,7 @@ export function useCreateInvoice() {
           description: item.productDescription,
           quantity: item.qty,
           unit: 'Pcs',
-          unitPrice: item.unitPrice || localItem?.unitPrice || (activeCandidate.items.length === 1 && localSO?.estimatedAmount ? localSO.estimatedAmount / item.qty : 0),
+          unitPrice: localItem?.unitPrice || item.unitPrice || (activeCandidate.items.length === 1 && localSO?.estimatedAmount ? localSO.estimatedAmount / item.qty : 0),
         };
       }));
       if (activeCandidate.targetDate && !dueDate) {
@@ -138,16 +144,12 @@ export function useCreateInvoice() {
     setIsSaving(true);
 
     try {
-      try {
-        await salesApi.updateSalesOrderPricing(activeCandidate!.salesOrderId, {
-          items: items.map(item => ({
-            salesOrderItemId: item.id,
-            unitPrice: item.unitPrice,
-          }))
-        });
-      } catch (pricingError: any) {
-        console.warn('Failed to pre-update pricing. Continuing to create invoice anyway...', pricingError);
-      }
+      await salesApi.updateSalesOrderPricing(activeCandidate!.salesOrderId, {
+        items: items.map(item => ({
+          salesOrderItemId: item.id,
+          unitPrice: item.unitPrice,
+        }))
+      });
 
       const invoice = await financeApi.createInvoice({
         salesOrderId: activeCandidate!.salesOrderId,

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   MaterialRequirementDto,
   PurchaseRequestDto,
@@ -8,17 +9,9 @@ import { masterDataApi, SupplierDto } from "../../services/masterDataApi";
 import { financeApi, SupplierPaymentDto } from "../../services/financeApi";
 
 export function usePurchasingData(enabled = true) {
-  const [materialRequirements, setMaterialRequirements] = useState<MaterialRequirementDto[]>([]);
-  const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestDto[]>([]);
-  const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
-  const [supplierPayments, setSupplierPayments] = useState<SupplierPaymentDto[]>([]);
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUsingBackend, setIsUsingBackend] = useState(false);
-
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['purchasingData'],
+    queryFn: async () => {
       const [reqRes, prRes, supRes, invRes, payRes] = await Promise.allSettled([
         purchasingApi.listMaterialRequirements(),
         purchasingApi.listPurchaseRequests(),
@@ -26,54 +19,32 @@ export function usePurchasingData(enabled = true) {
         masterDataApi.listInventory(),
         financeApi.listSupplierPayments(),
       ]);
-      if (reqRes.status === "fulfilled") setMaterialRequirements(reqRes.value);
-      else setMaterialRequirements([]);
+      
+      return {
+        materialRequirements: reqRes.status === "fulfilled" ? reqRes.value : [],
+        purchaseRequests: prRes.status === "fulfilled" ? prRes.value : [],
+        suppliers: supRes.status === "fulfilled" ? supRes.value : [],
+        inventoryItems: invRes.status === "fulfilled" ? invRes.value : [],
+        supplierPayments: payRes.status === "fulfilled" ? payRes.value : [],
+        isUsingBackend: prRes.status === "fulfilled"
+      };
+    },
+    enabled: enabled,
+    staleTime: 30000,
+  });
 
-      if (prRes.status === "fulfilled") {
-        const validPRs = prRes.value.filter(r => r.status !== "SupervisorRejected");
-        setPurchaseRequests(validPRs);
-      }
-      else setPurchaseRequests([]);
-
-      if (supRes.status === "fulfilled") setSuppliers(supRes.value);
-      else setSuppliers([]);
-
-      if (invRes.status === "fulfilled") setInventoryItems(invRes.value);
-      else setInventoryItems([]);
-
-      if (payRes.status === "fulfilled") setSupplierPayments(payRes.value);
-      else setSupplierPayments([]);
-
-      setIsUsingBackend(prRes.status === "fulfilled");
-    } catch (error) {
-      console.warn("Purchasing API unavailable; purchasing data was not loaded.", error);
-      setMaterialRequirements([]);
-      setPurchaseRequests([]);
-      setSuppliers([]);
-      setInventoryItems([]);
-      setSupplierPayments([]);
-      setIsUsingBackend(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (enabled) {
-      void refresh();
-    } else {
-      setIsLoading(false);
-    }
-  }, [enabled, refresh]);
+  const refresh = useCallback(async (forceOrEvent?: boolean | any) => {
+    await refetch();
+  }, [refetch]);
 
   return useMemo(() => ({
-    materialRequirements,
-    purchaseRequests,
-    suppliers,
-    supplierPayments,
-    inventoryItems,
+    materialRequirements: data?.materialRequirements || [],
+    purchaseRequests: data?.purchaseRequests || [],
+    suppliers: data?.suppliers || [],
+    supplierPayments: data?.supplierPayments || [],
+    inventoryItems: data?.inventoryItems || [],
     isLoading,
-    isUsingBackend,
+    isUsingBackend: data?.isUsingBackend || false,
     refresh
-  }), [materialRequirements, purchaseRequests, suppliers, supplierPayments, inventoryItems, isLoading, isUsingBackend, refresh]);
+  }), [data, isLoading, refresh]);
 }

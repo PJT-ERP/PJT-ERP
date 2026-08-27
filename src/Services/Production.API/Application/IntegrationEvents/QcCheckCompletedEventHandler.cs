@@ -35,9 +35,10 @@ public sealed class QcCheckCompletedEventHandler(ProductionContext db, IEventPub
 
         if (productionOrder.SalesOrder is not null)
         {
-            productionOrder.SalesOrder.Status = isGo
-                ? SalesOrderStatuses.Completed
-                : productionOrder.SalesOrder.Status;
+            if (isGo)
+            {
+                productionOrder.SalesOrder.Status = SalesOrderStatuses.Completed;
+            }
             productionOrder.SalesOrder.UpdatedAtUtc = integrationEvent.CheckedAtUtc;
             productionOrder.SalesOrder.ProductionPhotos = integrationEvent.ProductionPhotos.ToList();
             productionOrder.SalesOrder.QcPhotos = integrationEvent.QcPhotos.ToList();

@@ -1,18 +1,18 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Upload, X, CheckCircle, Shield, Trash2, Image as ImageIcon, ExternalLink, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Shield, CheckCircle, ChevronLeft, ChevronRight, Search, Image as ImageIcon, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApp } from "../../components/context/AppContext";
 import { SalesOrder, getStatusColor, calcProductionDuration } from "../../components/data/mockData";
 import { qcApi } from "../../services/qcApi";
 import type { QcInspectionDto } from "../../services/qcApi";
-import { BASE_URL } from "../../services/apiClient";
 import { QCReadOnlyView } from "../QCReadOnlyView";
-import { toBackendUserId, isGuid } from "../../services/backendIds";
-import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
 import { S, isGo, isNoGo, mapInspectionToSalesOrder, findInspectionForSo } from "./components/utils";
-import { QCHistoryModal } from "./components/QCHistoryModal";
+import { QCHistoryModal } from './components/QCHistoryModal';
 import { QCInspectionModal } from "./components/QCInspectionModal";
 import { DrawingLink } from "./components/DrawingLink";
 import { InlineBomDisplay } from "../Production/components/InlineBomDisplay";
+import type { QcQueuesDto } from "../../services/productionApi";
+import { useCustomersQuery, useQcInspectionsQuery, useQcQueuesQuery } from "../../services/queries";
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);
@@ -29,10 +29,13 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function QCInspectionsPage() {
-  const { salesOrders, customers, currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
+  const { data: customers = [] } = useCustomersQuery();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
-  const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
+  const { data: inspections = [] } = useQcInspectionsQuery();
+  const { data: qcQueues = null } = useQcQueuesQuery();
 
   const [historySearch, setHistorySearch] = useState("");
   const [historyFilter, setHistoryFilter] = useState("All");
@@ -46,33 +49,33 @@ export function QCInspectionsPage() {
   const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Admin';
   const isReadOnly = (currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin') || isOwner;
 
+
   if (isReadOnly) {
     return <QCReadOnlyView />;
   }
 
-  useEffect(() => {
-    const loadInspections = async () => {
-      try {
-        setInspections(await qcApi.listInspections());
-      } catch (error) {
-        console.warn("Backend QC inspections unavailable, using local QC queue.", error);
-      }
-    };
-
-    void loadInspections();
-  }, []);
+  const sortByDeadline = (a: any, b: any) => {
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+  };
 
   const hasBackendInspections = inspections.length > 0;
-  const qcQueue = hasBackendInspections
+  const readyForInspection = qcQueues?.readyForInspection || [];
+  const inspectionHistory = qcQueues?.inspectionHistory || [];
+
+  const qcQueue = (hasBackendInspections
     ? inspections
-      .filter(inspection => inspection.status === "ReadyForInspection")
-      .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
-    : salesOrders.filter(so => so.status === 'QC');
-  const recentCompleted = hasBackendInspections
+      .filter(inspection => inspection.status === "ReadyForInspection" && !inspection.decision)
+      .map(inspection => mapInspectionToSalesOrder(inspection, readyForInspection as any))
+    : readyForInspection).sort(sortByDeadline) as SalesOrder[];
+    
+  const recentCompleted = (hasBackendInspections
     ? inspections
       .filter(inspection => isGo(inspection.decision || inspection.status) || isNoGo(inspection.decision || inspection.status))
-      .map(inspection => mapInspectionToSalesOrder(inspection, salesOrders))
-    : salesOrders.filter(so => so.status === 'Completed');
+      .map(inspection => mapInspectionToSalesOrder(inspection, [...(inspectionHistory as any), ...(readyForInspection as any)]))
+    : inspectionHistory).sort(sortByDeadline) as SalesOrder[];
+    
   const passCount = recentCompleted.filter(s => isGo(s.qcStatus)).length;
   const failCount = recentCompleted.filter(s => isNoGo(s.qcStatus)).length;
 
@@ -91,7 +94,7 @@ export function QCInspectionsPage() {
   });
 
   return (
-    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
+    <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20, fontFamily: "Inter, sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>Quality Control</h1>
@@ -160,32 +163,34 @@ export function QCInspectionsPage() {
               const inspection = findInspectionForSo(inspections, so);
               const durationHours = calcProductionDuration(so.startTime, so.endTime);
               return (
-                <div key={so.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < qcQueue.slice((currentPageQc - 1) * itemsPerPageQc, currentPageQc * itemsPerPageQc).length - 1 ? `1px solid ${S.border}` : "none" }}>
-                  <div style={{ width: 40, height: 40, background: "rgba(200,16,46,0.08)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: S.cyan, flexShrink: 0 }}>
-                    <Shield size={20} />
+                <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < qcQueue.slice((currentPageQc - 1) * itemsPerPageQc, currentPageQc * itemsPerPageQc).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
+                        <StatusBadge status={so.status} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                        <span>Pelanggan: <strong style={{ color: S.slate }}>{customer?.name || so.customerId || '-'}</strong></span>
+                        <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline || '-'}</strong></span>
+                        <span>{so.quantity} {so.unit}</span>
+                        {durationHours !== null && <span>Durasi Produksi: {durationHours} jam</span>}
+                        {inspection?.refNo && <span>{inspection.refNo}</span>}
+                        <DrawingLink so={so} inspection={inspection} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {currentUser?.role !== 'Admin' && (
+                        <button onClick={() => setSelectedSO(so)}
+                          style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
+                          Mulai Inspeksi
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: 600, color: S.slate }}>{so.id}</span>
-                      <StatusBadge status={so.status} />
-                    </div>
-                    <p style={{ fontSize: "13.5px", color: S.slate, margin: "0 0 4px", fontWeight: 500 }}>{so.description}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: "12px", color: S.secondary }}>
-                      <span>{customer?.name}</span><span>·</span><span>{so.quantity} {so.unit}</span>
-                      {durationHours !== null && <><span>·</span><span>Durasi Produksi: {durationHours} jam</span></>}
-                      {inspection?.refNo && <><span>·</span><span>{inspection.refNo}</span></>}
-                    </div>
-                    <div style={{ marginTop: 4 }}>
-                      <DrawingLink so={so} inspection={inspection} />
-                    </div>
+                  <div>
                     <InlineBomDisplay so={so} />
                   </div>
-                  {currentUser?.role !== 'Admin' && (
-                    <button onClick={() => setSelectedSO(so)}
-                      style={{ padding: "8px 16px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "12.5px", fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap" }}>
-                      Mulai Inspeksi
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -320,9 +325,11 @@ export function QCInspectionsPage() {
           so={selectedSO}
           inspection={findInspectionForSo(inspections, selectedSO)}
           onClose={() => setSelectedSO(null)}
-          onSaved={async (updatedInspection) => {
-            setInspections(prev => prev.map(item => item.id === updatedInspection.id ? updatedInspection : item));
-            await refreshBackendData();
+          onSaved={async () => {
+            queryClient.invalidateQueries({ queryKey: ['qcInspections'] });
+            queryClient.invalidateQueries({ queryKey: ['qcQueues'] });
+            queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+            queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
           }}
         />
       )}

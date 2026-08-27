@@ -115,6 +115,7 @@ export function useAuth() {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_PROFILE_KEY);
     setCurrentUser(null);
+    setUsers([]);
   }, []);
 
   useEffect(() => {
@@ -179,13 +180,25 @@ export function useAuth() {
       return;
     }
 
-    const latestUser = users.find(user => user.id === currentUser.id && user.isActive);
+    // Try matching by ID first, then fallback to email/username match
+    let latestUser = users.find(user => user.id === currentUser.id && user.isActive);
     if (!latestUser) {
-      logout();
+      // Fallback: try matching by email (IDs may differ between login response and user list)
+      latestUser = users.find(user => user.email === currentUser.email && user.isActive);
+    }
+
+    if (!latestUser) {
+      console.warn(
+        "[useAuth] Current user not found in users list. currentUser:",
+        { id: currentUser.id, email: currentUser.email, username: currentUser.username },
+        "users:",
+        users.map(u => ({ id: u.id, email: u.email, isActive: u.isActive }))
+      );
+      // Don't auto-logout — the users list might just be stale or loading
       return;
     }
 
-    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name) {
+    if (latestUser.username !== currentUser.username || latestUser.role !== currentUser.role || latestUser.name !== currentUser.name || latestUser.id !== currentUser.id) {
       setCurrentUser(latestUser);
       localStorage.setItem(AUTH_USER_KEY, latestUser.username);
 
@@ -193,6 +206,7 @@ export function useAuth() {
       if (storedAuthUser) {
         try {
           const parsed = JSON.parse(storedAuthUser);
+          parsed.userId = latestUser.id;
           parsed.email = latestUser.email;
           parsed.name = latestUser.name;
           parsed.roles = [latestUser.role];

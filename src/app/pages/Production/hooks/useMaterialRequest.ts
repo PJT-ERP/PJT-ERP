@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "react-router";
 import { useApp } from "../../../components/context/AppContext";
+import { useSalesOrdersQuery, usePurchasingRequestsQuery } from "../../../services/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import { PurchasingUrgency } from "../../../components/data/mockData";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
@@ -16,12 +18,17 @@ export function useMaterialRequest() {
     specs?: Array<{ spec: string; quantity: number }>;
   }> | undefined;
 
-  const { salesOrders, currentUser, refreshBackendData, purchasingRequests } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const { data: purchasingRequests = [] } = usePurchasingRequestsQuery();
   
   const prefillRef = useRef(prefillStockIssues);
-  if (prefillStockIssues && prefillStockIssues.length > 0) {
-    prefillRef.current = prefillStockIssues;
-  }
+  useEffect(() => {
+    if (prefillStockIssues && prefillStockIssues.length > 0) {
+      prefillRef.current = prefillStockIssues;
+    }
+  }, [prefillStockIssues]);
   
   const so = salesOrders.find(s => s.id === id || s.backendId === id);
   const request = purchasingRequests.find(pr => pr.salesOrderId === id || pr.salesOrderId === so?.backendId);
@@ -156,16 +163,29 @@ export function useMaterialRequest() {
           }
         }
 
-        const productQty = (soItem as any).qty || soItem.quantity || 1;
+
         for (const item of aggregatedItems.values()) {
-          const required = item.bomQuantity * productQty;
+          const matchingCustomBoms = customBoms.filter(cb => 
+            cb.inventoryItemId === item.inventoryItemId || 
+            (!cb.inventoryItemId && cb.name?.trim().toLowerCase() === item.inventoryItemName?.trim().toLowerCase())
+          );
+          
+          const customerProvidedQty = matchingCustomBoms
+            .filter(cb => cb.isCustomerMaterial)
+            .reduce((sum, cb) => sum + (cb.quantity || 1), 0);
+
+          // Do not multiply by productQty; use exact BOM quantity. Subtract customer provided materials.
+          const required = item.bomQuantity - customerProvidedQty;
           const available = item.currentStock;
           
-          const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
-          const specs = matchingCustomBoms.map(cb => ({
-            spec: cb.spec || "",
-            quantity: (cb.quantity || 1) * productQty
-          }));
+          if (required <= 0) continue; // Customer provided all of it or none required
+          
+          const specs = matchingCustomBoms
+            .filter(cb => !cb.isCustomerMaterial)
+            .map(cb => ({
+              spec: cb.spec || "",
+              quantity: (cb.quantity || 1)
+            }));
           
           if (available < required) {
             const existing = issues.find(i => i.itemName === item.inventoryItemName);
@@ -179,8 +199,8 @@ export function useMaterialRequest() {
                 itemName: item.inventoryItemName,
                 required,
                 available,
-                bomQty: item.bomQuantity,
-                productQty,
+                bomQty: required, // Record the exact required amount
+                productQty: 1, // Fix display to just show the required amount without multiplication
                 specs: specs.length > 0 ? specs : undefined
               });
             }
@@ -341,13 +361,6 @@ export function useMaterialRequest() {
     try {
       setIsSubmitting(true);
       
-      try {
-        const { salesApi } = await import("../../../services/salesApi");
-        await salesApi.confirmSalesOrder(salesOrderId, requesterId);
-      } catch (err) {
-        console.warn("Auto-confirm SO silently failed or already confirmed", err);
-      }
-
       const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
       const { purchasingApi } = await import("../../../services/purchasingApi");
       const created = await purchasingApi.createPurchaseRequest({
@@ -382,7 +395,7 @@ export function useMaterialRequest() {
         }
       }
 
-      await refreshBackendData();
+      queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
       setIsSuccess(true);
     } catch (error: unknown) {
       console.warn("Failed to submit production material request to backend.", error);

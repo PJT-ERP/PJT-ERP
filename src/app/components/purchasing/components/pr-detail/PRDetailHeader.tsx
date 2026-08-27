@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Pill, statusCfg, priorityCfg } from "../../material-requests-page";
 import { usePurchaseRequestDetail } from "../../hooks/usePurchaseRequestDetail";
 
@@ -8,7 +8,7 @@ interface PRDetailHeaderProps {
 }
 
 export function PRDetailHeader({ board }: PRDetailHeaderProps) {
-  const { detail, navigate } = board;
+  const { detail } = board;
 
   if (!detail) return null;
 
@@ -17,12 +17,6 @@ export function PRDetailHeader({ board }: PRDetailHeaderProps) {
 
   return (
     <>
-      <div className="flex items-center gap-4">
-        <button onClick={() => window.history.length > 2 ? navigate(-1) : navigate("/erp/purchasing/requests")} className="rounded p-2 hover:bg-slate-200 transition">
-          <ArrowLeft size={20} className="text-slate-600" />
-        </button>
-        <h1 className="text-2xl font-bold text-slate-900 m-0">Detail Purchase Request</h1>
-      </div>
 
       {/* Info Header */}
       <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 rounded-t-lg">

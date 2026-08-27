@@ -4,11 +4,13 @@ import { purchasingApi } from "../../../services/purchasingApi";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
 import { useApp } from "../../context/AppContext";
 import { MR, mapPurchaseRequestToMr } from "../material-requests-page";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function usePurchaseRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser, refreshBackendData } = useApp();
+  const queryClient = useQueryClient();
   
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
@@ -26,10 +28,46 @@ export function usePurchaseRequestDetail() {
   const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
   const [suppliersList, setSuppliersList] = useState<any[]>([]);
 
+  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+  const [revisionNote, setRevisionNote] = useState("");
+  const [revisionItems, setRevisionItems] = useState<Array<{ itemId: string, size: string }>>([]);
+  const [isRequestingRevision, setIsRequestingRevision] = useState(false);
+
+  const handleOpenRevision = () => {
+    if (!detail) return;
+    setRevisionNote("");
+    setRevisionItems(detail.items.map(item => ({ itemId: item.itemId, size: item.spec || "" })));
+    setShowRevisionDialog(true);
+  };
+
+  const handleSubmitRevision = async () => {
+    if (!detail || !revisionNote.trim()) return;
+    setIsRequestingRevision(true);
+    setActionError("");
+    try {
+      await purchasingApi.requestPrRevision(detail.backendId, {
+        revisionNote,
+        items: revisionItems.map(i => ({ itemId: i.itemId, newSpecification: i.size }))
+      });
+      setShowRevisionDialog(false);
+      setDialogMsg({
+        title: "Revisi Diajukan",
+        message: "Dokumen berhasil dikembalikan ke Supervisor dengan catatan revisi spesifikasi."
+      });
+      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
+    } catch (e: any) {
+      setActionError(e.response?.data?.message || "Gagal mengajukan revisi.");
+    } finally {
+      setIsRequestingRevision(false);
+    }
+  };
+
   const canEditPricing = isPurchasingOrAdmin && 
     detail?.backendStatus !== "FinanceApproved" && 
     detail?.backendStatus !== "Processing" &&
     detail?.backendStatus !== "Completed" &&
+    detail?.backendStatus !== "Submitted" &&
     !(detail?.backendStatus === "SupervisorApproved" && detail?.isReadyForFinance);
 
   useEffect(() => {
@@ -50,12 +88,12 @@ export function usePurchaseRequestDetail() {
           (r.id && r.id.trim().toLowerCase() === cleanId)
         );
         
-        if (req && req.status !== "SupervisorRejected") {
+        if (req) {
           const mr = mapPurchaseRequestToMr(req);
           const initData: Record<string, { supplierName: string, estimatedPrice: string, unitPrice: string, isCustomSupplier?: boolean, itemName?: string, qty?: string }> = {};
           mr.items.forEach(item => {
             const actualSupplierName = item.supplierName && item.supplierName.trim() !== "-" ? item.supplierName : null;
-            let supplierToUse = actualSupplierName || "";
+            const supplierToUse = actualSupplierName || "";
             
             let uPrice = "";
             if (item.estimatedPrice && item.qty) {
@@ -215,6 +253,11 @@ export function usePurchaseRequestDetail() {
     dialogMsg, setDialogMsg,
     suppliersList,
     handleSavePricing,
-    handleReviewPr
+    handleReviewPr,
+    showRevisionDialog, setShowRevisionDialog,
+    revisionNote, setRevisionNote,
+    revisionItems, setRevisionItems,
+    isRequestingRevision,
+    handleOpenRevision, handleSubmitRevision
   };
 }

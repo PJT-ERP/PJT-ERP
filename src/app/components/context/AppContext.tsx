@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, Dispatch, SetStateAction, ReactNode } from "react";
+import { useLocation } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   User, SalesOrder, Customer,
   PurchasingRequest, PurchasingStatus
@@ -7,10 +9,14 @@ import { ProductDto } from "../../services/salesApi";
 import { landingPageApi } from "../../services/landingPageApi";
 import { defaultLandingPageContent } from "./defaultLandingPageContent";
 import { useAuth } from "./hooks/useAuth";
-import { useSalesOrders } from "./hooks/useSalesOrders";
-import { useCustomers } from "./hooks/useCustomers";
-import { usePurchasing } from "./hooks/usePurchasing";
 import { useBackendSync, RefreshCallbacks } from "./hooks/useBackendSync";
+import { 
+  useCustomersQuery, 
+  useSalesOrdersQuery, 
+  usePurchasingRequestsQuery, 
+  useCreateCustomerMutation, 
+  useUpdateCustomerMutation 
+} from "../../services/queries";
 
 export interface ProjectItem {
   id: string;
@@ -110,43 +116,85 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [landingPageContent, setLandingPageContent] = useState<LandingPageContent>(defaultLandingPageContent);
 
   const auth = useAuth();
+  const queryClient = useQueryClient();
   const backendSync = useBackendSync(auth.currentUser);
 
-  const customersHook = useCustomers(() => refreshRef.current());
-  const salesOrdersHook = useSalesOrders(
-    auth.currentUser,
-    customersHook.customers,
-    backendSync.productCatalog,
-    auth.users,
-    customersHook.backendCustomerIdsByCode,
-    customersHook.setBackendCustomerIdsByCode,
-    customersHook.pendingCustomersByCode,
-  );
-  const purchasingHook = usePurchasing(auth.currentUser, salesOrdersHook.salesOrders, auth.users);
+  // Clear query cache when user logs out so stale data doesn't bleed into the next session
+  useEffect(() => {
+    if (!auth.currentUser) {
+      queryClient.clear();
+    }
+  }, [auth.currentUser, queryClient]);
+  
+  // Only fetch data when user is authenticated AND they are on the ERP routes — prevents 401 spam on login page
+  const location = useLocation();
+  const isErpRoute = location.pathname.startsWith('/erp');
+  const isAuthenticated = !!auth.currentUser && isErpRoute;
 
-  // Store the latest callbacks in a ref so refreshBackendData never changes identity.
+  const { data: rqCustomers = [] } = useCustomersQuery(isAuthenticated);
+  const { data: rqSalesOrders = [] } = useSalesOrdersQuery(isAuthenticated);
+  const { data: rqPurchasing = [] } = usePurchasingRequestsQuery(isAuthenticated);
+
+  const createCustomer = useCreateCustomerMutation();
+  const updateCustomerMutation = useUpdateCustomerMutation();
+
+  // Temporary stubs to keep context type happy while we migrate components
+  const customersHook = {
+    customers: rqCustomers,
+    addCustomer: (c: any) => createCustomer.mutate(c),
+    updateCustomer: (code: string, u: any) => updateCustomerMutation.mutate({ code, data: u }),
+    deleteCustomerMaster: () => {},
+    backendCustomerIdsByCode: {},
+    setBackendCustomerIdsByCode: (_ids: any) => {},
+    pendingCustomersByCode: {},
+    setCustomers: (_c: any) => {}
+  };
+  
+  const salesOrdersHook = {
+    salesOrders: rqSalesOrders,
+    addSalesOrder: (so: any) => { return so; },
+    updateSalesOrder: (_id: string, _updates: any) => {},
+    setSalesOrders: (_o: any) => {}
+  };
+  
+  const purchasingHook = {
+    purchasingRequests: rqPurchasing,
+    setPurchasingRequests: (_p: any) => {},
+    addPurchasingRequest: () => {},
+    updatePurchasingStatus: () => {},
+    updatePurchasingRequest: () => {}
+  };
+
   const callbacksRef = useRef<RefreshCallbacks>({
     onCustomersLoaded: () => {},
     onSalesOrdersLoaded: () => {},
     onUsersLoaded: () => {},
     onPurchasingRequestsLoaded: () => {},
   });
-  callbacksRef.current = {
-    onCustomersLoaded: (customers, idsByCode) => {
-      customersHook.setCustomers(customers);
-      customersHook.setBackendCustomerIdsByCode(idsByCode);
-    },
-    onSalesOrdersLoaded: (orders) => salesOrdersHook.setSalesOrders(orders),
-    onUsersLoaded: (users) => auth.setUsers(users),
-    onPurchasingRequestsLoaded: (requests) => purchasingHook.setPurchasingRequests(requests),
-  };
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onCustomersLoaded: (customers, idsByCode) => {
+        customersHook.setCustomers(customers);
+        customersHook.setBackendCustomerIdsByCode(idsByCode);
+      },
+      onSalesOrdersLoaded: (orders) => salesOrdersHook.setSalesOrders(orders),
+      onUsersLoaded: (users) => auth.setUsers(users),
+      onPurchasingRequestsLoaded: (requests) => purchasingHook.setPurchasingRequests(requests),
+    };
+  });
 
   const refreshBackendData = useMemo(() => async () => {
     await backendSync.refreshBackendData(callbacksRef.current);
-  }, [backendSync.refreshBackendData]);
+    queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+    queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
+    queryClient.invalidateQueries({ queryKey: ['productionBoardQueues'] });
+  }, [backendSync, queryClient]);
 
   const refreshRef = useRef(refreshBackendData);
-  refreshRef.current = refreshBackendData;
+  useEffect(() => {
+    refreshRef.current = refreshBackendData;
+  });
 
   useEffect(() => {
     landingPageApi.getLandingPageContent().then((res) => {
@@ -160,9 +208,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (auth.currentUser) {
-      void refreshBackendData();
+      void refreshRef.current();
     }
-  }, [auth.currentUser, refreshBackendData]);
+  }, [auth.currentUser]);
 
   return (
     <AppContext.Provider value={{

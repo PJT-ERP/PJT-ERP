@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
 import { S, getBackendSalesOrderId } from "../ProductionHelpers";
 
 export function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pauseReason, setPauseReason] = useState("");
 
@@ -32,7 +34,8 @@ export function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose:
         workerName: currentUser?.name || so.assignedName || "Engineering",
         reason: pauseReason.trim(),
       });
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       onClose();
     } catch (error: unknown) {
       console.warn("Failed to pause production in backend.", error);
@@ -65,6 +68,7 @@ export function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose:
               onChange={e => setPauseReason(e.target.value)}
               placeholder="Contoh: Mesin CNC rusak, bahan baku aluminium habis..."
               rows={3}
+              maxLength={500}
               style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
             />
           </div>

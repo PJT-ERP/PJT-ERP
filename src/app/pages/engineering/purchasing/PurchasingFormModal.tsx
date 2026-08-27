@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { CheckCircle, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../../components/context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSalesOrdersQuery } from "../../../services/queries";
 import { PurchasingRequest, PurchasingItem, PurchasingUrgency } from "../../../components/data/mockData";
 import { purchasingApi } from "../../../services/purchasingApi";
 import { toBackendUserId } from "../../../services/backendIds";
@@ -24,28 +26,13 @@ export interface ItemDraft {
 }
 
 export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClose: () => void; editRequest?: PurchasingRequest | null, onSuccess?: (items?: PurchasingItem[]) => void }) {
-  const { salesOrders, currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
   const [soId, setSoId] = useState(editRequest?.soId || '');
   const [urgency, setUrgency] = useState<PurchasingUrgency>(editRequest?.urgency || 'Normal');
   const [notes, setNotes] = useState(editRequest?.notes || '');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-
-  useEffect(() => {
-    import('../../../services/masterDataApi').then(({ masterDataApi }) => {
-      masterDataApi.listInventory().then(invs => {
-        setInventoryItems(invs);
-        if (editRequest) {
-          setItems(prev => prev.map(item => {
-            const master = invs.find(i => i.name === item.itemName || i.id === item.itemId);
-            if (master && master.unit && master.unit.toUpperCase() !== item.unit.toUpperCase()) {
-              return { ...item, unit: master.unit };
-            }
-            return item;
-          }));
-        }
-      }).catch(console.error);
-    });
-  }, [editRequest]);
 
   const [items, setItems] = useState<ItemDraft[]>(() => {
     const sourceItems = editRequest?.items && editRequest.items.length > 0
@@ -69,6 +56,24 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
         }))
       : [{ itemName: '', specification: '', quantity: '', unit: 'PCS' }];
   });
+
+  useEffect(() => {
+    import('../../../services/masterDataApi').then(({ masterDataApi }) => {
+      masterDataApi.listInventory().then(invs => {
+        setInventoryItems(invs);
+        if (editRequest) {
+          setItems(prev => prev.map(item => {
+            const master = invs.find(i => i.name === item.itemName || i.id === item.itemId);
+            if (master && master.unit && master.unit.toUpperCase() !== item.unit.toUpperCase()) {
+              return { ...item, unit: master.unit };
+            }
+            return item;
+          }));
+        }
+      }).catch(console.error);
+    });
+  }, [editRequest]);
+
   const [done, setDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -150,7 +155,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
             console.warn("Auto review PR failed", e);
           }
         }
-        await refreshBackendData();
+        await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
         onSuccess?.(parsedItems);
         onClose();
         return;
@@ -166,7 +171,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
             console.warn("Auto review PR failed", e);
           }
         }
-        await refreshBackendData();
+        await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
         setDone(true);
       }
     } catch (error: any) {
@@ -324,7 +329,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                         placeholder="Qty *"
                         style={{ width: 100, padding: "10px 12px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13.5px", fontFamily: S.font, outline: "none", background: S.white }}
                       />
-                      {!!item.itemId ? (
+                      {item.itemId ? (
                         <input
                           type="text"
                           value={item.unit}

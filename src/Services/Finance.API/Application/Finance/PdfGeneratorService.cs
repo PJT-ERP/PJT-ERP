@@ -53,20 +53,20 @@ public static class PdfGeneratorService
                     r.ConstantItem(80).Image(imagePath);
                     r.RelativeItem().PaddingLeft(10).Column(column =>
                     {
-                        column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
-                        column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
-                        column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
-                        column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("PT. PRATAMA JAYA TEKINDO").FontSize(16).SemiBold().FontColor(Colors.Grey.Darken4);
+                        column.Item().Text("design engineering/ machineries manufacturer/ Jig/die / Precision tools").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
+                        column.Item().PaddingTop(4).Text("Sunrise Bizpark Blok D-3 Kelurahan Kutajaya").FontSize(9).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("Kec. Pasar Kemis Kab. Tangerang Prov. Banten").FontSize(9).FontColor(Colors.Grey.Medium);
                     });
                 }
                 else
                 {
                     r.RelativeItem().Column(column =>
                     {
-                        column.Item().Text("PT. PRATAMA JAYA").FontSize(20).SemiBold().FontColor(Colors.Grey.Darken4);
-                        column.Item().Text("Kawasan Industri MM2100").FontSize(10).FontColor(Colors.Grey.Medium);
-                        column.Item().Text("Cikarang Barat, Bekasi 17530").FontSize(10).FontColor(Colors.Grey.Medium);
-                        column.Item().Text("finance@pratamajaya.co.id").FontSize(10).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("PT. PRATAMA JAYA TEKINDO").FontSize(16).SemiBold().FontColor(Colors.Grey.Darken4);
+                        column.Item().Text("design engineering/ machineries manufacturer/ Jig/die / Precision tools").FontSize(9).Italic().FontColor(Colors.Grey.Medium);
+                        column.Item().PaddingTop(4).Text("Sunrise Bizpark Blok D-3 Kelurahan Kutajaya").FontSize(9).FontColor(Colors.Grey.Medium);
+                        column.Item().Text("Kec. Pasar Kemis Kab. Tangerang Prov. Banten").FontSize(9).FontColor(Colors.Grey.Medium);
                     });
                 }
             });

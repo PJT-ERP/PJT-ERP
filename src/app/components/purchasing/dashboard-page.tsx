@@ -4,25 +4,20 @@ import {
   ClipboardList,
   Truck,
   CheckCircle2,
-  RefreshCcw,
   ArrowRight,
   PackagePlus,
-  Clock,
   CheckSquare,
-  AlertTriangle,
   Search,
   TrendingUp,
-  TrendingDown,
   Package,
   Users,
-  Store,
-  Plus,
 } from "lucide-react";
 import { usePurchasingData } from "./usePurchasingData";
 import { PurchaseRequestDto } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
 
 export function DashboardPage() {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { purchaseRequests, isLoading, refresh } = usePurchasingData();
   const { currentUser } = useApp();
   const navigate = useNavigate();
@@ -35,7 +30,10 @@ export function DashboardPage() {
 
   // Metrics
   const taskNeedSourcing = useMemo(() => {
-    return purchaseRequests.filter(pr => pr.status === "SupervisorApproved" && !calculateIsReadyForPo(pr));
+    return purchaseRequests.filter(pr => 
+      (pr.status === "SupervisorApproved" && !calculateIsReadyForPo(pr)) ||
+      pr.status === "FinanceRejected" || pr.status === "Rejected"
+    );
   }, [purchaseRequests]);
 
   const taskReadyForPo = useMemo(() => {

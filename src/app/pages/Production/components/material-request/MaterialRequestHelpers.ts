@@ -16,6 +16,7 @@ export type MaterialOption = {
   itemName: string;
   specification: string;
   quantity?: number;
+  isCustomerMaterial?: boolean;
 };
 
 export function parseMaterialText(value?: string | null): MaterialOption[] {
@@ -40,67 +41,69 @@ export function parseMaterialText(value?: string | null): MaterialOption[] {
     .filter(Boolean) as MaterialOption[];
 }
 
-export function getMaterialOptions(so: SalesOrder): MaterialOption[] {
+export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boolean = false): MaterialOption[] {
   const options: MaterialOption[] = [];
   const seen = new Set<string>();
 
-  const addOption = (item: string, spec: string, quantity?: number) => {
+  const addOption = (item: string, spec: string, quantity?: number, isCustomerMaterial?: boolean) => {
     const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
-      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim(), quantity });
+      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim(), quantity, isCustomerMaterial });
     }
   };
 
   if (so.bomsPerItem && so.items && so.items.length > 0) {
-    let hasValidEngineerMaterials = false;
-    const aggregatedMaterials = new Map<string, { itemName: string, spec: string, quantity: number }>();
+    let hasAnyMaterials = false;
+    const aggregatedMaterials = new Map<string, { itemName: string, spec: string, quantity: number, isCustomerMaterial: boolean }>();
 
     so.items.forEach((item: any) => {
       const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
       if (boms && Array.isArray(boms)) {
         boms.forEach((material: any) => {
+          hasAnyMaterials = true;
+          if (material.isCustomerMaterial && !includeCustomerMaterials) return;
           const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
           const specification = String(material?.specification || material?.spec || material?.size || "").trim();
           
           if (itemName && itemName.toLowerCase() !== "pppp") {
             const rawQty = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
             const matQty = isNaN(rawQty) ? 0 : rawQty;
-            const itemQty = Number(item.quantity) || 1;
+
             
             const key = `${itemName.toLowerCase()}|${specification.toLowerCase()}`;
             if (!aggregatedMaterials.has(key)) {
-              aggregatedMaterials.set(key, { itemName, spec: specification, quantity: 0 });
+              aggregatedMaterials.set(key, { itemName, spec: specification, quantity: 0, isCustomerMaterial: !!material.isCustomerMaterial });
             }
-            aggregatedMaterials.get(key)!.quantity += (matQty * itemQty);
-            hasValidEngineerMaterials = true;
+            aggregatedMaterials.get(key)!.quantity += matQty; // Do not multiply by itemQty
           }
         });
       }
     });
 
-    if (hasValidEngineerMaterials) {
+    if (hasAnyMaterials) {
       aggregatedMaterials.forEach((val) => {
-        addOption(val.itemName, val.spec, val.quantity);
+        addOption(val.itemName, val.spec, val.quantity, val.isCustomerMaterial);
       });
       return options;
     }
   }
 
   if (Array.isArray(so.materials) && so.materials.length > 0) {
-    let hasValidEngineerMaterials = false;
+    let hasAnyMaterials = false;
     so.materials.forEach((material: any) => {
+      hasAnyMaterials = true;
+      if (material.isCustomerMaterial && !includeCustomerMaterials) return;
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
       
       if (itemName && itemName.toLowerCase() !== "pppp") {
         const quantity = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
-        addOption(itemName, specification, isNaN(quantity) ? undefined : quantity);
-        hasValidEngineerMaterials = true;
+        addOption(itemName, specification, isNaN(quantity) ? undefined : quantity, !!material.isCustomerMaterial);
       }
     });
     
-    if (hasValidEngineerMaterials) {
+    if (hasAnyMaterials) {
       return options;
     }
   }

@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { CheckCircle, X, Edit2 } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { PurchasingRequest, PurchasingItem } from "../../../components/data/mockData";
 import { purchasingApi } from "../../../services/purchasingApi";
 import { toBackendUserId } from "../../../services/backendIds";
 import { S, URGENCY_COLORS, PR_STATUS_COLORS } from "./constants";
 
 export function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; onClose: () => void; onEdit: () => void }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successAction, setSuccessAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectMode, setRejectMode] = useState(false);
@@ -55,7 +57,7 @@ export function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; 
         reviewedByUserId: toBackendUserId(currentUser) || "00000000-0000-0000-0000-000000000000",
         decision: 'Accept',
       });
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
       setSuccessAction('approve');
     } catch (error: any) {
       console.error(error);
@@ -76,7 +78,7 @@ export function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; 
         decision: 'Reject',
         rejectionReason: reason,
       });
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] });
       setSuccessAction('reject');
     } catch (error: any) {
       console.error(error);
@@ -173,6 +175,13 @@ export function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; 
             <div>
               <p style={{ fontSize: "12px", color: S.secondary, margin: "0 0 4px" }}>Catatan</p>
               <p style={{ fontSize: "13.5px", color: S.slate, background: S.bg, borderRadius: 8, padding: "10px 12px", margin: 0 }}>{pr.notes}</p>
+            </div>
+          )}
+
+          {pr.revisionNote && (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "10px 12px" }}>
+              <p style={{ fontSize: "12px", color: "#D97706", margin: "0 0 2px", fontWeight: 600 }}>Catatan Revisi dari Purchasing</p>
+              <p style={{ fontSize: "13.5px", color: "#92400E", margin: 0 }}>{pr.revisionNote}</p>
             </div>
           )}
 

@@ -23,7 +23,7 @@ public sealed record CompleteSalesOrderRequest(
 );
 
 public sealed record CompleteSalesOrderCustomerRequest(
-    string Code,
+    string? Code,
     string Name,
     string? Address = null,
     string? ContactPerson = null,
@@ -82,6 +82,15 @@ public sealed record UpdateSalesOrderDesignStatusRequest(
     string? CustomerDrawingUrl = null,
     string? Notes = null);
 
+public sealed record UpdateSalesOrderGeneralRequest(
+    string? Description = null,
+    int? Quantity = null,
+    string? Unit = null,
+    DateOnly? Deadline = null,
+    string? Notes = null,
+    string? CustomerDrawingUrl = null,
+    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null);
+
 public sealed record UpdateCustomerDrawingUrlRequest(
     string? CustomerDrawingUrl,
     string UpdatedByName);
@@ -121,10 +130,33 @@ public sealed record SalesOrderDto(
     DateTime UpdatedAtUtc,
     string? CompletionNote,
     decimal? EstimatedAmount,
+    bool IsCostingCompleted,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items,
-    IReadOnlyCollection<string>? ProductionPhotos,
-    IReadOnlyCollection<string>? QcPhotos);
+    IReadOnlyCollection<SalesOrderCommentDto>? Comments = null,
+    IReadOnlyCollection<string>? ProductionPhotos = null,
+    IReadOnlyCollection<string>? QcPhotos = null,
+    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null);
+
+public sealed record SalesOrderCommentDto(
+    Guid Id,
+    Guid UserId,
+    string UserName,
+    string Content,
+    DateTime CreatedAtUtc,
+    bool IsEdited,
+    bool IsDeleted);
+
+public sealed record SalesOrderMaterialDto(
+    string Id,
+    string? InventoryItemId,
+    string Name,
+    string? Code,
+    string? Spec,
+    string? Specification,
+    int Quantity,
+    string Unit,
+    bool IsCustomerMaterial = false);
 
 public sealed record SalesOrderDesignRevisionDto(
     int Version,
@@ -228,6 +260,14 @@ public sealed record UploadEngineeringDrawingRequest(
     string UploaderName,
     string? DrawingRef);
 
+public sealed record AddSalesOrderCommentRequest(
+    Guid UserId,
+    string UserName,
+    string Content);
+
+public sealed record UpdateSalesOrderCommentRequest(
+    string Content);
+
 public sealed record ExecutiveDashboardDto(
     int WaitingOrders,
     int InProgressOrders,
@@ -258,3 +298,15 @@ public sealed record SubmitProductionMaterialRequestItem(
     string? SuggestedSupplier = null,
     string? Notes = null,
     string? PurchaseCategory = null);
+
+public sealed record QcQueuesDto(
+    IReadOnlyCollection<SalesOrderDto> ReadyForInspection,
+    IReadOnlyCollection<SalesOrderDto> InspectionHistory);
+
+public sealed record ProductionBoardQueuesDto(
+    IReadOnlyCollection<SalesOrderDto> PendingAssignment,
+    IReadOnlyCollection<SalesOrderDto> ReadyToStart,
+    IReadOnlyCollection<SalesOrderDto> InProduction,
+    IReadOnlyCollection<SalesOrderDto> Paused,
+    IReadOnlyCollection<SalesOrderDto> WaitingQc,
+    IReadOnlyCollection<SalesOrderDto> Completed);

@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import {
-  LayoutDashboard, FileText, FilePlus, ShieldCheck,
+  LayoutDashboard, FileText, ShieldCheck,
   History, BarChart3, Menu, X, Bell, ChevronRight, Calculator,
   LogOut, Settings, Factory, ChevronDown, User, CheckSquare
 } from 'lucide-react';
 
 const navItems = [
   { to: '/erp/finance/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/erp/finance/costing', label: 'Costing & Pricing', icon: Calculator },
+  { to: '/erp/finance/costing', label: 'Penetapan Harga', icon: Calculator },
   { to: '/erp/finance/invoices', label: 'Daftar Invoice', icon: FileText },
   { to: '/erp/finance/payment-verification', label: 'Verifikasi Pembayaran', icon: ShieldCheck, badge: 2 },
   { to: '/erp/finance/transactions', label: 'Riwayat Transaksi', icon: History },
@@ -18,7 +18,7 @@ const navItems = [
 
 const breadcrumbMap: Record<string, string[]> = {
   '/erp/finance/dashboard': ['Finance', 'Dashboard'],
-  '/erp/finance/costing': ['Finance', 'Costing & Pricing'],
+  '/erp/finance/costing': ['Finance', 'Penetapan Harga'],
   '/erp/finance/invoices': ['Finance', 'Daftar Invoice'],
   '/erp/finance/create-invoice': ['Finance', 'Buat Invoice'],
   '/erp/finance/payment-verification': ['Finance', 'Verifikasi Pembayaran'],

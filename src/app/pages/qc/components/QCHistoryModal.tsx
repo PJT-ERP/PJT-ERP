@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X } from "lucide-react";
-import { useApp } from "../../../components/context/AppContext";
+import { useCustomersQuery } from "../../../services/queries";
 import { ImageWithFallback } from "../../../components/figma/ImageWithFallback";
 import { SalesOrder } from "../../../components/data/mockData";
 import type { QcInspectionDto } from "../../../services/qcApi";
@@ -9,7 +9,7 @@ import { DrawingLink } from "./DrawingLink";
 import { S, isGo, getFullUrl } from "./utils";
 
 export function QCHistoryModal({ so, inspection, onClose }: { so: SalesOrder; inspection?: QcInspectionDto; onClose: () => void }) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const customer = customers.find(c => c.code === so.customerId);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 

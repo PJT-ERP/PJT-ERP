@@ -4,6 +4,7 @@ import { formatIDR, formatDate, type Invoice } from '../../mockData';
 import { financeApi } from '../../../../services/financeApi';
 import { STATUS_LABELS, STATUS_COLORS, downloadCsv } from './InvoiceListHelpers';
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerification, onRefresh }: { invoice: Invoice; onClose: () => void; payments?: any[]; onNavigateToVerification: () => void; onRefresh?: () => Promise<void> }) {
   const pendingPayment = payments?.find(p => p.invoiceId === invoice.id && p.status === 'PENDING');
   const verifiedPayments = payments?.filter(p => p.invoiceId === invoice.id && p.status === 'VERIFIED') || [];
@@ -205,7 +206,21 @@ export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVer
                             // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
                             let proofPath = pendingPayment.proofFileUrl!;
                             if (!proofPath.startsWith('/') && !proofPath.startsWith('http')) proofPath = '/' + proofPath;
-                            window.open(proofPath, '_blank', 'noopener,noreferrer');
+                            
+                            let finalUrl = proofPath;
+                            if (proofPath.startsWith('http')) {
+                              try {
+                                const urlObj = new URL(proofPath);
+                                urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                                finalUrl = urlObj.toString();
+                              } catch (err) {
+                                console.warn("Failed to parse proof URL", err);
+                              }
+                            } else {
+                              finalUrl = proofPath.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                            }
+                            
+                            window.open(finalUrl, '_blank', 'noopener,noreferrer');
                           }}
                           className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-700 shadow-sm transition-colors flex items-center gap-2"
                         >
@@ -277,7 +292,21 @@ export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVer
                               // Use relative URL — nginx frontend already proxies /proofs/ to the gateway
                               let proofPath = vp.proofFileUrl!;
                               if (!proofPath.startsWith('/') && !proofPath.startsWith('http')) proofPath = '/' + proofPath;
-                              window.open(proofPath, '_blank', 'noopener,noreferrer');
+                              
+                              let finalUrl = proofPath;
+                              if (proofPath.startsWith('http')) {
+                                try {
+                                  const urlObj = new URL(proofPath);
+                                  urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                                  finalUrl = urlObj.toString();
+                                } catch(err) {
+                                  console.warn("Failed to parse proof URL", err);
+                                }
+                              } else {
+                                finalUrl = proofPath.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                              }
+                              
+                              window.open(finalUrl, '_blank', 'noopener,noreferrer');
                             }}
                             className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-md text-[11px] font-semibold text-slate-700 shadow-sm transition-colors flex items-center gap-1.5 flex-shrink-0"
                           >
@@ -348,6 +377,7 @@ export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVer
                         await financeApi.verifyPaymentProof(pendingPayment!.id);
                         await onRefresh?.();
                         onClose();
+                      // eslint-disable-next-line unused-imports/no-unused-vars
                       } catch (e) {
                         alert('Gagal verifikasi pembayaran');
                       } finally {
@@ -388,6 +418,7 @@ export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVer
                         await financeApi.rejectPaymentProof(pendingPayment!.id, { reason: rejectReason });
                         await onRefresh?.();
                         onClose();
+                      // eslint-disable-next-line unused-imports/no-unused-vars
                       } catch (e) {
                         alert('Gagal menolak pembayaran');
                       } finally {

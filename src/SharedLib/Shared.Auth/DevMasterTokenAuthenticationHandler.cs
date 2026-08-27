@@ -57,6 +57,7 @@ public sealed class DevMasterTokenAuthenticationHandler(
 
     public static bool ShouldUseDevMasterToken(HttpRequest request, IConfiguration configuration, IHostEnvironment environment)
     {
+#if DEBUG
         if (!environment.IsDevelopment())
         {
             return false;
@@ -64,6 +65,9 @@ public sealed class DevMasterTokenAuthenticationHandler(
 
         return TryReadToken(request, out var providedToken)
             && MatchesConfiguredToken(providedToken, configuration);
+#else
+        return false;
+#endif
     }
 
     public static string GetConfiguredToken(IConfiguration configuration)

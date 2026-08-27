@@ -29,12 +29,18 @@ vi.mock('../../context/AppContext', () => ({
 
 const baseItem = () => ({ id: 'item-1', itemName: 'Steel Pipe', qty: 10, purchaseStatus: 'Ordered', poNumber: 'PO-2001', supplierName: 'PT Steel', expectedArrivalDate: '2026-06-15', totalPrice: 5000000 });
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 const renderPage = (itemOverrides = {}) => {
   vi.mocked(purchasingApi.listPurchaseRequests).mockResolvedValue([{ id: 'mr-1', prNumber: 'MR-1001', requestDate: '2026-06-10', status: 'FinanceApproved', financeReviewedAtUtc: '2026-06-10T12:00:00Z', items: [{ ...baseItem(), ...itemOverrides }] }] as any);
   return render(
-    <MemoryRouter initialEntries={['/erp/purchasing/orders/PO-2001']}>
-      <Routes><Route path="/erp/purchasing/orders/:id" element={<PurchaseOrderDetailPage />} /></Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/erp/purchasing/orders/PO-2001']}>
+        <Routes><Route path="/erp/purchasing/orders/:id" element={<PurchaseOrderDetailPage />} /></Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 };
 

@@ -1,53 +1,47 @@
 import React from "react";
 import {
-  Search, Plus, Download, Eye, Edit, Copy, Printer,
-  ChevronLeft, ChevronRight, X, SlidersHorizontal, LayoutGrid, List,
+  Search, Plus, Eye, Edit, Trash2,
+  X, SlidersHorizontal, LayoutGrid, List,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useDeleteSalesOrderMutation } from "../../services/queries";
 import { SalesOrder, SOStatus } from "../data/mockData";
-import { getSalesOrderInvoiceStatus, type SalesInvoiceStatus } from "./invoice-sync";
+import { type SalesInvoiceStatus } from "./invoice-sync";
 import { useSOList, PAGE_SIZE } from "./hooks/useSOList";
+import { useAuth } from "../context/hooks/useAuth";
 import { 
   S, STATUS_OPTIONS, StatusBadge, InvoiceBadge, FilterDropdown, 
-  ActionBtn, HoverBtn, MobileActionBtn, Pagination, invoiceStatusConfig
+  ActionBtn, HoverBtn, MobileActionBtn, Pagination
 } from "./components/so-list/SOListHelpers";
 
 interface SOListProps {
   onNavigate: (page: string, data?: unknown) => void;
 }
 
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows
-    .map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+
 
 export function SOList({ onNavigate }: SOListProps) {
+  const { currentUser } = useAuth();
   const board = useSOList();
+  const deleteMutation = useDeleteSalesOrderMutation();
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string } | null>(null);
 
-  const exportOrders = () => {
-    downloadCsv("sales-orders.csv", [
-      ["No. SO", "Customer", "Company", "Product", "Qty", "Unit", "Deadline", "Invoice Status", "Workflow Status"],
-      ...board.filtered.map(order => {
-        const cust = board.customers.find(c => c.code === order.customerId);
-        return [
-        order.id,
-        cust?.name || "",
-        cust?.name || "",
-        order.description,
-        String(order.quantity),
-        order.unit,
-        order.deadline,
-        invoiceStatusConfig[getSalesOrderInvoiceStatus(order, board.invoices)].label,
-        order.status,
-      ]})
-    ]);
+  const canEdit = currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast.success(`Sales Order ${deleteTarget.id} berhasil dihapus.`);
+        setDeleteTarget(null);
+      },
+      onError: (err: any) => {
+        toast.error(`Gagal menghapus SO: ${err?.response?.data?.message || err.message}`);
+      }
+    });
   };
+
+
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, fontFamily: S.font }}>
@@ -74,22 +68,24 @@ export function SOList({ onNavigate }: SOListProps) {
         </div>
         <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
 
-          <HoverBtn
-            icon={<Plus size={12} />}
-            label="Buat SO"
-            onClick={() => onNavigate("so-create")}
-            style={{ 
-              background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
-              border: "none", 
-              color: "#fff",
-              boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
-              fontWeight: 600,
-              padding: "7px 14px",
-              borderRadius: "6px"
-            }}
-            hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
-            primary
-          />
+          {currentUser?.role === 'Sales' && (
+            <HoverBtn
+              icon={<Plus size={12} />}
+              label="Buat SO"
+              onClick={() => onNavigate("so-create")}
+              style={{ 
+                background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
+                border: "none", 
+                color: "#fff",
+                boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
+                fontWeight: 600,
+                padding: "7px 14px",
+                borderRadius: "6px"
+              }}
+              hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
+              primary
+            />
+          )}
         </div>
       </div>
 
@@ -240,7 +236,15 @@ export function SOList({ onNavigate }: SOListProps) {
               </tr>
             </thead>
             <tbody>
-              {board.paginated.length === 0 ? (
+              {board.isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={9} style={{ padding: "12px 14px" }}>
+                      <div className="animate-pulse" style={{ height: 20, background: "#f1f5f9", borderRadius: 4, width: "100%" }} />
+                    </td>
+                  </tr>
+                ))
+              ) : board.paginated.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px" }}>
                     Tidak ada data yang sesuai dengan filter
@@ -254,8 +258,8 @@ export function SOList({ onNavigate }: SOListProps) {
                   isLast={idx === board.paginated.length - 1}
                   onView={() => onNavigate("so-detail", order.id)}
                   onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
-                  onDuplicate={() => onNavigate("so-create")}
-                  onPrint={() => window.print()}
+                  onDelete={() => setDeleteTarget({ id: order.id })}
+                  canEdit={canEdit}
                 />
               ))}
             </tbody>
@@ -279,7 +283,15 @@ export function SOList({ onNavigate }: SOListProps) {
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
             gap: 16
           }}>
-            {board.paginated.length === 0 ? (
+            {board.isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse" style={{ background: S.white, borderRadius: 8, border: `1px solid ${S.border}`, padding: 16, height: 180, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ height: 24, background: "#f1f5f9", borderRadius: 4, width: "60%" }} />
+                  <div style={{ height: 40, background: "#f1f5f9", borderRadius: 4, width: "100%" }} />
+                  <div style={{ height: 32, background: "#f1f5f9", borderRadius: 4, width: "100%", marginTop: "auto" }} />
+                </div>
+              ))
+            ) : board.paginated.length === 0 ? (
               <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "52px 0", color: "#94A3B8", fontSize: "13px", background: S.white, borderRadius: 8, border: `1px solid ${S.border}` }}>
                 Tidak ada data yang sesuai dengan filter
               </div>
@@ -321,8 +333,11 @@ export function SOList({ onNavigate }: SOListProps) {
 
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: "auto" }}>
                     <MobileActionBtn label="Detail" bg="#EFF6FF" color="#C8102E" action={() => onNavigate("so-detail", order.id)} />
-                    {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+                    {canEdit && !(order.status === "Completed" && order.invoice?.status === "paid") && (
                       <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
+                    )}
+                    {canEdit && (
+                      <MobileActionBtn label="Hapus" bg="#FEF2F2" color="#EF4444" action={() => setDeleteTarget({ id: order.id })} />
                     )}
                   </div>
                 </div>
@@ -341,19 +356,62 @@ export function SOList({ onNavigate }: SOListProps) {
           </div>
         </div>
       )}
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 12, border: `1px solid ${S.border}`,
+            maxWidth: 420, width: "100%", padding: 24, boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            fontFamily: S.font
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#EF4444", flexShrink: 0 }}>
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 700 }}>Hapus Sales Order?</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>Konfirmasi Hapus Permanen</p>
+              </div>
+            </div>
+            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5, marginBottom: 20 }}>
+              Apakah Anda yakin ingin menghapus <strong>{deleteTarget.id}</strong> secara permanen? Data yang sudah dihapus tidak dapat dikembalikan lagi.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: `1px solid ${S.border}`, background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#EF4444", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 8px rgba(239,68,68,0.3)" }}
+              >
+                {deleteMutation.isPending ? "Menghapus..." : "Ya, Hapus SO"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
-function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, onPrint }: {
+function TableRow({ order, customerName, isLast, onView, onEdit, onDelete, canEdit }: {
   order: SalesOrder;
   customerName: string;
   isLast: boolean;
   onView: () => void;
   onEdit: () => void;
-  onDuplicate: () => void;
-  onPrint: () => void;
+  onDelete: () => void;
+  canEdit: boolean;
 }) {
   const [hov, React_useState] = React.useState(false);
 
@@ -403,8 +461,11 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDuplicate, on
       <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
-          {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+          {canEdit && !(order.status === "Completed" && order.invoice?.status === "paid") && (
             <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
+          )}
+          {canEdit && (
+            <ActionBtn icon={<Trash2 size={12} />}  label="Hapus"    hoverBg="#FEF2F2" hoverColor="#EF4444" onClick={onDelete}    title="Hapus Sales Order" />
           )}
         </div>
       </td>

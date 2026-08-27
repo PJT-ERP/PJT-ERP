@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Search, Plus, X, Trash2, Edit2 } from 'lucide-react';
-import { useApp } from '../../components/context/AppContext';
 import { salesApi, ProductDto } from '../../services/salesApi';
+import { useProductsQuery } from '../../services/queries';
 import { usePurchasingData } from '../../components/purchasing/usePurchasingData';
 
 const S = {
@@ -14,7 +14,7 @@ const S = {
 };
 
 export function AdminProductsPage() {
-  const { productCatalog, refreshBackendData } = useApp();
+  const { data: productCatalog = [], refetch } = useProductsQuery();
   const { inventoryItems } = usePurchasingData();
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,9 +79,9 @@ export function AdminProductsPage() {
     try {
       setIsDeleting(true);
       await salesApi.deleteProduct(deleteConfirm.id);
-      await refreshBackendData();
+      await refetch();
       setDeleteConfirm(null);
-    } catch (e) {
+    } catch {
       alert("Gagal menghapus produk");
     } finally {
       setIsDeleting(false);
@@ -135,13 +135,13 @@ export function AdminProductsPage() {
         });
       }
       
-      await refreshBackendData();
+      await refetch();
       setIsAdding(false);
       setIsEditingId(null);
       setNewDesc('');
       setNewUnit('pcs');
       setNewSpec('');
-    } catch (e) {
+    } catch {
       alert("Gagal menyimpan produk");
     } finally {
       setIsSaving(false);

@@ -1,5 +1,5 @@
 import React from "react";
-import { GripVertical, Trash2, Hash, Link as LinkIcon, Plus, AlertCircle } from "lucide-react";
+import { GripVertical, Trash2, Hash, Link as LinkIcon, Plus, AlertCircle, Info } from "lucide-react";
 import { ENGINEERING_DESIGNS } from "../../data/mockData";
 import { Label, Input, CurrencyInput, Select } from "./FormHelpers";
 
@@ -16,6 +16,7 @@ const S = {
   cyan: "#C8102E",
 };
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 interface BOMItem {
   id: string;
   name: string;
@@ -33,6 +34,7 @@ export interface ProductOption {
   unit: string;
   materialSpec?: string | null;
   bomItems?: { inventoryItemId: string; inventoryItemCode: string; inventoryItemName: string; quantity: number; unit: string; }[];
+  hasHistoricalDesign?: boolean;
 }
 
 export const emptyProduct = (): ProductLineItemType => ({
@@ -150,7 +152,9 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                           unit: matched.unit.toLowerCase() || row.unit,
                           materials: matched.bomItems?.length ? matched.bomItems.map(b => ({
                             id: b.inventoryItemId,
-                            name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
+                            inventoryItemId: b.inventoryItemId,
+                            name: b.inventoryItemName,
+                            code: b.inventoryItemCode,
                             specification: "",
                             quantity: String(b.quantity),
                             unit: b.unit,
@@ -168,28 +172,71 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               )}
             </div>
           ) : (
-            <Select value={row.productName} onChange={e => {
-              const pName = e.target.value;
-              const selected = productOptions.find(product => product.label === pName);
-              onChange({
-                ...row,
-                productName: pName,
-                designId: "",
-                unit: selected?.unit.toLowerCase() || row.unit,
-                materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
-                  id: b.inventoryItemId,
-                  name: `${b.inventoryItemCode} - ${b.inventoryItemName}`,
-                  specification: "",
-                  quantity: String(b.quantity),
-                  unit: b.unit,
-                })) : [],
-              });
-            }} required>
-              <option value="">— Pilih produk —</option>
-              {productOptions.map(product => (
-                <option key={product.id} value={product.label}>{product.label}</option>
-              ))}
-            </Select>
+            <div>
+              <Select value={row.productName} onChange={e => {
+                const pName = e.target.value;
+                const selected = productOptions.find(product => product.label === pName);
+                onChange({
+                  ...row,
+                  productName: pName,
+                  designId: "",
+                  unit: selected?.unit.toLowerCase() || row.unit,
+                  materials: selected?.bomItems?.length ? selected.bomItems.map(b => ({
+                    id: b.inventoryItemId,
+                    inventoryItemId: b.inventoryItemId,
+                    name: b.inventoryItemName,
+                    code: b.inventoryItemCode,
+                    specification: "",
+                    quantity: String(b.quantity),
+                    unit: b.unit,
+                  })) : [],
+                });
+              }} required>
+                <option value="">— Pilih produk —</option>
+                {productOptions.map(product => (
+                  <option key={product.id} value={product.label}>{product.label}</option>
+                ))}
+              </Select>
+              
+              {(() => {
+                const selected = productOptions.find(p => p.label === row.productName);
+                if (selected) {
+                  return (
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: selected.hasHistoricalDesign ? "#F0FDF4" : "#FEF2F2", border: `1px solid ${selected.hasHistoricalDesign ? "#BBF7D0" : "#FECACA"}`, borderRadius: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Info size={14} style={{ color: selected.hasHistoricalDesign ? "#16A34A" : "#EF4444", flexShrink: 0 }} />
+                        <span style={{ fontSize: "11.5px", color: selected.hasHistoricalDesign ? "#15803D" : "#B91C1C", fontFamily: S.font, fontWeight: 500 }}>
+                          {selected.hasHistoricalDesign ? "Desain untuk produk ini sudah tersedia di sistem." : "Produk ini belum memiliki desain yang disetujui (Akan masuk ke antrean Pending Design)."}
+                        </span>
+                      </div>
+                      {selected.hasHistoricalDesign && (
+                        <>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "11.5px", color: S.slate, marginTop: 4 }}>
+                            <input 
+                              type="checkbox" 
+                              checked={row.designId === "none" || row.designId === "customer"} 
+                              onChange={e => onChange({ ...row, designId: e.target.checked ? "none" : "", customerDesignUrl: "" })}
+                              style={{ margin: 0, cursor: "pointer" }}
+                            />
+                            Request desain baru (Butuh revisi / custom khusus pesanan ini)
+                          </label>
+                          {(row.designId === "none" || row.designId === "customer") && (
+                            <div style={{ marginTop: 8, padding: "8px 12px", background: "#fff", borderRadius: 6, border: `1px dashed ${S.border}` }}>
+                              <Label text="URL Gambar/Referensi (Opsional)" />
+                              <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://link-referensi-desain..." value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value, designId: e.target.value.trim() ? "customer" : "none" })} />
+                              <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
+                                *Jika diisi, Tim Engineering akan menunggu link referensi ini. Jika dikosongkan, desain akan dibuat dari awal.
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           )}
         </div>
 
@@ -258,6 +305,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: S.font }}>
                 <thead>
                   <tr style={{ background: "#E2E8F0", textAlign: "left", color: S.secondary }}>
+                    <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Kode</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Material</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}` }}>Spesifikasi</th>
                     <th style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, textAlign: "right" }}>Total Dibutuhkan</th>
@@ -265,11 +313,19 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                 </thead>
                 <tbody>
                   {row.materials.map((mat: any, i) => {
-                    const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
+                    const totalQty = Number(mat.quantity) || 0;
+                    const embeddedCode = !mat.code && mat.name ? (mat.name.match(/^([A-Z]+-\d+)/) || [])[1] : null;
+                    const displayCode = mat.code || embeddedCode || "-";
+                    const displayName = embeddedCode && mat.name ? mat.name.slice(embeddedCode.length + 3) : mat.name;
+                    const displaySpec = mat.specification || mat.spec || "-";
                     return (
                       <tr key={mat.id}>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>{mat.name}</td>
-                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{mat.specification || "-"}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, fontFamily: "monospace", fontSize: "10.5px", whiteSpace: "nowrap" }}>{displayCode}</td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate }}>
+                          {displayName}
+                          {mat.isCustomerMaterial && <span style={{ marginLeft: 6, padding: "2px 6px", background: "#DBEAFE", color: "#1D4ED8", borderRadius: 4, fontSize: "9px", fontWeight: 600 }}>DARI PELANGGAN</span>}
+                        </td>
+                        <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.secondary }}>{displaySpec}</td>
                         <td style={{ padding: "6px 8px", borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: "right", fontWeight: 500 }}>{totalQty} {mat.unit}</td>
                       </tr>
                     );
@@ -278,7 +334,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               </table>
             </div>
             <p style={{ margin: "6px 0 0", fontSize: "10px", color: S.secondary, fontStyle: "italic" }}>
-              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}. Total dihitung: Qty per unit × Jumlah produk.
+              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}.
             </p>
           </div>
         )}

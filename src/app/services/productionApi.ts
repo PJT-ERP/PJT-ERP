@@ -106,7 +106,90 @@ export interface SubmitProductionMaterialRequestPayload {
   }>;
 }
 
+export interface ProductionQueuesDto {
+  pendingAssignment: any[];
+  readyToStart: any[];
+  inProduction: any[];
+  waitingQc: any[];
+  completed: any[];
+}
+
+export interface EngineeringQueuesDto {
+  pendingDesign: any[];
+  revisionRequired: any[];
+  waitingApproval: any[];
+  completed: any[];
+}
+
+export interface FinanceCostingQueuesDto {
+  waitingPricing: any[];
+  pricingHistory: any[];
+}
+
+export interface ApprovalQueuesDto {
+  waitingClientApproval: any[];
+  log: any[];
+}
+
+export interface DashboardCountersDto {
+  totalActive: number;
+  pendingDesign: number;
+  inProduction: number;
+  waitingQc: number;
+  overdueCount: number;
+  readyForProduction: number;
+}
+
+export interface QcQueuesDto {
+  readyForInspection: any[];
+  inspectionHistory: any[];
+}
+
+export interface ProductionBoardQueuesDto {
+  pendingAssignment: any[];
+  readyToStart: any[];
+  inProduction: any[];
+  paused: any[];
+  waitingQc: any[];
+  completed: any[];
+}
+
 export const productionApi = {
+  async getProductionQueues() {
+    const response = await apiClient.get<ProductionQueuesDto>('/api/v1/production/sales-orders/queues');
+    return response.data;
+  },
+
+  async getEngineeringQueues() {
+    const response = await apiClient.get<EngineeringQueuesDto>('/api/v1/production/sales-orders/queues/engineering');
+    return response.data;
+  },
+
+  async getFinanceCostingQueues() {
+    const response = await apiClient.get<FinanceCostingQueuesDto>('/api/v1/production/sales-orders/queues/finance-costing');
+    return response.data;
+  },
+
+  async getApprovalQueues() {
+    const response = await apiClient.get<ApprovalQueuesDto>('/api/v1/production/sales-orders/queues/approvals');
+    return response.data;
+  },
+
+  async getDashboardCounters() {
+    const response = await apiClient.get<DashboardCountersDto>('/api/v1/production/dashboard/counters');
+    return response.data;
+  },
+
+  async getQcQueues() {
+    const response = await apiClient.get<QcQueuesDto>('/api/v1/production/sales-orders/queues/qc');
+    return response.data;
+  },
+
+  async getProductionBoardQueues() {
+    const response = await apiClient.get<ProductionBoardQueuesDto>('/api/v1/production/sales-orders/queues/board');
+    return response.data;
+  },
+
   async lookupTracking(trackingCode: string) {
     const response = await apiClient.post<SalesOrderProductionProgressDto>('/api/v1/production/tracking/lookup', {
       trackingCode,
@@ -132,6 +215,21 @@ export const productionApi = {
       request,
     );
     return response.data;
+  },
+
+  async uploadEngineeringDrawingFile(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ url: string }>(
+      '/api/v1/production/sales-orders/upload-drawing-file',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.url;
   },
 
   async submitMaterialRequest(salesOrderId: string, request: SubmitProductionMaterialRequestPayload) {

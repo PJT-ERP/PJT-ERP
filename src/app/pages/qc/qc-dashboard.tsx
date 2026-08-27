@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Search, X, CheckSquare, Activity, ArrowUpRight, List, QrCode, Factory } from "lucide-react";
+import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, X, CheckSquare, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useApp } from "../../components/context/AppContext";
+import { useCustomersQuery } from "../../services/queries";
 import { SalesOrder } from "../../components/data/mockData";
 import { qcApi } from "../../services/qcApi";
 import type { QcInspectionDto } from "../../services/qcApi";
 import { mapInspectionToSalesOrder } from "./components/utils";
+import { productionApi } from "../../services/productionApi";
+import { mapSalesOrderDto } from "../../components/context/hooks/dataMappers";
+import type { SalesOrderDto } from "../../services/salesApi";
+import { QcQueuesDto } from "../../services/productionApi";
 
 const S = {
   font: "Inter, sans-serif",
@@ -71,7 +76,7 @@ function ImagePreviewModal({ src, onClose }: { src: string; onClose: () => void 
 }
 
 function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const customer = customers.find(c => c.code === so.customerId);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
@@ -162,32 +167,44 @@ function QCDetailModal({ so, onClose }: { so: SalesOrder; onClose: () => void })
 
 export function QCPage() {
   const navigate = useNavigate();
-  const { salesOrders, customers, currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { currentUser } = useApp();
   const isAdmin = currentUser?.role === 'Admin';
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
-  const [qcSearch, setQcSearch] = useState('');
+  const [qcSearch] = useState('');
   const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
+  const [qcQueues, setQcQueues] = useState<QcQueuesDto | null>(null);
 
   useEffect(() => {
     qcApi.listInspections().then(setInspections).catch(console.error);
+    productionApi.getQcQueues().then((queues) => {
+      setQcQueues({
+        readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+      });
+    }).catch(console.error);
   }, []);
 
   const hasBackendInspections = inspections.length > 0;
+  const readyForInspection = qcQueues?.readyForInspection || [];
+  const inspectionHistory = qcQueues?.inspectionHistory || [];
 
-  const completed = hasBackendInspections
+  const completed = (hasBackendInspections
     ? inspections
         .filter(i => isGo(i.decision || i.status) || isNoGo(i.decision || i.status))
-        .map(i => mapInspectionToSalesOrder(i, salesOrders))
-    : salesOrders.filter(so => so.status === 'Completed');
+        .map(i => mapInspectionToSalesOrder(i, inspectionHistory as any))
+    : inspectionHistory)
+    .sort((a: any, b: any) => new Date(a.deadline || 0).getTime() - new Date(b.deadline || 0).getTime()) as SalesOrder[];
 
-  const pendingQC = hasBackendInspections
-    ? inspections.filter(i => i.status === "ReadyForInspection").map(i => mapInspectionToSalesOrder(i, salesOrders))
-    : salesOrders.filter(so => so.status === 'QC');
+  const pendingQC = (hasBackendInspections
+    ? inspections.filter(i => i.status === "ReadyForInspection" && !i.decision).map(i => mapInspectionToSalesOrder(i, readyForInspection as any))
+    : readyForInspection)
+    .sort((a: any, b: any) => new Date(a.deadline || 0).getTime() - new Date(b.deadline || 0).getTime()) as SalesOrder[];
 
-  const passCount = completed.filter(s => isGo(s.qcStatus)).length;
-  const failCount = completed.filter(s => isNoGo(s.qcStatus)).length;
+  const passCount = completed.filter((s: any) => isGo(s.qcDecision || s.qcStatus)).length;
+  const failCount = completed.filter((s: any) => isNoGo(s.qcDecision || s.qcStatus)).length;
   const passRate = completed.length > 0 ? Math.round((passCount / completed.length) * 100) : 0;
-  const lateCount = completed.filter(s => s.lateReason).length;
+  const lateCount = completed.filter(s => s.completionNote && s.completionNote.toLowerCase().includes('terlambat')).length;
 
   const filtered = pendingQC.filter(so => {
     const cust = customers.find(c => c.code === so.customerId);

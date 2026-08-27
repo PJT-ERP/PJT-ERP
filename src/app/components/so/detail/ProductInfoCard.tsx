@@ -66,7 +66,7 @@ function ProductionSchedule({ order }: { order: SalesOrder }) {
   );
 }
 
-function BomCard({ materials }: { materials: any[] }) {
+function BomCard({ materials, showWarning }: { materials: any[], showWarning?: boolean }) {
   if (!materials || materials.length === 0) {
     return (
       <InfoCard title="Bill of Materials (Kebutuhan Bahan)" icon={<Box size={13} />}>
@@ -77,10 +77,19 @@ function BomCard({ materials }: { materials: any[] }) {
 
   return (
     <InfoCard title="Bill of Materials (Kebutuhan Bahan)" icon={<Box size={13} />}>
+      {showWarning && (
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, display: "flex", gap: 8, alignItems: "center" }}>
+          <AlertTriangle size={14} style={{ color: "#EF4444", flexShrink: 0 }} />
+          <span style={{ fontSize: "11.5px", color: "#B91C1C", fontFamily: S.font }}>
+            <strong>BOM dapat berubah:</strong> Pesanan ini memerlukan revisi desain. Material di bawah ini adalah estimasi dari desain sebelumnya dan dapat diubah oleh tim Engineering.
+          </span>
+        </div>
+      )}
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: S.font }}>
           <thead>
             <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, color: S.secondary, textAlign: "left" }}>
+              <th style={{ padding: "8px 12px", fontWeight: 600, whiteSpace: "nowrap" }}>ID</th>
               <th style={{ padding: "8px 12px", fontWeight: 600, whiteSpace: "nowrap" }}>Nama Material</th>
               <th style={{ padding: "8px 12px", fontWeight: 600, whiteSpace: "nowrap" }}>Spesifikasi</th>
               <th style={{ padding: "8px 12px", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>Qty</th>
@@ -89,6 +98,7 @@ function BomCard({ materials }: { materials: any[] }) {
           <tbody>
             {materials.map((mat: any) => (
               <tr key={mat.id} style={{ borderBottom: `1px solid ${S.border}` }}>
+                <td style={{ padding: "8px 12px", color: S.slate, fontFamily: "monospace", fontSize: "11px", whiteSpace: "nowrap" }}>{mat.code || "-"}</td>
                 <td style={{ padding: "8px 12px", color: S.slate }}>{mat.name || "-"}</td>
                 <td style={{ padding: "8px 12px", color: S.slate }}>{mat.spec || "-"}</td>
                 <td style={{ padding: "8px 12px", color: S.slate, textAlign: "right", fontWeight: 500, whiteSpace: "nowrap" }}>{mat.quantity} {mat.unit}</td>
@@ -107,7 +117,10 @@ export function ProductInfoCard({
   order, isEditMode, editForm, setEditForm, displayMaterials,
   isCustomBackend, productLines, orderValue,
 }: ProductInfoCardProps) {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
+
+  const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;
 
   return (
     <>
@@ -162,7 +175,29 @@ export function ProductInfoCard({
                   return <p style={{ margin: "3px 0 0", fontSize: "11px", color: "#94A3B8" }}>{item.notes}</p>;
                 })()}
               </div>
-              <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</div>
+              <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>
+                {isEditMode ? (
+                  isLockedForQty ? (
+                    <div>
+                      <span style={{ fontSize: "12px", color: S.slate }}>{item.quantity} {item.unit}</span>
+                      <span style={{ display: "block", fontSize: "10px", color: "#94A3B8" }} title="Terkunci - SO sudah masuk tahap pembayaran/produksi">🔒 Terkunci</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input
+                        type="number"
+                        min={1}
+                        value={editForm.quantity}
+                        onChange={e => setEditForm(prev => ({ ...prev, quantity: e.target.value }))}
+                        style={{ width: "65px", padding: "4px 6px", border: `1px solid ${S.border}`, borderRadius: 4, fontSize: "12px", outline: "none" }}
+                      />
+                      <span style={{ fontSize: "11px", color: S.secondary }}>{item.unit}</span>
+                    </div>
+                  )
+                ) : (
+                  <span>{item.quantity} {item.unit}</span>
+                )}
+              </div>
               <div style={{ padding: "10px", fontSize: "12px", color: S.slate }}>{formatCurrency(item.unitPrice)}</div>
               <div style={{ padding: "10px", fontSize: "12px", color: S.slate, fontWeight: 600 }}>{formatCurrency(item.lineTotal)}</div>
             </div>
@@ -170,13 +205,15 @@ export function ProductInfoCard({
         </div>
 
         {isEditMode && (
-          <p style={{ margin: "10px 0 0", fontSize: "11px", color: S.secondary }}>
-            Edit multi item SO masih mengikuti kontrak backend. Gunakan Duplikat untuk membuat SO baru dengan item tambahan.
+          <p style={{ margin: "10px 0 0", fontSize: "11px", color: isLockedForQty ? "#EF4444" : S.secondary }}>
+            {isLockedForQty 
+              ? "⚠️ Kuantitas terkunci karena SO sudah masuk tahap pembayaran/produksi."
+              : "💡 Ubah kuantitas di atas lalu klik Simpan Perubahan di bagian kanan atas."}
           </p>
         )}
       </InfoCard>
 
-      <BomCard materials={displayMaterials} />
+      <BomCard materials={displayMaterials} showWarning={isCustomBackend && order?.materials && order.materials.length > 0} />
       <ProductionSchedule order={order} />
     </>
   );

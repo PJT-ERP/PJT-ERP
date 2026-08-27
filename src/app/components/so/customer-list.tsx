@@ -1,14 +1,12 @@
 import React, { useState, useMemo } from "react";
 import {
-  Search, Plus, Download, Eye, Edit, X,
-  Phone, Mail, Building2, MapPin,
-  ShoppingCart, Calendar, Users,
-  ChevronLeft, ChevronRight,
-  Hash, RefreshCw, CheckCircle2, LayoutGrid, List,
+  Search, Plus, Edit, X,
+  Phone, Mail, MapPin,
+  ShoppingCart, Users,
+  ChevronLeft, ChevronRight, RefreshCw, CheckCircle2,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
 import type { Customer } from "../data/mockData";
-
+import { useCustomersQuery, useSalesOrdersQuery, useCreateCustomerMutation, useUpdateCustomerMutation } from "../../services/queries";
 
 interface CustomerListProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -61,6 +59,27 @@ function ModalInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+function ModalTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      {...props}
+      style={{
+        width: "100%", boxSizing: "border-box",
+        background: focused ? S.white : "#FAFAFA",
+        border: `1px solid ${focused ? S.cyan : S.border}`,
+        borderRadius: 4, padding: "7px 10px",
+        fontSize: "12.5px", color: S.slate, fontFamily: S.font, outline: "none",
+        transition: "border-color 0.12s, background 0.12s",
+        resize: "vertical", minHeight: "60px",
+        ...props.style,
+      }}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+    />
+  );
+}
+
 // ─── Customer Add/Edit Modal ───────────────────────────────────────────────────
 interface ModalState {
   mode: "add" | "edit";
@@ -72,7 +91,7 @@ function CustomerModal({ state, onSave, onClose }: {
   onSave: (c: Partial<Customer>) => void;
   onClose: () => void;
 }) {
-  const { customers } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const [form, setForm] = useState<Partial<Customer>>(state.customer);
 
   const set = (key: keyof Customer, val: string) => setForm(f => ({ ...f, [key]: val }));
@@ -144,24 +163,24 @@ function CustomerModal({ state, onSave, onClose }: {
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <ModalLabel text="Perusahaan" required />
-                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
+                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required maxLength={160} />
               </div>
               <div>
                 <ModalLabel text="Nama Kontak (PIC)" required />
-                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required />
+                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required maxLength={120} />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
-                <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required />
+                <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required maxLength={40} />
               </div>
               <div>
                 <ModalLabel text="Email" required />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required maxLength={160} />
               </div>
             </div>
             <div>
               <ModalLabel text="Alamat Lengkap" required />
-              <ModalInput placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required />
+              <ModalTextarea rows={3} placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required maxLength={400} />
             </div>
           </div>
 
@@ -189,9 +208,14 @@ function CustomerModal({ state, onSave, onClose }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function CustomerList({ onNavigate }: CustomerListProps) {
-  const { customers, salesOrders, addCustomer, updateCustomer } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
+  const createCustomer = useCreateCustomerMutation();
+  const updateCustomer = useUpdateCustomerMutation();
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [modal, setModal] = useState<ModalState | null>(null);
 
@@ -235,18 +259,27 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
         }, 0);
         return `CUST-${String(maxNum + 1).padStart(3, "0")}`;
       };
-      const newCustomer: Customer = {
+      
+      createCustomer.mutate({
         code: generateCode(),
         name: data.name ?? "",
-        contactPerson: data.contactPerson ?? "",
-        contact: data.contact ?? "",
-        phone: data.phone ?? "",
         address: data.address ?? "",
+        contactPerson: data.contactPerson ?? "",
         email: data.email ?? "",
-      };
-      addCustomer(newCustomer);
+        phone: data.phone ?? "",
+      });
     } else if (modal?.mode === "edit" && data.code) {
-      updateCustomer(data.code, data);
+      updateCustomer.mutate({
+        code: data.code,
+        data: {
+          name: data.name ?? "",
+          address: data.address ?? "",
+          contactPerson: data.contactPerson ?? "",
+          email: data.email ?? "",
+          phone: data.phone ?? "",
+          isActive: true
+        }
+      });
     }
     setModal(null);
   };
@@ -328,7 +361,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-                {["Pelanggan", "Kontak", "Kota", "Total Order", "Order Aktif", "Order Terakhir", "Aksi"].map((h, i) => (
+                {["Pelanggan", "Kontak", "Alamat", "Total Order", "Order Aktif", "Order Terakhir", "Aksi"].map((h, i) => (
                   <th key={h} style={{ padding: "9px 14px", textAlign: i === 6 ? "right" : "left", fontSize: "10.5px", fontWeight: 600, color: "#94A3B8", letterSpacing: "0.07em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
                     {h}
                   </th>
@@ -477,8 +510,8 @@ function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit
         <p style={{ margin: 0, fontSize: "12px", color: S.slate, display: "flex", alignItems: "center", gap: 5 }}><Phone size={10} style={{ color: "#94A3B8" }} /> {c.phone}</p>
         <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.secondary, display: "flex", alignItems: "center", gap: 5 }}><Mail size={10} style={{ color: "#94A3B8" }} /> {c.contact}</p>
       </td>
-      <td style={{ padding: "10px 14px" }}>
-        <span style={{ fontSize: "12.5px", color: S.slate }}>{c.address.split(",")[0]}</span>
+      <td style={{ padding: "10px 14px", maxWidth: "200px" }}>
+        <span style={{ fontSize: "12.5px", color: S.slate, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.address}</span>
       </td>
       <td style={{ padding: "10px 14px" }}>
         <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{total}</span>
@@ -511,6 +544,7 @@ function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit
 }
 
 // ─── HeaderBtn ────────────────────────────────────────────────────────────────
+// eslint-disable-next-line unused-imports/no-unused-vars
 function HeaderBtn({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean }) {
   const [hov, setHov] = useState(false);
   return (
@@ -539,6 +573,7 @@ function CardActionBtn({ icon, label, bg, color, onClick }: { icon: React.ReactN
 }
 
 // ─── PagBtn ───────────────────────────────────────────────────────────────────
+// eslint-disable-next-line unused-imports/no-unused-vars
 function PagBtn({ icon, label, onClick, active, disabled }: { icon?: React.ReactNode; label?: number; onClick: () => void; active?: boolean; disabled?: boolean }) {
   const [hov, setHov] = useState(false);
   return (

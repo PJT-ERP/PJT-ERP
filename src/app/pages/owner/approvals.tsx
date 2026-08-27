@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { CheckCircle, XCircle, ExternalLink, Clock, RotateCcw, Search, FileText } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
+import { useCustomersQuery } from "../../services/queries";
 import { SalesOrder, getStatusColor } from "../../components/data/mockData";
-import { productionApi } from "../../services/productionApi";
+import { productionApi, ApprovalQueuesDto } from "../../services/productionApi";
 import { toBackendUserId } from "../../services/backendIds";
 
 const S = {
@@ -15,6 +16,12 @@ const S = {
   bg: "#F8FAFC",
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
+};
+
+const formatUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `https://${url}`;
 };
 
 export type ApprovalItem = SalesOrder;
@@ -32,7 +39,8 @@ function StatusBadgeItem({ item }: { item: ApprovalItem }) {
 type RejectType = 'revision' | 'permanent';
 
 export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: () => void }) {
-  const { updateSalesOrder, customers, currentUser } = useApp();
+  const { currentUser } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectType, setRejectType] = useState<RejectType>('revision');
   const [reason, setReason] = useState('');
@@ -51,13 +59,6 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
           reviewerName: currentUser?.name
         });
       }
-
-      updateSalesOrder(item.id, {
-        status: 'Waiting Payment',
-        approvedAt: new Date().toISOString(),
-        approvedBy: currentUser?.id,
-      });
-      
       setAction('approve');
       setDone(true);
     } catch (e) {
@@ -79,12 +80,6 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
           reviewerName: currentUser?.name
         });
       }
-
-      updateSalesOrder(item.id, {
-        status: rejectType === 'revision' ? 'Revision Required' : 'Rejected',
-        rejectionReason: reason,
-      });
-      
       setDone(true);
     } catch (e) {
       console.error(e);
@@ -140,8 +135,8 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
             {item.designLink && (
               <div style={{ gridColumn: "1 / -1" }}>
                 <p style={{ fontSize: "12px", color: S.secondary, margin: 0 }}>Link Desain</p>
-                <a href={item.designLink} target="_blank" rel="noreferrer" style={{ color: S.cyan, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
-                  Buka Desain <ExternalLink size={12} />
+                <a href={formatUrl(item.designLink)} target="_blank" rel="noreferrer" style={{ color: S.cyan, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 500, textDecoration: "none", marginTop: 2 }}>
+                  <FileText size={12} /> Buka Desain <ExternalLink size={12} />
                 </a>
               </div>
             )}
@@ -209,20 +204,24 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
 }
 
 export function OwnerApprovalPage() {
-  const { salesOrders, customers, currentUser } = useApp();
-  const isAdmin = currentUser?.role === 'Admin';
-  const isSpv = currentUser?.role === 'Engineering Supervisor';
-  const isOwner = currentUser?.role === 'Owner';
+  const { data: customers = [] } = useCustomersQuery();
 
   const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
+  const [now] = useState(() => Date.now());
+  const [queues, setQueues] = useState<ApprovalQueuesDto | null>(null);
 
-  const pendingSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => so.status === 'Waiting Client Approval').map(so => ({ ...so } as ApprovalItem)) : [];
+  const fetchQueues = () => {
+    productionApi.getApprovalQueues().then(setQueues).catch(console.error);
+  };
 
-  const waitingApproval = [...pendingSalesOrders];
+  React.useEffect(() => {
+    fetchQueues();
+  }, []);
 
-  const logSalesOrders = (isOwner || isAdmin || currentUser?.role === 'Sales') ? salesOrders.filter(so => ['Waiting Payment', 'Rejected', 'Revision Required'].includes(so.status)).map(so => ({ ...so } as ApprovalItem)) : [];
+  const waitingApproval = queues?.waitingClientApproval || [];
+  const logSalesOrders = queues?.log || [];
 
   const logItems = [...logSalesOrders]
     .filter(item => {
@@ -278,9 +277,14 @@ export function OwnerApprovalPage() {
           <div style={{ display: "flex", flexDirection: "column" }}>
             {waitingApproval.map((item, idx) => {
               const customer = customers.find(c => c.code === item.customerId);
-              const daysDiff = Math.ceil((new Date(item.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              const daysDiff = Math.ceil((new Date(item.deadline).getTime() - now) / (1000 * 60 * 60 * 24));
               return (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", borderBottom: idx < waitingApproval.length - 1 ? `1px solid ${S.border}` : "none" }}>
+                  {selectedItem && selectedItem.id === item.id && (
+                    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <ApprovalModal item={selectedItem} onClose={() => { setSelectedItem(null); fetchQueues(); }} />
+                    </div>
+                  )}
                   <div style={{ width: 40, height: 40, background: "#FEF3C7", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#D97706", flexShrink: 0 }}>
                     <Clock size={20} />
                   </div>

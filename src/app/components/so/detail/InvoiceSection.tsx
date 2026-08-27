@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CheckCircle2, Upload, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { type SalesInvoiceStatus } from "../invoice-sync";
 import { financeApi } from "../../../services/financeApi";
@@ -72,6 +73,36 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [paymentReported, setPaymentReported] = useState(false);
   const hasPendingPaymentProof = pendingPaymentProof || paymentReported;
+
+  const collapsedPayments: any[] = [];
+  const sortedPayments = [...invoicePayments].sort((a, b) => {
+    const timeA = new Date(a.submittedAt || a.paymentDate).getTime();
+    const timeB = new Date(b.submittedAt || b.paymentDate).getTime();
+    if (timeA === timeB) return a.id.localeCompare(b.id);
+    return timeA - timeB;
+  });
+
+  let currentPreviousAttempts: any[] = [];
+  sortedPayments.forEach(payment => {
+    if (payment.status === 'REJECTED') {
+      currentPreviousAttempts.push(payment);
+    } else {
+      collapsedPayments.push({ ...payment, previousAttempts: currentPreviousAttempts });
+      currentPreviousAttempts = [];
+    }
+  });
+
+  if (currentPreviousAttempts.length > 0) {
+    const latestRejected = currentPreviousAttempts.pop()!;
+    collapsedPayments.push({ ...latestRejected, previousAttempts: currentPreviousAttempts });
+  }
+
+  // Sort back to newest first for display
+  collapsedPayments.sort((a, b) => {
+    const timeA = new Date(a.submittedAt || a.paymentDate).getTime();
+    const timeB = new Date(b.submittedAt || b.paymentDate).getTime();
+    return timeB - timeA;
+  });
 
   return (
     <>
@@ -177,11 +208,11 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
                 </div>
               )}
 
-              {invoicePayments.length > 0 && (
+              {collapsedPayments.length > 0 && (
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${S.border}`, paddingBottom: 4 }}>
                   <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: S.slate }}>Riwayat Pembayaran</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {invoicePayments.map(payment => (
+                    {collapsedPayments.map(payment => (
                       <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: S.bg, borderRadius: 6, border: `1px solid ${S.border}` }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate }}>{formatCurrency(payment.amount)}</p>
@@ -224,7 +255,7 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
                     alert('Gagal mengunduh PDF invoice.');
                   }
                 }} />
-                {(status === "waiting" || status === "verified") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
+                {(status === "waiting" || status === "verified" || status === "overdue") && !hasPendingPaymentProof && (invoice?.amount || 0) > (invoice?.paidAmount || 0) && (
                   <div style={{ marginLeft: "auto" }}>
                     <InvoiceBtn
                       icon={<Upload size={12} />}
@@ -258,6 +289,7 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
             invoiceId={invoice?.invoiceId}
             invoiceNumber={invoice?.invoiceNumber || ""}
             amount={defaultAmount}
+            isOverdue={status === "overdue"}
             onClose={() => setShowUploadModal(false)}
             onSubmit={() => {
               setPaymentReported(true);
@@ -270,7 +302,7 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
   );
 }
 
-function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, onClose: () => void, onSubmit: () => void }) {
+function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClose, onSubmit }: { invoiceId?: string, invoiceNumber: string, amount: number, isOverdue?: boolean, onClose: () => void, onSubmit: () => void }) {
   const [isUploading, setIsUploading] = useState(false);
   const [bankName, setBankName] = useState("");
   const [amountText, setAmountText] = useState(amount > 0 ? `Rp ${amount.toLocaleString('id-ID')}` : "");
@@ -295,6 +327,8 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
     setProofFile(file);
     setError("");
   };
+
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,6 +357,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
         proofFile: proofFile,
         notes: notes.trim() || null,
       });
+      queryClient.invalidateQueries({ queryKey: ["financeData"] });
       onSubmit();
     } catch (err) {
       console.warn("Failed to submit payment proof.", err);
@@ -347,6 +382,16 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: 20 }}>
+          {isOverdue && (
+            <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, marginBottom: 16 }}>
+              <p style={{ margin: 0, fontSize: "12.5px", color: "#B91C1C", fontWeight: 500 }}>
+                Perhatian: Invoice Overdue
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#991B1B" }}>
+                Invoice ini telah melewati batas waktu pembayaran (jatuh tempo).
+              </p>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
               <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Bank Tujuan</label>
@@ -363,7 +408,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, onClose, onSubmi
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Tanggal Bayar</label>
-                <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+                <input required type="date" max={todayInputValue()} value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
               </div>
             </div>
 

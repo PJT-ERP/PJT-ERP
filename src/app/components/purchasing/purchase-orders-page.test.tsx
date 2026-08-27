@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { BrowserRouter } from 'react-router';
+import { MemoryRouter } from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PurchaseOrdersPage } from './purchase-orders-page';
 import { purchasingApi } from '../../services/purchasingApi';
 
@@ -52,10 +53,14 @@ describe('PurchaseOrdersPage', () => {
       }
     ] as any);
 
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
     render(
-      <BrowserRouter>
-        <PurchaseOrdersPage />
-      </BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PurchaseOrdersPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     
     await waitFor(() => {

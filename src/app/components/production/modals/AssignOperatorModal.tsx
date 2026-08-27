@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useApp } from "../../context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { salesApi } from "../../../services/salesApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
@@ -7,7 +8,8 @@ import { S, getBackendSalesOrderId } from "../ProductionHelpers";
 import { toast } from "sonner";
 
 export function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { users, currentUser, refreshBackendData } = useApp();
+  const { users, currentUser } = useApp();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const operators = users.filter(u => u.role === 'Engineering' || u.role === 'Engineering Supervisor');
@@ -32,12 +34,8 @@ export function AssignOperatorModal({ so, onClose }: { so: SalesOrder; onClose: 
         qcReviewer: { userId: reviewerBackendId, name: reviewer.name },
       });
 
-      try {
-        await salesApi.confirmSalesOrder(salesOrderId, toBackendUserId(currentUser) || reviewerBackendId);
-      } catch (confirmError) {
-        console.warn("Operator assigned, but SO confirmation is not ready yet.", confirmError);
-      }
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       toast.success(`Tugas ini berhasil di-assign ke ${operator.name}`, {
         style: {
           background: '#0f172a',

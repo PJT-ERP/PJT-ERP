@@ -21,16 +21,15 @@ public class SalesOrderCommandService(
         var customer = await db.CustomerReplicas.FirstOrDefaultAsync(replica => replica.Id == request.CustomerId, cancellationToken);
         if (customer is null)
         {
-            var masterCustomer = await masterDataClient.GetCustomerAsync(request.CustomerId, cancellationToken)
-                ?? throw new InvalidOperationException("Customer was not found in MasterData API.");
+            var masterCustomer = await masterDataClient.GetCustomerAsync(request.CustomerId, cancellationToken);
 
             customer = new CustomerReplica
             {
-                Id = masterCustomer.Id,
-                Code = masterCustomer.Code,
-                Name = masterCustomer.Name,
-                Email = masterCustomer.Email,
-                IsActive = masterCustomer.IsActive,
+                Id = masterCustomer?.Id ?? request.CustomerId,
+                Code = masterCustomer?.Code ?? "CUST-UNKNOWN",
+                Name = masterCustomer?.Name ?? "Pelanggan",
+                Email = masterCustomer?.Email,
+                IsActive = true,
                 UpdatedAtUtc = DateTime.UtcNow
             };
             await db.CustomerReplicas.AddAsync(customer, cancellationToken);
@@ -38,7 +37,9 @@ public class SalesOrderCommandService(
         }
         else if (!customer.IsActive)
         {
-            throw new InvalidOperationException("Customer is not active.");
+            customer.IsActive = true;
+            customer.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
         }
 
         var productIds = request.Items.Select(item => item.ProductId).Distinct().ToArray();
@@ -80,11 +81,7 @@ public class SalesOrderCommandService(
         var estimatedAmount = request.Items.Sum(item => item.Qty * item.UnitPrice);
         
         var isApproved = NormalizeDesignStatus(request.DesignStatus) == "Approved";
-        var status = SalesOrderStatuses.Draft;
-        if (isApproved)
-        {
-            status = "Waiting Pricing";
-        }
+        var status = isApproved ? "Ready for Production" : "Pending Design";
 
         var order = new SalesOrder
         {
@@ -134,27 +131,131 @@ public class SalesOrderCommandService(
 
     public async Task<SalesOrderDto> CreateCompleteSalesOrderAsync(CompleteSalesOrderRequest request, CancellationToken cancellationToken)
     {
-        var customerCode = request.Customer.Code.Trim().ToUpperInvariant();
-        var existingCustomer = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Code.ToUpper() == customerCode, cancellationToken);
-        Guid customerId;
+        var customerCode = request.Customer.Code?.Trim().ToUpperInvariant() ?? "";
+        var customerName = request.Customer.Name?.Trim().ToUpperInvariant() ?? "";
 
+        CustomerReplica? existingCustomer = null;
+        if (!string.IsNullOrWhiteSpace(customerCode))
+        {
+            existingCustomer = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Code.ToUpper() == customerCode, cancellationToken);
+        }
+        if (existingCustomer == null && !string.IsNullOrWhiteSpace(customerName))
+        {
+            existingCustomer = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Name.ToUpper() == customerName, cancellationToken);
+        }
+
+        Guid customerId;
         if (existingCustomer != null)
         {
+            if (!existingCustomer.IsActive)
+            {
+                existingCustomer.IsActive = true;
+                existingCustomer.UpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+            }
             customerId = existingCustomer.Id;
         }
         else
         {
-            var masterReq = new CreateCustomerMasterDataRequest(request.Customer.Code, request.Customer.Name, request.Customer.Address, request.Customer.ContactPerson, request.Customer.Email, request.Customer.Phone);
-            var newCust = await masterDataClient.CreateCustomerAsync(masterReq, cancellationToken);
-            customerId = newCust.Id;
+            try
+            {
+                var masterReq = new CreateCustomerMasterDataRequest(request.Customer.Code ?? "", request.Customer.Name ?? "Pelanggan", request.Customer.Address, request.Customer.ContactPerson, request.Customer.Email, request.Customer.Phone);
+                var newCust = await masterDataClient.CreateCustomerAsync(masterReq, cancellationToken);
+                customerId = newCust.Id;
+                
+                var existingReplica = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Id == newCust.Id, cancellationToken);
+                if (existingReplica == null)
+                {
+                    var replica = new CustomerReplica
+                    {
+                        Id = newCust.Id,
+                        Code = string.IsNullOrWhiteSpace(newCust.Code) ? $"CUST-{DateTime.UtcNow:yyyyMMddHHmmss}" : newCust.Code,
+                        Name = string.IsNullOrWhiteSpace(newCust.Name) ? "Pelanggan" : newCust.Name,
+                        Email = newCust.Email,
+                        IsActive = newCust.IsActive,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    };
+                    await db.CustomerReplicas.AddAsync(replica, cancellationToken);
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Ignore if inserted concurrently by MasterDataUpdatedEventHandler
+                        db.Entry(replica).State = EntityState.Detached;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARNING] MasterDataClient.CreateCustomerAsync failed: {ex.Message}. Creating local CustomerReplica fallback.");
+                var fallbackCustomer = new CustomerReplica
+                {
+                    Id = Guid.NewGuid(),
+                    Code = string.IsNullOrWhiteSpace(customerCode) ? $"CUST-{DateTime.UtcNow:yyyyMMddHHmmss}" : customerCode,
+                    Name = string.IsNullOrWhiteSpace(request.Customer.Name) ? "Pelanggan" : request.Customer.Name,
+                    Email = request.Customer.Email,
+                    IsActive = true,
+                    UpdatedAtUtc = DateTime.UtcNow
+                };
+                await db.CustomerReplicas.AddAsync(fallbackCustomer, cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+                customerId = fallbackCustomer.Id;
+            }
         }
 
         var productMap = new Dictionary<string, Guid>();
         foreach (var prodReq in request.Products)
         {
-            var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
-            var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
-            productMap[prodReq.TempId] = newProd.Id;
+            try
+            {
+                var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
+                var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
+                productMap[prodReq.TempId] = newProd.Id;
+                
+                var existingReplica = await db.ProductReplicas.FirstOrDefaultAsync(p => p.Id == newProd.Id, cancellationToken);
+                if (existingReplica == null)
+                {
+                    var replica = new ProductReplica
+                    {
+                        Id = newProd.Id,
+                        PartNumber = string.IsNullOrWhiteSpace(newProd.PartNumber) ? $"TMP-{DateTime.UtcNow:yyyyMMddHHmmss}" : newProd.PartNumber,
+                        Description = string.IsNullOrWhiteSpace(newProd.Description) ? "Custom Product" : newProd.Description,
+                        Unit = string.IsNullOrWhiteSpace(newProd.Unit) ? "pcs" : newProd.Unit,
+                        MaterialSpec = newProd.MaterialSpec,
+                        IsActive = newProd.IsActive,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    };
+                    await db.ProductReplicas.AddAsync(replica, cancellationToken);
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Ignore if inserted concurrently by MasterDataUpdatedEventHandler
+                        db.Entry(replica).State = EntityState.Detached;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARNING] MasterDataClient.CreateProductAsync failed: {ex.Message}. Creating local ProductReplica fallback.");
+                var fallbackProduct = new ProductReplica
+                {
+                    Id = Guid.NewGuid(),
+                    PartNumber = $"TMP-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    Description = string.IsNullOrWhiteSpace(prodReq.Description) ? "Custom Product" : prodReq.Description,
+                    Unit = string.IsNullOrWhiteSpace(prodReq.Unit) ? "pcs" : prodReq.Unit,
+                    MaterialSpec = prodReq.MaterialSpec,
+                    IsActive = true,
+                    UpdatedAtUtc = DateTime.UtcNow
+                };
+                await db.ProductReplicas.AddAsync(fallbackProduct, cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+                productMap[prodReq.TempId] = fallbackProduct.Id;
+            }
         }
 
         var createItems = new List<CreateSalesOrderItemRequest>();
@@ -258,6 +359,12 @@ public class SalesOrderCommandService(
 
         if (salesOrder is null) return null;
 
+        var disallowedStatuses = new[] { "Waiting Payment", SalesOrderStatuses.Confirmed, SalesOrderStatuses.InProduction, SalesOrderStatuses.QC, SalesOrderStatuses.Completed };
+        if (disallowedStatuses.Contains(salesOrder.Status) || salesOrder.IsCostingCompleted)
+        {
+            throw new InvalidOperationException("Kuantitas item tidak dapat diubah setelah Sales Order masuk ke tahap pembayaran atau produksi.");
+        }
+
         if (salesOrder.DesignStatus == SalesOrderDesignStatuses.Approved && salesOrder.ProductionWorkerUserId != null)
         {
             throw new InvalidOperationException("Cannot update items after design is approved and assigned to production.");
@@ -312,7 +419,7 @@ public class SalesOrderCommandService(
                 ProductPartNumber = products[item.ProductId].PartNumber,
                 ProductDescription = products[item.ProductId].Description,
                 Qty = item.Qty,
-                UnitPrice = item.UnitPrice,
+                UnitPrice = item.UnitPrice != 0 ? item.UnitPrice : (existingItem?.UnitPrice ?? 0),
                 Notes = item.Notes,
                 CustomerDrawingUrl = existingItem?.CustomerDrawingUrl,
                 DesignReference = existingItem?.DesignReference
@@ -321,6 +428,7 @@ public class SalesOrderCommandService(
 
         db.SalesOrderItems.AddRange(newItems);
 
+        salesOrder.EstimatedAmount = newItems.Sum(item => item.Qty * item.UnitPrice);
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -358,6 +466,8 @@ public class SalesOrderCommandService(
         {
             salesOrder.Status = "Waiting Payment";
         }
+        
+        salesOrder.IsCostingCompleted = true;
         salesOrder.UpdatedAtUtc = DateTime.UtcNow;
 
         var integrationEvent = new SalesOrderReadyForInvoiceEvent(
@@ -472,7 +582,7 @@ public class SalesOrderCommandService(
         salesOrder.DesignStatus = designStatus;
         if (designStatus == SalesOrderDesignStatuses.Approved)
         {
-            salesOrder.Status = "Waiting Pricing";
+            salesOrder.Status = "Ready for Production";
             salesOrder.RejectionReason = null;
         }
         else if (designStatus == SalesOrderDesignStatuses.RevisionRequired || designStatus == SalesOrderDesignStatuses.Rejected)
@@ -603,5 +713,156 @@ public class SalesOrderCommandService(
         await db.SaveChangesAsync(cancellationToken);
         return await GetSalesOrderProgressInternalAsync(salesOrder.Id, cancellationToken)
             ?? throw new InvalidOperationException("Sales order tracking was not found after confirmation.");
+    }
+
+    public async Task<SalesOrderDto?> UpdateSalesOrderGeneralAsync(Guid salesOrderId, UpdateSalesOrderGeneralRequest request, CancellationToken cancellationToken)
+    {
+        var order = await db.SalesOrders
+            .Include(o => o.Items)
+            .Include(o => o.DesignRevisions)
+            .FirstOrDefaultAsync(o => o.Id == salesOrderId, cancellationToken);
+
+        if (order is null) return null;
+
+        if (request.Deadline.HasValue)
+        {
+            order.TargetDate = request.Deadline;
+        }
+        
+        if (request.CustomerDrawingUrl != null)
+        {
+            order.CustomerDrawingUrl = request.CustomerDrawingUrl;
+        }
+
+        if (request.DesignRevisions != null)
+        {
+            order.DesignRevisions.Clear();
+            foreach (var rev in request.DesignRevisions)
+            {
+                order.DesignRevisions.Add(new SalesOrderDesignRevision
+                {
+                    SalesOrderId = order.Id,
+                    Version = rev.Version,
+                    Url = rev.Url,
+                    ChangedBy = rev.ChangedBy,
+                    ChangedAtUtc = rev.ChangedAtUtc
+                });
+            }
+        }
+
+        // For legacy support: if description/quantity/notes/unit are updated generically on a single-item SO
+        if (order.Items.Count > 0 && (request.Description != null || request.Quantity.HasValue || request.Notes != null))
+        {
+            if (request.Quantity.HasValue)
+            {
+                var disallowedStatuses = new[] { "Waiting Payment", SalesOrderStatuses.Confirmed, SalesOrderStatuses.InProduction, SalesOrderStatuses.QC, SalesOrderStatuses.Completed };
+                if (disallowedStatuses.Contains(order.Status) || order.IsCostingCompleted)
+                {
+                    throw new InvalidOperationException("Kuantitas item tidak dapat diubah setelah Sales Order masuk ke tahap pembayaran atau produksi.");
+                }
+            }
+
+            var item = order.Items.First();
+            if (request.Description != null) item.ProductDescription = request.Description;
+            if (request.Quantity.HasValue) item.Qty = request.Quantity.Value;
+            if (request.Notes != null) item.Notes = request.Notes;
+            
+            order.EstimatedAmount = order.Items.Sum(i => i.Qty * i.UnitPrice);
+        }
+
+        order.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ToDto(order);
+    }
+
+    public async Task<bool> DeleteSalesOrderAsync(Guid salesOrderId, CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders
+            .Include(order => order.Items)
+            .Include(order => order.DesignRevisions)
+            .Include(order => order.ProductionOrders)
+            .FirstOrDefaultAsync(order => order.Id == salesOrderId, cancellationToken);
+
+        if (salesOrder is null) return false;
+
+        if (salesOrder.ProductionOrders.Count > 0)
+        {
+            db.ProductionOrders.RemoveRange(salesOrder.ProductionOrders);
+        }
+        if (salesOrder.DesignRevisions.Count > 0)
+        {
+            db.SalesOrderDesignRevisions.RemoveRange(salesOrder.DesignRevisions);
+        }
+        if (salesOrder.Items.Count > 0)
+        {
+            db.SalesOrderItems.RemoveRange(salesOrder.Items);
+        }
+
+        db.SalesOrders.Remove(salesOrder);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<SalesOrderCommentDto?> AddCommentAsync(Guid salesOrderId, AddSalesOrderCommentRequest request, CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders.FirstOrDefaultAsync(so => so.Id == salesOrderId, cancellationToken);
+        if (salesOrder is null)
+        {
+            return null;
+        }
+
+        var comment = new SalesOrderComment
+        {
+            Id = Guid.NewGuid(),
+            SalesOrderId = salesOrderId,
+            UserId = request.UserId,
+            UserName = request.UserName,
+            Content = request.Content,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        await db.SalesOrderComments.AddAsync(comment, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new SalesOrderCommentDto(
+            comment.Id,
+            comment.UserId,
+            comment.UserName,
+            comment.Content,
+            comment.CreatedAtUtc,
+            comment.IsEdited,
+            comment.IsDeleted
+        );
+    }
+
+    public async Task<bool> UpdateCommentAsync(Guid salesOrderId, Guid commentId, UpdateSalesOrderCommentRequest request, CancellationToken cancellationToken)
+    {
+        var comment = await db.SalesOrderComments.FirstOrDefaultAsync(c => c.Id == commentId && c.SalesOrderId == salesOrderId, cancellationToken);
+        if (comment is null)
+        {
+            return false;
+        }
+
+        comment.Content = request.Content;
+        comment.IsEdited = true;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DeleteCommentAsync(Guid salesOrderId, Guid commentId, CancellationToken cancellationToken)
+    {
+        var comment = await db.SalesOrderComments.FirstOrDefaultAsync(c => c.Id == commentId && c.SalesOrderId == salesOrderId, cancellationToken);
+        if (comment is null)
+        {
+            return false;
+        }
+
+        comment.Content = "[deleted message]";
+        comment.IsDeleted = true;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 }

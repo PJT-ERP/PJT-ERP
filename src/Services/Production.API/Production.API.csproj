@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>PJT_ERP.Production.Api</RootNamespace>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

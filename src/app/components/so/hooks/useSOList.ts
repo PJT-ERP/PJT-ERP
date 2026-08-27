@@ -1,13 +1,15 @@
 import { useState, useMemo } from "react";
-import { useApp } from "../../context/AppContext";
 import { useFinanceData } from "../../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../invoice-sync";
+import { useSalesOrdersQuery, useCustomersQuery } from "../../../services/queries";
 
 export const PAGE_SIZE = 8;
 
 export function useSOList() {
-  const { salesOrders, customers } = useApp();
+  const { data: salesOrders = [], isLoading: isSoLoading } = useSalesOrdersQuery();
+  const { data: customers = [], isLoading: isCustLoading } = useCustomersQuery();
   const { invoices, payments } = useFinanceData(true, false, false);
+  const isLoading = isSoLoading || isCustLoading;
   const [search, setSearch]               = useState("");
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -58,6 +60,7 @@ export function useSOList() {
     viewMode, setViewMode,
     hasActiveFilters, activeFilterCount,
     filtered, totalPages, paginated,
-    resetAll
+    resetAll,
+    isLoading
   };
 }

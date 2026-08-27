@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ProductionMaterialRequestPage } from './material-request';
-import { useApp } from '../../components/context/AppContext';
-import { masterDataApi } from '../../services/masterDataApi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useApp } from "../../components/context/AppContext";
 
 vi.mock('../../components/context/AppContext', () => ({
   useApp: vi.fn(),
@@ -15,6 +15,11 @@ vi.mock('../../services/masterDataApi', () => ({
     listInventory: vi.fn().mockResolvedValue([]),
     createPurchaseRequest: vi.fn(),
   }
+}));
+
+vi.mock('../../services/queries', () => ({
+  useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [{ id: 'SO-123', description: 'Test Order' }] }),
+  usePurchasingRequestsQuery: vi.fn().mockReturnValue({ data: [] }),
 }));
 
 // Mock react-router so we can pass location state
@@ -41,7 +46,7 @@ vi.mock('react-router', async () => {
 });
 
 describe('ProductionMaterialRequestPage', () => {
-  it('calculates correct MR quantity when available stock is provided from location state', () => {
+  it('calculates correct MR quantity when available stock is provided from location state', async () => {
     vi.mocked(useApp).mockReturnValue({
       salesOrders: [
         { id: 'SO-123', description: 'Test Order' }
@@ -50,20 +55,23 @@ describe('ProductionMaterialRequestPage', () => {
       currentUser: { role: 'Engineering Supervisor' },
     } as any);
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter>
-        <ProductionMaterialRequestPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
     
     // Aluminium: required 10, available 8 => missing 2
-    expect(screen.getByDisplayValue('2')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('2')).toBeInTheDocument();
     
     // Baja: required 5, available 0 => missing 5
-    expect(screen.getByDisplayValue('5')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('5')).toBeInTheDocument();
     
     // Kayu: required 3, available 5 => missing 0
-    expect(screen.getByDisplayValue('0')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('0')).toBeInTheDocument();
   });
 
   it('explodes stock issues into multiple rows based on specs and shows correct warning', async () => {
@@ -93,14 +101,17 @@ describe('ProductionMaterialRequestPage', () => {
       currentUser: { role: 'Engineering Supervisor' },
     } as any);
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter>
-        <ProductionMaterialRequestPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
 
     // It should render two rows for Aluminium, one for each spec
-    expect(screen.getByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Aluminium (200x300)')).toBeInTheDocument();
 
     // It should render the specifications
@@ -135,14 +146,17 @@ describe('ProductionMaterialRequestPage', () => {
       currentUser: { role: 'Engineering' },
     } as any);
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter>
-        <ProductionMaterialRequestPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
 
     // It should render one row for Besi with its spec in the dropdown
-    expect(screen.getByDisplayValue('Besi (5mm)')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Besi (5mm)')).toBeInTheDocument();
 
     // It should render the specification
     expect(screen.getByDisplayValue('5mm')).toBeInTheDocument();

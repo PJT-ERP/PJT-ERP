@@ -59,6 +59,7 @@ export interface PurchaseRequestDto {
   financeReviewedByUserId?: string | null;
   financeReviewedAtUtc?: string | null;
   financeRejectionReason?: string | null;
+  revisionNote?: string | null;
   updatedAtUtc: string;
   items: Array<{
     id: string;
@@ -249,6 +250,14 @@ export const purchasingApi = {
 
   async previewNextPoNumber() {
     const response = await apiClient.get<string>('/api/v1/purchasing/purchase-requests/next-po-number');
+    return response.data;
+  },
+
+  async requestPrRevision(id: string, payload: { revisionNote: string, items: Array<{ itemId: string, newSpecification: string }> }) {
+    const response = await apiClient.post<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${id}/request-revision`,
+      payload
+    );
     return response.data;
   },
 };

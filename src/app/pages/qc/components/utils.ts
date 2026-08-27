@@ -115,5 +115,17 @@ export function mapInspectionToSalesOrder(inspection: QcInspectionDto, salesOrde
     customerDrawingUrl: inspection.customerDrawingUrl || existing?.customerDrawingUrl,
     designLink: inspection.customerDrawingUrl || existing?.designLink,
     backendDesignStatus: inspection.designReference || existing?.backendDesignStatus,
+    items: existing?.items || [
+      {
+        id: "temp-" + (inspection.salesOrderNumber || inspection.refNo),
+        productId: "-",
+        productName: existing?.description || inspection.productName || inspection.refNo,
+        partNumber: existing?.partNumber || inspection.productCode || "-",
+        productPartNumber: existing?.partNumber || inspection.productCode || "-",
+        quantity: existing?.quantity || inspection.orderQty || 0,
+        unitPrice: 0,
+        unit: "PCS"
+      }
+    ],
   };
 }

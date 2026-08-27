@@ -1,11 +1,12 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { NewOrderFormSchema, NewOrderFormType } from "../schema/soCreateSchema";
 import { useEffect } from "react";
-import { useApp } from "../../context/AppContext";
+import { useCustomersQuery, useSalesOrdersQuery } from "../../../services/queries";
 
 export function useNewOrderForm(initialData?: { customerId?: string; mode?: string; soId?: string }) {
-  const { customers, salesOrders } = useApp();
+  const { data: customers = [] } = useCustomersQuery();
+  const { data: salesOrders = [] } = useSalesOrdersQuery();
   const isEdit = initialData?.mode === "edit";
   const existingAppSo = isEdit ? salesOrders.find(s => s.id === initialData?.soId) : null;
 
@@ -57,11 +58,11 @@ export function useNewOrderForm(initialData?: { customerId?: string; mode?: stri
     }
   });
 
-  const { watch, setValue } = methods;
-  const products = watch("products");
+  const { setValue, control } = methods;
+  const products = useWatch({ control, name: "products" });
 
   useEffect(() => {
-    const total = products.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+    const total = (products || []).reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
     setValue("customerForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
   }, [products, setValue]);
 
