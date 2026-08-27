@@ -13,4 +13,7 @@ public interface ISalesOrderCommandService
     Task<SalesOrderProductionProgressDto> ConfirmSalesOrderAsync(Guid salesOrderId, ConfirmSalesOrderRequest request, CancellationToken cancellationToken);
     Task<SalesOrderDto?> UpdateSalesOrderGeneralAsync(Guid salesOrderId, UpdateSalesOrderGeneralRequest request, CancellationToken cancellationToken);
     Task<bool> DeleteSalesOrderAsync(Guid salesOrderId, CancellationToken cancellationToken);
+    Task<SalesOrderCommentDto?> AddCommentAsync(Guid salesOrderId, AddSalesOrderCommentRequest request, CancellationToken cancellationToken);
+    Task<bool> UpdateCommentAsync(Guid salesOrderId, Guid commentId, UpdateSalesOrderCommentRequest request, CancellationToken cancellationToken);
+    Task<bool> DeleteCommentAsync(Guid salesOrderId, Guid commentId, CancellationToken cancellationToken);
 }

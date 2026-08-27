@@ -133,9 +133,19 @@ public sealed record SalesOrderDto(
     bool IsCostingCompleted,
     IReadOnlyCollection<SalesOrderDesignRevisionDto> DesignRevisions,
     IReadOnlyCollection<SalesOrderItemDto> Items,
-    IReadOnlyCollection<string>? ProductionPhotos,
-    IReadOnlyCollection<string>? QcPhotos,
+    IReadOnlyCollection<SalesOrderCommentDto>? Comments = null,
+    IReadOnlyCollection<string>? ProductionPhotos = null,
+    IReadOnlyCollection<string>? QcPhotos = null,
     IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null);
+
+public sealed record SalesOrderCommentDto(
+    Guid Id,
+    Guid UserId,
+    string UserName,
+    string Content,
+    DateTime CreatedAtUtc,
+    bool IsEdited,
+    bool IsDeleted);
 
 public sealed record SalesOrderMaterialDto(
     string Id,
@@ -249,6 +259,14 @@ public sealed record UploadEngineeringDrawingRequest(
     Guid UploadedByUserId,
     string UploaderName,
     string? DrawingRef);
+
+public sealed record AddSalesOrderCommentRequest(
+    Guid UserId,
+    string UserName,
+    string Content);
+
+public sealed record UpdateSalesOrderCommentRequest(
+    string Content);
 
 public sealed record ExecutiveDashboardDto(
     int WaitingOrders,

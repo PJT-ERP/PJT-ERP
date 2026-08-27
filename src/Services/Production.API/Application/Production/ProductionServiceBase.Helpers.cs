@@ -89,6 +89,7 @@ public abstract partial class ProductionServiceBase
             order.IsCostingCompleted,
             order.DesignRevisions.OrderBy(r => r.Version).Select(r => new SalesOrderDesignRevisionDto(r.Version, r.Url, r.ChangedBy, r.ChangedAtUtc)).ToArray(),
             order.Items.OrderBy(item => item.ProductPartNumber).Select(ToDto).ToArray(),
+            order.Comments?.OrderBy(c => c.CreatedAtUtc).Select(c => new SalesOrderCommentDto(c.Id, c.UserId, c.UserName, c.Content, c.CreatedAtUtc, c.IsEdited, c.IsDeleted)).ToArray() ?? Array.Empty<SalesOrderCommentDto>(),
             order.ProductionPhotos,
             order.QcPhotos,
             MapMaterials(order, boms));
@@ -356,7 +357,9 @@ public abstract partial class ProductionServiceBase
     {
         return query
             .Include(order => order.Items)
-            .Include(order => order.ProductionOrders);
+            .Include(order => order.ProductionOrders)
+            .Include(order => order.DesignRevisions)
+            .Include(order => order.Comments);
     }
 
     protected static ProductionOrder? GetPrimaryProductionOrder(SalesOrder salesOrder)

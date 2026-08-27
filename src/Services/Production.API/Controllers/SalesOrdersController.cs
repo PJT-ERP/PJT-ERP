@@ -411,4 +411,28 @@ public sealed class SalesOrdersController(
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("{id:guid}/comments")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
+    public async Task<ActionResult<SalesOrderCommentDto>> AddComment(Guid id, AddSalesOrderCommentRequest request, CancellationToken cancellationToken)
+    {
+        var comment = await salesOrderCommandService.AddCommentAsync(id, request, cancellationToken);
+        return comment is null ? NotFound() : Ok(comment);
+    }
+
+    [HttpPut("{id:guid}/comments/{commentId:guid}")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
+    public async Task<ActionResult> UpdateComment(Guid id, Guid commentId, UpdateSalesOrderCommentRequest request, CancellationToken cancellationToken)
+    {
+        var success = await salesOrderCommandService.UpdateCommentAsync(id, commentId, request, cancellationToken);
+        return success ? NoContent() : NotFound();
+    }
+
+    [HttpDelete("{id:guid}/comments/{commentId:guid}")]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
+    public async Task<ActionResult> DeleteComment(Guid id, Guid commentId, CancellationToken cancellationToken)
+    {
+        var success = await salesOrderCommandService.DeleteCommentAsync(id, commentId, cancellationToken);
+        return success ? NoContent() : NotFound();
+    }
 }
