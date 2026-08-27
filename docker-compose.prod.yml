@@ -48,6 +48,11 @@ services:
     environment: *api-environment
     expose:
       - "8080"
+    healthcheck: &api-healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       db:
         condition: service_healthy
@@ -64,6 +69,7 @@ services:
     environment: *api-environment
     expose:
       - "8080"
+    healthcheck: *api-healthcheck
     depends_on:
       db:
         condition: service_healthy
@@ -80,6 +86,7 @@ services:
     environment: *api-environment
     expose:
       - "8080"
+    healthcheck: *api-healthcheck
     depends_on:
       db:
         condition: service_healthy
@@ -98,6 +105,7 @@ services:
       - pjt_qc_photos:/app/wwwroot/qc-photos
     expose:
       - "8080"
+    healthcheck: *api-healthcheck
     depends_on:
       db:
         condition: service_healthy
@@ -114,6 +122,7 @@ services:
     environment: *api-environment
     expose:
       - "8080"
+    healthcheck: *api-healthcheck
     depends_on:
       db:
         condition: service_healthy
@@ -132,6 +141,7 @@ services:
       - pjt_finance_proofs:/app/wwwroot/proofs
     expose:
       - "8080"
+    healthcheck: *api-healthcheck
     depends_on:
       db:
         condition: service_healthy
@@ -157,6 +167,7 @@ services:
       ReverseProxy__Clusters__finance__Destinations__financeApi__Address: "http://finance-api:8080/"
     expose:
       - "8080"
+    healthcheck: *api-healthcheck
     depends_on:
       identity-api:
         condition: service_started
@@ -181,14 +192,14 @@ services:
         VITE_DEV_MASTER_TOKEN: "${VITE_DEV_MASTER_TOKEN:-}"
     restart: unless-stopped
     expose:
-      - "80"
+      - "8080"
     depends_on:
       web-gateway:
         condition: service_started
     logging: *default-logging
 
   nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
+    image: jc21/nginx-proxy-manager:2.15.1
     restart: unless-stopped
     ports:
       - "80:80"

@@ -19,7 +19,7 @@ x-api-environment: &api-environment
 
 services:
   seq:
-    image: datalust/seq:latest
+    image: datalust/seq:2026.1.17114
     ports:
       - "5341:80"
     environment:
@@ -172,7 +172,7 @@ services:
         VITE_API_BASE_URL: "${VITE_API_BASE_URL:-http://localhost:5000}"
         VITE_DEV_MASTER_TOKEN: "${VITE_DEV_MASTER_TOKEN:-dev-master-token}"
     ports:
-      - "127.0.0.1:5173:80"
+      - "127.0.0.1:5173:8080"
     depends_on:
       web-gateway:
         condition: service_started

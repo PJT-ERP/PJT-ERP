@@ -127,10 +127,14 @@ export function useAuth() {
   }, [logout]);
 
   const addUser = async (user: Omit<User, 'id'>): Promise<boolean> => {
+    if (!user.password?.trim()) {
+      return false;
+    }
+
     const created = await authApi.createUser({
       name: user.name,
       email: user.email,
-      password: (user as any).password || "DefaultPass123!",
+      password: user.password,
       role: user.role,
       isActive: user.isActive
     });
