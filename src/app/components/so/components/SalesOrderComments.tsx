@@ -164,9 +164,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
   const commentList = comments || [];
 
   useEffect(() => {
-    if (commentsContainerRef.current) {
-      commentsContainerRef.current.scrollTop = commentsContainerRef.current.scrollHeight;
-    }
+    // Removed auto-scroll on load to prevent the page from jumping down to the comment section.
   }, [comments]);
 
   return (
@@ -195,23 +193,23 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
                   <div className={`absolute top-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ${c.userId === currentUser?.id ? 'right-full mr-2' : 'left-full ml-2'}`}>
                     <button 
                       onClick={() => setReplyTo(c)} 
-                      className="text-[11px] font-medium text-blue-500 hover:text-blue-700 flex items-center gap-1"
+                      className="text-xs font-medium text-blue-500 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded bg-white shadow-sm border border-gray-100"
                     >
-                      <Reply size={12} /> Balas
+                      <Reply size={14} /> Balas
                     </button>
                     {c.userId === currentUser?.id && (
                       <>
                         <button 
                           onClick={() => startEdit(c)} 
-                          className="text-[11px] font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                          className="text-xs font-medium text-gray-600 hover:text-gray-800 flex items-center gap-1 px-2 py-1 rounded bg-white shadow-sm border border-gray-100"
                         >
-                          <Pencil size={11} /> Edit
+                          <Pencil size={14} /> Edit
                         </button>
                         <button 
                           onClick={() => handleDelete(c.id)} 
-                          className="text-[11px] font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
+                          className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded bg-white shadow-sm border border-gray-100"
                         >
-                          <Trash2 size={11} /> Hapus
+                          <Trash2 size={14} /> Hapus
                         </button>
                       </>
                     )}
