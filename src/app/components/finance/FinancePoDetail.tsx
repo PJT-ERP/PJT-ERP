@@ -154,6 +154,11 @@ export function FinancePoDetail() {
   const pc = paymentCfg[detail.paymentStatus] || { bg: "#f1f5f9", color: "#64748b" };
   const totalTagihan = calcTotal(detail.items);
 
+  const today = new Date();
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  const todayStr = today.toISOString().slice(0, 10);
+  const isOverdue = detail.paymentStatus !== "Paid" && detail.dueDate && detail.dueDate < todayStr;
+
   return (
     <div className="p-5 max-w-5xl mx-auto space-y-6">
       {/* Header Back Button */}
@@ -218,6 +223,11 @@ export function FinancePoDetail() {
               <span className="inline-flex items-center gap-1.5 rounded px-2.5 py-1" style={{ background: pc.bg, color: pc.color, fontSize: 12, fontWeight: 700 }}>
                 {detail.paymentStatus}
               </span>
+              {isOverdue && (
+                <span className="inline-flex items-center rounded px-2 py-0.5 border border-red-200 bg-red-50 text-red-600 text-[11px] font-bold">
+                  OVERDUE
+                </span>
+              )}
             </div>
             <p className="text-sm text-slate-500 m-0">
               Supplier: <strong>{detail.supplier}</strong> · Tgl Order: {detail.orderDate}

@@ -41,15 +41,30 @@ export function ApPaymentTab({ pendingPosList, search, setSearch }: ApPaymentTab
           <tbody className="divide-y divide-slate-50">
             {pendingPosList.map(po => {
               const totalAmount = calcTotal(po.items);
+              const today = new Date();
+              today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+              const todayStr = today.toISOString().slice(0, 10);
+              const isOverdue = po.dueDate && po.dueDate < todayStr;
+
               return (
                 <tr key={po.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/po/${po.id}`)}>
                   <td className="px-5 py-4 text-slate-600">{po.orderDate}</td>
-                  <td className="px-5 py-4 font-medium text-slate-800">{po.id}</td>
+                  <td className="px-5 py-4 font-medium text-slate-800">
+                    <div className="flex flex-col gap-0.5">
+                      {po.id}
+                      {isOverdue && <span className="md:hidden text-red-500 text-[10px] font-bold">OVERDUE</span>}
+                    </div>
+                  </td>
                   <td className="px-5 py-4 text-slate-600">{po.supplier}</td>
                   <td className="px-5 py-4 text-slate-600">{po.soRefs?.length > 0 ? po.soRefs.join(", ") : "-"}</td>
                   <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalAmount)}</td>
                   <td className="px-5 py-4 text-center">
-                    <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">UNPAID</span>
+                    <div className="flex flex-row justify-center items-center gap-2">
+                      <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200 uppercase">{po.paymentStatus}</span>
+                      {isOverdue && (
+                        <span className="hidden md:inline-block text-red-600 bg-red-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200 uppercase">OVERDUE</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-center">
                     <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/po/${po.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">

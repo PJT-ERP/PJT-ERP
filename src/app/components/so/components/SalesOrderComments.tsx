@@ -38,6 +38,12 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
     return Array.from(new Set([...roles, ...names]));
   }, [users]);
   
+  const mentionRegex = React.useMemo(() => {
+    if (SUGGESTIONS.length === 0) return /(@\w+)/g;
+    const escaped = [...SUGGESTIONS].sort((a, b) => b.length - a.length).map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp(`(@(?:${escaped.join('|')}))`, 'gi');
+  }, [SUGGESTIONS]);
+
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionFilter, setSuggestionFilter] = useState("");
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -192,8 +198,8 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
   }, [commentList]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-6">
-      <div className="border-b border-gray-100 p-4">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-6 flex flex-col">
+      <div className="border-b border-gray-100 p-4 rounded-t-xl">
         <h3 className="font-semibold text-gray-800 flex items-center gap-2">
           <MessageSquare size={18} className="text-blue-500" />
           Komentar & Diskusi ({commentList.length})
@@ -252,8 +258,8 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
                     
                     return (
                       <div key={lineIndex} className={isQuote ? `border-l-2 pl-2 my-0.5 text-xs opacity-80 ${c.userId === currentUser?.id ? 'border-blue-200 bg-blue-600/20' : 'border-blue-300 bg-gray-50'} py-0.5 rounded-r` : 'min-h-[1rem]'}>
-                        {displayText.split(/(@[\w\s]+)/g).map((part, i) => {
-                          if (part.startsWith('@')) {
+                        {displayText.split(mentionRegex).map((part, i) => {
+                          if (part.startsWith('@') && SUGGESTIONS.some(s => part.toLowerCase() === `@${s.toLowerCase()}`)) {
                             return <span key={i} className={`font-semibold ${c.userId === currentUser?.id ? 'text-blue-100 bg-blue-600/30' : 'text-blue-600 bg-blue-50'} px-1 py-0.5 rounded`}>{part}</span>;
                           }
                           if (isQuote && part.includes('**')) {
@@ -271,7 +277,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
           ))
         )}
       </div>
-      <div className="p-4 border-t border-gray-100 bg-white relative">
+      <div className="p-4 border-t border-gray-100 bg-white relative rounded-b-xl z-20">
         {showSuggestions && filteredSuggestions.length > 0 && (
           <div className="absolute bottom-full left-4 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-10 flex flex-col max-h-48 overflow-y-auto">
             {filteredSuggestions.map((sug, idx) => (
