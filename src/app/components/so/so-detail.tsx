@@ -19,6 +19,7 @@ import { ProductInfoCard } from "./detail/ProductInfoCard";
 import { QcReportCard } from "./detail/QcReportCard";
 import { ActionPanels } from "./detail/ActionPanels";
 import { OrderInfoSidebar, QrCodeCard, OrderHistory } from "./detail/OrderInfoSidebar";
+import { SalesOrderComments } from "./components/SalesOrderComments";
 import {
   S, InfoRow, InfoCard, HeaderBtn,
 } from "./detail/shared";
@@ -362,38 +363,42 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             window.print();
             document.title = originalTitle;
           }} />
-          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
-          {isEditMode ? (
+          {currentUser?.role === 'Sales' && (
             <>
+              <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    style={{
+                      padding: "7px 14px", borderRadius: 6, border: "none",
+                      background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
+                      color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
+                      boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                    }}
+                  >
+                    Simpan Perubahan
+                  </button>
+                  <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
+                </>
+              ) : (
+                <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
+              )}
               <button
-                onClick={handleSave}
+                onClick={() => setShowDeleteModal(true)}
+                title="Hapus Sales Order"
                 style={{
-                  padding: "7px 14px", borderRadius: 6, border: "none",
-                  background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
-                  color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                  padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
+                  background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                  transition: "all 0.15s"
                 }}
               >
-                Simpan Perubahan
+                <Trash2 size={13} />
+                <span>Hapus SO</span>
               </button>
-              <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
             </>
-          ) : (
-            <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
           )}
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            title="Hapus Sales Order"
-            style={{
-              padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
-              background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-              transition: "all 0.15s"
-            }}
-          >
-            <Trash2 size={13} />
-            <span>Hapus SO</span>
-          </button>
         </div>
       </div>
 
@@ -462,6 +467,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               </button>
             </div>
           )}
+          
+          {/* Comments Section */}
+          <SalesOrderComments salesOrderId={targetId} comments={order.comments} />
         </div>
 
         {/* ===== Right Sidebar ===== */}

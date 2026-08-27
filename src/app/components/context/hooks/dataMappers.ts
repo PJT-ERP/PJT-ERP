@@ -219,6 +219,7 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     materials,
     bomsPerItem,
     backendDesignStatus: order.designStatus,
+    comments: order.comments,
     items: (order.items || []).map(item => ({
       id: item.id,
       productId: item.productId,

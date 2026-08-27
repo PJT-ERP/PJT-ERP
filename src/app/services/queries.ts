@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { authApi } from './authApi';
 import { salesApi } from './salesApi';
 import { purchasingApi } from './purchasingApi';
 import { landingPageApi } from './landingPageApi';
@@ -164,6 +165,20 @@ export const useQcQueuesQuery = (enabled: boolean = true) => {
     },
     enabled,
     staleTime: 30000,
+  });
+};
+
+
+// -- USERS --
+export const useUsersQuery = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const data = await authApi.getUsers();
+      return data;
+    },
+    enabled,
+    staleTime: 60000,
   });
 };
 

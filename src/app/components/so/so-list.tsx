@@ -8,6 +8,7 @@ import { useDeleteSalesOrderMutation } from "../../services/queries";
 import { SalesOrder, SOStatus } from "../data/mockData";
 import { type SalesInvoiceStatus } from "./invoice-sync";
 import { useSOList, PAGE_SIZE } from "./hooks/useSOList";
+import { useAuth } from "../context/hooks/useAuth";
 import { 
   S, STATUS_OPTIONS, StatusBadge, InvoiceBadge, FilterDropdown, 
   ActionBtn, HoverBtn, MobileActionBtn, Pagination
@@ -20,9 +21,12 @@ interface SOListProps {
 
 
 export function SOList({ onNavigate }: SOListProps) {
+  const { currentUser } = useAuth();
   const board = useSOList();
   const deleteMutation = useDeleteSalesOrderMutation();
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string } | null>(null);
+
+  const canEdit = currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
@@ -64,22 +68,24 @@ export function SOList({ onNavigate }: SOListProps) {
         </div>
         <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
 
-          <HoverBtn
-            icon={<Plus size={12} />}
-            label="Buat SO"
-            onClick={() => onNavigate("so-create")}
-            style={{ 
-              background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
-              border: "none", 
-              color: "#fff",
-              boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
-              fontWeight: 600,
-              padding: "7px 14px",
-              borderRadius: "6px"
-            }}
-            hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
-            primary
-          />
+          {currentUser?.role === 'Sales' && (
+            <HoverBtn
+              icon={<Plus size={12} />}
+              label="Buat SO"
+              onClick={() => onNavigate("so-create")}
+              style={{ 
+                background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
+                border: "none", 
+                color: "#fff",
+                boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
+                fontWeight: 600,
+                padding: "7px 14px",
+                borderRadius: "6px"
+              }}
+              hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
+              primary
+            />
+          )}
         </div>
       </div>
 
@@ -253,6 +259,7 @@ export function SOList({ onNavigate }: SOListProps) {
                   onView={() => onNavigate("so-detail", order.id)}
                   onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
                   onDelete={() => setDeleteTarget({ id: order.id })}
+                  canEdit={canEdit}
                 />
               ))}
             </tbody>
@@ -326,10 +333,12 @@ export function SOList({ onNavigate }: SOListProps) {
 
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: "auto" }}>
                     <MobileActionBtn label="Detail" bg="#EFF6FF" color="#C8102E" action={() => onNavigate("so-detail", order.id)} />
-                    {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+                    {canEdit && !(order.status === "Completed" && order.invoice?.status === "paid") && (
                       <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
                     )}
-                    <MobileActionBtn label="Hapus" bg="#FEF2F2" color="#EF4444" action={() => setDeleteTarget({ id: order.id })} />
+                    {canEdit && (
+                      <MobileActionBtn label="Hapus" bg="#FEF2F2" color="#EF4444" action={() => setDeleteTarget({ id: order.id })} />
+                    )}
                   </div>
                 </div>
               );
@@ -395,13 +404,14 @@ export function SOList({ onNavigate }: SOListProps) {
 }
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
-function TableRow({ order, customerName, isLast, onView, onEdit, onDelete }: {
+function TableRow({ order, customerName, isLast, onView, onEdit, onDelete, canEdit }: {
   order: SalesOrder;
   customerName: string;
   isLast: boolean;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  canEdit: boolean;
 }) {
   const [hov, React_useState] = React.useState(false);
 
@@ -451,10 +461,12 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDelete }: {
       <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
-          {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+          {canEdit && !(order.status === "Completed" && order.invoice?.status === "paid") && (
             <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
           )}
-          <ActionBtn icon={<Trash2 size={12} />}  label="Hapus"    hoverBg="#FEF2F2" hoverColor="#EF4444" onClick={onDelete}    title="Hapus Sales Order" />
+          {canEdit && (
+            <ActionBtn icon={<Trash2 size={12} />}  label="Hapus"    hoverBg="#FEF2F2" hoverColor="#EF4444" onClick={onDelete}    title="Hapus Sales Order" />
+          )}
         </div>
       </td>
     </tr>
