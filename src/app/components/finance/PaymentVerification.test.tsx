@@ -86,11 +86,8 @@ describe('PaymentVerification Component', () => {
     
     render(<PaymentVerification />);
 
-    const verifyBtns = screen.getAllByRole('button', { name: /Verifikasi/i });
-    const verifyActionBtn = verifyBtns.find(btn => btn.textContent?.includes('Verifikasi') && !btn.textContent?.includes('Menunggu'));
-    if (verifyActionBtn) {
-      fireEvent.click(verifyActionBtn); // Opens modal
-    }
+    const verifyBtns = screen.getAllByText('Verifikasi', { selector: 'button' });
+    fireEvent.click(verifyBtns[0]); // Opens modal
 
     // Wait for modal to open
     const modalTitle = await screen.findByText('Detail Pembayaran');

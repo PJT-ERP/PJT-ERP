@@ -37,7 +37,23 @@ vi.mock('../../../services/qcApi', () => ({
 import * as queries from '../../../services/queries';
 
 vi.mock('../../../services/queries', () => ({
-  useCustomersQuery: vi.fn()
+  useCustomersQuery: vi.fn(),
+  useUsersQuery: vi.fn().mockReturnValue({ data: [] }),
+  useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [] }),
+  useQcQueuesQuery: vi.fn().mockReturnValue({ data: {
+    readyForInspection: [{
+      id: 'so-nogo-1',
+      soNumber: 'SO-2026-NOGO',
+      customerId: 'CUST-1',
+      partNumber: 'PART-NOGO',
+      description: 'Test NOGO',
+      status: 'QC',
+      qcStatus: null,
+      quantity: 10,
+      unit: 'pcs'
+    }],
+    inspectionHistory: []
+  } })
 }));
 
 describe('QCInspectionsPage - QC Rejection Flow', () => {

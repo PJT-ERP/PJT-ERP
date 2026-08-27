@@ -58,7 +58,14 @@ vi.mock('lucide-react', () => ({
   Hash: () => <div data-testid="icon-hash" />,
   Receipt: () => <div data-testid="icon-receipt" />,
   QrCode: () => <div data-testid="icon-qr-code" />,
-  RefreshCw: () => <div data-testid="icon-refresh-cw" />
+  RefreshCw: () => <div data-testid="icon-refresh-cw" />,
+  MessageSquare: () => <div data-testid="icon-message-square" />,
+  Pencil: () => <div data-testid="icon-pencil" />,
+  Trash2: () => <div data-testid="icon-trash" />,
+  Reply: () => <div data-testid="icon-reply" />,
+  X: () => <div data-testid="icon-x" />,
+  UserIcon: () => <div data-testid="icon-user" />,
+  Send: () => <div data-testid="icon-send" />
 }));
 
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
@@ -116,6 +123,9 @@ vi.mock('../../../services/queries', () => {
   return {
     useProductsQuery: vi.fn().mockReturnValue({ data: [] }),
     useCustomersQuery: vi.fn().mockReturnValue({ data: [mockCustomer] }),
+    useUsersQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcQueuesQuery: vi.fn().mockReturnValue({ data: [] }),
     useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [registeredOrder, customOrder] }),
     useUpdateSalesOrderMutation: vi.fn().mockReturnValue({ mutate: mockMutate }),
     useDeleteSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),

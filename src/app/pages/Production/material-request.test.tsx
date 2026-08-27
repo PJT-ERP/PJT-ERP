@@ -46,7 +46,7 @@ vi.mock('react-router', async () => {
 });
 
 describe('ProductionMaterialRequestPage', () => {
-  it('calculates correct MR quantity when available stock is provided from location state', () => {
+  it('calculates correct MR quantity when available stock is provided from location state', async () => {
     vi.mocked(useApp).mockReturnValue({
       salesOrders: [
         { id: 'SO-123', description: 'Test Order' }
@@ -65,13 +65,13 @@ describe('ProductionMaterialRequestPage', () => {
     );
     
     // Aluminium: required 10, available 8 => missing 2
-    expect(screen.getByDisplayValue('2')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('2')).toBeInTheDocument();
     
     // Baja: required 5, available 0 => missing 5
-    expect(screen.getByDisplayValue('5')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('5')).toBeInTheDocument();
     
     // Kayu: required 3, available 5 => missing 0
-    expect(screen.getByDisplayValue('0')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('0')).toBeInTheDocument();
   });
 
   it('explodes stock issues into multiple rows based on specs and shows correct warning', async () => {

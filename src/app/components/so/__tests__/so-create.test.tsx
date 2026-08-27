@@ -8,7 +8,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
 vi.mock('../../../services/queries', () => ({
   useSalesOrdersQuery: vi.fn(() => ({ data: [], isLoading: false })),
-  useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useCustomersQuery: vi.fn(() => ({ data: [],
+    useUsersQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcQueuesQuery: vi.fn().mockReturnValue({ data: [] }), isLoading: false })),
   useProductsQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useUpdateSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn() })),
   useDeleteSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),

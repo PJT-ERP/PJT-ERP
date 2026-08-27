@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { StartProductionModal } from './StartProductionModal';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useApp } from '../../context/AppContext';
 import { masterDataApi } from '../../../services/masterDataApi';
 
@@ -25,6 +26,13 @@ vi.mock('react-router', async () => {
     useNavigate: vi.fn(),
   };
 });
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const renderWithClient = (ui: React.ReactElement) => render(
+  <QueryClientProvider client={queryClient}>
+    {ui}
+  </QueryClientProvider>
+);
 
 describe('StartProductionModal', () => {
   beforeEach(() => {
@@ -51,7 +59,7 @@ describe('StartProductionModal', () => {
       }
     ] as any);
 
-    render(
+    renderWithClient(
       <MemoryRouter>
         <StartProductionModal so={so} onClose={vi.fn()} />
       </MemoryRouter>

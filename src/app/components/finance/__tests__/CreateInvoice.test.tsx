@@ -98,9 +98,7 @@ describe('CreateInvoice', () => {
     fireEvent.change(soSelect, { target: { value: 'so-1' } });
 
     // The due date is auto-filled from targetDate (2026-08-01), wait for it
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument();
-    });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
 
     // Default invoice type is Full Payment. Let's submit.
     const createBtn = screen.getByRole('button', { name: /Simpan Invoice/i });
@@ -132,9 +130,7 @@ describe('CreateInvoice', () => {
     const soSelect = screen.getAllByRole('combobox')[0];
     fireEvent.change(soSelect, { target: { value: 'so-1' } });
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument();
-    });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
 
     // Change to DP
     // There are multiple comboboxes: SO select, Payment Term, Type, DP %

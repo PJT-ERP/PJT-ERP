@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { PurchaseOrderDetailPage } from './purchase-order-detail-page';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { purchasingApi } from '../../services/purchasingApi';
 
 vi.mock('../../services/purchasingApi', () => ({
@@ -63,12 +64,16 @@ describe('PurchaseOrderDetailPage', () => {
       }
     ] as any);
 
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
     render(
-      <MemoryRouter initialEntries={['/erp/purchasing/orders/PO-2001']}>
-        <Routes>
-          <Route path="/erp/purchasing/orders/:id" element={<PurchaseOrderDetailPage />} />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/erp/purchasing/orders/PO-2001']}>
+          <Routes>
+            <Route path="/erp/purchasing/orders/:id" element={<PurchaseOrderDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     );
 
     // Wait for the data to load and render the overview
