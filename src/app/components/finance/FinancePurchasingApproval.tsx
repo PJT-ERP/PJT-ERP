@@ -23,6 +23,12 @@ export function FinancePurchasingApproval() {
   const [pos, setPos] = useState<PO[]>([]);
   const [mrs, setMrs] = useState<MR[]>([]);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('finance_approval_tab') || "budget");
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    sessionStorage.setItem('finance_approval_tab', val);
+  };
   
   // Payment states
   const [selectedPo, setSelectedPo] = useState<PO | null>(null);
@@ -171,7 +177,7 @@ export function FinancePurchasingApproval() {
         </div>
       </div>
 
-      <Tabs defaultValue="budget" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-4 bg-slate-100 rounded-md p-1">
           <TabsTrigger value="budget" className="flex items-center gap-2 rounded-sm">
             <FileText size={15} /> Persetujuan Anggaran PR

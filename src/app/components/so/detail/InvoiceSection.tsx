@@ -381,7 +381,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
           {isOverdue && (
             <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, marginBottom: 16 }}>
               <p style={{ margin: 0, fontSize: "12.5px", color: "#B91C1C", fontWeight: 500 }}>
-                ⚠️ Perhatian: Invoice Overdue
+                Perhatian: Invoice Overdue
               </p>
               <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#991B1B" }}>
                 Invoice ini telah melewati batas waktu pembayaran (jatuh tempo).
