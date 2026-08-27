@@ -111,6 +111,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
                   onChange={e => setLateReason(e.target.value)}
                   placeholder="Contoh: Material kurang, mesin rusak..."
                   rows={2}
+                  maxLength={1000}
                   style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
                 />
               </div>
@@ -134,6 +135,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
                   onChange={e => setEarlyReason(e.target.value)}
                   placeholder="Contoh: Pekerjaan selesai lebih cepat karena mesin kosong..."
                   rows={2}
+                  maxLength={1000}
                   style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
                 />
               </div>

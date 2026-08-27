@@ -193,6 +193,7 @@ export function ContactSection() {
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
+                        maxLength={150}
                       />
                     </div>
                     <div>
@@ -206,6 +207,7 @@ export function ContactSection() {
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
+                        maxLength={50}
                       />
                     </div>
                   </div>
@@ -221,6 +223,7 @@ export function ContactSection() {
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
+                        maxLength={150}
                       />
                     </div>
                     <div>
@@ -234,6 +237,7 @@ export function ContactSection() {
                         style={inputStyle}
                         onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                         onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
+                        maxLength={500}
                       />
                     </div>
                   </div>
@@ -249,6 +253,7 @@ export function ContactSection() {
                       style={{ ...inputStyle, resize: "vertical", minHeight: "130px" }}
                       onFocus={(e) => { e.target.style.borderColor = "#C8102E"; e.target.style.boxShadow = "0 0 0 3px rgba(200,16,46,0.12)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "#E2E8F0"; e.target.style.boxShadow = "none"; }}
+                      maxLength={2000}
                     />
                   </div>
                   <button

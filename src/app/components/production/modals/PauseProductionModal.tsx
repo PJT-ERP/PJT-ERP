@@ -68,6 +68,7 @@ export function PauseProductionModal({ so, onClose }: { so: SalesOrder; onClose:
               onChange={e => setPauseReason(e.target.value)}
               placeholder="Contoh: Mesin CNC rusak, bahan baku aluminium habis..."
               rows={3}
+              maxLength={500}
               style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
             />
           </div>

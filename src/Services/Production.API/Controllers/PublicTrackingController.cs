@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PJT_ERP.Production.Api.Application.Production;
 
 namespace PJT_ERP.Production.Api.Controllers;
 
 [ApiController]
 [AllowAnonymous]
+[EnableRateLimiting("public")]
 [Route("api/v1/production/tracking")]
 public sealed class PublicTrackingController(IProductionQueryService queryService) : ControllerBase
 {

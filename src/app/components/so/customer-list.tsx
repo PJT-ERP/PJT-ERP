@@ -163,24 +163,24 @@ function CustomerModal({ state, onSave, onClose }: {
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <ModalLabel text="Perusahaan" required />
-                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
+                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required maxLength={160} />
               </div>
               <div>
                 <ModalLabel text="Nama Kontak (PIC)" required />
-                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required />
+                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required maxLength={120} />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
-                <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required />
+                <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required maxLength={40} />
               </div>
               <div>
                 <ModalLabel text="Email" required />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required maxLength={160} />
               </div>
             </div>
             <div>
               <ModalLabel text="Alamat Lengkap" required />
-              <ModalTextarea rows={3} placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required />
+              <ModalTextarea rows={3} placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required maxLength={400} />
             </div>
           </div>
 

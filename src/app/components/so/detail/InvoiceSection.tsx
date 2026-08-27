@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CheckCircle2, Upload, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { type SalesInvoiceStatus } from "../invoice-sync";
 import { financeApi } from "../../../services/financeApi";
@@ -327,6 +328,8 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
     setError("");
   };
 
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseCurrencyAmount(amountText);
@@ -354,6 +357,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
         proofFile: proofFile,
         notes: notes.trim() || null,
       });
+      queryClient.invalidateQueries({ queryKey: ["financeData"] });
       onSubmit();
     } catch (err) {
       console.warn("Failed to submit payment proof.", err);

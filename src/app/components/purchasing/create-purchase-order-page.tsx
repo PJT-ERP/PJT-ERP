@@ -371,7 +371,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
           </div>
           <div className="space-y-1.5 md:col-span-1">
             <FieldLabel>Alamat Pengiriman *</FieldLabel>
-            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} placeholder="Masukkan alamat pengiriman..." />
+            <input value={shippingAddress} onChange={(e: ChangeEvent<HTMLInputElement>) => updateField(setShippingAddress)(e.target.value)} className={inputClass()} placeholder="Masukkan alamat pengiriman..." maxLength={1000} />
           </div>
         </div>
       </section>
