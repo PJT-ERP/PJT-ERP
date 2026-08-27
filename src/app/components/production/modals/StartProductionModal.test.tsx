@@ -91,7 +91,7 @@ describe('StartProductionModal', () => {
       }
     ] as any);
 
-    render(
+    renderWithClient(
       <MemoryRouter>
         <StartProductionModal so={so} onClose={vi.fn()} />
       </MemoryRouter>
@@ -140,7 +140,7 @@ describe('StartProductionModal', () => {
       { id: 'INV-1', name: 'Aluminium', currentStock: 1 }
     ] as any);
 
-    render(
+    renderWithClient(
       <MemoryRouter>
         <StartProductionModal so={so} onClose={vi.fn()} />
       </MemoryRouter>
@@ -204,7 +204,7 @@ describe('StartProductionModal', () => {
       { id: 'INV-1', name: 'Aluminium', currentStock: 0 }
     ] as any);
 
-    render(
+    renderWithClient(
       <MemoryRouter>
         <StartProductionModal so={so} onClose={vi.fn()} />
       </MemoryRouter>
@@ -266,7 +266,7 @@ describe('StartProductionModal', () => {
       { id: 'INV-1', name: 'Aluminium', currentStock: 0 }
     ] as any);
 
-    render(
+    renderWithClient(
       <MemoryRouter>
         <StartProductionModal so={so} onClose={vi.fn()} onReturnToSpv={mockReturnToSpv} />
       </MemoryRouter>

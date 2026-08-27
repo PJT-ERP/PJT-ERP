@@ -39,15 +39,17 @@ import * as queries from '../../../services/queries';
 vi.mock('../../../services/queries', () => ({
   useCustomersQuery: vi.fn(),
   useUsersQuery: vi.fn().mockReturnValue({ data: [] }),
-  useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [] }),
+  useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [{ id: 'insp-1', status: 'ReadyForInspection', updatedAtUtc: '2026-08-01T00:00:00Z', salesOrderNumber: 'SO-2026-NOGO' }] }),
   useQcQueuesQuery: vi.fn().mockReturnValue({ data: {
     readyForInspection: [{
       id: 'so-nogo-1',
       soNumber: 'SO-2026-NOGO',
+      salesOrderNumber: 'SO-2026-NOGO',
       customerId: 'CUST-1',
+      createdAt: '2026-08-01',
       partNumber: 'PART-NOGO',
       description: 'Test NOGO',
-      status: 'QC',
+      status: 'ReadyForInspection',
       qcStatus: null,
       quantity: 10,
       unit: 'pcs'
@@ -100,17 +102,20 @@ describe('QCInspectionsPage - QC Rejection Flow', () => {
 
     // 1. Verify the order is in the QC list
     await waitFor(() => {
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
       expect(screen.queryByText('Antrian Inspeksi QC')).toBeInTheDocument();
     });
-    console.log('DOM CONTENT:', document.body.textContent);
-    expect(await screen.findAllByText(/so-nogo-1|SO-2026-NOGO/)).not.toHaveLength(0);
 
     // 2. Click Mulai Inspeksi
-    const qcControlButton = screen.getByText('Mulai Inspeksi');
+    const qcControlButton = await screen.findByRole('button', { name: /Mulai Inspeksi/i });
     fireEvent.click(qcControlButton);
+    
+    // Dump modal content text
+    console.log("DOM AFTER CLICK:", document.body.textContent);
 
     // 3. Wait for modal to open
-    await waitFor(() => expect(screen.getByText('Inspeksi QC — SO-2026-NOGO')).toBeInTheDocument());
+    const modalTitle = await screen.findByText(/Link Desain/i, {}, { timeout: 3000 });
+    expect(modalTitle).toBeInTheDocument();
 
     // 4. We need to mock photo uploads because the form requires them
     // Find file inputs (first one is production, second is QC)

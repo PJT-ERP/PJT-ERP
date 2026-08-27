@@ -111,7 +111,7 @@ describe('ProductionMaterialRequestPage', () => {
     );
 
     // It should render two rows for Aluminium, one for each spec
-    expect(screen.getByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Aluminium (200x300)')).toBeInTheDocument();
 
     // It should render the specifications
@@ -156,7 +156,7 @@ describe('ProductionMaterialRequestPage', () => {
     );
 
     // It should render one row for Besi with its spec in the dropdown
-    expect(screen.getByDisplayValue('Besi (5mm)')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Besi (5mm)')).toBeInTheDocument();
 
     // It should render the specification
     expect(screen.getByDisplayValue('5mm')).toBeInTheDocument();
