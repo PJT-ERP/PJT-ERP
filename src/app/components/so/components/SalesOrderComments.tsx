@@ -163,9 +163,23 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
 
   const commentList = comments || [];
 
+  const prevCommentCount = useRef(comments?.length || 0);
+
   useEffect(() => {
-    // Removed auto-scroll on load to prevent the page from jumping down to the comment section.
-  }, [comments]);
+    if (commentsContainerRef.current) {
+      const container = commentsContainerRef.current;
+      // Only smooth scroll if we already had comments and added a new one (not on initial fetch)
+      const isNewComment = prevCommentCount.current > 0 && commentList.length > prevCommentCount.current;
+      
+      if (isNewComment) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+      
+      prevCommentCount.current = commentList.length;
+    }
+  }, [commentList]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-6">
@@ -175,7 +189,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
           Komentar & Diskusi ({commentList.length})
         </h3>
       </div>
-      <div ref={commentsContainerRef} className="p-4 bg-gray-50/50 max-h-[400px] overflow-y-auto flex flex-col gap-4 scroll-smooth">
+      <div ref={commentsContainerRef} className="p-4 bg-gray-50/50 max-h-[400px] overflow-y-auto flex flex-col gap-4">
         {commentList.length === 0 ? (
           <div className="text-center text-gray-400 py-6 text-sm">
             Belum ada komentar.
