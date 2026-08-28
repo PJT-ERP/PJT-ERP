@@ -116,13 +116,15 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
 
   // Use bomsPerItem for correct per-product-line aggregation
   if (so.bomsPerItem && so.items && so.items.length > 0) {
-    let hasValidEngineerMaterials = false;
+    let hasAnyMaterials = false;
     const aggregated = new Map<string, { materialObj: any, itemName: string, spec: string, quantity: number, isCustomerMaterial: boolean }>();
 
     so.items.forEach((item: any) => {
-      const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
+      const lookupKey = item.tempId || item.id;
+      const boms = so.bomsPerItem![lookupKey] || so.bomsPerItem![item.productId];
       if (boms && Array.isArray(boms)) {
         boms.forEach((material: any) => {
+          hasAnyMaterials = true;
           if (material.isCustomerMaterial && !includeCustomerMaterials) return;
           const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
           const specification = String(material?.specification || material?.spec || material?.size || "").trim();
@@ -136,13 +138,12 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
               aggregated.set(key, { materialObj: material, itemName, spec: specification, quantity: 0, isCustomerMaterial: !!material.isCustomerMaterial });
             }
             aggregated.get(key)!.quantity += matQty;
-            hasValidEngineerMaterials = true;
           }
         });
       }
     });
 
-    if (hasValidEngineerMaterials) {
+    if (hasAnyMaterials) {
       aggregated.forEach((val) => {
         addOption(val.materialObj, val.itemName, val.spec, val.quantity, val.isCustomerMaterial);
       });
@@ -151,8 +152,10 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
   }
 
   if (Array.isArray(so.materials) && so.materials.length > 0) {
-    let hasValidEngineerMaterials = false;
+    console.log('[getMaterialOptions] FALLING THROUGH to so.materials path. materials:', JSON.stringify(so.materials).substring(0, 500));
+    let hasAnyMaterials = false;
     so.materials.forEach((material: any) => {
+      hasAnyMaterials = true;
       if (material.isCustomerMaterial && !includeCustomerMaterials) return;
       const itemName = String(material?.name || material?.itemName || material?.material || "").trim();
       const specification = String(material?.specification || material?.spec || material?.size || "").trim();
@@ -160,11 +163,10 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
 
       if (itemName && itemName.toLowerCase() !== "pppp") {
         addOption(material, itemName, specification, Number.isNaN(quantity) ? undefined : quantity, !!material.isCustomerMaterial);
-        hasValidEngineerMaterials = true;
       }
     });
 
-    if (hasValidEngineerMaterials) {
+    if (hasAnyMaterials) {
       return options;
     }
   }

@@ -144,6 +144,34 @@ export function useNotifications({
         notifs.push({ id: pr.id, type: 'alert', title: 'MR Butuh Approval', desc: `MR ${pr.id} butuh persetujuan segera.`, targetPath: '/erp/purchasing/requests' });
       });
     }
+    
+    // Check for comment mentions (all roles)
+    salesOrders.forEach(so => {
+      if (so.comments) {
+        so.comments.forEach((c: any) => {
+          if (c.userId === currentUser.id) return; // Don't notify self
+          const contentLower = c.content.toLowerCase();
+          const hasMention = contentLower.includes(`@${currentUser.name.toLowerCase()}`) || 
+                             contentLower.includes(`@${currentUser.role.toLowerCase()}`) ||
+                             contentLower.includes(`@${currentUser.username?.toLowerCase()}`);
+                             
+          if (hasMention) {
+            const notifId = `mention-${c.id}`;
+            if (!dismissedNotifIds.includes(notifId)) {
+              notifs.push({ 
+                id: notifId, 
+                type: 'info', 
+                title: 'Anda di-tag di Komentar', 
+                desc: `${c.userName} tag Anda di diskusi SO ${so.id}`, 
+                targetPath: `/erp/so/detail/${so.id}`, 
+                isDismissible: true 
+              });
+            }
+          }
+        });
+      }
+    });
+
     return notifs;
   }, [currentUser, salesOrders, purchasingRequests, dismissedNotifIds, invoices, payments]);
 

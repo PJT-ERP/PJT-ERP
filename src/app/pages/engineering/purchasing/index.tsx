@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Plus, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ShoppingCart, ChevronLeft, ChevronRight, ArrowRightLeft } from "lucide-react";
 import { useApp } from "../../../components/context/AppContext";
 import { usePurchasingRequestsQuery } from "../../../services/queries";
-import { PurchasingRequest } from "../../../components/data/mockData";
+import { PurchasingRequest, PurchasingStatus } from "../../../components/data/mockData";
 import { S, URGENCY_COLORS, PR_STATUS_COLORS } from "./constants";
 import { PurchasingFormModal } from "./PurchasingFormModal";
 import { PRDetailModal } from "./PRDetailModal";
+import { EngineeringMutationModal } from "./EngineeringMutationModal";
 
 export function EngineeringPurchasingPage() {
   const { currentUser, users } = useApp();
   const { data: purchasingRequests = [] } = usePurchasingRequestsQuery();
   const [showForm, setShowForm] = useState(false);
+  const [showMutationForm, setShowMutationForm] = useState(false);
   const [selected, setSelected] = useState<PurchasingRequest | null>(null);
   const [editRequest, setEditRequest] = useState<PurchasingRequest | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,15 +67,27 @@ export function EngineeringPurchasingPage() {
           </p>
         </div>
         {currentUser?.role !== 'Admin' && (
-          <button onClick={() => { setEditRequest(null); setShowForm(true); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", borderRadius: 4, border: "none",
-              background: S.cyan, color: "#fff", cursor: "pointer",
-              fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-            }}>
-            <Plus size={14} /> Ajukan Baru
-          </button>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button onClick={() => setShowMutationForm(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 4, border: "none",
+                background: S.cyan, color: "#fff", cursor: "pointer",
+                fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+              }}
+            >
+              <ArrowRightLeft size={14} /> Mutasi Material
+            </button>
+            <button onClick={() => { setEditRequest(null); setShowForm(true); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 4, border: "none",
+                background: S.cyan, color: "#fff", cursor: "pointer",
+                fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
+              }}>
+              <Plus size={14} /> Ajukan Baru
+            </button>
+          </div>
         )}
       </div>
 
@@ -124,6 +138,12 @@ export function EngineeringPurchasingPage() {
                           <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[req.urgency].dot}`} />
                           <span style={{ fontSize: "10.5px", fontWeight: 600 }}>{req.urgency}</span>
                         </div>
+                        {req.status === 'Pending' && req.revisionNote && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }} className={`px-2 py-0.5 rounded border ${PR_STATUS_COLORS['Perlu Revisi'].bg} ${PR_STATUS_COLORS['Perlu Revisi'].border} ${PR_STATUS_COLORS['Perlu Revisi'].text}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS['Perlu Revisi'].dot}`} />
+                            <span style={{ fontSize: "10.5px", fontWeight: 600 }}>Perlu Revisi</span>
+                          </div>
+                        )}
                       </div>
                       <p style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 500, color: S.slate, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</p>
                       <p style={{ margin: 0, fontSize: "12.5px", color: S.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{req.requestedBy || 'Engineering'} &nbsp;&middot;&nbsp; {displayQty} &nbsp;&middot;&nbsp; {req.soId || '—'}</p>
@@ -206,10 +226,15 @@ export function EngineeringPurchasingPage() {
                 <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center", fontFamily: "monospace" }}>{req.soId || '—'}</span>
                 <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{req.requestedAt}</span>
                 <div style={{ alignSelf: "center" }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2.5 py-1 rounded border ${PR_STATUS_COLORS[req.status].bg} ${PR_STATUS_COLORS[req.status].border} ${PR_STATUS_COLORS[req.status].text}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[req.status].dot}`} />
-                    <span style={{ fontSize: "11px", fontWeight: 500 }}>{req.status}</span>
-                  </div>
+                  {(() => {
+                    const displayStatus = (req.status === 'Pending' && req.revisionNote) ? 'Perlu Revisi' : req.status;
+                    return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2.5 py-1 rounded border ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].bg} ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].border} ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].text}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].dot}`} />
+                        <span style={{ fontSize: "11px", fontWeight: 500 }}>{displayStatus}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );
@@ -246,6 +271,15 @@ export function EngineeringPurchasingPage() {
             } else {
               setEditRequest(null);
             }
+          }}
+        />
+      )}
+      {showMutationForm && (
+        <EngineeringMutationModal
+          isOpen={showMutationForm}
+          onClose={() => setShowMutationForm(false)}
+          onSuccess={() => {
+            // Ideally trigger a refresh of inventory data if needed
           }}
         />
       )}

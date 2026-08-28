@@ -69,6 +69,7 @@ export function CreatePurchaseRequestPage() {
   const [formSoNumber, setFormSoNumber] = useState("");
   const [formItems, setFormItems] = useState<ManualRequestItem[]>([{ code: "", name: "", spec: "", qty: 1, unit: "PCS", category: "Consumable" }]);
   const [formPriority, setFormPriority] = useState("Medium");
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [formUrgency, setFormUrgency] = useState("");
   const [formNotes, setFormNotes] = useState("");
 
@@ -105,6 +106,7 @@ export function CreatePurchaseRequestPage() {
 
     try {
       setIsSubmitting(true);
+      // eslint-disable-next-line unused-imports/no-unused-vars
       const created: any = await purchasingApi.createPurchaseRequest({
         requestDate: new Date().toISOString().split("T")[0],
         requestedByUserId: requesterId,

@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 import { CheckSquare, AlertTriangle } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
 import { S, getBackendSalesOrderId } from "../ProductionHelpers";
 
 export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClose: () => void }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const today = new Date().toISOString().slice(0, 16);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [endDate, setEndDate] = useState(today);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lateReason, setLateReason] = useState("");
@@ -30,6 +33,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
 
       isEarly = todayDate < hMinus3;
 
+      // eslint-disable-next-line unused-imports/no-unused-vars
       hMinus3Str = hMinus3.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
     }
   }
@@ -67,7 +71,8 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
         workerName: currentUser?.name || so.assignedName || "Engineering",
         reason: (isLate ? lateReason : earlyReason) || undefined,
       });
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       onClose();
     } catch (error: unknown) {
       console.warn("Failed to finish production in backend.", error);
@@ -106,6 +111,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
                   onChange={e => setLateReason(e.target.value)}
                   placeholder="Contoh: Material kurang, mesin rusak..."
                   rows={2}
+                  maxLength={1000}
                   style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
                 />
               </div>
@@ -129,6 +135,7 @@ export function CompleteProductionModal({ so, onClose }: { so: SalesOrder; onClo
                   onChange={e => setEarlyReason(e.target.value)}
                   placeholder="Contoh: Pekerjaan selesai lebih cepat karena mesin kosong..."
                   rows={2}
+                  maxLength={1000}
                   style={{ width: "100%", padding: "8px 10px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "13px", outline: "none", resize: "none", boxSizing: "border-box", fontFamily: S.font }}
                 />
               </div>

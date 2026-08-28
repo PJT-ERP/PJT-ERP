@@ -35,6 +35,8 @@ public static class PurchasingSchemaInitializer
                 updated_at_utc timestamp with time zone NOT NULL
             );
 
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS revision_note text NULL;
+
             DO $$
             BEGIN
                 IF EXISTS (

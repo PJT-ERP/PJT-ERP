@@ -155,7 +155,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
             </div>
             <div className="space-y-2">
               <Label htmlFor="name">Nama Perusahaan <span className="text-[#C8102E]">*</span></Label>
-              <Input id="name" name="name" value={formData.name} onChange={handleChange} required placeholder="Contoh: PT Sumber Baru" />
+              <Input id="name" name="name" value={formData.name} onChange={handleChange} required placeholder="Contoh: PT Sumber Baru" maxLength={160} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="type">Tipe Badan Usaha</Label>
@@ -171,7 +171,7 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Kategori <span className="text-[#C8102E]">*</span></Label>
-              <Input id="category" name="category" value={formData.category} onChange={handleChange} required placeholder="Contoh: Besi & Baja" />
+              <Input id="category" name="category" value={formData.category} onChange={handleChange} required placeholder="Contoh: Besi & Baja" maxLength={120} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
@@ -189,17 +189,17 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
           
           <div className="space-y-2">
             <Label htmlFor="address">Alamat</Label>
-            <Input id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Alamat lengkap" />
+            <Input id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Alamat lengkap" maxLength={400} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="city">Kota</Label>
-              <Input id="city" name="city" value={formData.city} onChange={handleChange} />
+              <Input id="city" name="city" value={formData.city} onChange={handleChange} maxLength={120} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="province">Provinsi</Label>
-              <Input id="province" name="province" value={formData.province} onChange={handleChange} />
+              <Input id="province" name="province" value={formData.province} onChange={handleChange} maxLength={120} />
             </div>
           </div>
 
@@ -208,19 +208,19 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="bankName">Nama Bank</Label>
-                <Input id="bankName" name="bankName" value={formData.bankName} onChange={handleChange} />
+                <Input id="bankName" name="bankName" value={formData.bankName} onChange={handleChange} maxLength={120} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankAccount">No Rekening</Label>
-                <Input id="bankAccount" name="bankAccount" value={formData.bankAccount} onChange={handleChange} />
+                <Input id="bankAccount" name="bankAccount" value={formData.bankAccount} onChange={handleChange} maxLength={80} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="npwp">NPWP</Label>
-                <Input id="npwp" name="npwp" value={formData.npwp} onChange={handleChange} />
+                <Input id="npwp" name="npwp" value={formData.npwp} onChange={handleChange} maxLength={80} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="paymentTerms">Termin Pembayaran</Label>
-                <Input id="paymentTerms" name="paymentTerms" value={formData.paymentTerms} onChange={handleChange} placeholder="Contoh: Net 30" />
+                <Input id="paymentTerms" name="paymentTerms" value={formData.paymentTerms} onChange={handleChange} placeholder="Contoh: Net 30" maxLength={80} />
               </div>
             </div>
           </div>
@@ -230,19 +230,19 @@ export function AddSupplierModal({ open, onOpenChange, onSuccess, supplier }: Ad
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="contactName">Nama Kontak</Label>
-                <Input id="contactName" name="contactName" value={formData.contactName} onChange={handleChange} />
+                <Input id="contactName" name="contactName" value={formData.contactName} onChange={handleChange} maxLength={120} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contactRole">Jabatan</Label>
-                <Input id="contactRole" name="contactRole" value={formData.contactRole} onChange={handleChange} />
+                <Input id="contactRole" name="contactRole" value={formData.contactRole} onChange={handleChange} maxLength={120} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contactPhone">No. HP / Telepon</Label>
-                <Input id="contactPhone" name="contactPhone" value={formData.contactPhone} onChange={handleChange} />
+                <Input id="contactPhone" name="contactPhone" value={formData.contactPhone} onChange={handleChange} maxLength={40} />
               </div>
               <div className="col-span-2 space-y-2">
                 <Label htmlFor="contactEmail">Email</Label>
-                <Input id="contactEmail" name="contactEmail" type="email" value={formData.contactEmail} onChange={handleChange} />
+                <Input id="contactEmail" name="contactEmail" type="email" value={formData.contactEmail} onChange={handleChange} maxLength={160} />
               </div>
             </div>
           </div>

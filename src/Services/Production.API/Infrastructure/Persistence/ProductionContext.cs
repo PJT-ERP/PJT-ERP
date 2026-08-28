@@ -13,6 +13,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<SalesOrderDesignRevision> SalesOrderDesignRevisions => Set<SalesOrderDesignRevision>();
+    public DbSet<SalesOrderComment> SalesOrderComments => Set<SalesOrderComment>();
     public DbSet<ConsultationRequest> ConsultationRequests => Set<ConsultationRequest>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -101,6 +102,23 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
                 .WithOne(rev => rev.SalesOrder)
                 .HasForeignKey(rev => rev.SalesOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(order => order.Comments)
+                .WithOne(c => c.SalesOrder)
+                .HasForeignKey(c => c.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SalesOrderComment>(builder =>
+        {
+            builder.ToTable("sales_order_comments");
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.SalesOrderId).HasColumnName("sales_order_id");
+            builder.Property(c => c.UserId).HasColumnName("user_id");
+            builder.Property(c => c.UserName).HasMaxLength(160).HasColumnName("user_name");
+            builder.Property(c => c.Content).HasMaxLength(2000).HasColumnName("content");
+            builder.Property(c => c.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(c => c.IsEdited).HasColumnName("is_edited");
+            builder.Property(c => c.IsDeleted).HasColumnName("is_deleted");
         });
 
         modelBuilder.Entity<SalesOrderItem>(builder =>
@@ -172,5 +190,6 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(rev => rev.ChangedBy).HasMaxLength(160).HasColumnName("changed_by");
             builder.Property(rev => rev.ChangedAtUtc).HasColumnName("changed_at_utc");
         });
+
     }
 }

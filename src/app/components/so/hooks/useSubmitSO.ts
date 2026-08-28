@@ -133,7 +133,7 @@ export function useSubmitSO() {
       const mappedSO = mapSalesOrderDto(created);
       if (data.customerForm.estimatedAmount) {
         mappedSO.estimatedAmount = data.customerForm.estimatedAmount;
-        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: data.customerForm.estimatedAmount });
+        updateSalesOrder(created.id, { estimatedAmount: data.customerForm.estimatedAmount });
       }
       
       queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
@@ -169,7 +169,7 @@ export function useSubmitSO() {
       const mappedSO = mapSalesOrderDto(created);
       if (data.repeatForm.estimatedAmount) {
         mappedSO.estimatedAmount = data.repeatForm.estimatedAmount;
-        updateSalesOrder(created.soNumber || created.id, { estimatedAmount: data.repeatForm.estimatedAmount });
+        updateSalesOrder(created.id, { estimatedAmount: data.repeatForm.estimatedAmount });
       }
       
       queryClient.invalidateQueries({ queryKey: ['salesOrders'] });

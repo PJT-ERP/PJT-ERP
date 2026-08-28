@@ -162,6 +162,30 @@ public class SalesOrderCommandService(
                 var masterReq = new CreateCustomerMasterDataRequest(request.Customer.Code ?? "", request.Customer.Name ?? "Pelanggan", request.Customer.Address, request.Customer.ContactPerson, request.Customer.Email, request.Customer.Phone);
                 var newCust = await masterDataClient.CreateCustomerAsync(masterReq, cancellationToken);
                 customerId = newCust.Id;
+                
+                var existingReplica = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Id == newCust.Id, cancellationToken);
+                if (existingReplica == null)
+                {
+                    var replica = new CustomerReplica
+                    {
+                        Id = newCust.Id,
+                        Code = string.IsNullOrWhiteSpace(newCust.Code) ? $"CUST-{DateTime.UtcNow:yyyyMMddHHmmss}" : newCust.Code,
+                        Name = string.IsNullOrWhiteSpace(newCust.Name) ? "Pelanggan" : newCust.Name,
+                        Email = newCust.Email,
+                        IsActive = newCust.IsActive,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    };
+                    await db.CustomerReplicas.AddAsync(replica, cancellationToken);
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Ignore if inserted concurrently by MasterDataUpdatedEventHandler
+                        db.Entry(replica).State = EntityState.Detached;
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -184,9 +208,54 @@ public class SalesOrderCommandService(
         var productMap = new Dictionary<string, Guid>();
         foreach (var prodReq in request.Products)
         {
-            var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
-            var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
-            productMap[prodReq.TempId] = newProd.Id;
+            try
+            {
+                var masterProdReq = new CreateProductMasterDataRequest("", prodReq.Description, prodReq.Unit, prodReq.MaterialSpec);
+                var newProd = await masterDataClient.CreateProductAsync(masterProdReq, cancellationToken);
+                productMap[prodReq.TempId] = newProd.Id;
+                
+                var existingReplica = await db.ProductReplicas.FirstOrDefaultAsync(p => p.Id == newProd.Id, cancellationToken);
+                if (existingReplica == null)
+                {
+                    var replica = new ProductReplica
+                    {
+                        Id = newProd.Id,
+                        PartNumber = string.IsNullOrWhiteSpace(newProd.PartNumber) ? $"TMP-{DateTime.UtcNow:yyyyMMddHHmmss}" : newProd.PartNumber,
+                        Description = string.IsNullOrWhiteSpace(newProd.Description) ? "Custom Product" : newProd.Description,
+                        Unit = string.IsNullOrWhiteSpace(newProd.Unit) ? "pcs" : newProd.Unit,
+                        MaterialSpec = newProd.MaterialSpec,
+                        IsActive = newProd.IsActive,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    };
+                    await db.ProductReplicas.AddAsync(replica, cancellationToken);
+                    try
+                    {
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Ignore if inserted concurrently by MasterDataUpdatedEventHandler
+                        db.Entry(replica).State = EntityState.Detached;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARNING] MasterDataClient.CreateProductAsync failed: {ex.Message}. Creating local ProductReplica fallback.");
+                var fallbackProduct = new ProductReplica
+                {
+                    Id = Guid.NewGuid(),
+                    PartNumber = $"TMP-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                    Description = string.IsNullOrWhiteSpace(prodReq.Description) ? "Custom Product" : prodReq.Description,
+                    Unit = string.IsNullOrWhiteSpace(prodReq.Unit) ? "pcs" : prodReq.Unit,
+                    MaterialSpec = prodReq.MaterialSpec,
+                    IsActive = true,
+                    UpdatedAtUtc = DateTime.UtcNow
+                };
+                await db.ProductReplicas.AddAsync(fallbackProduct, cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+                productMap[prodReq.TempId] = fallbackProduct.Id;
+            }
         }
 
         var createItems = new List<CreateSalesOrderItemRequest>();
@@ -731,6 +800,68 @@ public class SalesOrderCommandService(
         }
 
         db.SalesOrders.Remove(salesOrder);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<SalesOrderCommentDto?> AddCommentAsync(Guid salesOrderId, AddSalesOrderCommentRequest request, CancellationToken cancellationToken)
+    {
+        var salesOrder = await db.SalesOrders.FirstOrDefaultAsync(so => so.Id == salesOrderId, cancellationToken);
+        if (salesOrder is null)
+        {
+            return null;
+        }
+
+        var comment = new SalesOrderComment
+        {
+            Id = Guid.NewGuid(),
+            SalesOrderId = salesOrderId,
+            UserId = request.UserId,
+            UserName = request.UserName,
+            Content = request.Content,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        await db.SalesOrderComments.AddAsync(comment, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new SalesOrderCommentDto(
+            comment.Id,
+            comment.UserId,
+            comment.UserName,
+            comment.Content,
+            comment.CreatedAtUtc,
+            comment.IsEdited,
+            comment.IsDeleted
+        );
+    }
+
+    public async Task<bool> UpdateCommentAsync(Guid salesOrderId, Guid commentId, UpdateSalesOrderCommentRequest request, CancellationToken cancellationToken)
+    {
+        var comment = await db.SalesOrderComments.FirstOrDefaultAsync(c => c.Id == commentId && c.SalesOrderId == salesOrderId, cancellationToken);
+        if (comment is null)
+        {
+            return false;
+        }
+
+        comment.Content = request.Content;
+        comment.IsEdited = true;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DeleteCommentAsync(Guid salesOrderId, Guid commentId, CancellationToken cancellationToken)
+    {
+        var comment = await db.SalesOrderComments.FirstOrDefaultAsync(c => c.Id == commentId && c.SalesOrderId == salesOrderId, cancellationToken);
+        if (comment is null)
+        {
+            return false;
+        }
+
+        comment.Content = "[deleted message]";
+        comment.IsDeleted = true;
+
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }

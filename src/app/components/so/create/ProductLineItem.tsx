@@ -16,6 +16,7 @@ const S = {
   cyan: "#C8102E",
 };
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 interface BOMItem {
   id: string;
   name: string;
@@ -312,7 +313,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
                 </thead>
                 <tbody>
                   {row.materials.map((mat: any, i) => {
-                    const totalQty = (Number(mat.quantity) || 0) * (Number(row.quantity) || 1);
+                    const totalQty = Number(mat.quantity) || 0;
                     const embeddedCode = !mat.code && mat.name ? (mat.name.match(/^([A-Z]+-\d+)/) || [])[1] : null;
                     const displayCode = mat.code || embeddedCode || "-";
                     const displayName = embeddedCode && mat.name ? mat.name.slice(embeddedCode.length + 3) : mat.name;
@@ -333,7 +334,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
               </table>
             </div>
             <p style={{ margin: "6px 0 0", fontSize: "10px", color: S.secondary, fontStyle: "italic" }}>
-              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}. Total dihitung: Qty per unit × Jumlah produk.
+              *Data material dikunci dan diambil secara otomatis dari {isCustom ? "persetujuan tim Engineering" : "database produk standar"}.
             </p>
           </div>
         )}

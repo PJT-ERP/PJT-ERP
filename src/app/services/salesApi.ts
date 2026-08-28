@@ -126,6 +126,27 @@ export interface SalesOrderDto {
   createdAtUtc?: string;
   updatedAtUtc?: string;
   isCostingCompleted?: boolean;
+  comments?: SalesOrderCommentDto[] | null;
+}
+
+export interface SalesOrderCommentDto {
+  id: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAtUtc: string;
+  isEdited: boolean;
+  isDeleted: boolean;
+}
+
+export interface AddSalesOrderCommentRequest {
+  userId: string;
+  userName: string;
+  content: string;
+}
+
+export interface UpdateSalesOrderCommentRequest {
+  content: string;
 }
 
 export interface CreateSalesOrderRequest {
@@ -333,5 +354,18 @@ export const salesApi = {
   async deleteSalesOrder(salesOrderId: string) {
     const response = await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}`);
     return response.data;
+  },
+
+  async addSalesOrderComment(salesOrderId: string, request: AddSalesOrderCommentRequest) {
+    const response = await apiClient.post<SalesOrderCommentDto>(`/api/v1/production/sales-orders/${salesOrderId}/comments`, request);
+    return response.data;
+  },
+  
+  async updateSalesOrderComment(salesOrderId: string, commentId: string, request: UpdateSalesOrderCommentRequest) {
+    await apiClient.put(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`, request);
+  },
+
+  async deleteSalesOrderComment(salesOrderId: string, commentId: string) {
+    await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`);
   }
 };

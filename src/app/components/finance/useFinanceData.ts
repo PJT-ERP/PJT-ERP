@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { financeApi, InvoiceCandidateDto, InvoiceDto, PaymentVerificationRequestDto } from '../../services/financeApi';
 import {
   type Invoice,
@@ -195,19 +196,11 @@ function buildTransactionsFromInvoices(invoices: InvoiceDto[]): Transaction[] {
 }
 
 export function useFinanceData(enabled = true, fetchSupplierPayments = true, fetchOpeningBalance = true) {
-  const [backendInvoices, setBackendInvoices] = useState<Invoice[]>([]);
-  const [backendPayments, setBackendPayments] = useState<Payment[]>([]);
-  const [backendTransactions, setBackendTransactions] = useState<Transaction[]>([]);
-  const [supplierPayments, setSupplierPayments] = useState<any[]>([]);
-  const [openingBalance, setOpeningBalance] = useState<number>(250_000_000);
-  const [invoiceCandidates, setInvoiceCandidates] = useState<InvoiceCandidateDto[]>([]);
-  const [isUsingBackend, setIsUsingBackend] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [monthlyTarget, setMonthlyTarget] = useState<number>(1_000_000_000);
-
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const queryClient = useQueryClient();
+  
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['financeData', fetchSupplierPayments, fetchOpeningBalance],
+    queryFn: async () => {
       const [invoicesResult, candidatesResult, paymentVerificationsResult, supplierPaymentsResult, openingBalanceResult, monthlyTargetResult] = await Promise.allSettled([
         financeApi.listInvoices(),
         financeApi.listInvoiceCandidates(),
@@ -224,69 +217,54 @@ export function useFinanceData(enabled = true, fetchSupplierPayments = true, fet
       const balance = openingBalanceResult.status === 'fulfilled' ? openingBalanceResult.value : 250_000_000;
       const target = monthlyTargetResult.status === 'fulfilled' ? monthlyTargetResult.value : 1_000_000_000;
 
-      setBackendInvoices(invoices.map(mapInvoice));
-      setBackendPayments(mapPayments(invoices, paymentVerifications));
-      setBackendTransactions(buildTransactionsFromInvoices(invoices));
-      setInvoiceCandidates(candidates);
-      setSupplierPayments(supplierPaymentsList);
-      setOpeningBalance(balance);
-      setMonthlyTarget(target);
-      setIsUsingBackend(true);
-    } catch (error) {
-      console.warn('Finance API unavailable; finance seed data was not loaded.', error);
-      setBackendInvoices([]);
-      setBackendPayments([]);
-      setBackendTransactions([]);
-      setInvoiceCandidates([]);
-      setSupplierPayments([]);
-      setIsUsingBackend(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      return {
+        invoices: invoices.map(mapInvoice),
+        payments: mapPayments(invoices, paymentVerifications),
+        transactions: buildTransactionsFromInvoices(invoices),
+        candidates,
+        supplierPayments: supplierPaymentsList,
+        openingBalance: balance,
+        monthlyTarget: target,
+        isUsingBackend: invoicesResult.status === 'fulfilled',
+      };
+    },
+    enabled,
+    staleTime: 30000,
+  });
+
+  const refresh = useCallback(async (forceOrEvent?: boolean | any) => {
+    await refetch();
+  }, [refetch]);
 
   const updateOpeningBalance = async (newBalance: number) => {
-    if (isUsingBackend) {
-      await financeApi.updateOpeningBalance(newBalance);
-      setOpeningBalance(newBalance);
-    }
+    await financeApi.updateOpeningBalance(newBalance);
+    queryClient.invalidateQueries({ queryKey: ['financeData'] });
   };
 
   const updateMonthlyTarget = async (target: number) => {
-    if (isUsingBackend) {
-      await financeApi.updateMonthlyTarget(target);
-      setMonthlyTarget(target);
-    } else {
-      setMonthlyTarget(target);
-    }
+    await financeApi.updateMonthlyTarget(target);
+    queryClient.invalidateQueries({ queryKey: ['financeData'] });
   };
 
-  useEffect(() => {
-    if (enabled) {
-      void refresh();
-    } else {
-      setIsLoading(false);
-    }
-  }, [enabled, refresh]);
+  return useMemo(() => {
+    const invoices = data?.invoices || [];
+    const monthlyTarget = data?.monthlyTarget || 1_000_000_000;
 
-  const invoices = backendInvoices;
-  const payments = backendPayments;
-  const transactions = backendTransactions;
-
-  return useMemo(() => ({
-    invoices,
-    payments,
-    transactions,
-    invoiceCandidates,
-    supplierPayments,
-    openingBalance,
-    updateOpeningBalance,
-    monthlyTarget,
-    updateMonthlyTarget,
-    isLoading,
-    isUsingBackend,
-    refresh,
-    monthlyRevenueData: buildMonthlyData(invoices, monthlyTarget),
-    invoiceStatusData: buildStatusData(invoices),
-  }), [invoices, payments, transactions, invoiceCandidates, supplierPayments, openingBalance, monthlyTarget, isLoading, isUsingBackend, refresh]);
+    return {
+      invoices,
+      payments: data?.payments || [],
+      transactions: data?.transactions || [],
+      invoiceCandidates: data?.candidates || [],
+      supplierPayments: data?.supplierPayments || [],
+      openingBalance: data?.openingBalance || 250_000_000,
+      monthlyTarget,
+      updateOpeningBalance,
+      updateMonthlyTarget,
+      isLoading,
+      isUsingBackend: data?.isUsingBackend || false,
+      refresh,
+      monthlyRevenueData: buildMonthlyData(invoices, monthlyTarget),
+      invoiceStatusData: buildStatusData(invoices),
+    };
+  }, [data, isLoading, refresh]);
 }

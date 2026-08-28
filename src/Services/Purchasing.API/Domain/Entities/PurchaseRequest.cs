@@ -20,6 +20,7 @@ public sealed class PurchaseRequest
     public Guid? FinanceReviewedByUserId { get; set; }
     public DateTime? FinanceReviewedAtUtc { get; set; }
     public string? FinanceRejectionReason { get; set; }
+    public string? RevisionNote { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<PurchaseRequestItem> Items { get; set; } = [];

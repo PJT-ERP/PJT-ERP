@@ -178,6 +178,13 @@ export function PRDetailModal({ pr, onClose, onEdit }: { pr: PurchasingRequest; 
             </div>
           )}
 
+          {pr.revisionNote && (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "10px 12px" }}>
+              <p style={{ fontSize: "12px", color: "#D97706", margin: "0 0 2px", fontWeight: 600 }}>Catatan Revisi dari Purchasing</p>
+              <p style={{ fontSize: "13.5px", color: "#92400E", margin: 0 }}>{pr.revisionNote}</p>
+            </div>
+          )}
+
           {pr.rejectionReason && (
             <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px" }}>
               <p style={{ fontSize: "12px", color: "#EF4444", margin: "0 0 2px", fontWeight: 600 }}>Alasan Penolakan</p>

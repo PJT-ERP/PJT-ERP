@@ -108,10 +108,10 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
-    public async Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
+    public async Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken)
     {
         AttachAuthorizationHeader();
-        var request = new { Items = items };
+        var request = new { Items = items, Reason = reason };
         var response =
             await httpClient.PostAsJsonAsync("api/v1/master-data/inventory/deduct-bom-bulk", request, cancellationToken);
 
@@ -144,10 +144,10 @@ public sealed class MasterDataClient(HttpClient httpClient, IHttpContextAccessor
         }
     }
 
-    public async Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken)
+    public async Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, string reason, CancellationToken cancellationToken)
     {
         AttachAuthorizationHeader();
-        var request = new { Items = items };
+        var request = new { Items = items, Reason = reason };
         var response =
             await httpClient.PostAsJsonAsync("api/v1/master-data/inventory/deduct-custom-bom", request, cancellationToken);
 

@@ -63,7 +63,11 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
   const canReadFinance = currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.role === 'Finance' || currentUser?.role === 'Sales';
   const { invoices, payments } = useFinanceData(canReadFinance, false, false);
   const mergedSalesOrders = React.useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
-  const readyInvoices = invoices.filter(invoice => invoice.status === "PENDING" && invoice.paidAmount <= 0);
+  const readyInvoices = invoices.filter(invoice => {
+    if (invoice.status !== "PENDING" || invoice.paidAmount > 0) return false;
+    const hasPendingPayment = payments.some(p => p.invoiceId === invoice.id && p.status === 'PENDING');
+    return !hasPendingPayment;
+  });
   const paidInvoices = invoices.filter(invoice => invoice.status === "PAID");
   const total = mergedSalesOrders.length;
   const waitingFinance = mergedSalesOrders.filter((o) => (o.status as any) === "Waiting Payment" || o.status === "Pending Design" || o.status === "Waiting Approval").length;
@@ -271,12 +275,12 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
                 whiteSpace: "nowrap",
               }}
             >
-              Lihat Invoice
+              Lihat Semua Invoice
             </button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, padding: 12 }}>
-            {readyInvoices.slice(0, 4).map(invoice => (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, padding: 12, maxHeight: 350, overflowY: "auto" }}>
+            {readyInvoices.map(invoice => (
               <div key={invoice.id} style={{ background: "#fff", border: "1px solid #DBEAFE", borderRadius: 6, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                   <div style={{ minWidth: 0 }}>

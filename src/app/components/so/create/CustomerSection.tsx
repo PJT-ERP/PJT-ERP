@@ -85,26 +85,26 @@ export function CustomerSection({ isExistingCustomer, onToggleExisting, customer
         </div>
         <div>
           <Label text="Nama Kontak (PIC)" required />
-          <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" {...register("customerForm.customerName")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
+          <Input icon={<User size={11} />} placeholder="Nama lengkap PIC" {...register("customerForm.customerName")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} maxLength={120} />
           {errors.customerForm?.customerName && <p style={{ fontSize: 11, color: "red", margin: 0 }}>{errors.customerForm.customerName.message}</p>}
         </div>
         <div>
           <Label text="Nama Perusahaan" required />
-          <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" {...register("customerForm.company")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
+          <Input icon={<Building2 size={11} />} placeholder="PT. / CV. Perusahaan" {...register("customerForm.company")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} maxLength={160} />
           {errors.customerForm?.company && <p style={{ fontSize: 11, color: "red", margin: 0 }}>{errors.customerForm.company.message}</p>}
         </div>
         <div>
           <Label text="No. Telepon" />
-          <Input icon={<Phone size={11} />} type="tel" placeholder="08xxxxxxxxxx" {...register("customerForm.phone")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
+          <Input icon={<Phone size={11} />} type="tel" placeholder="08xxxxxxxxxx" {...register("customerForm.phone")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} maxLength={40} />
         </div>
         <div>
           <Label text="Email" />
-          <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" {...register("customerForm.email")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} />
+          <Input icon={<Mail size={11} />} type="email" placeholder="email@perusahaan.com" {...register("customerForm.email")} readOnly={isExistingCustomer} style={{ opacity: isExistingCustomer ? 0.7 : 1 }} maxLength={160} />
           {errors.customerForm?.email && <p style={{ fontSize: 11, color: "red", margin: 0 }}>{errors.customerForm.email.message}</p>}
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
           <Label text="Alamat Lengkap" />
-          <Textarea placeholder="Alamat lengkap perusahaan" {...register("customerForm.address")} readOnly={isExistingCustomer} style={{ minHeight: "60px", opacity: isExistingCustomer ? 0.7 : 1 }} />
+          <Textarea placeholder="Alamat lengkap perusahaan" {...register("customerForm.address")} readOnly={isExistingCustomer} style={{ minHeight: "60px", opacity: isExistingCustomer ? 0.7 : 1 }} maxLength={400} />
         </div>
       </Grid2>
     </SectionCard>

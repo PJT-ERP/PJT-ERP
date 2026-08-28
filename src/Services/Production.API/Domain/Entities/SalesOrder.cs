@@ -33,6 +33,7 @@ public sealed class SalesOrder
     public List<SalesOrderItem> Items { get; set; } = [];
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
     public List<SalesOrderDesignRevision> DesignRevisions { get; set; } = [];
+    public List<SalesOrderComment> Comments { get; set; } = [];
     public List<string>? ProductionPhotos { get; set; } = [];
     public List<string>? QcPhotos { get; set; } = [];
 }

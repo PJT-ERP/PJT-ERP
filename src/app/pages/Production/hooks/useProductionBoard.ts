@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useApp } from "../../../components/context/AppContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useFinanceData } from "../../../components/finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../../../components/so/invoice-sync";
-import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
+import { masterDataApi } from "../../../services/masterDataApi";
 import { productionApi } from "../../../services/productionApi";
 import { purchasingApi } from "../../../services/purchasingApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
@@ -39,38 +39,49 @@ export function useProductionBoard() {
   const [systemMessage, setSystemMessage] = useState<SystemMessage | null>(null);
   const [localMaterialRequestSoIds, setLocalMaterialRequestSoIds] = useState<Set<string>>(() => new Set());
   
-  const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
-  const [productionQueues, setProductionQueues] = useState<any>({
+  const { data: inventoryData = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => masterDataApi.listInventory(),
+    staleTime: 30000,
+  });
+
+  const { data: productionQueues = {
     pendingAssignment: [],
     readyToStart: [],
     inProduction: [],
+    paused: [],
     waitingQc: [],
+    completed: [],
     pendingDesign: []
-  });
-  
-  useEffect(() => {
-    masterDataApi.listInventory().then(setInventory).catch(console.error);
-    Promise.all([
-      productionApi.getProductionBoardQueues(),
-      productionApi.getEngineeringQueues()
-    ]).then(([prodQueues, engQueues]) => {
-      setProductionQueues({
+  } } = useQuery({
+    queryKey: ['productionQueues'],
+    queryFn: async () => {
+      const [prodQueues, engQueues] = await Promise.all([
+        productionApi.getProductionBoardQueues(),
+        productionApi.getEngineeringQueues()
+      ]);
+      return {
         pendingAssignment: (prodQueues.pendingAssignment || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         readyToStart: (prodQueues.readyToStart || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         inProduction: (prodQueues.inProduction || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         paused: (prodQueues.paused || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         waitingQc: (prodQueues.waitingQc || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
+        completed: (prodQueues.completed || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
         pendingDesign: (engQueues.pendingDesign || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
-      });
-    }).catch(console.error);
-  }, [salesOrders, currentUser]);
+      };
+    },
+    staleTime: 30000,
+  });
+
+  const inventory = inventoryData;
 
   const checkMaterialShortage = (so: SalesOrder) => {
     const materials = getMaterialOptions(so);
     if (!materials || materials.length === 0) return false;
     
-    return materials.some(m => {
-      const invItem = inventory.find(inv => 
+    return materials.some((m: any) => {
+      if (m.isCustomerMaterial || m.isFromCustomer) return false; // Customer materials don't cause shortage
+      const invItem = inventory.find((inv: any) => 
         inv.name?.toLowerCase() === m.itemName.toLowerCase()
       );
       const reqQty = m.quantity ?? 0;
@@ -168,9 +179,22 @@ export function useProductionBoard() {
   };
 
   const checkMaterialComplete = (so: SalesOrder) => {
-    const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+    // Check BOM exists from either so.materials or bomsPerItem (notes JSON)
+    const hasMaterialsArray = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+    const hasBomsPerItem = so.bomsPerItem && Object.values(so.bomsPerItem).some((boms: any[]) => boms && boms.length > 0);
+    const hasBom = hasMaterialsArray || hasBomsPerItem;
+    
+    if (!hasBom) return false;
+
+    // Check if ALL materials in the BOM are customer-provided
+    // If so, there's no shortage — material prep is complete
+    const allMaterials = getMaterialOptions(so, true); // include customer materials
+    if (allMaterials.length > 0 && allMaterials.every(m => m.isCustomerMaterial)) {
+      return true; // All materials from customer = complete, no MR needed
+    }
+
     const isShortage = checkMaterialShortage(so);
-    return hasBom && !isShortage;
+    return !isShortage;
   };
 
   const sortByDeadline = (a: SalesOrder, b: SalesOrder) => {
@@ -186,6 +210,7 @@ export function useProductionBoard() {
   const inProduction = [...(productionQueues?.inProduction || []), ...(productionQueues?.paused || [])].map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const waitingQC = (productionQueues?.waitingQc || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
   const pendingDesign = (productionQueues?.pendingDesign || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort(sortByDeadline);
+  const completed = (productionQueues?.completed || []).map((so: any) => mergeSalesOrderInvoice(so, invoices)).sort((a: any, b: any) => new Date(b.productionFinishedAtUtc || 0).getTime() - new Date(a.productionFinishedAtUtc || 0).getTime());
 
   const approveMaterialRequest = async (so: SalesOrder) => {
     const request = getMaterialRequest(so);
@@ -315,6 +340,7 @@ export function useProductionBoard() {
     inProduction,
     waitingQC,
     pendingDesign,
+    completed,
     checkMaterialShortage,
     getMaterialRequest,
     getMaterialRequestState,

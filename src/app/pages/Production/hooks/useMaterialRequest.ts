@@ -165,7 +165,10 @@ export function useMaterialRequest() {
 
 
         for (const item of aggregatedItems.values()) {
-          const matchingCustomBoms = customBoms.filter(cb => cb.inventoryItemId === item.inventoryItemId);
+          const matchingCustomBoms = customBoms.filter(cb => 
+            cb.inventoryItemId === item.inventoryItemId || 
+            (!cb.inventoryItemId && cb.name?.trim().toLowerCase() === item.inventoryItemName?.trim().toLowerCase())
+          );
           
           const customerProvidedQty = matchingCustomBoms
             .filter(cb => cb.isCustomerMaterial)

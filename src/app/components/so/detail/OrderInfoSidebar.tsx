@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { SalesOrder, Customer } from "../../data/mockData";
 import { S } from "./shared";
-import { Download, Plus, QrCode } from "lucide-react";
+import { formatUrl } from "../../../services/backendIds";
+import { Download, Plus, QrCode, FileText } from "lucide-react";
 import { QRCodeCanvas } from 'qrcode.react';
 
 interface OrderInfoSidebarProps {
@@ -174,10 +175,10 @@ function DesignSection({ order, isEditMode, editForm, setEditForm, isDesignLocke
                 </a>
               </div>
             )}
-            {order.designLink && order.designLink !== order.customerDrawingUrl && (
-              <div>
-                <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>Link Desain (Engineering)</p>
-                <a href={order.designLink} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
+            {order.designLink && (
+              <div style={{ marginTop: 8, padding: "10px 12px", background: "#F1F5F9", borderRadius: 6, border: `1px solid ${S.border}`, display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: "12px", color: S.slate, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}><FileText size={12} /> Link Desain / Referensi Tambahan</span>
+                <a href={formatUrl(order.designLink)} target="_blank" rel="noreferrer" style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.cyan, textDecoration: "none", wordBreak: "break-all", display: "inline-block" }}>
                   {order.designLink}
                 </a>
               </div>

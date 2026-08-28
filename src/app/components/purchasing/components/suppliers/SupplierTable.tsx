@@ -1,6 +1,6 @@
 import React from "react";
 import { Eye, Edit2, Trash2 } from "lucide-react";
-import { Supplier, statusCfg, Pill, TH, TD, formatRpM } from "./SupplierHelpers";
+import { statusCfg, Pill, TH, TD, formatRpM } from "./SupplierHelpers";
 import { useSuppliers } from "../../hooks/useSuppliers";
 
 interface SupplierTableProps {
@@ -18,7 +18,7 @@ export function SupplierTable({ board }: SupplierTableProps) {
             <tr>
               <TH>Supplier</TH>
               <TH className="hidden md:table-cell">Kategori</TH>
-              <TH className="hidden lg:table-cell">Kota</TH>
+              <TH className="hidden lg:table-cell">Alamat</TH>
 
               <TH className="hidden sm:table-cell">Total PO</TH>
               <TH className="hidden md:table-cell">On-Time</TH>
@@ -52,8 +52,8 @@ export function SupplierTable({ board }: SupplierTableProps) {
                   <TD className="hidden md:table-cell">
                     <span style={{ fontSize: 12, color: "#475569" }}>{s.category}</span>
                   </TD>
-                  <TD className="hidden lg:table-cell">
-                    <span style={{ fontSize: 12, color: "#475569" }}>{s.city}</span>
+                  <TD className="hidden lg:table-cell max-w-[200px]">
+                    <span style={{ fontSize: 12, color: "#475569", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.address}</span>
                   </TD>
 
                   <TD className="hidden sm:table-cell">

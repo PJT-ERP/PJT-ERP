@@ -219,6 +219,7 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     materials,
     bomsPerItem,
     backendDesignStatus: order.designStatus,
+    comments: order.comments,
     items: (order.items || []).map(item => ({
       id: item.id,
       productId: item.productId,
@@ -289,6 +290,7 @@ export function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[
     expectedDelivery: request.items.map(item => item.expectedArrivalDate).find(Boolean) || undefined,
     receivedAt: request.items.map(item => item.receivedDate).find(Boolean) || undefined,
     rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+    revisionNote: request.revisionNote || undefined,
   };
 }
 

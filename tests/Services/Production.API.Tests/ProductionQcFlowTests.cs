@@ -168,8 +168,8 @@ public sealed class ProductionQcFlowTests
         public Task<MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<MasterDataProductDto?>(new MasterDataProductDto(id, "PART-STUB", "Stub Desc", "pcs", null, true));
         public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken ct) => Task.CompletedTask;
-        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, string reason, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(productIds.Select(id => new BomStockDto(id, "PART", "PARTNAME", new List<BomStockItemDto> { new BomStockItemDto(id, id, null, "INV", 1m, "kg", null, 100, "") })).ToArray());
     }
 
@@ -185,12 +185,12 @@ public sealed class ProductionQcFlowTests
         {
             productIds.Add(productId); qtys.Add(quantity); return Task.CompletedTask;
         }
-        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken)
         {
             foreach(var item in items) { productIds.Add(item.ProductId); qtys.Add(item.ProductionQuantity); }
             return Task.CompletedTask;
         }
-        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken) { foreach(var item in items) { productIds.Add(item.InventoryItemId); qtys.Add((int)item.Quantity); } return Task.CompletedTask; }
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, string reason, CancellationToken cancellationToken) { foreach(var item in items) { productIds.Add(item.InventoryItemId); qtys.Add((int)item.Quantity); } return Task.CompletedTask; }
         public Task<IReadOnlyCollection<BomStockDto>> GetBomStockAsync(IEnumerable<Guid> pIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<BomStockDto>>(pIds.Select(id => new BomStockDto(id, "PART", "PARTNAME", new List<BomStockItemDto> { new BomStockItemDto(id, id, null, "INV", 1m, "kg", null, 100, "") })).ToArray());
     }
 }

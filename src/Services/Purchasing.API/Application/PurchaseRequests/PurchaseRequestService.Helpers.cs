@@ -90,6 +90,7 @@ public sealed partial class PurchaseRequestService
             request.FinanceReviewedByUserId,
             request.FinanceReviewedAtUtc,
             request.FinanceRejectionReason,
+            request.RevisionNote,
             request.UpdatedAtUtc,
             request.Items
                 .OrderBy(item => item.ItemName)
@@ -225,6 +226,8 @@ public sealed partial class PurchaseRequestService
         purchaseRequest.Status = decision == PurchaseRequestStatuses.Approved
             ? PurchaseRequestStatuses.SupervisorApproved
             : PurchaseRequestStatuses.SupervisorRejected;
+        
+        purchaseRequest.RevisionNote = null;
 
         if (decision == PurchaseRequestStatuses.Approved)
         {

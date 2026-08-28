@@ -32,10 +32,10 @@ public sealed class ProductionServiceTests
 
     [Theory]
     [InlineData(nameof(SalesOrdersController.GetProgress), "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
-    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering,Engineering Supervisor,Owner")]
-    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering,Engineering Supervisor,Owner")]
-    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering,Engineering Supervisor,Owner")]
-    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering,Engineering Supervisor,Owner")]
+    [InlineData(nameof(SalesOrdersController.UploadEngineeringDrawing), "Admin,Engineering,Engineering Supervisor,Owner,Production")]
+    [InlineData(nameof(SalesOrdersController.SubmitMaterialRequest), "Admin,Engineering,Engineering Supervisor,Owner,Production")]
+    [InlineData(nameof(SalesOrdersController.StartProduction), "Admin,Engineering,Engineering Supervisor,Owner,Production")]
+    [InlineData(nameof(SalesOrdersController.FinishProduction), "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public void SalesOrder_production_actions_keep_reviewer_outside_production_flow(string actionName, string expectedRoles)
     {
         var method = typeof(SalesOrdersController)
@@ -603,13 +603,13 @@ public sealed class ProductionServiceTests
             return Task.CompletedTask;
         }
 
-        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, CancellationToken cancellationToken)
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken)
         {
             if (ShouldFailDeduct) throw new InvalidOperationException("Insufficient stock");
             return Task.CompletedTask;
         }
 
-        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, CancellationToken cancellationToken)
+        public Task DeductCustomBomAsync(IReadOnlyCollection<DeductCustomBomRequestItem> items, string reason, CancellationToken cancellationToken)
         {
             if (ShouldFailDeduct) throw new InvalidOperationException("Insufficient stock");
             return Task.CompletedTask;

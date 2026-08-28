@@ -239,8 +239,9 @@ export function ProductsPage() {
                       <label style={{ display: "block", fontSize: "11px", color: S.secondary, marginBottom: 4 }}>Spesifikasi</label>
                       <input 
                         type="text"
-                        placeholder="Contoh: 100x50mm / 2mm"
+                        placeholder="Spesifikasi (Opsional)"
                         value={item.specification || ""}
+                        maxLength={255}
                         onChange={e => {
                           const newItems = [...bomItems];
                           newItems[idx].specification = e.target.value;

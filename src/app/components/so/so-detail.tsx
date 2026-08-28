@@ -19,6 +19,7 @@ import { ProductInfoCard } from "./detail/ProductInfoCard";
 import { QcReportCard } from "./detail/QcReportCard";
 import { ActionPanels } from "./detail/ActionPanels";
 import { OrderInfoSidebar, QrCodeCard, OrderHistory } from "./detail/OrderInfoSidebar";
+import { SalesOrderComments } from "./components/SalesOrderComments";
 import {
   S, InfoRow, InfoCard, HeaderBtn,
 } from "./detail/shared";
@@ -48,7 +49,8 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const { invoices, payments } = useFinanceData(isSalesOrHigher, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
-  const baseOrder = salesOrders.find(o => o.id === orderId);
+  const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId);
+  const targetId = baseOrder?.backendId || baseOrder?.id || orderId;
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
   const customer = customers.find(c => c.code === order?.customerId);
   const pendingPaymentProof = !!order?.invoice?.invoiceId
@@ -58,6 +60,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     : [];
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
   const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");
@@ -149,25 +152,25 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        updateSalesOrder(orderId, { status: 'Pending Design' });
+        updateSalesOrder(targetId, { status: 'Pending Design' });
       } else if (action === 'reject') {
-        updateSalesOrder(orderId, { status: 'Rejected' });
+        updateSalesOrder(targetId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
-        updateSalesOrder(orderId, { status: 'Waiting Pricing' });
+        updateSalesOrder(targetId, { status: 'Waiting Pricing' });
       } else if (action === 'submit_price') {
-        updateSalesOrder(orderId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
+        updateSalesOrder(targetId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
       } else if (action === 'assign_engineer') {
-        updateSalesOrder(orderId, { assignedName: actionForm.engineerName });
+        updateSalesOrder(targetId, { assignedName: actionForm.engineerName });
         toast.success(`Tugas design berhasil di-assign ke ${actionForm.engineerName}`, {
           style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
           duration: 3000
         });
       } else if (action === 'upload_design') {
-        updateSalesOrder(orderId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
+        updateSalesOrder(targetId, { status: 'Waiting Spv Approval', designLink: actionForm.designUrl });
       } else if (action === 'approve_design') {
-        updateSalesOrder(orderId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
+        updateSalesOrder(targetId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
       } else if (action === 'reject_design') {
-        updateSalesOrder(orderId, { status: 'Pending Design' });
+        updateSalesOrder(targetId, { status: 'Pending Design' });
       }
     } finally {
       setIsSubmittingAction(false);
@@ -227,7 +230,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         }
       ];
 
-      updateSalesOrder(orderId, {
+      updateSalesOrder(targetId, {
         description: editForm.description,
         quantity: Number(editForm.quantity),
         unit: editForm.unit,
@@ -237,7 +240,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         designRevisions: newRevisions,
       });
     } else {
-      updateSalesOrder(orderId, {
+      updateSalesOrder(targetId, {
         description: editForm.description,
         quantity: Number(editForm.quantity),
         unit: editForm.unit,
@@ -360,38 +363,42 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             window.print();
             document.title = originalTitle;
           }} />
-          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
-          {isEditMode ? (
+          {currentUser?.role === 'Sales' && (
             <>
+              <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    style={{
+                      padding: "7px 14px", borderRadius: 6, border: "none",
+                      background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
+                      color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
+                      boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                    }}
+                  >
+                    Simpan Perubahan
+                  </button>
+                  <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
+                </>
+              ) : (
+                <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
+              )}
               <button
-                onClick={handleSave}
+                onClick={() => setShowDeleteModal(true)}
+                title="Hapus Sales Order"
                 style={{
-                  padding: "7px 14px", borderRadius: 6, border: "none",
-                  background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
-                  color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                  padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
+                  background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                  transition: "all 0.15s"
                 }}
               >
-                Simpan Perubahan
+                <Trash2 size={13} />
+                <span>Hapus SO</span>
               </button>
-              <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
             </>
-          ) : (
-            <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
           )}
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            title="Hapus Sales Order"
-            style={{
-              padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
-              background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-              transition: "all 0.15s"
-            }}
-          >
-            <Trash2 size={13} />
-            <span>Hapus SO</span>
-          </button>
         </div>
       </div>
 
@@ -460,6 +467,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               </button>
             </div>
           )}
+          
+          {/* Comments Section */}
+          <SalesOrderComments salesOrderId={targetId} comments={order.comments} />
         </div>
 
         {/* ===== Right Sidebar ===== */}

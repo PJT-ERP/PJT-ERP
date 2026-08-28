@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CheckCircle2, Upload, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { type SalesInvoiceStatus } from "../invoice-sync";
 import { financeApi } from "../../../services/financeApi";
@@ -327,6 +328,8 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
     setError("");
   };
 
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseCurrencyAmount(amountText);
@@ -354,6 +357,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
         proofFile: proofFile,
         notes: notes.trim() || null,
       });
+      queryClient.invalidateQueries({ queryKey: ["financeData"] });
       onSubmit();
     } catch (err) {
       console.warn("Failed to submit payment proof.", err);
@@ -381,7 +385,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
           {isOverdue && (
             <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, marginBottom: 16 }}>
               <p style={{ margin: 0, fontSize: "12.5px", color: "#B91C1C", fontWeight: 500 }}>
-                ⚠️ Perhatian: Invoice Overdue
+                Perhatian: Invoice Overdue
               </p>
               <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#991B1B" }}>
                 Invoice ini telah melewati batas waktu pembayaran (jatuh tempo).
@@ -404,7 +408,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Tanggal Bayar</label>
-                <input required type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
+                <input required type="date" max={todayInputValue()} value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={{ width: "100%", padding: "7px 12px", borderRadius: 6, border: "1px solid #E2E8F0", fontSize: "13px", fontFamily: S.font, outline: "none", boxSizing: "border-box" }} />
               </div>
             </div>
 

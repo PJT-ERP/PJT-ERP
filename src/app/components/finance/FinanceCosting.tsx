@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { formatIDR } from "./mockData";
 
 const S = {
   font: "Inter, sans-serif",
@@ -12,16 +11,17 @@ const S = {
   white: "#FFFFFF",
   cardBorder: "#E2E8F0",
 };
-import { Search, Save, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
+import { Search, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { SalesOrder, SOStatus } from "../data/mockData";
+import { SOStatus } from "../data/mockData";
+import { formatUrl } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
+import { getMaterialOptions } from "../production/ProductionHelpers";
 import { productionApi, FinanceCostingQueuesDto } from "../../services/productionApi";
 import { useFinanceData } from "./useFinanceData";
 import { useSalesOrdersQuery } from "../../services/queries";
 import { useQueryClient } from "@tanstack/react-query";
-import { getMaterialOptions } from "../production/ProductionHelpers";
 
 export function FinanceCosting() {
   const { customers, updateSalesOrder } = useApp();
@@ -345,7 +345,7 @@ export function FinanceCosting() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginBottom: 8 }}>
                     <span style={{ color: S.secondary }}>URL File Desain / BOM:</span>
                     {selectedItem.designLink || selectedItem.customerDrawingUrl ? (
-                      <a href={selectedItem.designLink || selectedItem.customerDrawingUrl} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                      <a href={formatUrl(selectedItem.designLink || selectedItem.customerDrawingUrl)} target="_blank" rel="noreferrer" style={{ color: S.cyan, fontWeight: 500, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                         Lihat Dokumen <ExternalLink size={12} />
                       </a>
                     ) : (
@@ -356,8 +356,6 @@ export function FinanceCosting() {
                     Silakan tinjau BOM untuk menghitung HPP Material, estimasi biaya Mesin (Produksi), dan overhead sebelum menentukan harga jual untuk masing-masing item.
                   </p>
                   {(() => {
-                    const { getMaterialOptions } = require("../production/ProductionHelpers");
-                    
                     // Robustly extract bomsPerItem from raw selectedItem DTO
                     const bomsPerItem: Record<string, any[]> = {};
                     (selectedItem.items || []).forEach((item: any) => {
@@ -365,7 +363,9 @@ export function FinanceCosting() {
                         try {
                           const parsed = JSON.parse(item.notes);
                           if (Array.isArray(parsed)) bomsPerItem[item.id] = parsed;
-                        } catch {}
+                        } catch {
+                          // Ignore parsing errors for notes that are not JSON
+                        }
                       }
                     });
                     

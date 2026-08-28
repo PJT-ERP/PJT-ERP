@@ -63,6 +63,7 @@ export async function syncUpdateSalesOrder(
   currentUser: User | null,
   allUsers: User[],
   setSalesOrders: Dispatch<SetStateAction<SalesOrder[]>>,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   productCatalog: ProductDto[] = [],
 ) {
   const backendId = so.backendId || so.id;
@@ -305,8 +306,11 @@ export async function syncUpdatePurchasingStatus(
 
 export async function syncUpdatePurchasingRequest(
   req: PurchasingRequest,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   updates: Partial<PurchasingRequest>,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   currentUser: User | null,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   setPurchasingRequests: Dispatch<SetStateAction<PurchasingRequest[]>>,
 ) {
   const backendId = req.backendId || req.id;

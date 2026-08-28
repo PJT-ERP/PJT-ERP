@@ -709,4 +709,36 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             .ToListAsync(cancellationToken);
         return $"PO-{NextSequence(existing, "PO-"):000}";
     }
+
+    public async Task<PurchaseRequestDto?> RequestRevisionAsync(Guid id, RequestPrRevisionRequest request, CancellationToken cancellationToken)
+    {
+        var pr = await db.PurchaseRequests
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            
+        if (pr is null) return null;
+
+        if (pr.Status != PurchaseRequestStatuses.SupervisorApproved && pr.Status != PurchaseRequestStatuses.SupervisorRejected)
+        {
+            throw new InvalidOperationException("Hanya Purchase Request yang sudah di-approve Supervisor atau ditolak revisinya yang bisa diajukan revisi spesifikasi kembali.");
+        }
+
+        var now = DateTime.UtcNow;
+        pr.Status = PurchaseRequestStatuses.Submitted;
+        pr.RevisionNote = request.RevisionNote.Trim();
+        pr.UpdatedAtUtc = now;
+
+        foreach (var rev in request.Items)
+        {
+            var item = pr.Items.FirstOrDefault(x => x.Id == rev.ItemId);
+            if (item != null)
+            {
+                item.Size = rev.NewSpecification.Trim();
+                item.UpdatedAtUtc = now;
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(pr);
+    }
 }

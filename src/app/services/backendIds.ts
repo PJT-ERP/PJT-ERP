@@ -25,3 +25,11 @@ export function toBackendUserId(user?: User | null): string | null {
 
   return BACKEND_USER_IDS_BY_LOCAL_ID[user.id] || null;
 }
+
+export function formatUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('/')) {
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${url}`;
+  }
+  return url;
+}

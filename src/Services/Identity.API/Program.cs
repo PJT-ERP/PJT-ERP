@@ -6,7 +6,25 @@ using PJT_ERP.Shared.Infrastructure.Abstractions;
 using PJT_ERP.Shared.Infrastructure.Caching;
 using PJT_ERP.Shared.Logging;
 
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 
 builder.AddPjtLogging();
 
@@ -40,6 +58,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

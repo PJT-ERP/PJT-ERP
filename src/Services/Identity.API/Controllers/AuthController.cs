@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.RateLimiting;
 using PJT_ERP.Identity.Api.Application.Auth;
 using PJT_ERP.Shared.Auth;
 
@@ -13,6 +14,7 @@ public sealed class AuthController(IAuthService authService, ILogger<AuthControl
 {
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
 {
     var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown IP";
