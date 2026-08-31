@@ -60,10 +60,7 @@ vi.mock('lucide-react', () => ({
   QrCode: () => <div data-testid="icon-qr-code" />,
   RefreshCw: () => <div data-testid="icon-refresh-cw" />,
   MessageSquare: () => <div data-testid="icon-message-square" />,
-  Pencil: () => <div data-testid="icon-pencil" />,
-  Trash2: () => <div data-testid="icon-trash" />,
   Reply: () => <div data-testid="icon-reply" />,
-  X: () => <div data-testid="icon-x" />,
   UserIcon: () => <div data-testid="icon-user" />,
   Send: () => <div data-testid="icon-send" />
 }));

@@ -7,7 +7,7 @@ describe('ProductionHelpers - getMaterialOptions', () => {
     // Scenario: Sales Order with an item that has a quantity > 1.
     // The BOM material should NOT be multiplied by the item's quantity.
     // The previous bug was that (Material Qty) * (Product Qty) was being returned.
-    const mockSO: SalesOrder = {
+    const mockSO: any = {
       id: 'SO-123',
       soNumber: 'SO-123',
       customerName: 'Test Customer',
@@ -45,7 +45,7 @@ describe('ProductionHelpers - getMaterialOptions', () => {
   it('should correctly filter out customer materials when includeCustomerMaterials is false', () => {
     // Scenario: The SO contains a "Dari Pelanggan" material.
     // When checking for MR (Material Request) or Stock Checks, these materials should be ignored.
-    const mockSO: SalesOrder = {
+    const mockSO: any = {
       id: 'SO-124',
       soNumber: 'SO-124',
       customerName: 'Test Customer 2',
@@ -85,7 +85,7 @@ describe('ProductionHelpers - getMaterialOptions', () => {
   it('should correctly include customer materials when includeCustomerMaterials is true', () => {
     // Scenario: The SO contains a "Dari Pelanggan" material.
     // When displaying the full BOM list to operators, we want to include customer materials.
-    const mockSO: SalesOrder = {
+    const mockSO: any = {
       id: 'SO-125',
       soNumber: 'SO-125',
       customerName: 'Test Customer 3',
@@ -131,7 +131,7 @@ describe('ProductionHelpers - getMaterialOptions', () => {
   it('should correctly aggregate quantities for the same material across multiple items', () => {
     // Scenario: An SO has multiple items that use the same material.
     // The materials should be grouped by name + specification.
-    const mockSO: SalesOrder = {
+    const mockSO: any = {
       id: 'SO-126',
       soNumber: 'SO-126',
       customerName: 'Test Customer 4',
