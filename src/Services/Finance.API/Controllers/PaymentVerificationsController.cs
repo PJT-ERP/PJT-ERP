@@ -69,4 +69,50 @@ public sealed class PaymentVerificationsController(IFinanceService financeServic
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpGet("/proofs/{fileName}")]
+    [Authorize(Roles = "Admin,Finance,Owner,Sales,Sales Order,Purchasing")]
+    public IActionResult GetPaymentProof(string fileName, [FromServices] IWebHostEnvironment env)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return BadRequest(new { message = "File name is required." });
+        }
+
+        var safeFileName = Path.GetFileName(fileName);
+        var uploadsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "proofs");
+
+        var filePath = Path.Combine(uploadsFolder, safeFileName);
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "Invalid path traversal attempt." });
+        }
+
+        if (!System.IO.File.Exists(fullPath))
+        {
+            return NotFound(new { message = "Payment proof file not found." });
+        }
+
+        var ext = Path.GetExtension(safeFileName).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+
+        Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        Response.Headers.Append("Content-Security-Policy", "default-src 'none'; sandbox");
+        Response.Headers.Append("Cache-Control", "private, no-cache, no-store, must-revalidate");
+
+        return PhysicalFile(fullPath, contentType);
+    }
 }
+

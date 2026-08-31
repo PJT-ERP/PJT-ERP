@@ -102,16 +102,46 @@ export function AddMaterialModal({ isOpen, onClose, onAdded, inventoryItems, edi
             </div>
             <div>
               <label className={labelClass}>Stok Awal <span className="text-[#C8102E]">*</span></label>
-              <input type="number" required value={formData.currentStock === 0 ? "" : formData.currentStock} onChange={e => setFormData({ ...formData, currentStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
+              <input 
+                type="text" 
+                required 
+                value={formData.currentStock === 0 ? "" : formData.currentStock.toLocaleString("id-ID")} 
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                  setFormData({ ...formData, currentStock: rawValue === "" ? 0 : Number(rawValue) });
+                }} 
+                className={inputClass} 
+                placeholder="0" 
+              />
             </div>
             <div>
               <label className={labelClass}>Reorder Point <span className="text-[#C8102E]">*</span></label>
-              <input type="number" required value={formData.reorderPoint === 0 ? "" : formData.reorderPoint} onChange={e => setFormData({ ...formData, reorderPoint: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
+              <input 
+                type="text" 
+                required 
+                value={formData.reorderPoint === 0 ? "" : formData.reorderPoint.toLocaleString("id-ID")} 
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                  setFormData({ ...formData, reorderPoint: rawValue === "" ? 0 : Number(rawValue) });
+                }} 
+                className={inputClass} 
+                placeholder="0" 
+              />
             </div>
 
             <div>
               <label className={labelClass}>Max Stock <span className="text-[#C8102E]">*</span></label>
-              <input type="number" required value={formData.maxStock === 0 ? "" : formData.maxStock} onChange={e => setFormData({ ...formData, maxStock: e.target.value === "" ? 0 : Number(e.target.value) })} className={inputClass} placeholder="0" />
+              <input 
+                type="text" 
+                required 
+                value={formData.maxStock === 0 ? "" : formData.maxStock.toLocaleString("id-ID")} 
+                onChange={e => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                  setFormData({ ...formData, maxStock: rawValue === "" ? 0 : Number(rawValue) });
+                }} 
+                className={inputClass} 
+                placeholder="0" 
+              />
             </div>
             <div>
               <label className={labelClass}>Harga Satuan (Rp) <span className="text-[#C8102E]">*</span></label>

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PJT_ERP.Production.Api.Application.Production;
+using PJT_ERP.Shared.Infrastructure.Security;
 
 namespace PJT_ERP.Production.Api.Controllers;
 
@@ -274,7 +275,7 @@ public sealed class SalesOrdersController(
 
     [HttpPost("upload-drawing-file")]
     [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
-    public async Task<ActionResult<string>> UploadDrawingFile(
+    public async Task<ActionResult<object>> UploadDrawingFile(
         [FromForm] IFormFile file,
         [FromServices] IWebHostEnvironment env,
         CancellationToken cancellationToken)
@@ -284,15 +285,30 @@ public sealed class SalesOrdersController(
             return BadRequest(new { message = "No file uploaded." });
         }
 
+        try
+        {
+            await FileUploadSecurityValidator.ValidateFileAsync(file, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
         var uploadsFolder = Path.Combine(
             env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
             "engineering-drawings");
 
         Directory.CreateDirectory(uploadsFolder);
 
-        var ext = Path.GetExtension(file.FileName);
-        var uniqueFileName = $"drawing-{Guid.NewGuid():N}{ext}";
+        var uniqueFileName = FileUploadSecurityValidator.SanitizeFileName(file.FileName);
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "Invalid upload path." });
+        }
 
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
@@ -300,6 +316,51 @@ public sealed class SalesOrdersController(
         }
 
         return Ok(new { url = $"/engineering-drawings/{uniqueFileName}" });
+    }
+
+    [HttpGet("engineering-drawings/{fileName}")]
+    [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production,Sales,Sales Order")]
+    public IActionResult GetEngineeringDrawing(string fileName, [FromServices] IWebHostEnvironment env)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return BadRequest(new { message = "File name is required." });
+        }
+
+        var safeFileName = Path.GetFileName(fileName);
+        var uploadsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "engineering-drawings");
+
+        var filePath = Path.Combine(uploadsFolder, safeFileName);
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "Invalid path traversal attempt." });
+        }
+
+        if (!System.IO.File.Exists(fullPath))
+        {
+            return NotFound(new { message = "Engineering drawing file not found." });
+        }
+
+        var ext = Path.GetExtension(safeFileName).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+
+        Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        Response.Headers.Append("Content-Security-Policy", "default-src 'none'; sandbox");
+        Response.Headers.Append("Cache-Control", "private, no-cache, no-store, must-revalidate");
+
+        return PhysicalFile(fullPath, contentType);
     }
 
     [HttpPost("{id:guid}/material-requests")]
