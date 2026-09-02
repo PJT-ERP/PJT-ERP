@@ -58,6 +58,7 @@ export function EngineeringTaskDetailPage() {
   const [isEditingLink, setIsEditingLink] = useState(false);
   const [localRejectionReason, setLocalRejectionReason] = useState<string | undefined>(undefined);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [noMaterialItems, setNoMaterialItems] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialized = useRef(false);
@@ -330,7 +331,7 @@ export function EngineeringTaskDetailPage() {
     const productInCatalog = productCatalog.find((p: any) => p.id === item.productId);
     const isStandardProduct = !!productInCatalog?.bomItems?.length;
     
-    if (!isStandardProduct && mats.length === 0) return true;
+    if (!isStandardProduct && mats.length === 0 && !noMaterialItems[item.id]) return true;
     return mats.some((m: any) => !m.name.trim() || m.quantity <= 0);
   });
   const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict || isUploadingFile;
@@ -502,6 +503,8 @@ export function EngineeringTaskDetailPage() {
                         onAddMaterial={addMaterial}
                         onRemoveMaterial={removeMaterial}
                         onUpdateMaterial={updateMaterial}
+                        noMaterialChecked={noMaterialItems[item.id] || false}
+                        onToggleNoMaterial={(checked) => setNoMaterialItems(prev => ({ ...prev, [item.id]: checked }))}
                       />
                     );
                   })}

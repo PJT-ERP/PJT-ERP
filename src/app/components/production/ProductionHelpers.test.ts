@@ -164,4 +164,22 @@ describe('ProductionHelpers - getMaterialOptions', () => {
     expect(wood).toBeDefined();
     expect(wood?.quantity).toBe(2);
   });
+
+  it('should return empty array for orders without any BOM, and not fallback to product description', () => {
+    const mockSO: any = {
+      id: 'SO-NOBOM',
+      soNumber: 'SO-NOBOM',
+      customerName: 'Test Customer',
+      status: 'Ready for Production',
+      description: 'Main Product Item',
+      items: [
+        { id: 'item-A', productId: 'prod-A', productName: 'Item A', quantity: 1 }
+      ],
+      // No bomsPerItem and no materials
+    };
+
+    const materials = getMaterialOptions(mockSO, true);
+
+    expect(materials).toHaveLength(0); // Should be explicitly empty, no hallucinated fallback
+  });
 });

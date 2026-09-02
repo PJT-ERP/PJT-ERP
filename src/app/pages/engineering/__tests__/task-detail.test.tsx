@@ -145,4 +145,65 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
     });
   });
 
+  it('allows submission when "Tidak ada material" is checked for empty BOM', async () => {
+    const queryClient = new QueryClient();
+    
+    // Override the salesApi mock to provide an empty BOM
+    vi.mocked(salesApi.listSalesOrders).mockResolvedValueOnce([
+      {
+        id: '123e4567-e89b-12d3-a456-426614174001',
+        soNumber: 'so-eng-1',
+        customerId: 'CUST-1',
+        partNumber: 'PART-ENG',
+        status: 'Pending Design', // Editable state
+        backendDesignStatus: 'Pending',
+        rejectionReason: '',
+        designAssignedTo: 'u1',
+        drawingFileUrl: 'https://new-design.com',
+        createdAt: '2026-07-08T10:00:00Z',
+        quantity: 10,
+        deadline: '2026-07-15',
+        items: [
+          { id: 'item-1', productName: 'Item A', quantity: 5, unit: 'pcs', notes: '[]' } // Empty BOM
+        ]
+      }
+    ]);
+    
+    // Also mock useApp just in case
+    vi.spyOn(appContext, 'useApp').mockReturnValue({
+      customers: [{ code: 'CUST-1', name: 'Customer A' }],
+      currentUser: { id: 'u1', name: 'Spv 1', role: 'Engineering Supervisor' },
+      updateSalesOrder: vi.fn(),
+      refreshBackendData: vi.fn(),
+      productCatalog: [],
+      salesOrders: []
+    } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/erp/engineer-tasks/123e4567-e89b-12d3-a456-426614174001']}>
+          <Routes>
+            <Route path="/erp/engineer-tasks/:id" element={<EngineeringTaskDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Wait for render
+    await waitFor(() => {
+      expect(screen.getByText(/Simpan Desain & Lanjut ke Produksi/i)).toBeInTheDocument();
+    });
+
+    // The submit button should be disabled because BOM is empty
+    const submitBtn = screen.getByRole('button', { name: /Simpan Desain & Lanjut ke Produksi/i });
+    expect(submitBtn).toBeDisabled();
+
+    // Check "Tidak ada material"
+    const noMaterialCheckbox = screen.getByRole('checkbox', { name: /Tidak ada material/i });
+    fireEvent.click(noMaterialCheckbox);
+
+    // The submit button should now be enabled
+    expect(submitBtn).not.toBeDisabled();
+  });
+
 });

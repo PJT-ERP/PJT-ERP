@@ -37,12 +37,15 @@ interface BomEditorProps {
   onAddMaterial: (itemId: string, initial?: Partial<{ name: string; quantity: number; unit: string; spec: string; inventoryItemId: string; code: string }>) => void;
   onRemoveMaterial: (itemId: string, mId: string) => void;
   onUpdateMaterial: (itemId: string, mId: string, field: string, value: any) => void;
+  noMaterialChecked?: boolean;
+  onToggleNoMaterial?: (checked: boolean) => void;
 }
 
 export function BomEditor({
   itemId, itemName, itemQty, itemUnit, materials,
   standardBomItems, isStandardProduct, canEdit,
   inventoryItems, onAddMaterial, onRemoveMaterial, onUpdateMaterial,
+  noMaterialChecked, onToggleNoMaterial,
 }: BomEditorProps) {
   return (
     <div key={itemId} style={{ border: `1px solid ${S.border}`, borderRadius: 8 }}>
@@ -102,8 +105,14 @@ export function BomEditor({
         {/* Custom/Extra Materials */}
         {materials.length === 0 ? (
           !isStandardProduct && (
-            <div style={{ textAlign: "center", padding: "30px 20px", color: S.secondary, fontSize: "13.5px", background: "#fff", borderRadius: 8 }}>
-              {!canEdit ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}
+            <div style={{ textAlign: "center", padding: "30px 20px", color: S.secondary, fontSize: "13.5px", background: "#fff", borderRadius: 8, display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
+              <span>{!canEdit ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}</span>
+              {canEdit && onToggleNoMaterial && (
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "14px", color: S.slate }}>
+                  <input type="checkbox" checked={noMaterialChecked} onChange={e => onToggleNoMaterial(e.target.checked)} />
+                  Tidak ada material
+                </label>
+              )}
             </div>
           )
         ) : (
