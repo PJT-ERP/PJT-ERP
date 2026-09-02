@@ -171,6 +171,18 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         updateSalesOrder(targetId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
       } else if (action === 'reject_design') {
         updateSalesOrder(targetId, { status: 'Pending Design' });
+      } else if (action === 'force_complete') {
+        updateSalesOrder(targetId, { status: 'Completed' });
+        toast.success('Sales Order ditandai sebagai Selesai.', {
+          style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
+          duration: 3000
+        });
+      } else if (action === 'send_to_qc') {
+        updateSalesOrder(targetId, { status: 'QC' });
+        toast.success('Sales Order dikirim ke QC untuk pengecekan.', {
+          style: { background: '#0f172a', color: '#93c5fd', border: '1px solid #1e40af' },
+          duration: 3000
+        });
       }
     } finally {
       setIsSubmittingAction(false);

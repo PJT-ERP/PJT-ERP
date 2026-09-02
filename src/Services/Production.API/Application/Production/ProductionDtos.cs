@@ -89,7 +89,8 @@ public sealed record UpdateSalesOrderGeneralRequest(
     DateOnly? Deadline = null,
     string? Notes = null,
     string? CustomerDrawingUrl = null,
-    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null);
+    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null,
+    string? Status = null);
 
 public sealed record UpdateCustomerDrawingUrlRequest(
     string? CustomerDrawingUrl,

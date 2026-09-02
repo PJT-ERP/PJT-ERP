@@ -116,6 +116,17 @@ export function ActionPanels({ order, currentUserRole, currentUserName, actionFo
           <ActionBtn icon={<Upload size={13} />} label="Submit ke Supervisor" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('upload_design')} />
         </SectionCard>
       )}
+
+      {/* ===== Sales: Tandai Selesai ===== */}
+      {canRole(role, 'Sales') && !['Completed', 'Rejected', 'Cancelled', 'Finished'].includes(status) && (
+        <SectionCard title="Tandai Selesai" titleBg="#F0FDF4" titleColor="#15803D">
+          <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
+            Tandai SO ini sebagai selesai secara manual. Pilih opsi di bawah:
+          </p>
+          <ActionBtn icon={<CheckCircle2 size={13} />} label="Tandai Selesai (Skip QC)" bg="#16A34A" color="#fff" border="none" onClick={() => handleAction('force_complete')} />
+          <ActionBtn icon={<RefreshCw size={13} />} label="Kirim ke QC Dulu" bg="#DBEAFE" color="#1D4ED8" border="1px solid #93C5FD" onClick={() => handleAction('send_to_qc')} />
+        </SectionCard>
+      )}
     </>
   );
 }

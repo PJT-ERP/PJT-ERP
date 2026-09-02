@@ -770,6 +770,15 @@ public class SalesOrderCommandService(
             order.EstimatedAmount = order.Items.Sum(i => i.Qty * i.UnitPrice);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            var allowedStatuses = new[] { SalesOrderStatuses.Completed, SalesOrderStatuses.QC, SalesOrderStatuses.Cancelled };
+            if (allowedStatuses.Contains(request.Status))
+            {
+                order.Status = request.Status;
+            }
+        }
+
         order.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
