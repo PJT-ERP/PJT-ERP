@@ -139,7 +139,7 @@ export function ProductInfoCard({
           </div>
         </div>
 
-        <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflowX: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", gap: 0, background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
             {["No.", "Produk", "Qty", "Harga", "Subtotal"].map(label => (
               <div key={label} style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
