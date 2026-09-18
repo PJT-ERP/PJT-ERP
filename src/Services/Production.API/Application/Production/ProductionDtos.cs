@@ -146,7 +146,10 @@ public sealed record SalesOrderCommentDto(
     string Content,
     DateTime CreatedAtUtc,
     bool IsEdited,
-    bool IsDeleted);
+    bool IsDeleted,
+    string? FileUrl = null,
+    string? FileName = null,
+    string? FileType = null);
 
 public sealed record SalesOrderMaterialDto(
     string Id,
@@ -264,7 +267,10 @@ public sealed record UploadEngineeringDrawingRequest(
 public sealed record AddSalesOrderCommentRequest(
     Guid UserId,
     string UserName,
-    string Content);
+    string Content,
+    string? FileUrl = null,
+    string? FileName = null,
+    string? FileType = null);
 
 public sealed record UpdateSalesOrderCommentRequest(
     string Content);

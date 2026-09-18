@@ -4,8 +4,8 @@ import { salesApi } from '../../../services/salesApi';
 export const useAddSOCommentMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ salesOrderId, userId, userName, content }: { salesOrderId: string; userId: string; userName: string; content: string }) =>
-      salesApi.addSalesOrderComment(salesOrderId, { userId, userName, content }),
+    mutationFn: ({ salesOrderId, userId, userName, content, fileUrl, fileName, fileType }: { salesOrderId: string; userId: string; userName: string; content: string; fileUrl?: string; fileName?: string; fileType?: string; }) =>
+      salesApi.addSalesOrderComment(salesOrderId, { userId, userName, content, fileUrl, fileName, fileType }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
     },

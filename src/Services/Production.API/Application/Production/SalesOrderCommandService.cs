@@ -828,6 +828,9 @@ public class SalesOrderCommandService(
             UserId = request.UserId,
             UserName = request.UserName,
             Content = request.Content,
+            FileUrl = request.FileUrl,
+            FileName = request.FileName,
+            FileType = request.FileType,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -841,7 +844,10 @@ public class SalesOrderCommandService(
             comment.Content,
             comment.CreatedAtUtc,
             comment.IsEdited,
-            comment.IsDeleted
+            comment.IsDeleted,
+            comment.FileUrl,
+            comment.FileName,
+            comment.FileType
         );
     }
 
