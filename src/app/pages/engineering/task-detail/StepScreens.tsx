@@ -131,14 +131,16 @@ export function InfoBanner({ order, customer }: { order: any; customer: any }) {
   const barcode = `PJT|SO|${dateStr}|${formattedId}`;
 
   return (
-    <div style={{ display: "flex", gap: 20 }}>
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
+    <div className="flex flex-col sm:flex-row gap-5">
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-5 rounded-lg border border-slate-200">
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{order.quantity} {order.unit}</p></div>
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{order.deadline || "-"}</p></div>
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{order.createdAt?.substring(0, 10) || "-"}</p></div>
       </div>
-      <QrCard order={order} barcode={barcode} />
+      <div className="w-full sm:w-auto">
+        <QrCard order={order} barcode={barcode} />
+      </div>
     </div>
   );
 }

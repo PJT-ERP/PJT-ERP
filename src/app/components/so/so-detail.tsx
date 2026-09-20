@@ -350,10 +350,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   return (
     <>
-      <div className="print-hide" style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="print-hide p-4 md:p-5 flex flex-col gap-4" style={{ fontFamily: S.font }}>
 
       {/* ===== Header ===== */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => onNavigate("so-list")}
@@ -377,7 +377,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+        <div className="flex flex-wrap gap-2 items-center w-full md:w-auto mt-2 md:mt-0">
           <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => {
             const originalTitle = document.title;
             document.title = order.id;
@@ -416,7 +416,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
                 }}
               >
                 <Trash2 size={13} />
-                <span>Hapus SO</span>
+                <span className="hidden sm:inline">Hapus SO</span>
               </button>
             </>
           )}
@@ -435,7 +435,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       )}
 
       {/* ===== Main Content Grid ===== */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 14 }} className="detail-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_270px] gap-4">
 
         {/* ===== Left Column ===== */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>

@@ -332,7 +332,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
       )}
 
       {/* Main grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">
+      <div className="flex flex-col xl:grid xl:grid-cols-[1fr_320px] gap-4">
 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
@@ -366,62 +366,66 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
               </button>
             </div>
 
-            {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "10px 18px", background: S.cyan, borderBottom: `1px solid ${S.border}` }}>
-              {["No. SO", "Pelanggan", "Produk", "Qty", "Status"].map((h) => (
-                <span key={h} style={{ color: S.white, fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
-              ))}
-            </div>
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: 700 }}>
+                {/* Table header */}
+                <div style={{ display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px", padding: "10px 18px", background: S.cyan, borderBottom: `1px solid ${S.border}` }}>
+                  {["No. SO", "Pelanggan", "Produk", "Qty", "Status"].map((h) => (
+                    <span key={h} style={{ color: S.white, fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+                  ))}
+                </div>
 
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="animate-pulse"
-                  style={{
-                    display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                    padding: "10px 18px",
-                    borderBottom: `1px solid ${S.border}`,
-                    gap: 12
-                  }}
-                >
-                  <div style={{ height: 16, background: "#f1f5f9", borderRadius: 4, width: "80%" }} />
-                  <div>
-                    <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "60%", marginBottom: 4 }} />
-                    <div style={{ height: 12, background: "#f1f5f9", borderRadius: 4, width: "40%" }} />
-                  </div>
-                  <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "90%", alignSelf: "center" }} />
-                  <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "50%", alignSelf: "center" }} />
-                  <div style={{ height: 18, background: "#f1f5f9", borderRadius: 4, width: "70%", alignSelf: "center" }} />
-                </div>
-              ))
-            ) : (
-              recentOrders.map((order, idx) => (
-                <div
-                  key={order.id}
-                  onClick={() => onNavigate("so-detail", order.id)}
-                  style={{
-                    display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
-                    padding: "10px 18px", cursor: "pointer",
-                    borderBottom: idx < recentOrders.length - 1 ? `1px solid ${S.border}` : "none",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
-                  <div>
-                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
-                    <p style={{ color: S.secondary, fontSize: "11px", margin: 0 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
-                  </div>
-                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.description}</span>
-                  <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center" }}>{order.quantity.toLocaleString("id-ID")} {order.unit}</span>
-                  <div style={{ alignSelf: "center" }}>
-                    <StatusBadge status={order.status as SOStatus} />
-                  </div>
-                </div>
-              ))
-            )}
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="animate-pulse"
+                      style={{
+                        display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
+                        padding: "10px 18px",
+                        borderBottom: `1px solid ${S.border}`,
+                        gap: 12
+                      }}
+                    >
+                      <div style={{ height: 16, background: "#f1f5f9", borderRadius: 4, width: "80%" }} />
+                      <div>
+                        <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "60%", marginBottom: 4 }} />
+                        <div style={{ height: 12, background: "#f1f5f9", borderRadius: 4, width: "40%" }} />
+                      </div>
+                      <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "90%", alignSelf: "center" }} />
+                      <div style={{ height: 14, background: "#f1f5f9", borderRadius: 4, width: "50%", alignSelf: "center" }} />
+                      <div style={{ height: 18, background: "#f1f5f9", borderRadius: 4, width: "70%", alignSelf: "center" }} />
+                    </div>
+                  ))
+                ) : (
+                  recentOrders.map((order, idx) => (
+                    <div
+                      key={order.id}
+                      onClick={() => onNavigate("so-detail", order.id)}
+                      style={{
+                        display: "grid", gridTemplateColumns: "130px 1fr 1fr 100px 130px",
+                        padding: "10px 18px", cursor: "pointer",
+                        borderBottom: idx < recentOrders.length - 1 ? `1px solid ${S.border}` : "none",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{order.id}</span>
+                      <div>
+                        <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+                        <p style={{ color: S.secondary, fontSize: "11px", margin: 0 }}>{customers.find(c => c.code === order.customerId)?.name || "-"}</p>
+                      </div>
+                      <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{order.description}</span>
+                      <span style={{ color: "#334155", fontSize: "12px", alignSelf: "center" }}>{order.quantity.toLocaleString("id-ID")} {order.unit}</span>
+                      <div style={{ alignSelf: "center" }}>
+                        <StatusBadge status={order.status as SOStatus} />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Activity log */}

@@ -218,7 +218,7 @@ export function EngineeringPage() {
       </div>
 
       {/* Main grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
@@ -247,10 +247,10 @@ export function EngineeringPage() {
                 </div>
               )}
             </div>
-          )}
-
-            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+          {isSpv ? (
+            <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+              <div style={{ minWidth: 700 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Pencil size={14} style={{ color: S.cyan }} />
                   <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain</span>
@@ -323,9 +323,12 @@ export function EngineeringPage() {
                   Lihat Semua Tugas Desain ({designQueue.length})
                 </div>
               )}
+              </div>
             </div>
+          ) : null}
 
-            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+          <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+            <div style={{ minWidth: 700 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Factory size={14} style={{ color: S.cyan }} />
@@ -382,8 +385,8 @@ export function EngineeringPage() {
                 >
                   Lihat Semua Pekerjaan Produksi ({myProdOrders.length})
                 </div>
-              )}
             </div>
+          </div>
         </div>
 
         {/* Right column */}

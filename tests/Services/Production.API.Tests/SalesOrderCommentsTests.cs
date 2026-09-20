@@ -30,7 +30,10 @@ public class SalesOrderCommentsTests
         var request = new AddSalesOrderCommentRequest(
             UserId: Guid.NewGuid(),
             UserName: "Test User",
-            Content: "This is a test comment"
+            Content: "This is a test comment",
+            FileUrl: null,
+            FileName: null,
+            FileType: null
         );
 
         var result = await service.AddCommentAsync(so.Id, request, CancellationToken.None);
@@ -38,10 +41,46 @@ public class SalesOrderCommentsTests
         Assert.NotNull(result);
         Assert.Equal(request.Content, result.Content);
         Assert.Equal(request.UserName, result.UserName);
+        Assert.Null(result.FileUrl);
 
         var savedSo = await db.SalesOrders.Include(s => s.Comments).FirstAsync(s => s.Id == so.Id);
         Assert.Single(savedSo.Comments);
         Assert.Equal(request.Content, savedSo.Comments[0].Content);
+        Assert.Null(savedSo.Comments[0].FileUrl);
+    }
+
+    [Fact]
+    public async Task AddComment_WithAttachment_SavesAttachmentDetails()
+    {
+        await using var db = CreateDbContext();
+        var eventPublisher = new RecordingEventPublisher();
+        var service = new SalesOrderCommandService(db, eventPublisher, new StubMasterDataClient());
+
+        var so = await CreateTestSalesOrder(db);
+
+        var request = new AddSalesOrderCommentRequest(
+            UserId: Guid.NewGuid(),
+            UserName: "Test User",
+            Content: "Please review this document",
+            FileUrl: "/uploads/test.pdf",
+            FileName: "test.pdf",
+            FileType: "application/pdf"
+        );
+
+        var result = await service.AddCommentAsync(so.Id, request, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(request.Content, result.Content);
+        Assert.Equal(request.FileUrl, result.FileUrl);
+        Assert.Equal(request.FileName, result.FileName);
+        Assert.Equal(request.FileType, result.FileType);
+
+        var savedSo = await db.SalesOrders.Include(s => s.Comments).FirstAsync(s => s.Id == so.Id);
+        Assert.Single(savedSo.Comments);
+        Assert.Equal(request.Content, savedSo.Comments[0].Content);
+        Assert.Equal(request.FileUrl, savedSo.Comments[0].FileUrl);
+        Assert.Equal(request.FileName, savedSo.Comments[0].FileName);
+        Assert.Equal(request.FileType, savedSo.Comments[0].FileType);
     }
 
     [Fact]

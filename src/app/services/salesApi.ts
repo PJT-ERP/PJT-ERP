@@ -137,12 +137,18 @@ export interface SalesOrderCommentDto {
   createdAtUtc: string;
   isEdited: boolean;
   isDeleted: boolean;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileType?: string | null;
 }
 
 export interface AddSalesOrderCommentRequest {
   userId: string;
   userName: string;
   content: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileType?: string | null;
 }
 
 export interface UpdateSalesOrderCommentRequest {
@@ -393,6 +399,21 @@ export const salesApi = {
       dpPercentage: request?.dpPercentage ?? 30,
       dueDate: request?.dueDate ?? today,
     });
+    return response.data;
+  },
+
+  async uploadSalesOrderCommentFile(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ url: string; fileName: string; fileType: string }>(
+      '/api/v1/production/sales-orders/upload-comment-file',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data;
   }
 };

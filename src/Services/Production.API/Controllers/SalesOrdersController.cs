@@ -318,6 +318,55 @@ public sealed class SalesOrdersController(
         return Ok(new { url = $"/engineering-drawings/{uniqueFileName}" });
     }
 
+    [HttpPost("upload-comment-file")]
+    [Authorize]
+    public async Task<ActionResult<object>> UploadCommentFile(
+        [FromForm] IFormFile file,
+        [FromServices] IWebHostEnvironment env,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { message = "No file uploaded." });
+        }
+
+        try
+        {
+            await FileUploadSecurityValidator.ValidateFileAsync(file, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
+        var uploadsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "comment-attachments");
+
+        Directory.CreateDirectory(uploadsFolder);
+
+        var uniqueFileName = FileUploadSecurityValidator.SanitizeFileName(file.FileName);
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "Invalid upload path." });
+        }
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        return Ok(new { 
+            url = $"/api/v1/production/sales-orders/comment-attachments/{uniqueFileName}",
+            fileName = file.FileName,
+            fileType = file.ContentType
+        });
+    }
+
     [HttpGet("engineering-drawings/{fileName}")]
     [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production,Sales,Sales Order")]
     public IActionResult GetEngineeringDrawing(string fileName, [FromServices] IWebHostEnvironment env)
@@ -363,6 +412,50 @@ public sealed class SalesOrdersController(
         return PhysicalFile(fullPath, contentType);
     }
 
+    [HttpGet("comment-attachments/{fileName}")]
+    [Authorize]
+    public IActionResult GetCommentAttachment(string fileName, [FromServices] IWebHostEnvironment env)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return BadRequest(new { message = "File name is required." });
+        }
+
+        var safeFileName = Path.GetFileName(fileName);
+        var uploadsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "comment-attachments");
+
+        var filePath = Path.Combine(uploadsFolder, safeFileName);
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "Invalid path traversal attempt." });
+        }
+
+        if (!System.IO.File.Exists(fullPath))
+        {
+            return NotFound(new { message = "Comment attachment file not found." });
+        }
+
+        var ext = Path.GetExtension(safeFileName).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+
+        Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        Response.Headers.Append("Content-Security-Policy", "default-src 'none'; sandbox");
+        Response.Headers.Append("Cache-Control", "private, max-age=86400"); // Allow caching for attachments
+
+        return PhysicalFile(fullPath, contentType);
+    }
     [HttpPost("{id:guid}/material-requests")]
     [Authorize(Roles = "Admin,Engineering,Engineering Supervisor,Owner,Production")]
     public async Task<ActionResult<SalesOrderProductionProgressDto>> SubmitMaterialRequest(

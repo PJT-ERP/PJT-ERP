@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MessageSquare, Send, User as UserIcon, Reply, X, Pencil, Trash2 } from "lucide-react";
+import { MessageSquare, Send, User as UserIcon, Reply, X, Pencil, Trash2, Paperclip, FileText, Download } from "lucide-react";
 import { useAuth } from "../../context/hooks/useAuth";
 import { useAddSOCommentMutation, useUpdateSOCommentMutation, useDeleteSOCommentMutation } from "../hooks/useSOComments";
 import { useUsersQuery } from "../../../services/queries";
+import { salesApi } from "../../../services/salesApi";
 
 interface Comment {
   id: string;
@@ -12,6 +13,9 @@ interface Comment {
   createdAtUtc: string;
   isEdited?: boolean;
   isDeleted?: boolean;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileType?: string | null;
 }
 
 interface SalesOrderCommentsProps {
@@ -26,11 +30,14 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
   const updateCommentMutation = useUpdateSOCommentMutation();
   const deleteCommentMutation = useDeleteSOCommentMutation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const commentsContainerRef = useRef<HTMLDivElement>(null);
   const { data: users } = useUsersQuery();
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const SUGGESTIONS = React.useMemo(() => {
     const roles = ['Sales', 'Engineering', 'Engineering Supervisor', 'QC', 'Owner', 'Admin', 'Finance', 'Purchasing'];
@@ -91,7 +98,18 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Ukuran file maksimal 10MB");
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (showSuggestions && filteredSuggestions.length > 0) {
@@ -99,7 +117,7 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
       return;
     }
 
-    if (!content.trim() || !currentUser) return;
+    if ((!content.trim() && !selectedFile) || !currentUser || isUploading) return;
 
     let finalContent = content.trim();
     if (editingComment) {
@@ -137,17 +155,39 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
       return;
     }
 
+    setIsUploading(true);
+    let uploadResult: { url: string; fileName: string; fileType: string } | null = null;
+    
+    if (selectedFile) {
+      try {
+        uploadResult = await salesApi.uploadSalesOrderCommentFile(selectedFile);
+      } catch (error) {
+        console.error("Gagal mengupload file:", error);
+        alert("Gagal mengupload file.");
+        setIsUploading(false);
+        return;
+      }
+    }
+
     addCommentMutation.mutate(
       {
         salesOrderId,
         userId: currentUser.id,
         userName: currentUser.name,
-        content: finalContent
+        content: finalContent,
+        fileUrl: uploadResult?.url,
+        fileName: uploadResult?.fileName,
+        fileType: uploadResult?.fileType
       },
       {
         onSuccess: () => {
           setContent("");
           setReplyTo(null);
+          setSelectedFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        },
+        onSettled: () => {
+          setIsUploading(false);
         }
       }
     );
@@ -272,6 +312,22 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
                     );
                   })
                 )}
+                
+                {c.fileUrl && !c.isDeleted && (
+                  <div className="mt-2">
+                    {c.fileType?.startsWith('image/') ? (
+                      <a href={`http://localhost:5000${c.fileUrl}`} target="_blank" rel="noopener noreferrer" className="block max-w-[250px] overflow-hidden rounded-lg border border-gray-200 hover:opacity-90 transition-opacity">
+                        <img src={`http://localhost:5000${c.fileUrl}`} alt={c.fileName || "Attachment"} className="w-full h-auto object-cover" />
+                      </a>
+                    ) : (
+                      <a href={`http://localhost:5000${c.fileUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition-colors w-max max-w-[250px]">
+                        <FileText size={24} className="text-blue-500 flex-shrink-0" />
+                        <span className="truncate">{c.fileName}</span>
+                        <Download size={16} className="text-gray-400 ml-2" />
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -317,8 +373,41 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
             </button>
           </div>
         )}
+        {selectedFile && (
+          <div className="flex justify-between items-start bg-gray-50 px-3 py-2 mb-2 rounded border border-gray-200 text-xs relative">
+            <div className="flex flex-col gap-2 max-w-[90%]">
+              <div className="flex gap-2 items-center text-gray-600 truncate">
+                {selectedFile.type.startsWith('image/') ? <Paperclip size={14} className="text-blue-500 flex-shrink-0" /> : <FileText size={14} className="text-blue-500 flex-shrink-0" />}
+                <span className="truncate font-medium">{selectedFile.name}</span>
+              </div>
+              {selectedFile.type.startsWith('image/') && (
+                <div className="w-24 h-24 relative rounded-md overflow-hidden border border-gray-200 shadow-sm mt-1">
+                  <img src={URL.createObjectURL(selectedFile)} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+            <button type="button" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-gray-400 hover:bg-gray-200 p-1 rounded-full transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-end">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+              disabled={isUploading || addCommentMutation.isPending}
+            >
+              <Paperclip size={20} />
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept="image/*,application/pdf"
+            />
             <input
             ref={inputRef}
             type="text"
@@ -327,14 +416,14 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
             onKeyDown={handleKeyDown}
             placeholder="Tulis komentar..."
             className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-            disabled={addCommentMutation.isPending}
+            disabled={addCommentMutation.isPending || isUploading}
             autoComplete="off"
             maxLength={1800}
           />
             <button
               type="submit"
-              disabled={!content.trim() || addCommentMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              disabled={(!content.trim() && !selectedFile) || addCommentMutation.isPending || isUploading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center h-[38px]"
             >
               <Send size={18} />
             </button>
