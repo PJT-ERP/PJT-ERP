@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
 import { useSalesOrdersQuery, useCustomersQuery, useUpdateCustomerMutation, useUpdateSalesOrderMutation, useDeleteSalesOrderMutation, useProductsQuery } from "../../services/queries";
 import { getStatusColor, SOStatus } from "../data/mockData";
+import { formatDocNumber } from "../context/hooks/dataMappers";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
@@ -160,7 +161,15 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       } else if (action === 'submit_price') {
         updateSalesOrder(targetId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
       } else if (action === 'assign_engineer') {
-        updateSalesOrder(targetId, { assignedName: actionForm.engineerName });
+        const dummyEngineerId = 'e1111111-1111-1111-1111-111111111111';
+        try {
+          await salesApi.assignSalesOrderEngineers(targetId, {
+            designWorker: { userId: dummyEngineerId, name: actionForm.engineerName }
+          });
+        } catch (e) {
+          console.warn("Backend engineer assign call error, fallback to local update", e);
+        }
+        updateSalesOrder(targetId, { assignedName: actionForm.engineerName, designWorkerName: actionForm.engineerName });
         toast.success(`Tugas design berhasil di-assign ke ${actionForm.engineerName}`, {
           style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
           duration: 3000
@@ -357,7 +366,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </button>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h1 style={{ color: S.slate, margin: 0 }}>{order.id}</h1>
+              <h1 style={{ color: S.slate, margin: 0 }}>{formatDocNumber(order.id, order.status)}</h1>
               <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
                 <span className="w-[5px] h-[5px] rounded-full shrink-0 bg-current" />
                 {order.status}

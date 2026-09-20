@@ -22,6 +22,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   'Engineering': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
+    { label: "Tugas Desain", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
   ],

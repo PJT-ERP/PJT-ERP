@@ -47,21 +47,65 @@ export function SOList({ onNavigate }: SOListProps) {
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, fontFamily: S.font }}>
 
       {/* ── Tabs ──────────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, marginBottom: 4 }}>
+      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, marginBottom: 4, gap: 12, overflowX: "auto" }}>
         <button
-          style={{ padding: "10px 20px", border: "none", background: "none", color: "#C8102E", borderBottom: "2px solid #C8102E", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
+          onClick={() => { board.setTypeFilter("all"); board.setPage(1); }}
+          style={{
+            padding: "10px 16px", border: "none", background: "none",
+            color: board.typeFilter === "all" ? "#C8102E" : S.secondary,
+            borderBottom: board.typeFilter === "all" ? "2px solid #C8102E" : "2px solid transparent",
+            fontWeight: board.typeFilter === "all" ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap"
+          }}
         >
-          Sales Order (SO)
+          <span>Semua Order</span>
+          <span style={{ fontSize: "11px", padding: "1px 7px", borderRadius: 10, background: board.typeFilter === "all" ? "#FEE2E2" : "#F1F5F9", color: board.typeFilter === "all" ? "#991B1B" : "#64748B", fontWeight: 600 }}>
+            {board.mergedSalesOrders.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { board.setTypeFilter("quotation"); board.setPage(1); }}
+          style={{
+            padding: "10px 16px", border: "none", background: "none",
+            color: board.typeFilter === "quotation" ? "#C8102E" : S.secondary,
+            borderBottom: board.typeFilter === "quotation" ? "2px solid #C8102E" : "2px solid transparent",
+            fontWeight: board.typeFilter === "quotation" ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap"
+          }}
+        >
+          <span>Quotation (Penawaran)</span>
+          <span style={{ fontSize: "11px", padding: "1px 7px", borderRadius: 10, background: board.typeFilter === "quotation" ? "#FEE2E2" : "#F1F5F9", color: board.typeFilter === "quotation" ? "#991B1B" : "#64748B", fontWeight: 600 }}>
+            {board.quotationCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { board.setTypeFilter("so"); board.setPage(1); }}
+          style={{
+            padding: "10px 16px", border: "none", background: "none",
+            color: board.typeFilter === "so" ? "#C8102E" : S.secondary,
+            borderBottom: board.typeFilter === "so" ? "2px solid #C8102E" : "2px solid transparent",
+            fontWeight: board.typeFilter === "so" ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap"
+          }}
+        >
+          <span>Sales Order (SO)</span>
+          <span style={{ fontSize: "11px", padding: "1px 7px", borderRadius: 10, background: board.typeFilter === "so" ? "#FEE2E2" : "#F1F5F9", color: board.typeFilter === "so" ? "#991B1B" : "#64748B", fontWeight: 600 }}>
+            {board.soCount}
+          </span>
         </button>
       </div>
 
       {/* ── Page header ───────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h1 style={{ color: S.slate, margin: 0 }}>Daftar Sales Order</h1>
+          <h1 style={{ color: S.slate, margin: 0 }}>
+            {board.typeFilter === "quotation" ? "Daftar Quotation (Penawaran)" : (board.typeFilter === "so" ? "Daftar Sales Order (SO)" : "Daftar Sales Order & Quotation")}
+          </h1>
           <p style={{ color: S.secondary, fontSize: "12.5px", marginTop: 2 }}>
-            {board.salesOrders.length} order terdaftar
-            {board.filtered.length !== board.salesOrders.length && (
+            {board.filtered.length} order terdaftar
+            {board.filtered.length !== board.mergedSalesOrders.length && (
               <span style={{ color: "#C8102E" }}> · {board.filtered.length} ditampilkan</span>
             )}
           </p>

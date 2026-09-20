@@ -5,6 +5,7 @@ using PJT_ERP.EventBus.Messages.Events;
 using PJT_ERP.Production.Api.Application.Analytics;
 using PJT_ERP.Production.Api.Application.IntegrationEvents;
 using PJT_ERP.Production.Api.Application.Production;
+using PJT_ERP.Production.Api.Application.Quotations;
 using PJT_ERP.Production.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Auth;
 using PJT_ERP.Shared.Infrastructure.Abstractions;
@@ -23,6 +24,7 @@ builder.Services.AddDbContext<ProductionContext>(options =>
         npgsql => npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(5), null));
 });
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ProductionContext>());
+builder.Services.AddScoped<IQuotationService, QuotationService>();
 builder.Services.AddScoped<ISalesOrderCommandService, SalesOrderCommandService>();
 builder.Services.AddScoped<IProductionCommandService, ProductionCommandService>();
 builder.Services.AddScoped<IProductionQueryService, ProductionQueryService>();

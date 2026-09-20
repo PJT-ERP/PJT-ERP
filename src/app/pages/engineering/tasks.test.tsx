@@ -11,7 +11,8 @@ vi.mock('../../components/context/AppContext', () => ({
 }));
 
 vi.mock('../../services/queries', () => ({
-  useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false }))
+  useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useSalesOrdersQuery: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
 vi.mock('../../services/productionApi', () => ({
@@ -58,5 +59,44 @@ describe('EngineeringTasksPage', () => {
     expect(moldElements.length).toBeGreaterThan(0);
     
     expect(screen.getByText('Input Desain')).toBeInTheDocument();
+  });
+
+  it('preserves assigned engineering user tasks when salesOrders query returns pre-mapped SalesOrders', async () => {
+    const { useSalesOrdersQuery } = await import('../../services/queries');
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({
+      data: [
+        {
+          id: 'QU-2026-003',
+          backendId: 'b-003',
+          status: 'Pending Design',
+          designAssignedTo: 'u-eng',
+          designAssignedName: 'Engineering User',
+          description: 'NOT Shaft CNC 1 m',
+          customerId: 'CUST-01'
+        } as any
+      ],
+      isLoading: false
+    } as any);
+
+    vi.mocked(useApp).mockReturnValue({
+      quotations: [],
+      customers: [],
+      users: [],
+      salesOrders: [],
+      currentUser: { id: 'u-eng', name: 'Engineering User', role: 'Engineering' },
+      updateQuotation: vi.fn(),
+    } as any);
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <EngineeringTasksPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('QU-2026-003')).toBeInTheDocument();
+    expect(screen.getByText('NOT Shaft CNC 1 m')).toBeInTheDocument();
   });
 });

@@ -19,10 +19,10 @@ export function StepDone({ completedAsSpv, onBack }: { completedAsSpv: boolean; 
         <CheckCircle size={32} style={{ color: "#22C55E" }} />
       </div>
       <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-        {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance & Produksi)' : 'Desain Menunggu Approval Supervisor'}
+        {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Sales & Finance)' : 'Desain Menunggu Approval Supervisor'}
       </h3>
       <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-        {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk pembuatan Invoice, dan Supervisor sudah dapat memulai proses produksi.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+        {completedAsSpv ? 'Quotation (Penawaran) dilanjutkan ke Sales & Finance untuk penetapan harga dan persetujuan customer.' : 'Status Penawaran menjadi "Waiting Spv Approval"'}
       </p>
       <button onClick={onBack} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
     </div>
@@ -69,7 +69,7 @@ export function StepConfirm({ designLink, customerName, qty, unit, newMaterials,
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 20 }}>
         <p style={{ color: "#92400E", fontSize: "14px", margin: 0 }}>
-          Konfirmasi menyimpan spesifikasi CAD & BOM? Desain akan disetujui langsung oleh Supervisor dan SO langsung masuk ke tahap Siap Produksi (Menunggu Penugasan Operator Produksi).
+          Konfirmasi menyimpan spesifikasi CAD & BOM? Desain akan disetujui oleh Supervisor dan diteruskan ke Sales & Finance untuk penetapan harga & persetujuan customer.
         </p>
       </div>
       {newMaterials.length > 0 && (

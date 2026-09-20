@@ -23,6 +23,8 @@ import { useFinanceData } from "./useFinanceData";
 import { useSalesOrdersQuery } from "../../services/queries";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { mapSalesOrderDto, formatDocNumber } from "../context/hooks/dataMappers";
+
 export function FinanceCosting() {
   const { customers, updateSalesOrder } = useApp();
   const { invoices } = useFinanceData(true, false);
@@ -39,15 +41,46 @@ export function FinanceCosting() {
     productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
   }, [salesOrders]);
 
-  const waitingPricingSO = (queues?.waitingPricing || []).map(so => ({
-    ...so,
-    isQuotation: false
-  }));
+  const waitingPricingSO = React.useMemo(() => {
+    const queueItems = (queues?.waitingPricing || []).map(so => mapSalesOrderDto(so as any));
+    const map = new Map<string, any>();
+    queueItems.forEach(so => map.set(so.id, so));
 
-  const historySO = (queues?.pricingHistory || []).map(so => ({
-    ...so,
-    isQuotation: false
-  })).sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+    const eligibleStatuses = ['Waiting Pricing', 'Ready for Production', 'In Production', 'QC', 'Completed'];
+    salesOrders.forEach(so => {
+      if (!so.isCostingCompleted && (eligibleStatuses.includes(so.status) || so.designStatus === 'Approved' || so.backendDesignStatus === 'Approved')) {
+        if (!map.has(so.id)) {
+          map.set(so.id, so);
+        }
+      }
+    });
+
+    return Array.from(map.values()).map(so => ({
+      ...so,
+      displayDocNumber: formatDocNumber(so.soNumber || so.id, so.status),
+      isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
+    }));
+  }, [queues, salesOrders]);
+
+  const historySO = React.useMemo(() => {
+    const queueItems = (queues?.pricingHistory || []).map(so => mapSalesOrderDto(so as any));
+    const map = new Map<string, any>();
+    queueItems.forEach(so => map.set(so.id, so));
+
+    salesOrders.forEach(so => {
+      if (so.isCostingCompleted && !map.has(so.id)) {
+        map.set(so.id, so);
+      }
+    });
+
+    return Array.from(map.values())
+      .map(so => ({
+        ...so,
+        displayDocNumber: formatDocNumber(so.soNumber || so.id, so.status),
+        isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
+      }))
+      .sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+  }, [queues, salesOrders]);
 
   const activeList = activeTab === 'queue' ? waitingPricingSO : historySO;
 
@@ -102,9 +135,9 @@ export function FinanceCosting() {
       });
 
       const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || item.qty || 1), 0);
-      const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production"].includes(selectedItem.status);
-      const newStatus = preserveStatus ? selectedItem.status : "Waiting Payment";
-      const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || "Waiting Payment") : "Waiting Payment";
+      const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production", "Waiting Payment"].includes(selectedItem.status);
+      const newStatus = preserveStatus ? selectedItem.status : "Waiting Client Approval";
+      const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || selectedItem.status) : "WaitingClientApproval";
 
       try {
         // Backend integration
@@ -232,7 +265,7 @@ export function FinanceCosting() {
                   borderBottom: idx < filteredList.length - 1 ? `1px solid ${S.border}` : "none"
                 }}
               >
-                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.soNumber || so.id}</span>
+                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.displayDocNumber || formatDocNumber(so.soNumber || so.id, so.status)}</span>
                 <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers?.find(c => c.code === so.customerId)?.name || so.customerName || so.customerId}</span>
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.items?.[0]?.productDescription || so.items?.[0]?.productPartNumber || so.productName || so.description || "-"}</span>
@@ -279,8 +312,10 @@ export function FinanceCosting() {
               <div style={{ padding: "60px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <CheckCircle size={50} style={{ color: "#10B981", margin: "0 auto 16px" }} />
                 <h3 style={{ fontSize: "20px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Harga Berhasil Ditetapkan!</h3>
-                <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 400 }}>
-                  Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya.
+                <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 460 }}>
+                  {selectedItem?.isQuotation || selectedItem?.status === 'Waiting Client Approval' || selectedItem?.status === 'Waiting Pricing'
+                    ? "Data HPP & harga jual telah berhasil disimpan. Penawaran (QU) diteruskan ke tim Sales untuk dimintakan persetujuan / deal dari Customer."
+                    : "Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya."}
                 </p>
                 <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                   <button 
@@ -288,19 +323,21 @@ export function FinanceCosting() {
                       setSubmitSuccess(false);
                       setSelectedItem(null);
                     }}
-                    style={{ background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: S.cyan, color: S.white, border: "none", padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
                   >
                     Tutup & Kembali
                   </button>
-                  <button 
-                    onClick={() => {
-                      const soId = selectedItem.backendId || selectedItem.id;
-                      window.location.href = `/erp/finance/create-invoice?so=${soId}`;
-                    }}
-                    style={{ background: S.cyan, color: S.white, border: "none", padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Buat Invoice Sekarang
-                  </button>
+                  {(!selectedItem?.isQuotation && selectedItem?.status !== 'Waiting Client Approval' && selectedItem?.status !== 'Waiting Pricing') && (
+                    <button 
+                      onClick={() => {
+                        const soId = selectedItem.backendId || selectedItem.id;
+                        window.location.href = `/erp/finance/create-invoice?so=${soId}`;
+                      }}
+                      style={{ background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Buat Invoice Sekarang
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
