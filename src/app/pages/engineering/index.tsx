@@ -247,6 +247,7 @@ export function EngineeringPage() {
                 </div>
               )}
             </div>
+          )}
           {isSpv ? (
             <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
               <div style={{ minWidth: 700 }}>
@@ -385,6 +386,7 @@ export function EngineeringPage() {
                 >
                   Lihat Semua Pekerjaan Produksi ({myProdOrders.length})
                 </div>
+              )}
             </div>
           </div>
         </div>
