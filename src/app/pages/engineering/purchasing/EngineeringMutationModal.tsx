@@ -39,10 +39,10 @@ export function EngineeringMutationModal({ isOpen, onClose, onSuccess }: Enginee
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  if (!isOpen) return null;
 
   const filteredItems = items.filter(it => 
     it.code.toLowerCase().includes(searchQuery.toLowerCase()) || 

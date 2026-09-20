@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { CheckCircle2, Upload, X } from "lucide-react";
+import { CheckCircle2, Upload, X, Eye } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { type SalesInvoiceStatus } from "../invoice-sync";
 import { financeApi } from "../../../services/financeApi";
@@ -211,19 +212,59 @@ export function InvoiceSection({ invoice, pendingPaymentProof, invoicePayments }
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${S.border}`, paddingBottom: 4 }}>
                   <p style={{ margin: "0 0 12px", fontSize: "13px", fontWeight: 600, color: S.slate }}>Riwayat Pembayaran</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {collapsedPayments.map(payment => (
-                      <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: S.bg, borderRadius: 6, border: `1px solid ${S.border}` }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate }}>{formatCurrency(payment.amount)}</p>
-                          <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>{payment.paymentDate} • {payment.bankName}</p>
+                    {collapsedPayments.map(payment => {
+                      const proofUrl = payment.proofFileUrl || payment.proofFile || payment.proofUrl;
+                      return (
+                        <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: S.bg, borderRadius: 6, border: `1px solid ${S.border}` }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.slate }}>{formatCurrency(payment.amount)}</p>
+                            <p style={{ margin: 0, fontSize: "11.5px", color: S.secondary }}>{payment.paymentDate} • {payment.bankName}</p>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {proofUrl && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  let finalUrl = proofUrl;
+                                  if (!finalUrl.startsWith('http')) {
+                                    if (!finalUrl.startsWith('/')) finalUrl = '/' + finalUrl;
+                                    finalUrl = finalUrl.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                                  } else {
+                                    try {
+                                      const urlObj = new URL(finalUrl);
+                                      urlObj.pathname = urlObj.pathname.split('/').map((p: string) => encodeURIComponent(p)).join('/');
+                                      finalUrl = urlObj.toString();
+                                    } catch (e) {
+                                      console.warn("Failed to parse proof URL", e);
+                                    }
+                                  }
+                                  window.open(finalUrl, '_blank', 'noopener,noreferrer');
+                                }}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  padding: "3px 8px",
+                                  borderRadius: 4,
+                                  background: "#EFF6FF",
+                                  border: "1px solid #BFDBFE",
+                                  color: "#2563EB",
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                                  cursor: "pointer",
+                                  transition: "all 0.1s"
+                                }}
+                              >
+                                <Eye size={12} /> Lihat Bukti
+                              </button>
+                            )}
+                            {payment.status === "VERIFIED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#DCFCE7", color: "#16A34A" }}>Verified</span>}
+                            {payment.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEF3C7", color: "#D97706" }}>Pending</span>}
+                            {payment.status === "REJECTED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626" }}>Ditolak</span>}
+                          </div>
                         </div>
-                        <div>
-                          {payment.status === "VERIFIED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#DCFCE7", color: "#16A34A" }}>Verified</span>}
-                          {payment.status === "PENDING" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEF3C7", color: "#D97706" }}>Pending</span>}
-                          {payment.status === "REJECTED" && <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626" }}>Ditolak</span>}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -327,6 +368,8 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
     setError("");
   };
 
+  const queryClient = useQueryClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const numericAmount = parseCurrencyAmount(amountText);
@@ -354,6 +397,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
         proofFile: proofFile,
         notes: notes.trim() || null,
       });
+      queryClient.invalidateQueries({ queryKey: ["financeData"] });
       onSubmit();
     } catch (err) {
       console.warn("Failed to submit payment proof.", err);
@@ -381,7 +425,7 @@ function ReportPaymentModal({ invoiceId, invoiceNumber, amount, isOverdue, onClo
           {isOverdue && (
             <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, marginBottom: 16 }}>
               <p style={{ margin: 0, fontSize: "12.5px", color: "#B91C1C", fontWeight: 500 }}>
-                ⚠️ Perhatian: Invoice Overdue
+                Perhatian: Invoice Overdue
               </p>
               <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#991B1B" }}>
                 Invoice ini telah melewati batas waktu pembayaran (jatuh tempo).

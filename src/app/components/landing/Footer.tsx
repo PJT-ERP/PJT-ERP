@@ -1,4 +1,4 @@
-import { Cog, Mail, Phone, MapPin, Linkedin, Twitter, Youtube, Instagram } from "lucide-react";
+import { Mail, Phone, MapPin, Linkedin, Twitter, Youtube, Instagram } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 const navGroups = [

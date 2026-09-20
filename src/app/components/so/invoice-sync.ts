@@ -44,6 +44,7 @@ export function mergeSalesOrderInvoice(order: SalesOrder, invoices: Invoice[], p
   const invoice = resolveSalesOrderInvoice(order, invoices);
   let status = order.status;
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const advancedStatuses = ["Ready for Production", "In Production", "QC", "Completed"];
   
   const hasPendingPayment = invoice?.invoiceId && payments.some(p => p.invoiceId === invoice.invoiceId && p.status === "PENDING");

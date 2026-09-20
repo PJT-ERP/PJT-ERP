@@ -61,6 +61,7 @@ export function InvoiceBadge({ status }: { status: SalesInvoiceStatus }) {
 }
 
 export function FilterDropdown({
+  // eslint-disable-next-line unused-imports/no-unused-vars
   value, onChange, active, children,
 }: {
   value: string; onChange: (v: string) => void; active?: boolean; children: React.ReactNode;

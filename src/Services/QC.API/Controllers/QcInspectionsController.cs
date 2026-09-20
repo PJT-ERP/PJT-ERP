@@ -56,4 +56,49 @@ public sealed class QcInspectionsController(IQcInspectionService inspectionServi
         var urls = await inspectionService.UploadPhotosAsync(files, cancellationToken);
         return Ok(new UploadQcPhotosResponse { Urls = urls });
     }
+
+    [HttpGet("/qc-photos/{fileName}")]
+    [Authorize(Roles = "Admin,QC,QC Inspector,Owner,Production,Engineering")]
+    public IActionResult GetQcPhoto(string fileName, [FromServices] IWebHostEnvironment env)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return BadRequest(new { message = "File name is required." });
+        }
+
+        var safeFileName = Path.GetFileName(fileName);
+        var uploadsFolder = Path.Combine(
+            env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"),
+            "qc-photos");
+
+        var filePath = Path.Combine(uploadsFolder, safeFileName);
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            return BadRequest(new { message = "Invalid path traversal attempt." });
+        }
+
+        if (!System.IO.File.Exists(fullPath))
+        {
+            return NotFound(new { message = "QC photo file not found." });
+        }
+
+        var ext = Path.GetExtension(safeFileName).ToLowerInvariant();
+        var contentType = ext switch
+        {
+            ".webp" => "image/webp",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            _ => "application/octet-stream"
+        };
+
+        Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        Response.Headers.Append("Content-Security-Policy", "default-src 'none'; sandbox");
+        Response.Headers.Append("Cache-Control", "private, no-cache, no-store, must-revalidate");
+
+        return PhysicalFile(fullPath, contentType);
+    }
 }
+

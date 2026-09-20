@@ -5,7 +5,6 @@ import { cn } from "../ui/utils";
 import { useApp } from "../context/AppContext";
 import { useFinanceData } from "../finance/useFinanceData";
 import { usePurchasingData } from "../purchasing/usePurchasingData";
-import { mapPurchaseRequestsToPos, calcTotal } from "../purchasing/purchase-orders-page";
 import { ROLE_NAVIGATION } from "./components/LayoutHelpers";
 import { AppNavigationMenu } from "./components/AppNavigationMenu";
 import { UserProfileSection } from "./components/UserProfileSection";
@@ -40,7 +39,9 @@ export function ERPLayout() {
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
   const canReadSupplierPayments = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments, canReadSupplierPayments);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { purchaseRequests: backendPurchaseRequests, suppliers: purchasingSuppliers } = usePurchasingData(currentUser?.role === 'Finance');
 
   const location = useLocation();

@@ -85,10 +85,21 @@ if (app.Environment.IsDevelopment())
 
 app.UsePjtRequestLogging();
 app.UseResponseCompression();
-app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "private,no-cache,no-store,must-revalidate");
+        ctx.Context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        ctx.Context.Response.Headers.Append("Content-Security-Policy", "default-src 'none'; sandbox");
+    }
+});
+
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { service = "production", status = "ok" })).AllowAnonymous();
 app.Run();
+

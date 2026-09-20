@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Download, TrendingUp, FileText,
-  BarChart3, PieChart as PieIcon, Pencil, Check
+  BarChart3, PieChart as PieIcon, Pencil
 } from 'lucide-react';
 import {
   formatIDR, type Invoice
@@ -365,6 +365,8 @@ export function FinanceReports() {
                   <YAxis tickFormatter={formatIDRShort} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={65} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" name="Nilai" radius={[4, 4, 0, 0]}>
+                    // eslint-disable-next-line unused-imports/no-unused-vars
+                    // eslint-disable-next-line unused-imports/no-unused-vars
                     {['#16a34a', '#d97706', '#dc2626', '#C8102E'].map((c, i) => (
                       <Cell key={`bar-cell-${c}`} fill={c} />
                     ))}

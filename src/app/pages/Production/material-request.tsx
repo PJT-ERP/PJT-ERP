@@ -86,6 +86,7 @@ export function ProductionMaterialRequestPage() {
                       index={index}
                       totalItems={board.items.length}
                       bomOptions={board.bomOptions}
+                      mergedOptions={board.mergedOptions}
                       removeItem={board.removeItem}
                       updateItem={board.updateItem}
                     />

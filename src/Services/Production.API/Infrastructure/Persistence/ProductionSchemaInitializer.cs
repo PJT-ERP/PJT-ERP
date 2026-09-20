@@ -26,6 +26,20 @@ public static class ProductionSchemaInitializer
                 changed_at_utc timestamp with time zone NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS sales_order_comments (
+                "Id" uuid NOT NULL PRIMARY KEY,
+                sales_order_id uuid NOT NULL REFERENCES sales_orders("Id") ON DELETE CASCADE,
+                user_id uuid NOT NULL,
+                user_name character varying(160) NOT NULL,
+                content character varying(2000) NOT NULL,
+                created_at_utc timestamp with time zone NOT NULL,
+                is_edited boolean NOT NULL DEFAULT false,
+                is_deleted boolean NOT NULL DEFAULT false
+            );
+
+            ALTER TABLE sales_order_comments ADD COLUMN IF NOT EXISTS is_edited boolean NOT NULL DEFAULT false;
+            ALTER TABLE sales_order_comments ADD COLUMN IF NOT EXISTS is_deleted boolean NOT NULL DEFAULT false;
+
             DO $$
             BEGIN
                 IF EXISTS (
@@ -60,6 +74,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS unit_price numeric NOT NULL DEFAULT 0;
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE sales_order_items ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
+            ALTER TABLE sales_order_items ALTER COLUMN notes TYPE text;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_user_id uuid;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_by_name character varying(160);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_approved_at_utc timestamp with time zone;

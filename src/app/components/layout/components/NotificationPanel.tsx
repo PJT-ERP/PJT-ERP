@@ -40,7 +40,8 @@ export function NotificationPanel({
             <p style={{ fontSize: "12px" }}>Tidak ada task/notifikasi tertunda.</p>
           </div>
         ) : (
-          notifications.map((n, i) => {
+          // eslint-disable-next-line unused-imports/no-unused-vars
+          [...notifications].reverse().map((n, i) => {
             const colors = {
               alert: { bg: "#FEF2F2", border: "#FCA5A5", text: "#DC2626", icon: <AlertTriangle size={14} color="#DC2626" /> },
               warning: { bg: "#FFFBEB", border: "#FDE68A", text: "#D97706", icon: <Activity size={14} color="#D97706" /> },

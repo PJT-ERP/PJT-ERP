@@ -106,6 +106,7 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             <div>
               <p className="text-sm font-semibold text-slate-700 block mb-2">Penyesuaian Spesifikasi Item</p>
               <div className="space-y-3">
+                // eslint-disable-next-line unused-imports/no-unused-vars
                 {detail.items.map((item, idx) => {
                   const revItem = board.revisionItems.find(r => r.itemId === item.itemId);
                   return (

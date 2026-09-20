@@ -1,6 +1,6 @@
-import { X, Printer, ExternalLink, Check } from "lucide-react";
+import { X, Printer, Check } from "lucide-react";
 import { formatUrl } from "../../services/backendIds";
-import { SalesOrder, Customer, SOStatus, STATUS_STEPS } from "../data/mockData";
+import { SalesOrder, Customer, STATUS_STEPS } from "../data/mockData";
 import { StatusBadge } from "./StatusBadge";
 import { BarcodeDisplay } from "./BarcodeDisplay";
 

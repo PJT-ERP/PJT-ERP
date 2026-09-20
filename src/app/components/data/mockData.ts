@@ -58,6 +58,13 @@ export interface SalesOrder {
   designReference?: string | null;
   backendDesignStatus?: string;
   submittedAt?: string;
+  comments?: Array<{
+    id: string;
+    userId: string;
+    userName: string;
+    content: string;
+    createdAtUtc: string;
+  }> | null;
   isCostingCompleted?: boolean;
   approvedAt?: string;
   approvedBy?: string;

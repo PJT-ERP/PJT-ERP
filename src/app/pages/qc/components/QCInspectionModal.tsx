@@ -6,7 +6,7 @@ import { SalesOrder } from "../../../components/data/mockData";
 import { QcInspectionDto, qcApi } from "../../../services/qcApi";
 import { toBackendUserId, isGuid, formatUrl } from "../../../services/backendIds";
 import { compressImage, S } from "./utils";
-import { useCustomersQuery, useUpdateSalesOrderMutation } from "../../../services/queries";
+import { useCustomersQuery } from "../../../services/queries";
 
 export function QCInspectionModal({
   so,

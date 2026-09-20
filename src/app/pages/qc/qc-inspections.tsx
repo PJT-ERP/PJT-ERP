@@ -11,10 +11,8 @@ import { QCHistoryModal } from './components/QCHistoryModal';
 import { QCInspectionModal } from "./components/QCInspectionModal";
 import { DrawingLink } from "./components/DrawingLink";
 import { InlineBomDisplay } from "../Production/components/InlineBomDisplay";
-import { productionApi, QcQueuesDto } from "../../services/productionApi";
-import { useCustomersQuery } from "../../services/queries";
-import { mapSalesOrderDto } from "../../components/context/hooks/dataMappers";
-import type { SalesOrderDto } from "../../services/salesApi";
+import type { QcQueuesDto } from "../../services/productionApi";
+import { useCustomersQuery, useQcInspectionsQuery, useQcQueuesQuery } from "../../services/queries";
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = getStatusColor(status as any);
@@ -36,8 +34,8 @@ export function QCInspectionsPage() {
   const { data: customers = [] } = useCustomersQuery();
   const [selectedSO, setSelectedSO] = useState<SalesOrder | null>(null);
   const [historyDetail, setHistoryDetail] = useState<SalesOrder | null>(null);
-  const [inspections, setInspections] = useState<QcInspectionDto[]>([]);
-  const [qcQueues, setQcQueues] = useState<QcQueuesDto | null>(null);
+  const { data: inspections = [] } = useQcInspectionsQuery();
+  const { data: qcQueues = null } = useQcQueuesQuery();
 
   const [historySearch, setHistorySearch] = useState("");
   const [historyFilter, setHistoryFilter] = useState("All");
@@ -51,26 +49,6 @@ export function QCInspectionsPage() {
   const isSupervisor = currentUser?.role === 'QC' || currentUser?.role === 'Admin';
   const isReadOnly = (currentUser?.role === 'Engineering' && !isSupervisor && currentUser?.username !== 'admin') || isOwner;
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setInspections(await qcApi.listInspections());
-      } catch (error) {
-        console.warn("Backend QC inspections unavailable", error);
-      }
-      try {
-        const queues = await productionApi.getQcQueues();
-        setQcQueues({
-          readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
-          inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
-        });
-      } catch (error) {
-        console.error("Failed to load QC queues", error);
-      }
-    };
-
-    void loadData();
-  }, []);
 
   if (isReadOnly) {
     return <QCReadOnlyView />;
@@ -347,13 +325,9 @@ export function QCInspectionsPage() {
           so={selectedSO}
           inspection={findInspectionForSo(inspections, selectedSO)}
           onClose={() => setSelectedSO(null)}
-          onSaved={async (updatedInspection) => {
-            setInspections(prev => prev.map(item => item.id === updatedInspection.id ? updatedInspection : item));
-            const queues = await productionApi.getQcQueues();
-            setQcQueues({
-              readyForInspection: (queues.readyForInspection || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
-              inspectionHistory: (queues.inspectionHistory || []).map((dto: SalesOrderDto) => mapSalesOrderDto(dto)),
-            });
+          onSaved={async () => {
+            queryClient.invalidateQueries({ queryKey: ['qcInspections'] });
+            queryClient.invalidateQueries({ queryKey: ['qcQueues'] });
             queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
             queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
           }}

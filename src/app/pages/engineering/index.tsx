@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
-  Pencil, Send, Clock, CheckCircle, ExternalLink, Factory, Shield,
-  Package, LayoutDashboard, AlertTriangle, ArrowRight, TrendingUp,
-  ArrowUpRight, Users, CheckSquare, List
+  Pencil, Clock, CheckCircle, Factory,
+  Package, TrendingUp,
+  ArrowUpRight, List
 } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
@@ -13,9 +13,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -69,6 +66,7 @@ export function EngineeringPage() {
     }
   };
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [counters, setCounters] = useState<DashboardCountersDto | null>(null);
 
   React.useEffect(() => {
@@ -106,6 +104,7 @@ export function EngineeringPage() {
   const inProductionCount = prodOrdersForStats.filter(so => so.status === "In Production").length;
   const readyForProductionCount = prodOrdersForStats.filter(so => so.status === "Ready for Production").length;
   const qcCount = prodOrdersForStats.filter(so => so.status === "QC").length;
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const completedCount = prodOrdersForStats.filter(so => so.status === "Completed").length;
   const pausedCount = prodOrdersForStats.filter(so => so.status === "Paused").length;
 
@@ -201,7 +200,7 @@ export function EngineeringPage() {
       </div>
 
       {/* Main grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16 }} className="lg-grid-cols-1">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
@@ -233,8 +232,9 @@ export function EngineeringPage() {
           )}
 
           {isSpv ? (
-            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+            <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+              <div style={{ minWidth: 700 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Pencil size={14} style={{ color: S.cyan }} />
                   <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
@@ -255,6 +255,7 @@ export function EngineeringPage() {
               ) : (
                 designQueue.slice(0, 10).map((so, idx) => {
                   const canOpen = so.status === 'Waiting Spv Approval';
+                  // eslint-disable-next-line unused-imports/no-unused-vars
                   const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
 
                   return (
@@ -306,9 +307,12 @@ export function EngineeringPage() {
                   Lihat Semua Tugas Desain ({designQueue.length})
                 </div>
               )}
+              </div>
             </div>
-          ) : (
-            <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
+          ) : null}
+
+          <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+            <div style={{ minWidth: 700 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Factory size={14} style={{ color: S.cyan }} />
@@ -367,7 +371,7 @@ export function EngineeringPage() {
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Right column */}

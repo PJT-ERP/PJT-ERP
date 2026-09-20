@@ -4,7 +4,6 @@ import { CreateInvoice } from '../CreateInvoice';
 import { useFinanceData } from '../useFinanceData';
 import { useApp } from '../../context/AppContext';
 import { financeApi } from '../../../services/financeApi';
-import { salesApi } from '../../../services/salesApi';
 
 vi.mock('../useFinanceData', () => ({
   useFinanceData: vi.fn(),
@@ -99,9 +98,7 @@ describe('CreateInvoice', () => {
     fireEvent.change(soSelect, { target: { value: 'so-1' } });
 
     // The due date is auto-filled from targetDate (2026-08-01), wait for it
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument();
-    });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
 
     // Default invoice type is Full Payment. Let's submit.
     const createBtn = screen.getByRole('button', { name: /Simpan Invoice/i });
@@ -133,9 +130,7 @@ describe('CreateInvoice', () => {
     const soSelect = screen.getAllByRole('combobox')[0];
     fireEvent.change(soSelect, { target: { value: 'so-1' } });
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument();
-    });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
 
     // Change to DP
     // There are multiple comboboxes: SO select, Payment Term, Type, DP %
@@ -216,6 +211,7 @@ describe('CreateInvoice', () => {
     render(<CreateInvoice />);
 
     // Check the options in the select dropdown
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const soSelect = screen.getAllByRole('combobox')[0];
     
     // so-1 should be in the document as an option text

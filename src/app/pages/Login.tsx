@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Factory, Lock, User as UserIcon, ArrowRight } from "lucide-react";
+import { Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { useApp } from "../components/context/AppContext";
 import { authApi } from "../services/authApi";
 

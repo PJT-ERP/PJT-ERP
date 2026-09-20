@@ -19,6 +19,7 @@ import { ProductInfoCard } from "./detail/ProductInfoCard";
 import { QcReportCard } from "./detail/QcReportCard";
 import { ActionPanels } from "./detail/ActionPanels";
 import { OrderInfoSidebar, QrCodeCard, OrderHistory } from "./detail/OrderInfoSidebar";
+import { SalesOrderComments } from "./components/SalesOrderComments";
 import {
   S, InfoRow, InfoCard, HeaderBtn,
 } from "./detail/shared";
@@ -59,6 +60,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
     : [];
 
   const [isEditMode, setIsEditMode] = useState(initialEditMode || false);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
   const isDesignLocked = ["In Production", "QC", "Ready for Delivery", "Delivered", "Completed", "Finished", "Cancelled"].includes(order?.status || "");
@@ -169,6 +171,18 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         updateSalesOrder(targetId, { status: 'Waiting Pricing', backendDesignStatus: 'Approved' });
       } else if (action === 'reject_design') {
         updateSalesOrder(targetId, { status: 'Pending Design' });
+      } else if (action === 'force_complete') {
+        updateSalesOrder(targetId, { status: 'Completed' });
+        toast.success('Sales Order ditandai sebagai Selesai.', {
+          style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
+          duration: 3000
+        });
+      } else if (action === 'send_to_qc') {
+        updateSalesOrder(targetId, { status: 'QC' });
+        toast.success('Sales Order dikirim ke QC untuk pengecekan.', {
+          style: { background: '#0f172a', color: '#93c5fd', border: '1px solid #1e40af' },
+          duration: 3000
+        });
       }
     } finally {
       setIsSubmittingAction(false);
@@ -327,10 +341,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
   return (
     <>
-      <div className="print-hide" style={{ padding: "20px 24px", fontFamily: S.font, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="print-hide p-4 md:p-5 flex flex-col gap-4" style={{ fontFamily: S.font }}>
 
       {/* ===== Header ===== */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => onNavigate("so-list")}
@@ -354,45 +368,49 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+        <div className="flex flex-wrap gap-2 items-center w-full md:w-auto mt-2 md:mt-0">
           <HeaderBtn icon={<Printer size={13} />} label="Cetak" onClick={() => {
             const originalTitle = document.title;
             document.title = order.id;
             window.print();
             document.title = originalTitle;
           }} />
-          <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
-          {isEditMode ? (
+          {currentUser?.role === 'Sales' && (
             <>
+              <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    style={{
+                      padding: "7px 14px", borderRadius: 6, border: "none",
+                      background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
+                      color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
+                      boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                    }}
+                  >
+                    Simpan Perubahan
+                  </button>
+                  <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
+                </>
+              ) : (
+                <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
+              )}
               <button
-                onClick={handleSave}
+                onClick={() => setShowDeleteModal(true)}
+                title="Hapus Sales Order"
                 style={{
-                  padding: "7px 14px", borderRadius: 6, border: "none",
-                  background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)",
-                  color: "#fff", fontWeight: 600, fontSize: "12.5px", cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)"
+                  padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
+                  background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                  transition: "all 0.15s"
                 }}
               >
-                Simpan Perubahan
+                <Trash2 size={13} />
+                <span className="hidden sm:inline">Hapus SO</span>
               </button>
-              <HeaderBtn icon={<Edit size={13} />} label="Batal" onClick={() => setIsEditMode(false)} />
             </>
-          ) : (
-            <HeaderBtn icon={<Edit size={13} />} label="Edit" onClick={() => setIsEditMode(true)} primary />
           )}
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            title="Hapus Sales Order"
-            style={{
-              padding: "7px 14px", borderRadius: 6, border: "1px solid #FECACA",
-              background: "#FEF2F2", color: "#EF4444", fontWeight: 600, fontSize: "12.5px",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-              transition: "all 0.15s"
-            }}
-          >
-            <Trash2 size={13} />
-            <span>Hapus SO</span>
-          </button>
         </div>
       </div>
 
@@ -408,7 +426,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       )}
 
       {/* ===== Main Content Grid ===== */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: 14 }} className="detail-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_270px] gap-4">
 
         {/* ===== Left Column ===== */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
@@ -461,6 +479,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
               </button>
             </div>
           )}
+          
+          {/* Comments Section */}
+          <SalesOrderComments salesOrderId={targetId} comments={order.comments} />
         </div>
 
         {/* ===== Right Sidebar ===== */}

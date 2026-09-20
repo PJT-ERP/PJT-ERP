@@ -51,7 +51,7 @@ public class ConsultationsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order")]
     public async Task<IActionResult> GetConsultations()
     {
         var consultations = await _context.ConsultationRequests
@@ -74,7 +74,7 @@ public class ConsultationsController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
-    [Authorize]
+    [Authorize(Roles = "Admin,Owner,Sales,Sales Order")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateConsultationStatusRequest request)
     {
         var consultation = await _context.ConsultationRequests.FindAsync(id);

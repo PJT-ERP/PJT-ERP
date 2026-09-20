@@ -14,9 +14,13 @@ builder.Services.AddResponseCompression(options =>
 
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin", "Owner"));
     options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
     options.AddPolicy("FinancePolicy", policy => policy.RequireRole("Admin", "Finance", "Owner", "Sales", "Sales Order", "Purchasing"));
+    options.AddPolicy("QcPolicy", policy => policy.RequireRole("Admin", "QC", "QC Inspector", "Owner", "Production", "Engineering"));
+    options.AddPolicy("ProductionPolicy", policy => policy.RequireRole("Admin", "Engineering", "Engineering Supervisor", "Owner", "Production", "Sales", "Sales Order"));
 });
+
 
 builder.Services.AddCors(options =>
 {

@@ -1,12 +1,13 @@
 import { Trash2 } from "lucide-react";
 import { S } from "./MaterialRequestHelpers";
-import { MaterialAutocomplete } from "./MaterialAutocomplete";
+
 
 export function MRItemRow({
   item,
   index,
   totalItems,
   bomOptions,
+  mergedOptions,
   removeItem,
   updateItem,
 }: {
@@ -14,6 +15,7 @@ export function MRItemRow({
   index: number;
   totalItems: number;
   bomOptions: any[];
+  mergedOptions: any[];
   removeItem: (index: number) => void;
   updateItem: (index: number, key: any, value: string) => void;
 }) {
@@ -54,6 +56,13 @@ export function MRItemRow({
               <option key={o.id} value={o.id}>{o.name} {o.spec ? `(${o.spec})` : ''}</option>
             ))}
           </select>
+          {(() => {
+             const matchedStock = mergedOptions.find(o => o.name.toLowerCase() === (item.itemName || '').toLowerCase());
+             if (matchedStock) {
+               return <div style={{ fontSize: "11px", color: S.secondary, marginTop: 6, paddingLeft: 4 }}>Stok di Gudang: <strong style={{ color: matchedStock.currentStock > 0 ? '#10B981' : '#EF4444' }}>{matchedStock.currentStock} {matchedStock.unit}</strong></div>
+             }
+             return null;
+          })()}
         </div>
         <div style={{ flex: 1, minWidth: 150 }}>
           <select

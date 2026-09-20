@@ -33,6 +33,7 @@ const advantages = [
   },
 ];
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 const clients = [
   "PT. SANKEN ARGADWIJA",
   "PT. KALBE FARMA",

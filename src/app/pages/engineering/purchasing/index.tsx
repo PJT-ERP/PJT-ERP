@@ -59,7 +59,7 @@ export function EngineeringPurchasingPage() {
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px", fontFamily: S.font }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>Pengajuan Purchasing</h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
@@ -67,24 +67,27 @@ export function EngineeringPurchasingPage() {
           </p>
         </div>
         {currentUser?.role !== 'Admin' && (
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <button onClick={() => setShowMutationForm(true)}
               style={{
-                display: "flex", alignItems: "center", gap: 6,
+                display: "flex", alignItems: "center", gap: 6, justifyContent: "center",
                 padding: "7px 14px", borderRadius: 4, border: "none",
                 background: S.cyan, color: "#fff", cursor: "pointer",
                 fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
               }}
+              className="w-full sm:w-auto"
             >
               <ArrowRightLeft size={14} /> Mutasi Material
             </button>
             <button onClick={() => { setEditRequest(null); setShowForm(true); }}
               style={{
-                display: "flex", alignItems: "center", gap: 6,
+                display: "flex", alignItems: "center", gap: 6, justifyContent: "center",
                 padding: "7px 14px", borderRadius: 4, border: "none",
                 background: S.cyan, color: "#fff", cursor: "pointer",
                 fontSize: "13px", fontWeight: 500, fontFamily: S.font, whiteSpace: "nowrap",
-              }}>
+              }}
+              className="w-full sm:w-auto"
+            >
               <Plus size={14} /> Ajukan Baru
             </button>
           </div>
@@ -174,81 +177,83 @@ export function EngineeringPurchasingPage() {
           <p style={{ color: S.secondary, margin: 0, fontSize: "13.5px" }}>Belum ada pengajuan purchasing</p>
         </div>
       ) : otherRequests.length > 0 ? (
-        <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <ShoppingCart size={14} style={{ color: S.cyan }} />
-              <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pengajuan (Diproses / Riwayat)</span>
+        <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+          <div style={{ minWidth: 800 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ShoppingCart size={14} style={{ color: S.cyan }} />
+                <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Pengajuan (Diproses / Riwayat)</span>
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
-            {["ID", "Item / Material", "Urgensi", "Ref SO", "Tanggal", "Status"].map((h) => (
-              <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
-            ))}
-          </div>
+            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
+              {["ID", "Item / Material", "Urgensi", "Ref SO", "Tanggal", "Status"].map((h) => (
+                <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
+              ))}
+            </div>
 
-          {paginatedRequests.map((req, idx) => {
-            const isMulti = req.items && req.items.length > 1;
-            const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
-            const displayQty = isMulti ? null : `${req.quantity} ${req.unit}`;
-            return (
-              <div
-                key={req.id}
-                onClick={() => setSelected(req)}
-                style={{
-                  display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px",
-                  padding: "10px 18px", cursor: "pointer",
-                  borderBottom: idx < paginatedRequests.length - 1 ? `1px solid ${S.border}` : "none",
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{req.id}</span>
-                <div style={{ minWidth: 0, paddingRight: 10 }}>
-                  <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</p>
-                  {isMulti ? (
-                    <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {req.items!.map(it => it.itemName).slice(0, 2).join(', ')}
-                      {req.items!.length > 2 ? ` +${req.items!.length - 2} lagi` : ''}
-                    </p>
-                  ) : (
-                    <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0" }}>{displayQty}</p>
-                  )}
-                </div>
-                <div style={{ alignSelf: "center" }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2 py-0.5 rounded border ${URGENCY_COLORS[req.urgency].bg} ${URGENCY_COLORS[req.urgency].border} ${URGENCY_COLORS[req.urgency].text}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[req.urgency].dot}`} />
-                    <span style={{ fontSize: "10.5px", fontWeight: 600 }}>{req.urgency}</span>
+            {paginatedRequests.map((req, idx) => {
+              const isMulti = req.items && req.items.length > 1;
+              const displayName = isMulti ? `${req.items!.length} item material` : req.itemName;
+              const displayQty = isMulti ? null : `${req.quantity} ${req.unit}`;
+              return (
+                <div
+                  key={req.id}
+                  onClick={() => setSelected(req)}
+                  style={{
+                    display: "grid", gridTemplateColumns: "110px 1fr 100px 110px 120px 120px",
+                    padding: "10px 18px", cursor: "pointer",
+                    borderBottom: idx < paginatedRequests.length - 1 ? `1px solid ${S.border}` : "none",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F8FAFC")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500, fontFamily: "monospace" }}>{req.id}</span>
+                  <div style={{ minWidth: 0, paddingRight: 10 }}>
+                    <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</p>
+                    {isMulti ? (
+                      <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {req.items!.map(it => it.itemName).slice(0, 2).join(', ')}
+                        {req.items!.length > 2 ? ` +${req.items!.length - 2} lagi` : ''}
+                      </p>
+                    ) : (
+                      <p style={{ color: S.secondary, fontSize: "11px", margin: "2px 0 0" }}>{displayQty}</p>
+                    )}
+                  </div>
+                  <div style={{ alignSelf: "center" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2 py-0.5 rounded border ${URGENCY_COLORS[req.urgency].bg} ${URGENCY_COLORS[req.urgency].border} ${URGENCY_COLORS[req.urgency].text}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${URGENCY_COLORS[req.urgency].dot}`} />
+                      <span style={{ fontSize: "10.5px", fontWeight: 600 }}>{req.urgency}</span>
+                    </div>
+                  </div>
+                  <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center", fontFamily: "monospace" }}>{req.soId || '—'}</span>
+                  <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{req.requestedAt}</span>
+                  <div style={{ alignSelf: "center" }}>
+                    {(() => {
+                      const displayStatus = (req.status === 'Pending' && req.revisionNote) ? 'Perlu Revisi' : req.status;
+                      return (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2.5 py-1 rounded border ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].bg} ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].border} ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].text}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].dot}`} />
+                          <span style={{ fontSize: "11px", fontWeight: 500 }}>{displayStatus}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-                <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center", fontFamily: "monospace" }}>{req.soId || '—'}</span>
-                <span style={{ color: S.secondary, fontSize: "12px", alignSelf: "center" }}>{req.requestedAt}</span>
-                <div style={{ alignSelf: "center" }}>
-                  {(() => {
-                    const displayStatus = (req.status === 'Pending' && req.revisionNote) ? 'Perlu Revisi' : req.status;
-                    return (
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }} className={`px-2.5 py-1 rounded border ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].bg} ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].border} ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].text}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${PR_STATUS_COLORS[displayStatus as PurchasingStatus].dot}`} />
-                        <span style={{ fontSize: "11px", fontWeight: 500 }}>{displayStatus}</span>
-                      </div>
-                    );
-                  })()}
-                </div>
+              );
+            })}
+            {totalPages > 1 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA" }}>
+                <span style={{ color: S.secondary, fontSize: "12px" }}>
+                  {otherRequests.length === 0
+                    ? "Tidak ada hasil"
+                    : `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, otherRequests.length)} dari ${otherRequests.length} hasil`}
+                </span>
+                <Pagination page={currentPage} total={totalPages} onChange={setCurrentPage} />
               </div>
-            );
-          })}
-          {totalPages > 1 && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderTop: `1px solid ${S.border}`, background: "#FAFAFA" }}>
-              <span style={{ color: S.secondary, fontSize: "12px" }}>
-                {otherRequests.length === 0
-                  ? "Tidak ada hasil"
-                  : `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, otherRequests.length)} dari ${otherRequests.length} hasil`}
-              </span>
-              <Pagination page={currentPage} total={totalPages} onChange={setCurrentPage} />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : null}
 

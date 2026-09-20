@@ -126,6 +126,33 @@ export interface SalesOrderDto {
   createdAtUtc?: string;
   updatedAtUtc?: string;
   isCostingCompleted?: boolean;
+  comments?: SalesOrderCommentDto[] | null;
+}
+
+export interface SalesOrderCommentDto {
+  id: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAtUtc: string;
+  isEdited: boolean;
+  isDeleted: boolean;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileType?: string | null;
+}
+
+export interface AddSalesOrderCommentRequest {
+  userId: string;
+  userName: string;
+  content: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileType?: string | null;
+}
+
+export interface UpdateSalesOrderCommentRequest {
+  content: string;
 }
 
 export interface CreateSalesOrderRequest {
@@ -332,6 +359,34 @@ export const salesApi = {
 
   async deleteSalesOrder(salesOrderId: string) {
     const response = await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}`);
+    return response.data;
+  },
+
+  async addSalesOrderComment(salesOrderId: string, request: AddSalesOrderCommentRequest) {
+    const response = await apiClient.post<SalesOrderCommentDto>(`/api/v1/production/sales-orders/${salesOrderId}/comments`, request);
+    return response.data;
+  },
+  
+  async updateSalesOrderComment(salesOrderId: string, commentId: string, request: UpdateSalesOrderCommentRequest) {
+    await apiClient.put(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`, request);
+  },
+
+  async deleteSalesOrderComment(salesOrderId: string, commentId: string) {
+    await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`);
+  },
+
+  async uploadSalesOrderCommentFile(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ url: string; fileName: string; fileType: string }>(
+      '/api/v1/production/sales-orders/upload-comment-file',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data;
   }
 };

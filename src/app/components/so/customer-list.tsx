@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from "react";
 import {
-  Search, Plus, Download, Eye, Edit, X,
-  Phone, Mail, Building2, MapPin,
-  ShoppingCart, Calendar, Users,
-  ChevronLeft, ChevronRight,
-  Hash, RefreshCw, CheckCircle2, LayoutGrid, List,
+  Search, Plus, Edit, X,
+  Phone, Mail, MapPin,
+  ShoppingCart, Users,
+  ChevronLeft, ChevronRight, RefreshCw, CheckCircle2,
 } from "lucide-react";
 import type { Customer } from "../data/mockData";
 import { useCustomersQuery, useSalesOrdersQuery, useCreateCustomerMutation, useUpdateCustomerMutation } from "../../services/queries";
@@ -164,24 +163,24 @@ function CustomerModal({ state, onSave, onClose }: {
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <ModalLabel text="Perusahaan" required />
-                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required />
+                <ModalInput placeholder="PT / CV ..." value={form.name ?? ""} onChange={e => set("name", e.target.value)} required maxLength={160} />
               </div>
               <div>
                 <ModalLabel text="Nama Kontak (PIC)" required />
-                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required />
+                <ModalInput placeholder="Nama kontak" value={form.contactPerson ?? ""} onChange={e => set("contactPerson", e.target.value)} required maxLength={120} />
               </div>
               <div>
                 <ModalLabel text="No. Telepon" required />
-                <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required />
+                <ModalInput type="tel" placeholder="08xxxxxxxxxx" value={form.phone ?? ""} onChange={e => set("phone", e.target.value)} required maxLength={40} />
               </div>
               <div>
                 <ModalLabel text="Email" required />
-                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required />
+                <ModalInput type="email" placeholder="email@perusahaan.com" value={form.email ?? form.contact ?? ""} onChange={e => { set("email", e.target.value); set("contact", e.target.value); }} required maxLength={160} />
               </div>
             </div>
             <div>
               <ModalLabel text="Alamat Lengkap" required />
-              <ModalTextarea rows={3} placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required />
+              <ModalTextarea rows={3} placeholder="Jl. ... No. ..., Kecamatan, Kota" value={form.address ?? ""} onChange={e => set("address", e.target.value)} required maxLength={400} />
             </div>
           </div>
 
@@ -216,6 +215,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [modal, setModal] = useState<ModalState | null>(null);
 
@@ -544,6 +544,7 @@ function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit
 }
 
 // ─── HeaderBtn ────────────────────────────────────────────────────────────────
+// eslint-disable-next-line unused-imports/no-unused-vars
 function HeaderBtn({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean }) {
   const [hov, setHov] = useState(false);
   return (
@@ -572,6 +573,7 @@ function CardActionBtn({ icon, label, bg, color, onClick }: { icon: React.ReactN
 }
 
 // ─── PagBtn ───────────────────────────────────────────────────────────────────
+// eslint-disable-next-line unused-imports/no-unused-vars
 function PagBtn({ icon, label, onClick, active, disabled }: { icon?: React.ReactNode; label?: number; onClick: () => void; active?: boolean; disabled?: boolean }) {
   const [hov, setHov] = useState(false);
   return (

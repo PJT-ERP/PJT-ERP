@@ -144,11 +144,12 @@ export function CustomerAnalyticsPage() {
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
 
   const validOrders = useMemo(() => {
-    return salesOrders.filter(so => 
-      so.status !== 'Draft' && 
-      so.status !== 'Menunggu Approval'
-    );
-  }, [salesOrders]);
+    return salesOrders.filter(so => {
+      if (so.status === 'Draft' || so.status === 'Menunggu Approval' || so.status === 'Waiting Approval' || so.status === 'Rejected') return false;
+      if (viewMode === 'completed' && so.status !== 'Completed') return false;
+      return true;
+    });
+  }, [salesOrders, viewMode]);
 
   const customerStats = useMemo(() => {
     return customers.map((c, idx) => {

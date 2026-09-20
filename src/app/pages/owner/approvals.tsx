@@ -18,6 +18,12 @@ const S = {
   cardBorder: "#E2E8F0",
 };
 
+const formatUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `https://${url}`;
+};
+
 export type ApprovalItem = SalesOrder;
 
 function StatusBadgeItem({ item }: { item: ApprovalItem }) {

@@ -67,9 +67,9 @@ export function InProductionPanel({ board }: Props) {
 
             return (
               <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < inProduction.slice((page - 1) * itemsPerPage, page * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
+                <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-3">
                   <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setDetailModal(so)}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.soNumber || so.id}</span>
                       <StatusBadge status={so.status} />
                       {isLate && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Telat {daysLate} Hari</span>}
@@ -84,14 +84,14 @@ export function InProductionPanel({ board }: Props) {
                         </>
                       )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-[12.5px] text-slate-500">
                       <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>
                       <span>Operator: <strong style={{ color: S.slate }}>{operator}</strong></span>
                       <span>Deadline: <strong style={{ color: S.slate }}>{so.deadline}</strong></span>
                       <DrawingLinks so={so} />
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                     {so.status === 'Paused' && so.pauseReason?.toLowerCase().includes("material") && isShortage && (
                       <>
                         {(mrState === 'none' || mrState === 'completed') && (isSupervisor || (!notifiedSoIds.has(so.id) && (!isSupervisor || so.assignedTo === currentUser?.id || so.assignedTo === currentBackendUserId))) && (

@@ -1,19 +1,17 @@
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle2, Printer, X, Download, Eye } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Printer, X, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { purchasingApi } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
 import {
-  PO,
   POItem,
   deliveryCfg,
   paymentCfg,
   formatRp,
   calcUnitPrice,
   calcTotal,
-  calcReceived,
   mapPurchaseRequestsToPos
 } from "./purchase-orders-page";
 import { usePurchasingData } from "./usePurchasingData";

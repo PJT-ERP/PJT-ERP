@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { X, Banknote } from 'lucide-react';
+import { X } from 'lucide-react';
 import { formatIDR, type Invoice } from '../mockData';
 import { financeApi } from '../../../services/financeApi';
 import {
