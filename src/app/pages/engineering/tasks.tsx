@@ -247,7 +247,11 @@ export function EngineeringTasksPage() {
                   {/* Ditugaskan Column */}
                   <div style={{ minWidth: 0 }} onClick={e => e.stopPropagation()}>
                     {assignedWorkerName ? (
-                      <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "3px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span 
+                        onClick={() => { if (isSupervisor) { setSelectedEngineerName(assignedWorkerName); setAssigningTarget(qut); } }}
+                        title={isSupervisor ? "Klik untuk ganti engineer" : undefined}
+                        style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "3px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isSupervisor ? "pointer" : "default" }}
+                      >
                         {assignedWorkerName}
                       </span>
                     ) : isSupervisor ? (
@@ -259,7 +263,9 @@ export function EngineeringTasksPage() {
                         Tugaskan
                       </button>
                     ) : (
-                      <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
+                      <span style={{ fontSize: "11.5px", color: S.secondary, fontStyle: "italic" }}>
+                        Belum Ditugaskan
+                      </span>
                     )}
                   </div>
 
@@ -269,17 +275,6 @@ export function EngineeringTasksPage() {
                   </div>
 
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                    {!assignedWorkerName && isSupervisor && (
-                      <button
-                        onClick={() => { setSelectedEngineerName("Engineering Worker"); setAssigningTarget(qut); }}
-                        title="Tugaskan Engineer"
-                        style={{ fontSize: "11px", background: "#F1F5F9", color: "#334155", border: "1px solid #CBD5E1", padding: "5px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}
-                      >
-                        <UserPlus size={12} />
-                        Assign
-                      </button>
-                    )}
-
                     {(() => {
                       const isPendingApproval = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Approval' || qut.backendDesignStatus === 'WaitingApproval';
                       if (isPendingApproval && isSupervisor) {

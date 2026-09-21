@@ -71,7 +71,7 @@ export function EngineeringTaskDetailPage() {
   useEffect(() => {
     if (qut && !isInitialized.current) {
       const designRef = qut.designReference !== 'INTERNAL_DESIGN' ? qut.designReference : '';
-      const initialDesignLink = designRef || qut.designLink || qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
+      const initialDesignLink = designRef || qut.designLink || qut.drawingFileUrl || qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
       setDesignLink(initialDesignLink);
       setIsEditingLink(!initialDesignLink);
 
@@ -210,7 +210,7 @@ export function EngineeringTaskDetailPage() {
   }
 
   const isDoingSpvApproval = isSpv && isPendingSpv;
-  const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
+  const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl && !qut.drawingFileUrl && !qut.designLink;
 
   const addMaterial = (itemId: string, initial?: Partial<{ name: string; quantity: number; unit: string; spec: string; inventoryItemId: string; code: string }>) => {
     setItemMaterials(prev => ({ ...prev, [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: initial?.name || '', quantity: initial?.quantity || 0, unit: initial?.unit || '', spec: initial?.spec || '', inventoryItemId: initial?.inventoryItemId || '', code: initial?.code, category: defaultCategory }] }));

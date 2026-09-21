@@ -115,7 +115,7 @@ export function SOList({ onNavigate }: SOListProps) {
           {currentUser?.role === 'Sales' && (
             <HoverBtn
               icon={<Plus size={12} />}
-              label="Buat SO"
+              label="Buat QU"
               onClick={() => onNavigate("so-create")}
               style={{ 
                 background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 

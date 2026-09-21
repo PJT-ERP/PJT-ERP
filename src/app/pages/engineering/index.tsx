@@ -127,14 +127,14 @@ export function EngineeringPage() {
   const pausedCount = prodOrdersForStats.filter(so => so.status === "Paused").length;
 
   const summaryCards = [
-    ...(isSpv ? [{
-      label: "Antrian Desain Baru",
+    {
+      label: isSpv ? "Antrian Desain Baru" : "Tugas Desain Saya",
       value: pendingDesignCount,
       icon: <List size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: "Dari Tim Sales",
-    }] : []),
+      change: isSpv ? "Dari Tim Sales" : "Perlu dikerjakan",
+    },
     {
       label: "Siap Produksi",
       value: readyForProductionCount,
@@ -162,7 +162,7 @@ export function EngineeringPage() {
   ];
 
   const workflowStats = [
-    ...(isSpv ? [{ label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" }] : []),
+    { label: isSpv ? "Pending Design" : "Tugas Desain", count: pendingDesignCount, color: "#94A3B8" },
     { label: "Siap Produksi", count: readyForProductionCount, color: "#10B981" },
     { label: "Sedang Produksi", count: inProductionCount, color: "#3B82F6" },
     { label: "Dipause", count: pausedCount, color: "#F59E0B" },
@@ -248,13 +248,15 @@ export function EngineeringPage() {
               )}
             </div>
           )}
-          {isSpv ? (
-            <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
-              <div style={{ minWidth: 700 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+          
+          <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+            <div style={{ minWidth: 700 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Pencil size={14} style={{ color: S.cyan }} />
-                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain</span>
+                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>
+                    {isSpv ? "Daftar Tugas Desain" : "Tugas Desain Saya"}
+                  </span>
                 </div>
                 <button
                   onClick={() => navigate('/erp/engineer-tasks')}
@@ -273,7 +275,9 @@ export function EngineeringPage() {
               {designQueue.length === 0 ? (
                 <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                   <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                  <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
+                  <p style={{ margin: 0 }}>
+                    {isSpv ? "Tidak ada antrean desain dari Sales." : "Tidak ada tugas desain yang ditugaskan kepada Anda saat ini."}
+                  </p>
                 </div>
               ) : (
                 designQueue.slice(0, 10).map((so, idx) => {
@@ -324,9 +328,8 @@ export function EngineeringPage() {
                   Lihat Semua Tugas Desain ({designQueue.length})
                 </div>
               )}
-              </div>
             </div>
-          ) : null}
+          </div>
 
           <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
             <div style={{ minWidth: 700 }}>
@@ -423,7 +426,7 @@ export function EngineeringPage() {
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
                 { label: "Tugas Desain", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: true },
-              ].filter(action => action.action === "scan" || (isSpv || action.path === "/erp/production")).map((action) => (
+              ].filter(action => action.action === "scan" || action.path === "/erp/engineer-tasks" || action.path === "/erp/production" || isSpv).map((action) => (
                 <button
                   key={action.label}
                   onClick={() => action.action === "scan" ? setShowScanner(true) : navigate(action.path!)}

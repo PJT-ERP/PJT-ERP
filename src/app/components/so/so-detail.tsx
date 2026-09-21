@@ -12,6 +12,7 @@ import { getStatusColor, SOStatus } from "../data/mockData";
 import { formatDocNumber } from "../context/hooks/dataMappers";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
+import { salesApi } from "../../services/salesApi";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
 import { SOPrintView } from "./detail/SOPrintView";
