@@ -32,3 +32,9 @@ docker-compose.*.override.yml
 .kilo/
 kilo.json
 AGENTS.md
+
+# Playwright Test Outputs
+playwright-report/
+test-results/
+
+.antigravity/

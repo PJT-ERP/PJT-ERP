@@ -11,59 +11,30 @@ afterEach(() => {
 });
 
 // Partial mock for lucide-react to avoid SVG syntax errors in jest/vitest environment
-vi.mock('lucide-react', () => ({
-  CheckCircle2: () => <div data-testid="icon-check-circle" />,
-  Clock: () => <div data-testid="icon-clock" />,
-  AlertCircle: () => <div data-testid="icon-alert-circle" />,
-  FileText: () => <div data-testid="icon-file-text" />,
-  Info: () => <div data-testid="icon-info" />,
-  ExternalLink: () => <div data-testid="icon-external-link" />,
-  Package: () => <div data-testid="icon-package" />,
-  ChevronDown: () => <div data-testid="icon-chevron-down" />,
-  ChevronUp: () => <div data-testid="icon-chevron-up" />,
-  ChevronLeft: () => <div data-testid="icon-chevron-left" />,
-  Building2: () => <div data-testid="icon-building2" />,
-  Phone: () => <div data-testid="icon-phone" />,
-  Mail: () => <div data-testid="icon-mail" />,
-  MapPin: () => <div data-testid="icon-map-pin" />,
-  AlertTriangle: () => <div data-testid="icon-alert-triangle" />,
-  Edit: () => <div data-testid="icon-edit" />,
-  Copy: () => <div data-testid="icon-copy" />,
-  Printer: () => <div data-testid="icon-printer" />,
-  Pencil: () => <div data-testid="icon-pencil" />,
-  Hammer: () => <div data-testid="icon-hammer" />,
-  Circle: () => <div data-testid="icon-circle" />,
-  Play: () => <div data-testid="icon-play" />,
-  CheckSquare: () => <div data-testid="icon-check-square" />,
-  XSquare: () => <div data-testid="icon-x-square" />,
-  Check: () => <div data-testid="icon-check" />,
-  X: () => <div data-testid="icon-x" />,
-  Image: () => <div data-testid="icon-image" />,
-  Maximize2: () => <div data-testid="icon-maximize" />,
-  ZoomIn: () => <div data-testid="icon-zoom-in" />,
-  ZoomOut: () => <div data-testid="icon-zoom-out" />,
-  RotateCw: () => <div data-testid="icon-rotate" />,
-  Download: () => <div data-testid="icon-download" />,
-  Plus: () => <div data-testid="icon-plus" />,
-  Trash2: () => <div data-testid="icon-trash" />,
-  Save: () => <div data-testid="icon-save" />,
-  Camera: () => <div data-testid="icon-camera" />,
-  Upload: () => <div data-testid="icon-upload" />,
-  ArrowRight: () => <div data-testid="icon-arrow-right" />,
-  CheckCircle: () => <div data-testid="icon-check-circle" />,
-  XCircle: () => <div data-testid="icon-x-circle" />,
-  User: () => <div data-testid="icon-user" />,
-  Box: () => <div data-testid="icon-box" />,
-  Calendar: () => <div data-testid="icon-calendar" />,
-  Hash: () => <div data-testid="icon-hash" />,
-  Receipt: () => <div data-testid="icon-receipt" />,
-  QrCode: () => <div data-testid="icon-qr-code" />,
-  RefreshCw: () => <div data-testid="icon-refresh-cw" />,
-  MessageSquare: () => <div data-testid="icon-message-square" />,
-  Reply: () => <div data-testid="icon-reply" />,
-  UserIcon: () => <div data-testid="icon-user" />,
-  Send: () => <div data-testid="icon-send" />
-}));
+// Mock lucide-react with explicit icon exports to prevent Vitest missing export errors
+vi.mock('lucide-react', () => {
+  const Icon = (props: any) => <div {...props} />;
+  const iconNames = [
+    'CheckCircle2', 'Clock', 'AlertCircle', 'FileText', 'Info', 'ExternalLink',
+    'Package', 'ChevronDown', 'ChevronUp', 'ChevronLeft', 'ChevronRight',
+    'Building2', 'Phone', 'Mail', 'MapPin', 'AlertTriangle', 'Edit', 'Copy',
+    'Printer', 'Pencil', 'Hammer', 'Circle', 'Play', 'CheckSquare', 'XSquare',
+    'Check', 'X', 'Image', 'Maximize2', 'ZoomIn', 'ZoomOut', 'RotateCw',
+    'Download', 'Plus', 'Trash2', 'Save', 'Camera', 'Paperclip', 'MessageSquare',
+    'Send', 'File', 'Upload', 'ArrowRight', 'CheckCircle', 'XCircle', 'User',
+    'Box', 'Calendar', 'Hash', 'Receipt', 'QrCode', 'RefreshCw', 'Reply',
+    'UserIcon', 'GripVertical', 'Link', 'DollarSign', 'Search', 'Eye',
+    'UploadCloud', 'Banknote', 'List', 'History', 'Shield', 'ImageIcon',
+    'Activity', 'PenTool', 'PlayCircle', 'PauseCircle', 'FileWarning',
+    'ArrowLeft', 'ArrowRightLeft', 'ShoppingCart', 'UserPlus', 'Lock',
+    'AppWindow', 'AlignLeft', 'Type', 'PanelBottom', 'Loader2'
+  ];
+  const mockExports: Record<string, any> = {};
+  iconNames.forEach(name => {
+    mockExports[name] = Icon;
+  });
+  return mockExports;
+});
 
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
 vi.mock('../../finance/useFinanceData', () => ({ useFinanceData: vi.fn() }));

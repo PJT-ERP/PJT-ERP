@@ -12,6 +12,7 @@ import { productionApi } from "../../services/productionApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
 import { BomEditor } from "./task-detail/BomEditor";
 import { StepDone, StepRejected, StepRejectForm, StepConfirm, InfoBanner } from "./task-detail/StepScreens";
+import { formatDocNumber } from "../../components/context/hooks/dataMappers";
 import { FooterActions } from "./task-detail/FooterActions";
 
 const S = {
@@ -195,14 +196,18 @@ export function EngineeringTaskDetailPage() {
   }
 
   const customer = customers.find(c => c.code === qut.customerId);
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Owner';
+  const isEngineer = currentUser?.role === 'Engineering' || isSpv;
+  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Approval' || qut.backendDesignStatus === 'WaitingApproval';
 
-  let canProcess = isSpv && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Spv Approval');
+  let canProcess = isEngineer && (
+    qut.status === 'Pending Design' ||
+    qut.status === 'Revision Required' ||
+    (isSpv && isPendingSpv)
+  );
   if (['Waiting Pricing', 'Waiting Finance Approval', 'Waiting Payment', 'Waiting Client Approval', 'In Production', 'Ready for Production', 'QC', 'Completed', 'Closed'].includes(qut.status) || qut.backendDesignStatus === 'Approved' || qut.designApprovedAt) {
     canProcess = false;
   }
-  if (!isSpv) canProcess = false;
 
   const isDoingSpvApproval = isSpv && isPendingSpv;
   const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
@@ -373,7 +378,7 @@ export function EngineeringTaskDetailPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{qut.id}</h2>
+              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{formatDocNumber(qut.soNumber || qut.id, qut.status)}</h2>
               <StatusBadge status={qut.status} />
             </div>
             <p style={{ color: S.secondary, margin: "6px 0 0", fontSize: "14px" }}>

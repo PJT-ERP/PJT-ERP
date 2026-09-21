@@ -4,7 +4,23 @@ import { financeApi, type InvoiceDto } from '../../../services/financeApi';
 import { salesApi } from '../../../services/salesApi';
 import { useFinanceData } from '../useFinanceData';
 import { useApp } from '../../context/AppContext';
-import { newItem, LineItem } from '../components/create-invoice/CreateInvoiceHelpers';
+import { isQuotationStatus } from '../../context/hooks/dataMappers';
+
+export interface LineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+}
+
+const newItem = (): LineItem => ({
+  id: String(Date.now()),
+  description: '',
+  quantity: 1,
+  unit: 'Pcs',
+  unitPrice: 0,
+});
 
 export function useCreateInvoice() {
   const [searchParams] = useSearchParams();
@@ -68,14 +84,19 @@ export function useCreateInvoice() {
     }
   });
 
-  // Filter out already invoiced SOs and require Costing to be completed
+  // Filter out already invoiced SOs, require Costing to be completed, and exclude QU items awaiting client deal
   const invoicedSoNumbers = new Set((invoices || []).map(inv => inv.soNumber));
   allCandidates = allCandidates.filter(c => {
     if (invoicedSoNumbers.has(c.salesOrderNumber) || c.status === 'Invoiced') return false;
     
-    // Strict rule: Penetapan Harga (Costing) must be completed before an invoice can be made.
+    // Strict rule 1: Costing must be completed
     const localSO = salesOrders.find(o => o.backendId === c.salesOrderId || o.id === c.salesOrderNumber || o.id === c.salesOrderId);
-    return localSO ? localSO.isCostingCompleted === true : false;
+    if (!localSO || !localSO.isCostingCompleted) return false;
+
+    // Strict rule 2: Quotations still waiting for client approval/deal (QU status) cannot be invoiced until client deals
+    if (isQuotationStatus(localSO.status)) return false;
+
+    return true;
   });
 
   const activeCandidate = allCandidates.find(candidate => candidate.salesOrderId === selectedSO);

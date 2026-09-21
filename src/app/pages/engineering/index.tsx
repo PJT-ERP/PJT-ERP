@@ -8,6 +8,7 @@ import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
 import { productionApi, DashboardCountersDto } from "../../services/productionApi";
+import { formatDocNumber } from "../../components/context/hooks/dataMappers";
 import { useNavigate } from "react-router";
 import {
   Bar,
@@ -73,7 +74,24 @@ export function EngineeringPage() {
     productionApi.getDashboardCounters().then(setCounters).catch(console.error);
   }, []);
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+
+  // Helper to check if task is assigned to current user
+  const isAssignedToCurrentUser = (item: any) => {
+    if (!currentUser) return false;
+    if (item.designAssignedTo && (item.designAssignedTo === currentUser.id || item.designAssignedTo === (currentUser as any).userId)) return true;
+    if (item.assignedTo && (item.assignedTo === currentUser.id || item.assignedTo === (currentUser as any).userId)) return true;
+    const workerName = (item.designWorkerName || item.designAssignedName || item.assignedName || "").toLowerCase().trim();
+    if (!workerName || workerName === 'unassigned') return false;
+    const userName = (currentUser.name || "").toLowerCase().trim();
+    const userEmail = (currentUser.email || currentUser.username || "").toLowerCase().trim();
+    if (userName && (workerName.includes(userName) || userName.includes(workerName))) return true;
+    if (userEmail && (workerName.includes(userEmail) || userEmail.includes(workerName))) return true;
+    if (workerName.includes("user") && (userEmail.includes("engineering@") || userEmail === "engineering" || userName.includes("user"))) return true;
+    if (workerName.includes("worker") && (userEmail.includes("worker") || userName.includes("worker"))) return true;
+    if (workerName.includes("lead") && (userEmail.includes("lead") || userName.includes("lead"))) return true;
+    return false;
+  };
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
@@ -81,13 +99,13 @@ export function EngineeringPage() {
       const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required'];
       return engineeringStatuses.includes(so.status);
     })
-    .map(so => ({ ...so, isQuotation: false } as any));
+    .map(so => ({ ...so, isQuotation: so.isQuotation ?? so.id.startsWith("QU") } as any));
 
   const allDesignQueue = [...pendingSalesOrders];
 
   const designQueue = allDesignQueue.filter(item => {
     if (isSpv) return true;
-    return item.designAssignedTo === currentUser?.id || item.assignedTo === currentUser?.id;
+    return isAssignedToCurrentUser(item);
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   const pendingDesignCount = designQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
@@ -230,19 +248,24 @@ export function EngineeringPage() {
               )}
             </div>
           )}
-
           {isSpv ? (
             <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
               <div style={{ minWidth: 700 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Pencil size={14} style={{ color: S.cyan }} />
-                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
+                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain</span>
                 </div>
+                <button
+                  onClick={() => navigate('/erp/engineer-tasks')}
+                  style={{ background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                >
+                  Buka Halaman Tugas Desain →
+                </button>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
-                {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
+                {["No. Quotation", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
                   <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
                 ))}
               </div>
@@ -254,36 +277,30 @@ export function EngineeringPage() {
                 </div>
               ) : (
                 designQueue.slice(0, 10).map((so, idx) => {
-                  const canOpen = so.status === 'Waiting Spv Approval';
-                  // eslint-disable-next-line unused-imports/no-unused-vars
-                  const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
+                  const assignedName = so.designAssignedName || (so as any).designWorkerName || users.find(u => u.id === so.designAssignedTo)?.name;
 
                   return (
                     <div
                       key={so.id}
-                      onClick={() => {
-                        if (canOpen) {
-                          navigate('/erp/engineer-tasks');
-                        }
-                      }}
+                      onClick={() => navigate(`/erp/engineer-tasks/${so.id}`)}
                       style={{
                         display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", alignItems: "center",
-                        padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
+                        padding: "10px 18px", cursor: "pointer",
                         borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
                         transition: "background 0.1s",
                       }}
                       onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
-                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
+                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600 }}>{formatDocNumber(so.id, so.status)}</span>
                       <div>
                         <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
                       </div>
                       <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
                       <div style={{ minWidth: 0 }}>
-                        {so.designAssignedName || (so as any).designWorkerName ? (
+                        {assignedName ? (
                           <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "4px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {so.designAssignedName || (so as any).designWorkerName}
+                            {assignedName}
                           </span>
                         ) : (
                           <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>

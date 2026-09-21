@@ -375,6 +375,33 @@ export const salesApi = {
     await apiClient.delete(`/api/v1/production/sales-orders/${salesOrderId}/comments/${commentId}`);
   },
 
+  async listQuotations(status?: string, customerId?: string) {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (customerId) params.append('customerId', customerId);
+    const response = await apiClient.get<any[]>(`/api/v1/sales/quotations?${params.toString()}`);
+    return response.data;
+  },
+
+  async getQuotation(id: string) {
+    const response = await apiClient.get<any>(`/api/v1/sales/quotations/${id}`);
+    return response.data;
+  },
+
+  async createQuotation(request: any) {
+    const response = await apiClient.post<any>('/api/v1/sales/quotations', request);
+    return response.data;
+  },
+
+  async convertQuotationToSalesOrder(quotationId: string, request?: { dpPercentage?: number, dueDate?: string }) {
+    const today = new Date().toISOString().split('T')[0];
+    const response = await apiClient.post<any>(`/api/v1/sales/quotations/${quotationId}/convert-to-sales-order`, {
+      dpPercentage: request?.dpPercentage ?? 30,
+      dueDate: request?.dueDate ?? today,
+    });
+    return response.data;
+  },
+
   async uploadSalesOrderCommentFile(file: File) {
     const formData = new FormData();
     formData.append('file', file);
