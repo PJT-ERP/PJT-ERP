@@ -137,20 +137,20 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </button>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>
-            {!orderType ? "Buat Sales Order" : orderType === "repeat" ? "Repeat Order" : "Pesanan Baru"}
+            {!orderType ? "Buat Quotation (Penawaran)" : orderType === "repeat" ? "Repeat Order" : "Quotation Baru"}
           </h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             {!orderType
-              ? "Pilih jenis order untuk melanjutkan"
+              ? "Pilih jenis order untuk membuat penawaran baru"
               : orderType === "repeat"
                 ? "Pilih pelanggan existing dan tambahkan produk repeat"
-                : "Isi form untuk membuat pesanan baru"}
+                : "Isi form untuk membuat quotation penawaran baru"}
           </p>
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Pesanan Baru", "Submit"].map((step, i) => {
+        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Quotation Baru", "Submit"].map((step, i) => {
           const active = (i === 0 && !orderType) || (i === 1 && !!orderType);
           const done = i === 0 && !!orderType;
           return (
@@ -222,7 +222,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
                 onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
               >
-                <CheckCircle2 size={14} /> {submitSO.isSubmitting ? "Menyimpan..." : "Submit Sales Order"}
+                <CheckCircle2 size={14} /> {submitSO.isSubmitting ? "Menyimpan..." : "Submit Quotation"}
               </button>
             </div>
           </form>

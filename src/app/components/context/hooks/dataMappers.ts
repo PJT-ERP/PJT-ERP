@@ -340,6 +340,21 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
     return "Rejected";
   }
 
+  if (order.status === "QC") {
+    if (qcDecisionLower === "nogo" || qcDecisionLower === "fail" || qcDecisionLower === "rework") {
+      return "Ready for Production";
+    }
+    return "QC";
+  }
+
+  if (order.status === "Ready for Production" || order.status === "ReadyForProduction") {
+    return "Ready for Production";
+  }
+
+  if (order.status === "Waiting Client Approval" || order.status === "WaitingClientApproval") {
+    return "Waiting Client Approval";
+  }
+
   // Pre-Sales/Design Phase overrides Draft/Waiting Pricing status
   if ((order.status === "Draft" || order.status === "Waiting Pricing") && order.designStatus !== "Approved") {
     switch (order.designStatus) {
@@ -383,7 +398,7 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
     case "RevisionRequired":
       return "Revision Required";
     case "Approved":
-      return "Ready for Production";
+      return "Waiting Pricing";
     case "Rejected":
       return "Rejected";
     default:

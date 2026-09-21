@@ -149,22 +149,24 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
     const queryClient = new QueryClient();
     
     // Override the salesApi mock to provide an empty BOM
-    vi.mocked(salesApi.listSalesOrders).mockResolvedValueOnce([
+    vi.mocked(salesApi.listSalesOrders).mockResolvedValue([
       {
         id: '123e4567-e89b-12d3-a456-426614174001',
         soNumber: 'so-eng-1',
         customerId: 'CUST-1',
-        partNumber: 'PART-ENG',
+        customerCode: 'CUST-1',
+        customerName: 'Customer A',
+        soDate: '2026-07-08',
+        targetDate: '2026-07-15',
         status: 'Pending Design', // Editable state
-        backendDesignStatus: 'Pending',
-        rejectionReason: '',
-        designAssignedTo: 'u1',
+        designStatus: 'PendingDesign',
+        productionStatus: 'Pending',
+        designWorkerUserId: 'u1',
         drawingFileUrl: 'https://new-design.com',
-        createdAt: '2026-07-08T10:00:00Z',
-        quantity: 10,
-        deadline: '2026-07-15',
+        designReference: 'https://new-design.com',
+        createdAtUtc: '2026-07-08T10:00:00Z',
         items: [
-          { id: 'item-1', productName: 'Item A', quantity: 5, unit: 'pcs', notes: '[]' } // Empty BOM
+          { id: 'item-1', productId: 'p1', productPartNumber: 'PRD-001', productDescription: 'Item A', qty: 5, notes: '[]' } // Empty BOM
         ]
       }
     ]);
@@ -203,7 +205,7 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
     fireEvent.click(noMaterialCheckbox);
 
     // The submit button should now be enabled
-    expect(submitBtn).not.toBeDisabled();
+    await waitFor(() => expect(submitBtn).not.toBeDisabled());
   });
 
 });

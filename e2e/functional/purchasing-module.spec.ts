@@ -2,6 +2,19 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Functional Test - Purchasing Module', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/api/v1/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/auth/login')) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.goto('/login');
     await page.evaluate(() => {
       localStorage.setItem('auth_token', 'dev-master-token');

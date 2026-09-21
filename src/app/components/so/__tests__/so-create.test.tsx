@@ -126,19 +126,19 @@ describe('SOCreate Component', () => {
 
   it('renders order type selection cards', () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    expect(screen.getByText('Pesanan Baru (New Order)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Quotation Baru/i })).toBeInTheDocument();
     expect(screen.getByText('Repeat Order')).toBeInTheDocument();
   });
 
   it('navigates to new order form', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
-    await waitFor(() => expect(screen.getByText('Submit Sales Order')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Submit Quotation/i })).toBeInTheDocument());
   });
 
   it('shows customer info and detail order sections', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
     await waitFor(() => {
       expect(screen.getByText('Informasi Pelanggan')).toBeInTheDocument();
       expect(screen.getByText('Detail Order')).toBeInTheDocument();
@@ -147,14 +147,14 @@ describe('SOCreate Component', () => {
 
   it('allows switching to Pelanggan Terdaftar tab', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
     await waitFor(() => fireEvent.click(screen.getByText('Pelanggan Terdaftar')));
     await waitFor(() => expect(screen.getByPlaceholderText('Cari nama, kode, atau PIC pelanggan...')).toBeInTheDocument());
   });
 
   it('shows Terdaftar / Custom product type toggle', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
     await waitFor(() => {
       expect(screen.getByText('Terdaftar')).toBeInTheDocument();
       expect(screen.getByText('Custom')).toBeInTheDocument();
@@ -163,13 +163,13 @@ describe('SOCreate Component', () => {
 
   it('shows Add Product button in product list', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
     await waitFor(() => expect(screen.getByText('Tambah Produk')).toBeInTheDocument());
   });
 
   it('shows Penetapan Harga section in new order form', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
     await waitFor(() => expect(screen.getByText('Penetapan Harga')).toBeInTheDocument());
   });
   it('does NOT fallback to estimated amount if original SO is unpriced by Finance', async () => {

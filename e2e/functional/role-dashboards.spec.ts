@@ -1,6 +1,22 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Functional Test - Role-based Module Dashboards', () => {
+  test.beforeEach(async ({ page }) => {
+    // Fulfill all domain API requests with 200 OK to prevent dev network 401 logout cascades
+    await page.route('**/api/v1/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/auth/login')) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+  });
+
   test('Engineering role can access Engineering module page', async ({ page }) => {
     await page.goto('/login');
     await page.evaluate(() => {

@@ -48,7 +48,7 @@ export function FinanceCosting() {
 
     const eligibleStatuses = ['Waiting Pricing', 'Ready for Production', 'In Production', 'QC', 'Completed'];
     salesOrders.forEach(so => {
-      if (!so.isCostingCompleted && (eligibleStatuses.includes(so.status) || so.designStatus === 'Approved' || so.backendDesignStatus === 'Approved')) {
+      if (!so.isCostingCompleted && (eligibleStatuses.includes(so.status) || (so as any).designStatus === 'Approved' || so.backendDesignStatus === 'Approved')) {
         if (!map.has(so.id)) {
           map.set(so.id, so);
         }

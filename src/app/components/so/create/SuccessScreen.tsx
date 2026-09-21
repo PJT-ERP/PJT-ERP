@@ -27,8 +27,8 @@ export function SuccessScreen({ generatedSoNumber, totalItems, isCustomSubmit, i
         <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
           <CheckCircle2 size={28} style={{ color: "#22C55E" }} />
         </div>
-        <h2 style={{ color: S.slate, marginBottom: 6 }}>{isEdit ? "Sales Order Diperbarui" : "Sales Order Dibuat"}</h2>
-        <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Sales Order:</p>
+        <h2 style={{ color: S.slate, marginBottom: 6 }}>{isEdit ? "Quotation Diperbarui" : "Quotation Berhasil Dibuat"}</h2>
+        <p style={{ color: S.secondary, fontSize: "13px", marginBottom: 4 }}>Nomor Quotation / Order:</p>
         <p style={{ color: S.cyan, fontSize: "22px", fontWeight: 700, margin: "0 0 6px" }}>{generatedSoNumber}</p>
         <p style={{ color: "#94A3B8", fontSize: "12px", margin: "0 0 20px" }}>
           {totalItems} item produk · {isEdit ? "Perubahan disimpan" : "Tersimpan di backend"}
@@ -38,8 +38,8 @@ export function SuccessScreen({ generatedSoNumber, totalItems, isCustomSubmit, i
             <span style={{ fontWeight: 600, color: "#F59E0B" }}>Langkah selanjutnya:</span>
             {" "}
             {isCustomSubmit
-              ? "Pesanan telah disimpan. Anda dapat mengubah referensi desain dari Detail SO kapan saja sebelum tim Engineering memulai tahap produksi (In Production)."
-              : "Pesanan telah disimpan dan Harga telah ditetapkan. Pesanan akan diteruskan ke tim Finance untuk pembuatan Invoice DP."}
+              ? "Draft Quotation telah disimpan. Penawaran ini masuk ke antrean Tim Engineering untuk di-assign ke engineer dan dibuatkan gambar & BOM."
+              : "Pesanan repeat telah disimpan dan diteruskan ke tim Finance untuk penetapan DP/Harga."}
           </p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -47,12 +47,12 @@ export function SuccessScreen({ generatedSoNumber, totalItems, isCustomSubmit, i
             style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
             onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
             onMouseLeave={e => (e.currentTarget.style.background = S.white)}
-          >Buat SO Lagi</button>
+          >Buat QU Lagi</button>
           <button onClick={onViewList}
             style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "opacity 0.12s" }}
             onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
             onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-          >Lihat Daftar SO</button>
+          >Lihat Daftar Order & QU</button>
         </div>
       </div>
     </div>
