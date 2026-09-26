@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { isUserMentioned } from "../../shared/mentions";
 
 export function useNotifications({
   currentUser,
@@ -7,6 +8,7 @@ export function useNotifications({
   invoices,
   payments,
   dismissedNotifIds,
+  knownUserNames = [],
 }: {
   currentUser: any;
   salesOrders: any[];
@@ -14,10 +16,11 @@ export function useNotifications({
   invoices: any[];
   payments: any[];
   dismissedNotifIds: string[];
+  knownUserNames?: string[];
 }) {
   const notifications = useMemo(() => {
     if (!currentUser) return [];
-    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string, isDismissible?: boolean }[] = [];
+    const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string, isDismissible?: boolean, isMention?: boolean }[] = [];
     const role = currentUser.role;
 
     if (role === 'Owner') {
@@ -150,12 +153,7 @@ export function useNotifications({
       if (so.comments) {
         so.comments.forEach((c: any) => {
           if (c.userId === currentUser.id) return; // Don't notify self
-          const contentLower = c.content.toLowerCase();
-          const hasMention = contentLower.includes(`@${currentUser.name.toLowerCase()}`) || 
-                             contentLower.includes(`@${currentUser.role.toLowerCase()}`) ||
-                             contentLower.includes(`@${currentUser.username?.toLowerCase()}`);
-                             
-          if (hasMention) {
+          if (isUserMentioned(c.content, currentUser, knownUserNames)) {
             const notifId = `mention-${c.id}`;
             if (!dismissedNotifIds.includes(notifId)) {
               notifs.push({ 
@@ -164,7 +162,8 @@ export function useNotifications({
                 title: 'Anda di-tag di Komentar', 
                 desc: `${c.userName} tag Anda di diskusi SO ${so.id}`, 
                 targetPath: `/erp/so/detail/${so.id}`, 
-                isDismissible: true 
+                isDismissible: true,
+                isMention: true
               });
             }
           }
@@ -173,7 +172,7 @@ export function useNotifications({
     });
 
     return notifs;
-  }, [currentUser, salesOrders, purchasingRequests, dismissedNotifIds, invoices, payments]);
+  }, [currentUser, salesOrders, purchasingRequests, dismissedNotifIds, invoices, payments, knownUserNames]);
 
   return notifications;
 }

@@ -16,6 +16,7 @@ import {
 import { getStatusColor, SOStatus } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
+import { MentionsReminderWidget } from "../shared/MentionsReminderWidget";
 
 interface SODashboardProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -493,6 +494,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          <MentionsReminderWidget />
 
           {/* Workflow stats */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>

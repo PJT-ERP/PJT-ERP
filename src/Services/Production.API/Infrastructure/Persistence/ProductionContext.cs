@@ -19,6 +19,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
     public DbSet<SalesOrderDesignRevision> SalesOrderDesignRevisions => Set<SalesOrderDesignRevision>();
     public DbSet<SalesOrderComment> SalesOrderComments => Set<SalesOrderComment>();
     public DbSet<ConsultationRequest> ConsultationRequests => Set<ConsultationRequest>();
+    public DbSet<MeetingMinute> MeetingMinutes => Set<MeetingMinute>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -139,6 +140,26 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(req => req.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(req => req.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(req => req.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        });
+
+        modelBuilder.Entity<MeetingMinute>(builder =>
+        {
+            builder.ToTable("meeting_minutes");
+            builder.HasKey(minute => minute.Id);
+            builder.HasIndex(minute => minute.MeetingDate);
+            builder.Property(minute => minute.Id).HasColumnName("id");
+            builder.Property(minute => minute.CustomerId).HasColumnName("customer_id");
+            builder.Property(minute => minute.CustomerName).HasMaxLength(255).HasColumnName("customer_name");
+            builder.Property(minute => minute.Location).HasMaxLength(255).HasColumnName("location");
+            builder.Property(minute => minute.MeetingDate).HasColumnName("meeting_date");
+            builder.Property(minute => minute.Description).HasMaxLength(4000).HasColumnName("description");
+            builder.Property(minute => minute.Discussion).HasMaxLength(4000).HasColumnName("discussion");
+            builder.Property(minute => minute.Solution).HasMaxLength(4000).HasColumnName("solution");
+            builder.Property(minute => minute.FeedbackDeadline).HasColumnName("feedback_deadline");
+            builder.Property(minute => minute.CreatedByUserId).HasColumnName("created_by_user_id");
+            builder.Property(minute => minute.CreatedByName).HasMaxLength(160).HasColumnName("created_by_name");
+            builder.Property(minute => minute.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(minute => minute.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
         modelBuilder.Entity<SalesOrder>(builder =>
