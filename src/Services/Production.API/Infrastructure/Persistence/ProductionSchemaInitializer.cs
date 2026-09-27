@@ -12,6 +12,25 @@ public static class ProductionSchemaInitializer
         // Dev-friendly schema evolution until formal EF migrations are introduced.
         await db.Database.ExecuteSqlRawAsync(
             """
+            CREATE TABLE IF NOT EXISTS meeting_minutes (
+                id uuid NOT NULL PRIMARY KEY,
+                customer_id uuid NULL,
+                customer_name character varying(255) NOT NULL,
+                location character varying(255) NOT NULL,
+                meeting_date date NOT NULL,
+                description character varying(4000) NOT NULL,
+                discussion character varying(4000) NOT NULL,
+                solution character varying(4000) NOT NULL,
+                feedback_deadline date NULL,
+                created_by_user_id uuid NULL,
+                created_by_name character varying(160) NOT NULL,
+                created_at_utc timestamp with time zone NOT NULL,
+                updated_at_utc timestamp with time zone NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_meeting_minutes_meeting_date
+                ON meeting_minutes (meeting_date);
+
             CREATE TABLE IF NOT EXISTS quotations (
                 "Id" uuid NOT NULL PRIMARY KEY,
                 quotation_number character varying(100) NOT NULL UNIQUE,

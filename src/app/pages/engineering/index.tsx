@@ -9,6 +9,7 @@ import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
 import { productionApi, DashboardCountersDto } from "../../services/productionApi";
 import { formatDocNumber } from "../../components/context/hooks/dataMappers";
+import { MentionsReminderWidget } from "../../components/shared/MentionsReminderWidget";
 import { useNavigate } from "react-router";
 import {
   Bar,
@@ -396,6 +397,8 @@ export function EngineeringPage() {
 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          <MentionsReminderWidget />
 
           {/* Pipeline stats */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>

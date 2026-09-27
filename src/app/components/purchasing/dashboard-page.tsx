@@ -15,6 +15,7 @@ import {
 import { usePurchasingData } from "./usePurchasingData";
 import { PurchaseRequestDto } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
+import { MentionsReminderWidget } from "../shared/MentionsReminderWidget";
 
 export function DashboardPage() {
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -220,8 +221,12 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Tindakan Cepat */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit">
+        {/* Right column */}
+        <div className="flex flex-col gap-4 h-fit">
+          <MentionsReminderWidget />
+
+          {/* Tindakan Cepat */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-slate-800 text-sm font-semibold">Tindakan Cepat</h3>
           </div>
@@ -280,6 +285,7 @@ export function DashboardPage() {
               </div>
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>
