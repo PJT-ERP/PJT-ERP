@@ -29,7 +29,7 @@ public sealed class QuotationsController(IQuotationService quotationService, IHt
             return Ok(quotations.Where(item =>
                 item.AssignedEngineerId == userId.Value
                 && item.EngineeringReviewRequired
-                && item.Status is QuotationStatuses.PendingDesign or QuotationStatuses.DesignReview).ToList());
+                && item.Status is QuotationStatuses.PendingDesign or QuotationStatuses.DesignReview));
         }
         return Ok(quotations);
     }

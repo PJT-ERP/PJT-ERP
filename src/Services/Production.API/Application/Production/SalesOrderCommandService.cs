@@ -81,7 +81,7 @@ public class SalesOrderCommandService(
         var estimatedAmount = request.Items.Sum(item => item.Qty * item.UnitPrice);
         
         var isApproved = NormalizeDesignStatus(request.DesignStatus) == "Approved";
-        var status = isApproved ? "Ready for Production" : "Pending Design";
+        var status = isApproved ? "Waiting Pricing" : "Pending Design";
 
         var order = new SalesOrder
         {
@@ -659,7 +659,15 @@ public class SalesOrderCommandService(
         ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.UnitPrice, item.Notes)).ToArray());
 
         var now = DateTime.UtcNow;
-        salesOrder.Status = SalesOrderStatuses.InProduction;
+        var preProductionStatuses = new[] { "Draft", "Pending Design", "Waiting Spv Approval", "Waiting Pricing", "Waiting Client Approval", "Revision Required" };
+        if (preProductionStatuses.Contains(salesOrder.Status))
+        {
+            salesOrder.Status = SalesOrderStatuses.Confirmed;
+        }
+        else if (salesOrder.Status != SalesOrderStatuses.Cancelled)
+        {
+            salesOrder.Status = SalesOrderStatuses.InProduction;
+        }
         salesOrder.ApprovedByUserId = request.ApprovedByUserId;
         salesOrder.ApprovedAtUtc ??= now;
         salesOrder.UpdatedAtUtc = now;
