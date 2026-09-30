@@ -121,7 +121,7 @@ export function useNotifications({
 
         if (pr.backendStatus === 'SupervisorApproved' && !isReadyForFinance && hasUnorderedItems) {
           notifs.push({ id: pr.id, type: 'warning', title: 'Isi Harga MR', desc: `MR ${pr.id} telah disetujui Supervisor. Harap isi estimasi harga dan pilih supplier.`, targetPath: `/erp/purchasing/requests/${pr.id}` });
-        } else if (pr.backendStatus === 'FinanceApproved' && hasUnorderedItems) {
+        } else if (pr.isFullyApproved === true && hasUnorderedItems) {
           notifs.push({ id: pr.id, type: 'success', title: 'MR Disetujui Finance', desc: `MR ${pr.id} disetujui. Segera rilis PO.`, targetPath: `/erp/purchasing/create?reqId=${pr.id}` });
         }
       });
@@ -139,7 +139,7 @@ export function useNotifications({
       payments.filter(p => p.status === 'PENDING').forEach(payment => {
         notifs.push({ id: payment.id, type: 'info', title: 'Verifikasi Pembayaran', desc: `Pembayaran untuk Invoice ${payment.invoiceNumber} menunggu verifikasi.`, targetPath: '/erp/finance/payment-verification' });
       });
-      purchasingRequests.filter(pr => pr.backendStatus === 'SupervisorApproved').forEach(pr => {
+      purchasingRequests.filter(pr => pr.financeApproval === 'Pending' && pr.isApprovalBlocked !== true).forEach(pr => {
         notifs.push({ id: pr.id, type: 'alert', title: 'Persetujuan Anggaran', desc: `Purchase Request ${pr.id} menunggu persetujuan anggaran.`, targetPath: '/erp/finance/approval-po' });
       });
     } else if (role === 'Admin') {

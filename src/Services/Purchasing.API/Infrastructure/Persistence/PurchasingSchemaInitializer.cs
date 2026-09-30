@@ -35,7 +35,7 @@ public static class PurchasingSchemaInitializer
                 updated_at_utc timestamp with time zone NOT NULL
             );
 
-            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS revision_note text NULL;
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS active_approval_cycle_number integer NULL;
 
             DO $$
             BEGIN
@@ -49,6 +49,24 @@ public static class PurchasingSchemaInitializer
                     ALTER TABLE purchase_requests RENAME COLUMN id TO "Id";
                 END IF;
             END $$;
+
+            CREATE TABLE IF NOT EXISTS purchase_request_approvals (
+                "Id" uuid NOT NULL PRIMARY KEY,
+                purchase_request_id uuid NOT NULL REFERENCES purchase_requests("Id") ON DELETE CASCADE,
+                cycle_number integer NOT NULL,
+                role character varying(30) NOT NULL,
+                decision character varying(30) NOT NULL,
+                actor_user_id uuid NULL,
+                decided_at_utc timestamp with time zone NULL,
+                rejection_reason text NULL,
+                created_at_utc timestamp with time zone NOT NULL,
+                updated_at_utc timestamp with time zone NOT NULL
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_purchase_request_approvals_request_cycle_role
+                ON purchase_request_approvals (purchase_request_id, cycle_number, role);
+
+            ALTER TABLE purchase_requests ADD COLUMN IF NOT EXISTS revision_note text NULL;
 
             CREATE UNIQUE INDEX IF NOT EXISTS ix_purchase_requests_pr_number
                 ON purchase_requests (pr_number);

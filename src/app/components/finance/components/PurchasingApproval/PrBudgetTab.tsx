@@ -1,4 +1,4 @@
-import { Search, CheckCircle2, Eye } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { MR } from '../../../purchasing/material-requests-page';
 import { formatIDR } from '../../mockData';
@@ -9,72 +9,49 @@ interface PrBudgetTabProps {
   setSearch: (val: string) => void;
 }
 
+function ApprovalCell({ status, decidedAt, reason }: { status?: string; decidedAt?: string | null; reason?: string | null }) {
+  const value = status || 'Pending';
+  const styles = value === 'Approved' ? 'text-green-700 bg-green-50 border-green-200'
+    : value === 'Rejected' ? 'text-red-700 bg-red-50 border-red-200'
+      : 'text-amber-700 bg-amber-50 border-amber-200';
+  return <div className="min-w-24"><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-bold ${styles}`}>{value}</span>
+    {decidedAt && <div className="mt-1 text-[10px] text-slate-500">{new Date(decidedAt).toLocaleDateString('id-ID')}</div>}
+    {reason && <div className="mt-1 max-w-36 whitespace-normal text-[10px] text-red-700" title={reason}>{reason}</div>}
+  </div>;
+}
+
 export function PrBudgetTab({ filteredMrs, search, setSearch }: PrBudgetTabProps) {
   const navigate = useNavigate();
-
   return (
     <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4 border-b border-slate-100 bg-slate-50">
         <div className="relative max-w-md">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Cari No. PR, SO Referensi..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20"
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari No. PR, SO Referensi..." className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]/20" />
         </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-white border-b border-slate-100">
-            <tr>
-              <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Tgl PR</th>
-              <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">No. PR</th>
-              <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Ref. SO</th>
-              <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Est. Anggaran</th>
-              <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Status</th>
-              <th className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Aksi</th>
-            </tr>
-          </thead>
+          <thead className="bg-white border-b border-slate-100"><tr>
+            {['Tgl Pengajuan', 'Supplier', 'Nama Item', 'Qty', 'Harga/pcs', 'Nominal', 'KET', 'SO', 'PO', 'Yang Mengajukan', 'Finance', 'Owner'].map(label => <th key={label} className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase whitespace-nowrap">{label}</th>)}
+          </tr></thead>
           <tbody className="divide-y divide-slate-50">
-            {filteredMrs.map(mr => {
-              const totalEst = mr.items.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
-              return (
-                <tr key={mr.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
-                  <td className="px-5 py-4 text-slate-600">{mr.date}</td>
-                  <td className="px-5 py-4 font-medium text-slate-800">{mr.id}</td>
-                  <td className="px-5 py-4 text-slate-600">{mr.soRef || mr.department || "-"}</td>
-                  <td className="px-5 py-4 text-right font-semibold text-slate-800">{formatIDR(totalEst)}</td>
-                  <td className="px-5 py-4 text-center">
-                    {mr.backendStatus === "FinanceApproved" || mr.financeApproval === "Approved" ? (
-                      <span className="text-green-600 bg-green-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-green-200">APPROVED</span>
-                    ) : mr.backendStatus === "FinanceRejected" || mr.backendStatus === "Rejected" ? (
-                      <span className="text-red-600 bg-red-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-200">REJECTED</span>
-                    ) : (
-                      <span className="text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full text-[11px] font-bold border border-amber-200">WAITING</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-center">
-                    {mr.backendStatus !== "FinanceApproved" && mr.financeApproval !== "Approved" && mr.backendStatus !== "Completed" && mr.backendStatus !== "FinanceRejected" && mr.backendStatus !== "Rejected" ? (
-                      <button onClick={(e) => { e.stopPropagation(); navigate(`/erp/finance/pr/${mr.id}`); }} className="bg-[#C8102E] hover:bg-red-800 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 mx-auto">
-                        <CheckCircle2 size={14} /> Review
-                      </button>
-                    ) : (
-                      <span className="text-slate-400 text-xs flex items-center justify-center gap-1">
-                        <Eye size={14} /> Detail
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredMrs.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-slate-400">Tidak ada PR yang menunggu persetujuan anggaran.</td></tr>
-            )}
+            {filteredMrs.flatMap(mr => (mr.items.length ? mr.items : [{ itemId: 'none', name: '—', qty: 0, estimatedPrice: 0, supplierName: undefined, poNumber: undefined } as MR['items'][number]]).map(item => {
+              const amount = item.totalPrice ?? item.estimatedPrice ?? 0;
+              const unitAmount = item.unitPrice ?? (item.qty ? amount / item.qty : amount);
+              return <tr key={`${mr.backendId}-${item.itemId}`} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
+                <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-slate-800">{mr.id}</div><div className="text-xs text-slate-500">{mr.date}</div></td><td className="px-4 py-3">{item.supplierName || mr.supplierAssigned || '—'}</td><td className="px-4 py-3 min-w-40">{item.name}</td><td className="px-4 py-3 whitespace-nowrap">{item.qty}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{formatIDR(unitAmount)}</td><td className="px-4 py-3 whitespace-nowrap font-medium">{formatIDR(amount)}</td>
+                <td className="px-4 py-3 min-w-32">{mr.isApprovalBlocked ? <span className="text-red-700 font-semibold">Blocked{mr.rejectionReason ? `: ${mr.rejectionReason}` : ''}</span> : mr.isFullyApproved ? 'Fully approved' : `Cycle ${mr.activeApprovalCycleNumber ?? '—'}`}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{mr.soRef || '—'}</td><td className="px-4 py-3 whitespace-nowrap">{item.poNumber || '—'}</td><td className="px-4 py-3 whitespace-nowrap">{mr.requestor}</td>
+                <td className="px-4 py-3"><ApprovalCell status={mr.financeApproval} decidedAt={mr.financeApprovalDecidedAtUtc} reason={mr.financeApprovalRejectionReason} /></td><td className="px-4 py-3"><ApprovalCell status={mr.ownerApproval} decidedAt={mr.ownerApprovalDecidedAtUtc} reason={mr.ownerApprovalRejectionReason} /></td>
+              </tr>;
+            }))}
+            {filteredMrs.length === 0 && <tr><td colSpan={12} className="text-center py-12 text-slate-400">Tidak ada Purchase Request untuk ditampilkan.</td></tr>}
           </tbody>
         </table>
       </div>
+      {filteredMrs.length > 0 && <div className="border-t border-slate-100 p-3 text-xs text-slate-500">Pilih baris untuk membuka detail approval.</div>}
     </div>
   );
 }
