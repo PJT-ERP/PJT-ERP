@@ -469,7 +469,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                 CustomerName = quotation.CustomerName,
                 CustomerEmail = quotation.CustomerEmail,
                 CustomerDrawingUrl = quotation.Items.Select(item => item.CustomerImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
-                DesignReference = quotation.DesignLink,
+                DesignReference = quotation.DesignLink ?? quotation.Items.Select(item => item.CustomerImageUrl ?? item.DesignLink).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
                 DesignStatus = SalesOrderDesignStatuses.Approved,
                 DesignApprovedAtUtc = now,
                 SoDate = DateOnly.FromDateTime(now),
