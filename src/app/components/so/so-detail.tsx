@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
   User, Building2, Phone, Mail, MapPin,
@@ -9,10 +10,11 @@ import { toast } from "sonner";
 import { useApp } from "../../components/context/AppContext";
 import { useSalesOrdersQuery, useCustomersQuery, useUpdateCustomerMutation, useUpdateSalesOrderMutation, useDeleteSalesOrderMutation, useProductsQuery } from "../../services/queries";
 import { getStatusColor, SOStatus } from "../data/mockData";
-import { formatDocNumber } from "../context/hooks/dataMappers";
+import { formatDocNumber, isQuotationEntry } from "../context/hooks/dataMappers";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { salesApi } from "../../services/salesApi";
+import { toBackendUserId } from "../../services/backendIds";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
 import { SOPrintView } from "./detail/SOPrintView";
@@ -34,6 +36,7 @@ interface SODetailProps {
 
 export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps) {
   const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const { data: productCatalog = [] } = useProductsQuery();
   const { data: salesOrders = [], isLoading: isLoadingOrders } = useSalesOrdersQuery();
   const { data: customers = [], isLoading: isLoadingCustomers } = useCustomersQuery();
@@ -54,6 +57,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId);
   const targetId = baseOrder?.backendId || baseOrder?.id || orderId;
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
+  const isQuotation = isQuotationEntry(order);
   const customer = customers.find(c => c.code === order?.customerId);
   const pendingPaymentProof = !!order?.invoice?.invoiceId
     && payments.some(payment => payment.invoiceId === order.invoice?.invoiceId && payment.status === "PENDING");
@@ -154,7 +158,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
     try {
       if (action === 'deal') {
-        updateSalesOrder(targetId, { status: 'Pending Design' });
+        updateSalesOrder(targetId, { status: 'Ready for Production' });
       } else if (action === 'reject') {
         updateSalesOrder(targetId, { status: 'Rejected' });
       } else if (action === 'revise_price') {
@@ -162,6 +166,10 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       } else if (action === 'submit_price') {
         updateSalesOrder(targetId, { status: 'Waiting Client Approval', estimatedAmount: actionForm.estimatedAmount });
       } else if (action === 'assign_engineer') {
+        if (isQuotation) {
+          toast.error("Penugasan quotation dilakukan melalui halaman Tugas Desain.");
+          return;
+        }
         const dummyEngineerId = 'e1111111-1111-1111-1111-111111111111';
         try {
           await salesApi.assignSalesOrderEngineers(targetId, {
@@ -170,7 +178,9 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
         } catch (e) {
           console.warn("Backend engineer assign call error, fallback to local update", e);
         }
-        updateSalesOrder(targetId, { assignedName: actionForm.engineerName, designWorkerName: actionForm.engineerName });
+        updateSalesOrder(targetId, { assignedName: actionForm.engineerName, designWorkerName: actionForm.engineerName, designAssignedName: actionForm.engineerName });
+        queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
         toast.success(`Tugas design berhasil di-assign ke ${actionForm.engineerName}`, {
           style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
           duration: 3000
@@ -385,7 +395,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
             window.print();
             document.title = originalTitle;
           }} />
-          {currentUser?.role === 'Sales' && (
+              {currentUser?.role === 'Sales' && !isQuotation && (
             <>
               <HeaderBtn icon={<Copy size={13} />} label="Duplikat" onClick={() => onNavigate("so-create", { customerId: order.customerId, orderType: "repeat", soId: order.id })} />
               {isEditMode ? (
@@ -508,14 +518,22 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
 
           <QcReportCard order={order} onPreviewPhoto={setPreviewPhoto} />
 
-          <ActionPanels
-            order={order}
-            currentUserRole={currentUser?.role || ''}
-            currentUserName={currentUser?.name || ''}
-            actionForm={actionForm}
-            setActionForm={setActionForm}
-            handleAction={handleAction}
-          />
+          {isQuotation ? (
+            <QuotationWorkflowActions
+              quotationId={order.backendId || order.id}
+              currentUser={currentUser}
+              onConverted={so => onNavigate("so-detail", so.soNumber || so.id)}
+            />
+          ) : (
+            <ActionPanels
+              order={order}
+              currentUserRole={currentUser?.role || ''}
+              currentUserName={currentUser?.name || ''}
+              actionForm={actionForm}
+              setActionForm={setActionForm}
+              handleAction={handleAction}
+            />
+          )}
 
           <QrCodeCard order={order} />
           <OrderHistory order={order} />
@@ -568,6 +586,120 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+function QuotationWorkflowActions({
+  quotationId,
+  currentUser,
+  onConverted,
+}: {
+  quotationId: string;
+  currentUser?: { role?: string; id?: string; name?: string } | null;
+  onConverted: (order: { id: string; soNumber?: string }) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { data: quotation, isLoading, error } = useQuery({
+    queryKey: ["quotation", quotationId],
+    queryFn: () => salesApi.getQuotation(quotationId),
+    enabled: Boolean(quotationId),
+  });
+  const [price, setPrice] = useState(quotation?.estimatedAmount?.toString() || "");
+  const [busy, setBusy] = useState(false);
+  const role = currentUser?.role;
+  const isSales = role === "Sales" || role === "Admin" || role === "Owner";
+  const isFinance = role === "Finance" || role === "Admin" || role === "Owner";
+  const canConvert = isSales || role === "Sales Order";
+
+  React.useEffect(() => {
+    setPrice(quotation?.estimatedAmount?.toString() || "");
+  }, [quotation?.id, quotation?.estimatedAmount]);
+
+  const perform = async (operation: () => Promise<unknown>, success: string) => {
+    setBusy(true);
+    try {
+      await operation();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["quotation", quotationId] }),
+        queryClient.invalidateQueries({ queryKey: ["quotations"] }),
+        queryClient.invalidateQueries({ queryKey: ["salesOrders"] }),
+      ]);
+      toast.success(success);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Permintaan quotation gagal.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isLoading) return <section style={{ padding: 12, border: "1px solid #E2E8F0", borderRadius: 7 }}>Memuat workflow quotation…</section>;
+  if (error || !quotation) return <section role="alert" style={{ padding: 12, color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 7 }}>Workflow quotation tidak dapat dimuat.</section>;
+
+  const buttonStyle: React.CSSProperties = { border: 0, borderRadius: 5, padding: "8px 12px", background: "#C8102E", color: "white", fontWeight: 600, cursor: busy ? "wait" : "pointer" };
+  const inputStyle: React.CSSProperties = { width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid #CBD5E1", borderRadius: 4 };
+  const panel = (title: string, children: React.ReactNode) => (
+    <section style={{ display: "grid", gap: 8, padding: 12, border: "1px solid #E2E8F0", borderRadius: 7, background: "white" }}>
+      <strong style={{ fontSize: 13 }}>{title}</strong>{children}
+    </section>
+  );
+  const actionButton = (label: string, action: () => void, color?: string) => (
+    <button type="button" disabled={busy} onClick={action} style={{ ...buttonStyle, background: color || buttonStyle.background }}>{label}</button>
+  );
+  const userId = toBackendUserId(currentUser);
+
+  return (
+    <>
+      {panel("Workflow Quotation", <>
+        <div style={{ fontSize: 12, lineHeight: 1.7, color: "#64748B" }}>
+          <div>Status: <strong style={{ color: "#1F2937" }}>{quotation.status.replace(/_/g, " ")}</strong></div>
+          <div>Desain: {quotation.designSource === "CustomerProvided" ? "Disediakan pelanggan" : "Disiapkan Engineering"}{quotation.engineeringReviewRequired ? " · perlu review Engineering" : " · tanpa review Engineering"}</div>
+          {quotation.assignedEngineerName && <div>Engineer: {quotation.assignedEngineerName}</div>}
+          {quotation.designLink && <div>DesignLink: <a href={quotation.designLink} target="_blank" rel="noreferrer">Buka desain</a></div>}
+          <div>BOM: {quotation.bomItems.length} item</div>
+          {quotation.convertedSalesOrderNumber && <div>Sales Order: {quotation.convertedSalesOrderNumber}</div>}
+        </div>
+        {quotation.engineeringReviewRequired && !quotation.assignedEngineerId && <div style={{ color: "#92400E", fontSize: 12 }}>Menunggu penugasan SPV Engineering pada halaman Tugas Desain.</div>}
+      </>)}
+
+      {isSales && quotation.status === "client_design_approval" && panel("Persetujuan desain pelanggan", <>
+        <p style={{ margin: 0, fontSize: 12, color: "#64748B" }}>Persetujuan desain terpisah dari persetujuan harga.</p>
+        {actionButton("Pelanggan menyetujui desain", () => void perform(() => salesApi.approveQuotationClientDesign(quotation.id), "Desain pelanggan disetujui."))}
+        {actionButton("Minta revisi desain", () => {
+          const notes = window.prompt("Catatan revisi desain:") || "Revisi diminta pelanggan";
+          const customerLink = quotation.designSource === "CustomerProvided" ? window.prompt("Link desain pelanggan revisi:") || "" : undefined;
+          void perform(() => salesApi.requestQuotationDesignRevision(quotation.id, notes, customerLink), "Quotation dikembalikan untuk revisi desain.");
+        }, "#B45309")}
+      </>)}
+
+      {isFinance && ["waiting_pricing", "client_price_approval"].includes(quotation.status) && panel("Finance pricing", <>
+        <input aria-label="Harga quotation" type="number" min="1" style={inputStyle} placeholder="Total harga > 0" value={price} onChange={e => setPrice(e.target.value)} />
+        {actionButton("Kirim harga ke pelanggan", () => {
+          if (!userId) { toast.error("ID akun Finance tidak tersedia."); return; }
+          void perform(() => salesApi.submitQuotationPricing(quotation.id, { amount: Number(price), financeUserId: userId, financeUserName: currentUser?.name || "Finance" }), "Harga dikirim untuk persetujuan pelanggan.");
+        })}
+      </>)}
+
+      {isSales && quotation.status === "client_price_approval" && panel("Persetujuan harga pelanggan", <>
+        {actionButton("Pelanggan setuju · tandai Won", () => void perform(() => salesApi.markQuotationWon(quotation.id), "Quotation ditandai Won."))}
+        {actionButton("Minta pricing ulang", () => {
+          const notes = window.prompt("Catatan penolakan harga:") || "Pelanggan meminta revisi harga";
+          void perform(() => salesApi.requestQuotationPriceRevision(quotation.id, notes), "Quotation dikembalikan ke Finance untuk repricing.");
+        }, "#B45309")}
+        {actionButton("Tandai Lost", () => {
+          const reason = window.prompt("Alasan Lost:") || "Pelanggan tidak melanjutkan quotation";
+          void perform(() => salesApi.markQuotationLost(quotation.id, reason), "Quotation ditandai Lost.");
+        }, "#64748B")}
+      </>)}
+
+      {canConvert && quotation.status === "won" && panel("Konversi ke Sales Order", <>
+        {actionButton("Convert ke Sales Order", () => {
+          void perform(async () => {
+            const created = await salesApi.convertQuotationToSalesOrder(quotation.id);
+            onConverted(created);
+          }, "Sales Order dibuat.");
+        })}
+      </>)}
     </>
   );
 }

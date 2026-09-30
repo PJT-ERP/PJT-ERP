@@ -67,7 +67,7 @@ export default function App() {
               <Route path="purchasing/*" element={<ProtectedRoute allowedRoles={['Purchasing', 'Admin', 'Owner', 'Finance']}><PurchasingModule /></ProtectedRoute>} />
               
               {/* SO: Available to all roles for viewing, but edit capabilities restricted internally */}
-              <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Admin', 'Owner', 'Engineering', 'Engineering Supervisor', 'QC', 'Finance', 'Purchasing']}><SalesOrderModule /></ProtectedRoute>} />
+              <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Sales Order', 'Admin', 'Owner', 'Engineering', 'Engineering Supervisor', 'QC', 'Finance', 'Purchasing']}><SalesOrderModule /></ProtectedRoute>} />
 
               {/* Engineer: Engineering, Admin, Owner, Engineering Supervisor */}
               <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPage /></ProtectedRoute>} />

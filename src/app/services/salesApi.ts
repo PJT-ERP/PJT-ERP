@@ -126,6 +126,8 @@ export interface SalesOrderDto {
   createdAtUtc?: string;
   updatedAtUtc?: string;
   isCostingCompleted?: boolean;
+  dpPercentage?: number | null;
+  dpDueDate?: string | null;
   comments?: SalesOrderCommentDto[] | null;
 }
 
@@ -230,6 +232,54 @@ export interface CompleteSalesOrderRequest {
     designReference?: string | null;
     designStatus?: string | null;
   };
+}
+
+export interface CreateQuotationRequest {
+  customerId: string;
+  deadline: string;
+  notes?: string | null;
+  customer?: { code: string; name: string; email?: string | null };
+  designSource: 'Engineering' | 'CustomerProvided';
+  engineeringReviewRequired: boolean;
+  estimatedAmount?: number | null;
+  items: Array<{
+    productId?: string | null;
+    productName: string;
+    description?: string | null;
+    quantity: number;
+    unit: string;
+    customerImageUrl?: string | null;
+    designLink?: string | null;
+    bomItems?: Array<{ itemCode?: string | null; name: string; specification?: string | null; quantity: number; unit: string }>;
+  }>;
+}
+
+export interface QuotationDto {
+  id: string;
+  quotationNumber: string;
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  customerEmail?: string | null;
+  deadline: string;
+  status: string;
+  designSource: 'Engineering' | 'CustomerProvided';
+  engineeringReviewRequired: boolean;
+  engineeringApprovedAtUtc?: string | null;
+  clientDesignApprovedAtUtc?: string | null;
+  assignedEngineerId?: string | null;
+  assignedEngineerName?: string | null;
+  designLink?: string | null;
+  estimatedAmount?: number | null;
+  lostReason?: string | null;
+  notes?: string | null;
+  convertedSalesOrderId?: string | null;
+  convertedSalesOrderNumber?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  items: Array<{ id: string; productId?: string | null; productName: string; description?: string | null; quantity: number; unit: string; customerImageUrl?: string | null; designLink?: string | null }>;
+  bomItems: Array<{ id: string; name: string; itemCode?: string | null; specification?: string | null; quantity: number; unit: string }>;
+  revisions: Array<{ revisionNumber: number; amount: number; date: string; notes?: string | null }>;
 }
 
 export const salesApi = {
@@ -379,26 +429,67 @@ export const salesApi = {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
     if (customerId) params.append('customerId', customerId);
-    const response = await apiClient.get<any[]>(`/api/v1/sales/quotations?${params.toString()}`);
+    const response = await apiClient.get<QuotationDto[]>(`/api/v1/sales/quotations?${params.toString()}`);
     return response.data;
   },
 
   async getQuotation(id: string) {
-    const response = await apiClient.get<any>(`/api/v1/sales/quotations/${id}`);
+    const response = await apiClient.get<QuotationDto>(`/api/v1/sales/quotations/${id}`);
     return response.data;
   },
 
-  async createQuotation(request: any) {
-    const response = await apiClient.post<any>('/api/v1/sales/quotations', request);
+  async createQuotation(request: CreateQuotationRequest) {
+    const response = await apiClient.post<QuotationDto>('/api/v1/sales/quotations', request);
     return response.data;
   },
 
-  async convertQuotationToSalesOrder(quotationId: string, request?: { dpPercentage?: number, dueDate?: string }) {
-    const today = new Date().toISOString().split('T')[0];
-    const response = await apiClient.post<any>(`/api/v1/sales/quotations/${quotationId}/convert-to-sales-order`, {
-      dpPercentage: request?.dpPercentage ?? 30,
-      dueDate: request?.dueDate ?? today,
-    });
+  async assignQuotationEngineer(id: string, request: { engineerId: string; engineerName: string }) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/assign-engineer`, request);
+    return response.data;
+  },
+
+  async submitQuotationDesign(id: string, request: { designLink?: string | null; bomItems: Array<{ itemCode?: string | null; name: string; specification?: string | null; quantity: number; unit: string }>; engineerId: string; engineerName: string }) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/design-submission`, request);
+    return response.data;
+  },
+
+  async approveQuotationEngineering(id: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/supervisor-design-approval`);
+    return response.data;
+  },
+
+  async approveQuotationClientDesign(id: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/client-design-approval`);
+    return response.data;
+  },
+
+  async requestQuotationDesignRevision(id: string, notes: string, customerDesignLink?: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/design-revision`, { notes, customerDesignLink });
+    return response.data;
+  },
+
+  async submitQuotationPricing(id: string, request: { amount: number; notes?: string; financeUserId: string; financeUserName: string }) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/pricing`, request);
+    return response.data;
+  },
+
+  async requestQuotationPriceRevision(id: string, notes: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/price-revision`, { notes });
+    return response.data;
+  },
+
+  async markQuotationWon(id: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/won`);
+    return response.data;
+  },
+
+  async markQuotationLost(id: string, reason: string) {
+    const response = await apiClient.post<QuotationDto>(`/api/v1/sales/quotations/${id}/lost`, { reason });
+    return response.data;
+  },
+
+  async convertQuotationToSalesOrder(quotationId: string) {
+    const response = await apiClient.post<any>(`/api/v1/sales/quotations/${quotationId}/convert-to-sales-order`);
     return response.data;
   },
 

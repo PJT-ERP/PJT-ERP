@@ -14,7 +14,7 @@ const S = {
 import { Search, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { SOStatus } from "../data/mockData";
-import { formatUrl } from "../../services/backendIds";
+import { formatUrl, isGuid, toBackendUserId } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
 import { getMaterialOptions } from "../production/ProductionHelpers";
@@ -23,16 +23,17 @@ import { useFinanceData } from "./useFinanceData";
 import { useSalesOrdersQuery } from "../../services/queries";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { mapSalesOrderDto, formatDocNumber } from "../context/hooks/dataMappers";
+import { mapSalesOrderDto, formatDocNumber, isQuotationEntry } from "../context/hooks/dataMappers";
 
 export function FinanceCosting() {
-  const { customers, updateSalesOrder } = useApp();
+  const { customers, currentUser, updateSalesOrder } = useApp();
   const { invoices } = useFinanceData(true, false);
   const { data: salesOrders = [] } = useSalesOrdersQuery();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
   const [queues, setQueues] = useState<FinanceCostingQueuesDto | null>(null);
@@ -57,7 +58,7 @@ export function FinanceCosting() {
 
     return Array.from(map.values()).map(so => ({
       ...so,
-      displayDocNumber: formatDocNumber(so.soNumber || so.id, so.status),
+      displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status) : (so.soNumber || so.id),
       isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
     }));
   }, [queues, salesOrders]);
@@ -76,7 +77,7 @@ export function FinanceCosting() {
     return Array.from(map.values())
       .map(so => ({
         ...so,
-        displayDocNumber: formatDocNumber(so.soNumber || so.id, so.status),
+        displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status) : (so.soNumber || so.id),
         isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
       }))
       .sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
@@ -120,12 +121,12 @@ export function FinanceCosting() {
     }
   }, [selectedItem]);
 
-  const handleSubmitCosting = () => {
+  const handleSubmitCosting = async () => {
     if (!selectedItem || !selectedItem.items) return;
     setIsSubmitting(true);
-    
-    setTimeout(async () => {
-      // Handle SO logic
+    setSubmitError("");
+
+    try {
       const updatedItems = selectedItem.items!.map((item: any, idx: number) => {
         const key = item.id || item.productId || idx.toString();
         return {
@@ -139,8 +140,25 @@ export function FinanceCosting() {
       const newStatus = preserveStatus ? selectedItem.status : "Waiting Client Approval";
       const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || selectedItem.status) : "WaitingClientApproval";
 
-      try {
-        // Backend integration
+      if (isQuotationEntry(selectedItem)) {
+        const quotationId = selectedItem.backendId;
+        const financeUserId = toBackendUserId(currentUser);
+        if (!quotationId || !isGuid(quotationId)) {
+          throw new Error("ID database quotation tidak tersedia; harga tidak dikirim.");
+        }
+        if (!financeUserId) {
+          throw new Error("ID akun Finance tidak tersedia; harga tidak dikirim.");
+        }
+
+        // Quotations remain dedicated entities until explicit conversion.
+        await salesApi.submitQuotationPricing(quotationId, {
+          amount: totalPriced,
+          notes: costingNotes || undefined,
+          financeUserId,
+          financeUserName: currentUser?.name || "Finance",
+        });
+      } else {
+        // Real SalesOrders continue to use their existing pricing endpoint.
         await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
           items: updatedItems.map((item: any) => ({
             salesOrderItemId: item.id,
@@ -148,16 +166,7 @@ export function FinanceCosting() {
           }))
         });
 
-        // Local state update for smooth UX
-        updateSalesOrder(selectedItem.id, { 
-          items: updatedItems,
-          estimatedAmount: totalPriced,
-          status: newStatus,
-          backendStatus: newBackendStatus,
-        });
-      } catch (error) {
-        console.error("Failed to update pricing to backend", error);
-        alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
+        // Reflect SalesOrder pricing locally only after the API succeeds.
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
           estimatedAmount: totalPriced,
@@ -165,13 +174,19 @@ export function FinanceCosting() {
           backendStatus: newBackendStatus,
         });
       }
-      
-      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['salesOrders'] }),
+        queryClient.invalidateQueries({ queryKey: ['quotations'] }),
+      ]);
       productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
-      
       setIsSubmitting(false);
       setSubmitSuccess(true);
-    }, 800);
+    } catch (error: any) {
+      console.error("Failed to update pricing to backend", error);
+      setSubmitError(error?.response?.data?.message || error?.message || "Gagal menyimpan harga ke backend.");
+      setIsSubmitting(false);
+    }
   };
 
   const calculateTotal = () => {
@@ -282,7 +297,7 @@ export function FinanceCosting() {
                 </div>
                 <div>
                   <button 
-                    onClick={() => setSelectedItem(so)}
+                  onClick={() => { setSubmitError(""); setSubmitSuccess(false); setSelectedItem(so); }}
                     style={{ fontSize: "11px", background: activeTab === 'queue' ? S.cyan : S.white, color: activeTab === 'queue' ? "#fff" : S.slate, border: activeTab === 'queue' ? "none" : `1px solid ${S.border}`, padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     {activeTab === 'queue' ? (isPricedBySales ? "Review Harga" : "Set Harga") : "Detail / Revisi"}
@@ -313,8 +328,8 @@ export function FinanceCosting() {
                 <CheckCircle size={50} style={{ color: "#10B981", margin: "0 auto 16px" }} />
                 <h3 style={{ fontSize: "20px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Harga Berhasil Ditetapkan!</h3>
                 <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 460 }}>
-                  {selectedItem?.isQuotation || selectedItem?.status === 'Waiting Client Approval' || selectedItem?.status === 'Waiting Pricing'
-                    ? "Data HPP & harga jual telah berhasil disimpan. Penawaran (QU) diteruskan ke tim Sales untuk dimintakan persetujuan / deal dari Customer."
+                  {selectedItem?.isQuotation
+                    ? "Harga quotation berhasil disimpan. Penawaran diteruskan ke tahap persetujuan harga pelanggan."
                     : "Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya."}
                 </p>
                 <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
@@ -342,6 +357,11 @@ export function FinanceCosting() {
               </div>
             ) : (
             <>
+            {submitError && (
+              <div role="alert" style={{ margin: "16px 24px 0", padding: 12, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#991B1B", fontSize: 13 }}>
+                {submitError}
+              </div>
+            )}
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
               {isReadOnly && (
                 <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 16, marginBottom: 20 }}>

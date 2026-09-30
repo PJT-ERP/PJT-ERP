@@ -1,3 +1,5 @@
+using PJT_ERP.Production.Api.Domain.Entities;
+
 namespace PJT_ERP.Production.Api.Application.Quotations;
 
 public sealed record CreateQuotationRequest(
@@ -5,7 +7,10 @@ public sealed record CreateQuotationRequest(
     DateOnly Deadline,
     string? Notes,
     IReadOnlyCollection<CreateQuotationItemRequest> Items,
-    CreateQuotationCustomerSnapshotRequest? Customer = null);
+    CreateQuotationCustomerSnapshotRequest? Customer = null,
+    string DesignSource = QuotationDesignSources.Engineering,
+    bool EngineeringReviewRequired = true,
+    decimal? EstimatedAmount = null);
 
 public sealed record CreateQuotationCustomerSnapshotRequest(
     string Code,
@@ -32,12 +37,12 @@ public sealed record QuotationBomItemRequest(
 public sealed record AssignQuotationEngineerRequest(Guid EngineerId, string EngineerName);
 
 public sealed record SubmitQuotationDesignRequest(
-    string DesignLink,
+    string? DesignLink,
     IReadOnlyCollection<QuotationBomItemRequest> BomItems,
     Guid EngineerId,
     string EngineerName);
 
-public sealed record RequestQuotationRevisionRequest(string? Notes);
+public sealed record RequestQuotationRevisionRequest(string? Notes, string? CustomerDesignLink = null);
 
 public sealed record SubmitQuotationPricingRequest(
     decimal Amount,
@@ -46,8 +51,6 @@ public sealed record SubmitQuotationPricingRequest(
     string FinanceUserName);
 
 public sealed record MarkQuotationLostRequest(string Reason);
-
-public sealed record ConvertQuotationToSalesOrderRequest(decimal DpPercentage, DateOnly DueDate);
 
 public sealed record QuotationDto(
     Guid Id,
@@ -58,6 +61,10 @@ public sealed record QuotationDto(
     string? CustomerEmail,
     DateOnly Deadline,
     string Status,
+    string DesignSource,
+    bool EngineeringReviewRequired,
+    DateTime? EngineeringApprovedAtUtc,
+    DateTime? ClientDesignApprovedAtUtc,
     Guid? AssignedEngineerId,
     string? AssignedEngineerName,
     string? DesignLink,

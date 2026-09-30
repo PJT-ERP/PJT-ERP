@@ -30,7 +30,8 @@ vi.mock('../../../services/salesApi', () => ({
           { id: 'item-1', productName: 'Item A', quantity: 5, unit: 'pcs', notes: '[{"id":"m1","name":"Alumunium","quantity":1,"inventoryItemId":"INV-1"}]' }
         ]
       }
-    ])
+    ]),
+    listQuotations: vi.fn().mockResolvedValue([]),
   }
 }));
 

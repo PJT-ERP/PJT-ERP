@@ -1,12 +1,15 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "react-router";
 import { useFinanceData } from "../../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "../invoice-sync";
 import { useSalesOrdersQuery, useCustomersQuery } from "../../../services/queries";
-import { isQuotationStatus } from "../../context/hooks/dataMappers";
+import { isQuotationEntry } from "../../context/hooks/dataMappers";
 
 export const PAGE_SIZE = 8;
 
 export function useSOList() {
+  const location = useLocation();
+  const initialTypeFilter: "all" | "quotation" | "so" = (location.state as any)?.initialTypeFilter || (location.state as any)?.typeFilter || "all";
   const { data: salesOrders = [], isLoading: isSoLoading } = useSalesOrdersQuery();
   const { data: customers = [], isLoading: isCustLoading } = useCustomersQuery();
   const { invoices, payments } = useFinanceData(true, false, false);
@@ -15,7 +18,7 @@ export function useSOList() {
   const [statusFilter, setStatusFilter]   = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [dateFilter, setDateFilter]       = useState("");
-  const [typeFilter, setTypeFilter]       = useState<"all" | "quotation" | "so">("all");
+  const [typeFilter, setTypeFilter]       = useState<"all" | "quotation" | "so">(initialTypeFilter);
   const [page, setPage]                   = useState(1);
   const [searchFocused, setSearchFocused] = useState(false);
   const [viewMode, setViewMode]           = useState<"table" | "card">("table");
@@ -25,14 +28,14 @@ export function useSOList() {
 
   const mergedSalesOrders = useMemo(() => salesOrders.map(o => mergeSalesOrderInvoice(o, invoices, payments)), [salesOrders, invoices, payments]);
 
-  const quotationCount = useMemo(() => mergedSalesOrders.filter(o => isQuotationStatus(o.status)).length, [mergedSalesOrders]);
-  const soCount = useMemo(() => mergedSalesOrders.filter(o => !isQuotationStatus(o.status)).length, [mergedSalesOrders]);
+  const quotationCount = useMemo(() => mergedSalesOrders.filter(o => isQuotationEntry(o)).length, [mergedSalesOrders]);
+  const soCount = useMemo(() => mergedSalesOrders.filter(o => !isQuotationEntry(o)).length, [mergedSalesOrders]);
 
   const filtered = useMemo(() => mergedSalesOrders.filter(o => {
     const cust = customers.find(c => c.code === o.customerId);
     const cName = cust?.name || "";
     const q = search.toLowerCase();
-    const isQuo = isQuotationStatus(o.status);
+    const isQuo = isQuotationEntry(o);
 
     const matchType = typeFilter === "all" || (typeFilter === "quotation" ? isQuo : !isQuo);
 

@@ -62,6 +62,10 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(quotation => quotation.Deadline).HasColumnName("deadline");
             builder.Property(quotation => quotation.Notes).HasColumnName("notes");
             builder.Property(quotation => quotation.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(quotation => quotation.DesignSource).HasMaxLength(40).HasColumnName("design_source");
+            builder.Property(quotation => quotation.EngineeringReviewRequired).HasColumnName("engineering_review_required");
+            builder.Property(quotation => quotation.EngineeringApprovedAtUtc).HasColumnName("engineering_approved_at_utc");
+            builder.Property(quotation => quotation.ClientDesignApprovedAtUtc).HasColumnName("client_design_approved_at_utc");
             builder.Property(quotation => quotation.AssignedEngineerId).HasColumnName("assigned_engineer_id");
             builder.Property(quotation => quotation.AssignedEngineerName).HasMaxLength(160).HasColumnName("assigned_engineer_name");
             builder.Property(quotation => quotation.DesignLink).HasMaxLength(1000).HasColumnName("design_link");
@@ -197,6 +201,8 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.QcPhotos).HasColumnName("qc_photos");
             builder.Property(order => order.EstimatedAmount).HasColumnName("estimated_amount");
             builder.Property(order => order.IsCostingCompleted).HasColumnName("is_costing_completed");
+            builder.Property(order => order.DpPercentage).HasColumnType("numeric(5,2)").HasColumnName("dp_percentage");
+            builder.Property(order => order.DpDueDate).HasColumnName("dp_due_date");
             builder.HasMany(order => order.Items)
                 .WithOne(item => item.SalesOrder)
                 .HasForeignKey(item => item.SalesOrderId)

@@ -165,12 +165,25 @@ export function useCreateInvoice() {
     setIsSaving(true);
 
     try {
-      await salesApi.updateSalesOrderPricing(activeCandidate!.salesOrderId, {
-        items: items.map(item => ({
-          salesOrderItemId: item.id,
-          unitPrice: item.unitPrice,
-        }))
-      });
+      const localSalesOrder = salesOrders.find(order =>
+        order.backendId === activeCandidate.salesOrderId
+        || order.id === activeCandidate.salesOrderNumber
+        || order.id === activeCandidate.salesOrderId
+      );
+      const pricingAlreadyFinalized = localSalesOrder?.status === 'Waiting Payment'
+        || localSalesOrder?.backendStatus === 'WaitingPayment';
+
+      // Converted quotations already carry their approved price into the SO.
+      // Keep the legacy sync for other invoice flows, but don't try to reprice
+      // an order that has entered the payment stage.
+      if (!pricingAlreadyFinalized) {
+        await salesApi.updateSalesOrderPricing(activeCandidate.salesOrderId, {
+          items: items.map(item => ({
+            salesOrderItemId: item.id,
+            unitPrice: item.unitPrice,
+          }))
+        });
+      }
 
       const invoice = await financeApi.createInvoice({
         salesOrderId: activeCandidate!.salesOrderId,

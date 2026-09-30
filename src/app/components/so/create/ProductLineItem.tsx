@@ -42,7 +42,7 @@ export const emptyProduct = (): ProductLineItemType => ({
   type: "existing",
   productName: "",
   customName: "",
-  designId: "",
+  designId: "none",
   materials: [],
   quantity: "",
   unit: "pcs",
@@ -240,54 +240,7 @@ export function ProductLineItem({ row, index, total, productOptions, onChange, o
           )}
         </div>
 
-        {isCustom && (
-          <div style={{ marginBottom: 10 }}>
-            <Label text="Sumber Desain / ID Desain" required />
-            <Select
-              required
-              value={row.designId}
-              onChange={e => {
-                const selectedDesignId = e.target.value;
-                if (selectedDesignId === "none" || selectedDesignId === "" || selectedDesignId === "customer") {
-                  onChange({ ...row, designId: selectedDesignId, materials: [] });
-                } else {
-                  const design = ENGINEERING_DESIGNS.find(d => d.id === selectedDesignId);
-                  onChange({
-                    ...row,
-                    designId: selectedDesignId,
-                    materials: design ? design.materials.map((m: any) => ({
-                      id: m.id,
-                      name: m.name,
-                      specification: m.spec || "",
-                      quantity: String(m.quantity),
-                      unit: m.unit
-                    })) : []
-                  });
-                }
-              }}
-            >
-              <option value="">— Pilih Sumber Desain —</option>
-              <option value="none">Buatkan desain baru (oleh Tim Engineering)</option>
-              <option value="customer">Pelanggan memiliki referensi desain sendiri</option>
-              {ENGINEERING_DESIGNS.filter(d => d.status === "Approved").map(d => (
-                <option key={d.id} value={d.id}>{d.id} - {d.name} (Desain Tersimpan)</option>
-              ))}
-            </Select>
-            {row.designId === "customer" ? (
-              <div style={{ marginTop: 8 }}>
-                <Label text="URL Gambar/Referensi" required />
-                <Input icon={<LinkIcon size={11} />} type="url" placeholder="https://link-referensi-desain..." value={row.customerDesignUrl || ""} onChange={e => onChange({ ...row, customerDesignUrl: e.target.value })} required />
-                <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                  *Wajib diisi agar Tim Engineering dapat merancang desain dan menyelesaikan BOM.
-                </p>
-              </div>
-            ) : row.designId === "none" ? (
-              <p style={{ margin: "4px 0 0", fontSize: "10px", color: S.secondary }}>
-                *Tim Engineering akan merancang desain dari awal berdasarkan catatan/kebutuhan.
-              </p>
-            ) : null}
-          </div>
-        )}
+
 
         {row.materialSpec && (
           <div style={{ marginBottom: 16, background: "#F8FAFC", border: `1px solid ${S.border}`, borderRadius: 6, padding: 12 }}>
