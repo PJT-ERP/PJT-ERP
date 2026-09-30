@@ -606,6 +606,11 @@ public sealed class ProductionServiceTests
                 null, null, SalesOrderDesignStatuses.Approved),
             CancellationToken.None);
 
+        // Model an order that has completed pricing/customer approval and is ready for production.
+        var storedSalesOrder = await db.SalesOrders.SingleAsync(order => order.Id == salesOrder!.Id);
+        storedSalesOrder.Status = "Ready for Production";
+        await db.SaveChangesAsync();
+
         // 2. Confirm SO (goes to Material Preparation / Waiting)
         var confirmed = await service.ConfirmSalesOrderAsync(salesOrder!.Id, new ConfirmSalesOrderRequest(WorkerUserId), CancellationToken.None);
         Assert.Equal(SalesOrderStatuses.InProduction, confirmed!.SalesOrderStatus);
