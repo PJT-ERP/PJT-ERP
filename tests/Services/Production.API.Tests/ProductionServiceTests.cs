@@ -181,6 +181,63 @@ public sealed class ProductionServiceTests
     }
 
     [Fact]
+    public async Task InvoicePaymentRecordedEventHandler_keeps_converted_sales_order_waiting_after_partial_payment()
+    {
+        await using var db = CreateDbContext();
+        var salesOrder = CreateSalesOrder();
+        salesOrder.Status = "WaitingPayment";
+        await db.SalesOrders.AddAsync(salesOrder);
+        await db.SaveChangesAsync();
+
+        var handler = new InvoicePaymentRecordedEventHandler(db);
+        await handler.Handle(new InvoicePaymentRecordedEvent(
+            Guid.NewGuid(), "INV-002", salesOrder.Id, salesOrder.SoNumber, salesOrder.CustomerId,
+            25_000m, 25_000m, 100_000m, 25m, new DateOnly(2026, 6, 12), false));
+
+        var updated = await db.SalesOrders.AsNoTracking().SingleAsync(order => order.Id == salesOrder.Id);
+        Assert.Equal("WaitingPayment", updated.Status);
+        Assert.Empty(await db.ProductionOrders.ToListAsync());
+    }
+
+    [Fact]
+    public async Task InvoicePaymentRecordedEventHandler_recognizes_converted_sales_order_payment_status_for_full_payment()
+    {
+        await using var db = CreateDbContext();
+        var salesOrder = CreateSalesOrder();
+        salesOrder.Status = "WaitingPayment";
+        await db.SalesOrders.AddAsync(salesOrder);
+        await db.SaveChangesAsync();
+
+        var handler = new InvoicePaymentRecordedEventHandler(db);
+        await handler.Handle(new InvoicePaymentRecordedEvent(
+            Guid.NewGuid(), "INV-003", salesOrder.Id, salesOrder.SoNumber, salesOrder.CustomerId,
+            100_000m, 100_000m, 100_000m, 100m, new DateOnly(2026, 6, 12), true));
+
+        var updated = await db.SalesOrders.AsNoTracking().SingleAsync(order => order.Id == salesOrder.Id);
+        Assert.Equal(SalesOrderStatuses.Confirmed, updated.Status);
+        Assert.Single(await db.ProductionOrders.ToListAsync());
+    }
+
+    [Fact]
+    public async Task InvoicePaymentRecordedEventHandler_leaves_unrelated_sales_order_status_unchanged()
+    {
+        await using var db = CreateDbContext();
+        var salesOrder = CreateSalesOrder();
+        salesOrder.Status = SalesOrderStatuses.InProduction;
+        await db.SalesOrders.AddAsync(salesOrder);
+        await db.SaveChangesAsync();
+
+        var handler = new InvoicePaymentRecordedEventHandler(db);
+        await handler.Handle(new InvoicePaymentRecordedEvent(
+            Guid.NewGuid(), "INV-004", salesOrder.Id, salesOrder.SoNumber, salesOrder.CustomerId,
+            100_000m, 100_000m, 100_000m, 100m, new DateOnly(2026, 6, 12), true));
+
+        var updated = await db.SalesOrders.AsNoTracking().SingleAsync(order => order.Id == salesOrder.Id);
+        Assert.Equal(SalesOrderStatuses.InProduction, updated.Status);
+        Assert.Empty(await db.ProductionOrders.ToListAsync());
+    }
+
+    [Fact]
     public async Task TrackingLookup_returns_sales_order_detail_without_mutating_status()
     {
         await using var db = CreateDbContext();

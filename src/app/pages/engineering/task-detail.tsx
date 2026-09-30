@@ -199,6 +199,8 @@ export function EngineeringTaskDetailPage() {
   const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Owner';
   const isEngineer = currentUser?.role === 'Engineering' || isSpv;
   const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Approval' || qut.backendDesignStatus === 'WaitingApproval';
+  const isQuotation = Boolean(qut.isQuotation);
+  const currentEngineerId = toBackendUserId(currentUser);
 
   let canProcess = isEngineer && (
     qut.status === 'Pending Design' ||
@@ -207,6 +209,10 @@ export function EngineeringTaskDetailPage() {
   );
   if (['Waiting Pricing', 'Waiting Finance Approval', 'Waiting Payment', 'Waiting Client Approval', 'In Production', 'Ready for Production', 'QC', 'Completed', 'Closed'].includes(qut.status) || qut.backendDesignStatus === 'Approved' || qut.designApprovedAt) {
     canProcess = false;
+  }
+  if (isQuotation) {
+    canProcess = (currentUser?.role === 'Engineering' && qut.designAssignedTo === currentEngineerId && qut.backendDesignStatus === 'pending_design')
+      || (isSpv && qut.backendDesignStatus === 'design_review');
   }
 
   const isDoingSpvApproval = isSpv && isPendingSpv;
@@ -237,6 +243,40 @@ export function EngineeringTaskDetailPage() {
       const backendId = qut.backendId || qut.id;
       console.log(">>> backendId:", backendId, "isGuid:", isGuid(backendId));
       if (!isGuid(backendId)) { alert("Gagal: Dokumen ini belum tersinkronisasi dengan server."); setIsSubmitting(false); return; }
+
+      if (isQuotation) {
+        if (isDoingSpvApproval) {
+          await salesApi.approveQuotationEngineering(backendId);
+          setCompletedAsSpv(true);
+          setStep('done');
+          await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+          await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+          return;
+        }
+        const engineerId = toBackendUserId(currentUser);
+        if (!engineerId) throw new Error("ID akun Engineering belum terhubung ke akun backend.");
+        const bomItems = (qut.items || []).flatMap((item: any) => (itemMaterials[item.id] || [])
+          .filter((material: any) => material.name?.trim() && Number(material.quantity) > 0)
+          .map((material: any) => ({
+            itemCode: material.code || null,
+            name: material.name.trim(),
+            specification: material.spec?.trim() || null,
+            quantity: Number(material.quantity),
+            unit: material.unit?.trim() || "pcs",
+          })));
+        if (bomItems.length === 0) throw new Error("BOM minimal satu item wajib diisi.");
+        const quotationDesignLink = qut.designReference === 'INTERNAL_DESIGN' ? designLink.trim() : null;
+        await salesApi.submitQuotationDesign(backendId, {
+          designLink: quotationDesignLink,
+          bomItems,
+          engineerId,
+          engineerName: currentUser?.name || "Engineering",
+        });
+        await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+        await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        setStep('done');
+        return;
+      }
 
       if (designLink && designLink.trim() !== '') {
         try { await salesApi.submitSalesOrderDesign(backendId, { designReference: designLink, drawingFileUrl: designLink, updatedByName: currentUser?.name || 'Engineering' }); } catch (e) { console.warn("Failed to update design link", e); }
@@ -320,6 +360,17 @@ export function EngineeringTaskDetailPage() {
     try {
       const backendId = qut.backendId || qut.id;
       if (!isGuid(backendId)) { alert("Gagal: Dokumen belum tersinkronisasi."); setIsSubmitting(false); return; }
+      if (isQuotation) {
+        await salesApi.requestQuotationDesignRevision(
+          backendId,
+          rejectReason,
+          qut.designReference === 'CUSTOMER_PROVIDED' ? qut.customerDrawingUrl : undefined,
+        );
+        await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+        await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        setStep('rejected');
+        return;
+      }
       await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'RevisionRequired', notes: rejectReason, reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || '' });
       const updatedItems = qut.items?.map((it: any) => { const mats = itemMaterials[it.id]; return { salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, notes: (mats && mats.length > 0) ? JSON.stringify(mats) : "" }; }) || [];
       if (updatedItems.length > 0) { try { await salesApi.updateSalesOrderItems(backendId, { items: updatedItems }); } catch (e) { console.warn("Failed to update BOM", e); } }
@@ -331,11 +382,12 @@ export function EngineeringTaskDetailPage() {
     } finally { setIsSubmitting(false); }
   };
 
-  const isFormIncomplete = !designLink.trim() || (qut.items || []).some((item: any) => {
+  const isFormIncomplete = ((!isQuotation || qut.designReference === 'INTERNAL_DESIGN') && !designLink.trim()) || (qut.items || []).some((item: any) => {
     const mats = itemMaterials[item.id] || [];
     const productInCatalog = productCatalog.find((p: any) => p.id === item.productId);
     const isStandardProduct = !!productInCatalog?.bomItems?.length;
     
+    if (isQuotation && mats.length === 0) return true;
     if (!isStandardProduct && mats.length === 0 && !noMaterialItems[item.id]) return true;
     return mats.some((m: any) => !m.name.trim() || m.quantity <= 0);
   });

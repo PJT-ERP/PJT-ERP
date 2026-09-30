@@ -147,6 +147,98 @@ export function useSubmitSO() {
     }
   };
 
+  const submitNewQuotation = async (
+    data: NewOrderFormType,
+    designSource: "Engineering" | "CustomerProvided",
+    engineeringReviewRequired: boolean,
+    customerDesignLink?: string,
+    customerBomJson?: string,
+  ) => {
+    setIsSubmitting(true);
+    try {
+      const customerCode = data.customerForm.customerCode?.trim().toUpperCase() || `CUST-${Date.now()}`;
+      const apiCustomers = await salesApi.listCustomers();
+      let customer = apiCustomers.find(item => item.code.toUpperCase() === customerCode);
+      if (!customer) {
+        customer = await salesApi.createCustomer({
+          code: customerCode,
+          name: data.customerForm.company.trim() || data.customerForm.customerName.trim(),
+          address: data.customerForm.address || null,
+          contactPerson: data.customerForm.customerName || null,
+          email: data.customerForm.email || null,
+          phone: data.customerForm.phone || null,
+        });
+      }
+
+      const items = data.products.map(row => {
+        const product = row.type === "existing"
+          ? productCatalog.find(item => `${item.partNumber} - ${item.description}` === row.productName || item.description === row.productName)
+          : undefined;
+        const bomItems = (row.materials || []).map((material: any) => ({
+          itemCode: material.code || material.itemCode || null,
+          name: String(material.name || material.inventoryItemName || "").trim(),
+          specification: material.specification || material.spec || null,
+          quantity: Number(material.quantity) || 0,
+          unit: material.unit || "pcs",
+        })).filter(item => item.name && item.quantity > 0);
+        return {
+          productId: product?.id || null,
+          productName: (row.type === "custom" ? row.customName : (product?.description || row.productName))?.trim() || "Produk",
+          description: row.notes || null,
+          quantity: Number(row.quantity) || 0,
+          unit: row.unit || "pcs",
+          customerImageUrl: designSource === "CustomerProvided" ? (customerDesignLink || row.customerDesignUrl || null) : null,
+          designLink: null,
+          bomItems,
+        };
+      });
+
+      if (designSource === "CustomerProvided" && !engineeringReviewRequired && !items.some(item => item.bomItems.length > 0)) {
+        let customerBom: unknown;
+        try {
+          customerBom = JSON.parse(customerBomJson || "[]");
+        } catch {
+          throw new Error("BOM harus berupa JSON yang valid.");
+        }
+        if (!Array.isArray(customerBom) || customerBom.length === 0) {
+          throw new Error("Tambahkan minimal satu item BOM untuk desain pelanggan tanpa review Engineering.");
+        }
+        items[0].bomItems = customerBom.map((bom: any) => ({
+          itemCode: bom.itemCode || bom.code || null,
+          name: String(bom.name || "").trim(),
+          specification: bom.specification || null,
+          quantity: Number(bom.quantity),
+          unit: String(bom.unit || "pcs").trim(),
+        }));
+        if (items[0].bomItems.some(item => !item.name || !Number.isFinite(item.quantity) || item.quantity <= 0 || !item.unit)) {
+          throw new Error("Setiap BOM harus memiliki nama, jumlah lebih dari 0, dan satuan.");
+        }
+      }
+
+      const estimatedAmount = data.customerForm.estimatedAmount || data.products.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+
+      const created = await salesApi.createQuotation({
+        customerId: customer.id,
+        deadline: data.customerForm.deadline,
+        notes: data.customerForm.generalNotes || null,
+        customer: { code: customer.code, name: customer.name, email: customer.email || null },
+        designSource,
+        engineeringReviewRequired,
+        estimatedAmount: estimatedAmount > 0 ? estimatedAmount : undefined,
+        items,
+      });
+      queryClient.invalidateQueries({ queryKey: ["salesOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      setGeneratedSONumber(created.quotationNumber);
+      setSubmitted(true);
+    } catch (error: any) {
+      console.error(error);
+      window.alert("Gagal membuat Quotation. " + (error.response?.data?.message || error.message || ""));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const submitRepeatOrder = async (data: RepeatOrderFormType, selectedCustomer: Customer) => {
     setIsSubmitting(true);
     try {
@@ -188,5 +280,5 @@ export function useSubmitSO() {
     setGeneratedSONumber("");
   };
 
-  return { submitNewOrder, submitRepeatOrder, isSubmitting, submitted, generatedSONumber, reset };
+  return { submitNewOrder, submitNewQuotation, submitRepeatOrder, isSubmitting, submitted, generatedSONumber, reset };
 }

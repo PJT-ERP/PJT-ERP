@@ -35,6 +35,9 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
   ],
+  'Sales Order': [
+    { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+  ],
   QC: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/qc" },
     { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/qc/inspections" },

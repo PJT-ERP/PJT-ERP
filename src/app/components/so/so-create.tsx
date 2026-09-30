@@ -42,6 +42,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   
   const [orderType, setOrderType] = useState<"new" | "repeat" | null>(initialData?.mode === "edit" ? "new" : initialData?.orderType ?? null);
   const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
+  const [designSource, setDesignSource] = useState<"Engineering" | "CustomerProvided">("Engineering");
+  const [engineeringReviewRequired, setEngineeringReviewRequired] = useState(true);
+  const [customerDesignLink, setCustomerDesignLink] = useState("");
+  const [customerBomJson, setCustomerBomJson] = useState('[{"name":"Material","quantity":1,"unit":"pcs"}]');
 
   const { fields: newOrderFields, append: newOrderAppend, remove: newOrderRemove } = useFieldArray({
     control: newOrderMethods.control,
@@ -76,6 +80,10 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     submitSO.reset();
     setOrderType(null);
     setIsExistingCustomer(false);
+    setDesignSource("Engineering");
+    setEngineeringReviewRequired(true);
+    setCustomerDesignLink("");
+    setCustomerBomJson('[{"name":"Material","quantity":1,"unit":"pcs"}]');
     newOrderMethods.reset();
     repeatOrderMethods.reset();
   };
@@ -117,9 +125,17 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         generatedSoNumber={submitSO.generatedSONumber}
         totalItems={totalItems}
         isCustomSubmit={isCustomSubmit}
+        isQuotation={orderType !== "repeat"}
+        nextStepText={orderType === "repeat"
+          ? "Pesanan repeat telah disimpan sebagai Sales Order."
+          : designSource === "Engineering"
+            ? "Quotation tersimpan. Engineering akan menyiapkan desain dan BOM untuk persetujuan SPV dan pelanggan."
+            : engineeringReviewRequired
+              ? "Quotation tersimpan bersama desain pelanggan. Engineering akan memeriksa kelayakan dan BOM sebelum persetujuan desain pelanggan."
+              : "Quotation tersimpan bersama desain dan BOM dari pelanggan. Lanjutkan ke persetujuan desain pelanggan sebelum pricing."}
         isEdit={initialData?.mode === "edit"}
         onReset={handleReset}
-        onViewList={() => onNavigate("so-list")}
+        onViewList={() => onNavigate(orderType === "repeat" ? "so-list" : "quotation-list")}
       />
     );
   }
@@ -173,7 +189,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
       {/* ===== New Order Form ===== */}
       {orderType === "new" && (
         <FormProvider {...newOrderMethods}>
-          <form onSubmit={newOrderMethods.handleSubmit((data) => submitSO.submitNewOrder(data))} style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
+          <form onSubmit={newOrderMethods.handleSubmit((data) => submitSO.submitNewQuotation(data, designSource, engineeringReviewRequired, customerDesignLink, customerBomJson))} style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
             <CustomerSection
               isExistingCustomer={isExistingCustomer}
               onToggleExisting={setIsExistingCustomer}
@@ -181,6 +197,29 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
             />
 
             <OrderDetailSection namePrefix="customerForm" />
+
+            <SectionCard title="Sumber Desain dan Review Engineering" icon={<Layers size={14} />}>
+              <label style={{ display: "block", fontSize: 12, color: S.secondary, marginBottom: 5 }}>Sumber desain</label>
+              <select value={designSource} onChange={e => setDesignSource(e.target.value as "Engineering" | "CustomerProvided")} style={{ width: "100%", padding: 9, border: `1px solid ${S.border}`, borderRadius: 4, marginBottom: 10 }}>
+                <option value="Engineering">Desain disiapkan Engineering</option>
+                <option value="CustomerProvided">Desain diberikan pelanggan</option>
+              </select>
+              {designSource === "CustomerProvided" && <>
+                <label style={{ display: "block", fontSize: 12, color: S.secondary, marginBottom: 5 }}>Link desain pelanggan</label>
+                <input type="url" required value={customerDesignLink} onChange={e => setCustomerDesignLink(e.target.value)} placeholder="https://..." style={{ width: "100%", boxSizing: "border-box", padding: 9, border: `1px solid ${S.border}`, borderRadius: 4, marginBottom: 8 }} />
+                <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: S.secondary }}>
+                  <input type="checkbox" checked={engineeringReviewRequired} onChange={e => setEngineeringReviewRequired(e.target.checked)} />
+                  Engineering perlu review kelayakan dan menyetujui BOM
+                </label>
+                {!engineeringReviewRequired && <p style={{ margin: "8px 0 0", fontSize: 11, color: "#92400E" }}>Untuk tanpa review Engineering, BOM harus disertakan pada produk sebelum quotation dapat disimpan.</p>}
+                {!engineeringReviewRequired && <>
+                  <label style={{ display: "block", fontSize: 12, color: S.secondary, margin: "10px 0 5px" }}>BOM untuk costing/produksi (JSON)</label>
+                  <textarea aria-label="BOM desain pelanggan" value={customerBomJson} onChange={e => setCustomerBomJson(e.target.value)} rows={4} placeholder='[{"name":"Material","specification":"S45C","quantity":2,"unit":"kg"}]' style={{ width: "100%", boxSizing: "border-box", padding: 9, border: `1px solid ${S.border}`, borderRadius: 4, fontFamily: "monospace", fontSize: 12 }} />
+                  <p style={{ margin: "4px 0 0", fontSize: 10, color: S.secondary }}>Isi daftar material dengan name, quantity, dan unit. BOM tetap diperlukan meskipun review Engineering dilewati.</p>
+                </>}
+              </>}
+              {designSource === "Engineering" && <p style={{ margin: 0, fontSize: 11, color: S.secondary }}>Engineering akan menyiapkan DesignLink dan BOM. Quotation tidak dapat lanjut ke harga sebelum SPV dan pelanggan menyetujui desain.</p>}
+            </SectionCard>
 
             <SectionCard
               title={`Daftar Produk (${newOrderFields.length} item)`}
@@ -206,10 +245,21 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               </div>
             </SectionCard>
 
-            <PricingSection
-              estimatedAmount={newOrderMethods.watch("customerForm.estimatedAmount") || 0}
-              onChange={val => newOrderMethods.setValue("customerForm.estimatedAmount", val)}
-            />
+            {(() => {
+              const watchedProducts = newOrderMethods.watch("products");
+              const estimatedTotal = (watchedProducts || []).reduce((acc: number, p: any) => acc + (Number(p.quantity) || 0) * (Number(p.unitPrice) || 0), 0);
+              return (
+                <div style={{ padding: "12px 16px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 6, color: "#1E40AF", fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>Total Harga Diajukan (Estimasi):</span>
+                    <span style={{ fontSize: 16, color: "#1D4ED8", fontWeight: 700 }}>Rp {estimatedTotal.toLocaleString("id-ID")}</span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "#3B82F6" }}>
+                    *Harga akan diisi Finance (atau disetujui) setelah desain, review, dan persetujuan desain pelanggan selesai.
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ display: "flex", gap: 10 }}>
               <button type="button" onClick={handleReset}

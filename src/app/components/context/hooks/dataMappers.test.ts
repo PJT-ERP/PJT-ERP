@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapBomsPerItem } from './dataMappers';
+import { isActiveQuotationEntry, mapBomsPerItem, mapQuotationDto } from './dataMappers';
 import { SalesOrderDto } from '../../../services/salesApi';
 
 describe('dataMappers - mapBomsPerItem', () => {
@@ -41,5 +41,38 @@ describe('dataMappers - mapBomsPerItem', () => {
     expect(result['ITEM-1']).toEqual([]);
     expect(result['ITEM-2']).toEqual([]);
     expect(result['ITEM-3']).toEqual([]);
+  });
+});
+
+describe('isActiveQuotationEntry', () => {
+  it('keeps a won quotation available until it has a conversion reference', () => {
+    expect(isActiveQuotationEntry({ isQuotation: true, backendStatus: 'won' } as any)).toBe(true);
+  });
+
+  it('hides a converted won quotation by its SalesOrder ID or number', () => {
+    expect(isActiveQuotationEntry({ isQuotation: true, backendStatus: 'won', convertedSalesOrderId: 'so-guid' } as any)).toBe(false);
+    expect(isActiveQuotationEntry({ isQuotation: true, backendStatus: 'won', convertedSalesOrderNumber: 'SO-2026-001' } as any)).toBe(false);
+  });
+
+  it('preserves the backend conversion reference when mapping a Quotation DTO', () => {
+    const mapped = mapQuotationDto({
+      id: 'quotation-guid', quotationNumber: 'QU-2026-001', status: 'won',
+      convertedSalesOrderId: 'sales-order-guid', convertedSalesOrderNumber: 'SO-2026-001',
+      items: [], bomItems: [], createdAtUtc: '', deadline: '', designSource: 'Engineering',
+    } as any);
+
+    expect(mapped.convertedSalesOrderId).toBe('sales-order-guid');
+    expect(isActiveQuotationEntry(mapped)).toBe(false);
+  });
+
+  it('keeps all active quotation workflow statuses visible', () => {
+    const statuses = [
+      'draft', 'pending_design', 'design_review', 'client_design_approval',
+      'waiting_pricing', 'client_price_approval', 'won', 'lost',
+    ];
+
+    statuses.forEach(status => {
+      expect(isActiveQuotationEntry({ isQuotation: true, backendStatus: status } as any)).toBe(true);
+    });
   });
 });

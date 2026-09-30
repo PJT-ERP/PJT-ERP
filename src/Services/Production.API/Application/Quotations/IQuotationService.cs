@@ -13,7 +13,8 @@ public interface IQuotationService
     Task<QuotationDto?> ApproveClientDesignAsync(Guid quotationId, CancellationToken cancellationToken);
     Task<QuotationDto?> RequestDesignRevisionAsync(Guid quotationId, RequestQuotationRevisionRequest request, CancellationToken cancellationToken);
     Task<QuotationDto?> SubmitPricingAsync(Guid quotationId, SubmitQuotationPricingRequest request, CancellationToken cancellationToken);
+    Task<QuotationDto?> RequestPriceRevisionAsync(Guid quotationId, RequestQuotationRevisionRequest request, CancellationToken cancellationToken);
     Task<QuotationDto?> MarkWonAsync(Guid quotationId, CancellationToken cancellationToken);
     Task<QuotationDto?> MarkLostAsync(Guid quotationId, MarkQuotationLostRequest request, CancellationToken cancellationToken);
-    Task<SalesOrderDto?> ConvertToSalesOrderAsync(Guid quotationId, ConvertQuotationToSalesOrderRequest request, CancellationToken cancellationToken);
+    Task<SalesOrderDto?> ConvertToSalesOrderAsync(Guid quotationId, CancellationToken cancellationToken);
 }

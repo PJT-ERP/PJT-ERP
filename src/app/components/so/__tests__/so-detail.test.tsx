@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SODetail } from '../so-detail';
 import { useApp } from '../../context/AppContext';
 import { useFinanceData } from '../../finance/useFinanceData';
+import { useSalesOrdersQuery } from '../../../services/queries';
+import { salesApi } from '../../../services/salesApi';
 
 afterEach(() => {
   cleanup();
@@ -42,6 +44,12 @@ vi.mock('../../finance/useFinanceData', () => ({ useFinanceData: vi.fn() }));
 vi.mock('../../../services/financeApi', () => ({
   financeApi: { submitPaymentProof: vi.fn() },
 }));
+vi.mock('../../../services/salesApi', () => ({
+  salesApi: {
+    getQuotation: vi.fn(),
+    convertQuotationToSalesOrder: vi.fn(),
+  },
+}));
 
 const queryClient = new QueryClient();
 
@@ -69,6 +77,7 @@ const { registeredOrder, customOrder, mockCustomer } = vi.hoisted(() => {
 
   const custom = {
     id: 'SO-2026-001', backendId: 'guid-so-1', soNumber: 'SO-2026-001',
+    isQuotation: false,
     customerId: 'CUST-001', customerName: 'PT Maju Jaya', partNumber: '-',
     description: 'Custom Jig Assembly', quantity: 2, unit: 'set', deadline: '2026-07-20',
     status: 'Pending Design', createdBy: 'Sales Staff', createdAt: '2026-07-01',
@@ -170,5 +179,36 @@ describe('SODetail Component', () => {
         quantity: 16
       })
     }));
+  });
+
+  it('converts a won quotation without asking for DP fields', async () => {
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+    const quotation = {
+      id: 'QU-2026-010', backendId: 'd4626d81-a742-4d9f-98b7-8a3c37c9d6f1', soNumber: 'QU-2026-010',
+      isQuotation: true, customerId: 'CUST-001', customerName: 'PT Maju Jaya',
+      partNumber: 'PART-010', description: 'Custom Part', quantity: 1, unit: 'pcs',
+      deadline: '2026-07-30', status: 'Approved', backendStatus: 'won', estimatedAmount: 1000,
+      items: [], materials: [],
+    } as any;
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [quotation] } as any);
+    vi.mocked(salesApi.getQuotation).mockResolvedValue({
+      id: quotation.backendId, quotationNumber: quotation.soNumber, customerId: 'customer-guid',
+      customerCode: 'CUST-001', customerName: 'PT Maju Jaya', deadline: quotation.deadline,
+      status: 'won', designSource: 'CustomerProvided', engineeringReviewRequired: false,
+      estimatedAmount: 1000, items: [], bomItems: [], revisions: [], createdAtUtc: '', updatedAtUtc: '',
+    } as any);
+    vi.mocked(salesApi.convertQuotationToSalesOrder).mockResolvedValue({ id: 'new-so-guid', soNumber: 'SO-2026-010' } as any);
+
+    renderWithProviders(<SODetail orderId={quotation.id} onNavigate={onNavigate} />);
+
+    expect(await screen.findByText('Workflow Quotation')).toBeInTheDocument();
+    expect(screen.queryByLabelText('DP Percentage')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('DP Due Date')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Convert ke Sales Order' }));
+
+    await waitFor(() => expect(salesApi.convertQuotationToSalesOrder).toHaveBeenCalledWith(quotation.backendId));
+    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['salesOrders'] })));
+    expect(onNavigate).toHaveBeenCalledWith('so-detail', 'SO-2026-010');
+    invalidateQueries.mockRestore();
   });
 });
