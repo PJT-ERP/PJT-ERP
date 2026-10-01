@@ -83,7 +83,7 @@ export default function App() {
               <Route path="qc/inspections" element={<ProtectedRoute allowedRoles={['QC', 'Admin', 'Owner']}><QCInspectionsPage /></ProtectedRoute>} />
 
               {/* Owner & Engineering Supervisor Approval */}
-              <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><OwnerApprovalPage /></ProtectedRoute>} />
+              <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor', 'Admin']}><OwnerApprovalPage /></ProtectedRoute>} />
               <Route path="dashboard" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><DashboardPage /></ProtectedRoute>} />
               <Route path="customer-analytics" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><CustomerAnalyticsPage /></ProtectedRoute>} />
               

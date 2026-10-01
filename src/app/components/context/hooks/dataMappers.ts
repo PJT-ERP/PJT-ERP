@@ -288,6 +288,11 @@ export function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[
     id: request.prNumber,
     backendId: request.id,
     backendStatus: request.status,
+    activeApprovalCycleNumber: request.activeApprovalCycleNumber,
+    financeApproval: request.financeApproval?.decision as PurchasingRequest["financeApproval"],
+    ownerApproval: request.ownerApproval?.decision as PurchasingRequest["ownerApproval"],
+    isFullyApproved: request.isFullyApproved === true,
+    isApprovalBlocked: request.isApprovalBlocked === true,
     soId: request.salesOrderNumber || undefined,
     salesOrderId: request.salesOrderId || undefined,
     itemName: request.items.length === 1 ? firstItem?.itemName || "-" : `${request.items.length} item material`,
@@ -315,20 +320,20 @@ export function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[
     requestedBy: requestedByStr,
     requestedByUserId: request.requestedByUserId,
     requestedAt: request.requestDate,
-    status: mapPurchasingStatus(request.status),
+    status: request.isApprovalBlocked === true ? "Ditolak" : mapPurchasingStatus(request.status),
     supplier: request.items.map(item => item.supplierName && item.supplierName !== "-" ? item.supplierName : undefined).find(Boolean) || undefined,
     poNumber: request.items.map(item => item.poNumber).find(Boolean) || undefined,
     estimatedPrice: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0) || undefined,
     expectedDelivery: request.items.map(item => item.expectedArrivalDate).find(Boolean) || undefined,
     receivedAt: request.items.map(item => item.receivedDate).find(Boolean) || undefined,
-    rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+    rejectionReason: request.financeApproval?.rejectionReason || request.ownerApproval?.rejectionReason || request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
     revisionNote: request.revisionNote || undefined,
   };
 }
 
 export function mapPurchasingStatus(status: string): PurchasingStatus {
-  if (status === "Completed" || status === "FinanceApproved") return "Selesai";
-  if (status === "Processing" || status === "SupervisorApproved") return "Diproses";
+  if (status === "Completed") return "Selesai";
+  if (status === "Processing" || status === "SupervisorApproved" || status === "FinanceApproved") return "Diproses";
   if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
   return "Pending";
 }

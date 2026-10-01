@@ -249,6 +249,11 @@ export interface PurchasingRequest {
   id: string;
   backendId?: string;
   backendStatus?: string;
+  activeApprovalCycleNumber?: number | null;
+  financeApproval?: "Pending" | "Approved" | "Rejected";
+  ownerApproval?: "Pending" | "Approved" | "Rejected";
+  isFullyApproved?: boolean;
+  isApprovalBlocked?: boolean;
   soId?: string;
   salesOrderId?: string;
   itemName: string;

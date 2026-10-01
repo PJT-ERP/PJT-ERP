@@ -85,7 +85,7 @@ export function CreatePurchaseOrderPage({ onNavigate }: CreatePurchaseOrderPageP
   };
 
   const eligibleRequests = useMemo(() => purchaseRequests.filter(request =>
-    ["FinanceApproved", "Approved", "Processing"].includes(request.status) &&
+    request.isFullyApproved === true &&
     request.items.some(item => item.purchaseStatus !== "Ordered" && item.purchaseStatus !== "Received" && item.purchaseStatus !== "Rejected")
   ), [purchaseRequests]);
 
