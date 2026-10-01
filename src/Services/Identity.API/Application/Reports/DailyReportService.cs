@@ -18,7 +18,7 @@ public sealed class DailyReportService(IdentityContext db, IReportFileStorage fi
         ValidateSummaryAndTasks(request.Summary, request.Tasks);
         ValidateAttachmentRequest(request.Images, request.AttachmentCaptions, 0);
 
-        var reportDate = request.ReportDate!.Value.ToDateTime(TimeOnly.MinValue);
+        var reportDate = DateTime.SpecifyKind(request.ReportDate!.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
         if (await db.DailyReports.AnyAsync(report => report.UserId == actor.UserId && report.ReportDate == reportDate, cancellationToken))
             throw new DuplicateDailyReportException();
 
@@ -48,8 +48,8 @@ public sealed class DailyReportService(IdentityContext db, IReportFileStorage fi
         if (!actor.IsOwner) throw new UnauthorizedAccessException();
         if (from is not null && to is not null && from > to) throw new DailyReportValidationException("The start date cannot be after the end date.");
         var query = db.DailyReports.AsNoTracking().AsQueryable();
-        if (from is not null) query = query.Where(report => report.ReportDate >= from.Value.ToDateTime(TimeOnly.MinValue));
-        if (to is not null) query = query.Where(report => report.ReportDate <= to.Value.ToDateTime(TimeOnly.MinValue));
+        if (from is not null) query = query.Where(report => report.ReportDate >= DateTime.SpecifyKind(from.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
+        if (to is not null) query = query.Where(report => report.ReportDate <= DateTime.SpecifyKind(to.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc));
         if (!string.IsNullOrWhiteSpace(role)) query = query.Where(report => report.UserRole == role.Trim());
         if (!string.IsNullOrWhiteSpace(employee)) query = query.Where(report => EF.Functions.ILike(report.UserName, $"%{employee.Trim()}%"));
         return await ToPagedAsync(query, page, pageSize, cancellationToken);
@@ -100,12 +100,14 @@ public sealed class DailyReportService(IdentityContext db, IReportFileStorage fi
             {
                 var storedPath = await fileStorage.SaveAsync(file, cancellationToken);
                 storedPaths.Add(storedPath);
-                report.Attachments.Add(new DailyReportAttachment
+                var attachment = new DailyReportAttachment
                 {
                     Id = Guid.NewGuid(), DailyReportId = report.Id, StoredFilePath = storedPath,
                     OriginalFileName = Path.GetFileName(file.FileName), ContentType = file.ContentType,
                     FileSizeBytes = file.Length, Caption = GetCaption(request.AttachmentCaptions, index), CreatedAtUtc = DateTime.UtcNow
-                });
+                };
+                report.Attachments.Add(attachment);
+                db.DailyReportAttachments.Add(attachment);
             }
             report.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
