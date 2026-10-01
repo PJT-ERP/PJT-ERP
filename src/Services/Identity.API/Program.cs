@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PJT_ERP.Identity.Api.Application.Auth;
+using PJT_ERP.Identity.Api.Application.Reports;
 using PJT_ERP.Identity.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Auth;
 using PJT_ERP.Shared.Infrastructure.Abstractions;
@@ -38,6 +39,8 @@ builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<IdentityCont
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddSingleton<JwtTokenIssuer>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDailyReportService, DailyReportService>();
+builder.Services.AddSingleton<IReportFileStorage, LocalReportFileStorage>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
@@ -48,7 +51,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IdentityContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
     var allowSeedInProduction = string.Equals(
         Environment.GetEnvironmentVariable("ALLOW_SEED_IN_PRODUCTION"),
         "true",

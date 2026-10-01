@@ -46,6 +46,8 @@ services:
         ENTRY_DLL: Identity.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_daily_report_uploads:/app/data/daily-report-uploads
     expose:
       - "8080"
     healthcheck: &api-healthcheck
@@ -219,5 +221,6 @@ volumes:
   pjt_prod_db:
   pjt_qc_photos:
   pjt_finance_proofs:
+  pjt_daily_report_uploads:
   npm_data:
   npm_letsencrypt:

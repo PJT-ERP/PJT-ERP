@@ -51,6 +51,8 @@ services:
         PROJECT_PATH: "src/Services/Identity.API/Identity.API.csproj"
         ENTRY_DLL: "Identity.API.dll"
     environment: *api-environment
+    volumes:
+      - pjt_daily_report_uploads:/app/data/daily-report-uploads
     ports:
       - "127.0.0.1:5001:8080"
     depends_on:
@@ -182,3 +184,4 @@ volumes:
   pjt_finance_proofs:
   pjt_qc_photos:
   pjt_engineering_drawings:
+  pjt_daily_report_uploads:
