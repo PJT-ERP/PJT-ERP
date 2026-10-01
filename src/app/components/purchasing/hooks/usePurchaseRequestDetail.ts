@@ -14,7 +14,7 @@ export function usePurchaseRequestDetail() {
   
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
   const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin";
-  const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
   const [detail, setDetail] = useState<MR | null>(null);
   const [isLoading, setIsLoading] = useState(true);

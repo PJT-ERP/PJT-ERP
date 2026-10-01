@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import type { ReactNode } from 'react';
 import { MR } from '../../../purchasing/material-requests-page';
 import { formatIDR } from '../../mockData';
 
@@ -7,6 +8,8 @@ interface PrBudgetTabProps {
   filteredMrs: MR[];
   search: string;
   setSearch: (val: string) => void;
+  onRowClick?: (mr: MR) => void;
+  renderActions?: (mr: MR) => ReactNode;
 }
 
 function ApprovalCell({ status, decidedAt, reason }: { status?: string; decidedAt?: string | null; reason?: string | null }) {
@@ -20,8 +23,9 @@ function ApprovalCell({ status, decidedAt, reason }: { status?: string; decidedA
   </div>;
 }
 
-export function PrBudgetTab({ filteredMrs, search, setSearch }: PrBudgetTabProps) {
+export function PrBudgetTab({ filteredMrs, search, setSearch, onRowClick, renderActions }: PrBudgetTabProps) {
   const navigate = useNavigate();
+  const columnCount = renderActions ? 13 : 12;
   return (
     <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4 border-b border-slate-100 bg-slate-50">
@@ -33,21 +37,22 @@ export function PrBudgetTab({ filteredMrs, search, setSearch }: PrBudgetTabProps
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="bg-white border-b border-slate-100"><tr>
-            {['Tgl Pengajuan', 'Supplier', 'Nama Item', 'Qty', 'Harga/pcs', 'Nominal', 'KET', 'SO', 'PO', 'Yang Mengajukan', 'Finance', 'Owner'].map(label => <th key={label} className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase whitespace-nowrap">{label}</th>)}
+            {['Tgl Pengajuan', 'Supplier', 'Nama Item', 'Qty', 'Harga/pcs', 'Nominal', 'KET', 'SO', 'PO', 'Yang Mengajukan', 'Finance', 'Owner', ...(renderActions ? ['Aksi'] : [])].map(label => <th key={label} className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase whitespace-nowrap">{label}</th>)}
           </tr></thead>
           <tbody className="divide-y divide-slate-50">
-            {filteredMrs.flatMap(mr => (mr.items.length ? mr.items : [{ itemId: 'none', name: '—', qty: 0, estimatedPrice: 0, supplierName: undefined, poNumber: undefined } as MR['items'][number]]).map(item => {
+            {filteredMrs.flatMap(mr => (mr.items.length ? mr.items : [{ itemId: 'none', name: '—', qty: 0, estimatedPrice: 0, supplierName: undefined, poNumber: undefined } as MR['items'][number]]).map((item, itemIndex) => {
               const amount = item.totalPrice ?? item.estimatedPrice ?? 0;
               const unitAmount = item.unitPrice ?? (item.qty ? amount / item.qty : amount);
-              return <tr key={`${mr.backendId}-${item.itemId}`} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => navigate(`/erp/finance/pr/${mr.id}`)}>
+              return <tr key={`${mr.backendId}-${item.itemId}`} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => onRowClick ? onRowClick(mr) : navigate(`/erp/finance/pr/${mr.id}`)}>
                 <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-slate-800">{mr.id}</div><div className="text-xs text-slate-500">{mr.date}</div></td><td className="px-4 py-3">{item.supplierName || mr.supplierAssigned || '—'}</td><td className="px-4 py-3 min-w-40">{item.name}</td><td className="px-4 py-3 whitespace-nowrap">{item.qty}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{formatIDR(unitAmount)}</td><td className="px-4 py-3 whitespace-nowrap font-medium">{formatIDR(amount)}</td>
                 <td className="px-4 py-3 min-w-32">{mr.isApprovalBlocked ? <span className="text-red-700 font-semibold">Blocked{mr.rejectionReason ? `: ${mr.rejectionReason}` : ''}</span> : mr.isFullyApproved ? 'Fully approved' : `Cycle ${mr.activeApprovalCycleNumber ?? '—'}`}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{mr.soRef || '—'}</td><td className="px-4 py-3 whitespace-nowrap">{item.poNumber || '—'}</td><td className="px-4 py-3 whitespace-nowrap">{mr.requestor}</td>
                 <td className="px-4 py-3"><ApprovalCell status={mr.financeApproval} decidedAt={mr.financeApprovalDecidedAtUtc} reason={mr.financeApprovalRejectionReason} /></td><td className="px-4 py-3"><ApprovalCell status={mr.ownerApproval} decidedAt={mr.ownerApprovalDecidedAtUtc} reason={mr.ownerApprovalRejectionReason} /></td>
+                {renderActions && <td className="px-4 py-3 whitespace-nowrap" onClick={event => event.stopPropagation()}>{itemIndex === 0 ? renderActions(mr) : null}</td>}
               </tr>;
             }))}
-            {filteredMrs.length === 0 && <tr><td colSpan={12} className="text-center py-12 text-slate-400">Tidak ada Purchase Request untuk ditampilkan.</td></tr>}
+            {filteredMrs.length === 0 && <tr><td colSpan={columnCount} className="text-center py-12 text-slate-400">Tidak ada Purchase Request untuk ditampilkan.</td></tr>}
           </tbody>
         </table>
       </div>

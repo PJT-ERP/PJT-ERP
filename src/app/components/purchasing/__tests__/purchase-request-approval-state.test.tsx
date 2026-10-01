@@ -43,6 +43,7 @@ describe('parallel Purchase Request approval mapping', () => {
     for (const column of ['Tgl Pengajuan', 'Supplier', 'Nama Item', 'Qty', 'Harga/pcs', 'Nominal', 'KET', 'SO', 'PO', 'Yang Mengajukan', 'Finance', 'Owner']) {
       expect(screen.getByRole('columnheader', { name: column })).toBeInTheDocument();
     }
+    expect(screen.queryByRole('columnheader', { name: 'Aksi' })).not.toBeInTheDocument();
     expect(screen.getByText('Approved')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
     expect(screen.getByText('Cycle 3')).toBeInTheDocument();

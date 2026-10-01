@@ -10,6 +10,8 @@ import { DashboardPage } from '../../../components/purchasing/dashboard-page';
 import { usePurchasingData } from '../../../components/purchasing/usePurchasingData';
 import { OwnerApprovalPage } from '../approvals';
 
+const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
+
 vi.mock('../../../services/purchasingApi', () => ({
   purchasingApi: {
     listPurchaseRequests: vi.fn(),
@@ -23,7 +25,7 @@ vi.mock('../../../components/purchasing/usePurchasingData', () => ({ usePurchasi
 vi.mock('../../../components/shared/MentionsReminderWidget', () => ({ MentionsReminderWidget: () => null }));
 vi.mock('react-router', async importOriginal => {
   const actual = await importOriginal<typeof import('react-router')>();
-  return { ...actual, useNavigate: () => vi.fn() };
+  return { ...actual, useNavigate: () => navigateMock };
 });
 
 const pendingRequest = (overrides: Record<string, unknown> = {}) => ({
@@ -34,7 +36,7 @@ const pendingRequest = (overrides: Record<string, unknown> = {}) => ({
   requesterName: 'Requester',
   status: 'SupervisorApproved',
   updatedAtUtc: '',
-  items: [{ itemName: 'Steel', qty: 3 }],
+  items: [{ id: 'item-1', itemName: 'Steel', qty: 3, size: 'M10', urgency: 'Normal', purchaseCategory: 'Project', supplierName: 'Supplier A', unitPrice: 25, totalPrice: 75, purchaseStatus: 'Requested' }],
   activeApprovalCycleNumber: 2,
   financeApproval: { role: 'Finance', decision: 'Pending', actorUserId: null, decidedAtUtc: null, rejectionReason: null },
   ownerApproval: { role: 'Owner', decision: 'Pending', actorUserId: null, decidedAtUtc: null, rejectionReason: null },
@@ -66,9 +68,10 @@ describe('Owner Purchase Request approvals in Purchasing', () => {
     const { container } = renderOwnerApprovals();
 
     await screen.findByText('PR-1');
-    expect(container).toHaveTextContent('Cycle');
-    expect(container).toHaveTextContent('Finance');
-    expect(container).toHaveTextContent('Owner');
+    for (const column of ['Tgl Pengajuan', 'Supplier', 'Nama Item', 'Qty', 'Harga/pcs', 'Nominal', 'KET', 'SO', 'PO', 'Yang Mengajukan', 'Finance', 'Owner', 'Aksi']) {
+      expect(screen.getByRole('columnheader', { name: column })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('columnheader', { name: 'Cycle' })).not.toBeInTheDocument();
     expect(container).toHaveTextContent('Pending');
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
 
@@ -102,6 +105,24 @@ describe('Owner Purchase Request approvals in Purchasing', () => {
     expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
   });
 
+  it('hides Owner actions after Owner approval while Finance is still pending', async () => {
+    vi.mocked(purchasingApi.listPurchaseRequests).mockResolvedValue([pendingRequest({
+      ownerApproval: { role: 'Owner', decision: 'Approved' },
+      isFullyApproved: false,
+    })]);
+    renderOwnerApprovals();
+    await screen.findByText('Approved');
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+  });
+
+  it('navigates Owner PR rows to Purchasing PR detail', async () => {
+    renderOwnerApprovals();
+    fireEvent.click(await screen.findByText('PR-1'));
+    expect(navigateMock).toHaveBeenCalledWith('/erp/purchasing/requests/pr-id');
+  });
+
   it('does not show Owner actions for a blocked cycle', async () => {
     vi.mocked(purchasingApi.listPurchaseRequests).mockResolvedValue([pendingRequest({
       financeApproval: { role: 'Finance', decision: 'Rejected' },
@@ -132,7 +153,7 @@ describe('Owner Purchase Request approvals in Purchasing', () => {
     render(<QueryClientProvider client={client}><DashboardPage /></QueryClientProvider>);
 
     expect(screen.getByRole('heading', { name: 'Dashboard Purchasing' })).toBeInTheDocument();
-    expect(await screen.findByText('Tidak ada siklus approval Purchase Request aktif.')).toBeInTheDocument();
+    expect(await screen.findByText('Tidak ada Purchase Request untuk ditampilkan.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lihat Daftar PO' })).toBeInTheDocument();
   });
 
