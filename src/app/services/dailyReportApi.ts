@@ -1,4 +1,4 @@
-import apiClient, { BASE_URL } from "./apiClient";
+import apiClient from "./apiClient";
 
 export interface DailyReportTask { id: string; description: string; sortOrder: number; }
 export interface DailyReportAttachment { id: string; originalFileName: string; contentType: string; fileSizeBytes: number; caption?: string | null; createdAtUtc: string; }
@@ -32,5 +32,7 @@ export const dailyReportApi = {
     return (await apiClient.post<DailyReportAttachment[]>(`/api/v1/reports/${id}/attachments`, toFormData({ images, captions }))).data;
   },
   async deleteAttachment(reportId: string, attachmentId: string) { await apiClient.delete(`/api/v1/reports/${reportId}/attachments/${attachmentId}`); },
-  attachmentUrl(reportId: string, attachmentId: string) { return `${BASE_URL}/api/v1/reports/${reportId}/attachments/${attachmentId}`; },
+  async attachmentBlob(reportId: string, attachmentId: string) {
+    return (await apiClient.get<Blob>(`/api/v1/reports/${reportId}/attachments/${attachmentId}`, { responseType: "blob" })).data;
+  },
 };
