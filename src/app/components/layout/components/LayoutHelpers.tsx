@@ -87,3 +87,14 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Supplier", icon: <Users size={15} />, path: "/erp/purchasing/suppliers" },
   ]
 };
+
+// Add Daily Reports menus to all roles dynamically
+const dailyReportItem: NavItemDef = { label: "Laporan Harian", icon: <FileText size={15} />, path: "/erp/daily-reports" };
+const allReportsItem: NavItemDef = { label: "Dasbor Laporan (Semua)", icon: <ClipboardList size={15} />, path: "/erp/daily-reports/all" };
+
+(Object.keys(ROLE_NAVIGATION) as UserRole[]).forEach(role => {
+  ROLE_NAVIGATION[role].push(dailyReportItem);
+  if (role === 'Owner' || role === 'Admin') {
+    ROLE_NAVIGATION[role].push(allReportsItem);
+  }
+});

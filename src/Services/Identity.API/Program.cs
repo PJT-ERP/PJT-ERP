@@ -38,6 +38,7 @@ builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<IdentityCont
 builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddSingleton<JwtTokenIssuer>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<PJT_ERP.Identity.Api.Application.Reports.IDailyReportService, PJT_ERP.Identity.Api.Application.Reports.DailyReportService>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
@@ -70,6 +71,7 @@ if (app.Environment.IsDevelopment())
     app.MapPjtScalarApiReference("PJT ERP Identity API", builder.Configuration, app.Environment);
 }
 
+app.UseStaticFiles();
 app.UsePjtRequestLogging();
 app.UseRateLimiter();
 app.UseAuthentication();

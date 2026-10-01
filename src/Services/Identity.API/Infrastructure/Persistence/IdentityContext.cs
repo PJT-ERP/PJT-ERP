@@ -7,6 +7,7 @@ namespace PJT_ERP.Identity.Api.Infrastructure.Persistence;
 public sealed class IdentityContext(DbContextOptions<IdentityContext> options) : DbContext(options), IUnitOfWork
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<DailyReport> DailyReports => Set<DailyReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +29,20 @@ public sealed class IdentityContext(DbContextOptions<IdentityContext> options) :
             builder.Property(user => user.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.Ignore(user => user.IsActive);
             builder.Ignore(user => user.RoleList);
+        });
+
+        modelBuilder.Entity<DailyReport>(builder =>
+        {
+            builder.ToTable("daily_reports");
+            builder.HasKey(r => r.Id);
+            builder.Property(r => r.Id).HasColumnName("id");
+            builder.Property(r => r.UserId).HasColumnName("user_id");
+            builder.Property(r => r.UserName).HasMaxLength(255).HasColumnName("user_name");
+            builder.Property(r => r.UserRole).HasMaxLength(120).HasColumnName("user_role");
+            builder.Property(r => r.Description).HasColumnName("description");
+            builder.Property(r => r.PhotoUrl).HasColumnName("photo_url");
+            builder.Property(r => r.ReportDate).HasColumnName("report_date");
+            builder.Property(r => r.CreatedAtUtc).HasColumnName("created_at_utc");
         });
     }
 }
