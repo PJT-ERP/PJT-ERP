@@ -20,12 +20,14 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Pelanggan", icon: <Users size={15} />, path: "/erp/so/customers" },
     { label: "Konsultasi (Leads)", icon: <Mail size={15} />, path: "/erp/so/consultations" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   'Engineering': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
     { label: "Tugas Desain", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
@@ -34,14 +36,17 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   'Sales Order': [
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   QC: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/qc" },
     { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/qc/inspections" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   Owner: [
     { label: "MENU UTAMA", isHeader: true },
@@ -60,6 +65,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
     { label: "Konsultasi (Leads)", icon: <Mail size={15} />, path: "/erp/so/consultations" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
+    { label: "Daily Reports Dashboard", icon: <ClipboardList size={15} />, path: "/erp/daily-reports" },
   ],
   Admin: [
     { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
@@ -77,6 +83,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Landing Page", icon: <LayoutTemplate size={15} />, path: "/erp/landing-page", activePrefix: "/erp/landing-page" },
     { label: "Konsultasi (Leads)", icon: <Mail size={15} />, path: "/erp/so/consultations" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   Finance: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/finance/dashboard" },
@@ -87,6 +94,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Verifikasi Bayar", icon: <FileText size={15} />, path: "/erp/finance/payment-verification" },
     { label: "Tagihan Supplier", icon: <CheckSquare size={15} />, path: "/erp/finance/approval-po" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ],
   Purchasing: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/purchasing/dashboard" },
@@ -96,5 +104,6 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Req. Material", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
     { label: "Daftar PO", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
     { label: "Daftar Supplier", icon: <Users size={15} />, path: "/erp/purchasing/suppliers" },
+    { label: "Daily Report", icon: <ClipboardList size={15} />, path: "/erp/daily-report" },
   ]
 };
