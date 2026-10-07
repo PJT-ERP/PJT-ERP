@@ -6,6 +6,9 @@ import { SODashboard } from "../components/so/so-dashboard";
 import { SOList } from "../components/so/so-list";
 import { SOCreate } from "../components/so/so-create";
 import { ConsultationsPage } from "../components/so/ConsultationsPage";
+import { MeetingMinutesPage } from "../components/so/MeetingMinutesPage";
+import { ProtectedRoute } from "../components/layout/ProtectedRoute";
+import { MEETING_MINUTE_VIEWER_ROLES } from "../services/meetingMinutesApi";
 
 function SOModuleRoutes() {
   const navigate = useNavigate();
@@ -22,6 +25,8 @@ function SOModuleRoutes() {
       navigate("/erp/so/orders");
     } else if (page === "so-create") {
       navigate("/erp/so/order-create", { state: data });
+    } else if (page === "quotation-list") {
+      navigate("/erp/so/orders", { state: { initialTypeFilter: "quotation" } });
     } else if (page === "customer-list") {
       navigate("/erp/so/customers");
     } else {
@@ -35,9 +40,11 @@ function SOModuleRoutes() {
       <Route path="dashboard" element={<SODashboard onNavigate={handleNavigate} />} />
       <Route path="orders" element={<SOList onNavigate={handleNavigate} />} />
       <Route path="order-create" element={<SOCreateWrapper onNavigate={handleNavigate} />} />
+      <Route path="quotations" element={<Navigate to="/erp/so/orders" state={{ initialTypeFilter: "quotation" }} replace />} />
       <Route path="detail/:id" element={<SODetailWrapper onNavigate={handleNavigate} />} />
       <Route path="customers" element={<CustomerList onNavigate={handleNavigate} />} />
       <Route path="consultations" element={<ConsultationsPage />} />
+      <Route path="meeting-minutes" element={<ProtectedRoute allowedRoles={MEETING_MINUTE_VIEWER_ROLES}><MeetingMinutesPage /></ProtectedRoute>} />
     </Routes>
   );
 }

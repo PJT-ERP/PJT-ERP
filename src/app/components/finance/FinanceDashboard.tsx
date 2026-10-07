@@ -12,6 +12,9 @@ import {
 import {
   formatIDR, formatDate
 } from './mockData';
+import { financeApi } from "../../services/financeApi";
+import { formatCurrency } from "../../utils/format";
+import { MentionsReminderWidget } from "../shared/MentionsReminderWidget";
 import { useApp } from '../context/AppContext';
 import { useFinanceData } from './useFinanceData';
 import { usePurchasingData } from '../purchasing/usePurchasingData';
@@ -549,6 +552,9 @@ export function FinanceDashboard() {
                 </div>
               </div>
             )}
+
+            {/* Mentions Widget */}
+            <MentionsReminderWidget />
 
             {/* Quick Actions */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">

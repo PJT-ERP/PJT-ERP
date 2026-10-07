@@ -10,6 +10,7 @@ public sealed class PurchasingContext(DbContextOptions<PurchasingContext> option
     public DbSet<SalesOrderSnapshot> SalesOrderSnapshots => Set<SalesOrderSnapshot>();
     public DbSet<MaterialRequirement> MaterialRequirements => Set<MaterialRequirement>();
     public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
+    public DbSet<PurchaseRequestApproval> PurchaseRequestApprovals => Set<PurchaseRequestApproval>();
     public DbSet<PurchaseRequestItem> PurchaseRequestItems => Set<PurchaseRequestItem>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -81,12 +82,35 @@ public sealed class PurchasingContext(DbContextOptions<PurchasingContext> option
             builder.Property(request => request.FinanceReviewedAtUtc).HasColumnName("finance_reviewed_at_utc");
             builder.Property(request => request.FinanceRejectionReason).HasColumnName("finance_rejection_reason");
             builder.Property(request => request.RevisionNote).HasColumnName("revision_note");
+            builder.Property(request => request.ActiveApprovalCycleNumber).HasColumnName("active_approval_cycle_number");
             builder.Property(request => request.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(request => request.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.HasMany(request => request.Items)
                 .WithOne(item => item.PurchaseRequest)
                 .HasForeignKey(item => item.PurchaseRequestId)
                 .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(request => request.Approvals)
+                .WithOne(approval => approval.PurchaseRequest)
+                .HasForeignKey(approval => approval.PurchaseRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PurchaseRequestApproval>(builder =>
+        {
+            builder.ToTable("purchase_request_approvals");
+            builder.HasKey(approval => approval.Id);
+            builder.HasIndex(approval => new { approval.PurchaseRequestId, approval.CycleNumber, approval.Role })
+                .HasDatabaseName("ix_purchase_request_approvals_request_cycle_role")
+                .IsUnique();
+            builder.Property(approval => approval.PurchaseRequestId).HasColumnName("purchase_request_id");
+            builder.Property(approval => approval.CycleNumber).HasColumnName("cycle_number");
+            builder.Property(approval => approval.Role).HasMaxLength(30).HasColumnName("role");
+            builder.Property(approval => approval.Decision).HasMaxLength(30).HasColumnName("decision");
+            builder.Property(approval => approval.ActorUserId).HasColumnName("actor_user_id");
+            builder.Property(approval => approval.DecidedAtUtc).HasColumnName("decided_at_utc");
+            builder.Property(approval => approval.RejectionReason).HasColumnName("rejection_reason");
+            builder.Property(approval => approval.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(approval => approval.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
         modelBuilder.Entity<PurchaseRequestItem>(builder =>

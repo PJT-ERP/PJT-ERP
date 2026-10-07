@@ -2,7 +2,7 @@ import {
   User, SalesOrder, Customer, UserRole,
   PurchasingRequest, PurchasingStatus
 } from "../../data/mockData";
-import { CustomerDto, ProductDto, SalesOrderDto } from "../../../services/salesApi";
+import { CustomerDto, ProductDto, SalesOrderDto, QuotationDto } from "../../../services/salesApi";
 import { PurchaseRequestDto } from "../../../services/purchasingApi";
 import { BACKEND_USER_IDS_BY_LOCAL_ID } from "../../../services/backendIds";
 
@@ -164,62 +164,94 @@ export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
   return bomsPerItem;
 }
 
+export function isQuotationEntry(order?: any): boolean {
+  if (!order) return false;
+  if (typeof order === 'string') return isQuotationStatus(order);
+  if (order.quotationNumber || order.id?.startsWith('QU') || order.soNumber?.startsWith('QU')) return true;
+  if (order.isQuotation !== undefined) return Boolean(order.isQuotation);
+  return isQuotationStatus(order.status);
+}
+
+export function isQuotationStatus(status?: string): boolean {
+  if (!status) return false;
+  return ['Pending Design', 'Waiting Spv Approval', 'Waiting Pricing', 'Waiting Client Approval', 'PendingDesign', 'Draft', 'Waiting Approval', 'Revision Required', 'RevisionRequired', 'WaitingApproval'].includes(status);
+}
+
+export function formatDocNumber(idOrNumber?: string, status?: string): string {
+  if (!idOrNumber) return '';
+  if (isQuotationStatus(status)) {
+    return idOrNumber.replace(/^SO-/, 'QU-');
+  }
+  return idOrNumber;
+}
+
+export function getDocLabel(status?: string): string {
+  return isQuotationStatus(status) ? 'No. Quotation' : 'No. SO';
+}
+
 export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
+  if (!order) return order as any;
   const primaryItem = order.items?.[0];
-  const materials = order.materials || undefined;
+  const materials = order.materials || (order as any).materials || undefined;
   const bomsPerItem = mapBomsPerItem(order);
+  const mappedStatus = mapSalesOrderStatus(order);
+  const rawNumber = order.soNumber || (order as any).soNumber || order.id;
+  const displayId = formatDocNumber(rawNumber, mappedStatus, false);
 
   return {
-    id: order.soNumber || order.id,
-    backendId: order.id,
-    backendStatus: order.status,
+    id: displayId,
+    backendId: order.id || (order as any).backendId,
+    backendStatus: order.status || (order as any).backendStatus,
     soNumber: order.soNumber,
-    customerId: order.customerCode,
-    customerName: order.customerName || order.customerCode,
+    isQuotation: false,
+    customerId: order.customerCode || (order as any).customerId,
+    customerName: order.customerName || (order as any).customerName || order.customerCode || (order as any).customerId,
     customerEmail: order.customerEmail || "",
     customerDrawingUrl: order.customerDrawingUrl || "",
-    partNumber: primaryItem?.productPartNumber || "-",
-    description: primaryItem?.productDescription || order.soNumber,
-    quantity: (order.items || []).reduce((sum, item) => sum + item.qty, 0),
+    partNumber: primaryItem?.productPartNumber || (primaryItem as any)?.partNumber || (order as any).partNumber || "-",
+    description: primaryItem?.productDescription || (primaryItem as any)?.productName || order.soNumber || (order as any).description,
+    quantity: (order.items || []).reduce((sum, item) => sum + (item.qty ?? (item as any).quantity ?? 0), 0) || (order as any).quantity || 0,
     unit: "PCS",
     material: (primaryItem?.notes?.startsWith('[')) ? undefined : (primaryItem?.notes || undefined),
-    deadline: order.targetDate || order.soDate,
+    deadline: order.targetDate || order.soDate || (order as any).deadline,
     status: mapSalesOrderStatus(order),
     createdBy: "backend",
-    createdAt: order.soDate,
-    designReference: order.designReference,
+    createdAt: order.soDate || (order as any).createdAt,
+    designReference: order.designReference || (order as any).designReference,
     designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
-    designLink: order.drawingFileUrl || (order.designReference && order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || order.customerDrawingUrl || undefined,
-    startTime: order.startedAtUtc || undefined,
-    endTime: order.finishedAtUtc || undefined,
-    qcStatus: mapQcDecision(order.qcDecision),
-    qcAt: order.finishedAtUtc || undefined,
+    designLink: order.drawingFileUrl || (order as any).drawingFileUrl || (order.designReference && order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || order.customerDrawingUrl || undefined,
+    startTime: order.startedAtUtc || (order as any).startTime,
+    endTime: order.finishedAtUtc || (order as any).endTime,
+    qcStatus: mapQcDecision(order.qcDecision || (order as any).qcStatus),
+    qcAt: order.finishedAtUtc || (order as any).qcAt,
     designRevisions: order.designRevisions?.map((r: any) => ({
       version: r.version,
       url: r.url,
       changedBy: r.changedBy,
       changedAt: r.changedAtUtc
-    })),
-    completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : undefined,
-    qcPhotos: order.qcPhotos || undefined,
-    productionPhotos: order.productionPhotos ? [...order.productionPhotos] : [],
-    completionNote: order.completionNote || undefined,
-    estimatedAmount: order.estimatedAmount ?? (order.items || []).reduce((sum, item) => sum + ((item as any).unitPrice || 0) * (item.qty || 0), 0) ?? undefined,
-    isCostingCompleted: order.isCostingCompleted,
+    })) || (order as any).designRevisions,
+    completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : (order as any).completedAt,
+    qcPhotos: order.qcPhotos || (order as any).qcPhotos,
+    productionPhotos: order.productionPhotos ? [...order.productionPhotos] : ((order as any).productionPhotos || []),
+    completionNote: order.completionNote || (order as any).completionNote,
+    estimatedAmount: order.estimatedAmount ?? (order.items || []).reduce((sum, item) => sum + ((item as any).unitPrice || 0) * (item.qty ?? (item as any).quantity ?? 0), 0) ?? (order as any).estimatedAmount,
+    isCostingCompleted: order.isCostingCompleted ?? (order as any).isCostingCompleted,
+    dpPercentage: order.dpPercentage ?? undefined,
+    dpDueDate: order.dpDueDate ?? undefined,
     pauseReason: (order as any).pauseReason || undefined,
     rejectionReason: (order as any).rejectionReason || undefined,
-    designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0],
-    assignedTo: order.productionWorkerUserId || undefined,
-    assignedName: order.productionWorkerName || undefined,
-    designAssignedTo: order.designWorkerUserId || undefined,
-    designAssignedName: order.designWorkerName || undefined,
-    designApprovedByName: order.designApprovedByName || undefined,
-    designApprovedByUserId: order.designApprovedByUserId || undefined,
+    designApprovedAt: order.designApprovedAtUtc?.split("T")?.[0] || (order as any).designApprovedAt,
+    assignedTo: order.productionWorkerUserId || (order as any).assignedTo,
+    assignedName: order.productionWorkerName || (order as any).assignedName,
+    designAssignedTo: order.designWorkerUserId || (order as any).designAssignedTo,
+    designAssignedName: order.designWorkerName || (order as any).designAssignedName,
+    designApprovedByName: order.designApprovedByName || (order as any).designApprovedByName,
+    designApprovedByUserId: order.designApprovedByUserId || (order as any).designApprovedByUserId,
     notes: (order.items || []).map(item => (item.notes && item.notes.startsWith("[") ? item.notes.replace(/\[.*?\]\s*/, "") : item.notes)).filter(Boolean).join(" | "),
     materials,
     bomsPerItem,
-    backendDesignStatus: order.designStatus,
-    comments: order.comments,
+    backendDesignStatus: order.designStatus || (order as any).backendDesignStatus,
+    comments: order.comments || (order as any).comments,
     items: (order.items || []).map(item => ({
       id: item.id,
       productId: item.productId,
@@ -256,6 +288,11 @@ export function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[
     id: request.prNumber,
     backendId: request.id,
     backendStatus: request.status,
+    activeApprovalCycleNumber: request.activeApprovalCycleNumber,
+    financeApproval: request.financeApproval?.decision as PurchasingRequest["financeApproval"],
+    ownerApproval: request.ownerApproval?.decision as PurchasingRequest["ownerApproval"],
+    isFullyApproved: request.isFullyApproved === true,
+    isApprovalBlocked: request.isApprovalBlocked === true,
     soId: request.salesOrderNumber || undefined,
     salesOrderId: request.salesOrderId || undefined,
     itemName: request.items.length === 1 ? firstItem?.itemName || "-" : `${request.items.length} item material`,
@@ -283,20 +320,20 @@ export function mapPurchaseRequestDto(request: PurchaseRequestDto, users?: User[
     requestedBy: requestedByStr,
     requestedByUserId: request.requestedByUserId,
     requestedAt: request.requestDate,
-    status: mapPurchasingStatus(request.status),
+    status: request.isApprovalBlocked === true ? "Ditolak" : mapPurchasingStatus(request.status),
     supplier: request.items.map(item => item.supplierName && item.supplierName !== "-" ? item.supplierName : undefined).find(Boolean) || undefined,
     poNumber: request.items.map(item => item.poNumber).find(Boolean) || undefined,
     estimatedPrice: request.items.reduce((sum, item) => sum + (item.totalPrice || item.estimatedPrice || 0), 0) || undefined,
     expectedDelivery: request.items.map(item => item.expectedArrivalDate).find(Boolean) || undefined,
     receivedAt: request.items.map(item => item.receivedDate).find(Boolean) || undefined,
-    rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
+    rejectionReason: request.financeApproval?.rejectionReason || request.ownerApproval?.rejectionReason || request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
     revisionNote: request.revisionNote || undefined,
   };
 }
 
 export function mapPurchasingStatus(status: string): PurchasingStatus {
-  if (status === "Completed" || status === "FinanceApproved") return "Selesai";
-  if (status === "Processing" || status === "SupervisorApproved") return "Diproses";
+  if (status === "Completed") return "Selesai";
+  if (status === "Processing" || status === "SupervisorApproved" || status === "FinanceApproved") return "Diproses";
   if (status === "SupervisorRejected" || status === "FinanceRejected" || status === "Rejected") return "Ditolak";
   return "Pending";
 }
@@ -315,6 +352,21 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
 
   if (order.status === "Cancelled" || order.designStatus === "Rejected") {
     return "Rejected";
+  }
+
+  if (order.status === "QC") {
+    if (qcDecisionLower === "nogo" || qcDecisionLower === "fail" || qcDecisionLower === "rework") {
+      return "Ready for Production";
+    }
+    return "QC";
+  }
+
+  if (order.status === "Ready for Production" || order.status === "ReadyForProduction") {
+    return "Ready for Production";
+  }
+
+  if (order.status === "Waiting Client Approval" || order.status === "WaitingClientApproval") {
+    return "Waiting Client Approval";
   }
 
   // Pre-Sales/Design Phase overrides Draft/Waiting Pricing status
@@ -360,7 +412,7 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
     case "RevisionRequired":
       return "Revision Required";
     case "Approved":
-      return "Ready for Production";
+      return "Waiting Pricing";
     case "Rejected":
       return "Rejected";
     default:
@@ -407,4 +459,99 @@ export function addDaysIso(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next.toISOString().split("T")[0];
+}
+
+export function mapQuotationDto(quo: QuotationDto): SalesOrder {
+  if (!quo) return quo as any;
+  const primaryItem = quo.items?.[0];
+  const mappedStatus = mapQuotationStatusString(quo.status);
+  const totalQty = (quo.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+  const materials = (quo.bomItems || []).map(b => ({
+    id: b.id,
+    name: b.name,
+    spec: b.specification || "",
+    specification: b.specification || "",
+    quantity: b.quantity,
+    unit: b.unit,
+    code: b.itemCode || undefined,
+  }));
+
+  const customerDrawingUrl = primaryItem?.customerImageUrl || quo.designLink || undefined;
+  const displayId = formatDocNumber(quo.quotationNumber || quo.id, mappedStatus, true);
+
+  return {
+    id: displayId,
+    backendId: quo.id,
+    backendStatus: quo.status,
+    convertedSalesOrderId: quo.convertedSalesOrderId,
+    convertedSalesOrderNumber: quo.convertedSalesOrderNumber,
+    soNumber: quo.quotationNumber,
+    isQuotation: true,
+    customerId: quo.customerCode || quo.customerId,
+    customerName: quo.customerName || quo.customerCode || quo.customerId,
+    customerEmail: quo.customerEmail || "",
+    customerDrawingUrl: customerDrawingUrl || "",
+    partNumber: primaryItem?.productName || quo.quotationNumber,
+    description: primaryItem?.description || primaryItem?.productName || quo.quotationNumber,
+    quantity: totalQty || 1,
+    unit: primaryItem?.unit || "PCS",
+    material: quo.notes || undefined,
+    deadline: quo.deadline || quo.createdAtUtc?.split("T")?.[0] || "",
+    status: mappedStatus,
+    createdBy: "backend",
+    createdAt: quo.createdAtUtc?.split("T")?.[0] || quo.createdAtUtc || "",
+    designReference: quo.designSource === "Engineering" ? "INTERNAL_DESIGN" : "CUSTOMER_PROVIDED",
+    designId: quo.designSource === "Engineering" ? "none" : "customer",
+    designLink: quo.designLink || customerDrawingUrl,
+    estimatedAmount: quo.estimatedAmount ?? undefined,
+    isCostingCompleted: quo.status === "client_price_approval" || quo.status === "won",
+    designApprovedAt: quo.engineeringApprovedAtUtc?.split("T")?.[0] || undefined,
+    designAssignedTo: quo.assignedEngineerId || undefined,
+    designAssignedName: quo.assignedEngineerName || undefined,
+    notes: quo.notes || "",
+    materials,
+    backendDesignStatus: quo.status,
+    items: (quo.items || []).map(item => ({
+      id: item.id,
+      productId: item.productId || undefined,
+      productName: item.productName,
+      partNumber: item.productName,
+      productPartNumber: item.productName,
+      quantity: item.quantity,
+      unitPrice: quo.estimatedAmount ? quo.estimatedAmount / (totalQty || 1) : 0,
+      unit: item.unit || "PCS",
+      notes: item.description || undefined,
+      customerDrawingUrl: item.customerImageUrl || undefined,
+    })),
+  };
+}
+
+export function isActiveQuotationEntry(order: { isQuotation?: boolean; convertedSalesOrderId?: string | null; convertedSalesOrderNumber?: string | null }): boolean {
+  const hasBeenConverted = Boolean(order.convertedSalesOrderId?.trim() || order.convertedSalesOrderNumber?.trim());
+  return isQuotationEntry(order) && !hasBeenConverted;
+}
+
+function mapQuotationStatusString(status: string): string {
+  switch (status?.toLowerCase()) {
+    case 'draft':
+    case 'pending_design':
+    case 'pendingdesign':
+      return 'Pending Design';
+    case 'design_review':
+    case 'designreview':
+      return 'Waiting Spv Approval';
+    case 'client_design_approval':
+      return 'Waiting Client Approval';
+    case 'waiting_pricing':
+      return 'Waiting Pricing';
+    case 'client_price_approval':
+      return 'Waiting Client Approval';
+    case 'won':
+      return 'Approved';
+    case 'lost':
+      return 'Cancelled';
+    default:
+      return status || 'Pending Design';
+  }
 }

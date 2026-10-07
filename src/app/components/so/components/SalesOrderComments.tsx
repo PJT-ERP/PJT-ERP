@@ -4,6 +4,7 @@ import { useAuth } from "../../context/hooks/useAuth";
 import { useAddSOCommentMutation, useUpdateSOCommentMutation, useDeleteSOCommentMutation } from "../hooks/useSOComments";
 import { useUsersQuery } from "../../../services/queries";
 import { salesApi } from "../../../services/salesApi";
+import { MENTION_ROLES } from "../../shared/mentions";
 
 interface Comment {
   id: string;
@@ -40,9 +41,8 @@ export function SalesOrderComments({ salesOrderId, comments }: SalesOrderComment
   const [isUploading, setIsUploading] = useState(false);
 
   const SUGGESTIONS = React.useMemo(() => {
-    const roles = ['Sales', 'Engineering', 'Engineering Supervisor', 'QC', 'Owner', 'Admin', 'Finance', 'Purchasing'];
     const names = users?.map(u => u.name) || [];
-    return Array.from(new Set([...roles, ...names]));
+    return Array.from(new Set([...MENTION_ROLES, ...names]));
   }, [users]);
   
   const mentionRegex = React.useMemo(() => {

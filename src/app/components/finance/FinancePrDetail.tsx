@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, CheckCircle2, FileText, AlertCircle } from "lucide-react";
 import { purchasingApi } from "../../services/purchasingApi";
@@ -22,6 +23,7 @@ export function FinancePrDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser, refreshBackendData } = useApp();
+  const queryClient = useQueryClient();
   
   const [detail, setDetail] = useState<MR | null>(null);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -32,7 +34,7 @@ export function FinancePrDetail() {
   const [dialogMsg, setDialogMsg] = useState<{ title: string; message: string } | null>(null);
 
 
-  const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin";
 
   useEffect(() => {
     const loadData = async () => {
@@ -66,15 +68,17 @@ export function FinancePrDetail() {
     }
     setIsApproving(true);
     try {
-      await purchasingApi.reviewPurchaseRequest(detail.backendId, {
-        reviewedByUserId: currentUser.id,
-        decision,
-        reviewStage: 'Finance',
-        rejectionReason: decision === 'Reject' ? reason : undefined
+      await purchasingApi.reviewPurchaseRequestFinanceApproval(detail.backendId, {
+        decision: decision === 'Accept' ? 'Approved' : 'Rejected',
+        ...(decision === 'Reject' ? { rejectionReason: reason?.trim() } : {})
       });
       setShowRejectModal(false);
       setRejectReasonInput("");
       await refreshBackendData();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['purchasingData'] }),
+        queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] }),
+      ]);
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
       const refreshedReq = refreshedData.find(r => r.prNumber.replace(/^MR-/, "PR-") === id || r.id === id);
@@ -210,7 +214,7 @@ export function FinancePrDetail() {
           )}
 
           {/* Actions */}
-          {detail.backendStatus === "SupervisorApproved" && detail.isReadyForFinance && canApproveFinance && (
+          {detail.financeApproval === "Pending" && !detail.isApprovalBlocked && detail.isReadyForFinance && canApproveFinance && (
             <div className="flex flex-col gap-4 pt-6 border-t border-slate-100">
               <div className="flex items-center gap-3">
                 <button
@@ -231,13 +235,22 @@ export function FinancePrDetail() {
             </div>
           )}
           
-          {(detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved") && (
+          <div className={`mt-4 rounded border p-4 ${detail.isApprovalBlocked ? "bg-red-50 border-red-200" : detail.isFullyApproved ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+            <p className={`text-sm font-bold ${detail.isApprovalBlocked ? "text-red-800" : detail.isFullyApproved ? "text-emerald-800" : "text-amber-800"}`}>
+              Siklus approval {detail.activeApprovalCycleNumber ?? "—"}: Finance {detail.financeApproval || "Pending"} · Owner {detail.ownerApproval || "Pending"}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">
+              {detail.isApprovalBlocked ? "Siklus ini diblokir karena terdapat keputusan penolakan." : detail.isFullyApproved ? "Finance dan Owner telah menyetujui. PR memenuhi persyaratan approval untuk PO." : "Persetujuan Finance dan Owner berjalan independen; keduanya harus menyetujui sebelum PR siap untuk PO."}
+            </p>
+            {(detail.financeApprovalRejectionReason || detail.ownerApprovalRejectionReason) && <p className="mt-2 text-sm text-red-700">Alasan penolakan: {detail.financeApprovalRejectionReason || detail.ownerApprovalRejectionReason}</p>}
+          </div>
+          {detail.isFullyApproved && (
              <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200 mt-4">
                 <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-bold text-emerald-800">Anggaran Telah Disetujui</p>
                   <p className="text-sm text-emerald-700 mt-1">
-                    Anggaran untuk PR ini telah disetujui. Tim Purchasing dapat melanjutkan proses pembuatan Purchase Order.
+                    Finance dan Owner telah menyetujui PR ini. Tim Purchasing dapat melanjutkan proses pembuatan Purchase Order.
                   </p>
                 </div>
               </div>

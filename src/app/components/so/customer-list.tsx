@@ -457,7 +457,7 @@ export function CustomerList({ onNavigate }: CustomerListProps) {
                 </div>
 
                 <div style={{ display: "flex", gap: 6 }}>
-                  <CardActionBtn label="Buat SO" icon={<ShoppingCart size={11} />} bg="#ECFEFF" color={S.cyan} onClick={() => goCreateSO(c.code)} />
+                  <CardActionBtn label="Buat QU" icon={<ShoppingCart size={11} />} bg="#ECFEFF" color={S.cyan} onClick={() => goCreateSO(c.code)} />
                   <CardActionBtn label="Repeat" icon={<RefreshCw size={11} />} bg="#F5F3FF" color="#7C3AED" onClick={() => goRepeatOrder(c.code)} />
                 </div>
               </div>
@@ -526,7 +526,7 @@ function CustomerTableRow({ customer: c, initials, active, total, isLast, onEdit
         <div style={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
           {[
             { icon: <Edit size={12} />, title: "Edit Pelanggan", hb: "#FFFBEB", hc: "#D97706", act: onEdit },
-            { icon: <ShoppingCart size={12} />, title: "Buat SO Baru", hb: "#ECFEFF", hc: S.cyan, act: onCreateSO },
+            { icon: <ShoppingCart size={12} />, title: "Buat QU Baru", hb: "#ECFEFF", hc: S.cyan, act: onCreateSO },
             { icon: <RefreshCw size={12} />, title: "Repeat Order", hb: "#F5F3FF", hc: "#7C3AED", act: onRepeat },
           ].map(btn => (
             <button key={btn.title} title={btn.title} onClick={btn.act}

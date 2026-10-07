@@ -205,13 +205,12 @@ export function ApprovalModal({ item, onClose }: { item: ApprovalItem; onClose: 
 
 export function OwnerApprovalPage() {
   const { data: customers = [] } = useCustomersQuery();
-
+  const { currentUser } = useApp();
   const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState<'all' | 'approved' | 'rejected' | 'revision'>('all');
   const [now] = useState(() => Date.now());
   const [queues, setQueues] = useState<ApprovalQueuesDto | null>(null);
-
   const fetchQueues = () => {
     productionApi.getApprovalQueues().then(setQueues).catch(console.error);
   };
@@ -259,6 +258,7 @@ export function OwnerApprovalPage() {
         </div>
       </div>
 
+      {currentUser?.role !== 'Admin' && <>
       {/* Pending Approvals */}
       <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
@@ -382,6 +382,7 @@ export function OwnerApprovalPage() {
       </div>
 
       {selectedItem && <ApprovalModal item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      </>}
     </div>
   );
 }

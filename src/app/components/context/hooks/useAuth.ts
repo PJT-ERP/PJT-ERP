@@ -26,6 +26,8 @@ export function mapBackendRoleToUserRole(role?: string | null): UserRole {
       return "Admin";
     case "finance":
       return "Finance";
+    case "salesorder":
+      return "Sales Order";
     case "purchasing":
       return "Purchasing";
     case "engineering":

@@ -16,6 +16,7 @@ import {
 import { getStatusColor, SOStatus } from "../data/mockData";
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
+import { MentionsReminderWidget } from "../shared/MentionsReminderWidget";
 
 interface SODashboardProps {
   onNavigate: (page: string, data?: unknown) => void;
@@ -178,7 +179,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             e.currentTarget.style.boxShadow = "0 4px 12px rgba(200, 16, 46, 0.25)";
           }}
         >
-          <Plus size={14} /> Buat SO
+          <Plus size={14} /> Buat QU
         </button>
       </div>
 
@@ -494,6 +495,8 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
+          <MentionsReminderWidget />
+
           {/* Workflow stats */}
           <div style={{ background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>
@@ -542,7 +545,7 @@ export function SODashboard({ onNavigate }: SODashboardProps) {
             <p style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600, margin: "0 0 12px" }}>Quick Actions</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { label: "Buat SO", icon: <Plus size={13} />, page: "so-create" as string, primary: true },
+                { label: "Buat Quotation", icon: <Plus size={13} />, page: "so-create" as string, primary: true },
                 { label: "Lihat Semua Order", icon: <List size={13} />, page: "so-list" as string, primary: false },
                 { label: "Data Pelanggan", icon: <Users size={13} />, page: "customer-list" as string, primary: false },
               ].map((action) => (

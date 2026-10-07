@@ -9,6 +9,7 @@ import { useApp } from "../../components/context/AppContext";
 import { useSalesOrdersQuery, useCustomersQuery } from "../../services/queries";
 import { analyticsApi, OwnerDashboardDto } from "../../services/analyticsApi";
 import { productionApi, ExecutiveDashboardDto, DashboardCountersDto } from "../../services/productionApi";
+import { MentionsReminderWidget } from "../../components/shared/MentionsReminderWidget";
 
 const S = {
   font: "Inter, sans-serif",
@@ -275,6 +276,11 @@ export function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Mentions Section */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+        <MentionsReminderWidget />
       </div>
 
       {/* Lists Section */}

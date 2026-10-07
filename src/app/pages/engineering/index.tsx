@@ -8,6 +8,8 @@ import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
 import { productionApi, DashboardCountersDto } from "../../services/productionApi";
+import { formatDocNumber } from "../../components/context/hooks/dataMappers";
+import { MentionsReminderWidget } from "../../components/shared/MentionsReminderWidget";
 import { useNavigate } from "react-router";
 import {
   Bar,
@@ -73,7 +75,24 @@ export function EngineeringPage() {
     productionApi.getDashboardCounters().then(setCounters).catch(console.error);
   }, []);
 
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+
+  // Helper to check if task is assigned to current user
+  const isAssignedToCurrentUser = (item: any) => {
+    if (!currentUser) return false;
+    if (item.designAssignedTo && (item.designAssignedTo === currentUser.id || item.designAssignedTo === (currentUser as any).userId)) return true;
+    if (item.assignedTo && (item.assignedTo === currentUser.id || item.assignedTo === (currentUser as any).userId)) return true;
+    const workerName = (item.designWorkerName || item.designAssignedName || item.assignedName || "").toLowerCase().trim();
+    if (!workerName || workerName === 'unassigned') return false;
+    const userName = (currentUser.name || "").toLowerCase().trim();
+    const userEmail = (currentUser.email || currentUser.username || "").toLowerCase().trim();
+    if (userName && (workerName.includes(userName) || userName.includes(workerName))) return true;
+    if (userEmail && (workerName.includes(userEmail) || userEmail.includes(workerName))) return true;
+    if (workerName.includes("user") && (userEmail.includes("engineering@") || userEmail === "engineering" || userName.includes("user"))) return true;
+    if (workerName.includes("worker") && (userEmail.includes("worker") || userName.includes("worker"))) return true;
+    if (workerName.includes("lead") && (userEmail.includes("lead") || userName.includes("lead"))) return true;
+    return false;
+  };
 
   // Pre-Sales Design Queue
   const pendingSalesOrders = salesOrders
@@ -81,13 +100,13 @@ export function EngineeringPage() {
       const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required'];
       return engineeringStatuses.includes(so.status);
     })
-    .map(so => ({ ...so, isQuotation: false } as any));
+    .map(so => ({ ...so, isQuotation: so.isQuotation ?? so.id.startsWith("QU") } as any));
 
   const allDesignQueue = [...pendingSalesOrders];
 
   const designQueue = allDesignQueue.filter(item => {
     if (isSpv) return true;
-    return item.designAssignedTo === currentUser?.id || item.assignedTo === currentUser?.id;
+    return isAssignedToCurrentUser(item);
   }).sort((a, b) => new Date(b.createdAt || b.deadline || "").getTime() - new Date(a.createdAt || a.deadline || "").getTime());
 
   const pendingDesignCount = designQueue.filter(item => ['Pending Design', 'Revision Required', 'Rejected'].includes(item.status)).length;
@@ -109,14 +128,14 @@ export function EngineeringPage() {
   const pausedCount = prodOrdersForStats.filter(so => so.status === "Paused").length;
 
   const summaryCards = [
-    ...(isSpv ? [{
-      label: "Antrian Desain Baru",
+    {
+      label: isSpv ? "Antrian Desain Baru" : "Tugas Desain Saya",
       value: pendingDesignCount,
       icon: <List size={18} />,
       accent: "#C8102E",
       bg: "rgba(200,16,46,0.08)",
-      change: "Dari Tim Sales",
-    }] : []),
+      change: isSpv ? "Dari Tim Sales" : "Perlu dikerjakan",
+    },
     {
       label: "Siap Produksi",
       value: readyForProductionCount,
@@ -144,7 +163,7 @@ export function EngineeringPage() {
   ];
 
   const workflowStats = [
-    ...(isSpv ? [{ label: "Pending Design", count: pendingDesignCount, color: "#94A3B8" }] : []),
+    { label: isSpv ? "Pending Design" : "Tugas Desain", count: pendingDesignCount, color: "#94A3B8" },
     { label: "Siap Produksi", count: readyForProductionCount, color: "#10B981" },
     { label: "Sedang Produksi", count: inProductionCount, color: "#3B82F6" },
     { label: "Dipause", count: pausedCount, color: "#F59E0B" },
@@ -230,19 +249,26 @@ export function EngineeringPage() {
               )}
             </div>
           )}
-
-          {isSpv ? (
-            <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
-              <div style={{ minWidth: 700 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
+          
+          <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
+            <div style={{ minWidth: 700 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${S.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Pencil size={14} style={{ color: S.cyan }} />
-                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>Daftar Tugas Desain (Pre-Sales)</span>
+                  <span style={{ color: S.slate, fontSize: "13.5px", fontWeight: 600 }}>
+                    {isSpv ? "Daftar Tugas Desain" : "Tugas Desain Saya"}
+                  </span>
                 </div>
+                <button
+                  onClick={() => navigate('/erp/engineer-tasks')}
+                  style={{ background: "none", border: "none", color: S.cyan, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                >
+                  Buka Halaman Tugas Desain →
+                </button>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", padding: "8px 18px", background: "#F8FAFC", borderBottom: `1px solid ${S.border}`, alignItems: "center" }}>
-                {["No. SO", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
+                {["No. Quotation", "Pelanggan", "Produk", "Ditugaskan", "Status"].map((h) => (
                   <span key={h} style={{ color: "#94A3B8", fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{h}</span>
                 ))}
               </div>
@@ -250,40 +276,36 @@ export function EngineeringPage() {
               {designQueue.length === 0 ? (
                 <div style={{ padding: "40px 20px", textAlign: "center", color: S.secondary, fontSize: "13px" }}>
                   <CheckCircle size={32} style={{ color: "#86EFAC", margin: "0 auto 10px" }} />
-                  <p style={{ margin: 0 }}>Tidak ada antrean desain dari Sales.</p>
+                  <p style={{ margin: 0 }}>
+                    {isSpv ? "Tidak ada antrean desain dari Sales." : "Tidak ada tugas desain yang ditugaskan kepada Anda saat ini."}
+                  </p>
                 </div>
               ) : (
                 designQueue.slice(0, 10).map((so, idx) => {
-                  const canOpen = so.status === 'Waiting Spv Approval';
-                  // eslint-disable-next-line unused-imports/no-unused-vars
-                  const assignedName = so.designAssignedName || users.find(u => u.id === so.designAssignedTo)?.name || 'Engineer';
+                  const assignedName = so.designAssignedName || (so as any).designWorkerName || users.find(u => u.id === so.designAssignedTo)?.name;
 
                   return (
                     <div
                       key={so.id}
-                      onClick={() => {
-                        if (canOpen) {
-                          navigate('/erp/engineer-tasks');
-                        }
-                      }}
+                      onClick={() => navigate(`/erp/engineer-tasks/${so.id}`)}
                       style={{
                         display: "grid", gridTemplateColumns: "120px 1fr 1.1fr 170px 140px", alignItems: "center",
-                        padding: "10px 18px", cursor: canOpen ? "pointer" : "default",
+                        padding: "10px 18px", cursor: "pointer",
                         borderBottom: idx < designQueue.length - 1 ? `1px solid ${S.border}` : "none",
                         transition: "background 0.1s",
                       }}
                       onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
-                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 500 }}>{so.id}</span>
+                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600 }}>{formatDocNumber(so.id, so.status)}</span>
                       <div>
                         <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
                       </div>
                       <span style={{ color: "#334155", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>{so.description || so.partNumber || "-"}</span>
                       <div style={{ minWidth: 0 }}>
-                        {so.designAssignedName || (so as any).designWorkerName ? (
+                        {assignedName ? (
                           <span style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "4px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {so.designAssignedName || (so as any).designWorkerName}
+                            {assignedName}
                           </span>
                         ) : (
                           <span style={{ fontSize: "11px", color: S.secondary, fontStyle: "italic" }}>Unassigned</span>
@@ -307,9 +329,8 @@ export function EngineeringPage() {
                   Lihat Semua Tugas Desain ({designQueue.length})
                 </div>
               )}
-              </div>
             </div>
-          ) : null}
+          </div>
 
           <div className="overflow-x-auto" style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6 }}>
             <div style={{ minWidth: 700 }}>
@@ -377,6 +398,8 @@ export function EngineeringPage() {
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
+          <MentionsReminderWidget />
+
           {/* Pipeline stats */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 12, borderBottom: `1px solid ${S.border}` }}>
@@ -406,7 +429,7 @@ export function EngineeringPage() {
                 { label: "Buat Purchasing Req", icon: <Package size={13} />, path: "/erp/engineer-purchasing", primary: false },
                 { label: "Tugas Desain", icon: <List size={13} />, path: "/erp/engineer-tasks", primary: false },
                 { label: "Pantau Produksi", icon: <Factory size={13} />, path: "/erp/production", primary: true },
-              ].filter(action => action.action === "scan" || (isSpv || action.path === "/erp/production")).map((action) => (
+              ].filter(action => action.action === "scan" || action.path === "/erp/engineer-tasks" || action.path === "/erp/production" || isSpv).map((action) => (
                 <button
                   key={action.label}
                   onClick={() => action.action === "scan" ? setShowScanner(true) : navigate(action.path!)}

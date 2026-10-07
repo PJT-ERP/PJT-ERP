@@ -42,19 +42,50 @@ function canRole(role: string, ...allowed: string[]) {
 export function ActionPanels({ order, currentUserRole, currentUserName, actionForm, setActionForm, handleAction }: ActionPanelsProps) {
   const role = currentUserRole;
   const status = order.status;
+  const [isChangingAssign, setIsChangingAssign] = React.useState(false);
+
+  const currentAssigned = order.assignedName || (order as any).designWorkerName || (order as any).designAssignedName;
+  const canAssignEngineer = canRole(role, 'Engineering Supervisor', 'Sales') && !['Completed', 'Rejected', 'Cancelled', 'Finished'].includes(status);
 
   return (
     <>
-      {/* ===== Client Validation (Sales) ===== */}
-      {canRole(role, 'Sales') && status === 'Waiting Client Approval' && (
-        <SectionCard title="Validasi Klien" titleBg="#FFFBEB" titleColor="#D97706">
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* ===== Notice: Pending Engineering SPV Approval ===== */}
+      {canRole(role, 'Sales', 'Finance') && ['Pending Design', 'Waiting Spv Approval', 'Revision Required'].includes(status) && (
+        <SectionCard title="Status: Menunggu Approval Desain & BOM (SPV Engineering)" titleBg="#FEF08A" titleColor="#854D0E">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#854D0E" }}>
             <AlertTriangle size={14} />
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Desain Belum Di-approve SPV Engineering</span>
+          </div>
+          <p style={{ margin: "0", fontSize: "11px", color: "#92400E", lineHeight: 1.4 }}>
+            SPV Engineering perlu memeriksa dan menyetujui Gambar Desain & BOM sebelum Finance dapat memproses estimasi harga dan Sales melakukan konfirmasi deal.
+          </p>
+        </SectionCard>
+      )}
+
+      {/* ===== Notice: Pending Finance Price Approval for Sales ===== */}
+      {canRole(role, 'Sales') && status === 'Waiting Pricing' && !order.isCostingCompleted && (
+        <SectionCard title="Status: Menunggu Pricing / Estimasi Harga dari Finance" titleBg="#FEF3C7" titleColor="#D97706">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#D97706" }}>
+            <AlertTriangle size={14} />
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Harga Belum Di-approve Finance</span>
+          </div>
+          <p style={{ margin: "0", fontSize: "11px", color: "#B45309", lineHeight: 1.4 }}>
+            SPV Engineering telah menyetujui Desain & BOM. Saat ini Finance perlu terlebih dahulu meng-approve dan menginput estimasi harga jual sebelum Sales dapat melakukan persetujuan Deal.
+          </p>
+        </SectionCard>
+      )}
+
+      {/* ===== Client Validation (Sales) ===== */}
+      {canRole(role, 'Sales') && (status === 'Waiting Client Approval' || (status === 'Waiting Pricing' && order.isCostingCompleted && (order.estimatedAmount || 0) > 0)) && (
+        <SectionCard title="Validasi Klien & Approval Sales (Penawaran Deal)" titleBg="#FFEDD5" titleColor="#C2410C">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#C2410C" }}>
+            <AlertTriangle size={14} />
+            <span style={{ fontSize: "11.5px", fontWeight: 700 }}>Menunggu Persetujuan Sales / Klien (Orange Status)</span>
           </div>
           <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
-            Finance telah memberikan Estimasi Harga: <strong style={{ color: S.slate }}>Rp {(order.estimatedAmount || 0).toLocaleString("id-ID")}</strong>
+            Desain & Pricing telah disetujui. Total Estimasi Penawaran: <strong style={{ color: "#C2410C", fontWeight: 700 }}>Rp {(order.estimatedAmount || 0).toLocaleString("id-ID")}</strong>
           </p>
-          <ActionBtn icon={<CheckCircle2 size={13} />} label="Klien Deal (Lanjut SO)" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('deal')} />
+          <ActionBtn icon={<CheckCircle2 size={13} />} label="Klien Deal (Approve SO & Minta DP)" bg="#ECFDF5" color="#059669" border="1px solid #10B981" onClick={() => handleAction('deal')} />
           <ActionBtn icon={<RefreshCw size={13} />} label="Nego / Revisi Harga" bg="#FFFBEB" color="#D97706" border="1px solid #F59E0B" onClick={() => handleAction('revise_price')} />
           <ActionBtn icon={<X size={13} />} label="Gagal / Batal (Rejected)" bg="#FEF2F2" color="#DC2626" border="1px solid #EF4444" onClick={() => handleAction('reject')} />
         </SectionCard>
@@ -62,7 +93,10 @@ export function ActionPanels({ order, currentUserRole, currentUserName, actionFo
 
       {/* ===== Finance: Estimasi Harga ===== */}
       {canRole(role, 'Finance') && status === 'Waiting Pricing' && (
-        <SectionCard title="Finance: Estimasi Harga Jual">
+        <SectionCard title="Finance: Estimasi Harga Jual (Approval Harga)" titleBg="#FEF3C7" titleColor="#D97706">
+          <p style={{ margin: "0 0 4px", fontSize: "11px", color: "#B45309", lineHeight: 1.4 }}>
+            Harga Belum Di-approve Finance. Masukkan estimasi harga jual untuk melanjutkan ke persetujuan Sales.
+          </p>
           <label style={{ fontSize: "11px", color: S.secondary }}>Estimasi Total Harga (Rp)</label>
           <input
             type="number"
@@ -70,24 +104,70 @@ export function ActionPanels({ order, currentUserRole, currentUserName, actionFo
             onChange={e => setActionForm(prev => ({ ...prev, estimatedAmount: Number(e.target.value) }))}
             style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box" }}
           />
-          <ActionBtn icon={<CheckCircle2 size={13} />} label="Submit Harga" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('submit_price')} />
+          <ActionBtn icon={<CheckCircle2 size={13} />} label="Submit & Approve Harga" bg="#D97706" color="#fff" border="none" onClick={() => handleAction('submit_price')} />
         </SectionCard>
       )}
 
-      {/* ===== SPV Engineering: Assign Task ===== */}
-      {canRole(role, 'Engineering Supervisor') && status === 'Pending Design' && (
-        <SectionCard title="Spv Engineering: Assign Task">
-          <label style={{ fontSize: "11px", color: S.secondary }}>Assign to Engineer</label>
-          <select
-            value={actionForm.engineerName}
-            onChange={e => setActionForm(prev => ({ ...prev, engineerName: e.target.value }))}
-            style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box", background: "#fff" }}
-          >
-            <option value="">-- Pilih Engineer --</option>
-            <option value="Budi Santoso">Budi Santoso</option>
-            <option value="Andi Pratama">Andi Pratama</option>
-          </select>
-          <ActionBtn icon={<CheckCircle2 size={13} />} label="Assign Engineer" bg={S.cyan} color="#fff" border="none" onClick={() => handleAction('assign_engineer')} />
+      {/* ===== Engineering: Penugasan Task ===== */}
+      {canAssignEngineer && (
+        <SectionCard title="Penugasan Engineering">
+          {currentAssigned && !isChangingAssign ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: "11px", color: S.secondary }}>Engineer Ditugaskan</div>
+              <div style={{ fontSize: "12.5px", fontWeight: 600, color: S.slate, background: "#F1F5F9", padding: "8px 10px", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${S.border}` }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <CheckCircle2 size={14} style={{ color: "#059669" }} />
+                  {currentAssigned}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChangingAssign(true);
+                    setActionForm(prev => ({ ...prev, engineerName: currentAssigned }));
+                  }}
+                  style={{ background: "none", border: "none", color: S.cyan, fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
+                >
+                  Ubah
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <label style={{ fontSize: "11px", color: S.secondary }}>Assign to Engineer</label>
+              <select
+                value={actionForm.engineerName}
+                onChange={e => setActionForm(prev => ({ ...prev, engineerName: e.target.value }))}
+                style={{ padding: "8px 10px", fontSize: "13px", borderRadius: 4, border: `1px solid ${S.border}`, outline: "none", width: "100%", boxSizing: "border-box", background: "#fff" }}
+              >
+                <option value="">-- Pilih Engineer --</option>
+                <option value="Engineering User">Engineering User (engineering@pjt.local)</option>
+                <option value="Engineering Worker">Engineering Worker (engineering-worker@pjt.local)</option>
+                <option value="Lead Engineer">Lead Engineer</option>
+              </select>
+              <div style={{ display: "flex", gap: 6 }}>
+                <ActionBtn
+                  icon={<CheckCircle2 size={13} />}
+                  label="Assign Engineer"
+                  bg={S.cyan}
+                  color="#fff"
+                  border="none"
+                  onClick={() => {
+                    handleAction('assign_engineer');
+                    setIsChangingAssign(false);
+                  }}
+                />
+                {isChangingAssign && (
+                  <button
+                    type="button"
+                    onClick={() => setIsChangingAssign(false)}
+                    style={{ padding: "6px 12px", fontSize: "12px", borderRadius: 4, border: `1px solid ${S.border}`, background: "#fff", color: S.secondary, cursor: "pointer" }}
+                  >
+                    Batal
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </SectionCard>
       )}
 

@@ -9,12 +9,17 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
 {
     public DbSet<CustomerReplica> CustomerReplicas => Set<CustomerReplica>();
     public DbSet<ProductReplica> ProductReplicas => Set<ProductReplica>();
+    public DbSet<Quotation> Quotations => Set<Quotation>();
+    public DbSet<QuotationItem> QuotationItems => Set<QuotationItem>();
+    public DbSet<QuotationBomItem> QuotationBomItems => Set<QuotationBomItem>();
+    public DbSet<QuotationPriceRevision> QuotationPriceRevisions => Set<QuotationPriceRevision>();
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<SalesOrderDesignRevision> SalesOrderDesignRevisions => Set<SalesOrderDesignRevision>();
     public DbSet<SalesOrderComment> SalesOrderComments => Set<SalesOrderComment>();
     public DbSet<ConsultationRequest> ConsultationRequests => Set<ConsultationRequest>();
+    public DbSet<MeetingMinute> MeetingMinutes => Set<MeetingMinute>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -44,6 +49,88 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(product => product.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
+        modelBuilder.Entity<Quotation>(builder =>
+        {
+            builder.ToTable("quotations");
+            builder.HasKey(quotation => quotation.Id);
+            builder.HasIndex(quotation => quotation.QuotationNumber).IsUnique();
+            builder.Property(quotation => quotation.QuotationNumber).HasMaxLength(100).HasColumnName("quotation_number");
+            builder.Property(quotation => quotation.CustomerId).HasColumnName("customer_id");
+            builder.Property(quotation => quotation.CustomerCode).HasMaxLength(50).HasColumnName("customer_code");
+            builder.Property(quotation => quotation.CustomerName).HasMaxLength(255).HasColumnName("customer_name");
+            builder.Property(quotation => quotation.CustomerEmail).HasMaxLength(160).HasColumnName("customer_email");
+            builder.Property(quotation => quotation.Deadline).HasColumnName("deadline");
+            builder.Property(quotation => quotation.Notes).HasColumnName("notes");
+            builder.Property(quotation => quotation.Status).HasMaxLength(50).HasColumnName("status");
+            builder.Property(quotation => quotation.DesignSource).HasMaxLength(40).HasColumnName("design_source");
+            builder.Property(quotation => quotation.EngineeringReviewRequired).HasColumnName("engineering_review_required");
+            builder.Property(quotation => quotation.EngineeringApprovedAtUtc).HasColumnName("engineering_approved_at_utc");
+            builder.Property(quotation => quotation.ClientDesignApprovedAtUtc).HasColumnName("client_design_approved_at_utc");
+            builder.Property(quotation => quotation.AssignedEngineerId).HasColumnName("assigned_engineer_id");
+            builder.Property(quotation => quotation.AssignedEngineerName).HasMaxLength(160).HasColumnName("assigned_engineer_name");
+            builder.Property(quotation => quotation.DesignLink).HasMaxLength(1000).HasColumnName("design_link");
+            builder.Property(quotation => quotation.EstimatedAmount).HasColumnType("numeric(18,2)").HasColumnName("estimated_amount");
+            builder.Property(quotation => quotation.LostReason).HasColumnName("lost_reason");
+            builder.Property(quotation => quotation.ConvertedSalesOrderId).HasColumnName("converted_sales_order_id");
+            builder.Property(quotation => quotation.ConvertedSalesOrderNumber).HasMaxLength(100).HasColumnName("converted_sales_order_number");
+            builder.Property(quotation => quotation.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(quotation => quotation.UpdatedAtUtc).HasColumnName("updated_at_utc");
+            builder.HasMany(quotation => quotation.Items)
+                .WithOne(item => item.Quotation)
+                .HasForeignKey(item => item.QuotationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(quotation => quotation.BomItems)
+                .WithOne(item => item.Quotation)
+                .HasForeignKey(item => item.QuotationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(quotation => quotation.PriceRevisions)
+                .WithOne(revision => revision.Quotation)
+                .HasForeignKey(revision => revision.QuotationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QuotationItem>(builder =>
+        {
+            builder.ToTable("quotation_items");
+            builder.HasKey(item => item.Id);
+            builder.Property(item => item.QuotationId).HasColumnName("quotation_id");
+            builder.Property(item => item.ProductId).HasColumnName("product_id");
+            builder.Property(item => item.ProductName).HasMaxLength(255).HasColumnName("product_name");
+            builder.Property(item => item.Description).HasColumnName("description");
+            builder.Property(item => item.Quantity).HasColumnName("quantity");
+            builder.Property(item => item.Unit).HasMaxLength(30).HasColumnName("unit");
+            builder.Property(item => item.CustomerImageUrl).HasMaxLength(1000).HasColumnName("customer_image_url");
+            builder.Property(item => item.DesignLink).HasMaxLength(1000).HasColumnName("design_link");
+            builder.Property(item => item.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(item => item.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        });
+
+        modelBuilder.Entity<QuotationBomItem>(builder =>
+        {
+            builder.ToTable("quotation_bom_items");
+            builder.HasKey(item => item.Id);
+            builder.Property(item => item.QuotationId).HasColumnName("quotation_id");
+            builder.Property(item => item.QuotationItemId).HasColumnName("quotation_item_id");
+            builder.Property(item => item.ItemCode).HasMaxLength(100).HasColumnName("item_code");
+            builder.Property(item => item.Name).HasMaxLength(255).HasColumnName("name");
+            builder.Property(item => item.Specification).HasColumnName("specification");
+            builder.Property(item => item.Quantity).HasColumnType("numeric(18,3)").HasColumnName("quantity");
+            builder.Property(item => item.Unit).HasMaxLength(30).HasColumnName("unit");
+        });
+
+        modelBuilder.Entity<QuotationPriceRevision>(builder =>
+        {
+            builder.ToTable("quotation_price_revisions");
+            builder.HasKey(revision => revision.Id);
+            builder.Property(revision => revision.QuotationId).HasColumnName("quotation_id");
+            builder.Property(revision => revision.RevisionNumber).HasColumnName("revision_number");
+            builder.Property(revision => revision.Amount).HasColumnType("numeric(18,2)").HasColumnName("amount");
+            builder.Property(revision => revision.RevisionDate).HasColumnName("revision_date");
+            builder.Property(revision => revision.Notes).HasColumnName("notes");
+            builder.Property(revision => revision.FinanceUserId).HasColumnName("finance_user_id");
+            builder.Property(revision => revision.FinanceUserName).HasMaxLength(160).HasColumnName("finance_user_name");
+        });
+
         modelBuilder.Entity<ConsultationRequest>(builder =>
         {
             builder.ToTable("consultation_requests");
@@ -57,6 +144,26 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(req => req.Status).HasMaxLength(50).HasColumnName("status");
             builder.Property(req => req.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(req => req.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        });
+
+        modelBuilder.Entity<MeetingMinute>(builder =>
+        {
+            builder.ToTable("meeting_minutes");
+            builder.HasKey(minute => minute.Id);
+            builder.HasIndex(minute => minute.MeetingDate);
+            builder.Property(minute => minute.Id).HasColumnName("id");
+            builder.Property(minute => minute.CustomerId).HasColumnName("customer_id");
+            builder.Property(minute => minute.CustomerName).HasMaxLength(255).HasColumnName("customer_name");
+            builder.Property(minute => minute.Location).HasMaxLength(255).HasColumnName("location");
+            builder.Property(minute => minute.MeetingDate).HasColumnName("meeting_date");
+            builder.Property(minute => minute.Description).HasMaxLength(4000).HasColumnName("description");
+            builder.Property(minute => minute.Discussion).HasMaxLength(4000).HasColumnName("discussion");
+            builder.Property(minute => minute.Solution).HasMaxLength(4000).HasColumnName("solution");
+            builder.Property(minute => minute.FeedbackDeadline).HasColumnName("feedback_deadline");
+            builder.Property(minute => minute.CreatedByUserId).HasColumnName("created_by_user_id");
+            builder.Property(minute => minute.CreatedByName).HasMaxLength(160).HasColumnName("created_by_name");
+            builder.Property(minute => minute.CreatedAtUtc).HasColumnName("created_at_utc");
+            builder.Property(minute => minute.UpdatedAtUtc).HasColumnName("updated_at_utc");
         });
 
         modelBuilder.Entity<SalesOrder>(builder =>
@@ -94,6 +201,8 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.QcPhotos).HasColumnName("qc_photos");
             builder.Property(order => order.EstimatedAmount).HasColumnName("estimated_amount");
             builder.Property(order => order.IsCostingCompleted).HasColumnName("is_costing_completed");
+            builder.Property(order => order.DpPercentage).HasColumnType("numeric(5,2)").HasColumnName("dp_percentage");
+            builder.Property(order => order.DpDueDate).HasColumnName("dp_due_date");
             builder.HasMany(order => order.Items)
                 .WithOne(item => item.SalesOrder)
                 .HasForeignKey(item => item.SalesOrderId)

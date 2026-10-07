@@ -80,7 +80,9 @@ services:
       args:
         PROJECT_PATH: "src/Services/Production.API/Production.API.csproj"
         ENTRY_DLL: "Production.API.dll"
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      IdentityApi__Address: "http://identity-api:8080/"
     ports:
       - "127.0.0.1:5003:8080"
     volumes:
@@ -88,6 +90,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      identity-api:
+        condition: service_started
 
   qc-api:
     build:
