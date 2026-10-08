@@ -38,8 +38,12 @@ RUN dotnet publish ${PROJECT_PATH} -c Release -o /app/publish /p:UseAppHost=fals
 # Final runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 WORKDIR /app
-COPY --from=build /app/publish .
+RUN addgroup -S appgroup && adduser -S -D -H -G appgroup appuser \
+    && mkdir -p /app/wwwroot /tmp \
+    && chown -R appuser:appgroup /app /tmp
+COPY --from=build --chown=appuser:appgroup /app/publish .
 
 ARG ENTRY_DLL
 ENV ENTRY_DLL=${ENTRY_DLL}
+USER appuser
 ENTRYPOINT ["sh", "-c", "dotnet $ENTRY_DLL"]

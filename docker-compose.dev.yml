@@ -48,6 +48,8 @@ services:
         ENTRY_DLL: Identity.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_dev_daily_report_uploads:/app/data/daily-report-uploads
     depends_on:
       db:
         condition: service_healthy
@@ -76,8 +78,6 @@ services:
         ENTRY_DLL: Production.API.dll
     restart: unless-stopped
     environment: *api-environment
-    volumes:
-      - pjt_dev_meeting_minutes:/app/wwwroot/meeting-minutes
     depends_on:
       db:
         condition: service_healthy
@@ -183,4 +183,4 @@ volumes:
   pjt_dev_db:
   pjt_dev_qc_photos:
   pjt_dev_finance_proofs:
-  pjt_dev_meeting_minutes:
+  pjt_dev_daily_report_uploads:

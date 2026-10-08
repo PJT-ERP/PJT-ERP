@@ -37,6 +37,8 @@ const CustomerAnalyticsPage = React.lazy(() => import("./pages/sales/analytics")
 const ProductionPage = React.lazy(() => import("./pages/Production").then(m => ({ default: m.ProductionPage })));
 const ProductionMaterialRequestPage = React.lazy(() => import("./pages/Production/material-request").then(m => ({ default: m.ProductionMaterialRequestPage })));
 const QCPage = React.lazy(() => import("./pages/qc/qc-dashboard").then(m => ({ default: m.QCPage })));
+const MyDailyReportPage = React.lazy(() => import("./pages/Reports/MyDailyReportPage"));
+const OwnerReportDashboard = React.lazy(() => import("./pages/Reports/OwnerReportDashboard"));
 
 const financeRoutes = [
   { path: "dashboard", element: <FinanceDashboard /> },
@@ -86,6 +88,8 @@ export default function App() {
               <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor', 'Admin']}><OwnerApprovalPage /></ProtectedRoute>} />
               <Route path="dashboard" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><DashboardPage /></ProtectedRoute>} />
               <Route path="customer-analytics" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><CustomerAnalyticsPage /></ProtectedRoute>} />
+              <Route path="daily-reports" element={<ProtectedRoute allowedRoles={['Owner']}><OwnerReportDashboard /></ProtectedRoute>} />
+              <Route path="daily-report" element={<ProtectedRoute allowedRoles={['Sales', 'Engineering', 'Engineering Supervisor', 'QC', 'Admin', 'Finance', 'Purchasing']}><MyDailyReportPage /></ProtectedRoute>} />
               
               {/* Admin: Admin & Owner */}
               <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />
