@@ -137,7 +137,9 @@ public sealed record SalesOrderDto(
     IReadOnlyCollection<SalesOrderCommentDto>? Comments = null,
     IReadOnlyCollection<string>? ProductionPhotos = null,
     IReadOnlyCollection<string>? QcPhotos = null,
-    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null);
+    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null,
+    decimal? DpPercentage = null,
+    DateOnly? DpDueDate = null);
 
 public sealed record SalesOrderCommentDto(
     Guid Id,

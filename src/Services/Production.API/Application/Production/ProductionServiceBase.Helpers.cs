@@ -92,7 +92,9 @@ public abstract partial class ProductionServiceBase
             order.Comments?.OrderBy(c => c.CreatedAtUtc).Select(c => new SalesOrderCommentDto(c.Id, c.UserId, c.UserName, c.Content, c.CreatedAtUtc, c.IsEdited, c.IsDeleted, c.FileUrl, c.FileName, c.FileType)).ToArray() ?? Array.Empty<SalesOrderCommentDto>(),
             order.ProductionPhotos,
             order.QcPhotos,
-            MapMaterials(order, boms));
+            MapMaterials(order, boms),
+            order.DpPercentage,
+            order.DpDueDate);
     }
 
     protected static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)

@@ -59,6 +59,7 @@ public sealed partial class PurchaseRequestService
         return query
             .Include(request => request.Items)
             .ThenInclude(item => item.MaterialRequirement)
+            .Include(request => request.Approvals)
             .AsSplitQuery();
     }
 
@@ -71,6 +72,36 @@ public sealed partial class PurchaseRequestService
 
     private static PurchaseRequestDto ToDto(PurchaseRequest request)
     {
+        var currentApprovals = request.ActiveApprovalCycleNumber.HasValue
+            ? request.Approvals.Where(approval => approval.CycleNumber == request.ActiveApprovalCycleNumber.Value).ToArray()
+            : Array.Empty<PurchaseRequestApproval>();
+        var financeApproval = currentApprovals.FirstOrDefault(approval => approval.Role == PurchaseRequestApprovalRoles.Finance);
+        var ownerApproval = currentApprovals.FirstOrDefault(approval => approval.Role == PurchaseRequestApprovalRoles.Owner);
+
+        // Legacy PRs that already reached FinanceApproved retain their Finance decision,
+        // while Owner remains pending until explicitly approved in the new workflow.
+        if (request.ActiveApprovalCycleNumber is null && request.Status == PurchaseRequestStatuses.FinanceApproved)
+        {
+            financeApproval = new PurchaseRequestApproval
+            {
+                Role = PurchaseRequestApprovalRoles.Finance,
+                Decision = request.FinanceReviewedByUserId.HasValue && request.FinanceReviewedAtUtc.HasValue
+                    ? PurchaseRequestApprovalDecisions.Approved
+                    : PurchaseRequestApprovalDecisions.Pending,
+                ActorUserId = request.FinanceReviewedByUserId,
+                DecidedAtUtc = request.FinanceReviewedAtUtc,
+                RejectionReason = request.FinanceRejectionReason
+            };
+            ownerApproval = new PurchaseRequestApproval { Role = PurchaseRequestApprovalRoles.Owner };
+        }
+
+        var financeDto = financeApproval is null ? null : ToApprovalDto(financeApproval);
+        var ownerDto = ownerApproval is null ? null : ToApprovalDto(ownerApproval);
+        var fullyApproved = financeDto?.Decision == PurchaseRequestApprovalDecisions.Approved
+            && ownerDto?.Decision == PurchaseRequestApprovalDecisions.Approved;
+        var blocked = financeDto?.Decision == PurchaseRequestApprovalDecisions.Rejected
+            || ownerDto?.Decision == PurchaseRequestApprovalDecisions.Rejected;
+
         return new PurchaseRequestDto(
             request.Id,
             request.PrNumber,
@@ -95,8 +126,16 @@ public sealed partial class PurchaseRequestService
             request.Items
                 .OrderBy(item => item.ItemName)
                 .Select(ToDto)
-                .ToArray());
+                .ToArray(),
+            request.ActiveApprovalCycleNumber ?? (financeApproval is not null ? 1 : null),
+            financeDto,
+            ownerDto,
+            fullyApproved,
+            blocked);
     }
+
+    private static PurchaseRequestApprovalDecisionDto ToApprovalDto(PurchaseRequestApproval approval) =>
+        new(approval.Role, approval.Decision, approval.ActorUserId, approval.DecidedAtUtc, approval.RejectionReason);
 
     private static PurchaseRequestItemDto ToDto(PurchaseRequestItem item)
     {
@@ -240,69 +279,6 @@ public sealed partial class PurchaseRequestService
             item.RejectionReason = purchaseRequest.SupervisorRejectionReason;
             item.UpdatedAtUtc = now;
             UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseRejected, now);
-        }
-    }
-
-    private static void ApplyFinanceReview(
-        PurchaseRequest purchaseRequest,
-        ReviewPurchaseRequest request,
-        string decision,
-        DateTime now)
-    {
-        if (purchaseRequest.Status is not PurchaseRequestStatuses.SupervisorApproved
-            and not PurchaseRequestStatuses.Processing)
-        {
-            throw new InvalidOperationException("Purchase request must be approved by Engineering Supervisor and priced by Purchasing before Finance review.");
-        }
-
-        var activeItems = purchaseRequest.Items
-            .Where(item => item.PurchaseStatus != PurchaseItemStatuses.Rejected)
-            .ToArray();
-        var hasUnpricedItems = activeItems.Length == 0 || activeItems.Any(item =>
-            string.IsNullOrWhiteSpace(item.SupplierName)
-            || (!item.TotalPrice.HasValue || item.TotalPrice.Value <= 0)
-                && (!item.EstimatedPrice.HasValue || item.EstimatedPrice.Value <= 0));
-
-        if (hasUnpricedItems)
-        {
-            throw new InvalidOperationException("Purchasing must input supplier and pricing for every active item before Finance review.");
-        }
-
-        var alreadyProcessedByPurchasing = purchaseRequest.Status == PurchaseRequestStatuses.Processing
-            || purchaseRequest.Items.Any(item => item.PurchaseStatus is PurchaseItemStatuses.Ordered
-                or PurchaseItemStatuses.Received);
-
-        purchaseRequest.FinanceReviewedByUserId = request.ReviewedByUserId;
-        purchaseRequest.FinanceReviewedAtUtc = now;
-        purchaseRequest.FinanceRejectionReason = decision == PurchaseRequestStatuses.Rejected
-            ? NormalizeOptional(request.RejectionReason)
-            : null;
-        purchaseRequest.RejectionReason = purchaseRequest.FinanceRejectionReason;
-
-        if (decision == PurchaseRequestStatuses.Rejected)
-        {
-            purchaseRequest.Status = PurchaseRequestStatuses.FinanceRejected;
-        }
-        else
-        {
-            purchaseRequest.Status = PurchaseRequestStatuses.FinanceApproved;
-        }
-
-        foreach (var item in purchaseRequest.Items)
-        {
-            if (decision == PurchaseRequestStatuses.Approved && !alreadyProcessedByPurchasing)
-            {
-                item.PurchaseStatus = PurchaseItemStatuses.Approved;
-                UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseApproved, now);
-            }
-            else if (decision == PurchaseRequestStatuses.Rejected)
-            {
-                item.PurchaseStatus = PurchaseItemStatuses.Rejected;
-                UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseRejected, now);
-            }
-
-            item.RejectionReason = purchaseRequest.FinanceRejectionReason;
-            item.UpdatedAtUtc = now;
         }
     }
 
@@ -465,9 +441,7 @@ public sealed partial class PurchaseRequestService
 
     private static void EnsurePurchaseRequestAcceptedForPurchasing(PurchaseRequest purchaseRequest, string action)
     {
-        if (purchaseRequest.Status is PurchaseRequestStatuses.SupervisorApproved
-            or PurchaseRequestStatuses.FinanceApproved
-            or PurchaseRequestStatuses.FinanceRejected
+        if (purchaseRequest.Status is PurchaseRequestStatuses.FinanceApproved
             or PurchaseRequestStatuses.Approved
             or PurchaseRequestStatuses.Processing
             or PurchaseRequestStatuses.Completed)
@@ -478,23 +452,140 @@ public sealed partial class PurchaseRequestService
         throw new InvalidOperationException($"Purchase request must be approved by Engineering Supervisor before it can {action}.");
     }
 
-    private static void EnsurePurchaseRequestFinanceApprovedForReceiving(PurchaseRequest purchaseRequest)
+    private static bool IsReadyForParallelApproval(PurchaseRequest purchaseRequest)
     {
-        if (purchaseRequest.Status is PurchaseRequestStatuses.FinanceApproved
-            or PurchaseRequestStatuses.Approved
-            or PurchaseRequestStatuses.Completed)
+        var activeItems = purchaseRequest.Items.Where(item => item.PurchaseStatus != PurchaseItemStatuses.Rejected).ToArray();
+        return activeItems.Length > 0 && activeItems.All(item =>
+            !string.IsNullOrWhiteSpace(item.SupplierName)
+            && ((item.TotalPrice.HasValue && item.TotalPrice.Value > 0)
+                || (item.EstimatedPrice.HasValue && item.EstimatedPrice.Value > 0)));
+    }
+
+    private void EnsureActiveApprovalCycle(PurchaseRequest purchaseRequest, DateTime now)
+    {
+        if (!IsReadyForParallelApproval(purchaseRequest) || purchaseRequest.ActiveApprovalCycleNumber.HasValue) return;
+
+        var cycle = purchaseRequest.Approvals.Count == 0 ? 1 : purchaseRequest.Approvals.Max(approval => approval.CycleNumber) + 1;
+        purchaseRequest.ActiveApprovalCycleNumber = cycle;
+        var importFinanceApproval = (purchaseRequest.Status is PurchaseRequestStatuses.FinanceApproved or PurchaseRequestStatuses.Processing)
+            && purchaseRequest.FinanceReviewedByUserId.HasValue
+            && purchaseRequest.FinanceReviewedAtUtc.HasValue;
+        var financeApproval = new PurchaseRequestApproval
         {
+            PurchaseRequestId = purchaseRequest.Id,
+            PurchaseRequest = purchaseRequest,
+            CycleNumber = cycle,
+            Role = PurchaseRequestApprovalRoles.Finance,
+            Decision = importFinanceApproval ? PurchaseRequestApprovalDecisions.Approved : PurchaseRequestApprovalDecisions.Pending,
+            ActorUserId = importFinanceApproval ? purchaseRequest.FinanceReviewedByUserId : null,
+            DecidedAtUtc = importFinanceApproval ? purchaseRequest.FinanceReviewedAtUtc : null,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        var ownerApproval = new PurchaseRequestApproval
+        {
+            PurchaseRequestId = purchaseRequest.Id,
+            PurchaseRequest = purchaseRequest,
+            CycleNumber = cycle,
+            Role = PurchaseRequestApprovalRoles.Owner,
+            Decision = PurchaseRequestApprovalDecisions.Pending,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        db.PurchaseRequestApprovals.AddRange(financeApproval, ownerApproval);
+    }
+
+    private static void ApplyParallelApprovalState(PurchaseRequest purchaseRequest, DateTime now)
+    {
+        var current = purchaseRequest.Approvals.Where(approval => approval.CycleNumber == purchaseRequest.ActiveApprovalCycleNumber).ToArray();
+        var finance = current.Single(approval => approval.Role == PurchaseRequestApprovalRoles.Finance);
+        var owner = current.Single(approval => approval.Role == PurchaseRequestApprovalRoles.Owner);
+        if (finance.Decision == PurchaseRequestApprovalDecisions.Rejected)
+        {
+            purchaseRequest.Status = PurchaseRequestStatuses.FinanceRejected;
+            purchaseRequest.FinanceRejectionReason = finance.RejectionReason;
+            purchaseRequest.RejectionReason = finance.RejectionReason;
+            foreach (var item in purchaseRequest.Items.Where(item => item.PurchaseStatus is not PurchaseItemStatuses.Ordered and not PurchaseItemStatuses.Received))
+            {
+                item.PurchaseStatus = PurchaseItemStatuses.Rejected;
+                item.RejectionReason = finance.RejectionReason;
+                item.UpdatedAtUtc = now;
+                UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseRejected, now);
+            }
             return;
         }
 
-        if (purchaseRequest.Status == PurchaseRequestStatuses.Processing
-            && purchaseRequest.FinanceReviewedAtUtc.HasValue
-            && purchaseRequest.FinanceRejectionReason is null)
+        if (owner.Decision == PurchaseRequestApprovalDecisions.Rejected)
         {
+            purchaseRequest.Status = PurchaseRequestStatuses.Rejected;
+            purchaseRequest.RejectionReason = owner.RejectionReason;
             return;
         }
 
-        throw new InvalidOperationException("Purchase request must be approved by Finance before material can be received.");
+        purchaseRequest.RejectionReason = null;
+        if (finance.Decision == PurchaseRequestApprovalDecisions.Approved && owner.Decision == PurchaseRequestApprovalDecisions.Approved)
+        {
+            if (purchaseRequest.Status is not PurchaseRequestStatuses.Processing and not PurchaseRequestStatuses.Completed)
+                purchaseRequest.Status = PurchaseRequestStatuses.Approved;
+            foreach (var item in purchaseRequest.Items.Where(item => item.PurchaseStatus == PurchaseItemStatuses.Requested))
+            {
+                item.PurchaseStatus = PurchaseItemStatuses.Approved;
+                item.UpdatedAtUtc = now;
+                UpdateMaterialRequirementStatus(item, MaterialRequirementStatuses.PurchaseApproved, now);
+            }
+            return;
+        }
+
+        if (finance.Decision == PurchaseRequestApprovalDecisions.Approved)
+            purchaseRequest.Status = PurchaseRequestStatuses.FinanceApproved;
+    }
+
+    private Task EnsureDualApprovalAsync(PurchaseRequest purchaseRequest)
+    {
+        EnsureActiveApprovalCycle(purchaseRequest, DateTime.UtcNow);
+        if (!purchaseRequest.ActiveApprovalCycleNumber.HasValue)
+            throw new InvalidOperationException("Supplier and pricing must be complete before purchasing can proceed.");
+        var current = purchaseRequest.Approvals.Where(approval => approval.CycleNumber == purchaseRequest.ActiveApprovalCycleNumber.Value).ToArray();
+        if (current.Length != 2
+            || current.Any(approval => approval.Decision == PurchaseRequestApprovalDecisions.Rejected)
+            || current.Any(approval => approval.Decision != PurchaseRequestApprovalDecisions.Approved))
+            throw new InvalidOperationException("Finance and Owner approvals are both required before purchasing can proceed.");
+        return Task.CompletedTask;
+    }
+
+    private async Task<T> ExecuteLockedAsync<T>(Guid purchaseRequestId, Func<Task<T>> operation, CancellationToken cancellationToken)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            // A transient retry must reload state so a rolled-back attempt cannot
+            // reuse mutated entities or duplicate approval/outbox records.
+            db.ChangeTracker.Clear();
+            Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
+            try
+            {
+                if (db.Database.IsRelational())
+                {
+                    transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"SELECT 1 FROM purchase_requests WHERE \"Id\" = {purchaseRequestId} FOR UPDATE",
+                        cancellationToken);
+                }
+                var result = await operation();
+                if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch
+            {
+                if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+            finally
+            {
+                if (transaction is not null) await transaction.DisposeAsync();
+            }
+        });
     }
 
     private static bool IsRejectedRequest(string status)

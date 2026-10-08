@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { CheckCircle, List, ChevronLeft, ChevronRight, UserPlus, X } from "lucide-react";
 import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getStatusColor } from "../../components/data/mockData";
 import { productionApi, EngineeringQueuesDto } from "../../services/productionApi";
 import { salesApi } from "../../services/salesApi";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { mapSalesOrderDto, formatDocNumber } from "../../components/context/hooks/dataMappers";
+import { mapQuotationDto, mapSalesOrderDto, formatDocNumber, isQuotationEntry } from "../../components/context/hooks/dataMappers";
+import { isGuid, toBackendUserId } from "../../services/backendIds";
 
 const S = {
   font: "Inter, sans-serif",
@@ -32,10 +34,15 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function EngineeringTasksPage() {
-  const { currentUser, salesOrders: appSalesOrders = [] } = useApp();
+  const { currentUser, users, salesOrders: appSalesOrders = [] } = useApp();
   const { data: querySalesOrders = [] } = useSalesOrdersQuery();
+  const { data: quotationDtos = [], error: quotationError, isError: quotationIsError, isLoading: quotationsLoading } = useQuery({
+    queryKey: ['quotations'],
+    queryFn: () => salesApi.listQuotations(),
+  });
   const { data: customers = [] } = useCustomersQuery();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -43,7 +50,8 @@ export function EngineeringTasksPage() {
   const [queues, setQueues] = useState<EngineeringQueuesDto | null>(null);
 
   const [assigningTarget, setAssigningTarget] = useState<any | null>(null);
-  const [selectedEngineerName, setSelectedEngineerName] = useState("Engineering Worker");
+  const [selectedEngineerId, setSelectedEngineerId] = useState("");
+  const [selectedEngineerName, setSelectedEngineerName] = useState("");
   const [isSubmittingAssign, setIsSubmittingAssign] = useState(false);
 
   const fetchQueues = React.useCallback(() => {
@@ -54,20 +62,42 @@ export function EngineeringTasksPage() {
     fetchQueues();
   }, [fetchQueues, currentUser]);
 
+  const quotationTasks = React.useMemo(() => quotationDtos.map(dto => mapQuotationDto(dto)), [quotationDtos]);
+
   const allSalesOrders = React.useMemo(() => {
     const map = new Map<string, any>();
-    querySalesOrders.forEach(so => map.set(so.id, so));
+    const add = (order: any) => {
+      const key = isQuotationEntry(order)
+        ? `quotation:${order.soNumber || order.quotationNumber || order.id}`
+        : `order:${order.backendId || order.id}`;
+      map.set(key, order);
+    };
+    querySalesOrders.forEach(add);
     appSalesOrders.forEach(so => {
-      if (!map.has(so.id)) map.set(so.id, so);
+      const key = isQuotationEntry(so)
+        ? `quotation:${so.soNumber || so.quotationNumber || so.id}`
+        : `order:${so.backendId || so.id}`;
+      if (!map.has(key)) add(so);
     });
+    // Dedicated quotation DTOs override any legacy-shaped copy so the task keeps
+    // its Quotation GUID and cannot be routed to the SalesOrder assignment API.
+    quotationTasks.forEach(add);
     return Array.from(map.values());
-  }, [querySalesOrders, appSalesOrders]);
+  }, [querySalesOrders, appSalesOrders, quotationTasks]);
 
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
+  const canAssignEngineer = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin';
+  const engineerOptions = users.filter(user => user.role === 'Engineering' && user.isActive !== false)
+    .map(user => ({ user, id: toBackendUserId(user) }))
+    .filter((entry): entry is { user: typeof users[number]; id: string } => Boolean(entry.id));
 
   const filterForUser = React.useCallback((items: any[]) => items.filter(item => {
     if (isSupervisor) return true;
     if (!currentUser) return false;
+    if (isQuotationEntry(item)) {
+      const currentEngineerId = toBackendUserId(currentUser);
+      return Boolean(currentEngineerId && item.designAssignedTo === currentEngineerId);
+    }
     if (item.designAssignedTo && (item.designAssignedTo === currentUser.id || item.designAssignedTo === (currentUser as any).userId)) return true;
     if (item.assignedTo && (item.assignedTo === currentUser.id || item.assignedTo === (currentUser as any).userId)) return true;
     const workerName = (item.designWorkerName || item.designAssignedName || item.assignedName || "").toLowerCase().trim();
@@ -104,13 +134,19 @@ export function EngineeringTasksPage() {
         so.backendDesignStatus === 'WaitingApproval'
       ) {
         if (!map.has(so.id)) {
-          map.set(so.id, mapSalesOrderDto(so as any));
+          map.set(so.id, isQuotationEntry(so) ? so : mapSalesOrderDto(so as any));
         }
       }
     });
 
+    // Use the dedicated Quotation DTO (including its database GUID and assignment)
+    // as the source of truth for quotation tasks in this mixed legacy queue.
+    quotationTasks
+      .filter(quotation => engineeringStatuses.includes(quotation.status))
+      .forEach(quotation => map.set(quotation.id, quotation));
+
     return filterForUser(Array.from(map.values()));
-  }, [queues, allSalesOrders, filterForUser]);
+  }, [queues, allSalesOrders, quotationTasks, filterForUser]);
 
   const completedSalesOrders = React.useMemo(() => {
     const queueCompleted = (queues?.completed || []).map(dto => mapSalesOrderDto(dto as any));
@@ -139,22 +175,43 @@ export function EngineeringTasksPage() {
 
   const handleQuickAssign = async () => {
     if (!assigningTarget) return;
+    if (!selectedEngineerId || !selectedEngineerName) {
+      toast.error("Pilih Engineer yang valid sebelum menyimpan penugasan.");
+      return;
+    }
     setIsSubmittingAssign(true);
-    const targetId = assigningTarget.backendId || assigningTarget.id;
-    const dummyEngineerId = 'e1111111-1111-1111-1111-111111111111';
+    const isQuo = isQuotationEntry(assigningTarget);
 
     try {
-      await salesApi.assignSalesOrderEngineers(targetId, {
-        designWorker: { userId: dummyEngineerId, name: selectedEngineerName }
-      });
+      if (isQuo) {
+        const quotationId = assigningTarget.backendId || (isGuid(assigningTarget.id) ? assigningTarget.id : null);
+        if (!quotationId || !isGuid(quotationId)) {
+          throw new Error("Quotation database ID tidak tersedia. Penugasan tidak dikirim.");
+        }
+        const updatedQuotation = await salesApi.assignQuotationEngineer(quotationId, {
+          engineerId: selectedEngineerId,
+          engineerName: selectedEngineerName
+        });
+        queryClient.setQueryData<any[]>(['quotations'], previous => [
+          ...(previous || []).filter(quotation => quotation.id !== updatedQuotation.id),
+          updatedQuotation,
+        ]);
+      } else {
+        const salesOrderId = assigningTarget.backendId || assigningTarget.id;
+        await salesApi.assignSalesOrderEngineers(salesOrderId, {
+          designWorker: { userId: selectedEngineerId, name: selectedEngineerName }
+        });
+      }
       toast.success(`Tugas desain berhasil ditugaskan ke ${selectedEngineerName}`);
       setAssigningTarget(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['salesOrders'] }),
+        queryClient.invalidateQueries({ queryKey: ['quotations'] }),
+      ]);
       fetchQueues();
     } catch (err: any) {
-      console.warn("Assign error, fallbacking state:", err);
-      toast.success(`Tugas desain berhasil ditugaskan ke ${selectedEngineerName}`);
-      setAssigningTarget(null);
-      fetchQueues();
+      console.error("Assignment request failed:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Penugasan Engineer gagal disimpan.");
     } finally {
       setIsSubmittingAssign(false);
     }
@@ -211,7 +268,15 @@ export function EngineeringTasksPage() {
             ))}
           </div>
 
-          {queue.length === 0 ? (
+          {quotationIsError ? (
+            <div role="alert" style={{ padding: "24px 20px", textAlign: "center", color: "#B91C1C", fontSize: "13.5px" }}>
+              Gagal memuat tugas quotation Engineering: {(quotationError as any)?.response?.data?.message || (quotationError as any)?.message || "Terjadi kesalahan saat mengambil data."}
+            </div>
+          ) : quotationsLoading && queue.length === 0 ? (
+            <div aria-live="polite" style={{ padding: "60px 20px", textAlign: "center", color: S.secondary, fontSize: "13.5px" }}>
+              Memuat antrian desain...
+            </div>
+          ) : queue.length === 0 ? (
             <div style={{ padding: "60px 20px", textAlign: "center" }}>
               <CheckCircle size={40} style={{ color: "#86EFAC", margin: "0 auto 12px" }} />
               <p style={{ color: S.slate, margin: 0, fontSize: "13.5px" }}>Semua pesanan sudah selesai didesain.</p>
@@ -221,7 +286,12 @@ export function EngineeringTasksPage() {
               const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcStatus;
               const isApproved = qut.backendDesignStatus === 'Approved' || activeTab === 'completed' || !isPreProduction;
               const docNum = formatDocNumber(qut.soNumber || qut.id, qut.status);
-              const assignedWorkerName = qut.designAssignedName || (qut as any).designWorkerName || (qut as any).assignedName;
+              const assignedWorkerId = qut.designAssignedTo || (qut as any).assignedTo;
+              const assignedWorkerName = qut.designAssignedName
+                || (qut as any).designWorkerName
+                || (qut as any).assignedName
+                || engineerOptions.find(entry => entry.id === assignedWorkerId)?.user.name
+                || (assignedWorkerId ? "Engineer ditugaskan" : null);
 
               return (
                 <div
@@ -248,15 +318,15 @@ export function EngineeringTasksPage() {
                   <div style={{ minWidth: 0 }} onClick={e => e.stopPropagation()}>
                     {assignedWorkerName ? (
                       <span 
-                        onClick={() => { if (isSupervisor) { setSelectedEngineerName(assignedWorkerName); setAssigningTarget(qut); } }}
-                        title={isSupervisor ? "Klik untuk ganti engineer" : undefined}
-                        style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "3px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isSupervisor ? "pointer" : "default" }}
+                        onClick={() => { if (canAssignEngineer) { setSelectedEngineerId(assignedWorkerId || ""); setSelectedEngineerName(assignedWorkerName || ""); setAssigningTarget(qut); } }}
+                        title={canAssignEngineer ? "Klik untuk ganti engineer" : undefined}
+                        style={{ fontSize: "11.5px", background: "#F8FAFC", border: "1px solid #CBD5E1", padding: "3px 8px", borderRadius: 6, color: S.slate, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: canAssignEngineer ? "pointer" : "default" }}
                       >
                         {assignedWorkerName}
                       </span>
-                    ) : isSupervisor ? (
+                    ) : canAssignEngineer ? (
                       <button
-                        onClick={() => { setSelectedEngineerName("Engineering Worker"); setAssigningTarget(qut); }}
+                        onClick={() => { setSelectedEngineerId(""); setSelectedEngineerName(""); setAssigningTarget(qut); }}
                         style={{ fontSize: "11px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", padding: "3px 8px", borderRadius: 4, cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}
                       >
                         <UserPlus size={12} />
@@ -389,24 +459,28 @@ export function EngineeringTasksPage() {
                 Pilih Engineer Penanggung Jawab
               </label>
               <select
-                value={selectedEngineerName}
-                onChange={e => setSelectedEngineerName(e.target.value)}
+                aria-label="Pilih Engineer Penanggung Jawab"
+                value={selectedEngineerId}
+                onChange={e => {
+                  const selected = engineerOptions.find(entry => entry.id === e.target.value);
+                  setSelectedEngineerId(e.target.value);
+                  setSelectedEngineerName(selected?.user.name || "");
+                }}
                 style={{
                   width: "100%", padding: "9px 12px", borderRadius: 6, border: `1px solid ${S.border}`,
                   fontSize: "13px", color: S.slate, background: "#F8FAFC", outline: "none",
                   fontWeight: 500
                 }}
               >
-                <option value="Engineering Worker">Engineering Worker (Budi Santoso)</option>
-                <option value="Lead Engineer">Lead Engineer (Andi Pratama)</option>
-                <option value="Engineering User">Engineering User</option>
+                <option value="">Pilih Engineer</option>
+                {engineerOptions.map(({ user, id }) => <option key={id} value={id}>{user.name}</option>)}
               </select>
             </div>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
                 onClick={() => setAssigningTarget(null)}
-                disabled={isSubmittingAssign}
+                disabled={isSubmittingAssign || !selectedEngineerId}
                 style={{ padding: "8px 16px", borderRadius: 6, border: `1px solid ${S.border}`, background: "#fff", color: S.slate, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
               >
                 Batal

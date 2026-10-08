@@ -34,6 +34,8 @@ export interface MRItem {
   unit: string;
   currentStock: number;
   estimatedPrice?: number;
+  totalPrice?: number;
+  unitPrice?: number;
   supplierName?: string;
   poNumber?: string | null;
   purchaseStatus?: string;
@@ -57,6 +59,16 @@ export interface MR {
   approvedAt?: string;
   supplierAssigned?: string;
   financeApproval?: "Pending" | "Approved" | "Rejected";
+  ownerApproval?: "Pending" | "Approved" | "Rejected";
+  activeApprovalCycleNumber?: number | null;
+  financeApprovalActorUserId?: string | null;
+  financeApprovalDecidedAtUtc?: string | null;
+  financeApprovalRejectionReason?: string | null;
+  ownerApprovalActorUserId?: string | null;
+  ownerApprovalDecidedAtUtc?: string | null;
+  ownerApprovalRejectionReason?: string | null;
+  isFullyApproved?: boolean;
+  isApprovalBlocked?: boolean;
   isReadyForFinance?: boolean;
   hasUnorderedItems?: boolean;
   rejectionReason?: string;
@@ -110,9 +122,17 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
     rejectionReason: request.rejectionReason || request.supervisorRejectionReason || request.financeRejectionReason || undefined,
     revisionNote: request.revisionNote || null,
     supplierAssigned: request.items.map(item => item.supplierName).find(Boolean) || undefined,
-    financeApproval: request.financeReviewedAtUtc
-      ? request.status === "FinanceRejected" || request.status === "Rejected" ? "Rejected" : "Approved"
-      : undefined,
+    financeApproval: request.financeApproval?.decision as MR["financeApproval"] || undefined,
+    ownerApproval: request.ownerApproval?.decision as MR["ownerApproval"] || undefined,
+    activeApprovalCycleNumber: request.activeApprovalCycleNumber,
+    financeApprovalActorUserId: request.financeApproval?.actorUserId,
+    financeApprovalDecidedAtUtc: request.financeApproval?.decidedAtUtc,
+    financeApprovalRejectionReason: request.financeApproval?.rejectionReason,
+    ownerApprovalActorUserId: request.ownerApproval?.actorUserId,
+    ownerApprovalDecidedAtUtc: request.ownerApproval?.decidedAtUtc,
+    ownerApprovalRejectionReason: request.ownerApproval?.rejectionReason,
+    isFullyApproved: request.isFullyApproved === true,
+    isApprovalBlocked: request.isApprovalBlocked === true,
     isReadyForFinance: isReadyForFinance,
     hasUnorderedItems,
     items: request.items.map(item => {
@@ -145,6 +165,8 @@ export function mapPurchaseRequestToMr(request: PurchaseRequestDto): MR {
         unit: "pcs",
         currentStock: 0,
         estimatedPrice: item.estimatedPrice || undefined,
+        totalPrice: item.totalPrice || undefined,
+        unitPrice: item.unitPrice || undefined,
         supplierName: item.supplierName && item.supplierName !== "-" ? item.supplierName : undefined,
         poNumber: item.poNumber || null,
         purchaseStatus: item.purchaseStatus,
@@ -164,7 +186,7 @@ function mapRequestStatus(request: PurchaseRequestDto, hasUnorderedItems: boolea
     return "Processing";
   }
 
-  if (request.status === "SupervisorRejected" || request.status === "FinanceRejected" || request.status === "Rejected") {
+  if (request.isApprovalBlocked === true || request.status === "SupervisorRejected" || request.status === "FinanceRejected" || request.status === "Rejected") {
     return "Rejected";
   }
 
@@ -513,7 +535,7 @@ export function MaterialRequestsPage() {
                         >
                           <Edit size={12} /> Isi Harga
                         </button>
-                      ) : mr.backendStatus === "SupervisorApproved" && mr.isReadyForFinance ? (
+                      ) : mr.backendStatus === "SupervisorApproved" && mr.isReadyForFinance && mr.isFullyApproved !== true ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-slate-50"
                           style={{ fontSize: 11, color: "#64748b", borderColor: "#e2e8f0", background: "#f8fafc" }}
@@ -521,7 +543,7 @@ export function MaterialRequestsPage() {
                         >
                           <Clock size={12} /> Tunggu Finance
                         </button>
-                      ) : (mr.backendStatus === "FinanceApproved" || mr.backendStatus === "Processing") && mr.financeApproval === "Approved" && mr.hasUnorderedItems && canCreatePo ? (
+                      ) : mr.isFullyApproved === true && mr.hasUnorderedItems && canCreatePo ? (
                         <button
                           className="flex items-center gap-1 rounded px-2 py-1 border transition-colors hover:bg-emerald-50"
                           style={{ fontSize: 11, color: "#059669", borderColor: "#a7f3d0", background: "#ecfdf5" }}

@@ -167,10 +167,10 @@ describe('SOCreate Component', () => {
     await waitFor(() => expect(screen.getByText('Tambah Produk')).toBeInTheDocument());
   });
 
-  it('shows Penetapan Harga section in new order form', async () => {
+  it('defers pricing to Finance for a new quotation', async () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
     fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
-    await waitFor(() => expect(screen.getByText('Penetapan Harga')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Harga akan diisi Finance/)).toBeInTheDocument());
   });
   it('does NOT fallback to estimated amount if original SO is unpriced by Finance', async () => {
     const { container } = renderWithClient(<SOCreate onNavigate={onNavigate} />);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { CheckSquare, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
 import { purchasingApi } from '../../services/purchasingApi';
 import { financeApi } from '../../services/financeApi';
@@ -20,6 +21,7 @@ export type POCategory = 'Asset' | 'Consumable' | 'Tools' | 'Project' | 'Mainten
 export function FinancePurchasingApproval() {
   const { purchaseRequests, suppliers, supplierPayments, refresh } = usePurchasingData();
   const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const [pos, setPos] = useState<PO[]>([]);
   const [mrs, setMrs] = useState<MR[]>([]);
   const [search, setSearch] = useState('');
@@ -135,15 +137,17 @@ export function FinancePurchasingApproval() {
     }
     setIsApproving(true);
     try {
-      await purchasingApi.reviewPurchaseRequest(selectedMr.backendId, {
-        reviewedByUserId: currentUser.id,
-        decision,
-        reviewStage: 'Finance',
-        rejectionReason: decision === 'Reject' ? reason : undefined
+      await purchasingApi.reviewPurchaseRequestFinanceApproval(selectedMr.backendId, {
+        decision: decision === 'Accept' ? 'Approved' : 'Rejected',
+        ...(decision === 'Reject' ? { rejectionReason: reason?.trim() } : {})
       });
       setShowRejectModal(false);
       setRejectReasonInput("");
       await refresh();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['purchasingData'] }),
+        queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] }),
+      ]);
       setSelectedMr(null);
     } catch (error) {
       console.warn('Failed to review PR.', error);

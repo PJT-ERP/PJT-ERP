@@ -13,8 +13,8 @@ export function usePurchaseRequestDetail() {
   const queryClient = useQueryClient();
   
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
-  const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
-  const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  const canApproveFinance = currentUser?.role === "Finance" || currentUser?.role === "Admin";
+  const isPurchasingOrAdmin = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
   const [detail, setDetail] = useState<MR | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +64,7 @@ export function usePurchaseRequestDetail() {
   };
 
   const canEditPricing = isPurchasingOrAdmin && 
+    detail?.isFullyApproved !== true &&
     detail?.backendStatus !== "FinanceApproved" && 
     detail?.backendStatus !== "Processing" &&
     detail?.backendStatus !== "Completed" &&
@@ -214,15 +215,19 @@ export function usePurchaseRequestDetail() {
 
   const handleReviewPr = async (decision: 'Accept' | 'Reject') => {
     if (!detail || !currentUser) return;
+    const rejectionReason = decision === 'Reject' ? window.prompt("Alasan Penolakan:")?.trim() : undefined;
+    if (decision === 'Reject' && !rejectionReason) return;
     setIsApproving(true);
     try {
-      await purchasingApi.reviewPurchaseRequest(detail.backendId, {
-        reviewedByUserId: currentUser.id,
-        decision,
-        reviewStage: detail.backendStatus === 'Submitted' ? 'Supervisor' : 'Finance',
-        rejectionReason: decision === 'Reject' ? window.prompt("Alasan Penolakan:") || "Ditolak" : undefined
+      await purchasingApi.reviewPurchaseRequestFinanceApproval(detail.backendId, {
+        decision: decision === 'Accept' ? 'Approved' : 'Rejected',
+        ...(rejectionReason ? { rejectionReason } : {})
       });
       await refreshBackendData();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['purchasingData'] }),
+        queryClient.invalidateQueries({ queryKey: ['purchasingRequests'] }),
+      ]);
       
       const refreshedData = await purchasingApi.listPurchaseRequests();
       const refreshedReq = refreshedData.find(r => r.prNumber === id || r.id === id);

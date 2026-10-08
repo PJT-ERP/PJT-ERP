@@ -36,6 +36,9 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
     { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
   ],
+  'Sales Order': [
+    { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+  ],
   QC: [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/qc" },
     { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/qc/inspections" },
@@ -46,6 +49,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "MENU UTAMA", isHeader: true },
     { label: "Dashboard Eksekutif", icon: <LayoutDashboard size={15} />, path: "/erp/dashboard" },
     { label: "Analitik Pelanggan", icon: <BarChart2 size={15} />, path: "/erp/customer-analytics" },
+    { label: "Approval Desain", icon: <CheckSquare size={15} />, path: "/erp/approval" },
     { label: "PANTAU", isHeader: true },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders", activePrefix: "/erp/so/orders" },
     { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard", activePrefix: "/erp/so" },
@@ -61,6 +65,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
   ],
   Admin: [
     { label: "Keuangan & Tagihan", icon: <DollarSign size={15} />, path: "/erp/finance/dashboard", activePrefix: "/erp/finance" },
+    { label: "Approval Desain", icon: <CheckSquare size={15} />, path: "/erp/approval" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders", activePrefix: "/erp/so/orders" },
     { label: "Pesanan Penjualan", icon: <ShoppingCart size={15} />, path: "/erp/so/dashboard", activePrefix: "/erp/so" },
     { label: "Teknik", icon: <Wrench size={15} />, path: "/erp/engineer" },

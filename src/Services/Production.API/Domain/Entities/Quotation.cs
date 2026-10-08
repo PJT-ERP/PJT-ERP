@@ -11,6 +11,10 @@ public sealed class Quotation
     public DateOnly Deadline { get; set; }
     public string? Notes { get; set; }
     public string Status { get; set; } = QuotationStatuses.Draft;
+    public string DesignSource { get; set; } = QuotationDesignSources.Engineering;
+    public bool EngineeringReviewRequired { get; set; } = true;
+    public DateTime? EngineeringApprovedAtUtc { get; set; }
+    public DateTime? ClientDesignApprovedAtUtc { get; set; }
     public Guid? AssignedEngineerId { get; set; }
     public string? AssignedEngineerName { get; set; }
     public string? DesignLink { get; set; }
@@ -23,6 +27,12 @@ public sealed class Quotation
     public List<QuotationItem> Items { get; set; } = [];
     public List<QuotationBomItem> BomItems { get; set; } = [];
     public List<QuotationPriceRevision> PriceRevisions { get; set; } = [];
+}
+
+public static class QuotationDesignSources
+{
+    public const string Engineering = "Engineering";
+    public const string CustomerProvided = "CustomerProvided";
 }
 
 public sealed class QuotationItem

@@ -111,7 +111,14 @@ public static class ProductionSchemaInitializer
 
             ALTER TABLE customer_replicas ADD COLUMN IF NOT EXISTS email character varying(160);
 
+            ALTER TABLE quotations ADD COLUMN IF NOT EXISTS design_source character varying(40) NOT NULL DEFAULT 'Engineering';
+            ALTER TABLE quotations ADD COLUMN IF NOT EXISTS engineering_review_required boolean NOT NULL DEFAULT true;
+            ALTER TABLE quotations ADD COLUMN IF NOT EXISTS engineering_approved_at_utc timestamp with time zone NULL;
+            ALTER TABLE quotations ADD COLUMN IF NOT EXISTS client_design_approved_at_utc timestamp with time zone NULL;
+
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_email character varying(160);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS dp_percentage numeric(5,2) NULL;
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS dp_due_date date NULL;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_reference character varying(255);
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS design_status character varying(50) NOT NULL DEFAULT 'PendingDesign';

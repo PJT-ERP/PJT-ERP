@@ -43,6 +43,18 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         ValidateCreateRequest(request);
 
         var now = DateTime.UtcNow;
+        var designSource = NormalizeDesignSource(request.DesignSource);
+        var engineeringReviewRequired = designSource == QuotationDesignSources.Engineering || request.EngineeringReviewRequired;
+        var customerDesignLink = request.Items.Select(item => NormalizeOptional(item.CustomerImageUrl))
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (designSource == QuotationDesignSources.CustomerProvided && string.IsNullOrWhiteSpace(customerDesignLink))
+        {
+            throw new InvalidOperationException("Customer-provided design link is required.");
+        }
+        if (designSource == QuotationDesignSources.CustomerProvided && !engineeringReviewRequired && !request.Items.Any(item => item.BomItems?.Count > 0))
+        {
+            throw new InvalidOperationException("At least one BOM item is required for costing and production.");
+        }
         var customer = await GetOrCreateCustomerReplicaAsync(request, now, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in production replica.");
 
@@ -56,9 +68,12 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             CustomerEmail = customer.Email,
             Deadline = request.Deadline,
             Notes = NormalizeOptional(request.Notes),
-            Status = request.Items.Any(RequiresEngineeringDesign)
+            DesignSource = designSource,
+            EngineeringReviewRequired = engineeringReviewRequired,
+            EstimatedAmount = request.EstimatedAmount > 0 ? decimal.Round(request.EstimatedAmount.Value, 2, MidpointRounding.AwayFromZero) : null,
+            Status = engineeringReviewRequired
                 ? QuotationStatuses.PendingDesign
-                : QuotationStatuses.WaitingPricing,
+                : QuotationStatuses.ClientDesignApproval,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
             Items = request.Items.Select(item => new QuotationItem
@@ -132,9 +147,9 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
-        if (quotation.Status is not (QuotationStatuses.PendingDesign or QuotationStatuses.DesignReview))
+        if (quotation.Status != QuotationStatuses.PendingDesign)
         {
-            throw new InvalidOperationException("Only design-stage quotations can be assigned to engineering.");
+            throw new InvalidOperationException("Only quotations awaiting Engineering work can be assigned or reassigned.");
         }
 
         quotation.AssignedEngineerId = request.EngineerId == Guid.Empty
@@ -175,23 +190,33 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             throw new InvalidOperationException("Only the assigned engineer can submit this quotation design.");
         }
 
-        if (request.BomItems.Count == 0)
+        if (request.BomItems is null || request.BomItems.Count == 0)
         {
             throw new InvalidOperationException("BOM must contain at least one material item.");
         }
 
-        var designLink = Required(request.DesignLink, "Design link");
+        var designLink = quotation.DesignSource == QuotationDesignSources.Engineering
+            ? Required(request.DesignLink, "Design link")
+            : NormalizeOptional(request.DesignLink);
+        if (quotation.DesignSource == QuotationDesignSources.CustomerProvided && !HasCustomerDesign(quotation))
+        {
+            throw new InvalidOperationException("Customer-provided design link is required before engineering review.");
+        }
         var now = DateTime.UtcNow;
-        quotation.DesignLink = designLink;
+        if (quotation.DesignSource == QuotationDesignSources.Engineering)
+        {
+            quotation.DesignLink = designLink;
+            foreach (var item in quotation.Items)
+            {
+                item.DesignLink = designLink;
+                item.UpdatedAtUtc = now;
+            }
+        }
         quotation.AssignedEngineerName = string.IsNullOrWhiteSpace(request.EngineerName) ? quotation.AssignedEngineerName : request.EngineerName.Trim();
         quotation.Status = QuotationStatuses.DesignReview;
+        quotation.EngineeringApprovedAtUtc = null;
+        quotation.ClientDesignApprovedAtUtc = null;
         quotation.UpdatedAtUtc = now;
-
-        foreach (var item in quotation.Items)
-        {
-            item.DesignLink = designLink;
-            item.UpdatedAtUtc = now;
-        }
 
         var replacementBomItems = request.BomItems
             .Select(item =>
@@ -223,9 +248,14 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             throw new InvalidOperationException("Only quotations in design review can be approved by Engineering Supervisor.");
         }
 
-        if (string.IsNullOrWhiteSpace(quotation.DesignLink))
+        if (quotation.DesignSource == QuotationDesignSources.Engineering && string.IsNullOrWhiteSpace(quotation.DesignLink))
         {
             throw new InvalidOperationException("Design link is required before supervisor approval.");
+        }
+
+        if (quotation.DesignSource == QuotationDesignSources.CustomerProvided && !HasCustomerDesign(quotation))
+        {
+            throw new InvalidOperationException("Customer-provided design link is required before supervisor approval.");
         }
 
         if (quotation.BomItems.Count == 0)
@@ -234,6 +264,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         }
 
         quotation.Status = QuotationStatuses.ClientDesignApproval;
+        quotation.EngineeringApprovedAtUtc = DateTime.UtcNow;
         quotation.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(quotation);
@@ -252,7 +283,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             throw new InvalidOperationException("Quotation design is not ready for client approval.");
         }
 
+        ValidateDesignCompletion(quotation);
+
         quotation.Status = QuotationStatuses.WaitingPricing;
+        quotation.ClientDesignApprovedAtUtc = DateTime.UtcNow;
         quotation.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(quotation);
@@ -266,7 +300,23 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
-        quotation.Status = QuotationStatuses.PendingDesign;
+        if (quotation.ConvertedSalesOrderId.HasValue || quotation.Status is QuotationStatuses.Won or QuotationStatuses.Lost)
+        {
+            throw new InvalidOperationException("A won, lost, or converted quotation cannot be revised for design.");
+        }
+
+        if (quotation.DesignSource == QuotationDesignSources.CustomerProvided)
+        {
+            var revisedCustomerDesign = Required(request.CustomerDesignLink, "Revised customer design link");
+            quotation.Items[0].CustomerImageUrl = revisedCustomerDesign;
+            quotation.Items[0].UpdatedAtUtc = DateTime.UtcNow;
+        }
+        quotation.EngineeringApprovedAtUtc = null;
+        quotation.ClientDesignApprovedAtUtc = null;
+        quotation.EstimatedAmount = null;
+        quotation.Status = quotation.EngineeringReviewRequired
+            ? QuotationStatuses.PendingDesign
+            : QuotationStatuses.ClientDesignApproval;
         quotation.Notes = string.Join("\n", new[] { quotation.Notes, NormalizeOptional(request.Notes) }.Where(note => !string.IsNullOrWhiteSpace(note)));
         quotation.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
@@ -284,6 +334,12 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         if (quotation.Status is not (QuotationStatuses.WaitingPricing or QuotationStatuses.ClientPriceApproval))
         {
             throw new InvalidOperationException("Quotation is not waiting for finance pricing.");
+        }
+
+        ValidateDesignCompletion(quotation);
+        if (quotation.ClientDesignApprovedAtUtc is null)
+        {
+            throw new InvalidOperationException("Customer design approval is required before pricing.");
         }
 
         if (request.Amount <= 0)
@@ -320,10 +376,16 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
-        if (quotation.Status != QuotationStatuses.ClientPriceApproval || quotation.EstimatedAmount is null)
+        if (quotation.Status != QuotationStatuses.ClientPriceApproval || quotation.EstimatedAmount is null or <= 0 || quotation.PriceRevisions.Count == 0)
         {
             throw new InvalidOperationException("Only priced quotations can be marked as won.");
         }
+
+        if (quotation.ClientDesignApprovedAtUtc is null)
+        {
+            throw new InvalidOperationException("Customer design approval is required before a quotation can be won.");
+        }
+        ValidateDesignCompletion(quotation);
 
         quotation.Status = QuotationStatuses.Won;
         quotation.UpdatedAtUtc = DateTime.UtcNow;
@@ -339,6 +401,11 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             return null;
         }
 
+        if (quotation.ConvertedSalesOrderId.HasValue || quotation.Status == QuotationStatuses.Won)
+        {
+            throw new InvalidOperationException("A won or converted quotation cannot be marked as lost.");
+        }
+
         quotation.Status = QuotationStatuses.Lost;
         quotation.LostReason = Required(request.Reason, "Lost reason");
         quotation.UpdatedAtUtc = DateTime.UtcNow;
@@ -346,94 +413,119 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         return ToDto(quotation);
     }
 
-    public async Task<SalesOrderDto?> ConvertToSalesOrderAsync(Guid quotationId, ConvertQuotationToSalesOrderRequest request, CancellationToken cancellationToken)
+    public Task<SalesOrderDto?> ConvertToSalesOrderAsync(Guid quotationId, CancellationToken cancellationToken)
     {
-        var quotation = await GetTrackedQuotationAsync(quotationId, cancellationToken);
-        if (quotation is null)
+        var strategy = db.Database.CreateExecutionStrategy();
+        return strategy.ExecuteAsync(async () =>
         {
-            return null;
-        }
+            // A retry must reload state after the previous transaction rolled back.
+            db.ChangeTracker.Clear();
 
-        if (quotation.Status != QuotationStatuses.Won)
-        {
-            throw new InvalidOperationException("Only won quotations can be converted to sales orders.");
-        }
+            await using var transaction = db.Database.IsRelational()
+                ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, cancellationToken)
+                : null;
+            if (transaction is not null)
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync($"SELECT \"Id\" FROM quotations WHERE \"Id\" = {quotationId} FOR UPDATE", cancellationToken);
+            }
+            var quotation = await GetTrackedQuotationAsync(quotationId, cancellationToken);
+            if (quotation is null)
+            {
+                return null;
+            }
 
-        if (quotation.ConvertedSalesOrderId.HasValue)
-        {
-            var existing = await db.SalesOrders
-                .Include(order => order.Items)
-                .FirstOrDefaultAsync(order => order.Id == quotation.ConvertedSalesOrderId.Value, cancellationToken);
-            return existing is null ? null : ToSalesOrderDto(existing);
-        }
+            if (quotation.Status != QuotationStatuses.Won)
+            {
+                throw new InvalidOperationException("Only won quotations can be converted to sales orders.");
+            }
 
-        if (request.DpPercentage <= 0 || request.DpPercentage > 100)
-        {
-            throw new InvalidOperationException("DP percentage must be between 1 and 100.");
-        }
+            if (quotation.ConvertedSalesOrderId.HasValue || !string.IsNullOrWhiteSpace(quotation.ConvertedSalesOrderNumber))
+            {
+                throw new InvalidOperationException("This quotation has already been converted to a sales order.");
+            }
 
-        if (quotation.EstimatedAmount is null or <= 0)
-        {
-            throw new InvalidOperationException("Won quotation must have a valid pricing amount before conversion.");
-        }
+            if (quotation.EstimatedAmount is null or <= 0 || quotation.PriceRevisions.Count == 0)
+            {
+                throw new InvalidOperationException("Won quotation must have a valid pricing amount before conversion.");
+            }
 
-        var now = DateTime.UtcNow;
-        var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
-        var order = new SalesOrder
-        {
-            SoNumber = soNumber,
-            CustomerId = quotation.CustomerId,
-            CustomerCode = quotation.CustomerCode,
-            CustomerName = quotation.CustomerName,
-            CustomerEmail = quotation.CustomerEmail,
-            CustomerDrawingUrl = quotation.Items.Select(item => item.CustomerImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
-            DesignReference = quotation.DesignLink,
-            DesignStatus = SalesOrderDesignStatuses.Approved,
-            DesignApprovedAtUtc = now,
-            SoDate = DateOnly.FromDateTime(now),
-            TargetDate = quotation.Deadline,
-            Status = SalesOrderStatuses.Draft,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now,
-            Items = await BuildSalesOrderItemsAsync(quotation, cancellationToken)
-        };
+            ValidateDesignCompletion(quotation);
+            if (quotation.ClientDesignApprovedAtUtc is null)
+            {
+                throw new InvalidOperationException("Customer design approval is required before conversion.");
+            }
+            if (quotation.CustomerId == Guid.Empty || string.IsNullOrWhiteSpace(quotation.CustomerCode) || string.IsNullOrWhiteSpace(quotation.CustomerName))
+            {
+                throw new InvalidOperationException("Valid customer information is required before conversion.");
+            }
 
-        await db.SalesOrders.AddAsync(order, cancellationToken);
-        quotation.ConvertedSalesOrderId = order.Id;
-        quotation.ConvertedSalesOrderNumber = order.SoNumber;
-        quotation.UpdatedAtUtc = now;
+            var now = DateTime.UtcNow;
+            var soNumber = await GenerateSalesOrderNumberAsync(cancellationToken);
+            var order = new SalesOrder
+            {
+                SoNumber = soNumber,
+                CustomerId = quotation.CustomerId,
+                CustomerCode = quotation.CustomerCode,
+                CustomerName = quotation.CustomerName,
+                CustomerEmail = quotation.CustomerEmail,
+                CustomerDrawingUrl = quotation.Items.Select(item => item.CustomerImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
+                DesignReference = quotation.DesignLink ?? quotation.Items.Select(item => item.CustomerImageUrl ?? item.DesignLink).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
+                DesignStatus = SalesOrderDesignStatuses.Approved,
+                DesignApprovedAtUtc = now,
+                SoDate = DateOnly.FromDateTime(now),
+                TargetDate = quotation.Deadline,
+                Status = "WaitingPayment",
+                EstimatedAmount = quotation.EstimatedAmount,
+                IsCostingCompleted = true,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+                Items = await BuildSalesOrderItemsAsync(quotation, cancellationToken)
+            };
 
-        await db.SaveChangesAsync(cancellationToken);
+            await db.SalesOrders.AddAsync(order, cancellationToken);
+            quotation.ConvertedSalesOrderId = order.Id;
+            quotation.ConvertedSalesOrderNumber = order.SoNumber;
+            quotation.UpdatedAtUtc = now;
 
-        await eventPublisher.PublishAsync(
-            new SalesOrderDpInvoiceRequestedEvent(
-                order.Id,
-                order.SoNumber,
-                order.CustomerId,
-                order.CustomerCode,
-                order.CustomerName,
-                order.CustomerEmail,
-                order.TargetDate,
-                quotation.EstimatedAmount.Value,
-                request.DpPercentage,
-                request.DueDate,
-                order.Items
-                    .Select(item => new SalesOrderDpInvoiceItem(
-                        item.Id,
-                        item.ProductId,
-                        item.ProductPartNumber,
-                        item.ProductDescription,
-                        item.Qty))
-                    .ToArray()),
-            cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
 
-        return ToSalesOrderDto(order);
+            await eventPublisher.PublishAsync(
+                new SalesOrderReadyForInvoiceEvent(
+                    order.Id,
+                    order.SoNumber,
+                    order.CustomerId,
+                    order.CustomerCode,
+                    order.CustomerName,
+                    order.CustomerEmail,
+                    order.TargetDate,
+                    now,
+                    order.Items
+                        .Select(item => new SalesOrderReadyForInvoiceItem(
+                            item.Id,
+                            item.ProductId,
+                            item.ProductPartNumber,
+                            item.ProductDescription,
+                            item.Qty,
+                            item.UnitPrice))
+                        .ToArray()),
+                cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
+            return ToSalesOrderDto(order);
+        });
     }
 
     private async Task<List<SalesOrderItem>> BuildSalesOrderItemsAsync(Quotation quotation, CancellationToken cancellationToken)
     {
         var result = new List<SalesOrderItem>();
+        var totalQuantity = quotation.Items.Sum(item => item.Quantity);
+        var unitPrice = totalQuantity > 0
+            ? decimal.Round(quotation.EstimatedAmount.GetValueOrDefault() / totalQuantity, 2, MidpointRounding.AwayFromZero)
+            : 0;
         foreach (var item in quotation.Items)
         {
             ProductReplica? product = null;
@@ -450,6 +542,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                 ProductDescription = product?.Description ?? item.Description ?? item.ProductName,
                 ProductMaterialSpec = product?.MaterialSpec ?? BuildBomSummary(quotation),
                 Qty = item.Quantity,
+                UnitPrice = unitPrice,
                 Notes = item.Description
             });
         }
@@ -522,11 +615,73 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         }
     }
 
-    private static bool RequiresEngineeringDesign(CreateQuotationItemRequest item)
+    private static string NormalizeDesignSource(string? designSource)
     {
-        return string.IsNullOrWhiteSpace(item.DesignLink)
-            || item.BomItems is null
-            || item.BomItems.Count == 0;
+        return designSource?.Trim() switch
+        {
+            null or "" or QuotationDesignSources.Engineering => QuotationDesignSources.Engineering,
+            QuotationDesignSources.CustomerProvided => QuotationDesignSources.CustomerProvided,
+            _ => throw new InvalidOperationException("Design source must be Engineering or CustomerProvided.")
+        };
+    }
+
+    public async Task<QuotationDto?> RequestPriceRevisionAsync(Guid quotationId, RequestQuotationRevisionRequest request, CancellationToken cancellationToken)
+    {
+        var quotation = await GetTrackedQuotationAsync(quotationId, cancellationToken);
+        if (quotation is null)
+        {
+            return null;
+        }
+        if (quotation.Status != QuotationStatuses.ClientPriceApproval || quotation.ConvertedSalesOrderId.HasValue)
+        {
+            throw new InvalidOperationException("Only quotations awaiting customer price approval can be returned for repricing.");
+        }
+
+        quotation.Status = QuotationStatuses.WaitingPricing;
+        quotation.EstimatedAmount = null;
+        quotation.Notes = string.Join("\n", new[] { quotation.Notes, NormalizeOptional(request.Notes) }.Where(note => !string.IsNullOrWhiteSpace(note)));
+        quotation.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(quotation);
+    }
+
+    private static bool HasCustomerDesign(Quotation quotation)
+    {
+        return quotation.Items.Any(item => !string.IsNullOrWhiteSpace(item.CustomerImageUrl));
+    }
+
+    private static void ValidateDesignCompletion(Quotation quotation)
+    {
+        if (quotation.DesignSource == QuotationDesignSources.Engineering)
+        {
+            if (string.IsNullOrWhiteSpace(quotation.DesignLink))
+            {
+                throw new InvalidOperationException("Engineering design link is required.");
+            }
+            if (quotation.BomItems.Count == 0)
+            {
+                throw new InvalidOperationException("BOM is required.");
+            }
+            if (quotation.EngineeringApprovedAtUtc is null)
+            {
+                throw new InvalidOperationException("SPV Engineering approval is required.");
+            }
+        }
+        else
+        {
+            if (!HasCustomerDesign(quotation))
+            {
+                throw new InvalidOperationException("Customer-provided design link is required.");
+            }
+            if (quotation.BomItems.Count == 0)
+            {
+                throw new InvalidOperationException("BOM is required for costing and production.");
+            }
+            if (quotation.EngineeringReviewRequired && quotation.EngineeringApprovedAtUtc is null)
+            {
+                throw new InvalidOperationException("Engineering feasibility approval is required.");
+            }
+        }
     }
 
     private static QuotationDto ToDto(Quotation quotation)
@@ -540,6 +695,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
             quotation.CustomerEmail,
             quotation.Deadline,
             quotation.Status,
+            quotation.DesignSource,
+            quotation.EngineeringReviewRequired,
+            quotation.EngineeringApprovedAtUtc,
+            quotation.ClientDesignApprovedAtUtc,
             quotation.AssignedEngineerId,
             quotation.AssignedEngineerName,
             quotation.DesignLink,
@@ -630,7 +789,9 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                     item.Qty,
                     item.UnitPrice,
                     item.Notes))
-                .ToArray());
+                .ToArray(),
+            DpPercentage: salesOrder.DpPercentage,
+            DpDueDate: salesOrder.DpDueDate);
     }
 
     private static string Required(string? value, string fieldName)

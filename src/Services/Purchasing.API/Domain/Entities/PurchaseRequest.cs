@@ -21,9 +21,39 @@ public sealed class PurchaseRequest
     public DateTime? FinanceReviewedAtUtc { get; set; }
     public string? FinanceRejectionReason { get; set; }
     public string? RevisionNote { get; set; }
+    public int? ActiveApprovalCycleNumber { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public List<PurchaseRequestItem> Items { get; set; } = [];
+    public List<PurchaseRequestApproval> Approvals { get; set; } = [];
+}
+
+public sealed class PurchaseRequestApproval
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PurchaseRequestId { get; set; }
+    public PurchaseRequest? PurchaseRequest { get; set; }
+    public int CycleNumber { get; set; }
+    public string Role { get; set; } = PurchaseRequestApprovalRoles.Finance;
+    public string Decision { get; set; } = PurchaseRequestApprovalDecisions.Pending;
+    public Guid? ActorUserId { get; set; }
+    public DateTime? DecidedAtUtc { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public static class PurchaseRequestApprovalRoles
+{
+    public const string Finance = "Finance";
+    public const string Owner = "Owner";
+}
+
+public static class PurchaseRequestApprovalDecisions
+{
+    public const string Pending = "Pending";
+    public const string Approved = "Approved";
+    public const string Rejected = "Rejected";
 }
 
 public static class PurchaseRequestStatuses

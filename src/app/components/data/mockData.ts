@@ -1,4 +1,4 @@
-export type UserRole = 'Sales' | 'Engineering' | 'Engineering' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
+export type UserRole = 'Sales' | 'Sales Order' | 'Engineering' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
   | 'Waiting Payment'
@@ -39,6 +39,8 @@ export interface SalesOrder {
   id: string;
   backendId?: string;
   backendStatus?: string;
+  convertedSalesOrderId?: string | null;
+  convertedSalesOrderNumber?: string | null;
   soNumber?: string;
   customerId: string;
   customerName?: string;
@@ -96,6 +98,8 @@ export interface SalesOrder {
   materialRequestStatus?: 'none' | 'requested' | 'approved';
   materialShortageDetected?: boolean;
   estimatedAmount?: number;
+  dpPercentage?: number;
+  dpDueDate?: string;
   customerImageUrl?: string;
   items?: any[];
   materials?: any[];
@@ -151,19 +155,19 @@ export const invoiceStatusConfig: Record<string, { label: string; bgColor: strin
 
 export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string; dot: string } {
   const map: Record<SOStatus, { bg: string; text: string; border: string; dot: string }> = {
-    'Waiting Payment': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-600' },
-    'Pending Design': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-700' },
-    'Waiting Spv Approval': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-600' },
-    'Waiting Pricing': { bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-800' },
-    'Waiting Client Approval': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-600' },
-    'Waiting Approval': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
-    'Revision Required': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-600' },
-    'Ready for Production': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-600' },
-    'In Production': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-600' },
-    'Paused': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
-    'QC': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
-    'Completed': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-600' },
-    'Rejected': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-600' },
+    'Waiting Payment': { bg: 'bg-amber-100', text: 'text-amber-800 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
+    'Pending Design': { bg: 'bg-amber-100', text: 'text-amber-900 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
+    'Waiting Spv Approval': { bg: 'bg-amber-100', text: 'text-amber-900 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
+    'Waiting Pricing': { bg: 'bg-amber-100', text: 'text-amber-900 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
+    'Waiting Client Approval': { bg: 'bg-orange-100', text: 'text-orange-900 font-bold', border: 'border-orange-300', dot: 'bg-orange-600' },
+    'Waiting Approval': { bg: 'bg-amber-100', text: 'text-amber-900 font-semibold', border: 'border-amber-300', dot: 'bg-amber-500' },
+    'Revision Required': { bg: 'bg-red-50', text: 'text-red-700 font-semibold', border: 'border-red-200', dot: 'bg-red-600' },
+    'Ready for Production': { bg: 'bg-emerald-100', text: 'text-emerald-900 font-bold', border: 'border-emerald-300', dot: 'bg-emerald-600' },
+    'In Production': { bg: 'bg-blue-50', text: 'text-blue-700 font-semibold', border: 'border-blue-200', dot: 'bg-blue-600' },
+    'Paused': { bg: 'bg-orange-50', text: 'text-orange-700 font-semibold', border: 'border-orange-200', dot: 'bg-orange-500' },
+    'QC': { bg: 'bg-purple-50', text: 'text-purple-700 font-semibold', border: 'border-purple-200', dot: 'bg-purple-500' },
+    'Completed': { bg: 'bg-emerald-100', text: 'text-emerald-900 font-bold', border: 'border-emerald-300', dot: 'bg-emerald-600' },
+    'Rejected': { bg: 'bg-red-100', text: 'text-red-800 font-semibold', border: 'border-red-300', dot: 'bg-red-600' },
   };
 
   return map[status] || { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-600' };
@@ -245,6 +249,11 @@ export interface PurchasingRequest {
   id: string;
   backendId?: string;
   backendStatus?: string;
+  activeApprovalCycleNumber?: number | null;
+  financeApproval?: "Pending" | "Approved" | "Rejected";
+  ownerApproval?: "Pending" | "Approved" | "Rejected";
+  isFullyApproved?: boolean;
+  isApprovalBlocked?: boolean;
   soId?: string;
   salesOrderId?: string;
   itemName: string;
@@ -270,6 +279,7 @@ export interface PurchasingRequest {
 export function getDefaultRouteForRole(role: UserRole): string {
   const map: Record<UserRole, string> = {
     Sales: '/app/sales',
+    'Sales Order': '/erp/so/orders',
     'Engineering': '/app/engineering',
     'Engineering Supervisor': '/app/engineering',
     Owner: '/app/dashboard',
