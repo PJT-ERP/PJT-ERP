@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ClipboardList, Search, Calendar, MapPin, Pencil, Trash2, ChevronDown, ChevronRight, Clock, Eye } from "lucide-react";
+import { ClipboardList, Search, MapPin, Pencil, Trash2, ChevronDown, ChevronRight, Clock, FileText, Upload, X } from "lucide-react";
 import { Label, Input, Textarea, SectionCard, Grid2 } from "./create/FormHelpers";
-import { meetingMinutesApi, MEETING_MINUTE_EDITOR_ROLES } from "../../services/meetingMinutesApi";
-import { useApp } from "../context/AppContext";
+import { meetingMinutesApi } from "../../services/meetingMinutesApi";
 import { Pagination } from "./components/so-list/SOListHelpers";
 import type { MeetingMinuteDto, SaveMeetingMinuteRequest } from "../../services/meetingMinutesApi";
 import { salesApi } from "../../services/salesApi";
@@ -35,18 +34,39 @@ const emptyForm = (): SaveMeetingMinuteRequest => ({
   description: "",
   discussion: "",
   solution: "",
+  participants: "",
+  resultFileUrl: null,
+  resultFileName: null,
   feedbackDeadline: "",
 });
 
 const formatDate = (iso?: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "-";
 
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+
 const errorMessage = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
+const MAX_PDF_SIZE = 5 * 1024 * 1024; // sama dengan FileUploadSecurityValidator
+
+const openResultFile = async (url: string) => {
+  // Buka tab dulu agar tidak diblokir popup blocker, lalu isi setelah blob terunduh (endpoint butuh token).
+  const tab = window.open("", "_blank");
+  try {
+    const blob = await meetingMinutesApi.getResultFileBlob(url);
+    const objectUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+    if (tab) tab.location.href = objectUrl;
+    else window.open(objectUrl, "_blank");
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+  } catch (error) {
+    tab?.close();
+    toast.error(errorMessage(error, "Gagal membuka file hasil meeting."));
+  }
+};
+
 export function MeetingMinutesPage() {
-  const { currentUser } = useApp();
-  const canEdit = !!currentUser && MEETING_MINUTE_EDITOR_ROLES.includes(currentUser.role);
   const queryClient = useQueryClient();
   const formRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<SaveMeetingMinuteRequest>(emptyForm);
@@ -54,6 +74,8 @@ export function MeetingMinutesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: minutes = [], isLoading } = useQuery({
     queryKey: ["meetingMinutes"],
@@ -64,7 +86,6 @@ export function MeetingMinutesPage() {
     queryKey: ["customerDtos"],
     queryFn: salesApi.listCustomers,
     staleTime: 60000,
-    enabled: canEdit,
   });
 
   const resetForm = () => {
@@ -101,10 +122,38 @@ export function MeetingMinutesPage() {
     setForm(prev => ({ ...prev, customerName: name, customerId: match?.id ?? null }));
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Hasil meeting harus berupa file PDF.");
+      return;
+    }
+    if (file.size > MAX_PDF_SIZE) {
+      toast.error("Ukuran file maksimal 5 MB.");
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const result = await meetingMinutesApi.uploadResultFile(file);
+      setForm(prev => ({ ...prev, resultFileUrl: result.url, resultFileName: result.fileName }));
+      toast.success("File hasil meeting berhasil diunggah.");
+    } catch (error) {
+      toast.error(errorMessage(error, "Gagal mengunggah file hasil meeting."));
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (form.feedbackDeadline && form.feedbackDeadline < form.meetingDate) {
       toast.error("Deadline feedback tidak boleh sebelum tanggal meeting.");
+      return;
+    }
+    if (isUploading) {
+      toast.error("Tunggu hingga file selesai diunggah.");
       return;
     }
     saveMutation.mutate({ ...form, feedbackDeadline: form.feedbackDeadline || null });
@@ -120,6 +169,9 @@ export function MeetingMinutesPage() {
       description: m.description,
       discussion: m.discussion,
       solution: m.solution,
+      participants: m.participants ?? "",
+      resultFileUrl: m.resultFileUrl ?? null,
+      resultFileName: m.resultFileName ?? null,
       feedbackDeadline: m.feedbackDeadline ?? "",
     });
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -135,7 +187,7 @@ export function MeetingMinutesPage() {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return minutes;
     return minutes.filter(m =>
-      [m.customerName, m.location, m.description, m.discussion, m.solution].some(v => v?.toLowerCase().includes(q))
+      [m.customerName, m.location, m.participants, m.description, m.discussion, m.solution].some(v => v?.toLowerCase().includes(q))
     );
   }, [minutes, searchTerm]);
 
@@ -144,28 +196,20 @@ export function MeetingMinutesPage() {
   const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const today = todayIso();
-  const columns = canEdit ? "1.1fr 1.6fr 1.3fr 2.6fr 1.2fr 90px" : "1.1fr 1.6fr 1.3fr 2.6fr 1.2fr";
+  // Format mengikuti notulen: No | Description | Problem | Solved | Deadline | PIC (PIC = pembuat laporan).
+  const columns = "56px 2.2fr 2fr 2fr 1.1fr 1.2fr 70px";
+  const cellText: React.CSSProperties = { fontSize: "12.5px", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
   return (
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20, fontFamily: S.font }}>
       <div>
         <h1 style={{ color: S.slate, margin: "0 0 8px 0", fontSize: "24px" }}>Minute Meeting</h1>
         <p style={{ color: S.secondary, margin: 0, fontSize: "14px" }}>
-          {canEdit
-            ? "Catat hasil meeting dengan customer: pembahasan, masalah, solusi, dan deadline feedback."
-            : "Hasil meeting Sales dan Engineering dengan customer: pembahasan, masalah, solusi, dan deadline feedback."}
+          Catat hasil meeting dengan customer: pembahasan, masalah, solusi, dan deadline feedback.
         </p>
       </div>
 
-      {!canEdit && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: S.bg, border: `1px solid ${S.border}`, borderRadius: 6, color: S.secondary, fontSize: "12.5px" }}>
-          <Eye size={14} />
-          Mode lihat saja. Minute meeting dicatat oleh tim Sales dan Engineering Supervisor.
-        </div>
-      )}
-
       {/* Form */}
-      {canEdit && (
       <div ref={formRef} style={{ scrollMarginTop: 16 }}>
         <SectionCard
           title={editingId ? "Edit Minute Meeting" : "Form Minute Meeting"}
@@ -213,16 +257,50 @@ export function MeetingMinutesPage() {
             </Grid2>
 
             <div>
+              <Label text="Peserta Meeting" required />
+              <AutoTextarea placeholder="Nama peserta dari customer dan internal, pisahkan dengan koma atau baris baru" value={form.participants} onChange={e => setField("participants", e.target.value)} required maxLength={2000} />
+            </div>
+            <div>
               <Label text="Deskripsi" />
-              <Textarea rows={2} placeholder="Agenda / konteks meeting" value={form.description} onChange={e => setField("description", e.target.value)} maxLength={4000} />
+              <AutoTextarea placeholder="Agenda / konteks meeting" value={form.description} onChange={e => setField("description", e.target.value)} maxLength={4000} />
             </div>
             <div>
               <Label text="Diskusi / Problem" required />
-              <Textarea rows={4} placeholder="Poin yang dibahas dan masalah yang disampaikan customer" value={form.discussion} onChange={e => setField("discussion", e.target.value)} required maxLength={4000} />
+              <AutoTextarea placeholder="Poin yang dibahas dan masalah yang disampaikan customer" value={form.discussion} onChange={e => setField("discussion", e.target.value)} required maxLength={4000} />
             </div>
             <div>
               <Label text="Solved / Solusi" />
-              <Textarea rows={3} placeholder="Solusi atau keputusan yang disepakati" value={form.solution} onChange={e => setField("solution", e.target.value)} maxLength={4000} />
+              <AutoTextarea placeholder="Solusi atau keputusan yang disepakati" value={form.solution} onChange={e => setField("solution", e.target.value)} maxLength={4000} />
+            </div>
+            <div>
+              <Label text="Lampiran Hasil Meeting (PDF)" />
+              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
+              {form.resultFileUrl ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid #CBD5E1", borderRadius: 4, background: "#FAFAFA" }}>
+                  <FileText size={14} style={{ color: S.primary, flexShrink: 0 }} />
+                  <button
+                    type="button"
+                    onClick={() => openResultFile(form.resultFileUrl!)}
+                    style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: "none", padding: 0, color: S.slate, fontSize: "12.5px", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: S.font }}
+                  >
+                    {form.resultFileName || "Hasil meeting.pdf"}
+                  </button>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} style={{ background: "none", border: "none", color: S.secondary, fontSize: "12px", cursor: "pointer", fontFamily: S.font }}>
+                    {isUploading ? "Mengunggah..." : "Ganti"}
+                  </button>
+                  <IconButton title="Hapus file" danger onClick={() => setForm(prev => ({ ...prev, resultFileUrl: null, resultFileName: null }))}><X size={13} /></IconButton>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 12px", border: "1px dashed #CBD5E1", borderRadius: 4, background: "#FAFAFA", color: S.secondary, fontSize: "12.5px", cursor: isUploading ? "wait" : "pointer", fontFamily: S.font }}
+                >
+                  <Upload size={13} />
+                  {isUploading ? "Mengunggah..." : "Upload lampiran hasil meeting dalam format PDF (opsional, maks. 5 MB)"}
+                </button>
+              )}
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -235,7 +313,7 @@ export function MeetingMinutesPage() {
               </button>
               <button
                 type="submit"
-                disabled={saveMutation.isPending}
+                disabled={saveMutation.isPending || isUploading}
                 style={{ padding: "8px 20px", borderRadius: 4, border: "none", background: S.primary, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: saveMutation.isPending ? "wait" : "pointer", opacity: saveMutation.isPending ? 0.7 : 1, fontFamily: S.font }}
               >
                 {saveMutation.isPending ? "Menyimpan..." : editingId ? "Simpan Perubahan" : "Simpan Minute Meeting"}
@@ -244,7 +322,6 @@ export function MeetingMinutesPage() {
           </form>
         </SectionCard>
       </div>
-      )}
 
       {/* List */}
       <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
@@ -269,7 +346,7 @@ export function MeetingMinutesPage() {
         <div style={{ overflowX: "auto" }}>
           <div style={{ minWidth: 820 }}>
             <div style={{ display: "grid", gridTemplateColumns: columns, gap: 12, padding: "10px 18px", background: S.bg, borderBottom: `1px solid ${S.border}` }}>
-              {["Tanggal", "Customer", "Tempat", "Diskusi / Problem", "Deadline Feedback", ...(canEdit ? [""] : [])].map((h, i) => (
+              {["No", "Description", "Problem", "Solved", "Deadline", "PIC", ""].map((h, i) => (
                 <span key={i} style={{ color: S.secondary, fontSize: "11px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>{h}</span>
               ))}
             </div>
@@ -294,32 +371,63 @@ export function MeetingMinutesPage() {
                     >
                       <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12.5px", color: S.slate }}>
                         {expanded ? <ChevronDown size={13} style={{ color: "#94A3B8" }} /> : <ChevronRight size={13} style={{ color: "#94A3B8" }} />}
-                        {formatDate(m.meetingDate)}
+                        {(currentPage - 1) * PAGE_SIZE + idx + 1}
                       </span>
-                      <span style={{ fontSize: "13px", fontWeight: 600, color: S.slate }}>{m.customerName}</span>
-                      <span style={{ fontSize: "12.5px", color: "#475569" }}>{m.location}</span>
-                      <span style={{ fontSize: "12.5px", color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.discussion}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ ...cellText, color: m.description ? S.slate : "#94A3B8" }}>{m.description || "-"}</div>
+                        <div style={{ ...cellText, fontSize: "11px", color: S.secondary, marginTop: 2 }}>
+                          {m.customerName} · {formatDate(m.meetingDate)}
+                        </div>
+                      </div>
+                      <span style={cellText}>{m.discussion}</span>
+                      <span style={{ ...cellText, color: m.solution ? "#475569" : "#94A3B8" }}>{m.solution || "-"}</span>
                       <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "12.5px", color: deadlinePassed ? "#94A3B8" : S.slate }}>
                         {m.feedbackDeadline && <Clock size={12} style={{ color: "#94A3B8" }} />}
                         {formatDate(m.feedbackDeadline)}
                       </span>
-                      {canEdit && (
-                        <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }} onClick={e => e.stopPropagation()}>
-                          <IconButton title="Edit" onClick={() => handleEdit(m)}><Pencil size={13} /></IconButton>
-                          <IconButton title="Hapus" danger onClick={() => handleDelete(m)} disabled={deleteMutation.isPending}><Trash2 size={13} /></IconButton>
-                        </div>
-                      )}
+                      <div
+                        style={{ minWidth: 0 }}
+                        title={`Dibuat ${formatDateTime(m.createdAtUtc)}${m.updatedAtUtc ? ` · diperbarui${m.updatedByName ? ` oleh ${m.updatedByName}` : ""} ${formatDateTime(m.updatedAtUtc)}` : ""}`}
+                      >
+                        <div style={{ ...cellText, color: S.slate }}>{m.createdByName || "-"}</div>
+                        {/* Hanya tampil jika editor terakhir bukan pembuat laporan. */}
+                        {m.updatedByName && m.updatedByName !== m.createdByName && (
+                          <div style={{ ...cellText, fontSize: "11px", color: S.secondary, marginTop: 2 }}>diedit oleh {m.updatedByName}</div>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }} onClick={e => e.stopPropagation()}>
+                        <IconButton title="Edit" onClick={() => handleEdit(m)}><Pencil size={13} /></IconButton>
+                        <IconButton title="Hapus" danger onClick={() => handleDelete(m)} disabled={deleteMutation.isPending}><Trash2 size={13} /></IconButton>
+                      </div>
                     </div>
 
                     {expanded && (
-                      <div style={{ padding: "4px 18px 16px 37px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-                        <Detail label="Deskripsi" value={m.description} />
-                        <Detail label="Diskusi / Problem" value={m.discussion} />
-                        <Detail label="Solved / Solusi" value={m.solution} />
-                        <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 6, fontSize: "11px", color: "#94A3B8" }}>
-                          <Calendar size={11} />
-                          Dicatat oleh {m.createdByName || "-"} · {new Date(m.createdAtUtc).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
-                          {m.updatedAtUtc && ` · diperbarui ${new Date(m.updatedAtUtc).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`}
+                      <div style={{ padding: "4px 18px 16px 37px", display: "flex", flexDirection: "column", gap: 14 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+                          <Detail label="Customer" value={m.customerName} />
+                          <Detail label="Tanggal Meeting" value={formatDate(m.meetingDate)} />
+                          <Detail label="Tempat" value={m.location} />
+                          <div style={{ minWidth: 0 }}>
+                            <p style={detailLabel}>Lampiran Hasil Meeting (PDF)</p>
+                            {m.resultFileUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => openResultFile(m.resultFileUrl!)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%", background: "none", border: "none", padding: 0, color: S.primary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, textAlign: "left", overflowWrap: "anywhere" }}
+                              >
+                                <FileText size={13} style={{ flexShrink: 0 }} />
+                                {m.resultFileName || "Lihat PDF"}
+                              </button>
+                            ) : (
+                              <p style={{ margin: 0, fontSize: "12.5px", color: "#94A3B8" }}>-</p>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
+                          <Detail boxed label="Peserta Meeting" value={m.participants} />
+                          <Detail boxed label="Deskripsi" value={m.description} />
+                          <Detail boxed label="Diskusi / Problem" value={m.discussion} />
+                          <Detail boxed label="Solved / Solusi" value={m.solution} />
                         </div>
                       </div>
                     )}
@@ -344,11 +452,40 @@ export function MeetingMinutesPage() {
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+// Tinggi textarea mengikuti panjang isi agar seluruh teks terlihat tanpa scroll.
+function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const resize = () => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight + 2}px`; // +2 untuk border atas-bawah
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [props.value]);
+
+  return <Textarea {...props} ref={ref} rows={2} style={{ overflow: "hidden", overflowWrap: "anywhere", ...props.style }} />;
+}
+
+const detailLabel: React.CSSProperties = { margin: "0 0 4px", fontSize: "11px", fontWeight: 600, color: S.secondary, textTransform: "uppercase", letterSpacing: "0.05em" };
+
+function Detail({ label, value, boxed }: { label: string; value: string; boxed?: boolean }) {
   return (
-    <div>
-      <p style={{ margin: "0 0 4px", fontSize: "11px", fontWeight: 600, color: S.secondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
-      <p style={{ margin: 0, fontSize: "12.5px", color: value ? "#334155" : "#94A3B8", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{value || "-"}</p>
+    <div style={{ minWidth: 0 }}>
+      <p style={detailLabel}>{label}</p>
+      <p
+        style={{
+          margin: 0, fontSize: "12.5px", color: value ? "#334155" : "#94A3B8", lineHeight: 1.6,
+          whiteSpace: "pre-wrap", overflowWrap: "anywhere", // teks panjang tanpa spasi tetap turun ke bawah
+          ...(boxed && { padding: "8px 10px", minHeight: 44, background: S.bg, border: `1px solid ${S.border}`, borderRadius: 4 }),
+        }}
+      >
+        {value || "-"}
+      </p>
     </div>
   );
 }

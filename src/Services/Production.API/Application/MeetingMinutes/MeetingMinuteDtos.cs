@@ -9,6 +9,9 @@ public class SaveMeetingMinuteRequest
     public string Description { get; set; } = string.Empty;
     public string Discussion { get; set; } = string.Empty;
     public string Solution { get; set; } = string.Empty;
+    public string Participants { get; set; } = string.Empty;
+    public string? ResultFileUrl { get; set; }
+    public string? ResultFileName { get; set; }
     public DateOnly? FeedbackDeadline { get; set; }
 }
 
@@ -22,8 +25,12 @@ public class MeetingMinuteDto
     public string Description { get; set; } = string.Empty;
     public string Discussion { get; set; } = string.Empty;
     public string Solution { get; set; } = string.Empty;
+    public string Participants { get; set; } = string.Empty;
+    public string? ResultFileUrl { get; set; }
+    public string? ResultFileName { get; set; }
     public DateOnly? FeedbackDeadline { get; set; }
     public string CreatedByName { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }
+    public string? UpdatedByName { get; set; }
 }
