@@ -78,6 +78,8 @@ services:
         ENTRY_DLL: Production.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_meeting_minutes:/app/wwwroot/meeting-minutes
     expose:
       - "8080"
     depends_on:
@@ -208,5 +210,6 @@ volumes:
   pjt_prod_db:
   pjt_qc_photos:
   pjt_finance_proofs:
+  pjt_meeting_minutes:
   npm_data:
   npm_letsencrypt:

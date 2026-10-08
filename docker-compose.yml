@@ -85,6 +85,7 @@ services:
       - "127.0.0.1:5003:8080"
     volumes:
       - pjt_engineering_drawings:/app/wwwroot/engineering-drawings
+      - pjt_meeting_minutes:/app/wwwroot/meeting-minutes
     depends_on:
       db:
         condition: service_healthy
@@ -186,3 +187,4 @@ volumes:
   pjt_finance_proofs:
   pjt_qc_photos:
   pjt_engineering_drawings:
+  pjt_meeting_minutes:
