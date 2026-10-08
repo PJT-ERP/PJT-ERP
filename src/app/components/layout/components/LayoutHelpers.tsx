@@ -26,6 +26,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Tugas Desain", icon: <List size={15} />, path: "/erp/engineer-tasks" },
     { label: "Produksi", icon: <Box size={15} />, path: "/erp/production" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+    { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
   ],
   'Engineering Supervisor': [
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/engineer" },
@@ -39,6 +40,7 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Dashboard", icon: <LayoutDashboard size={15} />, path: "/erp/qc" },
     { label: "Inspeksi QC", icon: <Shield size={15} />, path: "/erp/qc/inspections" },
     { label: "Daftar Sales Order", icon: <List size={15} />, path: "/erp/so/orders" },
+    { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
   ],
   Owner: [
     { label: "MENU UTAMA", isHeader: true },
@@ -91,5 +93,6 @@ export const ROLE_NAVIGATION: Record<UserRole, NavItemDef[]> = {
     { label: "Req. Material", icon: <ClipboardList size={15} />, path: "/erp/purchasing/requests" },
     { label: "Daftar PO", icon: <ShoppingCart size={15} />, path: "/erp/purchasing/orders" },
     { label: "Daftar Supplier", icon: <Users size={15} />, path: "/erp/purchasing/suppliers" },
+    { label: "Minute Meeting", icon: <ClipboardList size={15} />, path: "/erp/so/meeting-minutes" },
   ]
 };

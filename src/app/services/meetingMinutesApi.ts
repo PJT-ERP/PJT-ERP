@@ -1,9 +1,4 @@
 import apiClient from './apiClient';
-import type { UserRole } from '../components/data/mockData';
-
-// Harus sama dengan otorisasi di MeetingMinutesController.
-export const MEETING_MINUTE_EDITOR_ROLES: UserRole[] = ['Sales', 'Engineering Supervisor'];
-export const MEETING_MINUTE_VIEWER_ROLES: UserRole[] = [...MEETING_MINUTE_EDITOR_ROLES, 'Owner', 'Finance', 'Admin'];
 
 export interface MeetingMinuteDto {
   id: string;
@@ -14,10 +9,14 @@ export interface MeetingMinuteDto {
   description: string;
   discussion: string;
   solution: string;
+  participants: string;
+  resultFileUrl?: string | null;
+  resultFileName?: string | null;
   feedbackDeadline?: string | null; // yyyy-MM-dd
   createdByName: string;
   createdAtUtc: string;
   updatedAtUtc?: string | null;
+  updatedByName?: string | null;
 }
 
 export interface SaveMeetingMinuteRequest {
@@ -28,6 +27,9 @@ export interface SaveMeetingMinuteRequest {
   description: string;
   discussion: string;
   solution: string;
+  participants: string;
+  resultFileUrl?: string | null;
+  resultFileName?: string | null;
   feedbackDeadline?: string | null;
 }
 
@@ -51,5 +53,17 @@ export const meetingMinutesApi = {
 
   async remove(id: string): Promise<void> {
     await apiClient.delete(`${BASE}/${id}`);
+  },
+
+  async uploadResultFile(file: File): Promise<{ url: string; fileName: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ url: string; fileName: string }>(`${BASE}/upload-file`, formData);
+    return response.data;
+  },
+
+  async getResultFileBlob(url: string): Promise<Blob> {
+    const response = await apiClient.get(url, { responseType: 'blob' });
+    return response.data as Blob;
   },
 };

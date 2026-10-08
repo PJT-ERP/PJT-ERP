@@ -155,11 +155,16 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(minute => minute.Description).HasMaxLength(4000).HasColumnName("description");
             builder.Property(minute => minute.Discussion).HasMaxLength(4000).HasColumnName("discussion");
             builder.Property(minute => minute.Solution).HasMaxLength(4000).HasColumnName("solution");
+            builder.Property(minute => minute.Participants).HasMaxLength(2000).HasColumnName("participants");
+            builder.Property(minute => minute.ResultFileUrl).HasMaxLength(1000).HasColumnName("result_file_url");
+            builder.Property(minute => minute.ResultFileName).HasMaxLength(255).HasColumnName("result_file_name");
             builder.Property(minute => minute.FeedbackDeadline).HasColumnName("feedback_deadline");
             builder.Property(minute => minute.CreatedByUserId).HasColumnName("created_by_user_id");
             builder.Property(minute => minute.CreatedByName).HasMaxLength(160).HasColumnName("created_by_name");
             builder.Property(minute => minute.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(minute => minute.UpdatedAtUtc).HasColumnName("updated_at_utc");
+            builder.Property(minute => minute.UpdatedByUserId).HasColumnName("updated_by_user_id");
+            builder.Property(minute => minute.UpdatedByName).HasMaxLength(160).HasColumnName("updated_by_name");
         });
 
         modelBuilder.Entity<SalesOrder>(builder =>

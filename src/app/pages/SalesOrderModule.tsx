@@ -7,8 +7,6 @@ import { SOList } from "../components/so/so-list";
 import { SOCreate } from "../components/so/so-create";
 import { ConsultationsPage } from "../components/so/ConsultationsPage";
 import { MeetingMinutesPage } from "../components/so/MeetingMinutesPage";
-import { ProtectedRoute } from "../components/layout/ProtectedRoute";
-import { MEETING_MINUTE_VIEWER_ROLES } from "../services/meetingMinutesApi";
 
 function SOModuleRoutes() {
   const navigate = useNavigate();
@@ -41,7 +39,8 @@ function SOModuleRoutes() {
       <Route path="detail/:id" element={<SODetailWrapper onNavigate={handleNavigate} />} />
       <Route path="customers" element={<CustomerList onNavigate={handleNavigate} />} />
       <Route path="consultations" element={<ConsultationsPage />} />
-      <Route path="meeting-minutes" element={<ProtectedRoute allowedRoles={MEETING_MINUTE_VIEWER_ROLES}><MeetingMinutesPage /></ProtectedRoute>} />
+      {/* Minute Meeting terbuka untuk semua role yang bisa masuk modul ini (lihat App.tsx). */}
+      <Route path="meeting-minutes" element={<MeetingMinutesPage />} />
     </Routes>
   );
 }

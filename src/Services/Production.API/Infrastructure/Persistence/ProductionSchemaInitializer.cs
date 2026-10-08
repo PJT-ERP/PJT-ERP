@@ -31,6 +31,12 @@ public static class ProductionSchemaInitializer
             CREATE INDEX IF NOT EXISTS ix_meeting_minutes_meeting_date
                 ON meeting_minutes (meeting_date);
 
+            ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS participants character varying(2000) NOT NULL DEFAULT '';
+            ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS result_file_url character varying(1000);
+            ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS result_file_name character varying(255);
+            ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS updated_by_user_id uuid;
+            ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS updated_by_name character varying(160);
+
             CREATE TABLE IF NOT EXISTS quotations (
                 "Id" uuid NOT NULL PRIMARY KEY,
                 quotation_number character varying(100) NOT NULL UNIQUE,
