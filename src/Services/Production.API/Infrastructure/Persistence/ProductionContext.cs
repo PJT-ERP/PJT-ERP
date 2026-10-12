@@ -233,6 +233,9 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(c => c.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(c => c.IsEdited).HasColumnName("is_edited");
             builder.Property(c => c.IsDeleted).HasColumnName("is_deleted");
+            builder.Property(c => c.FileUrl).HasColumnName("FileUrl");
+            builder.Property(c => c.FileName).HasColumnName("FileName");
+            builder.Property(c => c.FileType).HasColumnName("FileType");
         });
 
         modelBuilder.Entity<SalesOrderItem>(builder =>

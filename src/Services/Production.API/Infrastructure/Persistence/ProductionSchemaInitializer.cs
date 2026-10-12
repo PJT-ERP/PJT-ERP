@@ -37,6 +37,27 @@ public static class ProductionSchemaInitializer
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS updated_by_user_id uuid;
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS updated_by_name character varying(160);
 
+            CREATE TABLE IF NOT EXISTS sales_order_comments (
+                "Id" uuid NOT NULL PRIMARY KEY,
+                sales_order_id uuid NOT NULL REFERENCES sales_orders("Id") ON DELETE CASCADE,
+                user_id uuid NOT NULL,
+                user_name character varying(160) NOT NULL,
+                content character varying(2000) NOT NULL,
+                created_at_utc timestamp with time zone NOT NULL,
+                is_edited boolean NOT NULL DEFAULT false,
+                is_deleted boolean NOT NULL DEFAULT false,
+                "FileUrl" text NULL,
+                "FileName" text NULL,
+                "FileType" text NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_sales_order_comments_sales_order_id
+                ON sales_order_comments (sales_order_id);
+
+            ALTER TABLE sales_order_comments ADD COLUMN IF NOT EXISTS "FileUrl" text;
+            ALTER TABLE sales_order_comments ADD COLUMN IF NOT EXISTS "FileName" text;
+            ALTER TABLE sales_order_comments ADD COLUMN IF NOT EXISTS "FileType" text;
+
             CREATE TABLE IF NOT EXISTS quotations (
                 "Id" uuid NOT NULL PRIMARY KEY,
                 quotation_number character varying(100) NOT NULL UNIQUE,
