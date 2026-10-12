@@ -173,7 +173,7 @@ services:
         VITE_DEV_MASTER_TOKEN: "${VITE_DEV_MASTER_TOKEN:-}"
     restart: unless-stopped
     ports:
-      - "5174:80"
+      - "5174:8080"
     depends_on:
       web-gateway:
         condition: service_started
