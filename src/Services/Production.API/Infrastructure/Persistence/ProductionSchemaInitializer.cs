@@ -34,6 +34,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS participants character varying(2000) NOT NULL DEFAULT '';
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS result_file_url character varying(1000);
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS result_file_name character varying(255);
+            ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS result_link character varying(1000);
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS updated_by_user_id uuid;
             ALTER TABLE meeting_minutes ADD COLUMN IF NOT EXISTS updated_by_name character varying(160);
 
