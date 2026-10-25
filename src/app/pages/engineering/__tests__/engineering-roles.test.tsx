@@ -17,7 +17,7 @@ vi.mock('../../../services/queries', () => ({
   useProductsQuery: vi.fn().mockReturnValue({ data: [] }),
   useCustomersQuery: vi.fn().mockReturnValue({ data: [] }),
   usePurchasingRequestsQuery: vi.fn().mockReturnValue({ data: [] }),
-  useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [{ id: 'SO-123', status: 'Pending Design', backendId: '123' }] }),
+  useSalesOrdersQuery: vi.fn().mockReturnValue({ data: [{ id: 'SO-123', status: 'Pending Design', backendId: '123', items: [{ id: 'item-1', productName: 'Item A', quantity: 1, unit: 'pcs' }] }] }),
 }));
 
 vi.mock('../../../services/masterDataApi', () => ({
@@ -39,7 +39,7 @@ vi.mock('../../../services/salesApi', () => ({
         designAssignedTo: 'reg-eng-1',
         designLink: '',
         rejectionReason: '',
-        items: []
+        items: [{ id: 'item-1', productName: 'Item A', quantity: 1, unit: 'pcs' }]
       }
     ]),
     updateSalesOrderDesignStatus: vi.fn().mockResolvedValue({}),
@@ -54,7 +54,7 @@ vi.mock('../../../components/layout/Sidebar', () => ({
 const renderWithProtection = (ui: React.ReactElement, role: string, initialRoute: string) => {
   vi.mocked(useApp).mockReturnValue({
     currentUser: { role },
-    salesOrders: [{ id: 'SO-123', description: 'Test Order' }],
+    salesOrders: [{ id: 'SO-123', status: 'Pending Design', description: 'Test Order', items: [{ id: 'item-1', productName: 'Item A', quantity: 1, unit: 'pcs' }] }],
     customers: [],
     users: [],
     purchasingRequests: [],
@@ -66,7 +66,7 @@ const renderWithProtection = (ui: React.ReactElement, role: string, initialRoute
       <MemoryRouter initialEntries={[initialRoute]}>
         <Routes>
           <Route path="/erp/engineer-tasks" element={
-            <ProtectedRoute allowedRoles={['Admin', 'Owner', 'Engineering Supervisor']}>
+            <ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}>
               <EngineeringTasksPage />
             </ProtectedRoute>
           } />
@@ -90,10 +90,10 @@ const renderWithProtection = (ui: React.ReactElement, role: string, initialRoute
 
 describe('Engineering Roles & Routing (New Flow)', () => {
   describe('Regular Engineer', () => {
-    it('is blocked from accessing Engineering Tasks (Tugas Desain)', () => {
+    it('is allowed to access Engineering Tasks (Tugas Desain)', () => {
       renderWithProtection(<EngineeringTasksPage />, 'Engineering', '/erp/engineer-tasks');
-      expect(screen.queryByText('Daftar Tugas Desain')).not.toBeInTheDocument();
-      expect(screen.getByText('Access Denied')).toBeInTheDocument();
+      expect(screen.getByText('Daftar Tugas Desain')).toBeInTheDocument();
+      expect(screen.queryByText('Access Denied')).not.toBeInTheDocument();
     });
 
     it('is blocked from accessing Material Request page', () => {
@@ -102,16 +102,16 @@ describe('Engineering Roles & Routing (New Flow)', () => {
       expect(screen.getByText('Access Denied')).toBeInTheDocument();
     });
 
-    it('is allowed to access Task Detail page (via QR) but strictly in read-only mode', async () => {
+    it('is allowed to access Task Detail page and input design drawing and BOM', async () => {
       renderWithProtection(<EngineeringTaskDetailPage />, 'Engineering', '/erp/engineer-tasks/SO-123');
       
-      // Page should render successfully
+      // Page should render successfully and allow editing
       expect(await screen.findByText('Instruksi / Referensi dari Sales')).toBeInTheDocument();
       expect(screen.queryByText('Access Denied')).not.toBeInTheDocument();
       
-      // Action buttons should NOT be present (Form is read-only)
-      expect(screen.queryByText('Submit & Forward')).not.toBeInTheDocument();
-      expect(screen.queryByText('Tambah Material')).not.toBeInTheDocument();
+      // Action buttons should be present for editing
+      expect(screen.getByRole('button', { name: /Unggah File/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Tambah Material/i })).toBeInTheDocument();
     });
   });
 

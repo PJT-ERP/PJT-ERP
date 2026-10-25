@@ -1,5 +1,5 @@
 import React from "react";
-import { X, CheckCircle, AlertTriangle, Activity } from "lucide-react";
+import { X, CheckCircle, AlertTriangle, Activity, AtSign } from "lucide-react";
 import { cn } from "../../ui/utils";
 
 export function NotificationPanel({
@@ -40,7 +40,8 @@ export function NotificationPanel({
             <p style={{ fontSize: "12px" }}>Tidak ada task/notifikasi tertunda.</p>
           </div>
         ) : (
-          notifications.map((n, i) => {
+          // eslint-disable-next-line unused-imports/no-unused-vars
+          [...notifications].reverse().map((n, i) => {
             const colors = {
               alert: { bg: "#FEF2F2", border: "#FCA5A5", text: "#DC2626", icon: <AlertTriangle size={14} color="#DC2626" /> },
               warning: { bg: "#FFFBEB", border: "#FDE68A", text: "#D97706", icon: <Activity size={14} color="#D97706" /> },
@@ -50,7 +51,7 @@ export function NotificationPanel({
 
             return (
               <div key={n.id} onClick={() => { if(n.targetPath) { setIsNotifOpen(false); navigate(n.targetPath); } }} style={{ display: "flex", gap: "12px", padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", cursor: "pointer", position: "relative" }}>
-                <div style={{ marginTop: 2 }}>{colors.icon}</div>
+                <div style={{ marginTop: 2 }}>{n.isMention ? <AtSign size={14} color={colors.text} /> : colors.icon}</div>
                 <div style={{ flex: 1 }}>
                   <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 600, color: colors.text }}>{n.title}</h4>
                   <p style={{ margin: 0, fontSize: "12px", color: "#475569", lineHeight: 1.4 }}>{n.desc}</p>

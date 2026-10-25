@@ -37,6 +37,8 @@ const CustomerAnalyticsPage = React.lazy(() => import("./pages/sales/analytics")
 const ProductionPage = React.lazy(() => import("./pages/Production").then(m => ({ default: m.ProductionPage })));
 const ProductionMaterialRequestPage = React.lazy(() => import("./pages/Production/material-request").then(m => ({ default: m.ProductionMaterialRequestPage })));
 const QCPage = React.lazy(() => import("./pages/qc/qc-dashboard").then(m => ({ default: m.QCPage })));
+const MyDailyReportPage = React.lazy(() => import("./pages/Reports/MyDailyReportPage"));
+const OwnerReportDashboard = React.lazy(() => import("./pages/Reports/OwnerReportDashboard"));
 
 const financeRoutes = [
   { path: "dashboard", element: <FinanceDashboard /> },
@@ -66,12 +68,12 @@ export default function App() {
               {/* Purchasing: Purchasing, Admin, Owner, Finance (read-only) */}
               <Route path="purchasing/*" element={<ProtectedRoute allowedRoles={['Purchasing', 'Admin', 'Owner', 'Finance']}><PurchasingModule /></ProtectedRoute>} />
               
-              {/* SO: Sales, Admin, Owner */}
-              <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Admin', 'Owner']}><SalesOrderModule /></ProtectedRoute>} />
+              {/* SO: Available to all roles for viewing, but edit capabilities restricted internally */}
+              <Route path="so/*" element={<ProtectedRoute allowedRoles={['Sales', 'Sales Order', 'Admin', 'Owner', 'Engineering', 'Engineering Supervisor', 'QC', 'Finance', 'Purchasing']}><SalesOrderModule /></ProtectedRoute>} />
 
               {/* Engineer: Engineering, Admin, Owner, Engineering Supervisor */}
               <Route path="engineer" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPage /></ProtectedRoute>} />
-              <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
+              <Route path="engineer-tasks" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTasksPage /></ProtectedRoute>} />
               <Route path="engineer-tasks/:id" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><EngineeringTaskDetailPage /></ProtectedRoute>} />
               <Route path="engineer-purchasing" element={<ProtectedRoute allowedRoles={['Admin', 'Owner', 'Engineering Supervisor']}><EngineeringPurchasingPage /></ProtectedRoute>} />
               <Route path="production" element={<ProtectedRoute allowedRoles={['Engineering', 'Admin', 'Owner', 'Engineering Supervisor']}><ProductionPage /></ProtectedRoute>} />
@@ -83,9 +85,11 @@ export default function App() {
               <Route path="qc/inspections" element={<ProtectedRoute allowedRoles={['QC', 'Admin', 'Owner']}><QCInspectionsPage /></ProtectedRoute>} />
 
               {/* Owner & Engineering Supervisor Approval */}
-              <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><OwnerApprovalPage /></ProtectedRoute>} />
+              <Route path="approval" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor', 'Admin']}><OwnerApprovalPage /></ProtectedRoute>} />
               <Route path="dashboard" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><DashboardPage /></ProtectedRoute>} />
               <Route path="customer-analytics" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><CustomerAnalyticsPage /></ProtectedRoute>} />
+              <Route path="daily-reports" element={<ProtectedRoute allowedRoles={['Owner']}><OwnerReportDashboard /></ProtectedRoute>} />
+              <Route path="daily-report" element={<ProtectedRoute allowedRoles={['Sales', 'Engineering', 'Engineering Supervisor', 'QC', 'Admin', 'Finance', 'Purchasing']}><MyDailyReportPage /></ProtectedRoute>} />
               
               {/* Admin: Admin & Owner */}
               <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />

@@ -14,9 +14,13 @@ builder.Services.AddResponseCompression(options =>
 
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin", "Owner"));
     options.AddPolicy("AnalyticsPolicy", policy => policy.RequireRole("Admin", "Owner"));
     options.AddPolicy("FinancePolicy", policy => policy.RequireRole("Admin", "Finance", "Owner", "Sales", "Sales Order", "Purchasing"));
+    options.AddPolicy("QcPolicy", policy => policy.RequireRole("Admin", "QC", "QC Inspector", "Owner", "Production", "Engineering"));
+    options.AddPolicy("ProductionPolicy", policy => policy.RequireRole("Admin", "Engineering", "Engineering Supervisor", "Owner", "Production", "Sales", "Sales Order"));
 });
+
 
 builder.Services.AddCors(options =>
 {
@@ -57,6 +61,35 @@ app.UsePjtRequestLogging();
 app.UseResponseCompression();
 app.UseCors("Frontend");
 app.UseAuthentication();
+// Temporary, token-safe diagnostics for the quotation task-list 403. This
+// logs claim values only (never credentials or token contents) and captures
+// both Gateway authorization failures and the upstream response status.
+app.Use(async (context, next) =>
+{
+    var quotationListRequest = HttpMethods.IsGet(context.Request.Method)
+        && string.Equals(context.Request.Path.Value, "/api/v1/sales/quotations", StringComparison.OrdinalIgnoreCase);
+    await next();
+    if (quotationListRequest)
+    {
+        var principal = context.User;
+        var roleClaims = principal.Claims
+            .Where(claim => claim.Type == System.Security.Claims.ClaimTypes.Role || claim.Type is "role" or "roles")
+            .Select(claim => claim.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        app.Logger.LogInformation(
+            "Quotation list auth diagnostic at Gateway: Status={StatusCode}, Authenticated={IsAuthenticated}, AuthType={AuthenticationType}, Name={Name}, NameIdentifier={NameIdentifier}, Sub={Subject}, RoleClaimType={RoleClaimType}, Roles=[{Roles}], InRoleEngineering={InRoleEngineering}",
+            context.Response.StatusCode,
+            principal.Identity?.IsAuthenticated ?? false,
+            principal.Identity?.AuthenticationType,
+            principal.Identity?.Name,
+            principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            principal.FindFirst("sub")?.Value,
+            principal.Identities.FirstOrDefault(identity => identity.IsAuthenticated)?.RoleClaimType,
+            string.Join(",", roleClaims),
+            principal.IsInRole("Engineering"));
+    }
+});
 app.UseAuthorization();
 
 app.Use(async (context, next) =>

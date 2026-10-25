@@ -27,6 +27,7 @@ export function BarcodeScannerModal({ onClose, onScan }: BarcodeScannerModalProp
         scanner.clear().catch(console.error);
         onScan(decodedText);
       },
+      // eslint-disable-next-line unused-imports/no-unused-vars
       (error) => {
         // Ignore scan failures (happens every frame when no QR is detected)
       }

@@ -19,10 +19,10 @@ export function StepDone({ completedAsSpv, onBack }: { completedAsSpv: boolean; 
         <CheckCircle size={32} style={{ color: "#22C55E" }} />
       </div>
       <h3 style={{ color: S.slate, margin: "0 0 8px", fontSize: "18px" }}>
-        {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Finance & Produksi)' : 'Desain Menunggu Approval Supervisor'}
+        {completedAsSpv ? 'Desain Disetujui (Diteruskan ke Sales & Finance)' : 'Desain Menunggu Approval Supervisor'}
       </h3>
       <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 24px" }}>
-        {completedAsSpv ? 'Sales Order dilanjutkan ke Finance untuk pembuatan Invoice, dan Supervisor sudah dapat memulai proses produksi.' : 'Status Sales Order menjadi "Waiting Spv Approval"'}
+        {completedAsSpv ? 'Quotation (Penawaran) dilanjutkan ke Sales & Finance untuk penetapan harga dan persetujuan customer.' : 'Status Penawaran menjadi "Waiting Spv Approval"'}
       </p>
       <button onClick={onBack} style={{ padding: "12px 24px", background: S.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>Kembali ke Daftar</button>
     </div>
@@ -62,14 +62,14 @@ export function StepRejectForm({ rejectReason, onReasonChange }: { rejectReason:
   );
 }
 
-export function StepConfirm({ designLink, customerName, qty, unit, newMaterials }: {
-  designLink: string; customerName: string; qty: number; unit: string; newMaterials: { name: string; spec: string }[];
+export function StepConfirm({ designLink, customerName, qty, unit, newMaterials, customerMaterialsSkipped }: {
+  designLink: string; customerName: string; qty: number; unit: string; newMaterials: { name: string; spec: string }[]; customerMaterialsSkipped?: { name: string; spec: string }[];
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 20 }}>
         <p style={{ color: "#92400E", fontSize: "14px", margin: 0 }}>
-          Konfirmasi menyimpan spesifikasi CAD & BOM? Desain akan disetujui langsung oleh Supervisor dan SO langsung masuk ke tahap Siap Produksi (Menunggu Penugasan Operator Produksi).
+          Konfirmasi menyimpan spesifikasi CAD & BOM? Desain akan disetujui oleh Supervisor dan diteruskan ke Sales & Finance untuk penetapan harga & persetujuan customer.
         </p>
       </div>
       {newMaterials.length > 0 && (
@@ -86,6 +86,25 @@ export function StepConfirm({ designLink, customerName, qty, unit, newMaterials 
           <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #FECACA", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
             {newMaterials.map((m, i) => (
               <div key={i} style={{ fontSize: "12px", color: "#991B1B", padding: "4px 0", borderBottom: i < newMaterials.length - 1 ? "1px solid #FECACA" : "none" }}>
+                {m.name}{m.spec ? ` (Spec: ${m.spec})` : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {customerMaterialsSkipped && customerMaterialsSkipped.length > 0 && (
+        <div style={{ background: "#F0FDF4", border: "2px solid #22C55E", borderRadius: 8, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <p style={{ color: "#166534", fontSize: "14px", fontWeight: 700, margin: 0 }}>
+              Material Dari Pelanggan ({customerMaterialsSkipped.length})
+            </p>
+          </div>
+          <p style={{ color: "#14532D", fontSize: "13px", margin: "0 0 12px", lineHeight: 1.5 }}>
+            Material berikut ditandai sebagai <strong>Material dari Pelanggan</strong>. Material ini akan disuplai langsung oleh pelanggan, sehingga hanya akan dicatat khusus pada SO ini dan otomatis dilewati saat pengecekan stok (MR) maupun persiapan produksi di pabrik.
+          </p>
+          <div style={{ background: "#FFF", borderRadius: 6, border: "1px solid #86EFAC", padding: "8px 12px", maxHeight: 140, overflowY: "auto" }}>
+            {customerMaterialsSkipped.map((m, i) => (
+              <div key={i} style={{ fontSize: "12px", color: "#166534", padding: "4px 0", borderBottom: i < customerMaterialsSkipped.length - 1 ? "1px solid #86EFAC" : "none" }}>
                 {m.name}{m.spec ? ` (Spec: ${m.spec})` : ''}
               </div>
             ))}
@@ -112,14 +131,16 @@ export function InfoBanner({ order, customer }: { order: any; customer: any }) {
   const barcode = `PJT|SO|${dateStr}|${formattedId}`;
 
   return (
-    <div style={{ display: "flex", gap: 20 }}>
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, background: S.bg, padding: 20, borderRadius: 8, border: `1px solid ${S.border}` }}>
+    <div className="flex flex-col sm:flex-row gap-5">
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-5 rounded-lg border border-slate-200">
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Customer</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{customer?.name || "-"}</p></div>
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Qty Total</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{order.quantity} {order.unit}</p></div>
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Deadline</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{order.deadline || "-"}</p></div>
         <div><p style={{ fontSize: "13px", color: S.secondary, margin: 0 }}>Input SO</p><p style={{ color: S.slate, margin: "6px 0 0", fontWeight: 600, fontSize: "14px" }}>{order.createdAt?.substring(0, 10) || "-"}</p></div>
       </div>
-      <QrCard order={order} barcode={barcode} />
+      <div className="w-full sm:w-auto">
+        <QrCard order={order} barcode={barcode} />
+      </div>
     </div>
   );
 }

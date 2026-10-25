@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { authApi } from './authApi';
 import { salesApi } from './salesApi';
 import { purchasingApi } from './purchasingApi';
 import { landingPageApi } from './landingPageApi';
-import { mapCustomerDto, mapSalesOrderDto, mapPurchaseRequestDto } from '../components/context/hooks/dataMappers';
+import { qcApi } from './qcApi';
+import { productionApi } from './productionApi';
+import { mapCustomerDto, mapSalesOrderDto, mapQuotationDto, mapPurchaseRequestDto, isActiveQuotationEntry } from '../components/context/hooks/dataMappers';
 
 // -- CUSTOMERS --
 export const useCustomersQuery = (enabled: boolean = true) => {
@@ -13,6 +16,7 @@ export const useCustomersQuery = (enabled: boolean = true) => {
       return data.map(mapCustomerDto);
     },
     enabled,
+    staleTime: 30000,
   });
 };
 
@@ -24,20 +28,32 @@ export const useProductsQuery = (enabled: boolean = true) => {
       return await salesApi.listProducts();
     },
     enabled,
+    staleTime: 30000,
   });
 };
 
-// -- SALES ORDERS --
+// -- SALES ORDERS & QUOTATIONS --
 export const useSalesOrdersQuery = (enabled: boolean = true) => {
   return useQuery({
     queryKey: ['salesOrders'],
     queryFn: async () => {
-      const data = await salesApi.listSalesOrders();
-      // Temporarily pass empty arrays for invoices, products, inventory to mapSalesOrderDto
-      // For a full fix, the backend should return these flattened or we use dependent queries
-      return data.map(dto => mapSalesOrderDto(dto));
+      const [salesOrdersData, quotationsData] = await Promise.all([
+        salesApi.listSalesOrders().catch(() => []),
+        salesApi.listQuotations().catch(() => []),
+      ]);
+
+      const mappedSOList = salesOrdersData.map(mapSalesOrderDto);
+      const mappedQuoList = quotationsData.map(mapQuotationDto);
+
+      const existingSOBackendIds = new Set(mappedSOList.map(o => o.backendId).filter(Boolean));
+      const filteredQuotations = mappedQuoList.filter(q =>
+        isActiveQuotationEntry(q) && (!q.backendId || !existingSOBackendIds.has(q.backendId))
+      );
+
+      return [...mappedSOList, ...filteredQuotations];
     },
     enabled,
+    staleTime: 30000,
   });
 };
 
@@ -110,6 +126,7 @@ export const usePurchasingRequestsQuery = (enabled: boolean = true) => {
       return data.map(dto => mapPurchaseRequestDto(dto, []));
     },
     enabled,
+    staleTime: 30000,
   });
 };
 
@@ -121,6 +138,7 @@ export const useLandingPageContentQuery = () => {
       const data = await landingPageApi.getLandingPageContent();
       return data;
     },
+    staleTime: 30000,
   });
 };
 
@@ -133,3 +151,46 @@ export const useUpdateLandingPageContentMutation = () => {
     },
   });
 };
+
+// -- QC INSPECTIONS --
+export const useQcInspectionsQuery = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['qcInspections'],
+    queryFn: async () => {
+      const data = await qcApi.listInspections();
+      return data;
+    },
+    enabled,
+    staleTime: 30000,
+  });
+};
+
+export const useQcQueuesQuery = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['qcQueues'],
+    queryFn: async () => {
+      const data = await productionApi.getQcQueues();
+      return {
+        readyForInspection: (data.readyForInspection || []).map(dto => mapSalesOrderDto(dto)),
+        inspectionHistory: (data.inspectionHistory || []).map(dto => mapSalesOrderDto(dto)),
+      };
+    },
+    enabled,
+    staleTime: 30000,
+  });
+};
+
+
+// -- USERS --
+export const useUsersQuery = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const data = await authApi.getUsers();
+      return data;
+    },
+    enabled,
+    staleTime: 60000,
+  });
+};
+

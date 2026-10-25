@@ -21,6 +21,7 @@ export function useSuppliers() {
 
   const canCreatePo = currentUser?.role === "Purchasing" || currentUser?.role === "Admin";
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { suppliers, purchaseRequests, supplierPayments, isLoading, refresh } = usePurchasingData();
 
   const allPos = useMemo(() => {
@@ -67,6 +68,7 @@ export function useSuppliers() {
       const totalPOs = supplierPos.length;
       const totalValue = supplierPos.reduce((sum, po) => sum + calcTotal(po.items), 0);
 
+      // eslint-disable-next-line unused-imports/no-unused-vars
       const completedPos = supplierPos.filter(p => (p.deliveryStatus as string) === "Received" || (p.deliveryStatus as string) === "Closed");
       const cancelledPos = supplierPos.filter(p => (p.deliveryStatus as string) === "Cancelled");
       const onTimeRate = totalPOs === 0 ? 0 : Math.round(((totalPOs - cancelledPos.length) / totalPOs) * 100);

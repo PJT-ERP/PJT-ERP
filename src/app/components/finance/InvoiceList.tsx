@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import {
-  Search, Download, Eye, FilePlus,
+  Search, Eye, FilePlus,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { formatIDR, formatDate } from './mockData';
@@ -12,6 +12,7 @@ export function InvoiceList() {
   const navigate = useNavigate();
   const board = useInvoiceList();
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const exportInvoices = () => {
     downloadCsv('invoices.csv', [
       ['Invoice', 'SO', 'Customer', 'Amount', 'Paid', 'Due Date', 'Status'],

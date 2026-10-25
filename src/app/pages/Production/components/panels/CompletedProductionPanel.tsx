@@ -3,16 +3,20 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { S } from "../../../../components/production/ProductionHelpers";
 
 export function CompletedProductionPanel({ board }: { board: any }) {
-  const completedQueue = board.productionQueues.completed || [];
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  if (!board) return null;
+  const completedQueue = board?.completed || [];
   const itemsPerPage = 10;
   
-  const filteredQueue = completedQueue.filter((so: any) => 
-    (so.id || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (so.description || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredQueue = completedQueue.filter((so: any) => {
+    if (!so) return false;
+    const searchLow = (searchTerm || "").toLowerCase();
+    const idMatch = String(so.id || "").toLowerCase().includes(searchLow);
+    const descMatch = String(so.description || "").toLowerCase().includes(searchLow);
+    return idMatch || descMatch;
+  });
   
   const totalPages = Math.ceil(filteredQueue.length / itemsPerPage) || 1;
   const currentItems = filteredQueue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -29,7 +33,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
 
   return (
     <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4" style={{ padding: "16px 20px", borderBottom: `1px solid ${S.border}` }}>
         <div>
           <h2 style={{ fontSize: "16px", fontWeight: 600, color: S.slate, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
             Riwayat Produksi Selesai
@@ -39,21 +43,20 @@ export function CompletedProductionPanel({ board }: { board: any }) {
           </h2>
         </div>
         
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ position: "relative" }}>
-            <Search size={16} className="text-slate-400" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+        <div className="w-full sm:w-auto flex items-center gap-3">
+          <div className="relative w-full sm:w-[250px]">
+            <Search size={16} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="Cari ID SO atau deskripsi..." 
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="w-full outline-none"
               style={{ 
                 padding: "8px 12px 8px 32px", 
                 borderRadius: 4, 
                 border: `1px solid ${S.border}`,
                 fontSize: "13px",
-                width: "250px",
-                outline: "none"
               }}
             />
           </div>
@@ -67,7 +70,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
       ) : (
         <div>
           {currentItems.map((so: any, idx: number) => (
-            <div key={so.id} style={{ display: "flex", padding: "16px 20px", borderBottom: idx < currentItems.length - 1 ? `1px solid ${S.border}` : "none", alignItems: "center", gap: 16 }}>
+            <div key={so.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ padding: "16px 20px", borderBottom: idx < currentItems.length - 1 ? `1px solid ${S.border}` : "none" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.id}</span>
@@ -77,7 +80,7 @@ export function CompletedProductionPanel({ board }: { board: any }) {
                 </div>
                 <div style={{ fontSize: "14px", color: S.slate, fontWeight: 500, marginBottom: 4 }}>{so.description}</div>
                 <div style={{ fontSize: "12px", color: S.secondary }}>
-                  Selesai pada: {so.productionFinishedAtUtc ? new Date(so.productionFinishedAtUtc).toLocaleString("id-ID") : "-"}
+                  Selesai pada: {so.endTime ? (!isNaN(new Date(so.endTime).getTime()) ? new Date(so.endTime).toLocaleString("id-ID") : "-") : "-"}
                 </div>
               </div>
               

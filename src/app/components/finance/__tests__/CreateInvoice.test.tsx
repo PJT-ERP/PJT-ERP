@@ -99,9 +99,7 @@ describe('CreateInvoice', () => {
     fireEvent.change(soSelect, { target: { value: 'so-1' } });
 
     // The due date is auto-filled from targetDate (2026-08-01), wait for it
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument();
-    });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
 
     // Default invoice type is Full Payment. Let's submit.
     const createBtn = screen.getByRole('button', { name: /Simpan Invoice/i });
@@ -121,6 +119,7 @@ describe('CreateInvoice', () => {
         })
       );
     });
+    expect(salesApi.updateSalesOrderPricing).not.toHaveBeenCalled();
   });
 
   it('submits a DP invoice correctly', async () => {
@@ -133,9 +132,7 @@ describe('CreateInvoice', () => {
     const soSelect = screen.getAllByRole('combobox')[0];
     fireEvent.change(soSelect, { target: { value: 'so-1' } });
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument();
-    });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
 
     // Change to DP
     // There are multiple comboboxes: SO select, Payment Term, Type, DP %
@@ -181,6 +178,29 @@ describe('CreateInvoice', () => {
         })
       );
     });
+    expect(salesApi.updateSalesOrderPricing).not.toHaveBeenCalled();
+  });
+
+  it('keeps the pricing sync for invoice flows outside the payment stage', async () => {
+    setupMockData();
+    vi.mocked(useApp).mockReturnValue({
+      salesOrders: [{
+        id: 'so-1', backendId: 'so-1', soNumber: 'SO-001', isCostingCompleted: true,
+        customerId: 'cust-1', customerName: 'Test Customer', status: 'Ready for Production',
+        deadline: '2026-08-01', items: [{ id: 'item-1', productId: 'prod-1', productName: 'Test Product', quantity: 10, unitPrice: 5000 }],
+      }],
+    } as any);
+    vi.mocked(financeApi.createInvoice).mockResolvedValue({ invoiceNumber: 'INV-003' } as any);
+
+    render(<CreateInvoice />);
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'so-1' } });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Invoice/i }));
+
+    await waitFor(() => expect(salesApi.updateSalesOrderPricing).toHaveBeenCalledWith('so-1', {
+      items: [{ salesOrderItemId: 'item-1', unitPrice: 5000 }],
+    }));
+    expect(financeApi.createInvoice).toHaveBeenCalled();
   });
 
   it('hides Sales Orders that have not completed Penetapan Harga (Costing)', async () => {
@@ -216,6 +236,7 @@ describe('CreateInvoice', () => {
     render(<CreateInvoice />);
 
     // Check the options in the select dropdown
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const soSelect = screen.getAllByRole('combobox')[0];
     
     // so-1 should be in the document as an option text

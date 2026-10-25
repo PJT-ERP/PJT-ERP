@@ -12,6 +12,10 @@ vi.mock('../context/AppContext', () => ({
   useApp: vi.fn(() => ({ currentUser: { role: 'Purchasing', name: 'Test User' } })),
 }));
 
+vi.mock('../shared/MentionsReminderWidget', () => ({
+  MentionsReminderWidget: () => null,
+}));
+
 describe('Purchasing DashboardPage Component', () => {
   it('renders procurement overview and headers correctly', () => {
     vi.mocked(usePurchasingData).mockReturnValue({

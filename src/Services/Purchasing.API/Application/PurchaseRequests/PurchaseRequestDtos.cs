@@ -55,6 +55,15 @@ public sealed record ReviewPurchaseRequest(
     string? RejectionReason,
     string? ReviewStage = null);
 
+public sealed record PurchaseRequestApprovalDecisionRequest(string Decision, string? RejectionReason);
+
+public sealed record PurchaseRequestApprovalDecisionDto(
+    string Role,
+    string Decision,
+    Guid? ActorUserId,
+    DateTime? DecidedAtUtc,
+    string? RejectionReason);
+
 public sealed record UpdatePurchaseItemInfoRequest(
     string? SupplierName,
     DateOnly? PurchaseDate,
@@ -109,7 +118,12 @@ public sealed record PurchaseRequestDto(
     string? FinanceRejectionReason,
     string? RevisionNote,
     DateTime UpdatedAtUtc,
-    IReadOnlyCollection<PurchaseRequestItemDto> Items);
+    IReadOnlyCollection<PurchaseRequestItemDto> Items,
+    int? ActiveApprovalCycleNumber,
+    PurchaseRequestApprovalDecisionDto? FinanceApproval,
+    PurchaseRequestApprovalDecisionDto? OwnerApproval,
+    bool IsFullyApproved,
+    bool IsApprovalBlocked);
 
 public sealed record PurchaseRequestItemDto(
     Guid Id,

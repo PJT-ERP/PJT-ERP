@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import {
-  LayoutDashboard, FileText, FilePlus, ShieldCheck,
+  LayoutDashboard, FileText, ShieldCheck,
   History, BarChart3, Menu, X, Bell, ChevronRight, Calculator,
   LogOut, Settings, Factory, ChevronDown, User, CheckSquare
 } from 'lucide-react';

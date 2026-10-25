@@ -289,6 +289,7 @@ export function OrderTracking() {
               <input
                 type="text"
                 value={soInput}
+                maxLength={50}
                 onChange={(e) => setSoInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="e.g. SO-2506-001"

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  ShieldCheck, Clock, CheckCircle2, XCircle, Upload, Eye,
-  AlertTriangle, X, Banknote, PlusCircle
+  ShieldCheck, Clock, CheckCircle2, XCircle, Eye,
+  AlertTriangle, Banknote, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { formatIDR, formatDate, type Invoice, type Payment, type PaymentStatus } from './mockData';
 import { financeApi } from '../../services/financeApi';
@@ -18,6 +18,7 @@ const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon:
 };
 
 export function PaymentVerification() {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { payments: financePayments, invoices, refresh, isLoading } = useFinanceData();
   const [paymentData, setPaymentData] = useState<Payment[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL' | 'OVERDUE'>('ALL');
@@ -25,6 +26,8 @@ export function PaymentVerification() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoiceDetail, setSelectedInvoiceDetail] = useState<Invoice | null>(null);
   const [hiddenInvoiceIds, setHiddenInvoiceIds] = useState<Set<string>>(() => new Set());
+  const [currentPagePending, setCurrentPagePending] = useState(1);
+  const itemsPerPagePending = 6;
 
   useEffect(() => {
     setPaymentData(financePayments);
@@ -114,6 +117,12 @@ export function PaymentVerification() {
       next.add(id);
       return next;
     });
+  };
+
+  const isPaymentOverdue = (payment: Payment) => {
+    const invoice = invoices.find(inv => inv.id === payment.invoiceId);
+    if (!invoice || !invoice.dueDate) return false;
+    return payment.paymentDate > invoice.dueDate;
   };
 
   const unpaidMenunggu = unpaidInvoices.filter(inv => !inv.dueDate || inv.dueDate >= todayStr);
@@ -219,7 +228,7 @@ export function PaymentVerification() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayedPendingPayments.map(payment => (
+              {displayedPendingPayments.slice((currentPagePending - 1) * itemsPerPagePending, currentPagePending * itemsPerPagePending).map(payment => (
                 <div
                   key={payment.id}
                   onClick={() => setSelectedPayment(payment)}
@@ -230,9 +239,16 @@ export function PaymentVerification() {
                       <p className="font-bold text-slate-800">{payment.customerName}</p>
                       <p className="text-sm text-slate-500">{formatIDR(payment.amount)}</p>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                      <Clock size={12} /> Menunggu
-                    </span>
+                    <div className="flex gap-2 items-center">
+                      {isPaymentOverdue(payment) && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                          <AlertTriangle size={12} /> Overdue
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        <Clock size={12} /> Menunggu
+                      </span>
+                    </div>
                   </div>
                   <div className="space-y-2 text-xs text-slate-500">
                     <div className="flex justify-between">
@@ -268,6 +284,46 @@ export function PaymentVerification() {
                 </div>
               ))}
             </div>
+
+            {displayedPendingPayments.length > itemsPerPagePending && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
+                <span className="text-sm text-slate-500">
+                  Menampilkan {(currentPagePending - 1) * itemsPerPagePending + 1}–{Math.min(currentPagePending * itemsPerPagePending, displayedPendingPayments.length)} dari {displayedPendingPayments.length} hasil
+                </span>
+                
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => setCurrentPagePending(p => Math.max(1, p - 1))} 
+                    disabled={currentPagePending === 1}
+                    className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  
+                  {Array.from({ length: Math.ceil(displayedPendingPayments.length / itemsPerPagePending) }, (_, i) => i + 1).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPagePending(p)}
+                      className={`flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg border text-sm font-medium transition-colors ${
+                        p === currentPagePending
+                          ? "bg-red-600 border-red-600 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+
+                  <button 
+                    onClick={() => setCurrentPagePending(p => Math.min(Math.ceil(displayedPendingPayments.length / itemsPerPagePending), p + 1))} 
+                    disabled={currentPagePending >= Math.ceil(displayedPendingPayments.length / itemsPerPagePending)}
+                    className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -350,6 +406,7 @@ export function PaymentVerification() {
               {historyPayments.map(payment => {
                 const statusConfig = STATUS_CONFIG[payment.status];
                 const StatusIcon = statusConfig.icon;
+                const overdue = isPaymentOverdue(payment);
                 return (
                   <div
                     key={payment.id}
@@ -360,9 +417,16 @@ export function PaymentVerification() {
                       <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
                         <Banknote size={16} className="text-slate-500" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-800 text-sm truncate">{payment.customerName}</p>
-                        <p className="text-xs text-slate-400 truncate">{payment.invoiceNumber}{payment.soNumber ? ` • ${payment.soNumber}` : ''} • {formatDate(payment.paymentDate)}</p>
+                      <div className="min-w-0 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-semibold text-slate-800 text-sm truncate">{payment.customerName}</p>
+                          {overdue && (
+                            <span className="inline-flex flex-shrink-0 items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                              <AlertTriangle size={11} /> Terlambat
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 truncate">{payment.invoiceNumber}{payment.soNumber ? ` • ${payment.soNumber}` : ''} • {formatDate(payment.paymentDate)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">

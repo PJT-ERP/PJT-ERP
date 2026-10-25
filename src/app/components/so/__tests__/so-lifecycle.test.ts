@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { salesApi } from '../../../services/salesApi';
-import { financeApi } from '../../../services/financeApi';
 import { productionApi } from '../../../services/productionApi';
 import { qcApi } from '../../../services/qcApi';
-import axios from 'axios';
 
 // Mock axios completely
 const { mockPost, mockPut, mockGet } = vi.hoisted(() => ({
@@ -63,6 +61,7 @@ describe('Sales Order Lifecycle: Existing Product with New Design Request', () =
     mockPost.mockResolvedValueOnce({
       data: { id: 'SO-100', status: 'Waiting Spv Approval' }
     });
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const engineered = await salesApi.submitSalesOrderDesign('SO-100', {
       designReference: 'https://cad.link',
       drawingFileUrl: 'https://cad.link',
@@ -74,6 +73,7 @@ describe('Sales Order Lifecycle: Existing Product with New Design Request', () =
     mockPut.mockResolvedValueOnce({
       data: { id: 'SO-100', status: 'Waiting Pricing' }
     });
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const spvApproved = await salesApi.updateSalesOrderDesignStatus('SO-100', {
       designStatus: 'Approved',
       approvedByName: 'Spv 1'
@@ -84,6 +84,7 @@ describe('Sales Order Lifecycle: Existing Product with New Design Request', () =
     mockPut.mockResolvedValueOnce({
       data: { id: 'PROD-100', status: 'In Progress' }
     });
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const production = await productionApi.startProduction('SO-100', { workerUserId: 'usr-1', workerName: 'Prod Mgr' } as any);
     expect(mockPut).toHaveBeenCalledWith('/api/v1/production/sales-orders/SO-100/production/start', expect.any(Object));
 
@@ -91,6 +92,7 @@ describe('Sales Order Lifecycle: Existing Product with New Design Request', () =
     mockPut.mockResolvedValueOnce({
       data: { id: 'QC-100', decision: 'Go' }
     });
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const qcResult = await qcApi.uploadResult('SO-100', {
       decision: 'Go',
       notes: 'All good',

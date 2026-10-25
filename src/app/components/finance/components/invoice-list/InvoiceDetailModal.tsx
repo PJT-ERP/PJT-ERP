@@ -4,6 +4,7 @@ import { formatIDR, formatDate, type Invoice } from '../../mockData';
 import { financeApi } from '../../../../services/financeApi';
 import { STATUS_LABELS, STATUS_COLORS, downloadCsv } from './InvoiceListHelpers';
 
+// eslint-disable-next-line unused-imports/no-unused-vars
 export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVerification, onRefresh }: { invoice: Invoice; onClose: () => void; payments?: any[]; onNavigateToVerification: () => void; onRefresh?: () => Promise<void> }) {
   const pendingPayment = payments?.find(p => p.invoiceId === invoice.id && p.status === 'PENDING');
   const verifiedPayments = payments?.filter(p => p.invoiceId === invoice.id && p.status === 'VERIFIED') || [];
@@ -376,6 +377,7 @@ export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVer
                         await financeApi.verifyPaymentProof(pendingPayment!.id);
                         await onRefresh?.();
                         onClose();
+                      // eslint-disable-next-line unused-imports/no-unused-vars
                       } catch (e) {
                         alert('Gagal verifikasi pembayaran');
                       } finally {
@@ -416,6 +418,7 @@ export function InvoiceDetailModal({ invoice, onClose, payments, onNavigateToVer
                         await financeApi.rejectPaymentProof(pendingPayment!.id, { reason: rejectReason });
                         await onRefresh?.();
                         onClose();
+                      // eslint-disable-next-line unused-imports/no-unused-vars
                       } catch (e) {
                         alert('Gagal menolak pembayaran');
                       } finally {

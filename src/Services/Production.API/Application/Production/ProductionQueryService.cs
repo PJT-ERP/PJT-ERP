@@ -18,6 +18,7 @@ public class ProductionQueryService(
             .Include(order => order.Items)
             .Include(order => order.ProductionOrders)
             .Include(order => order.DesignRevisions)
+            .Include(order => order.Comments)
             .AsSplitQuery()
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);

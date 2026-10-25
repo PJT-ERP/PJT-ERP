@@ -6,6 +6,10 @@ export const BOMItemSchema = z.object({
   specification: z.string().optional(),
   quantity: z.string().min(1, "Qty diperlukan"),
   unit: z.string(),
+  isCustomerMaterial: z.boolean().optional(),
+  isAddToMasterBOM: z.boolean().optional(),
+  inventoryItemId: z.string().optional(),
+  code: z.string().optional(),
 });
 
 export const ProductLineItemSchema = z.object({

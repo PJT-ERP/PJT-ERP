@@ -2,12 +2,15 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useSubmitSO } from '../hooks/useSubmitSO';
 import { salesApi } from '../../../services/salesApi';
-import { useSalesOrdersQuery, useProductsQuery, useUpdateSalesOrderMutation } from '../../../services/queries';
+import { useSalesOrdersQuery, useProductsQuery } from '../../../services/queries';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../../../services/queries', () => ({
   useSalesOrdersQuery: vi.fn(),
   useCustomersQuery: vi.fn().mockReturnValue({ data: [] }),
+    useUsersQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcQueuesQuery: vi.fn().mockReturnValue({ data: [] }),
   useProductsQuery: vi.fn(),
   useUpdateSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn() }),
   useDeleteSalesOrderMutation: vi.fn().mockReturnValue({ mutate: vi.fn(), isPending: false }),

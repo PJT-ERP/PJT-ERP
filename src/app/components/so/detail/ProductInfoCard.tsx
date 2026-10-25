@@ -113,21 +113,26 @@ function BomCard({ materials, showWarning }: { materials: any[], showWarning?: b
 
 import { AlertTriangle } from "lucide-react";
 
+import { formatDocNumber, isQuotationStatus } from "../../context/hooks/dataMappers";
+
 export function ProductInfoCard({
   order, isEditMode, editForm, setEditForm, displayMaterials,
   isCustomBackend, productLines, orderValue,
 }: ProductInfoCardProps) {
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const hasUnitPrice = productLines.some(item => item.unitPrice > 0);
 
   const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;
+
+  const isQuo = isQuotationStatus(order.status);
 
   return (
     <>
       <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 14 }}>
-          <InfoRow icon={<Hash size={11} />} label="No. PO" value={order.soNumber || order.id} isEdit={false} />
+          <InfoRow icon={<Hash size={11} />} label={isQuo ? "No. Quotation" : "No. SO / PO"} value={formatDocNumber(order.soNumber || order.id, order.status)} isEdit={false} />
           <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
-          <InfoRow icon={<Receipt size={11} />} label="Nilai SO" value={formatCurrency(orderValue)} isEdit={false} />
+          <InfoRow icon={<Receipt size={11} />} label={isQuo ? "Estimasi Penawaran" : "Nilai SO"} value={formatCurrency(orderValue)} isEdit={false} />
           {isCustomBackend && (
             <div style={{ gridColumn: "1 / -1" }}>
               <InfoRow icon={<FileText size={11} />} label="Sumber Desain" value={order.designReference === "INTERNAL_DESIGN" ? "Butuh Desain Engineering Internal" : (order.customerDrawingUrl || order.designLink ? "Referensi Desain dari Customer" : "Belum ditentukan")} isEdit={false} />
@@ -138,7 +143,7 @@ export function ProductInfoCard({
           </div>
         </div>
 
-        <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ border: `1px solid ${S.border}`, borderRadius: 6, overflowX: "auto" }}>
           <div style={{ display: "grid", gridTemplateColumns: "52px minmax(180px, 1.6fr) 110px 120px 120px", gap: 0, background: "#F8FAFC", borderBottom: `1px solid ${S.border}` }}>
             {["No.", "Produk", "Qty", "Harga", "Subtotal"].map(label => (
               <div key={label} style={{ padding: "8px 10px", fontSize: "10px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>

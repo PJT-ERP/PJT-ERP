@@ -5,13 +5,13 @@ import { cn } from "../ui/utils";
 import { useApp } from "../context/AppContext";
 import { useFinanceData } from "../finance/useFinanceData";
 import { usePurchasingData } from "../purchasing/usePurchasingData";
-import { mapPurchaseRequestsToPos, calcTotal } from "../purchasing/purchase-orders-page";
 import { ROLE_NAVIGATION } from "./components/LayoutHelpers";
 import { AppNavigationMenu } from "./components/AppNavigationMenu";
 import { UserProfileSection } from "./components/UserProfileSection";
 import { NotificationBadge } from "./components/NotificationBadge";
 import { NotificationPanel } from "./components/NotificationPanel";
 import { useNotifications } from "./hooks/useNotifications";
+import { useUsersQuery } from "../../services/queries";
 
 export function ERPLayout() {
   const { currentUser, logout, purchasingRequests, salesOrders } = useApp();
@@ -40,7 +40,9 @@ export function ERPLayout() {
     || currentUser?.role === "Owner"
     || currentUser?.role === "Sales";
   const canReadSupplierPayments = currentUser?.role === "Finance" || currentUser?.role === "Admin" || currentUser?.role === "Owner";
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { invoices, payments, supplierPayments } = useFinanceData(canReadFinanceData, canReadSupplierPayments, canReadSupplierPayments);
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const { purchaseRequests: backendPurchaseRequests, suppliers: purchasingSuppliers } = usePurchasingData(currentUser?.role === 'Finance');
 
   const location = useLocation();
@@ -59,6 +61,9 @@ export function ERPLayout() {
     return crumb;
   });
 
+  const { data: allUsers } = useUsersQuery(!!currentUser);
+  const knownUserNames = React.useMemo(() => (allUsers ?? []).map(u => u.name).filter(Boolean), [allUsers]);
+
   const notifications = useNotifications({
     currentUser,
     salesOrders,
@@ -66,6 +71,7 @@ export function ERPLayout() {
     invoices,
     payments,
     dismissedNotifIds,
+    knownUserNames,
   });
 
   const [lastViewedKeys, setLastViewedKeys] = useState<string[]>(() => {
@@ -87,8 +93,10 @@ export function ERPLayout() {
     }
   }, [isNotifOpen, notifications, currentUser]);
 
-  const unreadCount = notifications.filter(n => !lastViewedKeys.includes(getNotifKey(n))).length;
+  const unreadNotifs = notifications.filter(n => !lastViewedKeys.includes(getNotifKey(n)));
+  const unreadCount = unreadNotifs.length;
   const hasNotif = unreadCount > 0;
+  const hasUnreadMention = unreadNotifs.some(n => n.isMention);
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
@@ -190,6 +198,7 @@ export function ERPLayout() {
             <NotificationBadge
               hasNotif={hasNotif}
               unreadCount={unreadCount}
+              hasUnreadMention={hasUnreadMention}
               setIsNotifOpen={setIsNotifOpen}
             />
           </div>

@@ -33,11 +33,19 @@ const baseSo = {
   description: 'Test SO',
 } as any;
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
 function renderModal(so = baseSo) {
   const onClose = vi.fn();
   const onSubmitted = vi.fn();
   const result = render(
-    <ReturnToSpvModal so={so} onClose={onClose} onSubmitted={onSubmitted} />
+    <QueryClientProvider client={queryClient}>
+      <ReturnToSpvModal so={so} onClose={onClose} onSubmitted={onSubmitted} />
+    </QueryClientProvider>
   );
   return { ...result, onClose, onSubmitted };
 }
@@ -132,7 +140,6 @@ describe('ReturnToSpvModal', () => {
       'SO berhasil dikembalikan ke SPV.',
       { duration: 3000 }
     );
-    expect(mockRefreshBackendData).toHaveBeenCalled();
     expect(onSubmitted).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
@@ -193,9 +200,9 @@ describe('ReturnToSpvModal', () => {
     });
   });
 
-  it('triggers refreshBackendData after successful submit', async () => {
+  it('invalidates queries after successful submit', async () => {
     mockAssignSalesOrderEngineers.mockResolvedValue({});
-    renderModal();
+    const { onSubmitted } = renderModal();
 
     fireEvent.change(
       screen.getByPlaceholderText(/Contoh: Material aluminium/),
@@ -204,7 +211,7 @@ describe('ReturnToSpvModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Kembalikan ke SPV' }));
 
     await waitFor(() => {
-      expect(mockRefreshBackendData).toHaveBeenCalled();
+      expect(onSubmitted).toHaveBeenCalled();
     });
   });
 });

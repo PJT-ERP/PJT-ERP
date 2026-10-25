@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PJT_ERP.MasterData.Api.Application.Models;
 using System.Text.Json;
@@ -28,6 +29,7 @@ public class ContentController : ControllerBase
     }
 
     [HttpGet("landing-page")]
+    [AllowAnonymous]
     public async Task<ActionResult<LandingPageContentDto>> GetLandingPageContent()
     {
         try
@@ -51,6 +53,7 @@ public class ContentController : ControllerBase
     }
 
     [HttpPut("landing-page")]
+    [Authorize(Roles = "Admin,Owner")]
     public async Task<IActionResult> UpdateLandingPageContent([FromBody] LandingPageContentDto content)
     {
         if (content == null)

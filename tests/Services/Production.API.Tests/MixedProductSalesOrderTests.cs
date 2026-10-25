@@ -77,7 +77,7 @@ public sealed class MixedProductSalesOrderTests
     }
 
     [Fact]
-    public async Task Mixed_so_registered_item_passes_through_without_design_step()
+    public async Task Mixed_so_registered_item_skips_design_and_waits_for_pricing()
     {
         await using var db = CreateDbContext();
         await SeedProductsAsync(db);
@@ -94,7 +94,7 @@ public sealed class MixedProductSalesOrderTests
             CancellationToken.None);
 
         Assert.Equal(SalesOrderDesignStatuses.Approved, so.DesignStatus);
-        Assert.Equal("Ready for Production", so.Status);
+        Assert.Equal("Waiting Pricing", so.Status);
     }
 
     [Fact]

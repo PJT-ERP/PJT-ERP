@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, X, CheckSquare, Activity, Search, Clock, FileText, Layers, FileCheck, ArrowRight } from "lucide-react";
+import { Shield, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, X, CheckSquare, Activity } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery } from "../../services/queries";
@@ -11,6 +11,7 @@ import { productionApi } from "../../services/productionApi";
 import { mapSalesOrderDto } from "../../components/context/hooks/dataMappers";
 import type { SalesOrderDto } from "../../services/salesApi";
 import { QcQueuesDto } from "../../services/productionApi";
+import { MentionsReminderWidget } from "../../components/shared/MentionsReminderWidget";
 
 const S = {
   font: "Inter, sans-serif",
@@ -342,6 +343,9 @@ export function QCPage() {
               </div>
             </div>
           )}
+
+          {/* Mentions */}
+          <MentionsReminderWidget />
 
           {/* Table */}
           <div style={{ background: S.white, border: `1px solid ${S.cardBorder}`, borderRadius: 6, overflow: "hidden" }}>

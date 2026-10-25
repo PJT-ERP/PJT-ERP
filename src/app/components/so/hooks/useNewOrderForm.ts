@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { NewOrderFormSchema, NewOrderFormType } from "../schema/soCreateSchema";
 import { useEffect } from "react";
@@ -58,11 +58,11 @@ export function useNewOrderForm(initialData?: { customerId?: string; mode?: stri
     }
   });
 
-  const { watch, setValue } = methods;
-  const products = watch("products");
+  const { setValue, control } = methods;
+  const products = useWatch({ control, name: "products" });
 
   useEffect(() => {
-    const total = products.reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
+    const total = (products || []).reduce((acc, p) => acc + (Number(p.quantity) || 0) * (p.unitPrice || 0), 0);
     setValue("customerForm.estimatedAmount", total, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
   }, [products, setValue]);
 

@@ -1,11 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ProductionMaterialRequestPage } from './material-request';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useApp } from "../../components/context/AppContext";
-import { masterDataApi } from '../../services/masterDataApi';
 
 vi.mock('../../components/context/AppContext', () => ({
   useApp: vi.fn(),
@@ -47,7 +46,7 @@ vi.mock('react-router', async () => {
 });
 
 describe('ProductionMaterialRequestPage', () => {
-  it('calculates correct MR quantity when available stock is provided from location state', () => {
+  it('calculates correct MR quantity when available stock is provided from location state', async () => {
     vi.mocked(useApp).mockReturnValue({
       salesOrders: [
         { id: 'SO-123', description: 'Test Order' }
@@ -66,13 +65,13 @@ describe('ProductionMaterialRequestPage', () => {
     );
     
     // Aluminium: required 10, available 8 => missing 2
-    expect(screen.getByDisplayValue('2')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('2')).toBeInTheDocument();
     
     // Baja: required 5, available 0 => missing 5
-    expect(screen.getByDisplayValue('5')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('5')).toBeInTheDocument();
     
     // Kayu: required 3, available 5 => missing 0
-    expect(screen.getByDisplayValue('0')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('0')).toBeInTheDocument();
   });
 
   it('explodes stock issues into multiple rows based on specs and shows correct warning', async () => {
@@ -112,7 +111,7 @@ describe('ProductionMaterialRequestPage', () => {
     );
 
     // It should render two rows for Aluminium, one for each spec
-    expect(screen.getByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Aluminium (100x50)')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Aluminium (200x300)')).toBeInTheDocument();
 
     // It should render the specifications
@@ -157,7 +156,7 @@ describe('ProductionMaterialRequestPage', () => {
     );
 
     // It should render one row for Besi with its spec in the dropdown
-    expect(screen.getByDisplayValue('Besi (5mm)')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Besi (5mm)')).toBeInTheDocument();
 
     // It should render the specification
     expect(screen.getByDisplayValue('5mm')).toBeInTheDocument();

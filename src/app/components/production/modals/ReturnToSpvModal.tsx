@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { SalesOrder } from '../../data/mockData';
 import { salesApi } from '../../../services/salesApi';
 import { toast } from 'sonner';
-import { S, getBackendSalesOrderId } from '../ProductionHelpers';
+import { getBackendSalesOrderId } from '../ProductionHelpers';
 
 export function ReturnToSpvModal({ so, onClose, onSubmitted }: { so: SalesOrder; onClose: () => void; onSubmitted: () => void }) {
-  const { refreshBackendData } = useApp();
+  const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -25,7 +25,8 @@ export function ReturnToSpvModal({ so, onClose, onSubmitted }: { so: SalesOrder;
       });
       
       toast.success("SO berhasil dikembalikan ke SPV.", { duration: 3000 });
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       onSubmitted();
       onClose();
     } catch (error) {

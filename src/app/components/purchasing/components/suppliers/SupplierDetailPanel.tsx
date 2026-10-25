@@ -9,6 +9,7 @@ export function SupplierDetailPanel({
   onBack,
   onEdit,
   onDelete,
+  // eslint-disable-next-line unused-imports/no-unused-vars
   canCreatePo,
 }: {
   supplier: Supplier;

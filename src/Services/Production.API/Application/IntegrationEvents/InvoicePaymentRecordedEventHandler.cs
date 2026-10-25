@@ -36,7 +36,15 @@ public sealed class InvoicePaymentRecordedEventHandler(ProductionContext db) : I
             return;
         }
 
-        if (salesOrder.Status == SalesOrderStatuses.Draft || salesOrder.Status == "Waiting Payment")
+        // Converted quotations use the canonical no-space payment status. Keep
+        // that order in payment until the Invoice reports full settlement.
+        if (salesOrder.Status == "WaitingPayment" && !integrationEvent.IsFullyPaid)
+        {
+            return;
+        }
+
+        if (salesOrder.Status == SalesOrderStatuses.Draft
+            || salesOrder.Status is "Waiting Payment" or "WaitingPayment")
         {
             var now = DateTime.UtcNow;
             salesOrder.Status = SalesOrderStatuses.Confirmed;

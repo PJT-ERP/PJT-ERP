@@ -21,6 +21,7 @@ interface BomMaterial {
   code?: string;
   category?: string;
   isCustomerMaterial?: boolean;
+  isAddToMasterBOM?: boolean;
 }
 
 interface BomEditorProps {
@@ -36,12 +37,15 @@ interface BomEditorProps {
   onAddMaterial: (itemId: string, initial?: Partial<{ name: string; quantity: number; unit: string; spec: string; inventoryItemId: string; code: string }>) => void;
   onRemoveMaterial: (itemId: string, mId: string) => void;
   onUpdateMaterial: (itemId: string, mId: string, field: string, value: any) => void;
+  noMaterialChecked?: boolean;
+  onToggleNoMaterial?: (checked: boolean) => void;
 }
 
 export function BomEditor({
   itemId, itemName, itemQty, itemUnit, materials,
   standardBomItems, isStandardProduct, canEdit,
   inventoryItems, onAddMaterial, onRemoveMaterial, onUpdateMaterial,
+  noMaterialChecked, onToggleNoMaterial,
 }: BomEditorProps) {
   return (
     <div key={itemId} style={{ border: `1px solid ${S.border}`, borderRadius: 8 }}>
@@ -101,8 +105,14 @@ export function BomEditor({
         {/* Custom/Extra Materials */}
         {materials.length === 0 ? (
           !isStandardProduct && (
-            <div style={{ textAlign: "center", padding: "30px 20px", color: S.secondary, fontSize: "13.5px", background: "#fff", borderRadius: 8 }}>
-              {!canEdit ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}
+            <div style={{ textAlign: "center", padding: "30px 20px", color: S.secondary, fontSize: "13.5px", background: "#fff", borderRadius: 8, display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
+              <span>{!canEdit ? "BOM kosong." : "BOM kosong. Silakan tambahkan material."}</span>
+              {canEdit && onToggleNoMaterial && (
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "14px", color: S.slate }}>
+                  <input type="checkbox" checked={noMaterialChecked} onChange={e => onToggleNoMaterial(e.target.checked)} />
+                  Tidak ada material
+                </label>
+              )}
             </div>
           )
         ) : (
@@ -112,8 +122,8 @@ export function BomEditor({
             </div>
             {materials.map((m) => (
               <div key={m.id} style={{ display: "flex", flexDirection: "column", gap: 8, background: "#FFFFFF", padding: 12, borderRadius: 8, border: `1px solid ${S.border}`, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-                <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center" }}>
-                  <div style={{ position: "relative", display: "flex", flex: 1, gap: 12, alignItems: "center", minWidth: 0 }}>
+                <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                  <div className="relative flex flex-col md:flex-row flex-1 gap-3 w-full">
                     <MaterialAutocomplete
                       value={m.name}
                       onChange={val => onUpdateMaterial(itemId, m.id, 'name', val)}
@@ -128,9 +138,9 @@ export function BomEditor({
                       disabled={!canEdit}
                     />
                     <input placeholder="Spesifikasi / Ukuran..." value={m.spec} onChange={e => onUpdateMaterial(itemId, m.id, 'spec', e.target.value)} disabled={!canEdit}
-                      style={{ flex: 1, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canEdit ? "#fff" : "#F8FAFC" }} />
+                      style={{ padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", minWidth: 0, backgroundColor: canEdit ? "#fff" : "#F8FAFC" }} className="flex-1 w-full" />
                   </div>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+                  <div className="flex gap-3 items-center w-full md:w-auto flex-shrink-0">
                     <input type="number" min="0" step="any" value={m.quantity || ''} onChange={e => onUpdateMaterial(itemId, m.id, 'quantity', Number(e.target.value))} disabled={!canEdit}
                       style={{ width: 80, padding: "10px 14px", border: `1px solid ${S.border}`, borderRadius: 6, fontSize: "14px", outline: "none", backgroundColor: canEdit ? "#fff" : "#F8FAFC", textAlign: "center" }} />
                     {!m.inventoryItemId ? (
@@ -147,10 +157,18 @@ export function BomEditor({
                     )}
                   </div>
                 </div>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, alignSelf: "flex-start", cursor: canEdit ? "pointer" : "default" }}>
-                  <input type="checkbox" checked={m.isCustomerMaterial || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isCustomerMaterial', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
-                  Material dari Pelanggan
-                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, alignSelf: "flex-start", marginTop: 4 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, cursor: canEdit ? "pointer" : "default" }}>
+                    <input type="checkbox" checked={m.isCustomerMaterial || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isCustomerMaterial', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
+                    Material dari Pelanggan
+                  </label>
+                  {m.isCustomerMaterial && !(m.inventoryItemId || inventoryItems.some(inv => inv.name.toLowerCase() === (m.name || "").toLowerCase())) && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "12px", color: S.secondary, cursor: canEdit ? "pointer" : "default" }}>
+                      <input type="checkbox" checked={m.isAddToMasterBOM || false} onChange={e => onUpdateMaterial(itemId, m.id, 'isAddToMasterBOM', e.target.checked)} disabled={!canEdit} style={{ margin: 0, cursor: canEdit ? "pointer" : "default" }} />
+                      Tetap masukkan BOM Master
+                    </label>
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -63,7 +63,7 @@ export function FooterActions(props: FooterActionsProps) {
           onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
           onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
         >
-          <CheckCircle size={18} /> Simpan Desain & Lanjut ke Produksi
+          <CheckCircle size={18} /> {isDoingSpvApproval ? 'Setujui Desain & Lanjut ke Produksi' : 'Simpan Desain & Lanjut ke Produksi'}
         </button>
       )}
     </div>

@@ -29,6 +29,7 @@ describe('CreatePurchaseOrderPage', () => {
           requestedByUserId: 'u1',
           requesterName: 'Budi',
           status: 'Approved',
+          isFullyApproved: true,
           items: [
             {
               id: 'item-1',
@@ -66,6 +67,19 @@ describe('CreatePurchaseOrderPage', () => {
     });
   });
 
+  it('does not offer a Finance-only PR as eligible for PO creation', async () => {
+    vi.spyOn(usePurchasingDataHook, 'usePurchasingData').mockReturnValue({
+      inventoryItems: [], suppliers: [], refresh: vi.fn(), isLoading: false,
+      purchaseRequests: [{
+        id: 'finance-only', prNumber: 'PR-FINANCE-ONLY', requestDate: '2026-07-08', requestedByUserId: 'u1', requesterName: 'Budi', status: 'FinanceApproved', isFullyApproved: false,
+        items: [{ id: 'item-1', itemName: 'Bolt', qty: 2, purchaseStatus: 'Pending', supplierName: 'Supplier A', totalPrice: 200 }],
+      }],
+    } as any);
+    render(<CreatePurchaseOrderPage />);
+    await waitFor(() => expect(screen.getByText('Buat Purchase Order')).toBeInTheDocument());
+    expect(screen.queryByRole('option', { name: /PR-FINANCE-ONLY/ })).not.toBeInTheDocument();
+  });
+
   it('submits a PO from a PR without an SO (manual PR)', async () => {
     vi.spyOn(usePurchasingDataHook, 'usePurchasingData').mockReturnValue({
       inventoryItems: [],
@@ -78,6 +92,7 @@ describe('CreatePurchaseOrderPage', () => {
           requestedByUserId: 'u1',
           requesterName: 'Budi',
           status: 'Approved',
+          isFullyApproved: true,
           projectName: 'Manual PR Test',
           salesOrderId: null,
           salesOrderNumber: null,
@@ -149,6 +164,7 @@ describe('CreatePurchaseOrderPage', () => {
           requestedByUserId: 'u1',
           requesterName: 'Budi',
           status: 'Approved',
+          isFullyApproved: true,
           projectName: 'SO-101 - Project Test',
           salesOrderId: 'b-so-1',
           salesOrderNumber: 'SO-101',

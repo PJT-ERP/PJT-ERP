@@ -48,18 +48,28 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
         </div>
       )}
 
+      {detail.activeApprovalCycleNumber != null && (
+        <div className={`rounded border p-4 ${detail.isApprovalBlocked ? "bg-red-50 border-red-200" : detail.isFullyApproved ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+          <p className="text-sm font-bold text-slate-800">Siklus {detail.activeApprovalCycleNumber} · Finance: {detail.financeApproval || "Pending"} · Owner: {detail.ownerApproval || "Pending"}</p>
+          <p className="mt-1 text-sm text-slate-700">{detail.isApprovalBlocked ? "Siklus approval diblokir." : detail.isFullyApproved ? "Kedua persetujuan selesai; PR memenuhi syarat approval untuk PO." : "PO belum siap sampai Finance dan Owner menyetujui."}</p>
+          {(detail.financeApprovalRejectionReason || detail.ownerApprovalRejectionReason) && <p className="mt-1 text-sm text-red-700">Alasan penolakan: {detail.financeApprovalRejectionReason || detail.ownerApprovalRejectionReason}</p>}
+        </div>
+      )}
+
       {/* Actions */}
       {canEditPricing && (
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
-          <div className={`flex items-start gap-3 rounded p-4 border ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
-            <AlertTriangle size={18} className={`${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-600" : "text-amber-600"} shrink-0 mt-0.5`} />
+          <div className={`flex items-start gap-3 rounded p-4 border ${detail.backendStatus === "FinanceRejected" ? "bg-red-50 border-red-200" : detail.backendStatus === "SupervisorRejected" ? "bg-amber-50 border-amber-200" : "bg-amber-50 border-amber-200"}`}>
+            <AlertTriangle size={18} className={`${detail.backendStatus === "FinanceRejected" ? "text-red-600" : "text-amber-600"} shrink-0 mt-0.5`} />
             <div>
-              <p className={`text-sm font-bold ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-800" : "text-amber-800"}`}>
-                {detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "Revisi Anggaran & Toko (Ditolak Finance)" : "Tugas: Pengecekan Harga & Toko"}
+              <p className={`text-sm font-bold ${detail.backendStatus === "FinanceRejected" ? "text-red-800" : "text-amber-800"}`}>
+                {detail.backendStatus === "FinanceRejected" ? "Revisi Anggaran & Toko (Ditolak Finance)" : detail.backendStatus === "SupervisorRejected" ? "Revisi Spesifikasi (Ditolak Supervisor)" : "Tugas: Pengecekan Harga & Toko"}
               </p>
-              <p className={`text-sm ${detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" ? "text-red-700" : "text-amber-700"} mt-1`}>
-                {detail.backendStatus === "FinanceRejected" || detail.status === "Rejected" 
+              <p className={`text-sm ${detail.backendStatus === "FinanceRejected" ? "text-red-700" : "text-amber-700"} mt-1`}>
+                {detail.backendStatus === "FinanceRejected" 
                   ? "Silakan perbaiki pilihan supplier dan estimasi harga yang ditolak di tabel atas, lalu klik tombol di bawah untuk mengajukan ulang ke Finance."
+                  : detail.backendStatus === "SupervisorRejected"
+                  ? "Supervisor menolak revisi spesifikasi sebelumnya. Silakan perbaiki supplier/harga sesuai spesifikasi awal atau ajukan revisi spesifikasi kembali."
                   : "Isi tabel harga dan toko di atas, lalu klik Simpan Harga. Setelah itu, dokumen ini akan dikirim ke Finance untuk approval budget sebelum Anda bisa membuat PO."}
               </p>
             </div>
@@ -104,11 +114,12 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             <div>
               <p className="text-sm font-semibold text-slate-700 block mb-2">Penyesuaian Spesifikasi Item</p>
               <div className="space-y-3">
+                // eslint-disable-next-line unused-imports/no-unused-vars
                 {detail.items.map((item, idx) => {
-                  const revItem = board.revisionItems.find(r => r.itemId === item.id);
+                  const revItem = board.revisionItems.find(r => r.itemId === item.itemId);
                   return (
-                    <div key={item.id} className="p-3 border border-slate-200 rounded bg-slate-50">
-                      <p className="text-xs font-bold text-slate-800 mb-1">{item.itemName}</p>
+                    <div key={item.itemId} className="p-3 border border-slate-200 rounded bg-slate-50">
+                      <p className="text-xs font-bold text-slate-800 mb-1">{item.name}</p>
                       <input 
                         type="text" 
                         className="w-full p-2 border border-slate-300 rounded text-sm"
@@ -116,7 +127,7 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
                         value={revItem?.size || ""}
                         onChange={e => {
                           const newItems = [...board.revisionItems];
-                          const idx = newItems.findIndex(r => r.itemId === item.id);
+                          const idx = newItems.findIndex(r => r.itemId === item.itemId);
                           if (idx > -1) newItems[idx].size = e.target.value;
                           board.setRevisionItems(newItems);
                         }}
@@ -154,7 +165,7 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             </div>
           </div>
         </div>
-      ) : detail.backendStatus === "SupervisorApproved" && detail.isReadyForFinance ? (
+      ) : detail.financeApproval === "Pending" && !detail.isApprovalBlocked && detail.isReadyForFinance ? (
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-start gap-3 rounded p-4 bg-blue-50 border border-blue-200">
             <Clock size={18} className="text-blue-600 shrink-0 mt-0.5" />
@@ -184,14 +195,14 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             </div>
           )}
         </div>
-      ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.backendStatus === "Processing") && detail.hasUnorderedItems ? (
+      ) : detail.isFullyApproved === true && detail.hasUnorderedItems ? (
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200">
             <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-emerald-800">Siap Dibuatkan PO</p>
               <p className="text-sm text-emerald-700 mt-1">
-                Anggaran telah disetujui Finance. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
+                Finance dan Owner telah menyetujui PR ini. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
               </p>
             </div>
           </div>

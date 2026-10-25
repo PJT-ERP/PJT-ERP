@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { PlayCircle, AlertTriangle, FileWarning, Loader2 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { isGuid, toBackendUserId } from "../../../services/backendIds";
@@ -18,7 +19,8 @@ interface StockIssue {
 }
 
 export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: SalesOrder; onClose: () => void; onReturnToSpv?: () => void }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const isSupervisor = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,7 +111,7 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
     }
     void checkStock();
     return () => { cancelled = true; };
-  }, [so.items, so.id, so.bomsPerItem, so.status]);
+  }, [so, so.items, so.id, so.bomsPerItem, so.status]);
 
   const hasStockIssues = stockIssues && stockIssues.length > 0;
   const canStart = !isSubmitting && !checkingStock && !hasStockIssues;
@@ -169,7 +171,7 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
           if (deductItems.length > 0) {
              await masterDataApi.deductCustomBomMaterials({ 
                items: deductItems,
-               reason: `Pemakaian Produksi PO ${so.poNumber || so.soNumber || so.id} - Sistem BOM`
+               reason: `Pemakaian Produksi PO ${so.soNumber || so.id} - Sistem BOM`
              });
           }
         } catch (err) {
@@ -177,7 +179,9 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
         }
       }
 
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
       onClose();
     } catch (error: any) {
       console.warn("Failed to start production in backend.", error);

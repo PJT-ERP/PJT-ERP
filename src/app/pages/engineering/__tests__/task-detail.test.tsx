@@ -30,7 +30,8 @@ vi.mock('../../../services/salesApi', () => ({
           { id: 'item-1', productName: 'Item A', quantity: 5, unit: 'pcs', notes: '[{"id":"m1","name":"Alumunium","quantity":1,"inventoryItemId":"INV-1"}]' }
         ]
       }
-    ])
+    ]),
+    listQuotations: vi.fn().mockResolvedValue([]),
   }
 }));
 
@@ -143,6 +144,69 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
       const downloadBtn = screen.getByRole('button', { name: /Download QR/i });
       expect(downloadBtn).toBeInTheDocument();
     });
+  });
+
+  it('allows submission when "Tidak ada material" is checked for empty BOM', async () => {
+    const queryClient = new QueryClient();
+    
+    // Override the salesApi mock to provide an empty BOM
+    vi.mocked(salesApi.listSalesOrders).mockResolvedValue([
+      {
+        id: '123e4567-e89b-12d3-a456-426614174001',
+        soNumber: 'so-eng-1',
+        customerId: 'CUST-1',
+        customerCode: 'CUST-1',
+        customerName: 'Customer A',
+        soDate: '2026-07-08',
+        targetDate: '2026-07-15',
+        status: 'Pending Design', // Editable state
+        designStatus: 'PendingDesign',
+        productionStatus: 'Pending',
+        designWorkerUserId: 'u1',
+        drawingFileUrl: 'https://new-design.com',
+        designReference: 'https://new-design.com',
+        createdAtUtc: '2026-07-08T10:00:00Z',
+        items: [
+          { id: 'item-1', productId: 'p1', productPartNumber: 'PRD-001', productDescription: 'Item A', qty: 5, notes: '[]' } // Empty BOM
+        ]
+      }
+    ]);
+    
+    // Also mock useApp just in case
+    vi.spyOn(appContext, 'useApp').mockReturnValue({
+      customers: [{ code: 'CUST-1', name: 'Customer A' }],
+      currentUser: { id: 'u1', name: 'Spv 1', role: 'Engineering Supervisor' },
+      updateSalesOrder: vi.fn(),
+      refreshBackendData: vi.fn(),
+      productCatalog: [],
+      salesOrders: []
+    } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/erp/engineer-tasks/123e4567-e89b-12d3-a456-426614174001']}>
+          <Routes>
+            <Route path="/erp/engineer-tasks/:id" element={<EngineeringTaskDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Wait for render
+    await waitFor(() => {
+      expect(screen.getByText(/Simpan Desain & Lanjut ke Produksi/i)).toBeInTheDocument();
+    });
+
+    // The submit button should be disabled because BOM is empty
+    const submitBtn = screen.getByRole('button', { name: /Simpan Desain & Lanjut ke Produksi/i });
+    expect(submitBtn).toBeDisabled();
+
+    // Check "Tidak ada material"
+    const noMaterialCheckbox = screen.getByRole('checkbox', { name: /Tidak ada material/i });
+    fireEvent.click(noMaterialCheckbox);
+
+    // The submit button should now be enabled
+    await waitFor(() => expect(submitBtn).not.toBeDisabled());
   });
 
 });

@@ -8,7 +8,10 @@ import { useProductsQuery } from '../../../services/queries';
 vi.mock('../../context/AppContext', () => ({ useApp: vi.fn() }));
 vi.mock('../../../services/queries', () => ({
   useSalesOrdersQuery: vi.fn(() => ({ data: [], isLoading: false })),
-  useCustomersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useCustomersQuery: vi.fn(() => ({ data: [],
+    useUsersQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcInspectionsQuery: vi.fn().mockReturnValue({ data: [] }),
+    useQcQueuesQuery: vi.fn().mockReturnValue({ data: [] }), isLoading: false })),
   useProductsQuery: vi.fn(() => ({ data: [], isLoading: false })),
   useUpdateSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn() })),
   useDeleteSalesOrderMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
@@ -55,23 +58,23 @@ describe('SOCreate — error states', () => {
 
   it('renders empty state without crashing when no product catalog', () => {
     renderWithClient(<SOCreate onNavigate={mockNavigate} />);
-    expect(screen.getByText('Pesanan Baru (New Order)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Quotation Baru/i })).toBeInTheDocument();
     expect(screen.getByText('Repeat Order')).toBeInTheDocument();
   });
 
   it('shows Pesanan Baru form with submit button', async () => {
     renderWithClient(<SOCreate onNavigate={mockNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
 
     await waitFor(() => {
-      const submitBtn = screen.getByText('Submit Sales Order');
+      const submitBtn = screen.getByRole('button', { name: /Submit Quotation/i });
       expect(submitBtn).toBeInTheDocument();
     });
   });
 
   it('shows Kode Pelanggan as Auto-generated', async () => {
     renderWithClient(<SOCreate onNavigate={mockNavigate} />);
-    fireEvent.click(screen.getByText('Pesanan Baru (New Order)'));
+    fireEvent.click(screen.getByRole('button', { name: /Quotation Baru/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Kode Pelanggan (Auto)')).toBeInTheDocument();

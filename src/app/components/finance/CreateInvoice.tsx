@@ -88,8 +88,8 @@ export function CreateInvoice() {
               <div className="flex gap-6 items-center">
                 <img src="/pjt-logo-new.png" alt="PT. Pratama Jaya Logo" className="h-20 w-auto object-contain flex-shrink-0" />
                 <div>
-                  <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA</h2>
-                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">Kawasan Industri MM2100<br/>Cikarang Barat, Bekasi 17530<br/>finance@pratamajaya.co.id</p>
+                  <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">PT. PRATAMA JAYA TEKINDO</h2>
+                  <p className="text-sm text-slate-500 mt-1 leading-relaxed">Sunrise Bizpark Blok D-3 Kelurahan Kutajaya<br/>Jl. Industri Raya LOT MM 25, Kec. Pasar Kemis<br/>Kab. Tangerang Prov. Banten</p>
                 </div>
               </div>
               

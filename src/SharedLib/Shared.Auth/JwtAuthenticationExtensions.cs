@@ -29,12 +29,16 @@ public static class JwtAuthenticationExtensions
             .AddPolicyScheme(PjtAuthenticationSchemes.Smart, "PJT JWT or development master token", options =>
             {
                 options.ForwardDefaultSelector = context =>
+#if DEBUG
                     DevMasterTokenAuthenticationHandler.ShouldUseDevMasterToken(
                         context.Request,
                         builder.Configuration,
                         builder.Environment)
                         ? PjtAuthenticationSchemes.DevMasterToken
                         : JwtBearerDefaults.AuthenticationScheme;
+#else
+                    JwtBearerDefaults.AuthenticationScheme;
+#endif
             })
             .AddScheme<AuthenticationSchemeOptions, DevMasterTokenAuthenticationHandler>(
                 PjtAuthenticationSchemes.DevMasterToken,

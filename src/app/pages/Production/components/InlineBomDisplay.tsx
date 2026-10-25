@@ -8,9 +8,9 @@ export function InlineBomDisplay({ so }: { so: SalesOrder }) {
   const materials = getMaterialOptions(so, true);
   
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginTop: 12 }} onClick={e => e.stopPropagation()}>
+    <div className="flex flex-col lg:flex-row items-start gap-4 mt-3" onClick={e => e.stopPropagation()}>
        {/* Product Box */}
-       <div style={{ flex: "0 0 280px", borderRadius: 8, border: `1px solid ${S.border}`, background: "#F8FAFC", boxShadow: "0 1px 2px rgba(0,0,0,0.02)", display: "flex", flexDirection: "column", padding: "12px" }}>
+       <div className="w-full lg:w-[280px] lg:flex-none flex flex-col p-3 rounded-lg bg-slate-50 border border-slate-200 shadow-sm">
          <span style={{ fontSize: "12px", fontWeight: 600, color: S.secondary, marginBottom: "10px" }}>Produk</span>
          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
            {so.items && so.items.length > 0 ? (
@@ -49,9 +49,10 @@ export function InlineBomDisplay({ so }: { so: SalesOrder }) {
        </div>
 
        {/* BOM Table */}
-       <div style={{ flex: 1, borderRadius: 8, border: `1px solid ${S.border}`, background: "#F8FAFC", overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 12px", background: "#F1F5F9", borderBottom: `1px solid ${S.border}`, fontSize: "11px", fontWeight: 600, color: S.slate, letterSpacing: "0.03em", textTransform: "uppercase" }}>
-           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+       <div className="w-full lg:flex-1 overflow-x-auto rounded-lg bg-slate-50 border border-slate-200 shadow-sm">
+         <div style={{ minWidth: 500 }}>
+           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 12px", background: "#F1F5F9", borderBottom: `1px solid ${S.border}`, fontSize: "11px", fontWeight: 600, color: S.slate, letterSpacing: "0.03em", textTransform: "uppercase" }}>
+             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
              <Package size={13} style={{ color: S.cyan }} />
              <span>Informasi BOM & Kebutuhan Material ({materials.length} Item)</span>
            </div>
@@ -97,6 +98,7 @@ export function InlineBomDisplay({ so }: { so: SalesOrder }) {
              </tbody>
            </table>
          )}
+         </div>
        </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { PurchasingUrgency, SalesOrder } from "../../data/mockData";
 import { productionApi } from "../../../services/productionApi";
 import { masterDataApi, InventoryItemDto } from "../../../services/masterDataApi";
@@ -19,7 +20,8 @@ export function MaterialRequestModal({
   onSubmitted: () => void;
   onMessage: (message: SystemMessage) => void;
 }) {
-  const { currentUser, refreshBackendData } = useApp();
+  const { currentUser } = useApp();
+  const queryClient = useQueryClient();
   const materialOptions = getMaterialOptions(so);
   const firstMaterial = materialOptions[0];
   const [inventoryItems, setInventoryItems] = useState<InventoryItemDto[]>([]);
@@ -61,6 +63,7 @@ export function MaterialRequestModal({
     setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  // eslint-disable-next-line unused-imports/no-unused-vars
   const selectMaterial = (index: number, materialKey: string) => {
     const selected = materialOptions.find(option => option.key === materialKey);
     setItems(prev => prev.map((item, itemIndex) => itemIndex === index
@@ -115,14 +118,6 @@ export function MaterialRequestModal({
 
     try {
       setIsSubmitting(true);
-      
-      // Auto confirm the Sales Order silently before making the MR API call
-      try {
-        const { salesApi } = await import("../../../services/salesApi");
-        await salesApi.confirmSalesOrder(salesOrderId, requesterId);
-      } catch (e) {
-        console.warn("Auto-confirm SO silently failed or already confirmed", e);
-      }
 
       await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,
@@ -158,9 +153,11 @@ export function MaterialRequestModal({
         }
       }
       onSubmitted();
-      await refreshBackendData();
+      await queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
+      await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      await queryClient.invalidateQueries({ queryKey: ['purchasingData'] });
       window.setTimeout(() => {
-        void refreshBackendData();
+        void queryClient.invalidateQueries({ queryKey: ['productionQueues'] });
       }, 1500);
       onMessage({
         tone: "success",

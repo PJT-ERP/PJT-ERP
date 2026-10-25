@@ -8,6 +8,7 @@ import { useDeleteSalesOrderMutation } from "../../services/queries";
 import { SalesOrder, SOStatus } from "../data/mockData";
 import { type SalesInvoiceStatus } from "./invoice-sync";
 import { useSOList, PAGE_SIZE } from "./hooks/useSOList";
+import { useAuth } from "../context/hooks/useAuth";
 import { 
   S, STATUS_OPTIONS, StatusBadge, InvoiceBadge, FilterDropdown, 
   ActionBtn, HoverBtn, MobileActionBtn, Pagination
@@ -20,9 +21,12 @@ interface SOListProps {
 
 
 export function SOList({ onNavigate }: SOListProps) {
+  const { currentUser } = useAuth();
   const board = useSOList();
   const deleteMutation = useDeleteSalesOrderMutation();
   const [deleteTarget, setDeleteTarget] = React.useState<{ id: string } | null>(null);
+
+  const canEdit = currentUser?.role === 'Sales' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner';
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
@@ -43,43 +47,89 @@ export function SOList({ onNavigate }: SOListProps) {
     <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, fontFamily: S.font }}>
 
       {/* ── Tabs ──────────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, marginBottom: 4 }}>
+      <div style={{ display: "flex", borderBottom: `1px solid ${S.border}`, marginBottom: 4, gap: 12, overflowX: "auto" }}>
         <button
-          style={{ padding: "10px 20px", border: "none", background: "none", color: "#C8102E", borderBottom: "2px solid #C8102E", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
+          onClick={() => { board.setTypeFilter("all"); board.setPage(1); }}
+          style={{
+            padding: "10px 16px", border: "none", background: "none",
+            color: board.typeFilter === "all" ? "#C8102E" : S.secondary,
+            borderBottom: board.typeFilter === "all" ? "2px solid #C8102E" : "2px solid transparent",
+            fontWeight: board.typeFilter === "all" ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap"
+          }}
         >
-          Sales Order (SO)
+          <span>Semua Order</span>
+          <span style={{ fontSize: "11px", padding: "1px 7px", borderRadius: 10, background: board.typeFilter === "all" ? "#FEE2E2" : "#F1F5F9", color: board.typeFilter === "all" ? "#991B1B" : "#64748B", fontWeight: 600 }}>
+            {board.mergedSalesOrders.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { board.setTypeFilter("quotation"); board.setPage(1); }}
+          style={{
+            padding: "10px 16px", border: "none", background: "none",
+            color: board.typeFilter === "quotation" ? "#C8102E" : S.secondary,
+            borderBottom: board.typeFilter === "quotation" ? "2px solid #C8102E" : "2px solid transparent",
+            fontWeight: board.typeFilter === "quotation" ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap"
+          }}
+        >
+          <span>Quotation (Penawaran)</span>
+          <span style={{ fontSize: "11px", padding: "1px 7px", borderRadius: 10, background: board.typeFilter === "quotation" ? "#FEE2E2" : "#F1F5F9", color: board.typeFilter === "quotation" ? "#991B1B" : "#64748B", fontWeight: 600 }}>
+            {board.quotationCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { board.setTypeFilter("so"); board.setPage(1); }}
+          style={{
+            padding: "10px 16px", border: "none", background: "none",
+            color: board.typeFilter === "so" ? "#C8102E" : S.secondary,
+            borderBottom: board.typeFilter === "so" ? "2px solid #C8102E" : "2px solid transparent",
+            fontWeight: board.typeFilter === "so" ? 600 : 500, fontSize: "13px", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap"
+          }}
+        >
+          <span>Sales Order (SO)</span>
+          <span style={{ fontSize: "11px", padding: "1px 7px", borderRadius: 10, background: board.typeFilter === "so" ? "#FEE2E2" : "#F1F5F9", color: board.typeFilter === "so" ? "#991B1B" : "#64748B", fontWeight: 600 }}>
+            {board.soCount}
+          </span>
         </button>
       </div>
 
       {/* ── Page header ───────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div>
-          <h1 style={{ color: S.slate, margin: 0 }}>Daftar Sales Order</h1>
+          <h1 style={{ color: S.slate, margin: 0 }}>
+            {board.typeFilter === "quotation" ? "Daftar Quotation (Penawaran)" : (board.typeFilter === "so" ? "Daftar Sales Order (SO)" : "Daftar Sales Order & Quotation")}
+          </h1>
           <p style={{ color: S.secondary, fontSize: "12.5px", marginTop: 2 }}>
-            {board.salesOrders.length} order terdaftar
-            {board.filtered.length !== board.salesOrders.length && (
+            {board.filtered.length} order terdaftar
+            {board.filtered.length !== board.mergedSalesOrders.length && (
               <span style={{ color: "#C8102E" }}> · {board.filtered.length} ditampilkan</span>
             )}
           </p>
         </div>
         <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
 
-          <HoverBtn
-            icon={<Plus size={12} />}
-            label="Buat SO"
-            onClick={() => onNavigate("so-create")}
-            style={{ 
-              background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
-              border: "none", 
-              color: "#fff",
-              boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
-              fontWeight: 600,
-              padding: "7px 14px",
-              borderRadius: "6px"
-            }}
-            hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
-            primary
-          />
+          {currentUser?.role === 'Sales' && (
+            <HoverBtn
+              icon={<Plus size={12} />}
+              label="Buat QU"
+              onClick={() => onNavigate("so-create")}
+              style={{ 
+                background: "linear-gradient(135deg, #EF4444 0%, #C8102E 100%)", 
+                border: "none", 
+                color: "#fff",
+                boxShadow: "0 4px 12px rgba(200, 16, 46, 0.25)",
+                fontWeight: 600,
+                padding: "7px 14px",
+                borderRadius: "6px"
+              }}
+              hoverStyle={{ transform: "translateY(-1px)", boxShadow: "0 6px 16px rgba(200, 16, 46, 0.35)" }}
+              primary
+            />
+          )}
         </div>
       </div>
 
@@ -253,6 +303,7 @@ export function SOList({ onNavigate }: SOListProps) {
                   onView={() => onNavigate("so-detail", order.id)}
                   onEdit={() => onNavigate("so-detail", { id: order.id, isEditMode: true })}
                   onDelete={() => setDeleteTarget({ id: order.id })}
+                  canEdit={canEdit}
                 />
               ))}
             </tbody>
@@ -326,10 +377,12 @@ export function SOList({ onNavigate }: SOListProps) {
 
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: "auto" }}>
                     <MobileActionBtn label="Detail" bg="#EFF6FF" color="#C8102E" action={() => onNavigate("so-detail", order.id)} />
-                    {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+                    {canEdit && !(order.status === "Completed" && order.invoice?.status === "paid") && (
                       <MobileActionBtn label="Edit" bg="#FFFBEB" color="#D97706" action={() => onNavigate("so-detail", { id: order.id, isEditMode: true })} />
                     )}
-                    <MobileActionBtn label="Hapus" bg="#FEF2F2" color="#EF4444" action={() => setDeleteTarget({ id: order.id })} />
+                    {canEdit && (
+                      <MobileActionBtn label="Hapus" bg="#FEF2F2" color="#EF4444" action={() => setDeleteTarget({ id: order.id })} />
+                    )}
                   </div>
                 </div>
               );
@@ -395,13 +448,14 @@ export function SOList({ onNavigate }: SOListProps) {
 }
 
 // ─── TableRow ─────────────────────────────────────────────────────────────────
-function TableRow({ order, customerName, isLast, onView, onEdit, onDelete }: {
+function TableRow({ order, customerName, isLast, onView, onEdit, onDelete, canEdit }: {
   order: SalesOrder;
   customerName: string;
   isLast: boolean;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  canEdit: boolean;
 }) {
   const [hov, React_useState] = React.useState(false);
 
@@ -451,10 +505,12 @@ function TableRow({ order, customerName, isLast, onView, onEdit, onDelete }: {
       <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <ActionBtn icon={<Eye size={12} />}     label="Detail"   hoverBg="#EFF6FF" hoverColor="#C8102E" onClick={onView}      title="Lihat detail" />
-          {!(order.status === "Completed" && order.invoice?.status === "paid") && (
+          {canEdit && !(order.status === "Completed" && order.invoice?.status === "paid") && (
             <ActionBtn icon={<Edit size={12} />}    label="Edit"     hoverBg="#FFFBEB" hoverColor="#D97706" onClick={onEdit}      title="Edit order" />
           )}
-          <ActionBtn icon={<Trash2 size={12} />}  label="Hapus"    hoverBg="#FEF2F2" hoverColor="#EF4444" onClick={onDelete}    title="Hapus Sales Order" />
+          {canEdit && (
+            <ActionBtn icon={<Trash2 size={12} />}  label="Hapus"    hoverBg="#FEF2F2" hoverColor="#EF4444" onClick={onDelete}    title="Hapus Sales Order" />
+          )}
         </div>
       </td>
     </tr>

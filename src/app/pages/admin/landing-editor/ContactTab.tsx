@@ -103,7 +103,7 @@ export function ContactTab({
                 </div>
                 <div>
                   <label style={{ display: "block", color: S_EDITOR.slate, fontSize: "12px", fontWeight: 600, marginBottom: "4px" }}>Alamat</label>
-                  <textarea value={location.address} onChange={(e) => handleContactLocationChange(location.id, "address", e.target.value)} onInput={(e) => { e.currentTarget.style.height = "auto"; e.currentTarget.style.height = e.currentTarget.scrollHeight + "px"; }} rows={3} style={{ width: "100%", padding: "8px 12px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "4px", fontSize: "13px", resize: "none", overflow: "hidden", minHeight: "80px" }} />
+                  <textarea value={location.address} onChange={(e) => handleContactLocationChange(location.id, "address", e.target.value)} onInput={(e) => { e.currentTarget.style.height = "auto"; e.currentTarget.style.height = e.currentTarget.scrollHeight + "px"; }} rows={3} maxLength={1000} style={{ width: "100%", padding: "8px 12px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "4px", fontSize: "13px", resize: "none", overflow: "hidden", minHeight: "80px" }} />
                 </div>
               </div>
             </div>
@@ -123,9 +123,9 @@ export function ContactTab({
             <textarea name="footerDescription" value={form.footerDescription} onChange={handleChange} rows={2} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px", resize: "vertical" }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-            <div><label style={{ display: "block", color: S_EDITOR.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>Alamat</label><input name="footerAddress" value={form.footerAddress} onChange={handleChange} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px" }} /></div>
-            <div><label style={{ display: "block", color: S_EDITOR.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>Telepon</label><input name="footerPhone" value={form.footerPhone} onChange={handleChange} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px" }} /></div>
-            <div><label style={{ display: "block", color: S_EDITOR.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>Email</label><input name="footerEmail" value={form.footerEmail} onChange={handleChange} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px" }} /></div>
+            <div><label style={{ display: "block", color: S_EDITOR.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>Alamat</label><input name="footerAddress" value={form.footerAddress} onChange={handleChange} maxLength={1000} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px" }} /></div>
+            <div><label style={{ display: "block", color: S_EDITOR.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>Telepon</label><input name="footerPhone" value={form.footerPhone} onChange={handleChange} maxLength={100} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px" }} /></div>
+            <div><label style={{ display: "block", color: S_EDITOR.slate, fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}>Email</label><input name="footerEmail" value={form.footerEmail} onChange={handleChange} maxLength={200} style={{ width: "100%", padding: "10px 14px", border: `1px solid ${S_EDITOR.border}`, borderRadius: "6px", fontSize: "14px" }} /></div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginTop: "8px" }}>
             {[

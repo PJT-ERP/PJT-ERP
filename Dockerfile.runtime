@@ -2,9 +2,14 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 WORKDIR /app
 EXPOSE 8080
 
+RUN addgroup -S appgroup && adduser -S -D -H -G appgroup appuser \
+    && mkdir -p /app/wwwroot /tmp \
+    && chown -R appuser:appgroup /app /tmp
+
 ARG PUBLISH_DIR
-COPY ${PUBLISH_DIR} .
+COPY --chown=appuser:appgroup ${PUBLISH_DIR} .
 
 ARG ENTRY_DLL
 ENV ENTRY_DLL=${ENTRY_DLL}
+USER appuser
 ENTRYPOINT ["sh", "-c", "dotnet $ENTRY_DLL"]

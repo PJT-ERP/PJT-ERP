@@ -12,6 +12,7 @@ import { productionApi } from "../../services/productionApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
 import { BomEditor } from "./task-detail/BomEditor";
 import { StepDone, StepRejected, StepRejectForm, StepConfirm, InfoBanner } from "./task-detail/StepScreens";
+import { formatDocNumber } from "../../components/context/hooks/dataMappers";
 import { FooterActions } from "./task-detail/FooterActions";
 
 const S = {
@@ -58,6 +59,7 @@ export function EngineeringTaskDetailPage() {
   const [isEditingLink, setIsEditingLink] = useState(false);
   const [localRejectionReason, setLocalRejectionReason] = useState<string | undefined>(undefined);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [noMaterialItems, setNoMaterialItems] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialized = useRef(false);
@@ -69,7 +71,7 @@ export function EngineeringTaskDetailPage() {
   useEffect(() => {
     if (qut && !isInitialized.current) {
       const designRef = qut.designReference !== 'INTERNAL_DESIGN' ? qut.designReference : '';
-      const initialDesignLink = designRef || qut.designLink || qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
+      const initialDesignLink = designRef || qut.designLink || qut.drawingFileUrl || qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
       setDesignLink(initialDesignLink);
       setIsEditingLink(!initialDesignLink);
 
@@ -108,7 +110,7 @@ export function EngineeringTaskDetailPage() {
     for (const item of qut.items || []) {
       const mats = itemMaterials[item.id] || [];
       for (const m of mats) {
-        if (!m.name?.trim() || m.isCustomerMaterial) continue;
+        if (!m.name?.trim() || (m.isCustomerMaterial && !m.isAddToMasterBOM)) continue;
         const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
         if (seen.has(key)) continue;
         const mid = (m.inventoryItemId || '').toLowerCase();
@@ -121,6 +123,26 @@ export function EngineeringTaskDetailPage() {
     }
     return result;
   }, [qut, itemMaterials, inventoryItems]);
+
+  const customerMaterialsSkipped = useMemo(() => {
+    const result: { name: string; spec: string }[] = [];
+    if (!qut) return result;
+    const seen = new Set<string>();
+    for (const item of qut.items || []) {
+      const mats = itemMaterials[item.id] || [];
+      for (const m of mats) {
+        if (!m.name?.trim()) continue;
+        if (m.isCustomerMaterial && !m.isAddToMasterBOM) {
+          const key = `${m.name.trim().toLowerCase()}|${(m.spec || '').trim().toLowerCase()}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            result.push({ name: m.name.trim(), spec: (m.spec || '').trim() });
+          }
+        }
+      }
+    }
+    return result;
+  }, [qut, itemMaterials]);
 
   const hasDuplicateMaterials = qut?.items?.some((item: any) => {
     const mats = itemMaterials[item.id] || [];
@@ -174,17 +196,27 @@ export function EngineeringTaskDetailPage() {
   }
 
   const customer = customers.find(c => c.code === qut.customerId);
-  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv');
-  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.backendDesignStatus === 'WaitingApproval';
+  const isSpv = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || (currentUser?.role === 'Engineering' && currentUser?.username === 'eng_spv') || currentUser?.role === 'Owner';
+  const isEngineer = currentUser?.role === 'Engineering' || isSpv;
+  const isPendingSpv = qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Approval' || qut.backendDesignStatus === 'WaitingApproval';
+  const isQuotation = Boolean(qut.isQuotation);
+  const currentEngineerId = toBackendUserId(currentUser);
 
-  let canProcess = isSpv && (qut.status === 'Pending Design' || qut.status === 'Revision Required' || qut.status === 'Waiting Spv Approval');
+  let canProcess = isEngineer && (
+    qut.status === 'Pending Design' ||
+    qut.status === 'Revision Required' ||
+    (isSpv && isPendingSpv)
+  );
   if (['Waiting Pricing', 'Waiting Finance Approval', 'Waiting Payment', 'Waiting Client Approval', 'In Production', 'Ready for Production', 'QC', 'Completed', 'Closed'].includes(qut.status) || qut.backendDesignStatus === 'Approved' || qut.designApprovedAt) {
     canProcess = false;
   }
-  if (!isSpv) canProcess = false;
+  if (isQuotation) {
+    canProcess = (currentUser?.role === 'Engineering' && qut.designAssignedTo === currentEngineerId && qut.backendDesignStatus === 'pending_design')
+      || (isSpv && qut.backendDesignStatus === 'design_review');
+  }
 
   const isDoingSpvApproval = isSpv && isPendingSpv;
-  const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl;
+  const isWaitingCustomerDesign = qut.designId === 'customer' && !qut.customerDrawingUrl && !qut.drawingFileUrl && !qut.designLink;
 
   const addMaterial = (itemId: string, initial?: Partial<{ name: string; quantity: number; unit: string; spec: string; inventoryItemId: string; code: string }>) => {
     setItemMaterials(prev => ({ ...prev, [itemId]: [...(prev[itemId] || []), { id: Date.now().toString(), name: initial?.name || '', quantity: initial?.quantity || 0, unit: initial?.unit || '', spec: initial?.spec || '', inventoryItemId: initial?.inventoryItemId || '', code: initial?.code, category: defaultCategory }] }));
@@ -212,6 +244,40 @@ export function EngineeringTaskDetailPage() {
       console.log(">>> backendId:", backendId, "isGuid:", isGuid(backendId));
       if (!isGuid(backendId)) { alert("Gagal: Dokumen ini belum tersinkronisasi dengan server."); setIsSubmitting(false); return; }
 
+      if (isQuotation) {
+        if (isDoingSpvApproval) {
+          await salesApi.approveQuotationEngineering(backendId);
+          setCompletedAsSpv(true);
+          setStep('done');
+          await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+          await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+          return;
+        }
+        const engineerId = toBackendUserId(currentUser);
+        if (!engineerId) throw new Error("ID akun Engineering belum terhubung ke akun backend.");
+        const bomItems = (qut.items || []).flatMap((item: any) => (itemMaterials[item.id] || [])
+          .filter((material: any) => material.name?.trim() && Number(material.quantity) > 0)
+          .map((material: any) => ({
+            itemCode: material.code || null,
+            name: material.name.trim(),
+            specification: material.spec?.trim() || null,
+            quantity: Number(material.quantity),
+            unit: material.unit?.trim() || "pcs",
+          })));
+        if (bomItems.length === 0) throw new Error("BOM minimal satu item wajib diisi.");
+        const quotationDesignLink = qut.designReference === 'INTERNAL_DESIGN' ? designLink.trim() : null;
+        await salesApi.submitQuotationDesign(backendId, {
+          designLink: quotationDesignLink,
+          bomItems,
+          engineerId,
+          engineerName: currentUser?.name || "Engineering",
+        });
+        await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+        await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        setStep('done');
+        return;
+      }
+
       if (designLink && designLink.trim() !== '') {
         try { await salesApi.submitSalesOrderDesign(backendId, { designReference: designLink, drawingFileUrl: designLink, updatedByName: currentUser?.name || 'Engineering' }); } catch (e) { console.warn("Failed to update design link", e); }
       }
@@ -226,8 +292,14 @@ export function EngineeringTaskDetailPage() {
         for (const originalM of mats) {
           if (!originalM.name?.trim() || !(originalM.quantity > 0)) continue;
           const m = { ...originalM };
-          if (m.isCustomerMaterial) {
-            m.inventoryItemId = '';
+          
+          if (m.isCustomerMaterial && !m.isAddToMasterBOM) {
+            let invId = m.inventoryItemId;
+            if (!invId) {
+              const existingItem = currentInv.find(ci => ci.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+              if (existingItem) { invId = existingItem.id; m.code = existingItem.code; }
+            }
+            m.inventoryItemId = invId || '';
           } else {
             let invId = m.inventoryItemId;
             if (!invId) {
@@ -246,7 +318,7 @@ export function EngineeringTaskDetailPage() {
           newMats.push(m);
         }
         updatedItems.push({ salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, unitPrice: (it as any).unitPrice || 0, notes: (newMats && newMats.length > 0) ? JSON.stringify(newMats) : (it.notes || "") });
-        allResolvedBoms[it.id] = newMats.filter(m => m.inventoryItemId && m.quantity > 0).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
+        allResolvedBoms[it.id] = newMats.filter(m => m.inventoryItemId && m.quantity > 0 && (!m.isCustomerMaterial || m.isAddToMasterBOM)).map(m => ({ inventoryItemId: m.inventoryItemId, quantity: m.quantity }));
       }
       if (updatedItems.length > 0) {
         try { await salesApi.updateSalesOrderItems(backendId, { items: updatedItems }); } catch (e) { console.warn("Failed to update BOM", e); }
@@ -288,6 +360,17 @@ export function EngineeringTaskDetailPage() {
     try {
       const backendId = qut.backendId || qut.id;
       if (!isGuid(backendId)) { alert("Gagal: Dokumen belum tersinkronisasi."); setIsSubmitting(false); return; }
+      if (isQuotation) {
+        await salesApi.requestQuotationDesignRevision(
+          backendId,
+          rejectReason,
+          qut.designReference === 'CUSTOMER_PROVIDED' ? qut.customerDrawingUrl : undefined,
+        );
+        await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+        await queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        setStep('rejected');
+        return;
+      }
       await salesApi.updateSalesOrderDesignStatus(backendId, { designStatus: 'RevisionRequired', notes: rejectReason, reviewedByUserId: toBackendUserId(currentUser) || (isGuid(currentUser?.id) ? currentUser!.id : crypto.randomUUID()), reviewerName: currentUser?.name || '' });
       const updatedItems = qut.items?.map((it: any) => { const mats = itemMaterials[it.id]; return { salesOrderItemId: it.id, productId: it.productId, qty: it.quantity, notes: (mats && mats.length > 0) ? JSON.stringify(mats) : "" }; }) || [];
       if (updatedItems.length > 0) { try { await salesApi.updateSalesOrderItems(backendId, { items: updatedItems }); } catch (e) { console.warn("Failed to update BOM", e); } }
@@ -299,12 +382,13 @@ export function EngineeringTaskDetailPage() {
     } finally { setIsSubmitting(false); }
   };
 
-  const isFormIncomplete = !designLink.trim() || (qut.items || []).some((item: any) => {
+  const isFormIncomplete = ((!isQuotation || qut.designReference === 'INTERNAL_DESIGN') && !designLink.trim()) || (qut.items || []).some((item: any) => {
     const mats = itemMaterials[item.id] || [];
     const productInCatalog = productCatalog.find((p: any) => p.id === item.productId);
     const isStandardProduct = !!productInCatalog?.bomItems?.length;
     
-    if (!isStandardProduct && mats.length === 0) return true;
+    if (isQuotation && mats.length === 0) return true;
+    if (!isStandardProduct && mats.length === 0 && !noMaterialItems[item.id]) return true;
     return mats.some((m: any) => !m.name.trim() || m.quantity <= 0);
   });
   const isSubmitDisabled = isFormIncomplete || isSubmitting || isWaitingCustomerDesign || hasDuplicateMaterials || hasCategoryConflict || isUploadingFile;
@@ -346,7 +430,7 @@ export function EngineeringTaskDetailPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{qut.id}</h2>
+              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{formatDocNumber(qut.soNumber || qut.id, qut.status)}</h2>
               <StatusBadge status={qut.status} />
             </div>
             <p style={{ color: S.secondary, margin: "6px 0 0", fontSize: "14px" }}>
@@ -360,7 +444,7 @@ export function EngineeringTaskDetailPage() {
           {step === 'rejected' && <StepRejected onBack={backToList} />}
           {step === 'reject' && <StepRejectForm rejectReason={rejectReason} onReasonChange={setRejectReason} />}
           {step === 'confirm' && (
-            <StepConfirm designLink={designLink} customerName={customer?.name || ''} qty={qut.quantity} unit={qut.unit} newMaterials={newMaterials} />
+            <StepConfirm designLink={designLink} customerName={customer?.name || ''} qty={qut.quantity} unit={qut.unit} newMaterials={newMaterials} customerMaterialsSkipped={customerMaterialsSkipped} />
           )}
           {(step === 'upload') && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -476,6 +560,8 @@ export function EngineeringTaskDetailPage() {
                         onAddMaterial={addMaterial}
                         onRemoveMaterial={removeMaterial}
                         onUpdateMaterial={updateMaterial}
+                        noMaterialChecked={noMaterialItems[item.id] || false}
+                        onToggleNoMaterial={(checked) => setNoMaterialItems(prev => ({ ...prev, [item.id]: checked }))}
                       />
                     );
                   })}
