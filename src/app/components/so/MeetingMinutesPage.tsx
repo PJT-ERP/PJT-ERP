@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ClipboardList, Search, MapPin, Pencil, Trash2, ChevronDown, ChevronRight, Clock, FileText, Upload, X } from "lucide-react";
+import { ClipboardList, Search, MapPin, Pencil, Trash2, ChevronDown, ChevronRight, Clock, FileText, Upload, X, Link2 } from "lucide-react";
 import { Label, Input, Textarea, SectionCard, Grid2 } from "./create/FormHelpers";
 import { meetingMinutesApi } from "../../services/meetingMinutesApi";
 import { Pagination } from "./components/so-list/SOListHelpers";
@@ -37,6 +37,7 @@ const emptyForm = (): SaveMeetingMinuteRequest => ({
   participants: "",
   resultFileUrl: null,
   resultFileName: null,
+  resultLink: "",
   feedbackDeadline: "",
 });
 
@@ -49,16 +50,34 @@ const formatDateTime = (iso: string) =>
 const errorMessage = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
-const MAX_PDF_SIZE = 5 * 1024 * 1024; // sama dengan FileUploadSecurityValidator
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // sama dengan MeetingMinutesController
+// Harus sama dengan daftar ekstensi di MeetingMinutesController.
+const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv"];
+// File yang bisa dipratinjau langsung di tab browser; selain itu diunduh.
+const PREVIEWABLE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".txt"];
 
-const openResultFile = async (url: string) => {
+const fileExtension = (name: string) => {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+};
+
+const openResultFile = async (url: string, fileName?: string | null) => {
+  const name = fileName || url.split("/").pop() || "lampiran";
+  const previewable = PREVIEWABLE_EXTENSIONS.includes(fileExtension(url));
   // Buka tab dulu agar tidak diblokir popup blocker, lalu isi setelah blob terunduh (endpoint butuh token).
-  const tab = window.open("", "_blank");
+  const tab = previewable ? window.open("", "_blank") : null;
   try {
     const blob = await meetingMinutesApi.getResultFileBlob(url);
-    const objectUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
-    if (tab) tab.location.href = objectUrl;
-    else window.open(objectUrl, "_blank");
+    const objectUrl = URL.createObjectURL(blob);
+    if (previewable) {
+      if (tab) tab.location.href = objectUrl;
+      else window.open(objectUrl, "_blank");
+    } else {
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = name;
+      a.click();
+    }
     setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
   } catch (error) {
     tab?.close();
@@ -126,12 +145,12 @@ export function MeetingMinutesPage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      toast.error("Hasil meeting harus berupa file PDF.");
+    if (!ALLOWED_EXTENSIONS.includes(fileExtension(file.name))) {
+      toast.error("Format file tidak didukung. Gunakan PDF, Word, Excel, PowerPoint, gambar, TXT, atau CSV.");
       return;
     }
-    if (file.size > MAX_PDF_SIZE) {
-      toast.error("Ukuran file maksimal 5 MB.");
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Ukuran file maksimal 10 MB.");
       return;
     }
     setIsUploading(true);
@@ -156,7 +175,12 @@ export function MeetingMinutesPage() {
       toast.error("Tunggu hingga file selesai diunggah.");
       return;
     }
-    saveMutation.mutate({ ...form, feedbackDeadline: form.feedbackDeadline || null });
+    const resultLink = form.resultLink?.trim() || null;
+    if (resultLink && !/^https?:\/\/\S+$/i.test(resultLink)) {
+      toast.error("Link lampiran harus berupa URL yang valid (diawali http:// atau https://).");
+      return;
+    }
+    saveMutation.mutate({ ...form, resultLink, feedbackDeadline: form.feedbackDeadline || null });
   };
 
   const handleEdit = (m: MeetingMinuteDto) => {
@@ -172,6 +196,7 @@ export function MeetingMinutesPage() {
       participants: m.participants ?? "",
       resultFileUrl: m.resultFileUrl ?? null,
       resultFileName: m.resultFileName ?? null,
+      resultLink: m.resultLink ?? "",
       feedbackDeadline: m.feedbackDeadline ?? "",
     });
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -273,17 +298,17 @@ export function MeetingMinutesPage() {
               <AutoTextarea placeholder="Solusi atau keputusan yang disepakati" value={form.solution} onChange={e => setField("solution", e.target.value)} maxLength={4000} />
             </div>
             <div>
-              <Label text="Lampiran Hasil Meeting (PDF)" />
-              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleFileChange} style={{ display: "none" }} />
+              <Label text="Lampiran Hasil Meeting" />
+              <input ref={fileInputRef} type="file" accept={ALLOWED_EXTENSIONS.join(",")} onChange={handleFileChange} style={{ display: "none" }} />
               {form.resultFileUrl ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid #CBD5E1", borderRadius: 4, background: "#FAFAFA" }}>
                   <FileText size={14} style={{ color: S.primary, flexShrink: 0 }} />
                   <button
                     type="button"
-                    onClick={() => openResultFile(form.resultFileUrl!)}
+                    onClick={() => openResultFile(form.resultFileUrl!, form.resultFileName)}
                     style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: "none", padding: 0, color: S.slate, fontSize: "12.5px", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: S.font }}
                   >
-                    {form.resultFileName || "Hasil meeting.pdf"}
+                    {form.resultFileName || "Lampiran hasil meeting"}
                   </button>
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} style={{ background: "none", border: "none", color: S.secondary, fontSize: "12px", cursor: "pointer", fontFamily: S.font }}>
                     {isUploading ? "Mengunggah..." : "Ganti"}
@@ -298,9 +323,20 @@ export function MeetingMinutesPage() {
                   style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 12px", border: "1px dashed #CBD5E1", borderRadius: 4, background: "#FAFAFA", color: S.secondary, fontSize: "12.5px", cursor: isUploading ? "wait" : "pointer", fontFamily: S.font }}
                 >
                   <Upload size={13} />
-                  {isUploading ? "Mengunggah..." : "Upload lampiran hasil meeting dalam format PDF (opsional, maks. 5 MB)"}
+                  {isUploading ? "Mengunggah..." : "Upload file hasil meeting: PDF, Word, Excel, PowerPoint, gambar, TXT, CSV (opsional, maks. 10 MB)"}
                 </button>
               )}
+            </div>
+            <div>
+              <Label text="Link Google Drive" />
+              <Input
+                type="url"
+                icon={<Link2 size={12} />}
+                placeholder="https://drive.google.com/... (opsional)"
+                value={form.resultLink ?? ""}
+                onChange={e => setField("resultLink", e.target.value)}
+                maxLength={1000}
+              />
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
@@ -408,16 +444,32 @@ export function MeetingMinutesPage() {
                           <Detail label="Tanggal Meeting" value={formatDate(m.meetingDate)} />
                           <Detail label="Tempat" value={m.location} />
                           <div style={{ minWidth: 0 }}>
-                            <p style={detailLabel}>Lampiran Hasil Meeting (PDF)</p>
+                            <p style={detailLabel}>Lampiran Hasil Meeting</p>
                             {m.resultFileUrl ? (
                               <button
                                 type="button"
-                                onClick={() => openResultFile(m.resultFileUrl!)}
+                                onClick={() => openResultFile(m.resultFileUrl!, m.resultFileName)}
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%", background: "none", border: "none", padding: 0, color: S.primary, fontSize: "12.5px", cursor: "pointer", fontFamily: S.font, textAlign: "left", overflowWrap: "anywhere" }}
                               >
                                 <FileText size={13} style={{ flexShrink: 0 }} />
-                                {m.resultFileName || "Lihat PDF"}
+                                {m.resultFileName || "Lihat lampiran"}
                               </button>
+                            ) : (
+                              <p style={{ margin: 0, fontSize: "12.5px", color: "#94A3B8" }}>-</p>
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={detailLabel}>Link Google Drive</p>
+                            {m.resultLink ? (
+                              <a
+                                href={m.resultLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, maxWidth: "100%", color: S.primary, fontSize: "12.5px", textDecoration: "none", overflowWrap: "anywhere" }}
+                              >
+                                <Link2 size={13} style={{ flexShrink: 0 }} />
+                                {m.resultLink}
+                              </a>
                             ) : (
                               <p style={{ margin: 0, fontSize: "12.5px", color: "#94A3B8" }}>-</p>
                             )}
