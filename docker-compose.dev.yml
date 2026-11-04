@@ -50,6 +50,11 @@ services:
     environment: *api-environment
     volumes:
       - pjt_dev_daily_report_uploads:/app/data/daily-report-uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     depends_on:
       db:
         condition: service_healthy
@@ -151,7 +156,7 @@ services:
       - "5010:8080"
     depends_on:
       identity-api:
-        condition: service_started
+        condition: service_healthy
       masterdata-api:
         condition: service_started
       production-api:
