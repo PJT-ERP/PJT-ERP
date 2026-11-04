@@ -12,29 +12,32 @@ public partial class InitialIdentity : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.CreateTable(
-            name: "user_accounts",
-            columns: table => new
-            {
-                id = table.Column<Guid>(type: "uuid", nullable: false),
-                name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                email = table.Column<string>(type: "character varying(160)", maxLength: 160, nullable: false),
-                role = table.Column<string>(type: "character varying(120)", maxLength: 120, nullable: false),
-                department = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
-                join_date_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                last_active_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                password_hash = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                created_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                updated_at_utc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-            },
-            constraints: table => table.PrimaryKey("PK_user_accounts", x => x.id));
+        migrationBuilder.Sql("""
+            CREATE TABLE IF NOT EXISTS user_accounts (
+                id uuid NOT NULL,
+                name character varying(255) NOT NULL,
+                email character varying(160) NOT NULL,
+                role character varying(120) NOT NULL,
+                department character varying(80) NOT NULL,
+                join_date_utc timestamp with time zone NOT NULL,
+                last_active_at_utc timestamp with time zone NULL,
+                status character varying(50) NOT NULL,
+                password_hash character varying(255) NOT NULL DEFAULT '',
+                created_at_utc timestamp with time zone NOT NULL,
+                updated_at_utc timestamp with time zone NOT NULL,
+                CONSTRAINT "PK_user_accounts" PRIMARY KEY (id)
+            );
+            """);
 
-        migrationBuilder.CreateIndex(
-            name: "IX_user_accounts_email",
-            table: "user_accounts",
-            column: "email",
-            unique: true);
+        migrationBuilder.Sql("""
+            ALTER TABLE user_accounts
+            ADD COLUMN IF NOT EXISTS password_hash character varying(255) NOT NULL DEFAULT '';
+            """);
+
+        migrationBuilder.Sql("""
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_accounts_email"
+            ON user_accounts (email);
+            """);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
