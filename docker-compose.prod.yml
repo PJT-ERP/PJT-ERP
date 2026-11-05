@@ -52,9 +52,10 @@ services:
       - "8080"
     healthcheck: &api-healthcheck
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/health"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 3
+      start_period: 60s
+      retries: 30
     depends_on:
       db:
         condition: service_healthy
@@ -172,7 +173,7 @@ services:
     healthcheck: *api-healthcheck
     depends_on:
       identity-api:
-        condition: service_started
+        condition: service_healthy
       masterdata-api:
         condition: service_started
       production-api:
