@@ -18,7 +18,7 @@ interface OrderTypeSelectorProps {
 
 export function OrderTypeSelector({ onSelect }: OrderTypeSelectorProps) {
   const cards = [
-    { type: "new" as const, icon: <Plus size={22} style={{ color: "#10B981" }} />, title: "Pesanan Baru (New Order)", desc: "Buat Sales Order baru dari awal. Dapat dilanjutkan ke request desain jika pesanan bersifat custom.", accentColor: "#10B981" },
+    { type: "new" as const, icon: <Plus size={22} style={{ color: "#10B981" }} />, title: "Quotation Baru (New Quotation)", desc: "Buat Quotation penawaran baru dari awal. Otomatis masuk ke antrean Tim Engineering untuk analisis gambar & BOM.", accentColor: "#10B981" },
     { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.", accentColor: "#6366F1" },
   ];
 

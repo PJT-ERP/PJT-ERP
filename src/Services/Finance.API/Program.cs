@@ -32,7 +32,8 @@ builder.Services.AddPgmqEventBus<FinanceContext>(builder.Configuration, options 
     options.FanOutQueues = ["pjt_production_events"];
 })
     .WithReceiver()
-    .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>();
+    .AddSubscription<SalesOrderReadyForInvoiceEvent, SalesOrderReadyForInvoiceEventHandler>()
+    .AddSubscription<SalesOrderDpInvoiceRequestedEvent, SalesOrderDpInvoiceRequestedEventHandler>();
 
 builder.ConfigurePjtJwtAuthentication();
 builder.Services.AddControllers();
@@ -52,15 +53,20 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UsePjtRequestLogging();
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
     {
-        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=31536000,immutable");
+        ctx.Context.Response.Headers.Append("Cache-Control", "private,no-cache,no-store,must-revalidate");
+        ctx.Context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        ctx.Context.Response.Headers.Append("Content-Security-Policy", "default-src 'none'; sandbox");
     }
 });
-app.UseAuthentication();
-app.UseAuthorization();
+
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { service = "finance", status = "ok" })).AllowAnonymous();
 app.Run();
+

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PJT_ERP.Purchasing.Api.Domain.Entities;
+using System.Security.Claims;
 using PJT_ERP.Purchasing.Api.Application.PurchaseRequests;
 
 namespace PJT_ERP.Purchasing.Api.Controllers;
@@ -75,14 +77,28 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
     [Authorize(Roles = "Admin,Finance")]
     public Task<ActionResult<PurchaseRequestDto>> FinanceReview(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
-        return ReviewWithStage(id, request with { ReviewStage = "Finance" }, cancellationToken);
+        return FinanceApproval(id, new PurchaseRequestApprovalDecisionRequest(request.Decision, request.RejectionReason), cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/finance-approval")]
+    [Authorize(Roles = "Admin,Finance")]
+    public Task<ActionResult<PurchaseRequestDto>> FinanceApproval(Guid id, PurchaseRequestApprovalDecisionRequest request, CancellationToken cancellationToken)
+    {
+        return ApprovalWithRole(id, request, PurchaseRequestApprovalRoles.Finance, cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/owner-approval")]
+    [Authorize(Roles = "Admin,Owner")]
+    public Task<ActionResult<PurchaseRequestDto>> OwnerApproval(Guid id, PurchaseRequestApprovalDecisionRequest request, CancellationToken cancellationToken)
+    {
+        return ApprovalWithRole(id, request, PurchaseRequestApprovalRoles.Owner, cancellationToken);
     }
 
     [HttpPost("{id:guid}/review")]
     [Authorize(Roles = "Admin,Finance")]
     public Task<ActionResult<PurchaseRequestDto>> Review(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
-        return ReviewWithStage(id, request with { ReviewStage = "Finance" }, cancellationToken);
+        return FinanceApproval(id, new PurchaseRequestApprovalDecisionRequest(request.Decision, request.RejectionReason), cancellationToken);
     }
 
     [HttpPost("{id:guid}/request-revision")]
@@ -111,6 +127,28 @@ public sealed class PurchaseRequestsController(IPurchaseRequestService purchaseR
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    private async Task<ActionResult<PurchaseRequestDto>> ApprovalWithRole(Guid id, PurchaseRequestApprovalDecisionRequest request, string role, CancellationToken cancellationToken)
+    {
+        if (!TryGetAuthenticatedUserId(out var actorUserId)) return Unauthorized();
+        try
+        {
+            var result = role == PurchaseRequestApprovalRoles.Finance
+                ? await purchaseRequestService.FinanceApprovalAsync(id, request, actorUserId, cancellationToken)
+                : await purchaseRequestService.OwnerApprovalAsync(id, request, actorUserId, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private bool TryGetAuthenticatedUserId(out Guid userId)
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        return Guid.TryParse(claim, out userId);
     }
 
     [HttpPut("{id:guid}/items/{itemId:guid}/purchase-info")]

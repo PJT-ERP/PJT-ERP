@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Users, FileWarning } from "lucide-react";
 import { S, StatusBadge, DrawingLinks } from "../../../../components/production/ProductionHelpers";
 import { PaginationControl } from "../../../../components/production/PaginationControl";
+import { getMaterialOptions } from "../material-request/MaterialRequestHelpers";
 import { InlineBomDisplay } from "../InlineBomDisplay";
 import { useProductionBoard } from "../../hooks/useProductionBoard";
 import { SalesOrder } from "../../../../components/data/mockData";
@@ -40,11 +41,11 @@ export function PendingAssignmentPanel({ board }: Props) {
             <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada pesanan yang menunggu penugasan operator</p>
           </div>
         ) : pendingAssignment.slice((page - 1) * itemsPerPage, page * itemsPerPage).map((so: SalesOrder, idx: number) => {
-          const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+          const hasBom = getMaterialOptions(so, true).length > 0;
           const mrState = getMaterialRequestState(so);
           const hasMr = mrState !== 'none';
           const isShortage = checkMaterialShortage(so);
-          const canAssignToOperator = hasBom && !isShortage;
+          const canAssignToOperator = !hasBom || !isShortage;
 
           return (
             <div key={so.id} style={{ display: "flex", flexDirection: "column", padding: "24px 18px", borderBottom: idx < pendingAssignment.slice((page - 1) * itemsPerPage, page * itemsPerPage).length - 1 ? `1px dashed #CBD5E1` : "none" }}>
@@ -53,13 +54,13 @@ export function PendingAssignmentPanel({ board }: Props) {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                     <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 600, color: S.slate }}>{so.soNumber || so.id}</span>
                     <StatusBadge status={so.status} />
-                    {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>BOM Belum Dibuat</span>}
+                    {!hasBom && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Tanpa BOM</span>}
                     {hasBom && isShortage && !hasMr && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>Kekurangan Material - MR Belum Diajukan</span>}
                     {hasBom && mrState === 'requested' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF3C7", color: "#B45309", borderRadius: 4, fontWeight: 600, border: "1px solid #FCD34D" }}>Menunggu Review SPV</span>}
                     {hasBom && mrState === 'rejected' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEE2E2", color: "#991B1B", borderRadius: 4, fontWeight: 600, border: "1px solid #FECACA" }}>MR Ditolak</span>}
                     {so.rejectionReason && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FFF7ED", color: "#9A3412", borderRadius: 4, fontWeight: 600, border: "1px solid #FED7AA", display: "flex", alignItems: "center", gap: 4 }}><FileWarning size={12} /> Dikembalikan ke SPV</span>}
                     {hasBom && isShortage && hasMr && mrState === 'completed' && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF9C3", color: "#A16207", borderRadius: 4, fontWeight: 600, border: "1px solid #FEF08A" }}>Kekurangan Material - Stok Belum Masuk</span>}
-                    {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>Material Lengkap - Siap Tugaskan</span>}
+                    {canAssignToOperator && <span style={{ fontSize: "11px", padding: "2px 8px", background: "#DCFCE7", color: "#15803D", borderRadius: 4, fontWeight: 600, border: "1px solid #BBF7D0" }}>{hasBom ? "Material Lengkap - " : ""}Siap Tugaskan</span>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: "12.5px", color: S.secondary, flexWrap: "wrap" }}>
                     <span>Pelanggan: <strong style={{ color: S.slate }}>{so.customerName || so.customerId}</strong></span>

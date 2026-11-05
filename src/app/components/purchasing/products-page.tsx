@@ -92,16 +92,83 @@ export function ProductsPage() {
     }
   };
 
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState({ partNumber: '', description: '', unit: 'pcs' });
+
+  const handleOpenAddProduct = () => {
+    let maxNum = 0;
+    productCatalog.forEach(p => {
+        if (p.partNumber.startsWith("PRD-")) {
+            const numStr = p.partNumber.substring(4);
+            const num = parseInt(numStr, 10);
+            if (!isNaN(num) && num > maxNum) {
+                maxNum = num;
+            }
+        }
+    });
+    const nextNum = maxNum + 1;
+    const nextPartNumber = `PRD-${nextNum.toString().padStart(3, '0')}`;
+    
+    setNewProduct({ partNumber: nextPartNumber, description: '', unit: 'pcs' });
+    setIsAddingProduct(true);
+  };
+
+  const handleAddProduct = async () => {
+    if (!newProduct.partNumber || !newProduct.description || !newProduct.unit) return;
+    try {
+      setIsSaving(true);
+      await salesApi.createProduct({
+        partNumber: newProduct.partNumber,
+        description: newProduct.description,
+        unit: newProduct.unit,
+        bomItems: []
+      });
+      await refreshBackendData();
+      setIsAddingProduct(false);
+      setNewProduct({ partNumber: '', description: '', unit: 'pcs' });
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menambahkan produk");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div style={{ padding: 32, maxWidth: 1200, margin: "0 auto", fontFamily: S.font }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: "24px", fontWeight: 700, color: S.slate, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 12 }}>
-          <Package style={{ color: S.primary }} />
-          Master Produk & BOM
-        </h1>
-        <p style={{ margin: 0, color: S.secondary, fontSize: "14px" }}>
-          Kelola daftar Finished Goods dan Standard Bill of Materials (BOM)
-        </p>
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: S.slate, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 12 }}>
+            <Package style={{ color: S.primary }} />
+            Master Produk & BOM
+          </h1>
+          <p style={{ margin: 0, color: S.secondary, fontSize: "14px" }}>
+            Kelola daftar Finished Goods dan Standard Bill of Materials (BOM)
+          </p>
+        </div>
+        
+        <button
+          onClick={handleOpenAddProduct}
+          style={{
+            background: S.primary,
+            color: S.white,
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 16px",
+            fontSize: "13.5px",
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            transition: "all 0.2s"
+          }}
+          onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.1)"}
+          onMouseLeave={e => e.currentTarget.style.filter = "none"}
+        >
+          <Plus size={16} />
+          Tambah Produk
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
@@ -284,6 +351,83 @@ export function ProductsPage() {
           </div>
         )}
       </div>
+
+      {isAddingProduct && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(15, 23, 42, 0.4)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: S.white, width: 440, borderRadius: 16,
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+            overflow: "hidden"
+          }}>
+            <div style={{ padding: "20px 24px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 600 }}>Tambah Produk Baru</h3>
+              <button onClick={() => setIsAddingProduct(false)} style={{ background: "none", border: "none", color: S.secondary, cursor: "pointer", padding: 4 }}>×</button>
+            </div>
+            
+            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Part Number *</label>
+                <input 
+                  type="text" 
+                  value={newProduct.partNumber}
+                  readOnly
+                  placeholder="Terisi Otomatis"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${S.border}`, background: "#f1f5f9", color: S.secondary, fontSize: "14px", outline: "none", boxSizing: "border-box", cursor: "not-allowed" }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Deskripsi Produk *</label>
+                <input 
+                  type="text" 
+                  value={newProduct.description}
+                  maxLength={255}
+                  onChange={e => setNewProduct({...newProduct, description: e.target.value})}
+                  placeholder="Misal: Keranjang"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${S.border}`, fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: S.slate, marginBottom: 6 }}>Satuan *</label>
+                <select
+                  value={newProduct.unit}
+                  onChange={e => setNewProduct({...newProduct, unit: e.target.value})}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${S.border}`, fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                >
+                  <option value="pcs">pcs</option>
+                  <option value="unit">unit</option>
+                  <option value="set">set</option>
+                  <option value="box">box</option>
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ padding: "16px 24px", background: "#f8fafc", borderTop: `1px solid ${S.border}`, display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button 
+                onClick={() => setIsAddingProduct(false)} 
+                style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${S.border}`, background: S.white, color: S.slate, fontSize: "14px", fontWeight: 500, cursor: "pointer" }}
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleAddProduct}
+                disabled={isSaving || !newProduct.partNumber || !newProduct.description || !newProduct.unit}
+                style={{ 
+                  padding: "8px 16px", borderRadius: 8, border: "none", background: S.primary, color: S.white, fontSize: "14px", fontWeight: 500, 
+                  cursor: (isSaving || !newProduct.partNumber || !newProduct.description || !newProduct.unit) ? "not-allowed" : "pointer",
+                  opacity: (isSaving || !newProduct.partNumber || !newProduct.description || !newProduct.unit) ? 0.7 : 1 
+                }}
+              >
+                {isSaving ? "Menyimpan..." : "Simpan Produk"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -89,7 +89,8 @@ public sealed record UpdateSalesOrderGeneralRequest(
     DateOnly? Deadline = null,
     string? Notes = null,
     string? CustomerDrawingUrl = null,
-    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null);
+    IReadOnlyCollection<SalesOrderDesignRevisionDto>? DesignRevisions = null,
+    string? Status = null);
 
 public sealed record UpdateCustomerDrawingUrlRequest(
     string? CustomerDrawingUrl,
@@ -136,7 +137,9 @@ public sealed record SalesOrderDto(
     IReadOnlyCollection<SalesOrderCommentDto>? Comments = null,
     IReadOnlyCollection<string>? ProductionPhotos = null,
     IReadOnlyCollection<string>? QcPhotos = null,
-    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null);
+    IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null,
+    decimal? DpPercentage = null,
+    DateOnly? DpDueDate = null);
 
 public sealed record SalesOrderCommentDto(
     Guid Id,
@@ -145,7 +148,10 @@ public sealed record SalesOrderCommentDto(
     string Content,
     DateTime CreatedAtUtc,
     bool IsEdited,
-    bool IsDeleted);
+    bool IsDeleted,
+    string? FileUrl = null,
+    string? FileName = null,
+    string? FileType = null);
 
 public sealed record SalesOrderMaterialDto(
     string Id,
@@ -263,7 +269,10 @@ public sealed record UploadEngineeringDrawingRequest(
 public sealed record AddSalesOrderCommentRequest(
     Guid UserId,
     string UserName,
-    string Content);
+    string Content,
+    string? FileUrl = null,
+    string? FileName = null,
+    string? FileType = null);
 
 public sealed record UpdateSalesOrderCommentRequest(
     string Content);

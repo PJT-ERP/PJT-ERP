@@ -7,6 +7,8 @@ using PJT_ERP.Purchasing.Api.Domain.Entities;
 using PJT_ERP.Purchasing.Api.Infrastructure.Persistence;
 using PJT_ERP.Shared.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace Purchasing.API.Tests;
 
@@ -17,6 +19,8 @@ public sealed class PurchaseRequestServiceTests
     [InlineData(nameof(PurchaseRequestsController.Update), "Admin,Engineering,Engineering Supervisor,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.SupervisorReview), "Admin,Engineering Supervisor")]
     [InlineData(nameof(PurchaseRequestsController.FinanceReview), "Admin,Finance")]
+    [InlineData(nameof(PurchaseRequestsController.FinanceApproval), "Admin,Finance")]
+    [InlineData(nameof(PurchaseRequestsController.OwnerApproval), "Admin,Owner")]
     [InlineData(nameof(PurchaseRequestsController.Review), "Admin,Finance")]
     [InlineData(nameof(PurchaseRequestsController.ProcessItem), "Admin,Purchasing")]
     [InlineData(nameof(PurchaseRequestsController.RejectItem), "Admin,Purchasing")]
@@ -43,6 +47,185 @@ public sealed class PurchaseRequestServiceTests
                 .Cast<AuthorizeAttribute>());
 
         Assert.Equal("Admin,Finance,Engineering,Engineering Supervisor,Purchasing,Owner,Sales,Sales Order", authorize.Roles);
+    }
+
+    [Fact]
+    public async Task Parallel_approval_cycle_requires_both_roles_and_keeps_independent_actor_decisions()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var request = await AcceptPurchaseRequestAsync(service, await CreateLinkedPurchaseRequestAsync(service, requirement));
+        var itemId = Assert.Single(request.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 2500m))!;
+
+        Assert.Equal(1, priced.ActiveApprovalCycleNumber);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Pending, priced.FinanceApproval!.Decision);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Pending, priced.OwnerApproval!.Decision);
+
+        var finance = await FinanceApprovePurchaseRequestAsync(service, priced);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Approved, finance.FinanceApproval!.Decision);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Pending, finance.OwnerApproval!.Decision);
+        Assert.False(finance.IsFullyApproved);
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, finance.Status);
+
+        var ready = (await OwnerApprovePurchaseRequestAsync(service, finance))!;
+        Assert.Equal(PurchaseRequestApprovalDecisions.Approved, ready.OwnerApproval!.Decision);
+        Assert.True(ready.IsFullyApproved);
+        Assert.Equal(PurchaseRequestStatuses.Approved, ready.Status);
+        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), ready.FinanceApproval!.ActorUserId);
+        Assert.Equal(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), ready.OwnerApproval.ActorUserId);
+    }
+
+    [Fact]
+    public async Task Owner_can_approve_while_finance_is_pending_and_finance_completes_cycle_later()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var request = await AcceptPurchaseRequestAsync(service, await CreateLinkedPurchaseRequestAsync(service, requirement));
+        var itemId = Assert.Single(request.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 2500m))!;
+
+        var owner = (await OwnerApprovePurchaseRequestAsync(service, priced))!;
+        Assert.Equal(PurchaseRequestApprovalDecisions.Approved, owner.OwnerApproval!.Decision);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Pending, owner.FinanceApproval!.Decision);
+        Assert.False(owner.IsFullyApproved);
+
+        var finance = await FinanceApprovePurchaseRequestAsync(service, owner);
+        Assert.True(finance.IsFullyApproved);
+        Assert.Equal(PurchaseRequestStatuses.Approved, finance.Status);
+    }
+
+    [Theory]
+    [InlineData("Finance")]
+    [InlineData("Owner")]
+    public async Task Either_role_rejection_blocks_cycle_and_purchasing(string rejectingRole)
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var request = await AcceptPurchaseRequestAsync(service, await CreateLinkedPurchaseRequestAsync(service, requirement));
+        var itemId = Assert.Single(request.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 2500m))!;
+
+        var rejected = rejectingRole == "Finance"
+            ? await service.FinanceApprovalAsync(request.Id, new PurchaseRequestApprovalDecisionRequest("Rejected", "Budget issue"), Guid.Parse("66666666-6666-6666-6666-666666666666"), CancellationToken.None)
+            : await OwnerRejectPurchaseRequestAsync(service, priced, "Business reason");
+
+        Assert.True(rejected!.IsApprovalBlocked);
+        var otherDecision = rejectingRole == "Finance"
+            ? await OwnerApprovePurchaseRequestAsync(service, rejected)
+            : await FinanceApprovePurchaseRequestAsync(service, rejected);
+        Assert.True(otherDecision!.IsApprovalBlocked);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+            request.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 25), "PO-001", 2500m, null, 2500m),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Repeated_decision_is_idempotent_but_conflicting_decision_is_rejected()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var request = await AcceptPurchaseRequestAsync(service, await CreateLinkedPurchaseRequestAsync(service, requirement));
+        var itemId = Assert.Single(request.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 2500m))!;
+        var actor = Guid.Parse("66666666-6666-6666-6666-666666666666");
+
+        var approved = await service.FinanceApprovalAsync(request.Id, new PurchaseRequestApprovalDecisionRequest("Approved", null), actor, CancellationToken.None);
+        var repeated = await service.FinanceApprovalAsync(request.Id, new PurchaseRequestApprovalDecisionRequest("Approved", null), actor, CancellationToken.None);
+        Assert.Equal(approved!.FinanceApproval, repeated!.FinanceApproval);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.FinanceApprovalAsync(
+            request.Id, new PurchaseRequestApprovalDecisionRequest("Rejected", "Changed mind"), actor, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Owner_approval_actor_is_taken_from_authenticated_claims()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var request = await service.CreateAsync(
+            new CreatePurchaseRequest(
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                Guid.NewGuid(),
+                "Requester",
+                null,
+                null,
+                null,
+                [new CreatePurchaseRequestItem(null, null, null, null, "Paper", null, 1, null, null)]),
+            CancellationToken.None);
+        var itemId = Assert.Single(request.Items).Id;
+        await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 100m);
+
+        var actorId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var controller = new PurchaseRequestsController(service)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        [new Claim(ClaimTypes.NameIdentifier, actorId.ToString())],
+                        "test"))
+                }
+            }
+        };
+
+        var response = await controller.OwnerApproval(
+            request.Id,
+            new PurchaseRequestApprovalDecisionRequest("Approved", null),
+            CancellationToken.None);
+        var body = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(response.Result);
+        var result = Assert.IsType<PurchaseRequestDto>(body.Value);
+        Assert.Equal(actorId, result.OwnerApproval!.ActorUserId);
+    }
+
+    [Fact]
+    public async Task Material_price_revision_creates_new_cycle_and_preserves_old_approval_history()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var request = await AcceptPurchaseRequestAsync(service, await CreateLinkedPurchaseRequestAsync(service, requirement));
+        var itemId = Assert.Single(request.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 2500m))!;
+        var approved = await ApproveBothAsync(service, priced);
+        var revised = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier B", 3000m))!;
+
+        Assert.Equal(2, revised.ActiveApprovalCycleNumber);
+        Assert.False(revised.IsFullyApproved);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Pending, revised.FinanceApproval!.Decision);
+        Assert.Equal(PurchaseRequestApprovalDecisions.Pending, revised.OwnerApproval!.Decision);
+        var history = await db.PurchaseRequestApprovals.Where(row => row.PurchaseRequestId == request.Id).ToListAsync();
+        Assert.Equal(4, history.Count);
+        Assert.All(history.Where(row => row.CycleNumber == 1), row => Assert.Equal(PurchaseRequestApprovalDecisions.Approved, row.Decision));
+        Assert.Equal(1, approved.ActiveApprovalCycleNumber);
+    }
+
+    [Fact]
+    public async Task ProcessPurchaseItemAsync_rejects_category_changes_after_approval()
+    {
+        await using var db = CreateDbContext();
+        var requirement = await SeedRequirementAsync(db);
+        var service = CreateService(db);
+        var request = await AcceptPurchaseRequestAsync(service, await CreateLinkedPurchaseRequestAsync(service, requirement));
+        var itemId = Assert.Single(request.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, itemId, "Supplier A", 2500m))!;
+        await ApproveBothAsync(service, priced);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+            request.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 25), "PO-001", 2500m, null, 2500m, "Asset"),
+            CancellationToken.None));
+
+        var unchanged = await db.PurchaseRequestItems.SingleAsync(item => item.Id == itemId);
+        Assert.Equal("Project", unchanged.PurchaseCategory);
+        Assert.Null(unchanged.PoNumber);
     }
 
     [Fact]
@@ -174,14 +357,14 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal("Aluminium", item1.ItemName);
         Assert.Equal("Aluminium", item2.ItemName);
 
-        // 2. Process, Order, and Receive them
+        // Pricing is prepared first; Finance and Owner review independently before PO processing.
         await service.ReviewAsync(request.Id, new ReviewPurchaseRequest(workerUserId, PurchaseRequestStatuses.Approved, null, "Supervisor"), CancellationToken.None);
-        
-        // Process both items (sets supplier and prices)
+        await SetPurchaseItemPricingAsync(service, request.Id, item1.Id, "PT Alu", 1000m);
+        var priced = (await SetPurchaseItemPricingAsync(service, request.Id, item2.Id, "PT Alu", 2000m))!;
+        await ApproveBothAsync(service, priced);
+
         await service.ProcessPurchaseItemAsync(request.Id, item1.Id, new ProcessPurchaseItemRequest("PT Alu", new DateOnly(2026, 7, 10), null, 1000, null), CancellationToken.None);
         await service.ProcessPurchaseItemAsync(request.Id, item2.Id, new ProcessPurchaseItemRequest("PT Alu", new DateOnly(2026, 7, 10), null, 2000, null), CancellationToken.None);
-        
-        await service.ReviewAsync(request.Id, new ReviewPurchaseRequest(workerUserId, PurchaseRequestStatuses.Approved, null, "Finance"), CancellationToken.None);
         
         // Order both items
         await service.UpdatePurchaseItemInfoAsync(request.Id, item1.Id, new UpdatePurchaseItemInfoRequest(null, new DateOnly(2026, 7, 10), null, null, PurchaseItemStatuses.Ordered, null, "PO-999"), CancellationToken.None);
@@ -297,7 +480,7 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task ReviewAsync_routes_supervisor_approved_request_to_purchasing_before_finance()
+    public async Task ReviewAsync_blocks_purchasing_until_finance_and_owner_both_approve()
     {
         await using var db = CreateDbContext();
         var requirement = await SeedRequirementAsync(db);
@@ -330,10 +513,29 @@ public sealed class PurchaseRequestServiceTests
                 "Finance"),
             CancellationToken.None));
 
+        var itemId = Assert.Single(supervisorReviewed.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, itemId, "PT. Krakatau Steel", 7_300_000m))!;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null, 7_300_000m),
+            CancellationToken.None));
+        var financeReviewed = await FinanceApprovePurchaseRequestAsync(service, priced);
+        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
+        Assert.False(financeReviewed.IsFullyApproved);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessPurchaseItemAsync(
+            purchaseRequest.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null, 7_300_000m),
+            CancellationToken.None));
+
+        var fullyApproved = (await OwnerApprovePurchaseRequestAsync(service, financeReviewed))!;
+        Assert.True(fullyApproved.IsFullyApproved);
         var processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
-            Assert.Single(supervisorReviewed.Items).Id,
-            new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null),
+            itemId,
+            new ProcessPurchaseItemRequest("PT. Krakatau Steel", new DateOnly(2026, 5, 25), "PO-2026-041", 7_300_000m, null, 7_300_000m),
             CancellationToken.None);
 
         Assert.NotNull(processed);
@@ -341,22 +543,11 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(PurchaseItemStatuses.Ordered, Assert.Single(processed.Items).PurchaseStatus);
         Assert.Equal(MaterialRequirementStatuses.Ordered, (await db.MaterialRequirements.SingleAsync()).Status);
 
-        var financeReviewed = await service.ReviewAsync(
-            purchaseRequest.Id,
-            new ReviewPurchaseRequest(
-                Guid.Parse("66666666-6666-6666-6666-666666666666"),
-                "Accept",
-                null,
-                "Finance"),
-            CancellationToken.None);
-
-        Assert.NotNull(financeReviewed);
-        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
-        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), financeReviewed.FinanceReviewedByUserId);
-        Assert.NotNull(financeReviewed.FinanceReviewedAtUtc);
-        Assert.Equal(PurchaseItemStatuses.Ordered, Assert.Single(financeReviewed.Items).PurchaseStatus);
+        Assert.Equal(Guid.Parse("66666666-6666-6666-6666-666666666666"), processed.FinanceApproval!.ActorUserId);
+        Assert.NotNull(processed.FinanceApproval.DecidedAtUtc);
+        Assert.Equal(PurchaseItemStatuses.Ordered, Assert.Single(processed.Items).PurchaseStatus);
         Assert.Equal(MaterialRequirementStatuses.Ordered, (await db.MaterialRequirements.SingleAsync()).Status);
-        Assert.Equal(2, eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>().Count());
+        Assert.Equal(3, eventPublisher.PublishedEvents.OfType<PurchaseRequestReviewedEvent>().Count());
     }
 
     [Fact]
@@ -369,6 +560,9 @@ public sealed class PurchaseRequestServiceTests
         var approved = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(approved.Items).Id;
 
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, itemId, "Supplier A", 2_750_000m))!;
+        await ApproveBothAsync(service, priced);
+
         var processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
             itemId,
@@ -379,8 +573,6 @@ public sealed class PurchaseRequestServiceTests
                 2_750_000m,
                 "Material ordered"),
             CancellationToken.None);
-        await FinanceApprovePurchaseRequestAsync(service, processed!);
-
         var updated = await service.UpdatePurchaseItemInfoAsync(
             purchaseRequest.Id,
             itemId,
@@ -416,6 +608,16 @@ public sealed class PurchaseRequestServiceTests
         purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
 
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, itemId, "PT. Krakatau Steel", 7_300_000m))!;
+        var financeReviewed = await FinanceApprovePurchaseRequestAsync(service, priced);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReceivePurchaseItemAsync(
+            purchaseRequest.Id,
+            itemId,
+            new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Owner approval is still pending"),
+            CancellationToken.None));
+
+        await OwnerApprovePurchaseRequestAsync(service, financeReviewed);
         var processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
             itemId,
@@ -424,7 +626,8 @@ public sealed class PurchaseRequestServiceTests
                 new DateOnly(2026, 5, 25),
                 "PO-2026-041",
                 7_300_000m,
-                "Stok cutting tool untuk mesin CNC"),
+                "Stok cutting tool untuk mesin CNC",
+                7_300_000m),
             CancellationToken.None);
 
         var processedItem = Assert.Single(processed!.Items);
@@ -436,19 +639,10 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(new DateOnly(2026, 5, 25), processedItem.ExpectedArrivalDate);
         Assert.Equal(MaterialRequirementStatuses.Ordered, (await db.MaterialRequirements.SingleAsync()).Status);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReceivePurchaseItemAsync(
-            processed!.Id,
-            itemId,
-            new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Should wait for Finance approval"),
-            CancellationToken.None));
-
-        var financeReviewed = await FinanceApprovePurchaseRequestAsync(service, processed!);
-        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed.Status);
-
         eventPublisher.PublishedEvents.Clear(); // Clear events before receiving
 
         var received = await service.ReceivePurchaseItemAsync(
-            financeReviewed.Id,
+            processed!.Id,
             itemId,
             new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Barang diterima lengkap"),
             CancellationToken.None);
@@ -477,6 +671,8 @@ public sealed class PurchaseRequestServiceTests
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
         purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, itemId, "Supplier A", 2_750_000m))!;
+        await ApproveBothAsync(service, priced);
 
         var rejected = await service.RejectPurchaseItemAsync(
             purchaseRequest.Id,
@@ -500,12 +696,13 @@ public sealed class PurchaseRequestServiceTests
         var purchaseRequest = await CreateLinkedPurchaseRequestAsync(service, requirement);
         purchaseRequest = await AcceptPurchaseRequestAsync(service, purchaseRequest);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, itemId, "Supplier A", 2_750_000m))!;
+        await ApproveBothAsync(service, priced);
         var processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
             itemId,
-            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 18), "PO-2026-001", 2_750_000m, null),
+            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 18), "PO-2026-001", 2_750_000m, null, 2_750_000m),
             CancellationToken.None);
-        await FinanceApprovePurchaseRequestAsync(service, processed!);
         await service.UpdatePurchaseItemInfoAsync(
             purchaseRequest.Id,
             itemId,
@@ -570,16 +767,20 @@ public sealed class PurchaseRequestServiceTests
         var item1Id = purchaseRequest.Items.First(i => i.MaterialRequirementId == requirement1.Id).Id;
         var item2Id = purchaseRequest.Items.First(i => i.MaterialRequirementId == requirement2.Id).Id;
 
+        await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, item1Id, "Supplier A", 1_000_000m);
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, item2Id, "Supplier B", 500_000m))!;
+        await ApproveBothAsync(service, priced);
+
         var processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
             item1Id,
-            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 25), "PO-2026-001", 1_000_000m, null),
+            new ProcessPurchaseItemRequest("Supplier A", new DateOnly(2026, 5, 25), "PO-2026-001", 1_000_000m, null, 1_000_000m),
             CancellationToken.None);
             
         processed = await service.ProcessPurchaseItemAsync(
             purchaseRequest.Id,
             item2Id,
-            new ProcessPurchaseItemRequest("Supplier B", new DateOnly(2026, 5, 26), "PO-2026-002", 500_000m, null),
+            new ProcessPurchaseItemRequest("Supplier B", new DateOnly(2026, 5, 26), "PO-2026-002", 500_000m, null, 500_000m),
             CancellationToken.None);
 
         Assert.Equal(PurchaseRequestStatuses.Processing, processed!.Status);
@@ -597,7 +798,7 @@ public sealed class PurchaseRequestServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_manual_pr_without_so_skips_supervisor_but_requires_finance_approval()
+    public async Task CreateAsync_manual_pr_without_so_skips_supervisor_but_requires_both_parallel_approvals()
     {
         await using var db = CreateDbContext();
         var service = CreateService(db);
@@ -620,37 +821,27 @@ public sealed class PurchaseRequestServiceTests
         Assert.Equal(PurchaseRequestStatuses.SupervisorApproved, purchaseRequest.Status);
         var itemId = Assert.Single(purchaseRequest.Items).Id;
 
-        // 2. Purchasing processes the item (adds price and PO)
-        var processed = await service.ProcessPurchaseItemAsync(
+        // Pricing must be ready before either parallel approval is recorded.
+        var priced = (await SetPurchaseItemPricingAsync(service, purchaseRequest.Id, itemId, "Gramedia", 500_000m))!;
+        var financeReviewed = await FinanceApprovePurchaseRequestAsync(service, priced);
+
+        // Finance alone does not satisfy the purchasing gate.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReceivePurchaseItemAsync(
             purchaseRequest.Id,
             itemId,
-            new ProcessPurchaseItemRequest("Gramedia", new DateOnly(2026, 6, 1), "PO-MANUAL-001", 500_000m, null),
-            CancellationToken.None);
-
-        Assert.Equal(PurchaseRequestStatuses.Processing, processed!.Status);
-
-        // 3. Trying to receive the item before Finance approves should fail
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReceivePurchaseItemAsync(
-            processed.Id,
-            itemId,
-            new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Should fail"),
+            new ReceivePurchaseItemRequest(new DateOnly(2026, 5, 24), "Owner approval is pending"),
             CancellationToken.None));
 
-        // 4. Finance approves the PR
-        var financeReviewed = await service.ReviewAsync(
-            processed.Id,
-            new ReviewPurchaseRequest(
-                Guid.Parse("66666666-6666-6666-6666-666666666666"),
-                "Accept",
-                null,
-                "Finance"),
+        var bothApproved = (await OwnerApprovePurchaseRequestAsync(service, financeReviewed))!;
+        var processed = await service.ProcessPurchaseItemAsync(
+            bothApproved.Id,
+            itemId,
+            new ProcessPurchaseItemRequest("Gramedia", new DateOnly(2026, 6, 1), "PO-MANUAL-001", 500_000m, null, 500_000m),
             CancellationToken.None);
+        Assert.Equal(PurchaseRequestStatuses.Processing, processed!.Status);
 
-        Assert.Equal(PurchaseRequestStatuses.FinanceApproved, financeReviewed!.Status);
-
-        // 5. Now it can be received
         var received = await service.ReceivePurchaseItemAsync(
-            financeReviewed.Id,
+            processed.Id,
             itemId,
             new ReceivePurchaseItemRequest(new DateOnly(2026, 6, 1), "Received normally"),
             CancellationToken.None);
@@ -873,6 +1064,16 @@ public sealed class PurchaseRequestServiceTests
         var item = Assert.Single(financeApprovedEvent.Items);
         Assert.Equal("Custom Table", item.ItemName);
         Assert.Equal("Consumable", item.PurchaseCategory);
+
+        var ownerApproved = await OwnerApprovePurchaseRequestAsync(service, reviewed);
+        Assert.True(ownerApproved!.IsFullyApproved);
+        Assert.Single(publisher.PublishedEvents.OfType<PurchaseRequestFinanceApprovedEvent>());
+        await service.FinanceApprovalAsync(
+            purchaseRequest.Id,
+            new PurchaseRequestApprovalDecisionRequest("Approved", null),
+            Guid.Parse("66666666-6666-6666-6666-666666666666"),
+            CancellationToken.None);
+        Assert.Single(publisher.PublishedEvents.OfType<PurchaseRequestFinanceApprovedEvent>());
     }
 
     [Fact]
@@ -1038,6 +1239,45 @@ public sealed class PurchaseRequestServiceTests
             CancellationToken.None);
 
         return reviewed!;
+    }
+
+    private static Task<PurchaseRequestDto?> OwnerApprovePurchaseRequestAsync(
+        PurchaseRequestService service,
+        PurchaseRequestDto purchaseRequest) =>
+        service.OwnerApprovalAsync(
+            purchaseRequest.Id,
+            new PurchaseRequestApprovalDecisionRequest("Approved", null),
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            CancellationToken.None);
+
+    private static Task<PurchaseRequestDto?> OwnerRejectPurchaseRequestAsync(
+        PurchaseRequestService service,
+        PurchaseRequestDto purchaseRequest,
+        string reason) =>
+        service.OwnerApprovalAsync(
+            purchaseRequest.Id,
+            new PurchaseRequestApprovalDecisionRequest("Rejected", reason),
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            CancellationToken.None);
+
+    private static Task<PurchaseRequestDto?> SetPurchaseItemPricingAsync(
+        PurchaseRequestService service,
+        Guid purchaseRequestId,
+        Guid itemId,
+        string supplier,
+        decimal amount) =>
+        service.UpdatePurchaseItemInfoAsync(
+            purchaseRequestId,
+            itemId,
+            new UpdatePurchaseItemInfoRequest(supplier, null, null, null, null, null, null, amount, amount),
+            CancellationToken.None);
+
+    private static async Task<PurchaseRequestDto> ApproveBothAsync(
+        PurchaseRequestService service,
+        PurchaseRequestDto purchaseRequest)
+    {
+        var finance = await FinanceApprovePurchaseRequestAsync(service, purchaseRequest);
+        return (await OwnerApprovePurchaseRequestAsync(service, finance))!;
     }
 
     private sealed class RecordingEventPublisher : IEventPublisher

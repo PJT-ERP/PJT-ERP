@@ -13,4 +13,7 @@ public sealed class SalesOrderComment
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public bool IsEdited { get; set; } = false;
     public bool IsDeleted { get; set; } = false;
+    public string? FileUrl { get; set; }
+    public string? FileName { get; set; }
+    public string? FileType { get; set; }
 }

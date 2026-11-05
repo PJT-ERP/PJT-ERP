@@ -272,12 +272,19 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
 
         await FileUploadSecurityValidator.ValidateFileAsync(request.ProofFile, cancellationToken);
 
-        var safeInvoiceNumber = invoice.InvoiceNumber.Replace("/", "-");
+        var safeInvoiceNumber = FileUploadSecurityValidator.SanitizePrefix(invoice.InvoiceNumber);
         var sanitizedName = FileUploadSecurityValidator.SanitizeFileName(originalFileName);
         var uniqueFileName = $"bukti-{safeInvoiceNumber}-{sanitizedName}";
         var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "proofs");
         Directory.CreateDirectory(uploadsFolder);
         var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        var fullPath = Path.GetFullPath(filePath);
+        var baseDir = Path.GetFullPath(uploadsFolder);
+        if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Invalid upload file path.");
+        }
 
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
@@ -478,12 +485,19 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
         {
             await FileUploadSecurityValidator.ValidateFileAsync(request.ProofFile, cancellationToken);
             var originalFileName = request.ProofFile.FileName;
-            var safePoNumber = request.PoNumber.Replace("/", "-");
+            var safePoNumber = FileUploadSecurityValidator.SanitizePrefix(request.PoNumber);
             var sanitizedName = FileUploadSecurityValidator.SanitizeFileName(originalFileName);
             var uniqueFileName = $"bukti-{safePoNumber}-{sanitizedName}";
             var uploadsFolder = Path.Combine(env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "proofs");
             Directory.CreateDirectory(uploadsFolder);
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            var fullPath = Path.GetFullPath(filePath);
+            var baseDir = Path.GetFullPath(uploadsFolder);
+            if (!fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !fullPath.Equals(baseDir, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Invalid upload file path.");
+            }
 
             using (var stream = new FileStream(filePath, FileMode.Create))
             {

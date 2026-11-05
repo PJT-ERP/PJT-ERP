@@ -14,7 +14,7 @@ const S = {
 import { Search, FileText, CheckCircle, ExternalLink, List, History } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { SOStatus } from "../data/mockData";
-import { formatUrl } from "../../services/backendIds";
+import { formatUrl, isGuid, toBackendUserId } from "../../services/backendIds";
 import { StatusBadge } from "../shared/StatusBadge";
 import { salesApi } from "../../services/salesApi";
 import { getMaterialOptions } from "../production/ProductionHelpers";
@@ -23,14 +23,17 @@ import { useFinanceData } from "./useFinanceData";
 import { useSalesOrdersQuery } from "../../services/queries";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { mapSalesOrderDto, formatDocNumber, isQuotationEntry } from "../context/hooks/dataMappers";
+
 export function FinanceCosting() {
-  const { customers, updateSalesOrder } = useApp();
+  const { customers, currentUser, updateSalesOrder } = useApp();
   const { invoices } = useFinanceData(true, false);
   const { data: salesOrders = [] } = useSalesOrdersQuery();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
   const [queues, setQueues] = useState<FinanceCostingQueuesDto | null>(null);
@@ -39,15 +42,46 @@ export function FinanceCosting() {
     productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
   }, [salesOrders]);
 
-  const waitingPricingSO = (queues?.waitingPricing || []).map(so => ({
-    ...so,
-    isQuotation: false
-  }));
+  const waitingPricingSO = React.useMemo(() => {
+    const queueItems = (queues?.waitingPricing || []).map(so => mapSalesOrderDto(so as any));
+    const map = new Map<string, any>();
+    queueItems.forEach(so => map.set(so.id, so));
 
-  const historySO = (queues?.pricingHistory || []).map(so => ({
-    ...so,
-    isQuotation: false
-  })).sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+    const eligibleStatuses = ['Waiting Pricing', 'Ready for Production', 'In Production', 'QC', 'Completed'];
+    salesOrders.forEach(so => {
+      if (!so.isCostingCompleted && (eligibleStatuses.includes(so.status) || (so as any).designStatus === 'Approved' || so.backendDesignStatus === 'Approved')) {
+        if (!map.has(so.id)) {
+          map.set(so.id, so);
+        }
+      }
+    });
+
+    return Array.from(map.values()).map(so => ({
+      ...so,
+      displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status) : (so.soNumber || so.id),
+      isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
+    }));
+  }, [queues, salesOrders]);
+
+  const historySO = React.useMemo(() => {
+    const queueItems = (queues?.pricingHistory || []).map(so => mapSalesOrderDto(so as any));
+    const map = new Map<string, any>();
+    queueItems.forEach(so => map.set(so.id, so));
+
+    salesOrders.forEach(so => {
+      if (so.isCostingCompleted && !map.has(so.id)) {
+        map.set(so.id, so);
+      }
+    });
+
+    return Array.from(map.values())
+      .map(so => ({
+        ...so,
+        displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status) : (so.soNumber || so.id),
+        isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
+      }))
+      .sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+  }, [queues, salesOrders]);
 
   const activeList = activeTab === 'queue' ? waitingPricingSO : historySO;
 
@@ -87,12 +121,12 @@ export function FinanceCosting() {
     }
   }, [selectedItem]);
 
-  const handleSubmitCosting = () => {
+  const handleSubmitCosting = async () => {
     if (!selectedItem || !selectedItem.items) return;
     setIsSubmitting(true);
-    
-    setTimeout(async () => {
-      // Handle SO logic
+    setSubmitError("");
+
+    try {
       const updatedItems = selectedItem.items!.map((item: any, idx: number) => {
         const key = item.id || item.productId || idx.toString();
         return {
@@ -102,12 +136,29 @@ export function FinanceCosting() {
       });
 
       const totalPriced = updatedItems.reduce((sum: number, item: any) => sum + (item.unitPrice || 0) * (item.quantity || item.qty || 1), 0);
-      const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production"].includes(selectedItem.status);
-      const newStatus = preserveStatus ? selectedItem.status : "Waiting Payment";
-      const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || "Waiting Payment") : "Waiting Payment";
+      const preserveStatus = ["In Production", "QC", "Completed", "Ready for Production", "Waiting Payment"].includes(selectedItem.status);
+      const newStatus = preserveStatus ? selectedItem.status : "Waiting Client Approval";
+      const newBackendStatus = preserveStatus ? (selectedItem.backendStatus || selectedItem.status) : "WaitingClientApproval";
 
-      try {
-        // Backend integration
+      if (isQuotationEntry(selectedItem)) {
+        const quotationId = selectedItem.backendId;
+        const financeUserId = toBackendUserId(currentUser);
+        if (!quotationId || !isGuid(quotationId)) {
+          throw new Error("ID database quotation tidak tersedia; harga tidak dikirim.");
+        }
+        if (!financeUserId) {
+          throw new Error("ID akun Finance tidak tersedia; harga tidak dikirim.");
+        }
+
+        // Quotations remain dedicated entities until explicit conversion.
+        await salesApi.submitQuotationPricing(quotationId, {
+          amount: totalPriced,
+          notes: costingNotes || undefined,
+          financeUserId,
+          financeUserName: currentUser?.name || "Finance",
+        });
+      } else {
+        // Real SalesOrders continue to use their existing pricing endpoint.
         await salesApi.updateSalesOrderPricing(selectedItem.backendId || selectedItem.id, {
           items: updatedItems.map((item: any) => ({
             salesOrderItemId: item.id,
@@ -115,16 +166,7 @@ export function FinanceCosting() {
           }))
         });
 
-        // Local state update for smooth UX
-        updateSalesOrder(selectedItem.id, { 
-          items: updatedItems,
-          estimatedAmount: totalPriced,
-          status: newStatus,
-          backendStatus: newBackendStatus,
-        });
-      } catch (error) {
-        console.error("Failed to update pricing to backend", error);
-        alert("Gagal menyimpan ke backend. Menjalankan secara lokal.");
+        // Reflect SalesOrder pricing locally only after the API succeeds.
         updateSalesOrder(selectedItem.id, { 
           items: updatedItems,
           estimatedAmount: totalPriced,
@@ -132,13 +174,19 @@ export function FinanceCosting() {
           backendStatus: newBackendStatus,
         });
       }
-      
-      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['salesOrders'] }),
+        queryClient.invalidateQueries({ queryKey: ['quotations'] }),
+      ]);
       productionApi.getFinanceCostingQueues().then(setQueues).catch(console.error);
-      
       setIsSubmitting(false);
       setSubmitSuccess(true);
-    }, 800);
+    } catch (error: any) {
+      console.error("Failed to update pricing to backend", error);
+      setSubmitError(error?.response?.data?.message || error?.message || "Gagal menyimpan harga ke backend.");
+      setIsSubmitting(false);
+    }
   };
 
   const calculateTotal = () => {
@@ -232,7 +280,7 @@ export function FinanceCosting() {
                   borderBottom: idx < filteredList.length - 1 ? `1px solid ${S.border}` : "none"
                 }}
               >
-                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.soNumber || so.id}</span>
+                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.displayDocNumber || formatDocNumber(so.soNumber || so.id, so.status)}</span>
                 <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers?.find(c => c.code === so.customerId)?.name || so.customerName || so.customerId}</span>
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.items?.[0]?.productDescription || so.items?.[0]?.productPartNumber || so.productName || so.description || "-"}</span>
@@ -249,7 +297,7 @@ export function FinanceCosting() {
                 </div>
                 <div>
                   <button 
-                    onClick={() => setSelectedItem(so)}
+                  onClick={() => { setSubmitError(""); setSubmitSuccess(false); setSelectedItem(so); }}
                     style={{ fontSize: "11px", background: activeTab === 'queue' ? S.cyan : S.white, color: activeTab === 'queue' ? "#fff" : S.slate, border: activeTab === 'queue' ? "none" : `1px solid ${S.border}`, padding: "6px 12px", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
                   >
                     {activeTab === 'queue' ? (isPricedBySales ? "Review Harga" : "Set Harga") : "Detail / Revisi"}
@@ -279,8 +327,10 @@ export function FinanceCosting() {
               <div style={{ padding: "60px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <CheckCircle size={50} style={{ color: "#10B981", margin: "0 auto 16px" }} />
                 <h3 style={{ fontSize: "20px", fontWeight: 600, color: S.slate, margin: "0 0 8px" }}>Harga Berhasil Ditetapkan!</h3>
-                <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 400 }}>
-                  Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya.
+                <p style={{ color: S.secondary, fontSize: "14px", margin: "0 0 32px", maxWidth: 460 }}>
+                  {selectedItem?.isQuotation
+                    ? "Harga quotation berhasil disimpan. Penawaran diteruskan ke tahap persetujuan harga pelanggan."
+                    : "Data harga untuk pesanan ini telah berhasil disimpan. Pesanan akan segera diproses ke tahap selanjutnya."}
                 </p>
                 <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                   <button 
@@ -288,23 +338,30 @@ export function FinanceCosting() {
                       setSubmitSuccess(false);
                       setSelectedItem(null);
                     }}
-                    style={{ background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: S.cyan, color: S.white, border: "none", padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
                   >
                     Tutup & Kembali
                   </button>
-                  <button 
-                    onClick={() => {
-                      const soId = selectedItem.backendId || selectedItem.id;
-                      window.location.href = `/erp/finance/create-invoice?so=${soId}`;
-                    }}
-                    style={{ background: S.cyan, color: S.white, border: "none", padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Buat Invoice Sekarang
-                  </button>
+                  {(!selectedItem?.isQuotation && selectedItem?.status !== 'Waiting Client Approval' && selectedItem?.status !== 'Waiting Pricing') && (
+                    <button 
+                      onClick={() => {
+                        const soId = selectedItem.backendId || selectedItem.id;
+                        window.location.href = `/erp/finance/create-invoice?so=${soId}`;
+                      }}
+                      style={{ background: S.white, color: S.slate, border: `1px solid ${S.border}`, padding: "10px 24px", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Buat Invoice Sekarang
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
             <>
+            {submitError && (
+              <div role="alert" style={{ margin: "16px 24px 0", padding: 12, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#991B1B", fontSize: 13 }}>
+                {submitError}
+              </div>
+            )}
             <div style={{ padding: "20px 24px", overflowY: "auto" }}>
               {isReadOnly && (
                 <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: 16, marginBottom: 20 }}>

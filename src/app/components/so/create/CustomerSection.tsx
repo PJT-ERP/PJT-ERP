@@ -1,5 +1,5 @@
 import React from "react";
-import { User, Building2, Phone, Mail, Hash } from "lucide-react";
+import { User, Building2, Phone, Mail, Hash, AlertTriangle } from "lucide-react";
 import { Customer } from "../../data/mockData";
 import { Label, Input, Textarea, SearchableCustomerSelect, SectionCard, Grid2 } from "./FormHelpers";
 import { useFormContext } from "react-hook-form";
@@ -22,7 +22,19 @@ interface CustomerSectionProps {
 export function CustomerSection({ isExistingCustomer, onToggleExisting, customers }: CustomerSectionProps) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<NewOrderFormType>();
   const customerCode = watch("customerForm.customerCode");
-  
+  const companyInput = watch("customerForm.company");
+
+  const normalizeCompanyName = (name: string) =>
+    name.toLowerCase().replace(/^(pt\.|cv\.|tbk\.|ud\.)\s*/i, "").replace(/[^a-z0-9]/gi, "").trim();
+
+  const matchingCustomer = !isExistingCustomer && companyInput && companyInput.trim().length >= 3
+    ? customers.find(c => {
+        const normInput = normalizeCompanyName(companyInput);
+        const normName = normalizeCompanyName(c.name);
+        return (normName.length > 2 && normName === normInput) || c.name.toLowerCase().trim() === companyInput.toLowerCase().trim();
+      })
+    : null;
+
   const handleToggle = (existing: boolean) => {
     onToggleExisting(existing);
     setValue("customerForm.customerCode", "");
@@ -63,10 +75,10 @@ export function CustomerSection({ isExistingCustomer, onToggleExisting, customer
               if (c) {
                 const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
                 setValue("customerForm.customerCode", c.code, options);
-                setValue("customerForm.customerName", c.contactPerson || c.name, options);
+                setValue("customerForm.customerName", c.contactPerson || c.contact || c.name, options);
                 setValue("customerForm.company", c.name, options);
                 setValue("customerForm.phone", c.phone || "", options);
-                setValue("customerForm.email", c.email || c.contact || "", options);
+                setValue("customerForm.email", c.email || "", options);
                 setValue("customerForm.address", c.address || "", options);
               }
             }}
@@ -106,6 +118,60 @@ export function CustomerSection({ isExistingCustomer, onToggleExisting, customer
           <Label text="Alamat Lengkap" />
           <Textarea placeholder="Alamat lengkap perusahaan" {...register("customerForm.address")} readOnly={isExistingCustomer} style={{ minHeight: "60px", opacity: isExistingCustomer ? 0.7 : 1 }} maxLength={400} />
         </div>
+
+        {matchingCustomer && (
+          <div style={{
+            gridColumn: "1 / -1",
+            background: "#FFFBEB",
+            border: "1px solid #FCD34D",
+            borderRadius: 6,
+            padding: "10px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginTop: 4
+          }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <AlertTriangle size={18} style={{ color: "#D97706", flexShrink: 0 }} />
+              <div style={{ fontSize: "12px", color: "#92400E" }}>
+                <p style={{ fontWeight: 600, margin: 0 }}>
+                  Perusahaan Sudah Terdaftar! ({matchingCustomer.name})
+                </p>
+                <p style={{ margin: "2px 0 0 0", color: "#B45309" }}>
+                  Kode: <strong>{matchingCustomer.code}</strong> | PIC Terdaftar: <strong>{matchingCustomer.contactPerson || matchingCustomer.contact || matchingCustomer.name}</strong> ({matchingCustomer.phone || matchingCustomer.email || "No Telp N/A"})
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onToggleExisting(true);
+                const options = { shouldDirty: true, shouldTouch: true, shouldValidate: true };
+                setValue("customerForm.customerCode", matchingCustomer.code, options);
+                setValue("customerForm.customerName", matchingCustomer.contactPerson || matchingCustomer.contact || matchingCustomer.name, options);
+                setValue("customerForm.company", matchingCustomer.name, options);
+                setValue("customerForm.phone", matchingCustomer.phone || "", options);
+                setValue("customerForm.email", matchingCustomer.email || "", options);
+                setValue("customerForm.address", matchingCustomer.address || "", options);
+              }}
+              style={{
+                background: "#D97706",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: 4,
+                padding: "6px 12px",
+                fontSize: "11.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+              }}
+            >
+              Gunakan Pelanggan Terdaftar Ini
+            </button>
+          </div>
+        )}
       </Grid2>
     </SectionCard>
   );

@@ -118,14 +118,6 @@ export function MaterialRequestModal({
 
     try {
       setIsSubmitting(true);
-      
-      // Auto confirm the Sales Order silently before making the MR API call
-      try {
-        const { salesApi } = await import("../../../services/salesApi");
-        await salesApi.confirmSalesOrder(salesOrderId, requesterId);
-      } catch (e) {
-        console.warn("Auto-confirm SO silently failed or already confirmed", e);
-      }
 
       await productionApi.submitMaterialRequest(salesOrderId, {
         requestedByUserId: requesterId,

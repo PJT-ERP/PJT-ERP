@@ -15,6 +15,8 @@ import {
 import { usePurchasingData } from "./usePurchasingData";
 import { PurchaseRequestDto } from "../../services/purchasingApi";
 import { useApp } from "../context/AppContext";
+import { MentionsReminderWidget } from "../shared/MentionsReminderWidget";
+import { OwnerPurchaseRequestApprovals } from "./components/OwnerPurchaseRequestApprovals";
 
 export function DashboardPage() {
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -32,12 +34,12 @@ export function DashboardPage() {
   const taskNeedSourcing = useMemo(() => {
     return purchaseRequests.filter(pr => 
       (pr.status === "SupervisorApproved" && !calculateIsReadyForPo(pr)) ||
-      pr.status === "FinanceRejected" || pr.status === "Rejected"
+      pr.status === "FinanceRejected" || pr.status === "Rejected" || pr.isApprovalBlocked === true
     );
   }, [purchaseRequests]);
 
   const taskReadyForPo = useMemo(() => {
-    return purchaseRequests.filter(pr => (pr.status === "SupervisorApproved" && calculateIsReadyForPo(pr)) || pr.status === "FinanceApproved");
+    return purchaseRequests.filter(pr => pr.isFullyApproved === true && calculateIsReadyForPo(pr));
   }, [purchaseRequests]);
 
   const taskInTransit = useMemo(() => {
@@ -85,6 +87,8 @@ export function DashboardPage() {
           )}
         </div>
       </div>
+
+      {(currentUser?.role === "Owner" || currentUser?.role === "Admin") && <OwnerPurchaseRequestApprovals />}
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -181,7 +185,7 @@ export function DashboardPage() {
           </div>
           <div className="divide-y divide-slate-50">
             {[...taskNeedSourcing, ...taskReadyForPo].slice(0, 5).map(pr => {
-              const isReady = calculateIsReadyForPo(pr);
+              const isReady = pr.isFullyApproved === true && calculateIsReadyForPo(pr);
               return (
                 <div key={pr.id} className="p-5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer" onClick={() => navigate(`/erp/purchasing/requests/${pr.prNumber}`)}>
                   <div className="flex items-center gap-4">
@@ -201,7 +205,7 @@ export function DashboardPage() {
                         color: '#FFFFFF' 
                       }}
                     >
-                      {isReady ? (canCreatePo ? 'SIAP PO' : 'SIAP REVIEW') : 'ISI HARGA'}
+                      {pr.isApprovalBlocked ? 'BLOCKED' : isReady ? (canCreatePo ? 'SIAP PO' : 'SIAP REVIEW') : calculateIsReadyForPo(pr) ? 'MENUNGGU APPROVAL' : 'ISI HARGA'}
                     </span>
                     <ArrowRight size={16} className="text-slate-400" />
                   </div>
@@ -220,8 +224,12 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Tindakan Cepat */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit">
+        {/* Right column */}
+        <div className="flex flex-col gap-4 h-fit">
+          <MentionsReminderWidget />
+
+          {/* Tindakan Cepat */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-fit">
           <div className="px-5 py-4 border-b border-slate-100">
             <h3 className="text-slate-800 text-sm font-semibold">Tindakan Cepat</h3>
           </div>
@@ -280,6 +288,7 @@ export function DashboardPage() {
               </div>
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>

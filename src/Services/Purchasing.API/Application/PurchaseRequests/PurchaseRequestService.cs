@@ -123,6 +123,8 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
     {
         ValidateUpdateRequest(request);
 
+        return await ExecuteLockedAsync(id, async () =>
+        {
         var purchaseRequest = await IncludeItems(db.PurchaseRequests)
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
@@ -191,6 +193,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseRequest.FinanceReviewedByUserId = null;
         purchaseRequest.FinanceReviewedAtUtc = null;
         purchaseRequest.FinanceRejectionReason = null;
+        purchaseRequest.ActiveApprovalCycleNumber = null;
         purchaseRequest.UpdatedAtUtc = now;
 
         var requestedItems = request.Items.ToArray();
@@ -251,18 +254,11 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
+        }, cancellationToken);
     }
 
     public async Task<PurchaseRequestDto?> ReviewAsync(Guid id, ReviewPurchaseRequest request, CancellationToken cancellationToken)
     {
-        var purchaseRequest = await IncludeItems(db.PurchaseRequests)
-            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
-
-        if (purchaseRequest is null)
-        {
-            return null;
-        }
-
         var reviewStage = NormalizeReviewStage(request.ReviewStage);
         var decision = NormalizeReviewDecision(request.Decision);
         if (decision == PurchaseRequestStatuses.Rejected
@@ -271,40 +267,121 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             throw new InvalidOperationException("Rejection reason is required when rejecting a purchase request.");
         }
 
+        if (reviewStage == PurchaseRequestReviewStages.Finance)
+        {
+            return await FinanceApprovalAsync(
+                id,
+                new PurchaseRequestApprovalDecisionRequest(decision, request.RejectionReason),
+                request.ReviewedByUserId,
+                cancellationToken);
+        }
+
+        return await ExecuteLockedAsync(id, async () =>
+        {
+        var purchaseRequest = await IncludeItems(db.PurchaseRequests)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+
+        if (purchaseRequest is null) return null;
+
         var now = DateTime.UtcNow;
-        if (reviewStage == PurchaseRequestReviewStages.Supervisor)
-        {
-            ApplySupervisorReview(purchaseRequest, request, decision, now);
-        }
-        else
-        {
-            ApplyFinanceReview(purchaseRequest, request, decision, now);
-        }
+        ApplySupervisorReview(purchaseRequest, request, decision, now);
 
         purchaseRequest.ReviewedByUserId = request.ReviewedByUserId;
         purchaseRequest.ReviewedAtUtc = now;
         purchaseRequest.UpdatedAtUtc = now;
-
-        if (reviewStage != PurchaseRequestReviewStages.Supervisor && decision == PurchaseRequestStatuses.Approved)
-        {
-            var adhocItems = purchaseRequest.Items
-                .Where(i => i.MaterialRequirementId == null && !i.ItemName.StartsWith("MAT-"))
-                .Select(i => new PurchaseRequestFinanceApprovedItem(i.Id, i.ItemName, i.PurchaseCategory, i.Qty, i.Unit))
-                .ToList();
-
-            if (adhocItems.Count > 0)
-            {
-                await eventPublisher.PublishAsync(
-                    new PurchaseRequestFinanceApprovedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, adhocItems),
-                    cancellationToken);
-            }
-        }
 
         await eventPublisher.PublishAsync(
             new PurchaseRequestReviewedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, purchaseRequest.Status, now),
             cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
+        }, cancellationToken);
+    }
+
+    public Task<PurchaseRequestDto?> FinanceApprovalAsync(Guid id, PurchaseRequestApprovalDecisionRequest request, Guid actorUserId, CancellationToken cancellationToken)
+        => RecordParallelApprovalAsync(id, PurchaseRequestApprovalRoles.Finance, request, actorUserId, cancellationToken);
+
+    public Task<PurchaseRequestDto?> OwnerApprovalAsync(Guid id, PurchaseRequestApprovalDecisionRequest request, Guid actorUserId, CancellationToken cancellationToken)
+        => RecordParallelApprovalAsync(id, PurchaseRequestApprovalRoles.Owner, request, actorUserId, cancellationToken);
+
+    private async Task<PurchaseRequestDto?> RecordParallelApprovalAsync(
+        Guid id,
+        string role,
+        PurchaseRequestApprovalDecisionRequest request,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        var decision = NormalizeReviewDecision(request.Decision);
+        if (actorUserId == Guid.Empty)
+            throw new InvalidOperationException("Authenticated approver identity is required.");
+        if (decision == PurchaseRequestStatuses.Rejected && string.IsNullOrWhiteSpace(request.RejectionReason))
+            throw new InvalidOperationException("Rejection reason is required when rejecting a purchase request.");
+
+        return await ExecuteLockedAsync(id, async () =>
+        {
+            var purchaseRequest = await IncludeItems(db.PurchaseRequests)
+                .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+            if (purchaseRequest is null) return null;
+            if (purchaseRequest.Status is not PurchaseRequestStatuses.SupervisorApproved
+                and not PurchaseRequestStatuses.FinanceApproved
+                and not PurchaseRequestStatuses.Approved
+                and not PurchaseRequestStatuses.Processing
+                and not PurchaseRequestStatuses.Completed
+                and not PurchaseRequestStatuses.FinanceRejected
+                and not PurchaseRequestStatuses.Rejected)
+                throw new InvalidOperationException("Supervisor approval is required before Finance or Owner can review the PR.");
+
+            EnsureActiveApprovalCycle(purchaseRequest, DateTime.UtcNow);
+            if (!purchaseRequest.ActiveApprovalCycleNumber.HasValue)
+                throw new InvalidOperationException("Supplier and pricing must be complete before PR approvals can be recorded.");
+
+            var current = purchaseRequest.Approvals
+                .Where(item => item.CycleNumber == purchaseRequest.ActiveApprovalCycleNumber.Value)
+                .ToArray();
+            var approval = current.Single(item => item.Role == role);
+            if (approval.Decision != PurchaseRequestApprovalDecisions.Pending)
+            {
+                if (approval.Decision == decision)
+                    return ToDto(purchaseRequest);
+                throw new InvalidOperationException($"{role} has already recorded a different decision for this approval cycle.");
+            }
+            if (purchaseRequest.Status == PurchaseRequestStatuses.Completed)
+                throw new InvalidOperationException("Completed purchase requests cannot receive new approval decisions.");
+            var now = DateTime.UtcNow;
+            approval.Decision = decision;
+            approval.ActorUserId = actorUserId;
+            approval.DecidedAtUtc = now;
+            approval.RejectionReason = decision == PurchaseRequestStatuses.Rejected ? request.RejectionReason!.Trim() : null;
+            approval.UpdatedAtUtc = now;
+
+            if (role == PurchaseRequestApprovalRoles.Finance)
+            {
+                purchaseRequest.FinanceReviewedByUserId = actorUserId;
+                purchaseRequest.FinanceReviewedAtUtc = now;
+                purchaseRequest.FinanceRejectionReason = approval.RejectionReason;
+
+                if (decision == PurchaseRequestStatuses.Approved)
+                {
+                    var adhocItems = purchaseRequest.Items
+                        .Where(item => item.MaterialRequirementId is null && !item.ItemName.StartsWith("MAT-"))
+                        .Select(item => new PurchaseRequestFinanceApprovedItem(item.Id, item.ItemName, item.PurchaseCategory, item.Qty, item.Unit))
+                        .ToList();
+                    if (adhocItems.Count > 0)
+                        await eventPublisher.PublishAsync(new PurchaseRequestFinanceApprovedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, adhocItems), cancellationToken);
+                }
+            }
+
+            ApplyParallelApprovalState(purchaseRequest, now);
+            purchaseRequest.ReviewedByUserId = actorUserId;
+            purchaseRequest.ReviewedAtUtc = now;
+            purchaseRequest.UpdatedAtUtc = now;
+
+            await eventPublisher.PublishAsync(
+                new PurchaseRequestReviewedEvent(purchaseRequest.Id, purchaseRequest.PrNumber, purchaseRequest.Status, now),
+                cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            return ToDto(purchaseRequest);
+        }, cancellationToken);
     }
 
     public async Task<PurchaseRequestDto?> UpdatePurchaseItemInfoAsync(
@@ -313,6 +390,8 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         UpdatePurchaseItemInfoRequest request,
         CancellationToken cancellationToken)
     {
+        return await ExecuteLockedAsync(purchaseRequestId, async () =>
+        {
         var purchaseRequest = await IncludeItems(db.PurchaseRequests)
             .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
 
@@ -334,6 +413,44 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         var effectiveSupplier = requestedSupplier ?? purchaseItem.SupplierName;
         var effectivePurchaseDate = request.PurchaseDate ?? purchaseItem.PurchaseDate;
 
+        var itemNameBefore = purchaseItem.ItemName;
+        var quantityBefore = purchaseItem.Qty;
+        var supplierBefore = purchaseItem.SupplierName;
+        var estimatedPriceBefore = purchaseItem.EstimatedPrice;
+        var totalPriceBefore = purchaseItem.TotalPrice;
+        var categoryBefore = purchaseItem.PurchaseCategory;
+        var materialChangeRequested = (request.Qty.HasValue && request.Qty.Value > 0 && request.Qty.Value != quantityBefore)
+            || (!string.IsNullOrWhiteSpace(request.ItemName) && request.ItemName.Trim() != itemNameBefore)
+            || (requestedSupplier is not null && requestedSupplier != supplierBefore)
+            || (request.EstimatedPrice.HasValue && request.EstimatedPrice != estimatedPriceBefore)
+            || (requestedTotalPrice.HasValue && requestedTotalPrice != totalPriceBefore)
+            || (request.PurchaseCategory is not null && NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName) != categoryBefore);
+
+        if (materialChangeRequested && purchaseRequest.Items.Any(item => item.PurchaseStatus is PurchaseItemStatuses.Ordered or PurchaseItemStatuses.Received))
+            throw new InvalidOperationException("Commercial or item changes cannot be made after PO processing has started.");
+
+        // A pricing edit against an already approved (but not ordered) item must
+        // reopen it as Requested, then create a fresh parallel approval cycle.
+        if (materialChangeRequested
+            && string.IsNullOrWhiteSpace(request.PurchaseStatus)
+            && string.IsNullOrWhiteSpace(request.PoNumber))
+        {
+            purchaseStatus = PurchaseItemStatuses.Requested;
+        }
+
+        var purchasingProgressRequested = (purchaseStatus is PurchaseItemStatuses.Approved
+            or PurchaseItemStatuses.Ordered
+            or PurchaseItemStatuses.Received
+            or PurchaseItemStatuses.Rejected)
+            || !string.IsNullOrWhiteSpace(request.PoNumber);
+        if (materialChangeRequested && purchasingProgressRequested)
+            throw new InvalidOperationException("Save commercial or item changes first, then obtain both approvals before advancing the item.");
+
+        if (purchasingProgressRequested)
+        {
+            await EnsureDualApprovalAsync(purchaseRequest);
+        }
+
         if (purchaseStatus is PurchaseItemStatuses.Ordered or PurchaseItemStatuses.Received)
         {
             if (string.IsNullOrWhiteSpace(effectiveSupplier))
@@ -345,11 +462,6 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             {
                 throw new InvalidOperationException("Purchase date is required when recording ordered or received material.");
             }
-        }
-
-        if (purchaseStatus == PurchaseItemStatuses.Received)
-        {
-            EnsurePurchaseRequestFinanceApprovedForReceiving(purchaseRequest);
         }
 
         if (request.Qty.HasValue && request.Qty.Value > 0)
@@ -392,9 +504,10 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             purchaseItem.MaterialRequirement.UpdatedAtUtc = purchaseItem.UpdatedAtUtc;
         }
 
-        if (purchaseRequest.Status is PurchaseRequestStatuses.Rejected
+        var wasRejected = purchaseRequest.Status is PurchaseRequestStatuses.Rejected
             or PurchaseRequestStatuses.FinanceRejected
-            or PurchaseRequestStatuses.SupervisorRejected)
+            or PurchaseRequestStatuses.SupervisorRejected;
+        if (wasRejected)
         {
             if (purchaseRequest.Status == PurchaseRequestStatuses.FinanceRejected)
             {
@@ -411,11 +524,44 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
                 purchaseRequest.FinanceReviewedAtUtc = null;
                 purchaseRequest.FinanceReviewedByUserId = null;
             }
+
+            foreach (var rejectedItem in purchaseRequest.Items.Where(item => item.PurchaseStatus == PurchaseItemStatuses.Rejected))
+            {
+                rejectedItem.PurchaseStatus = PurchaseItemStatuses.Requested;
+                rejectedItem.RejectionReason = null;
+                rejectedItem.UpdatedAtUtc = purchaseItem.UpdatedAtUtc;
+                UpdateMaterialRequirementStatus(rejectedItem, MaterialRequirementStatuses.PurchaseRequested, purchaseItem.UpdatedAtUtc);
+            }
         }
+
+        var materialChanged = itemNameBefore != purchaseItem.ItemName
+            || quantityBefore != purchaseItem.Qty
+            || supplierBefore != purchaseItem.SupplierName
+            || estimatedPriceBefore != purchaseItem.EstimatedPrice
+            || totalPriceBefore != purchaseItem.TotalPrice
+            || categoryBefore != purchaseItem.PurchaseCategory;
+        if (materialChanged || wasRejected)
+        {
+            purchaseRequest.ActiveApprovalCycleNumber = null;
+            purchaseRequest.FinanceReviewedByUserId = null;
+            purchaseRequest.FinanceReviewedAtUtc = null;
+            purchaseRequest.FinanceRejectionReason = null;
+            purchaseRequest.RejectionReason = null;
+            if (purchaseRequest.Status is not PurchaseRequestStatuses.Processing and not PurchaseRequestStatuses.Completed)
+                purchaseRequest.Status = PurchaseRequestStatuses.SupervisorApproved;
+            foreach (var activeItem in purchaseRequest.Items.Where(item => item.PurchaseStatus == PurchaseItemStatuses.Approved))
+            {
+                activeItem.PurchaseStatus = PurchaseItemStatuses.Requested;
+                activeItem.UpdatedAtUtc = purchaseItem.UpdatedAtUtc;
+                UpdateMaterialRequirementStatus(activeItem, MaterialRequirementStatuses.PurchaseRequested, purchaseItem.UpdatedAtUtc);
+            }
+        }
+        EnsureActiveApprovalCycle(purchaseRequest, purchaseItem.UpdatedAtUtc);
 
         RefreshPurchaseRequestStatus(purchaseRequest);
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
+        }, cancellationToken);
     }
 
     public async Task<PurchaseRequestDto?> ProcessPurchaseItemAsync(
@@ -424,6 +570,8 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         ProcessPurchaseItemRequest request,
         CancellationToken cancellationToken)
     {
+        return await ExecuteLockedAsync(purchaseRequestId, async () =>
+        {
         if (string.IsNullOrWhiteSpace(request.SupplierName))
         {
             throw new InvalidOperationException("Supplier name is required when processing a purchase request item.");
@@ -446,8 +594,17 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         }
 
         EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "be processed");
+        await EnsureDualApprovalAsync(purchaseRequest);
 
         var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
+        var requestedCategory = request.PurchaseCategory is null
+            ? purchaseItem.PurchaseCategory
+            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName);
+        if (!string.Equals(purchaseItem.SupplierName, request.SupplierName.Trim(), StringComparison.Ordinal)
+            || purchaseItem.EstimatedPrice != request.EstimatedPrice
+            || purchaseItem.TotalPrice != totalPrice
+            || purchaseItem.PurchaseCategory != requestedCategory)
+            throw new InvalidOperationException("Supplier, pricing, and category must match the approved values before PO processing.");
         if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Received)
         {
             throw new InvalidOperationException("Received purchase request items cannot be processed again.");
@@ -463,9 +620,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         purchaseItem.PoNumber = NormalizeOptional(request.PoNumber);
         purchaseItem.EstimatedPrice = request.EstimatedPrice;
         purchaseItem.TotalPrice = totalPrice;
-        purchaseItem.PurchaseCategory = request.PurchaseCategory is null
-            ? purchaseItem.PurchaseCategory
-            : NormalizePurchaseCategory(request.PurchaseCategory, purchaseItem.MaterialRequirementId, purchaseItem.SalesOrderId, purchaseItem.ItemName);
+        purchaseItem.PurchaseCategory = requestedCategory;
         purchaseItem.PurchaseDate = DateOnly.FromDateTime(now);
         purchaseItem.ExpectedArrivalDate = request.ExpectedArrivalDate;
         purchaseItem.ReceivedDate = null;
@@ -479,6 +634,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
+        }, cancellationToken);
     }
 
     public async Task<PurchaseRequestDto?> RejectPurchaseItemAsync(
@@ -487,6 +643,8 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         RejectPurchaseItemRequest request,
         CancellationToken cancellationToken)
     {
+        return await ExecuteLockedAsync(purchaseRequestId, async () =>
+        {
         var purchaseRequest = await IncludeItems(db.PurchaseRequests)
             .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
 
@@ -502,6 +660,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         }
 
         EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "have items rejected by Purchasing");
+        await EnsureDualApprovalAsync(purchaseRequest);
 
         var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
         if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Received)
@@ -520,6 +679,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
+        }, cancellationToken);
     }
 
     public async Task<PurchaseRequestDto?> ReceivePurchaseItemAsync(
@@ -528,6 +688,8 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         ReceivePurchaseItemRequest request,
         CancellationToken cancellationToken)
     {
+        return await ExecuteLockedAsync(purchaseRequestId, async () =>
+        {
         var purchaseRequest = await IncludeItems(db.PurchaseRequests)
             .FirstOrDefaultAsync(item => item.Id == purchaseRequestId, cancellationToken);
 
@@ -542,7 +704,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         }
 
         EnsurePurchaseRequestAcceptedForPurchasing(purchaseRequest, "receive material");
-        EnsurePurchaseRequestFinanceApprovedForReceiving(purchaseRequest);
+        await EnsureDualApprovalAsync(purchaseRequest);
 
         var purchaseItem = FindPurchaseItem(purchaseRequest, itemId);
         if (purchaseItem.PurchaseStatus == PurchaseItemStatuses.Rejected)
@@ -606,6 +768,7 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(purchaseRequest);
+        }, cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<MaterialRequirementDto>> ListMaterialRequirementsAsync(
@@ -712,8 +875,9 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
 
     public async Task<PurchaseRequestDto?> RequestRevisionAsync(Guid id, RequestPrRevisionRequest request, CancellationToken cancellationToken)
     {
-        var pr = await db.PurchaseRequests
-            .Include(x => x.Items)
+        return await ExecuteLockedAsync(id, async () =>
+        {
+        var pr = await IncludeItems(db.PurchaseRequests)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
             
         if (pr is null) return null;
@@ -726,6 +890,13 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
         var now = DateTime.UtcNow;
         pr.Status = PurchaseRequestStatuses.Submitted;
         pr.RevisionNote = request.RevisionNote.Trim();
+        pr.ActiveApprovalCycleNumber = null;
+        pr.FinanceReviewedByUserId = null;
+        pr.FinanceReviewedAtUtc = null;
+        pr.FinanceRejectionReason = null;
+        pr.SupervisorReviewedByUserId = null;
+        pr.SupervisorReviewedAtUtc = null;
+        pr.SupervisorRejectionReason = null;
         pr.UpdatedAtUtc = now;
 
         foreach (var rev in request.Items)
@@ -734,11 +905,18 @@ public sealed partial class PurchaseRequestService(PurchasingContext db, IEventP
             if (item != null)
             {
                 item.Size = rev.NewSpecification.Trim();
+                item.SupplierName = null;
+                item.PoNumber = null;
+                item.EstimatedPrice = null;
+                item.TotalPrice = null;
+                item.PurchaseStatus = PurchaseItemStatuses.Requested;
+                item.RejectionReason = null;
                 item.UpdatedAtUtc = now;
             }
         }
 
         await db.SaveChangesAsync(cancellationToken);
         return ToDto(pr);
+        }, cancellationToken);
     }
 }

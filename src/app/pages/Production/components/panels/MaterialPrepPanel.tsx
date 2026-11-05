@@ -4,6 +4,7 @@ import { Package, FileWarning } from "lucide-react";
 import { SalesOrder } from "../../../../components/data/mockData";
 import { S, StatusBadge, DrawingLinks } from "../../../../components/production/ProductionHelpers";
 import { PaginationControl } from "../../../../components/production/PaginationControl";
+import { getMaterialOptions } from "../material-request/MaterialRequestHelpers";
 import { InlineBomDisplay } from "../InlineBomDisplay";
 import { useProductionBoard } from "../../hooks/useProductionBoard";
 
@@ -43,7 +44,7 @@ export function MaterialPrepPanel({ board }: Props) {
             <p style={{ color: S.secondary, margin: "0", fontSize: "13.5px" }}>Tidak ada pesanan pada tahap persiapan material</p>
           </div>
         ) : pendingMaterialPrep.slice((page - 1) * itemsPerPage, page * itemsPerPage).map((so: SalesOrder, idx: number) => {
-          const hasBom = so.materials && Array.isArray(so.materials) && so.materials.length > 0;
+          const hasBom = getMaterialOptions(so, true).length > 0;
           const isShortage = checkMaterialShortage(so);
           const mrState = getMaterialRequestState(so);
           const hasMr = mrState !== 'none';

@@ -48,6 +48,14 @@ services:
         ENTRY_DLL: Identity.API.dll
     restart: unless-stopped
     environment: *api-environment
+    volumes:
+      - pjt_dev_daily_report_uploads:/app/data/daily-report-uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
     depends_on:
       db:
         condition: service_healthy
@@ -149,7 +157,7 @@ services:
       - "5010:8080"
     depends_on:
       identity-api:
-        condition: service_started
+        condition: service_healthy
       masterdata-api:
         condition: service_started
       production-api:
@@ -171,7 +179,7 @@ services:
         VITE_DEV_MASTER_TOKEN: "${VITE_DEV_MASTER_TOKEN:-}"
     restart: unless-stopped
     ports:
-      - "5174:80"
+      - "5174:8080"
     depends_on:
       web-gateway:
         condition: service_started
@@ -181,3 +189,4 @@ volumes:
   pjt_dev_db:
   pjt_dev_qc_photos:
   pjt_dev_finance_proofs:
+  pjt_dev_daily_report_uploads:

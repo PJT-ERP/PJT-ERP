@@ -75,7 +75,17 @@ export function StockMutationModal({ isOpen, onClose, onSuccess, item }: StockMu
             <div>
               <label className={labelClass}>Kuantitas <span className="text-[#C8102E]">*</span></label>
               <div className="flex gap-2">
-                <input required type="number" min="1" value={qty} onChange={e => setQty(e.target.value === "" ? "" : Number(e.target.value))} className={inputClass} placeholder="0" />
+                <input 
+                  type="text" 
+                  required 
+                  value={qty === "" ? "" : Number(qty).toLocaleString("id-ID")} 
+                  onChange={e => {
+                    const rawValue = e.target.value.replace(/[^0-9]/g, "");
+                    setQty(rawValue === "" ? "" : Number(rawValue));
+                  }} 
+                  className={inputClass} 
+                  placeholder="0" 
+                />
                 <div className="flex items-center justify-center px-3 bg-slate-100 border border-slate-200 rounded text-xs text-slate-600 font-medium whitespace-nowrap">
                   {item.unit}
                 </div>

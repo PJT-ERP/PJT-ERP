@@ -30,6 +30,8 @@ public sealed class SalesOrder
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public decimal? EstimatedAmount { get; set; }
     public bool IsCostingCompleted { get; set; } = false;
+    public decimal? DpPercentage { get; set; }
+    public DateOnly? DpDueDate { get; set; }
     public List<SalesOrderItem> Items { get; set; } = [];
     public List<ProductionOrder> ProductionOrders { get; set; } = [];
     public List<SalesOrderDesignRevision> DesignRevisions { get; set; } = [];

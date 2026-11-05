@@ -61,6 +61,11 @@ export interface PurchaseRequestDto {
   financeRejectionReason?: string | null;
   revisionNote?: string | null;
   updatedAtUtc: string;
+  activeApprovalCycleNumber?: number | null;
+  financeApproval?: PurchaseRequestApprovalDecisionDto | null;
+  ownerApproval?: PurchaseRequestApprovalDecisionDto | null;
+  isFullyApproved?: boolean;
+  isApprovalBlocked?: boolean;
   items: Array<{
     id: string;
     materialRequirementId?: string | null;
@@ -86,6 +91,19 @@ export interface PurchaseRequestDto {
     rejectionReason?: string | null;
     notes?: string | null;
   }>;
+}
+
+export interface PurchaseRequestApprovalDecisionDto {
+  role: string;
+  decision: 'Pending' | 'Approved' | 'Rejected' | string;
+  actorUserId?: string | null;
+  decidedAtUtc?: string | null;
+  rejectionReason?: string | null;
+}
+
+export interface PurchaseRequestApprovalDecisionRequest {
+  decision: 'Approved' | 'Rejected';
+  rejectionReason?: string;
 }
 
 export interface CreatePurchaseRequestPayload {
@@ -171,6 +189,22 @@ export const purchasingApi = {
   }) {
     const response = await apiClient.post<PurchaseRequestDto>(
       `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/finance-review`,
+      request,
+    );
+    return response.data;
+  },
+
+  async reviewPurchaseRequestFinanceApproval(purchaseRequestId: string, request: PurchaseRequestApprovalDecisionRequest) {
+    const response = await apiClient.post<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/finance-approval`,
+      request,
+    );
+    return response.data;
+  },
+
+  async reviewPurchaseRequestOwnerApproval(purchaseRequestId: string, request: PurchaseRequestApprovalDecisionRequest) {
+    const response = await apiClient.post<PurchaseRequestDto>(
+      `/api/v1/purchasing/purchase-requests/${purchaseRequestId}/owner-approval`,
       request,
     );
     return response.data;

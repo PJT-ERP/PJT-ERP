@@ -7,6 +7,9 @@ namespace PJT_ERP.Identity.Api.Infrastructure.Persistence;
 public sealed class IdentityContext(DbContextOptions<IdentityContext> options) : DbContext(options), IUnitOfWork
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<DailyReport> DailyReports => Set<DailyReport>();
+    public DbSet<DailyReportTask> DailyReportTasks => Set<DailyReportTask>();
+    public DbSet<DailyReportAttachment> DailyReportAttachments => Set<DailyReportAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +31,35 @@ public sealed class IdentityContext(DbContextOptions<IdentityContext> options) :
             builder.Property(user => user.UpdatedAtUtc).HasColumnName("updated_at_utc");
             builder.Ignore(user => user.IsActive);
             builder.Ignore(user => user.RoleList);
+        });
+
+        modelBuilder.Entity<DailyReport>(builder =>
+        {
+            builder.ToTable("daily_reports");
+            builder.HasKey(report => report.Id);
+            builder.HasIndex(report => new { report.UserId, report.ReportDate }).IsUnique();
+            builder.Property(report => report.UserName).HasMaxLength(255).IsRequired();
+            builder.Property(report => report.UserRole).HasMaxLength(120).IsRequired();
+            builder.Property(report => report.Summary).HasMaxLength(2000).IsRequired();
+            builder.HasMany(report => report.Tasks).WithOne(task => task.DailyReport).HasForeignKey(task => task.DailyReportId).OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(report => report.Attachments).WithOne(attachment => attachment.DailyReport).HasForeignKey(attachment => attachment.DailyReportId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DailyReportTask>(builder =>
+        {
+            builder.ToTable("daily_report_tasks");
+            builder.HasKey(task => task.Id);
+            builder.Property(task => task.Description).HasMaxLength(500).IsRequired();
+        });
+
+        modelBuilder.Entity<DailyReportAttachment>(builder =>
+        {
+            builder.ToTable("daily_report_attachments");
+            builder.HasKey(attachment => attachment.Id);
+            builder.Property(attachment => attachment.StoredFilePath).HasMaxLength(255).IsRequired();
+            builder.Property(attachment => attachment.OriginalFileName).HasMaxLength(255).IsRequired();
+            builder.Property(attachment => attachment.ContentType).HasMaxLength(100).IsRequired();
+            builder.Property(attachment => attachment.Caption).HasMaxLength(500);
         });
     }
 }

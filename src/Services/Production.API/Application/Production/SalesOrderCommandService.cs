@@ -81,7 +81,7 @@ public class SalesOrderCommandService(
         var estimatedAmount = request.Items.Sum(item => item.Qty * item.UnitPrice);
         
         var isApproved = NormalizeDesignStatus(request.DesignStatus) == "Approved";
-        var status = isApproved ? "Ready for Production" : "Pending Design";
+        var status = isApproved ? "Waiting Pricing" : "Pending Design";
 
         var order = new SalesOrder
         {
@@ -464,7 +464,7 @@ public class SalesOrderCommandService(
 
         if (salesOrder.Status == "Waiting Pricing")
         {
-            salesOrder.Status = "Waiting Payment";
+            salesOrder.Status = "Waiting Client Approval";
         }
         
         salesOrder.IsCostingCompleted = true;
@@ -582,12 +582,20 @@ public class SalesOrderCommandService(
         salesOrder.DesignStatus = designStatus;
         if (designStatus == SalesOrderDesignStatuses.Approved)
         {
-            salesOrder.Status = "Ready for Production";
+            var preProductionStatuses = new[] { "Draft", "Pending Design", "Waiting Spv Approval", "Waiting Approval", "Revision Required" };
+            if (preProductionStatuses.Contains(salesOrder.Status))
+            {
+                salesOrder.Status = "Waiting Pricing";
+            }
             salesOrder.RejectionReason = null;
         }
         else if (designStatus == SalesOrderDesignStatuses.RevisionRequired || designStatus == SalesOrderDesignStatuses.Rejected)
         {
             salesOrder.RejectionReason = request.Notes;
+            if (designStatus == SalesOrderDesignStatuses.RevisionRequired)
+            {
+                salesOrder.Status = "Revision Required";
+            }
         }
 
         var newDesignRef = request.DesignReference is null
@@ -651,7 +659,15 @@ public class SalesOrderCommandService(
         ValidateSalesOrderItems(salesOrder.Items.Select(item => new CreateSalesOrderItemRequest(item.ProductId, item.Qty, item.UnitPrice, item.Notes)).ToArray());
 
         var now = DateTime.UtcNow;
-        salesOrder.Status = SalesOrderStatuses.InProduction;
+        var preProductionStatuses = new[] { "Draft", "Pending Design", "Waiting Spv Approval", "Waiting Pricing", "Waiting Client Approval", "Revision Required" };
+        if (preProductionStatuses.Contains(salesOrder.Status))
+        {
+            salesOrder.Status = SalesOrderStatuses.Confirmed;
+        }
+        else if (salesOrder.Status != SalesOrderStatuses.Cancelled)
+        {
+            salesOrder.Status = SalesOrderStatuses.InProduction;
+        }
         salesOrder.ApprovedByUserId = request.ApprovedByUserId;
         salesOrder.ApprovedAtUtc ??= now;
         salesOrder.UpdatedAtUtc = now;
@@ -770,6 +786,15 @@ public class SalesOrderCommandService(
             order.EstimatedAmount = order.Items.Sum(i => i.Qty * i.UnitPrice);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Status))
+        {
+            var allowedStatuses = new[] { SalesOrderStatuses.Completed, SalesOrderStatuses.QC, SalesOrderStatuses.Cancelled, "Ready for Production", "Waiting Pricing", "Waiting Client Approval", "Pending Design", "Rejected", "Waiting Payment" };
+            if (allowedStatuses.Contains(request.Status))
+            {
+                order.Status = request.Status;
+            }
+        }
+
         order.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
@@ -819,6 +844,9 @@ public class SalesOrderCommandService(
             UserId = request.UserId,
             UserName = request.UserName,
             Content = request.Content,
+            FileUrl = request.FileUrl,
+            FileName = request.FileName,
+            FileType = request.FileType,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -832,7 +860,10 @@ public class SalesOrderCommandService(
             comment.Content,
             comment.CreatedAtUtc,
             comment.IsEdited,
-            comment.IsDeleted
+            comment.IsDeleted,
+            comment.FileUrl,
+            comment.FileName,
+            comment.FileType
         );
     }
 

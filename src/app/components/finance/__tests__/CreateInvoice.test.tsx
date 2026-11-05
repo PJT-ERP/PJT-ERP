@@ -4,6 +4,7 @@ import { CreateInvoice } from '../CreateInvoice';
 import { useFinanceData } from '../useFinanceData';
 import { useApp } from '../../context/AppContext';
 import { financeApi } from '../../../services/financeApi';
+import { salesApi } from '../../../services/salesApi';
 
 vi.mock('../useFinanceData', () => ({
   useFinanceData: vi.fn(),
@@ -118,6 +119,7 @@ describe('CreateInvoice', () => {
         })
       );
     });
+    expect(salesApi.updateSalesOrderPricing).not.toHaveBeenCalled();
   });
 
   it('submits a DP invoice correctly', async () => {
@@ -176,6 +178,29 @@ describe('CreateInvoice', () => {
         })
       );
     });
+    expect(salesApi.updateSalesOrderPricing).not.toHaveBeenCalled();
+  });
+
+  it('keeps the pricing sync for invoice flows outside the payment stage', async () => {
+    setupMockData();
+    vi.mocked(useApp).mockReturnValue({
+      salesOrders: [{
+        id: 'so-1', backendId: 'so-1', soNumber: 'SO-001', isCostingCompleted: true,
+        customerId: 'cust-1', customerName: 'Test Customer', status: 'Ready for Production',
+        deadline: '2026-08-01', items: [{ id: 'item-1', productId: 'prod-1', productName: 'Test Product', quantity: 10, unitPrice: 5000 }],
+      }],
+    } as any);
+    vi.mocked(financeApi.createInvoice).mockResolvedValue({ invoiceNumber: 'INV-003' } as any);
+
+    render(<CreateInvoice />);
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'so-1' } });
+    expect(await screen.findByDisplayValue('2026-08-01')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Simpan Invoice/i }));
+
+    await waitFor(() => expect(salesApi.updateSalesOrderPricing).toHaveBeenCalledWith('so-1', {
+      items: [{ salesOrderItemId: 'item-1', unitPrice: 5000 }],
+    }));
+    expect(financeApi.createInvoice).toHaveBeenCalled();
   });
 
   it('hides Sales Orders that have not completed Penetapan Harga (Costing)', async () => {

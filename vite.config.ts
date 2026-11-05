@@ -33,6 +33,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/api': 'http://localhost:5000',
       '/proofs': 'http://localhost:5000',
       '/qc-photos': 'http://localhost:5000',
     }
@@ -41,7 +42,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
-    exclude: ['**/node_modules/**', '**/dist/**', '**/.kilo/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.kilo/**', '**/e2e/**'],
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.

@@ -86,7 +86,9 @@ function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) 
     if (success) {
       onClose();
     } else {
-      setErrorMsg("Gagal menyimpan data user. Pastikan email belum digunakan oleh user lain dan koneksi stabil.");
+      setErrorMsg(!user && !form.password.trim()
+        ? "Password wajib diisi."
+        : "Gagal menyimpan data user. Pastikan email belum digunakan oleh user lain dan koneksi stabil.");
     }
   };
 

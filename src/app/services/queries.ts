@@ -5,7 +5,7 @@ import { purchasingApi } from './purchasingApi';
 import { landingPageApi } from './landingPageApi';
 import { qcApi } from './qcApi';
 import { productionApi } from './productionApi';
-import { mapCustomerDto, mapSalesOrderDto, mapPurchaseRequestDto } from '../components/context/hooks/dataMappers';
+import { mapCustomerDto, mapSalesOrderDto, mapQuotationDto, mapPurchaseRequestDto, isActiveQuotationEntry } from '../components/context/hooks/dataMappers';
 
 // -- CUSTOMERS --
 export const useCustomersQuery = (enabled: boolean = true) => {
@@ -32,13 +32,25 @@ export const useProductsQuery = (enabled: boolean = true) => {
   });
 };
 
-// -- SALES ORDERS --
+// -- SALES ORDERS & QUOTATIONS --
 export const useSalesOrdersQuery = (enabled: boolean = true) => {
   return useQuery({
     queryKey: ['salesOrders'],
     queryFn: async () => {
-      const data = await salesApi.listSalesOrders();
-      return data.map(mapSalesOrderDto);
+      const [salesOrdersData, quotationsData] = await Promise.all([
+        salesApi.listSalesOrders().catch(() => []),
+        salesApi.listQuotations().catch(() => []),
+      ]);
+
+      const mappedSOList = salesOrdersData.map(mapSalesOrderDto);
+      const mappedQuoList = quotationsData.map(mapQuotationDto);
+
+      const existingSOBackendIds = new Set(mappedSOList.map(o => o.backendId).filter(Boolean));
+      const filteredQuotations = mappedQuoList.filter(q =>
+        isActiveQuotationEntry(q) && (!q.backendId || !existingSOBackendIds.has(q.backendId))
+      );
+
+      return [...mappedSOList, ...filteredQuotations];
     },
     enabled,
     staleTime: 30000,

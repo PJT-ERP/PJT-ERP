@@ -48,6 +48,14 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
         </div>
       )}
 
+      {detail.activeApprovalCycleNumber != null && (
+        <div className={`rounded border p-4 ${detail.isApprovalBlocked ? "bg-red-50 border-red-200" : detail.isFullyApproved ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+          <p className="text-sm font-bold text-slate-800">Siklus {detail.activeApprovalCycleNumber} · Finance: {detail.financeApproval || "Pending"} · Owner: {detail.ownerApproval || "Pending"}</p>
+          <p className="mt-1 text-sm text-slate-700">{detail.isApprovalBlocked ? "Siklus approval diblokir." : detail.isFullyApproved ? "Kedua persetujuan selesai; PR memenuhi syarat approval untuk PO." : "PO belum siap sampai Finance dan Owner menyetujui."}</p>
+          {(detail.financeApprovalRejectionReason || detail.ownerApprovalRejectionReason) && <p className="mt-1 text-sm text-red-700">Alasan penolakan: {detail.financeApprovalRejectionReason || detail.ownerApprovalRejectionReason}</p>}
+        </div>
+      )}
+
       {/* Actions */}
       {canEditPricing && (
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
@@ -157,7 +165,7 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             </div>
           </div>
         </div>
-      ) : detail.backendStatus === "SupervisorApproved" && detail.isReadyForFinance ? (
+      ) : detail.financeApproval === "Pending" && !detail.isApprovalBlocked && detail.isReadyForFinance ? (
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-start gap-3 rounded p-4 bg-blue-50 border border-blue-200">
             <Clock size={18} className="text-blue-600 shrink-0 mt-0.5" />
@@ -187,14 +195,14 @@ export function PRApprovalSection({ board }: PRApprovalSectionProps) {
             </div>
           )}
         </div>
-      ) : (detail.backendStatus === "FinanceApproved" || detail.financeApproval === "Approved" || detail.backendStatus === "Processing") && detail.hasUnorderedItems ? (
+      ) : detail.isFullyApproved === true && detail.hasUnorderedItems ? (
         <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-start gap-3 rounded p-4 bg-emerald-50 border border-emerald-200">
             <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-emerald-800">Siap Dibuatkan PO</p>
               <p className="text-sm text-emerald-700 mt-1">
-                Anggaran telah disetujui Finance. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
+                Finance dan Owner telah menyetujui PR ini. {canCreatePo ? "Anda bisa langsung lanjut membuat Purchase Order." : "Dokumen ini menunggu tim Purchasing membuat Purchase Order."}
               </p>
             </div>
           </div>

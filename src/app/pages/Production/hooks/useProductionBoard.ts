@@ -184,7 +184,7 @@ export function useProductionBoard() {
     const hasBomsPerItem = so.bomsPerItem && Object.values(so.bomsPerItem).some((boms: any[]) => boms && boms.length > 0);
     const hasBom = hasMaterialsArray || hasBomsPerItem;
     
-    if (!hasBom) return false;
+    if (!hasBom) return true; // No BOM = no materials to prepare = ready for assignment
 
     // Check if ALL materials in the BOM are customer-provided
     // If so, there's no shortage — material prep is complete

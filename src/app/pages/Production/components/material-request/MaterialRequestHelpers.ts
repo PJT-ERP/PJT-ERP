@@ -110,18 +110,5 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
 
   parseMaterialText(so.material).forEach(m => addOption(m.itemName, m.specification));
   
-  if (Array.isArray(so.items)) {
-    so.items.forEach((item: any) => {
-      const itemName = String(item?.productName || item?.productDescription || item?.partNumber || "").trim();
-      if (itemName) {
-        addOption(itemName, "");
-      }
-    });
-  }
-
-  if (options.length === 0 && so.description) {
-    addOption(so.description, so.spec || "");
-  }
-
   return options;
 }
