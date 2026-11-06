@@ -58,7 +58,7 @@ export function FinanceCosting() {
 
     return Array.from(map.values()).map(so => ({
       ...so,
-      displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status) : (so.soNumber || so.id),
+      displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status, true) : (so.soNumber || so.id),
       isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
     }));
   }, [queues, salesOrders]);
@@ -77,7 +77,7 @@ export function FinanceCosting() {
     return Array.from(map.values())
       .map(so => ({
         ...so,
-        displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status) : (so.soNumber || so.id),
+        displayDocNumber: isQuotationEntry(so) ? formatDocNumber(so.soNumber || so.id, so.status, true) : (so.soNumber || so.id),
         isQuotation: (so as any).isQuotation ?? (so.soNumber || so.id).startsWith("QU")
       }))
       .sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
@@ -280,7 +280,7 @@ export function FinanceCosting() {
                   borderBottom: idx < filteredList.length - 1 ? `1px solid ${S.border}` : "none"
                 }}
               >
-                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.displayDocNumber || formatDocNumber(so.soNumber || so.id, so.status)}</span>
+                <span style={{ color: S.cyan, fontSize: "13px", fontWeight: 600, fontFamily: "monospace" }}>{so.displayDocNumber || formatDocNumber(so.soNumber || so.id, so.status, isQuotationEntry(so))}</span>
                 <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{customers?.find(c => c.code === so.customerId)?.name || so.customerName || so.customerId}</span>
                 <div style={{ display: "flex", flexDirection: "column" }}>
                   <span style={{ color: S.slate, fontSize: "13px", fontWeight: 500 }}>{so.items?.[0]?.productDescription || so.items?.[0]?.productPartNumber || so.productName || so.description || "-"}</span>

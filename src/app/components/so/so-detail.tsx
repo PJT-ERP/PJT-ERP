@@ -377,7 +377,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </button>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h1 style={{ color: S.slate, margin: 0 }}>{formatDocNumber(order.id, order.status)}</h1>
+              <h1 style={{ color: S.slate, margin: 0 }}>{formatDocNumber(order.id, order.status, isQuotation)}</h1>
               <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
                 <span className="w-[5px] h-[5px] rounded-full shrink-0 bg-current" />
                 {order.status}

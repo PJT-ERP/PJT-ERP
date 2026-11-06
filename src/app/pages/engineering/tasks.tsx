@@ -285,7 +285,7 @@ export function EngineeringTasksPage() {
             queue.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((qut, idx) => {
               const isPreProduction = !(['Ready for Production', 'In Production', 'Paused', 'QC', 'Completed'].includes(qut.status)) && !qut.startTime && !qut.qcStatus;
               const isApproved = qut.backendDesignStatus === 'Approved' || activeTab === 'completed' || !isPreProduction;
-              const docNum = formatDocNumber(qut.soNumber || qut.id, qut.status);
+              const docNum = formatDocNumber(qut.soNumber || qut.id, qut.status, isQuotationEntry(qut));
               const assignedWorkerId = qut.designAssignedTo || (qut as any).assignedTo;
               const assignedWorkerName = qut.designAssignedName
                 || (qut as any).designWorkerName
@@ -445,7 +445,7 @@ export function EngineeringTasksPage() {
                 <div>
                   <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 700 }}>Tugaskan Engineer</h3>
                   <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>
-                    {formatDocNumber(assigningTarget.soNumber || assigningTarget.id, assigningTarget.status)}
+                    {formatDocNumber(assigningTarget.soNumber || assigningTarget.id, assigningTarget.status, isQuo)}
                   </p>
                 </div>
               </div>

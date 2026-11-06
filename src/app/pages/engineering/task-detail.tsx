@@ -12,7 +12,7 @@ import { productionApi } from "../../services/productionApi";
 import { toBackendUserId, isGuid } from "../../services/backendIds";
 import { BomEditor } from "./task-detail/BomEditor";
 import { StepDone, StepRejected, StepRejectForm, StepConfirm, InfoBanner } from "./task-detail/StepScreens";
-import { formatDocNumber } from "../../components/context/hooks/dataMappers";
+import { formatDocNumber, isQuotationEntry } from "../../components/context/hooks/dataMappers";
 import { FooterActions } from "./task-detail/FooterActions";
 
 const S = {
@@ -430,7 +430,7 @@ export function EngineeringTaskDetailPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{formatDocNumber(qut.soNumber || qut.id, qut.status)}</h2>
+              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{formatDocNumber(qut.soNumber || qut.id, qut.status, isQuotationEntry(qut))}</h2>
               <StatusBadge status={qut.status} />
             </div>
             <p style={{ color: S.secondary, margin: "6px 0 0", fontSize: "14px" }}>

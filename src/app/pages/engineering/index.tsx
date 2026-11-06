@@ -8,7 +8,7 @@ import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
 import { productionApi, DashboardCountersDto } from "../../services/productionApi";
-import { formatDocNumber } from "../../components/context/hooks/dataMappers";
+import { formatDocNumber, isQuotationEntry } from "../../components/context/hooks/dataMappers";
 import { MentionsReminderWidget } from "../../components/shared/MentionsReminderWidget";
 import { useNavigate } from "react-router";
 import {
@@ -297,7 +297,7 @@ export function EngineeringPage() {
                       onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
-                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600 }}>{formatDocNumber(so.id, so.status)}</span>
+                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600 }}>{formatDocNumber(so.id, so.status, isQuotationEntry(so))}</span>
                       <div>
                         <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
                       </div>

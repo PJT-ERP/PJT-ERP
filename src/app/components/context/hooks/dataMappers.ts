@@ -167,8 +167,8 @@ export function mapBomsPerItem(order: SalesOrderDto): Record<string, any[]> {
 export function isQuotationEntry(order?: any): boolean {
   if (!order) return false;
   if (typeof order === 'string') return isQuotationStatus(order);
+  if (typeof order.isQuotation === 'boolean') return order.isQuotation;
   if (order.quotationNumber || order.id?.startsWith('QU') || order.soNumber?.startsWith('QU')) return true;
-  if (order.isQuotation !== undefined) return Boolean(order.isQuotation);
   return isQuotationStatus(order.status);
 }
 
@@ -177,16 +177,16 @@ export function isQuotationStatus(status?: string): boolean {
   return ['Pending Design', 'Waiting Spv Approval', 'Waiting Pricing', 'Waiting Client Approval', 'PendingDesign', 'Draft', 'Waiting Approval', 'Revision Required', 'RevisionRequired', 'WaitingApproval'].includes(status);
 }
 
-export function formatDocNumber(idOrNumber?: string, status?: string): string {
+export function formatDocNumber(idOrNumber?: string, status?: string, isQuotation = isQuotationStatus(status)): string {
   if (!idOrNumber) return '';
-  if (isQuotationStatus(status)) {
+  if (isQuotation) {
     return idOrNumber.replace(/^SO-/, 'QU-');
   }
   return idOrNumber;
 }
 
-export function getDocLabel(status?: string): string {
-  return isQuotationStatus(status) ? 'No. Quotation' : 'No. SO';
+export function getDocLabel(status?: string, isQuotation = isQuotationStatus(status)): string {
+  return isQuotation ? 'No. Quotation' : 'No. SO';
 }
 
 export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {

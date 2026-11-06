@@ -113,7 +113,7 @@ function BomCard({ materials, showWarning }: { materials: any[], showWarning?: b
 
 import { AlertTriangle } from "lucide-react";
 
-import { formatDocNumber, isQuotationStatus } from "../../context/hooks/dataMappers";
+import { formatDocNumber, isQuotationEntry } from "../../context/hooks/dataMappers";
 
 export function ProductInfoCard({
   order, isEditMode, editForm, setEditForm, displayMaterials,
@@ -124,13 +124,13 @@ export function ProductInfoCard({
 
   const isLockedForQty = ['Waiting Payment', 'Ready for Production', 'In Production', 'QC', 'Completed', 'Finished'].includes(order.status) || order.isCostingCompleted;
 
-  const isQuo = isQuotationStatus(order.status);
+  const isQuo = isQuotationEntry(order);
 
   return (
     <>
       <InfoCard title="Informasi Produk" icon={<Package size={13} />}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 14 }}>
-          <InfoRow icon={<Hash size={11} />} label={isQuo ? "No. Quotation" : "No. SO / PO"} value={formatDocNumber(order.soNumber || order.id, order.status)} isEdit={false} />
+          <InfoRow icon={<Hash size={11} />} label={isQuo ? "No. Quotation" : "No. SO / PO"} value={formatDocNumber(order.soNumber || order.id, order.status, isQuo)} isEdit={false} />
           <InfoRow icon={<Calendar size={11} />} label="Deadline" value={isEditMode ? editForm.deadline : order.deadline} isEdit={isEditMode} type="date" onChange={v => setEditForm(prev => ({ ...prev, deadline: v }))} />
           <InfoRow icon={<Receipt size={11} />} label={isQuo ? "Estimasi Penawaran" : "Nilai SO"} value={formatCurrency(orderValue)} isEdit={false} />
           {isCustomBackend && (
