@@ -445,7 +445,7 @@ export function EngineeringTasksPage() {
                 <div>
                   <h3 style={{ margin: 0, fontSize: "16px", color: S.slate, fontWeight: 700 }}>Tugaskan Engineer</h3>
                   <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.secondary }}>
-                    {formatDocNumber(assigningTarget.soNumber || assigningTarget.id, assigningTarget.status, isQuo)}
+                    {formatDocNumber(assigningTarget.soNumber || assigningTarget.id, assigningTarget.status, isQuotationEntry(assigningTarget))}
                   </p>
                 </div>
               </div>
