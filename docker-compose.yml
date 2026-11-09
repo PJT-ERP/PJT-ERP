@@ -50,7 +50,9 @@ services:
       args:
         PROJECT_PATH: "src/Services/Identity.API/Identity.API.csproj"
         ENTRY_DLL: "Identity.API.dll"
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      ProductionApi__Address: "http://production-api:8080/"
     volumes:
       - pjt_daily_report_uploads:/app/data/daily-report-uploads
     ports:

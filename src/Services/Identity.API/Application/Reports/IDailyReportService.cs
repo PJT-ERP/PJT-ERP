@@ -5,8 +5,10 @@ namespace PJT_ERP.Identity.Api.Application.Reports;
 public interface IDailyReportService
 {
     Task<DailyReportDto> CreateAsync(ReportActor actor, CreateReportRequest request, CancellationToken cancellationToken);
+    Task<PagedResult<DailyReportDto>> GetMentionedAsync(ReportActor actor, int page, int pageSize, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ReportUserDto>> GetTaggableUsersAsync(CancellationToken cancellationToken);
     Task<PagedResult<DailyReportDto>> GetMineAsync(ReportActor actor, int page, int pageSize, CancellationToken cancellationToken);
-    Task<PagedResult<DailyReportDto>> GetAllAsync(ReportActor actor, DateOnly? from, DateOnly? to, string? role, string? employee, int page, int pageSize, CancellationToken cancellationToken);
+    Task<PagedResult<DailyReportDto>> GetAllAsync(ReportActor actor, DateOnly? from, DateOnly? to, string? role, string? employee, int page, int pageSize, CancellationToken cancellationToken, string? salesOrder = null, string? status = null);
     Task<DailyReportDto?> GetByIdAsync(ReportActor actor, Guid reportId, CancellationToken cancellationToken);
     Task<DailyReportDto?> UpdateAsync(ReportActor actor, Guid reportId, UpdateReportRequest request, CancellationToken cancellationToken);
     Task<bool> DeleteAsync(ReportActor actor, Guid reportId, CancellationToken cancellationToken);

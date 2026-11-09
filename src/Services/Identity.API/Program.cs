@@ -40,6 +40,12 @@ builder.Services.AddPjtPostgresCache(builder.Configuration);
 builder.Services.AddSingleton<JwtTokenIssuer>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDailyReportService, DailyReportService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IReportSalesOrderLookup, ReportSalesOrderLookup>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["ProductionApi:Address"] ?? "http://production-api:8080/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 builder.Services.AddSingleton<IReportFileStorage, LocalReportFileStorage>();
 
 builder.ConfigurePjtJwtAuthentication();
