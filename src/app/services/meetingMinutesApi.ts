@@ -12,6 +12,7 @@ export interface MeetingMinuteDto {
   participants: string;
   resultFileUrl?: string | null;
   resultFileName?: string | null;
+  resultLink?: string | null;
   feedbackDeadline?: string | null; // yyyy-MM-dd
   createdByName: string;
   createdAtUtc: string;
@@ -30,6 +31,7 @@ export interface SaveMeetingMinuteRequest {
   participants: string;
   resultFileUrl?: string | null;
   resultFileName?: string | null;
+  resultLink?: string | null;
   feedbackDeadline?: string | null;
 }
 

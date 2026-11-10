@@ -162,6 +162,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(minute => minute.Participants).HasMaxLength(2000).HasColumnName("participants");
             builder.Property(minute => minute.ResultFileUrl).HasMaxLength(1000).HasColumnName("result_file_url");
             builder.Property(minute => minute.ResultFileName).HasMaxLength(255).HasColumnName("result_file_name");
+            builder.Property(minute => minute.ResultLink).HasMaxLength(1000).HasColumnName("result_link");
             builder.Property(minute => minute.FeedbackDeadline).HasColumnName("feedback_deadline");
             builder.Property(minute => minute.CreatedByUserId).HasColumnName("created_by_user_id");
             builder.Property(minute => minute.CreatedByName).HasMaxLength(160).HasColumnName("created_by_name");
@@ -233,6 +234,9 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(c => c.CreatedAtUtc).HasColumnName("created_at_utc");
             builder.Property(c => c.IsEdited).HasColumnName("is_edited");
             builder.Property(c => c.IsDeleted).HasColumnName("is_deleted");
+            builder.Property(c => c.FileUrl).HasColumnName("FileUrl");
+            builder.Property(c => c.FileName).HasColumnName("FileName");
+            builder.Property(c => c.FileType).HasColumnName("FileType");
         });
 
         modelBuilder.Entity<SalesOrderItem>(builder =>

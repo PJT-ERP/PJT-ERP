@@ -57,6 +57,12 @@ services:
       - pjt_daily_report_uploads:/app/data/daily-report-uploads
     ports:
       - "127.0.0.1:5001:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
     depends_on:
       db:
         condition: service_healthy
@@ -160,7 +166,7 @@ services:
       - "5000:8080"
     depends_on:
       identity-api:
-        condition: service_started
+        condition: service_healthy
       masterdata-api:
         condition: service_started
       production-api:

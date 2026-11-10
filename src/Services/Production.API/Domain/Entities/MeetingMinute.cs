@@ -13,6 +13,7 @@ public sealed class MeetingMinute
     public string Participants { get; set; } = string.Empty;
     public string? ResultFileUrl { get; set; }
     public string? ResultFileName { get; set; }
+    public string? ResultLink { get; set; }
     public DateOnly? FeedbackDeadline { get; set; }
     public Guid? CreatedByUserId { get; set; }
     public string CreatedByName { get; set; } = string.Empty;

@@ -17,6 +17,31 @@ public class MeetingMinutesController : ControllerBase
 {
     private const string FilesFolder = "meeting-minutes";
     private const string FilesRoute = "/api/v1/production/meeting-minutes/files/";
+    private const long MaxFileSizeInBytes = 10 * 1024 * 1024;
+
+    private static readonly byte[] PdfSignature = [0x25, 0x50, 0x44, 0x46];
+    private static readonly byte[] JpegSignature = [0xFF, 0xD8, 0xFF];
+    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47];
+    private static readonly byte[] ZipSignature = [0x50, 0x4B, 0x03, 0x04]; // docx/xlsx/pptx
+    private static readonly byte[] OleSignature = [0xD0, 0xCF, 0x11, 0xE0]; // doc/xls/ppt
+
+    // Ekstensi lampiran yang diizinkan beserta content type saat file diunduh kembali.
+    private static readonly Dictionary<string, string> AllowedFileTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".pdf"] = "application/pdf",
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".webp"] = "image/webp",
+        [".doc"] = "application/msword",
+        [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        [".xls"] = "application/vnd.ms-excel",
+        [".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        [".ppt"] = "application/vnd.ms-powerpoint",
+        [".pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        [".txt"] = "text/plain",
+        [".csv"] = "text/csv",
+    };
 
     private readonly ProductionContext _context;
 
@@ -98,18 +123,20 @@ public class MeetingMinutesController : ControllerBase
             return BadRequest(new { message = "File belum dipilih." });
         }
 
-        if (!string.Equals(Path.GetExtension(file.FileName), ".pdf", StringComparison.OrdinalIgnoreCase))
+        if (file.Length > MaxFileSizeInBytes)
         {
-            return BadRequest(new { message = "Hasil meeting harus berupa file PDF." });
+            return BadRequest(new { message = "Ukuran file maksimal 10 MB." });
         }
 
-        try
+        var extension = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(extension) || !AllowedFileTypes.ContainsKey(extension))
         {
-            await FileUploadSecurityValidator.ValidateFileAsync(file, cancellationToken);
+            return BadRequest(new { message = "Format file tidak didukung. Gunakan PDF, Word, Excel, PowerPoint, gambar, TXT, atau CSV." });
         }
-        catch (InvalidOperationException ex)
+
+        if (!await HasValidSignatureAsync(file, extension, cancellationToken))
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { message = "Isi file tidak sesuai dengan ekstensinya." });
         }
 
         var uploadsFolder = GetUploadsFolder(env);
@@ -154,7 +181,32 @@ public class MeetingMinutesController : ControllerBase
         Response.Headers.Append("X-Content-Type-Options", "nosniff");
         Response.Headers.Append("Cache-Control", "private, no-cache, no-store, must-revalidate");
 
-        return PhysicalFile(fullPath, "application/pdf");
+        var contentType = AllowedFileTypes.GetValueOrDefault(Path.GetExtension(safeFileName), "application/octet-stream");
+        return PhysicalFile(fullPath, contentType);
+    }
+
+    // Cek magic number agar file berbahaya tidak bisa menyamar dengan mengganti ekstensi.
+    private static async Task<bool> HasValidSignatureAsync(IFormFile file, string extension, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[512];
+        int bytesRead;
+        await using (var stream = file.OpenReadStream())
+        {
+            bytesRead = await stream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken);
+        }
+        var header = buffer.AsSpan(0, bytesRead);
+
+        return extension.ToLowerInvariant() switch
+        {
+            ".pdf" => header.StartsWith(PdfSignature),
+            ".jpg" or ".jpeg" => header.StartsWith(JpegSignature),
+            ".png" => header.StartsWith(PngSignature),
+            ".webp" => header.Length >= 12 && header[..4].SequenceEqual("RIFF"u8) && header[8..12].SequenceEqual("WEBP"u8),
+            ".docx" or ".xlsx" or ".pptx" => header.StartsWith(ZipSignature),
+            ".doc" or ".xls" or ".ppt" => header.StartsWith(OleSignature),
+            ".txt" or ".csv" => !header.Contains((byte)0), // file teks tidak boleh berisi byte biner
+            _ => false,
+        };
     }
 
     private static string GetUploadsFolder(IWebHostEnvironment env) => Path.Combine(
@@ -172,6 +224,12 @@ public class MeetingMinutesController : ControllerBase
             return "Deadline feedback tidak boleh sebelum tanggal meeting.";
         if (!string.IsNullOrWhiteSpace(request.ResultFileUrl) && !request.ResultFileUrl.StartsWith(FilesRoute, StringComparison.Ordinal))
             return "File hasil meeting tidak valid.";
+        if (!string.IsNullOrWhiteSpace(request.ResultLink))
+        {
+            var link = request.ResultLink.Trim();
+            if (link.Length > 1000 || !Uri.TryCreate(link, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                return "Link lampiran harus berupa URL yang valid (diawali http:// atau https://).";
+        }
         return null;
     }
 
@@ -188,6 +246,7 @@ public class MeetingMinutesController : ControllerBase
         var hasFile = !string.IsNullOrWhiteSpace(request.ResultFileUrl);
         entity.ResultFileUrl = hasFile ? request.ResultFileUrl : null;
         entity.ResultFileName = hasFile ? Truncate(request.ResultFileName?.Trim(), 255) : null;
+        entity.ResultLink = string.IsNullOrWhiteSpace(request.ResultLink) ? null : request.ResultLink.Trim();
         entity.FeedbackDeadline = request.FeedbackDeadline;
     }
 
@@ -207,6 +266,7 @@ public class MeetingMinutesController : ControllerBase
         Participants = x.Participants,
         ResultFileUrl = x.ResultFileUrl,
         ResultFileName = x.ResultFileName,
+        ResultLink = x.ResultLink,
         FeedbackDeadline = x.FeedbackDeadline,
         CreatedByName = x.CreatedByName,
         CreatedAtUtc = x.CreatedAtUtc,
