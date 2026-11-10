@@ -15,21 +15,30 @@ public sealed class DailyReportsController(IDailyReportService service) : Contro
     public async Task<IActionResult> Create([FromForm] CreateReportRequest request, CancellationToken cancellationToken)
         => await ExecuteWriteAsync(async actor => (object)await service.CreateAsync(actor, request, cancellationToken));
 
+    [HttpGet("mentioned")]
+    public async Task<IActionResult> Mentioned([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+        => await ExecuteReadAsync(async actor => (object)await service.GetMentionedAsync(actor, page, pageSize, cancellationToken));
+
+    [HttpGet("users")]
+    public async Task<IActionResult> Users(CancellationToken cancellationToken)
+        => Ok(await service.GetTaggableUsersAsync(cancellationToken));
+
     [HttpGet("me")]
     public async Task<IActionResult> Mine([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
         => await ExecuteReadAsync(async actor => (object)await service.GetMineAsync(actor, page, pageSize, cancellationToken));
 
     [HttpGet]
     [Authorize(Roles = "Owner")]
-    public async Task<IActionResult> All([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] string? role, [FromQuery] string? employee, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
-        => await ExecuteReadAsync(async actor => (object)await service.GetAllAsync(actor, from, to, role, employee, page, pageSize, cancellationToken));
+    public async Task<IActionResult> All([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] string? role, [FromQuery] string? employee, [FromQuery] string? salesOrder, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+        => await ExecuteReadAsync(async actor => (object)await service.GetAllAsync(actor, from, to, role, employee, page, pageSize, cancellationToken, salesOrder, status));
 
     [HttpGet("{reportId:guid}")]
     public async Task<IActionResult> Get(Guid reportId, CancellationToken cancellationToken)
         => await ExecuteReadAsync(async actor => (object?)await service.GetByIdAsync(actor, reportId, cancellationToken), notFoundWhenNull: true);
 
     [HttpPut("{reportId:guid}")]
-    public async Task<IActionResult> Update(Guid reportId, [FromBody] UpdateReportRequest request, CancellationToken cancellationToken)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Update(Guid reportId, [FromForm] UpdateReportRequest request, CancellationToken cancellationToken)
         => await ExecuteWriteAsync(async actor => (object?)await service.UpdateAsync(actor, reportId, request, cancellationToken), notFoundWhenNull: true);
 
     [HttpDelete("{reportId:guid}")]

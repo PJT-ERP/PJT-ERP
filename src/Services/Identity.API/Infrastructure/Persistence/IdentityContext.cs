@@ -50,6 +50,10 @@ public sealed class IdentityContext(DbContextOptions<IdentityContext> options) :
             builder.ToTable("daily_report_tasks");
             builder.HasKey(task => task.Id);
             builder.Property(task => task.Description).HasMaxLength(500).IsRequired();
+            builder.Property(task => task.Target).HasMaxLength(500);
+            builder.Property(task => task.Result).HasMaxLength(2000);
+            builder.Property(task => task.Status).HasMaxLength(20);
+            builder.Property(task => task.SalesOrderNumber).HasMaxLength(100);
         });
 
         modelBuilder.Entity<DailyReportAttachment>(builder =>
@@ -60,6 +64,7 @@ public sealed class IdentityContext(DbContextOptions<IdentityContext> options) :
             builder.Property(attachment => attachment.OriginalFileName).HasMaxLength(255).IsRequired();
             builder.Property(attachment => attachment.ContentType).HasMaxLength(100).IsRequired();
             builder.Property(attachment => attachment.Caption).HasMaxLength(500);
+            builder.HasOne<DailyReportTask>().WithMany().HasForeignKey(attachment => attachment.TaskId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
