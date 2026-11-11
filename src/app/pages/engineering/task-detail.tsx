@@ -40,14 +40,17 @@ const defaultCategory = 'Project';
 export function EngineeringTaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentUser } = useApp();
+  const { currentUser, salesOrders: appSalesOrders = [] } = useApp();
   const queryClient = useQueryClient();
   const { data: customers = [] } = useCustomersQuery();
   const { data: productCatalog = [] } = useProductsQuery();
 
   const { data: localOrders = [] } = useSalesOrdersQuery();
   
-  const qut = useMemo(() => localOrders.find((so: any) => so.id === id || so.backendId === id || so.id.replace(/-/g, '') === id), [localOrders, id]);
+  const qut = useMemo(() => {
+    const matchOrder = (so: any) => so.id === id || so.soNumber === id || so.backendId === id || so.id.replace(/-/g, '') === id;
+    return localOrders.find(matchOrder) || appSalesOrders.find(matchOrder);
+  }, [localOrders, appSalesOrders, id]);
 
   const [designLink, setDesignLink] = useState('');
   const [itemMaterials, setItemMaterials] = useState<Record<string, any[]>>({});
@@ -62,15 +65,16 @@ export function EngineeringTaskDetailPage() {
   const [noMaterialItems, setNoMaterialItems] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isInitialized = useRef(false);
+  const isInitialized = useRef<string | boolean>(false);
 
   useEffect(() => {
     masterDataApi.listInventory().then(setInventoryItems).catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (qut && !isInitialized.current) {
-      const designRef = qut.designReference !== 'INTERNAL_DESIGN' ? qut.designReference : '';
+    const syncKey = qut ? `${qut.id}:${qut.backendDesignStatus || qut.status}:${qut.designLink || ''}:${(qut.materials || []).length}` : false;
+    if (qut && isInitialized.current !== syncKey) {
+      const designRef = (qut.designReference && qut.designReference !== 'INTERNAL_DESIGN' && qut.designReference !== 'CUSTOMER_PROVIDED') ? qut.designReference : '';
       const initialDesignLink = designRef || qut.designLink || qut.drawingFileUrl || qut.customerDrawingUrl || qut.items?.find((it: any) => (it as any).customerDrawingUrl)?.customerDrawingUrl || (qut.designId && !['none', 'customer'].includes(qut.designId) ? qut.designId : '') || '';
       setDesignLink(initialDesignLink);
       setIsEditingLink(!initialDesignLink);
@@ -96,7 +100,7 @@ export function EngineeringTaskDetailPage() {
       }
       setItemMaterials(initialMaterials);
       setLocalRejectionReason(qut.rejectionReason);
-      isInitialized.current = true;
+      isInitialized.current = syncKey;
     } else if (qut && isInitialized.current) {
       setLocalRejectionReason(qut.rejectionReason);
     }
@@ -430,7 +434,7 @@ export function EngineeringTaskDetailPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{formatDocNumber(qut.soNumber || qut.id, qut.status)}</h2>
+              <h2 style={{ color: S.slate, margin: 0, fontSize: "20px" }}>{formatDocNumber(qut.soNumber || qut.id, qut.status, isQuotation)}</h2>
               <StatusBadge status={qut.status} />
             </div>
             <p style={{ color: S.secondary, margin: "6px 0 0", fontSize: "14px" }}>

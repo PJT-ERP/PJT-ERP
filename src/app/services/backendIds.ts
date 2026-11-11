@@ -14,8 +14,8 @@ export function isGuid(value?: string | null): value is string {
   return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-export function toBackendUserId(user?: User | null): string | null {
-  if (!user) {
+export function toBackendUserId(user?: { id?: string | null } | User | null): string | null {
+  if (!user || !user.id) {
     return null;
   }
 

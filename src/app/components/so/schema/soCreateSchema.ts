@@ -61,7 +61,7 @@ export const NewOrderFormSchema = z.object({
 
 export const RepeatFormSchema = z.object({
   customerId: z.string().min(1, "Customer wajib dipilih"),
-  previousSoId: z.string().min(1, "Sales Order lama wajib dipilih"),
+  previousSoId: z.string().optional(),
   deadline: z.string().min(1, "Tenggat waktu wajib diisi"),
   generalNotes: z.string().optional(),
   estimatedAmount: z.number().optional(),
