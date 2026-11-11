@@ -291,4 +291,79 @@ describe('SODetail Component', () => {
     expect(onNavigate).not.toHaveBeenCalled();
     toastErrorSpy.mockRestore();
   });
+
+  it('displays inherited Engineer assignment and structured BOM on converted Sales Order detail and retains both after refresh', async () => {
+    const convertedSo = {
+      id: 'SO-2026-003',
+      backendId: '33333333-4444-5555-6666-777777777777',
+      soNumber: 'SO-2026-003',
+      isQuotation: false,
+      customerId: 'CUST-001',
+      customerName: 'PT Bahagia Abadi',
+      customerEmail: 'indah@abadi.com',
+      partNumber: 'test2',
+      description: 'test2',
+      quantity: 2,
+      unit: 'PCS',
+      deadline: '2026-11-13',
+      status: 'Waiting Payment',
+      backendStatus: 'WaitingPayment',
+      backendDesignStatus: 'Approved',
+      assignedTo: '30000000-0000-0000-0000-000000000004',
+      assignedName: 'Engineering User',
+      designAssignedTo: '30000000-0000-0000-0000-000000000004',
+      designAssignedName: 'Engineering User',
+      estimatedAmount: 400000,
+      isCostingCompleted: true,
+      createdBy: 'backend',
+      createdAt: '2026-11-11',
+      items: [
+        {
+          id: 'so-item-003',
+          productName: 'test2',
+          productPartNumber: 'test2',
+          quantity: 2,
+          unit: 'PCS',
+          unitPrice: 200000,
+        },
+      ],
+      materials: [
+        {
+          id: 'quo-bom-1',
+          code: 'MAT-001',
+          name: 'Bor 2mm',
+          spec: 'HSS M2',
+          specification: 'HSS M2',
+          quantity: 20,
+          unit: 'PCS',
+        },
+      ],
+    } as any;
+
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [convertedSo] } as any);
+
+    const { rerender } = renderWithProviders(<SODetail orderId="SO-2026-003" onNavigate={onNavigate} />);
+
+    expect(await screen.findByText('Bill of Materials (Kebutuhan Bahan)')).toBeInTheDocument();
+    expect(screen.queryByText('Belum ada data material.')).not.toBeInTheDocument();
+    expect(screen.getByText('MAT-001')).toBeInTheDocument();
+    expect(screen.getByText('Bor 2mm')).toBeInTheDocument();
+    expect(screen.getByText('HSS M2')).toBeInTheDocument();
+    expect(screen.getByText('20 PCS')).toBeInTheDocument();
+    expect(screen.getByText('Engineering User')).toBeInTheDocument();
+
+    // Simulate page refresh / re-render
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SODetail orderId="SO-2026-003" onNavigate={onNavigate} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(screen.queryByText('Belum ada data material.')).not.toBeInTheDocument();
+    expect(screen.getByText('MAT-001')).toBeInTheDocument();
+    expect(screen.getByText('Bor 2mm')).toBeInTheDocument();
+    expect(screen.getByText('Engineering User')).toBeInTheDocument();
+  });
 });

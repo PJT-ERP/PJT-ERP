@@ -61,7 +61,11 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
     // Normalize inventoryItemId: repeat orders store it in `id`, manual entries use `inventoryItemId`
-    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') ? legacy.id : undefined);
+    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') && !legacy.id.startsWith('quo-bom-') ? legacy.id : undefined);
+
+    if (!legacy.code && legacy.itemCode) {
+      legacy.code = legacy.itemCode;
+    }
 
     // Try to find the item code from the products if it's missing
     if (!legacy.code && resolvedInvId) {
@@ -82,6 +86,13 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       }
     }
 
+    if (!legacy.code && legacy.name && inventoryItems.length > 0) {
+      const invByName = inventoryItems.find(inv => inv.name?.toLowerCase() === legacy.name.toLowerCase());
+      if (invByName?.code) {
+        legacy.code = invByName.code;
+      }
+    }
+
     // Strip code prefix from name for legacy repeat orders that embedded it (e.g. "MAT-001 - S45C Round Bar")
     if (legacy.code && legacy.name) {
       const codePrefix = `${legacy.code} - `;
@@ -95,7 +106,9 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
     }
 
     const specKey = legacy.spec || legacy.specification || "";
-    const key = `${resolvedInvId || legacy.name}|${specKey}|${legacy.unit}`;
+    legacy.spec = specKey || legacy.spec;
+    legacy.specification = specKey || legacy.specification;
+    const key = `${resolvedInvId || legacy.code || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);
@@ -196,7 +209,10 @@ export function getDocLabel(statusOrOrder?: any, isQuotation?: boolean): string 
 export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
   if (!order) return order as any;
   const primaryItem = order.items?.[0];
-  const materials = order.materials || (order as any).materials || undefined;
+  const rawMaterials = order.materials || (order as any).materials;
+  const materials = (Array.isArray(rawMaterials) && rawMaterials.length > 0)
+    ? rawMaterials
+    : mapSalesOrderMaterials(order);
   const computedBoms = mapBomsPerItem(order);
   const bomsPerItem = Object.keys(computedBoms).some(k => computedBoms[k]?.length > 0) ? computedBoms : ((order as any).bomsPerItem || computedBoms);
   const mappedStatus = mapSalesOrderStatus(order);

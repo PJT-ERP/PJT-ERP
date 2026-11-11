@@ -463,4 +463,70 @@ describe('SalesOrder vs Quotation mapping and classification', () => {
       expect(twice).toEqual(once);
     });
   });
+
+  it('maps converted Sales Order DTO with inherited engineer assignment and structured BOM from quotation conversion', () => {
+    const convertedSoDto: any = {
+      id: '33333333-4444-5555-6666-777777777777',
+      soNumber: 'SO-2026-003',
+      customerId: 'cust-003',
+      customerCode: 'CUST-003',
+      customerName: 'PT Bahagia Abadi',
+      customerEmail: 'indah@abadi.com',
+      customerDrawingUrl: '/engineering-drawings/color-pallete.jpeg',
+      designReference: '/engineering-drawings/color-pallete.jpeg',
+      designStatus: 'Approved',
+      designApprovedAtUtc: '2026-11-11T10:00:00Z',
+      soDate: '2026-11-11',
+      targetDate: '2026-11-13',
+      designWorkerUserId: '30000000-0000-0000-0000-000000000004',
+      designWorkerName: 'Engineering User',
+      status: 'WaitingPayment',
+      productionStatus: 'Waiting',
+      estimatedAmount: 400000,
+      isCostingCompleted: true,
+      createdAtUtc: '2026-11-11T10:05:00Z',
+      updatedAtUtc: '2026-11-11T10:05:00Z',
+      items: [
+        {
+          id: 'so-item-003',
+          productId: 'prod-custom-003',
+          productPartNumber: 'test2',
+          productDescription: 'test2',
+          qty: 2,
+          unitPrice: 200000,
+          notes: JSON.stringify([
+            {
+              id: 'quo-bom-11111111-2222-3333-4444-555555555555',
+              code: 'MAT-001',
+              itemCode: 'MAT-001',
+              name: 'Bor 2mm',
+              spec: 'HSS M2',
+              specification: 'HSS M2',
+              quantity: 20,
+              unit: 'PCS',
+              isCustomerMaterial: false,
+            },
+          ]),
+        },
+      ],
+    };
+
+    const mapped = mapSalesOrderDto(convertedSoDto);
+
+    expect(mapped.id).toBe('SO-2026-003');
+    expect(mapped.isQuotation).toBe(false);
+    expect(mapped.status).toBe('Waiting Payment');
+    expect(mapped.designAssignedTo).toBe('30000000-0000-0000-0000-000000000004');
+    expect(mapped.designAssignedName).toBe('Engineering User');
+    expect(mapped.materials).toHaveLength(1);
+    expect(mapped.materials?.[0]).toMatchObject({
+      code: 'MAT-001',
+      name: 'Bor 2mm',
+      spec: 'HSS M2',
+      specification: 'HSS M2',
+      quantity: 20,
+      unit: 'PCS',
+    });
+    expect(mapped.bomsPerItem?.['so-item-003']).toHaveLength(1);
+  });
 });

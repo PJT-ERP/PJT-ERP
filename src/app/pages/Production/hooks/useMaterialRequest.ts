@@ -11,9 +11,9 @@ import { getMaterialOptions } from "../components/material-request/MaterialReque
 export function useMaterialRequest() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const prefillStockIssues = (location.state as any)?.stockIssues as Array<{ 
-    itemName: string; 
-    required: number; 
+  const prefillStockIssues = (location.state as any)?.stockIssues as Array<{
+    itemName: string;
+    required: number;
     available: number;
     specs?: Array<{ spec: string; quantity: number }>;
   }> | undefined;
@@ -22,17 +22,17 @@ export function useMaterialRequest() {
   const queryClient = useQueryClient();
   const { data: salesOrders = [] } = useSalesOrdersQuery();
   const { data: purchasingRequests = [] } = usePurchasingRequestsQuery();
-  
+
   const prefillRef = useRef(prefillStockIssues);
   useEffect(() => {
     if (prefillStockIssues && prefillStockIssues.length > 0) {
       prefillRef.current = prefillStockIssues;
     }
   }, [prefillStockIssues]);
-  
+
   const so = salesOrders.find(s => s.id === id || s.backendId === id);
   const request = purchasingRequests.find(pr => pr.salesOrderId === id || pr.salesOrderId === so?.backendId);
-  
+
   const [realInventoryItems, setRealInventoryItems] = useState<InventoryItemDto[]>([]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +60,7 @@ export function useMaterialRequest() {
       let hasMultipleSpecs = false;
       const mapped = prefill.flatMap(issue => {
         const missingQty = Math.max(0, issue.required - (issue.available || 0));
-        
+
         if (issue.specs && issue.specs.length > 0) {
           if (issue.specs.length > 1) hasMultipleSpecs = true;
           return issue.specs.map((s, idx) => ({
@@ -96,7 +96,7 @@ export function useMaterialRequest() {
         spec: m.specification,
         maxQuantity: m.maxQuantity,
       })));
-      
+
       if (hasMultipleSpecs) {
         setNotes(`Auto-generated dari pengecekan stok. Terdapat beberapa spesifikasi berbeda untuk material yang kurang. Silakan hapus atau sesuaikan kuantitas untuk spesifikasi yang benar-benar perlu dibeli.`);
       } else {
@@ -126,7 +126,7 @@ export function useMaterialRequest() {
 
     if (productIds.length === 0) {
       const mats = getMaterialOptions(so);
-      setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
+      setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.code || m.specification || 'BOM', unit: (m.unit || 'pcs').toLowerCase(), currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
       if (mats.length > 0) {
         setItems(mats.map(m => ({
           materialKey: m.key,
@@ -134,7 +134,7 @@ export function useMaterialRequest() {
           specification: m.specification,
           quantity: m.quantity ? String(m.quantity) : "1",
           maxQuantity: m.quantity,
-          unit: "pcs",
+          unit: (m.unit || "pcs").toLowerCase(),
           urgency: "Urgent" as PurchasingUrgency,
           purchaseCategory: "Project",
         })));
@@ -165,11 +165,11 @@ export function useMaterialRequest() {
 
 
         for (const item of aggregatedItems.values()) {
-          const matchingCustomBoms = customBoms.filter(cb => 
-            cb.inventoryItemId === item.inventoryItemId || 
+          const matchingCustomBoms = customBoms.filter(cb =>
+            cb.inventoryItemId === item.inventoryItemId ||
             (!cb.inventoryItemId && cb.name?.trim().toLowerCase() === item.inventoryItemName?.trim().toLowerCase())
           );
-          
+
           const customerProvidedQty = matchingCustomBoms
             .filter(cb => cb.isCustomerMaterial)
             .reduce((sum, cb) => sum + (cb.quantity || 1), 0);
@@ -177,16 +177,16 @@ export function useMaterialRequest() {
           // Do not multiply by productQty; use exact BOM quantity. Subtract customer provided materials.
           const required = item.bomQuantity - customerProvidedQty;
           const available = item.currentStock;
-          
+
           if (required <= 0) continue; // Customer provided all of it or none required
-          
+
           const specs = matchingCustomBoms
             .filter(cb => !cb.isCustomerMaterial)
             .map(cb => ({
               spec: cb.spec || "",
               quantity: (cb.quantity || 1)
             }));
-          
+
           if (available < required) {
             const existing = issues.find(i => i.itemName === item.inventoryItemName);
             if (existing) {
@@ -211,7 +211,7 @@ export function useMaterialRequest() {
       let hasMultipleSpecs = false;
       const mapped = issues.flatMap(issue => {
         const missingQty = Math.max(0, issue.required - (issue.available || 0));
-        
+
         if (issue.specs && issue.specs.length > 0) {
           if (issue.specs.length > 1) hasMultipleSpecs = true;
           return issue.specs.map((s: any, idx: number) => ({
@@ -249,7 +249,7 @@ export function useMaterialRequest() {
           spec: m.specification,
           maxQuantity: m.maxQuantity,
         })));
-        
+
         if (hasMultipleSpecs) {
           setNotes(`Auto-generated dari pengecekan stok. Terdapat beberapa spesifikasi berbeda untuk material yang kurang. Silakan hapus atau sesuaikan kuantitas untuk spesifikasi yang benar-benar perlu dibeli.`);
         } else {
@@ -257,17 +257,17 @@ export function useMaterialRequest() {
         }
       } else {
         const mats = getMaterialOptions(so);
-        setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
+        setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.code || m.specification || 'BOM', unit: (m.unit || 'pcs').toLowerCase(), currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
         setItems(mats.length > 0
-          ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+          ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: (m.unit || "pcs").toLowerCase(), urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
           : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
         );
       }
     }).catch(() => {
       const mats = getMaterialOptions(so);
-      setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.specification || 'BOM', unit: 'pcs', currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
+      setBomOptions(mats.map(m => ({ id: m.key, name: m.itemName, code: m.code || m.specification || 'BOM', unit: (m.unit || 'pcs').toLowerCase(), currentStock: 0, spec: m.specification, maxQuantity: m.quantity })));
       setItems(mats.length > 0
-        ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
+        ? mats.map(m => ({ materialKey: m.key, itemName: m.itemName, specification: m.specification, quantity: m.quantity ? String(m.quantity) : "1", maxQuantity: m.quantity, unit: (m.unit || "pcs").toLowerCase(), urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }))
         : [{ materialKey: "", itemName: "", specification: "", quantity: "1", unit: "pcs", urgency: "Urgent" as PurchasingUrgency, purchaseCategory: "Project" }]
       );
     });
@@ -325,13 +325,19 @@ export function useMaterialRequest() {
   const uniqueItemNames = new Set(parsedItems.filter(item => item.itemName).map(item => item.itemName + '|' + item.specification));
   const hasDuplicates = parsedItems.filter(item => item.itemName).length !== uniqueItemNames.size;
 
-  const canSubmit = parsedItems.every(item => 
-    item.itemName && 
-    mergedOptions.some(opt => opt.name === item.itemName) &&
-    Number.isFinite(item.quantity) && 
-    item.quantity > 0
-  ) && !hasDuplicates;
-  
+  const canSubmit = parsedItems.length > 0 && parsedItems.every(item => {
+    const normalizedName = item.itemName.toLowerCase();
+    const isKnownMaterial =
+      mergedOptions.some(opt => opt.name?.trim().toLowerCase() === normalizedName) ||
+      bomOptions.some(opt => opt.name?.trim().toLowerCase() === normalizedName);
+    return (
+      Boolean(item.itemName) &&
+      isKnownMaterial &&
+      Number.isFinite(item.quantity) &&
+      item.quantity > 0
+    );
+  }) && !hasDuplicates;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -360,7 +366,7 @@ export function useMaterialRequest() {
 
     try {
       setIsSubmitting(true);
-      
+
       const isSpvUser = currentUser?.role === 'Engineering Supervisor' || currentUser?.role === 'Admin' || currentUser?.role === 'Owner' || currentUser?.username === 'eng_spv';
       const { purchasingApi } = await import("../../../services/purchasingApi");
       const created = await purchasingApi.createPurchaseRequest({

@@ -23,6 +23,56 @@ public class ProductionQueryService(
             .OrderByDescending(order => order.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
+        if (orders.Count > 0)
+        {
+            var candidateIds = orders
+                .Where(o => !o.DesignWorkerUserId.HasValue || !o.Items.Any(i => i.Notes != null && i.Notes.StartsWith("[")))
+                .Select(o => o.Id)
+                .ToList();
+
+            if (candidateIds.Count > 0)
+            {
+                var linkedQuotations = await db.Quotations
+                    .AsNoTracking()
+                    .Include(q => q.BomItems)
+                    .Where(q => q.ConvertedSalesOrderId.HasValue && candidateIds.Contains(q.ConvertedSalesOrderId.Value))
+                    .ToListAsync(cancellationToken);
+
+                foreach (var quotation in linkedQuotations)
+                {
+                    var order = orders.FirstOrDefault(o => o.Id == quotation.ConvertedSalesOrderId);
+                    if (order is null)
+                    {
+                        continue;
+                    }
+
+                    if (!order.DesignWorkerUserId.HasValue && quotation.AssignedEngineerId.HasValue)
+                    {
+                        order.DesignWorkerUserId = quotation.AssignedEngineerId;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(order.DesignWorkerName) && !string.IsNullOrWhiteSpace(quotation.AssignedEngineerName))
+                    {
+                        order.DesignWorkerName = quotation.AssignedEngineerName;
+                    }
+
+                    if (!order.DesignApprovedAtUtc.HasValue && quotation.EngineeringApprovedAtUtc.HasValue)
+                    {
+                        order.DesignApprovedAtUtc = quotation.EngineeringApprovedAtUtc;
+                    }
+
+                    if (quotation.BomItems.Count > 0 && !order.Items.Any(i => i.Notes != null && i.Notes.StartsWith("[")))
+                    {
+                        var firstItem = order.Items.OrderBy(i => i.ProductPartNumber).FirstOrDefault();
+                        if (firstItem is not null)
+                        {
+                            firstItem.Notes = Quotations.QuotationService.BuildStructuredBomNotesJson(quotation.BomItems) ?? firstItem.Notes;
+                        }
+                    }
+                }
+            }
+        }
+
         var productIds = orders.SelectMany(o => o.Items).Select(i => i.ProductId).Distinct().ToList();
         var boms = productIds.Count > 0 ? await masterDataClient.GetBomStockAsync(productIds, cancellationToken) : Array.Empty<BomStockDto>();
 
@@ -80,7 +130,7 @@ public class ProductionQueryService(
             
         bool IsReadyForProd(SalesOrderDto so)
         {
-            if (so.Status == "Ready for Production") return true;
+            if (so.Status == "Ready for Production" || (so.Status == SalesOrderStatuses.Confirmed && !so.StartedAtUtc.HasValue)) return true;
             if (so.QcDecision == "NoGo") return true;
             if (so.StartedAtUtc.HasValue || !string.IsNullOrEmpty(so.QcDecision)) return false;
             
@@ -153,7 +203,7 @@ public class ProductionQueryService(
         var totalActive = allOrders.Count(so => so.Status != "Closed" && so.Status != "Rejected");
         var pendingDesign = allOrders.Count(so => so.DesignStatus == SalesOrderDesignStatuses.PendingDesign);
         var inProduction = allOrders.Count(so => so.Status == "InProduction");
-        var readyForProduction = allOrders.Count(so => so.Status == "Ready for Production");
+        var readyForProduction = allOrders.Count(so => so.Status == "Ready for Production" || (so.Status == SalesOrderStatuses.Confirmed && !so.StartedAtUtc.HasValue));
         var waitingQc = allOrders.Count(so => so.Status == "QC");
         
         var overdue = allOrders.Count(so => 
@@ -183,9 +233,14 @@ public class ProductionQueryService(
             !so.ProductionWorkerUserId.HasValue || 
             so.ProductionWorkerUserId == userId || 
             userRole == "Admin" || userRole == "Owner" || userRole == "Engineering Supervisor";
+
+        bool IsBoardReadyForProduction(SalesOrderDto so) =>
+            so.Status == "Ready for Production" ||
+            (so.Status == SalesOrderStatuses.Confirmed && !so.StartedAtUtc.HasValue) ||
+            (so.Status == "QC" && so.QcDecision == "NoGo");
         
-        var pendingAssignment = allOrders.Where(so => (so.Status == "Ready for Production" || (so.Status == "QC" && so.QcDecision == "NoGo")) && so.ProductionWorkerUserId == null).ToList();
-        var readyToStart = allOrders.Where(so => (so.Status == "Ready for Production" || (so.Status == "QC" && so.QcDecision == "NoGo")) && so.ProductionWorkerUserId != null && IsAssignedToUser(so)).ToList();
+        var pendingAssignment = allOrders.Where(so => IsBoardReadyForProduction(so) && so.ProductionWorkerUserId == null).ToList();
+        var readyToStart = allOrders.Where(so => IsBoardReadyForProduction(so) && so.ProductionWorkerUserId != null && IsAssignedToUser(so)).ToList();
         var inProduction = allOrders.Where(so => so.Status == "InProduction" && IsAssignedToUser(so)).ToList();
         var paused = allOrders.Where(so => so.Status == "Paused" && IsAssignedToUser(so)).ToList();
         var waitingQc = allOrders.Where(so => so.Status == "QC" && string.IsNullOrEmpty(so.QcDecision) && IsAssignedToUser(so)).ToList();

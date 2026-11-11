@@ -55,11 +55,13 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
         const aggregatedCustomBoms = new Map<string, { quantity: number; isCustomerMaterial: boolean; name: string; specs: Array<{ spec: string, quantity: number }> }>();
         
         for (const cb of materials) {
-          let invId = cb.inventoryItemId;
-          if (!invId) {
-            const match = allInventory.find(i => i.name.toLowerCase() === (cb.itemName || cb.name || "").toLowerCase());
-            if (match) invId = match.id;
-          }
+          const cbCode = ((cb as any).code || (cb as any).itemCode || "").trim().toLowerCase();
+          const cbName = (cb.itemName || cb.name || "").trim().toLowerCase();
+          const matchedInv =
+            (cb.inventoryItemId ? allInventory.find(i => i.id === cb.inventoryItemId) : undefined) ||
+            (cbCode ? allInventory.find(i => i.code?.trim().toLowerCase() === cbCode) : undefined) ||
+            (cbName ? allInventory.find(i => i.name?.trim().toLowerCase() === cbName) : undefined);
+          const invId = matchedInv?.id || cb.inventoryItemId;
           if (!invId) continue;
           
           const existing = aggregatedCustomBoms.get(invId);
@@ -153,11 +155,13 @@ export function StartProductionModal({ so, onClose, onReturnToSpv }: { so: Sales
           
           for (const cb of materials) {
              if (cb.isCustomerMaterial || !cb.quantity) continue;
-             let invId = cb.inventoryItemId;
-             if (!invId) {
-               const match = allInventory.find(i => i.name.toLowerCase() === (cb.itemName || cb.name || "").toLowerCase());
-               if (match) invId = match.id;
-             }
+             const cbCode = ((cb as any).code || (cb as any).itemCode || "").trim().toLowerCase();
+             const cbName = (cb.itemName || cb.name || "").trim().toLowerCase();
+             const matchedInv =
+               (cb.inventoryItemId ? allInventory.find(i => i.id === cb.inventoryItemId) : undefined) ||
+               (cbCode ? allInventory.find(i => i.code?.trim().toLowerCase() === cbCode) : undefined) ||
+               (cbName ? allInventory.find(i => i.name?.trim().toLowerCase() === cbName) : undefined);
+             const invId = matchedInv?.id;
              if (invId) {
                const existing = deductItems.find(x => x.inventoryItemId === invId);
                if (existing) {

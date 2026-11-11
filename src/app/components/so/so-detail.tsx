@@ -74,7 +74,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const isStandard = !isCustomBackend;
 
   let displayMaterials = order?.materials || [];
-  if (isStandard && productCatalog && order) {
+  if (displayMaterials.length === 0 && isStandard && productCatalog && order) {
     const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
     if (matchedProduct && matchedProduct.materialSpec) {
       displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => {
@@ -92,10 +92,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   }
 
   displayMaterials = displayMaterials.map((mat: any) => {
-    let code = mat.code;
+    let code = mat.code || mat.itemCode;
     let name = mat.name;
+    const isSyntheticId = typeof mat.id === "string" && (mat.id.startsWith("quo-bom-") || mat.id.includes("-legacy-"));
     if (!code || code.length > 20) {
-      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 && !isSyntheticId ? mat.id : null);
       const matchedProduct = productCatalog.find(p => p.bomItems?.some(b => b.inventoryItemId === invId));
       if (matchedProduct) {
         const bomItem = matchedProduct.bomItems?.find(b => b.inventoryItemId === invId);
@@ -110,15 +111,24 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       const codePrefix = `${code} - `;
       if (name.startsWith(codePrefix)) name = name.slice(codePrefix.length);
     }
-    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 && !isSyntheticId ? mat.id : null);
     return { ...mat, code: code || finalInvId || null, name };
   });
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
-    engineerName: order?.assignedName || "",
+    engineerName: order?.assignedName || order?.designAssignedName || "",
     designUrl: order?.designLink || "",
   });
+
+  React.useEffect(() => {
+    if (!order) return;
+    setActionForm(prev => ({
+      estimatedAmount: order.estimatedAmount || prev.estimatedAmount || 0,
+      engineerName: order.assignedName || order.designAssignedName || prev.engineerName || "",
+      designUrl: order.designLink || prev.designUrl || "",
+    }));
+  }, [order?.id, order?.assignedName, order?.designAssignedName, order?.estimatedAmount, order?.designLink]);
 
   const [editForm, setEditForm] = useState({
     customerName: "",
