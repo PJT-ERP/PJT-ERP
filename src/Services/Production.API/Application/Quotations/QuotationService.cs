@@ -468,6 +468,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                 CustomerCode = quotation.CustomerCode,
                 CustomerName = quotation.CustomerName,
                 CustomerEmail = quotation.CustomerEmail,
+                Notes = quotation.Notes,
                 CustomerDrawingUrl = quotation.Items.Select(item => item.CustomerImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
                 DesignReference = quotation.DesignLink ?? quotation.Items.Select(item => item.CustomerImageUrl ?? item.DesignLink).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
                 DesignStatus = SalesOrderDesignStatuses.Approved,
@@ -828,7 +829,8 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                 .ToArray(),
             Materials: ProductionServiceBase.MapMaterials(salesOrder, null),
             DpPercentage: salesOrder.DpPercentage,
-            DpDueDate: salesOrder.DpDueDate);
+            DpDueDate: salesOrder.DpDueDate,
+            Notes: salesOrder.Notes);
     }
 
     private static string Required(string? value, string fieldName)

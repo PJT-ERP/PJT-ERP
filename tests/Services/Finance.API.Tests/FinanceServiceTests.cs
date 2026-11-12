@@ -87,6 +87,37 @@ public sealed class FinanceServiceTests
     }
 
     [Fact]
+    public async Task RequestSalesOrderCompletionAsync_publishes_event_for_an_existing_invoice()
+    {
+        await using var db = CreateDbContext();
+        var invoice = await CreateInvoiceAsync(db);
+        var publisher = new RecordingEventPublisher();
+        var service = new FinanceService(db, null!, publisher);
+
+        var accepted = await service.RequestSalesOrderCompletionAsync(invoice.Id, CancellationToken.None);
+
+        Assert.True(accepted);
+        var completionEvent = Assert.Single(publisher.PublishedEvents.OfType<SalesOrderCompletionRequestedEvent>());
+        Assert.Equal(invoice.Id, completionEvent.InvoiceId);
+        Assert.Equal(invoice.InvoiceNumber, completionEvent.InvoiceNumber);
+        Assert.Equal(invoice.SalesOrderId, completionEvent.SalesOrderId);
+        Assert.Equal(invoice.SalesOrderNumber, completionEvent.SalesOrderNumber);
+    }
+
+    [Fact]
+    public async Task RequestSalesOrderCompletionAsync_does_not_publish_for_a_missing_invoice()
+    {
+        await using var db = CreateDbContext();
+        var publisher = new RecordingEventPublisher();
+        var service = new FinanceService(db, null!, publisher);
+
+        var accepted = await service.RequestSalesOrderCompletionAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.False(accepted);
+        Assert.Empty(publisher.PublishedEvents);
+    }
+
+    [Fact]
     public async Task RecordPaymentAsync_updates_paid_amount_percent_and_status()
     {
         await using var db = CreateDbContext();

@@ -62,26 +62,30 @@ export function InfoRow({ icon, label, value, isEdit, onChange, type = "text" }:
   );
 }
 
-export function ActionBtn({ icon, label, bg, color, border, onClick }: {
+export function ActionBtn({ icon, label, bg, color, border, onClick, disabled = false, title }: {
   icon: React.ReactNode; label: string;
   bg: string; color: string; border?: string;
   onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
 }) {
   const [hov, setHov] = useState(false);
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
+      title={title}
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 8,
         padding: "8px 12px", borderRadius: 4,
         border: border ?? `1px solid ${S.border}`,
-        background: hov ? (bg === S.white ? S.bg : bg) : bg,
+        background: disabled ? "#E2E8F0" : hov ? (bg === S.white ? S.bg : bg) : bg,
         color,
-        fontSize: "12.5px", cursor: "pointer", fontFamily: S.font,
+        fontSize: "12.5px", cursor: disabled ? "not-allowed" : "pointer", fontFamily: S.font,
         marginBottom: 6, transition: "opacity 0.1s, background 0.1s",
-        opacity: hov && bg !== S.white ? 0.88 : 1,
+        opacity: !disabled && hov && bg !== S.white ? 0.88 : 1,
       }}
-      onMouseEnter={() => setHov(true)}
+      onMouseEnter={() => !disabled && setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
       {icon} {label}

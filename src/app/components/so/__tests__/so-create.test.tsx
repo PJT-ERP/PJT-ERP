@@ -27,6 +27,7 @@ vi.mock('../../../services/salesApi', () => ({
     createCustomer: vi.fn().mockResolvedValue({ id: 'cust-1', code: 'CUST-020' }),
     createProduct: vi.fn().mockResolvedValue({ id: 'prod-1' }),
     createSalesOrder: vi.fn().mockResolvedValue({ id: 'so-1', soNumber: 'SO-2026-076' }),
+    createCompleteSalesOrder: vi.fn().mockResolvedValue({ id: 'so-1', soNumber: 'SO-2026-076' }),
   },
 }));
 
@@ -127,7 +128,17 @@ describe('SOCreate Component', () => {
   it('renders order type selection cards', () => {
     renderWithClient(<SOCreate onNavigate={onNavigate} />);
     expect(screen.getByRole('button', { name: /Quotation Baru/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sales Order Baru \(Langsung\)/i })).toBeInTheDocument();
     expect(screen.getByText('Repeat Order')).toBeInTheDocument();
+  });
+
+  it('opens a direct Sales Order form without quotation-only design options', async () => {
+    renderWithClient(<SOCreate onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sales Order Baru \(Langsung\)/i }));
+
+    expect(await screen.findByRole('button', { name: /Buat Sales Order/i })).toBeInTheDocument();
+    expect(screen.queryByText('Sumber Desain dan Review Engineering')).not.toBeInTheDocument();
+    expect(screen.getByText(/Sales Order akan dibuat langsung/)).toBeInTheDocument();
   });
 
   it('navigates to new order form', async () => {

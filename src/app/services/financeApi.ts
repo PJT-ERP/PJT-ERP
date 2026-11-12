@@ -203,6 +203,11 @@ export const financeApi = {
     return response.data;
   },
 
+  async requestSalesOrderCompletion(invoiceId: string) {
+    const response = await apiClient.post(`/api/v1/finance/invoices/${invoiceId}/complete-sales-order`);
+    return response.data;
+  },
+
   async recordPayment(invoiceId: string, request: { paymentDate: string; amount: number; notes?: string | null }) {
     const response = await apiClient.post<InvoiceDto>(`/api/v1/finance/invoices/${invoiceId}/payments`, request);
     return response.data;

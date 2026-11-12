@@ -11,6 +11,7 @@ public interface IFinanceService
         string? sortBy,
         CancellationToken cancellationToken);
     Task<InvoiceDto?> GetInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken);
+    Task<bool> RequestSalesOrderCompletionAsync(Guid invoiceId, CancellationToken cancellationToken);
     Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceRequest request, CancellationToken cancellationToken);
     Task<InvoiceDto?> RecordPaymentAsync(Guid invoiceId, RecordPaymentRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<PaymentVerificationRequestDto>> ListPaymentVerificationsAsync(string? status, CancellationToken cancellationToken);

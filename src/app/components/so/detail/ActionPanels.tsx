@@ -1,7 +1,7 @@
 import React from "react";
 import { SalesOrder } from "../../data/mockData";
 import { S, ActionBtn } from "./shared";
-import { AlertTriangle, CheckCircle2, RefreshCw, Upload, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileCheck2, RefreshCw, Upload, X } from "lucide-react";
 
 interface ActionForm {
   estimatedAmount: number;
@@ -43,6 +43,7 @@ export function ActionPanels({ order, currentUserRole, currentUserName, actionFo
   const role = currentUserRole;
   const status = order.status;
   const [isChangingAssign, setIsChangingAssign] = React.useState(false);
+  const [showFinanceCompletionConfirm, setShowFinanceCompletionConfirm] = React.useState(false);
 
   const currentAssigned = order.assignedName || (order as any).designWorkerName || (order as any).designAssignedName;
   const canAssignEngineer = canRole(role, 'Engineering Supervisor', 'Sales') && !['Completed', 'Rejected', 'Cancelled', 'Finished'].includes(status);
@@ -205,6 +206,42 @@ export function ActionPanels({ order, currentUserRole, currentUserName, actionFo
           </p>
           <ActionBtn icon={<CheckCircle2 size={13} />} label="Tandai Selesai (Skip QC)" bg="#16A34A" color="#fff" border="none" onClick={() => handleAction('force_complete')} />
           <ActionBtn icon={<RefreshCw size={13} />} label="Kirim ke QC Dulu" bg="#DBEAFE" color="#1D4ED8" border="1px solid #93C5FD" onClick={() => handleAction('send_to_qc')} />
+        </SectionCard>
+      )}
+
+      {/* ===== Finance: Complete only when an invoice was issued ===== */}
+      {canRole(role, 'Finance')
+        && !['Completed', 'Rejected', 'Cancelled', 'Finished'].includes(status) && (
+        <SectionCard title="Finance: Selesaikan SO dengan Invoice Terbit" titleBg="#EFF6FF" titleColor="#1D4ED8">
+          <p style={{ margin: "0 0 4px", fontSize: "11px", color: S.secondary, lineHeight: 1.4 }}>
+            {order.invoice?.invoiceId
+              ? `Invoice ${order.invoice.invoiceNumber || "terbit"} sudah tercatat. Finance dapat menyelesaikan SO tanpa menunggu tahapan produksi dan QC.`
+              : "Terbitkan invoice untuk mengaktifkan penyelesaian SO melalui Finance."}
+          </p>
+          <ActionBtn
+            icon={<FileCheck2 size={13} />}
+            label="Selesaikan SO (Invoice Terbit)"
+            bg={order.invoice?.invoiceId ? "#1D4ED8" : "#E2E8F0"}
+            color={order.invoice?.invoiceId ? "#fff" : "#64748B"}
+            border={order.invoice?.invoiceId ? "none" : "1px solid #CBD5E1"}
+            disabled={!order.invoice?.invoiceId}
+            title={!order.invoice?.invoiceId ? "Invoice harus diterbitkan terlebih dahulu untuk menyelesaikan SO." : undefined}
+            onClick={() => setShowFinanceCompletionConfirm(true)}
+          />
+          {showFinanceCompletionConfirm && (
+            <div role="dialog" aria-modal="true" aria-label="Konfirmasi penyelesaian SO" style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(15, 23, 42, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+              <div style={{ width: "100%", maxWidth: 440, borderRadius: 8, background: "#fff", padding: 20, boxShadow: "0 20px 45px rgba(15,23,42,.25)" }}>
+                <h3 style={{ margin: "0 0 10px", fontSize: 16, color: S.slate }}>Selesaikan SO tanpa tahapan produksi/QC?</h3>
+                <p style={{ margin: "0 0 18px", fontSize: 13, lineHeight: 1.5, color: S.secondary }}>
+                  Invoice <strong>{order.invoice?.invoiceNumber}</strong> sudah diterbitkan. SO akan ditandai selesai dan tahapan Engineering, Produksi, serta QC yang belum dilakukan akan dilewati.
+                </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button type="button" onClick={() => setShowFinanceCompletionConfirm(false)} style={{ padding: "8px 12px", border: `1px solid ${S.border}`, borderRadius: 5, background: "#fff", color: S.slate, cursor: "pointer" }}>Batal</button>
+                  <button type="button" onClick={() => { setShowFinanceCompletionConfirm(false); handleAction('finance_force_complete'); }} style={{ padding: "8px 12px", border: 0, borderRadius: 5, background: "#1D4ED8", color: "#fff", fontWeight: 600, cursor: "pointer" }}>Ya, Selesaikan SO</button>
+                </div>
+              </div>
+            </div>
+          )}
         </SectionCard>
       )}
     </>

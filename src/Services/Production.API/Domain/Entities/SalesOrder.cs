@@ -8,6 +8,7 @@ public sealed class SalesOrder
     public string CustomerCode { get; set; } = "";
     public string CustomerName { get; set; } = "";
     public string? CustomerEmail { get; set; }
+    public string? Notes { get; set; }
     public string? CustomerDrawingUrl { get; set; }
     public string? DesignReference { get; set; }
     public string DesignStatus { get; set; } = SalesOrderDesignStatuses.PendingDesign;

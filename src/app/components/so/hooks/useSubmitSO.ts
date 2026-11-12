@@ -25,7 +25,8 @@ export function useSubmitSO() {
     customerInput: { code?: string; name: string; email?: string; phone?: string; address?: string; contactPerson?: string },
     targetDate: string,
     rows: ProductLineItemType[],
-    designStatus?: string
+    designStatus?: string,
+    notes?: string
   ): CompleteSalesOrderRequest => {
     
     // Check if customer is existing
@@ -105,6 +106,7 @@ export function useSubmitSO() {
         soDate: today,
         targetDate,
         items,
+        notes: notes || null,
         customerDrawingUrl: finalImageUrl,
         designReference: rows.some(r => r.designId === "none") ? "INTERNAL_DESIGN" : null,
         designStatus: explicitDesignStatus,
@@ -125,7 +127,9 @@ export function useSubmitSO() {
           phone: data.customerForm.phone,
         },
         data.customerForm.deadline,
-        data.products
+        data.products,
+        undefined,
+        data.customerForm.generalNotes
       );
 
       const created = await salesApi.createCompleteSalesOrder(payload);
@@ -136,7 +140,10 @@ export function useSubmitSO() {
         updateSalesOrder(created.id, { estimatedAmount: data.customerForm.estimatedAmount });
       }
       
-      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['salesOrders'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+      ]);
       setGeneratedSONumber(created.soNumber);
       setSubmitted(true);
     } catch (error: any) {
@@ -253,7 +260,8 @@ export function useSubmitSO() {
         },
         data.repeatForm.deadline,
         data.repeatProducts,
-        undefined
+        undefined,
+        data.repeatForm.generalNotes
       );
 
       const created = await salesApi.createCompleteSalesOrder(payload);

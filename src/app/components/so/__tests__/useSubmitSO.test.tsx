@@ -25,8 +25,7 @@ vi.mock('../../context/hooks/dataMappers', () => ({
   mapSalesOrderDto: vi.fn().mockReturnValue({ id: 'SO-1' }),
 }));
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const createWrapper = (queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) => {
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -57,6 +56,49 @@ describe('useSubmitSO designStatus logic', () => {
 
     const payload = vi.mocked(salesApi.createCompleteSalesOrder).mock.calls[0][0];
     expect(payload.order.designStatus).toBe('PendingDesign');
+  });
+
+  it('keeps general PO notes on the new Sales Order', async () => {
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [] } as any);
+    vi.mocked(useProductsQuery).mockReturnValue({ data: [] } as any);
+    const { result } = renderHook(() => useSubmitSO(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await result.current.submitNewOrder({
+        customerForm: {
+          customerCode: 'C-1', customerName: 'Test', address: '', phone: '', email: '', company: '',
+          estimatedAmount: 0, deadline: '', generalNotes: 'PO: 4400096296',
+        },
+        products: [
+          { id: '1', type: 'custom', productName: 'Custom Part', designId: 'none', quantity: '1', unitPrice: 0, unit: 'pcs' },
+        ],
+      });
+    });
+
+    const payload = vi.mocked(salesApi.createCompleteSalesOrder).mock.calls[0][0];
+    expect(payload.order.notes).toBe('PO: 4400096296');
+  });
+
+  it('refreshes customers after creating a new Sales Order', async () => {
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [] } as any);
+    vi.mocked(useProductsQuery).mockReturnValue({ data: [] } as any);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    const { result } = renderHook(() => useSubmitSO(), { wrapper: createWrapper(queryClient) });
+
+    await act(async () => {
+      await result.current.submitNewOrder({
+        customerForm: {
+          customerCode: '', customerName: 'PIC Test', company: 'Perusahaan Test', address: '', phone: '', email: '',
+          estimatedAmount: 0, deadline: '',
+        },
+        products: [
+          { id: '1', type: 'custom', productName: 'Custom Part', designId: 'none', quantity: '1', unitPrice: 0, unit: 'pcs' },
+        ],
+      });
+    });
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['customers'] });
   });
 
   it('should set Approved if existing product is selected AND it has a historical approved design', async () => {

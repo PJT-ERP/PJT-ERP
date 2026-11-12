@@ -94,7 +94,8 @@ public abstract partial class ProductionServiceBase
             order.QcPhotos,
             MapMaterials(order, boms),
             order.DpPercentage,
-            order.DpDueDate);
+            order.DpDueDate,
+            order.Notes);
     }
 
     public static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)

@@ -90,6 +90,7 @@ public class SalesOrderCommandService(
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
             CustomerEmail = customer.Email,
+            Notes = NormalizeOptional(request.Notes),
             CustomerDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL"),
             DesignReference = NormalizeOptional(request.DesignReference),
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
@@ -277,7 +278,8 @@ public class SalesOrderCommandService(
             request.Order.QcReviewer,
             request.Order.CustomerDrawingUrl,
             request.Order.DesignReference,
-            request.Order.DesignStatus
+            request.Order.DesignStatus,
+            request.Order.Notes
         );
 
         return await CreateSalesOrderAsync(createRequest, cancellationToken);
@@ -751,6 +753,11 @@ public class SalesOrderCommandService(
         if (request.CustomerDrawingUrl != null)
         {
             order.CustomerDrawingUrl = request.CustomerDrawingUrl;
+        }
+
+        if (request.Notes != null)
+        {
+            order.Notes = NormalizeOptional(request.Notes);
         }
 
         if (request.DesignRevisions != null)

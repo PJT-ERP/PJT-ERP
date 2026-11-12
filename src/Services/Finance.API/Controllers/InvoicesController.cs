@@ -28,6 +28,23 @@ public sealed class InvoicesController(IFinanceService financeService) : Control
         return invoice is null ? NotFound() : Ok(invoice);
     }
 
+    [HttpPost("{invoiceId:guid}/complete-sales-order")]
+    [Authorize(Roles = "Admin,Finance,Owner")]
+    public async Task<IActionResult> RequestSalesOrderCompletion(Guid invoiceId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var accepted = await financeService.RequestSalesOrderCompletionAsync(invoiceId, cancellationToken);
+            return accepted
+                ? Accepted(new { message = "Sales Order completion requested." })
+                : NotFound(new { message = "Issued invoice was not found." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+    }
+
     [HttpGet("{invoiceId:guid}/pdf")]
     [Authorize(Roles = "Admin,Finance,Owner,Sales")]
     public async Task<ActionResult> GetPdf(Guid invoiceId, [FromQuery] bool inline = false, CancellationToken cancellationToken = default)

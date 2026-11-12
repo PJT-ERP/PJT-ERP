@@ -12,7 +12,8 @@ public sealed record CreateSalesOrderRequest(
     EngineerAssignment? QcReviewer = null,
     string? CustomerDrawingUrl = null,
     string? DesignReference = null,
-    string? DesignStatus = null);
+    string? DesignStatus = null,
+    string? Notes = null);
 
 public sealed record CreateSalesOrderItemRequest(Guid ProductId, int Qty, decimal UnitPrice, string? Notes, string? DesignReference = null, string? CustomerDrawingUrl = null);
 
@@ -47,7 +48,8 @@ public sealed record CompleteSalesOrderDetailsRequest(
     EngineerAssignment? QcReviewer = null,
     string? CustomerDrawingUrl = null,
     string? DesignReference = null,
-    string? DesignStatus = null
+    string? DesignStatus = null,
+    string? Notes = null
 );
 
 public sealed record CompleteSalesOrderItemRequest(
@@ -139,7 +141,8 @@ public sealed record SalesOrderDto(
     IReadOnlyCollection<string>? QcPhotos = null,
     IReadOnlyCollection<SalesOrderMaterialDto>? Materials = null,
     decimal? DpPercentage = null,
-    DateOnly? DpDueDate = null);
+    DateOnly? DpDueDate = null,
+    string? Notes = null);
 
 public sealed record SalesOrderCommentDto(
     Guid Id,

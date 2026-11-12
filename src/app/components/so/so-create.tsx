@@ -18,7 +18,7 @@ import { useCustomersQuery, useSalesOrdersQuery, useProductsQuery } from "../../
 
 interface SOCreateProps {
   onNavigate: (page: string, data?: unknown) => void;
-  initialData?: { customerId?: string; orderType?: "new" | "repeat"; mode?: string; soId?: string };
+  initialData?: { customerId?: string; orderType?: "new" | "direct" | "repeat"; mode?: string; soId?: string };
 }
 
 const S = {
@@ -40,7 +40,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
   const newOrderMethods = useNewOrderForm(initialData);
   const tempRepeatMethods = useRepeatOrderForm(initialData);
   
-  const [orderType, setOrderType] = useState<"new" | "repeat" | null>(initialData?.mode === "edit" ? "new" : initialData?.orderType ?? null);
+  const [orderType, setOrderType] = useState<"new" | "direct" | "repeat" | null>(initialData?.mode === "edit" ? "new" : initialData?.orderType ?? null);
   const [isExistingCustomer, setIsExistingCustomer] = useState(!!initialData?.customerId);
   const [designSource, setDesignSource] = useState<"Engineering" | "CustomerProvided">("Engineering");
   const [engineeringReviewRequired, setEngineeringReviewRequired] = useState(true);
@@ -119,23 +119,27 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
     const isCustomSubmit = orderType === "repeat"
       ? repeatOrderMethods.getValues("repeatProducts").some(r => r.type === "custom")
       : newOrderMethods.getValues("products").some(r => r.type === "custom");
+    const isQuotation = orderType === "new";
+    const nextStepText = orderType === "repeat"
+      ? "Pesanan repeat telah disimpan sebagai Sales Order."
+      : orderType === "direct"
+        ? "Sales Order langsung dibuat dan masuk ke workflow Engineering/Finance sesuai status desain dan harga."
+        : designSource === "Engineering"
+          ? "Quotation tersimpan. Engineering akan menyiapkan desain dan BOM untuk persetujuan SPV dan pelanggan."
+          : engineeringReviewRequired
+            ? "Quotation tersimpan bersama desain pelanggan. Engineering akan memeriksa kelayakan dan BOM sebelum persetujuan desain pelanggan."
+            : "Quotation tersimpan bersama desain dan BOM dari pelanggan. Lanjutkan ke persetujuan desain pelanggan sebelum pricing.";
 
     return (
       <SuccessScreen
         generatedSoNumber={submitSO.generatedSONumber}
         totalItems={totalItems}
         isCustomSubmit={isCustomSubmit}
-        isQuotation={orderType !== "repeat"}
-        nextStepText={orderType === "repeat"
-          ? "Pesanan repeat telah disimpan sebagai Sales Order."
-          : designSource === "Engineering"
-            ? "Quotation tersimpan. Engineering akan menyiapkan desain dan BOM untuk persetujuan SPV dan pelanggan."
-            : engineeringReviewRequired
-              ? "Quotation tersimpan bersama desain pelanggan. Engineering akan memeriksa kelayakan dan BOM sebelum persetujuan desain pelanggan."
-              : "Quotation tersimpan bersama desain dan BOM dari pelanggan. Lanjutkan ke persetujuan desain pelanggan sebelum pricing."}
+        isQuotation={isQuotation}
+        nextStepText={nextStepText}
         isEdit={initialData?.mode === "edit"}
         onReset={handleReset}
-        onViewList={() => onNavigate(orderType === "repeat" ? "so-list" : "quotation-list")}
+        onViewList={() => onNavigate(isQuotation ? "quotation-list" : "so-list")}
       />
     );
   }
@@ -153,20 +157,22 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
         </button>
         <div>
           <h1 style={{ color: S.slate, margin: 0 }}>
-            {!orderType ? "Buat Quotation (Penawaran)" : orderType === "repeat" ? "Repeat Order" : "Quotation Baru"}
+            {!orderType ? "Buat Order" : orderType === "repeat" ? "Repeat Order" : orderType === "direct" ? "Sales Order Baru (Langsung)" : "Quotation Baru"}
           </h1>
           <p style={{ color: S.secondary, fontSize: "13px", marginTop: 2 }}>
             {!orderType
-              ? "Pilih jenis order untuk membuat penawaran baru"
+              ? "Pilih Quotation, Sales Order langsung, atau Repeat Order"
               : orderType === "repeat"
                 ? "Pilih pelanggan existing dan tambahkan produk repeat"
-                : "Isi form untuk membuat quotation penawaran baru"}
+                : orderType === "direct"
+                  ? "Isi order yang sudah dikonfirmasi pelanggan untuk langsung membuat SO"
+                  : "Isi form untuk membuat quotation penawaran baru"}
           </p>
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : "Quotation Baru", "Submit"].map((step, i) => {
+        {["Jenis Order", orderType === "repeat" ? "Repeat Order" : orderType === "direct" ? "Sales Order Baru" : "Quotation Baru", "Submit"].map((step, i) => {
           const active = (i === 0 && !orderType) || (i === 1 && !!orderType);
           const done = i === 0 && !!orderType;
           return (
@@ -187,9 +193,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
           {!orderType && <OrderTypeSelector onSelect={setOrderType} />}
 
       {/* ===== New Order Form ===== */}
-      {orderType === "new" && (
+      {(orderType === "new" || orderType === "direct") && (
         <FormProvider {...newOrderMethods}>
-          <form onSubmit={newOrderMethods.handleSubmit((data) => submitSO.submitNewQuotation(data, designSource, engineeringReviewRequired, customerDesignLink, customerBomJson))} style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
+          <form onSubmit={newOrderMethods.handleSubmit((data) => orderType === "direct"
+            ? submitSO.submitNewOrder(data)
+            : submitSO.submitNewQuotation(data, designSource, engineeringReviewRequired, customerDesignLink, customerBomJson))} style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: 14 }}>
             <CustomerSection
               isExistingCustomer={isExistingCustomer}
               onToggleExisting={setIsExistingCustomer}
@@ -198,7 +206,11 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
 
             <OrderDetailSection namePrefix="customerForm" />
 
-            <SectionCard title="Sumber Desain dan Review Engineering" icon={<Layers size={14} />}>
+            {orderType === "direct" ? (
+              <div style={{ padding: "12px 16px", background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 6, color: "#0C4A6E", fontSize: 12.5 }}>
+                Sales Order akan dibuat langsung. Produk yang belum memiliki desain tetap masuk ke antrean Engineering.
+              </div>
+            ) : <SectionCard title="Sumber Desain dan Review Engineering" icon={<Layers size={14} />}>
               <label style={{ display: "block", fontSize: 12, color: S.secondary, marginBottom: 5 }}>Sumber desain</label>
               <select value={designSource} onChange={e => setDesignSource(e.target.value as "Engineering" | "CustomerProvided")} style={{ width: "100%", padding: 9, border: `1px solid ${S.border}`, borderRadius: 4, marginBottom: 10 }}>
                 <option value="Engineering">Desain disiapkan Engineering</option>
@@ -219,7 +231,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 </>}
               </>}
               {designSource === "Engineering" && <p style={{ margin: 0, fontSize: 11, color: S.secondary }}>Engineering akan menyiapkan DesignLink dan BOM. Quotation tidak dapat lanjut ke harga sebelum SPV dan pelanggan menyetujui desain.</p>}
-            </SectionCard>
+            </SectionCard>}
 
             <SectionCard
               title={`Daftar Produk (${newOrderFields.length} item)`}
@@ -255,7 +267,9 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                     <span style={{ fontSize: 16, color: "#1D4ED8", fontWeight: 700 }}>Rp {estimatedTotal.toLocaleString("id-ID")}</span>
                   </div>
                   <div style={{ fontSize: 11.5, color: "#3B82F6" }}>
-                    *Harga akan diisi Finance (atau disetujui) setelah desain, review, dan persetujuan desain pelanggan selesai.
+                    {orderType === "direct"
+                      ? "*Nilai yang diisi disimpan bersama Sales Order dan dapat ditinjau Finance."
+                      : "*Harga akan diisi Finance (atau disetujui) setelah desain, review, dan persetujuan desain pelanggan selesai."}
                   </div>
                 </div>
               );
@@ -272,7 +286,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                 onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
                 onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
               >
-                <CheckCircle2 size={14} /> {submitSO.isSubmitting ? "Menyimpan..." : "Submit Quotation"}
+                <CheckCircle2 size={14} /> {submitSO.isSubmitting ? "Menyimpan..." : orderType === "direct" ? "Buat Sales Order" : "Submit Quotation"}
               </button>
             </div>
           </form>

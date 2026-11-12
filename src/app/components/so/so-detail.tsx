@@ -14,6 +14,7 @@ import { formatDocNumber, isQuotationEntry } from "../context/hooks/dataMappers"
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { salesApi } from "../../services/salesApi";
+import { financeApi } from "../../services/financeApi";
 import { toBackendUserId } from "../../services/backendIds";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
@@ -207,6 +208,31 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
           duration: 3000
         });
+      } else if (action === 'finance_force_complete') {
+        if (!order.invoice?.invoiceId) {
+          toast.error('SO hanya dapat diselesaikan melalui Finance jika invoice sudah diterbitkan.');
+          return;
+        }
+        try {
+          await financeApi.requestSalesOrderCompletion(order.invoice.invoiceId);
+        } catch (error: any) {
+          toast.error(error?.response?.data?.message || error?.message || 'Gagal meminta penyelesaian Sales Order.');
+          return;
+        }
+        let completed = false;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+          const refreshedOrders = queryClient.getQueryData<any[]>(['salesOrders']) || [];
+          completed = refreshedOrders.some(candidate =>
+            candidate.status === 'Completed'
+            && (candidate.backendId === targetId || candidate.id === order.id || candidate.soNumber === order.soNumber)
+          );
+          if (completed || attempt === 4) break;
+          await new Promise(resolve => window.setTimeout(resolve, 500));
+        }
+        toast.success(completed
+          ? 'Sales Order ditandai selesai berdasarkan invoice yang sudah terbit.'
+          : 'Permintaan diterima. Status Sales Order akan diperbarui setelah diproses.');
       } else if (action === 'send_to_qc') {
         updateSalesOrder(targetId, { status: 'QC' });
         toast.success('Sales Order dikirim ke QC untuk pengecekan.', {

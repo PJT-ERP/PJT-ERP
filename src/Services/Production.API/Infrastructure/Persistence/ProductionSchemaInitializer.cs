@@ -139,6 +139,7 @@ public static class ProductionSchemaInitializer
             ALTER TABLE quotations ADD COLUMN IF NOT EXISTS client_design_approved_at_utc timestamp with time zone NULL;
 
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_email character varying(160);
+            ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS notes text NULL;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS dp_percentage numeric(5,2) NULL;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS dp_due_date date NULL;
             ALTER TABLE sales_orders ADD COLUMN IF NOT EXISTS customer_drawing_url character varying(1000);

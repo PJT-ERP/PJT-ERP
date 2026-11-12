@@ -218,6 +218,10 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
   const mappedStatus = mapSalesOrderStatus(order);
   const rawNumber = order.soNumber || (order as any).soNumber || order.id;
   const displayId = formatDocNumber(rawNumber, mappedStatus, false);
+  const notes = [...new Set([
+    (order as any).notes,
+    ...(order.items || []).map(item => item.notes && item.notes.startsWith("[") ? item.notes.replace(/\[.*?\]\s*/, "") : item.notes),
+  ].filter(Boolean))].join(" | ");
 
   return {
     id: displayId,
@@ -268,7 +272,7 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     designAssignedName: order.designWorkerName || (order as any).designAssignedName,
     designApprovedByName: order.designApprovedByName || (order as any).designApprovedByName,
     designApprovedByUserId: order.designApprovedByUserId || (order as any).designApprovedByUserId,
-    notes: (order.items || []).map(item => (item.notes && item.notes.startsWith("[") ? item.notes.replace(/\[.*?\]\s*/, "") : item.notes)).filter(Boolean).join(" | ") || (order as any).notes || "",
+    notes,
     materials,
     bomsPerItem,
     backendDesignStatus: order.designStatus || (order as any).backendDesignStatus,

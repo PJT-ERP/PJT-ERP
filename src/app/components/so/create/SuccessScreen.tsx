@@ -49,12 +49,12 @@ export function SuccessScreen({ generatedSoNumber, totalItems, isCustomSubmit, i
             style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: `1px solid ${S.border}`, background: S.white, boxShadow: "0 8px 24px -4px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.08)", color: S.slate, fontSize: "13px", cursor: "pointer", fontFamily: S.font, transition: "background 0.12s" }}
             onMouseEnter={e => (e.currentTarget.style.background = S.bg)}
             onMouseLeave={e => (e.currentTarget.style.background = S.white)}
-          >Buat QU Lagi</button>
+          >{isQuotation ? "Buat QU Lagi" : "Buat SO Lagi"}</button>
           <button onClick={onViewList}
             style={{ flex: 1, padding: "8px 16px", borderRadius: 4, border: "none", background: S.cyan, color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: S.font, transition: "opacity 0.12s" }}
             onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
             onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-          >Lihat Daftar Order & QU</button>
+          >{isQuotation ? "Lihat Daftar Order & QU" : "Lihat Daftar SO"}</button>
         </div>
       </div>
     </div>
