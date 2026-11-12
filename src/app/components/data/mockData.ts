@@ -1,6 +1,7 @@
 export type UserRole = 'Sales' | 'Sales Order' | 'Engineering' | 'Engineering Supervisor' | 'QC' | 'Owner' | 'Admin' | 'Finance' | 'Purchasing';
 
 export type SOStatus =
+  | 'Draft'
   | 'Waiting Payment'
   | 'Pending Design'
   | 'Waiting Spv Approval'
@@ -13,6 +14,8 @@ export type SOStatus =
   | 'Paused'
   | 'QC'
   | 'Completed'
+  | 'Approved'
+  | 'Cancelled'
   | 'Rejected';
 
 export interface User {
@@ -42,6 +45,9 @@ export interface SalesOrder {
   convertedSalesOrderId?: string | null;
   convertedSalesOrderNumber?: string | null;
   soNumber?: string;
+  quotationId?: string;
+  quotationNumber?: string;
+  drawingFileUrl?: string;
   customerId: string;
   customerName?: string;
   customerEmail?: string;
@@ -155,6 +161,7 @@ export const invoiceStatusConfig: Record<string, { label: string; bgColor: strin
 
 export function getStatusColor(status: SOStatus): { bg: string; text: string; border: string; dot: string } {
   const map: Record<SOStatus, { bg: string; text: string; border: string; dot: string }> = {
+    'Draft': { bg: 'bg-slate-100', text: 'text-slate-700 font-semibold', border: 'border-slate-300', dot: 'bg-slate-500' },
     'Waiting Payment': { bg: 'bg-amber-100', text: 'text-amber-800 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
     'Pending Design': { bg: 'bg-amber-100', text: 'text-amber-900 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
     'Waiting Spv Approval': { bg: 'bg-amber-100', text: 'text-amber-900 font-semibold', border: 'border-amber-300', dot: 'bg-amber-600' },
@@ -167,6 +174,8 @@ export function getStatusColor(status: SOStatus): { bg: string; text: string; bo
     'Paused': { bg: 'bg-orange-50', text: 'text-orange-700 font-semibold', border: 'border-orange-200', dot: 'bg-orange-500' },
     'QC': { bg: 'bg-purple-50', text: 'text-purple-700 font-semibold', border: 'border-purple-200', dot: 'bg-purple-500' },
     'Completed': { bg: 'bg-emerald-100', text: 'text-emerald-900 font-bold', border: 'border-emerald-300', dot: 'bg-emerald-600' },
+    'Approved': { bg: 'bg-emerald-100', text: 'text-emerald-900 font-bold', border: 'border-emerald-300', dot: 'bg-emerald-600' },
+    'Cancelled': { bg: 'bg-red-100', text: 'text-red-800 font-semibold', border: 'border-red-300', dot: 'bg-red-600' },
     'Rejected': { bg: 'bg-red-100', text: 'text-red-800 font-semibold', border: 'border-red-300', dot: 'bg-red-600' },
   };
 

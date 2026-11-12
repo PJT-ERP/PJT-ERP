@@ -167,4 +167,70 @@ describe('ProductionMaterialRequestPage', () => {
     // It should show the normal warning message for single spec
     expect(screen.getByText(/material tidak mencukupi untuk memulai produksi/)).toBeInTheDocument();
   });
+
+  it('loads inherited BOM materials from a converted Sales Order when opened without location.state', async () => {
+    const { useLocation } = await import('react-router');
+    const { useSalesOrdersQuery } = await import('../../services/queries');
+    const { masterDataApi } = await import('../../services/masterDataApi');
+
+    (masterDataApi as any).getBomStock = vi.fn().mockResolvedValue([]);
+
+    vi.mocked(useLocation).mockReturnValue({
+      state: null,
+      key: '', pathname: '', search: '', hash: '',
+    });
+
+    const convertedSo = {
+      id: 'SO-123',
+      soNumber: 'SO-123',
+      description: 'Converted Custom Part',
+      items: [{ id: 'so-item-1', productId: 'custom-prod-1', productName: 'test2', quantity: 2 }],
+      materials: [
+        {
+          id: 'quo-bom-1',
+          code: 'MAT-001',
+          name: 'Bor 2mm',
+          spec: 'HSS M2',
+          specification: 'HSS M2',
+          quantity: 20,
+          unit: 'PCS',
+          isCustomerMaterial: false,
+        },
+      ],
+      bomsPerItem: {
+        'so-item-1': [
+          {
+            id: 'quo-bom-1',
+            code: 'MAT-001',
+            name: 'Bor 2mm',
+            spec: 'HSS M2',
+            specification: 'HSS M2',
+            quantity: 20,
+            unit: 'PCS',
+            isCustomerMaterial: false,
+          },
+        ],
+      },
+    };
+
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [convertedSo] } as any);
+    vi.mocked(useApp).mockReturnValue({
+      salesOrders: [convertedSo],
+      purchasingRequests: [],
+      currentUser: { role: 'Engineering Supervisor' },
+    } as any);
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProductionMaterialRequestPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByDisplayValue('Bor 2mm (HSS M2)')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('HSS M2')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('20')).toBeInTheDocument();
+  });
 });

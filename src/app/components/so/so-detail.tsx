@@ -54,7 +54,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const { invoices, payments } = useFinanceData(isSalesOrHigher, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
-  const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId);
+  const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId || o.backendId === orderId);
   const targetId = baseOrder?.backendId || baseOrder?.id || orderId;
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
   const isQuotation = isQuotationEntry(order);
@@ -74,7 +74,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const isStandard = !isCustomBackend;
 
   let displayMaterials = order?.materials || [];
-  if (isStandard && productCatalog && order) {
+  if (displayMaterials.length === 0 && isStandard && productCatalog && order) {
     const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
     if (matchedProduct && matchedProduct.materialSpec) {
       displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => {
@@ -92,10 +92,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   }
 
   displayMaterials = displayMaterials.map((mat: any) => {
-    let code = mat.code;
+    let code = mat.code || mat.itemCode;
     let name = mat.name;
+    const isSyntheticId = typeof mat.id === "string" && (mat.id.startsWith("quo-bom-") || mat.id.includes("-legacy-"));
     if (!code || code.length > 20) {
-      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 && !isSyntheticId ? mat.id : null);
       const matchedProduct = productCatalog.find(p => p.bomItems?.some(b => b.inventoryItemId === invId));
       if (matchedProduct) {
         const bomItem = matchedProduct.bomItems?.find(b => b.inventoryItemId === invId);
@@ -110,15 +111,24 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       const codePrefix = `${code} - `;
       if (name.startsWith(codePrefix)) name = name.slice(codePrefix.length);
     }
-    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 && !isSyntheticId ? mat.id : null);
     return { ...mat, code: code || finalInvId || null, name };
   });
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
-    engineerName: order?.assignedName || "",
+    engineerName: order?.assignedName || order?.designAssignedName || "",
     designUrl: order?.designLink || "",
   });
+
+  React.useEffect(() => {
+    if (!order) return;
+    setActionForm(prev => ({
+      estimatedAmount: order.estimatedAmount || prev.estimatedAmount || 0,
+      engineerName: order.assignedName || order.designAssignedName || prev.engineerName || "",
+      designUrl: order.designLink || prev.designUrl || "",
+    }));
+  }, [order?.id, order?.assignedName, order?.designAssignedName, order?.estimatedAmount, order?.designLink]);
 
   const [editForm, setEditForm] = useState({
     customerName: "",
@@ -377,7 +387,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           </button>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h1 style={{ color: S.slate, margin: 0 }}>{formatDocNumber(order.id, order.status)}</h1>
+              <h1 style={{ color: S.slate, margin: 0 }}>{formatDocNumber(order.id, order.status, isQuotation)}</h1>
               <span className={`inline-flex items-center gap-[5px] px-[8px] py-[2px] rounded-[4px] border text-[11px] font-medium whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`} style={{ fontFamily: S.font }}>
                 <span className="w-[5px] h-[5px] rounded-full shrink-0 bg-current" />
                 {order.status}
@@ -696,6 +706,10 @@ function QuotationWorkflowActions({
         {actionButton("Convert ke Sales Order", () => {
           void perform(async () => {
             const created = await salesApi.convertQuotationToSalesOrder(quotation.id);
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["salesOrders"] }),
+              queryClient.invalidateQueries({ queryKey: ["quotations"] }),
+            ]);
             onConverted(created);
           }, "Sales Order dibuat.");
         })}

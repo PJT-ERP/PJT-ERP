@@ -204,8 +204,23 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
   );
 
   const soOptions = salesOrders
-    .filter(s => ['Ready for Production', 'In Production', 'Pending Design', 'Revision Required', 'Waiting Approval'].includes(s.status))
-    .map(s => ({ id: s.id, label: `${s.id} — ${s.description.slice(0, 40)}` }));
+    .filter(s => !s.isQuotation && ['Ready for Production', 'In Production', 'Pending Design', 'Revision Required', 'Waiting Approval', 'Waiting Payment', 'Waiting Pricing'].includes(s.status))
+    .map(s => ({ id: s.id, label: `${s.id} — ${(s.description || '').slice(0, 40)}` }));
+
+  const selectedSoForBom = salesOrders.find(order => order.id === soId || order.soNumber === soId);
+  const soBomOptions = (selectedSoForBom?.materials || [])
+    .filter((m: any) => !m.isCustomerMaterial)
+    .map((m: any, idx: number) => ({
+      id: m.inventoryItemId || m.id || `so-bom-${idx}`,
+      name: m.name || m.itemName || '',
+      code: m.code || m.itemCode || 'BOM',
+      spec: m.spec || m.specification || '',
+      unit: (m.unit || 'PCS').toUpperCase(),
+      category: 'Project',
+      currentStock: 0,
+    }))
+    .filter((m: any) => m.name && !inventoryItems.some(inv => inv.name?.toLowerCase() === m.name.toLowerCase()));
+  const autocompleteOptions = [...soBomOptions, ...inventoryItems];
 
   const uniqueUnits = Array.from(new Set(inventoryItems.map(i => i.unit?.toUpperCase()).filter(Boolean))) as string[];
   if (!uniqueUnits.includes("PCS")) uniqueUnits.push("PCS");
@@ -296,7 +311,7 @@ export function PurchasingFormModal({ onClose, editRequest, onSuccess }: { onClo
                           }
                         }
                       }}
-                      options={inventoryItems}
+                      options={autocompleteOptions}
                       disabled={false}
                     />
 

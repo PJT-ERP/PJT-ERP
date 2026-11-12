@@ -291,14 +291,14 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
                   value={repeatOrderMethods.watch("repeatForm.customerId")}
                   onChange={val => {
                     repeatOrderMethods.setValue("repeatForm.customerId", val);
-                    repeatOrderMethods.setValue("repeatForm.previousSoId", "");
-                    repeatOrderMethods.setValue("repeatProducts", []);
+                    if (repeatOrderMethods.getValues("repeatForm.previousSoId")) { repeatOrderReplace([]); } repeatOrderMethods.setValue("repeatForm.previousSoId", "");
+                    if (repeatOrderMethods.getValues("repeatForm.previousSoId")) { repeatOrderReplace([]); } repeatOrderMethods.setValue("repeatForm.previousSoId", "");
                   }}
                 />
               </div>
               {selectedCustomer && (
                 <div style={{ marginBottom: 14 }}>
-                  <Select required value={repeatOrderMethods.watch("repeatForm.previousSoId")} onChange={e => repeatOrderMethods.setValue("repeatForm.previousSoId", e.target.value)}>
+                  <Select value={repeatOrderMethods.watch("repeatForm.previousSoId")} onChange={e => repeatOrderMethods.setValue("repeatForm.previousSoId", e.target.value)}>
                     <option value="">— Pilih SO untuk di-repeat —</option>
                     {salesOrders.filter(so => so.customerId === selectedCustomer.code).map(so => (
                       <option key={so.id} value={so.id}>{so.soNumber || so.id} - {so.description}</option>
@@ -330,7 +330,7 @@ export function SOCreate({ onNavigate, initialData }: SOCreateProps) {
               icon={<Layers size={14} />}
               action={<AddProductBtn onClick={() => repeatOrderAppend(emptyProduct())} />}
             >
-              {repeatOrderMethods.watch("repeatForm.previousSoId") ? (
+              {repeatOrderFields.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {repeatOrderFields.map((field, idx) => (
                       <ProductLineItem

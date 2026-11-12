@@ -219,8 +219,8 @@ export function OrderInfoSidebar(props: OrderInfoSidebarProps) {
       </div>
       <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
         <div>
-          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>{getDocLabel(order.status)}</p>
-          <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{formatDocNumber(order.id, order.status)}</p>
+          <p style={{ margin: 0, fontSize: "10.5px", color: "#94A3B8" }}>{getDocLabel(order)}</p>
+          <p style={{ margin: "2px 0 0", fontSize: "13px", color: S.cyan, fontWeight: 600 }}>{formatDocNumber(order.id, order.status, order.isQuotation)}</p>
         </div>
         <div style={{ height: 1, background: "#F8FAFC" }} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

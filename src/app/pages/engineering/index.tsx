@@ -8,7 +8,8 @@ import { useApp } from "../../components/context/AppContext";
 import { useCustomersQuery, useSalesOrdersQuery } from "../../services/queries";
 import { getStatusColor } from "../../components/data/mockData";
 import { productionApi, DashboardCountersDto } from "../../services/productionApi";
-import { formatDocNumber } from "../../components/context/hooks/dataMappers";
+import { formatDocNumber, isQuotationEntry } from "../../components/context/hooks/dataMappers";
+import { toBackendUserId } from "../../services/backendIds";
 import { MentionsReminderWidget } from "../../components/shared/MentionsReminderWidget";
 import { useNavigate } from "react-router";
 import {
@@ -80,8 +81,9 @@ export function EngineeringPage() {
   // Helper to check if task is assigned to current user
   const isAssignedToCurrentUser = (item: any) => {
     if (!currentUser) return false;
-    if (item.designAssignedTo && (item.designAssignedTo === currentUser.id || item.designAssignedTo === (currentUser as any).userId)) return true;
-    if (item.assignedTo && (item.assignedTo === currentUser.id || item.assignedTo === (currentUser as any).userId)) return true;
+    const currentUserBackendId = toBackendUserId(currentUser);
+    if (item.designAssignedTo && (item.designAssignedTo === currentUser.id || item.designAssignedTo === (currentUser as any).userId || item.designAssignedTo === currentUserBackendId)) return true;
+    if (item.assignedTo && (item.assignedTo === currentUser.id || item.assignedTo === (currentUser as any).userId || item.assignedTo === currentUserBackendId)) return true;
     const workerName = (item.designWorkerName || item.designAssignedName || item.assignedName || "").toLowerCase().trim();
     if (!workerName || workerName === 'unassigned') return false;
     const userName = (currentUser.name || "").toLowerCase().trim();
@@ -297,7 +299,7 @@ export function EngineeringPage() {
                       onMouseEnter={e => e.currentTarget.style.background = "#F8FAFC"}
                       onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                     >
-                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600 }}>{formatDocNumber(so.id, so.status)}</span>
+                      <span style={{ color: S.cyan, fontSize: "12.5px", fontWeight: 600 }}>{formatDocNumber(so.id, so.status, isQuotationEntry(so))}</span>
                       <div>
                         <p style={{ color: S.slate, fontSize: "12.5px", margin: 0, fontWeight: 500 }}>{customers.find(c => c.code === so.customerId)?.name || "-"}</p>
                       </div>

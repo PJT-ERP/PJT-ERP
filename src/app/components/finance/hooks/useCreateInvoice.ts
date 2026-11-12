@@ -4,7 +4,7 @@ import { financeApi, type InvoiceDto } from '../../../services/financeApi';
 import { salesApi } from '../../../services/salesApi';
 import { useFinanceData } from '../useFinanceData';
 import { useApp } from '../../context/AppContext';
-import { isQuotationStatus } from '../../context/hooks/dataMappers';
+import { isQuotationEntry, isQuotationStatus } from '../../context/hooks/dataMappers';
 
 export interface LineItem {
   id: string;
@@ -48,7 +48,7 @@ export function useCreateInvoice() {
   // Combine backend candidates with local SOs that bypassed costing or were priced during production
   const localBypassedCandidates = salesOrders
     .filter(so => 
-      (['Pending Design', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'Paused', 'QC', 'Completed'].includes(so.status)) && 
+      !isQuotationEntry(so) && (['Pending Design', 'Ready for Production', 'Waiting Client Approval', 'Waiting Payment', 'In Production', 'Paused', 'QC', 'Completed'].includes(so.status)) &&
       (so.items?.some((i: any) => i.unitPrice && i.unitPrice > 0) || (so.estimatedAmount && so.estimatedAmount > 0))
     )
     .map(so => ({
@@ -94,7 +94,7 @@ export function useCreateInvoice() {
     if (!localSO || !localSO.isCostingCompleted) return false;
 
     // Strict rule 2: Quotations still waiting for client approval/deal (QU status) cannot be invoiced until client deals
-    if (isQuotationStatus(localSO.status)) return false;
+    if (isQuotationEntry(localSO) || isQuotationStatus(localSO.status)) return false;
 
     return true;
   });
