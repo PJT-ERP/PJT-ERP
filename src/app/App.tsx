@@ -89,7 +89,7 @@ export default function App() {
               <Route path="dashboard" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><DashboardPage /></ProtectedRoute>} />
               <Route path="customer-analytics" element={<ProtectedRoute allowedRoles={['Owner', 'Engineering Supervisor']}><CustomerAnalyticsPage /></ProtectedRoute>} />
               <Route path="daily-reports" element={<ProtectedRoute allowedRoles={['Owner']}><OwnerReportDashboard /></ProtectedRoute>} />
-              <Route path="daily-report" element={<ProtectedRoute allowedRoles={['Sales', 'Engineering', 'Engineering Supervisor', 'QC', 'Admin', 'Finance', 'Purchasing']}><MyDailyReportPage /></ProtectedRoute>} />
+              <Route path="daily-report" element={<ProtectedRoute allowedRoles={['Sales Order', 'Sales', 'Engineering', 'Engineering Supervisor', 'QC', 'Admin', 'Finance', 'Purchasing']}><MyDailyReportPage /></ProtectedRoute>} />
               
               {/* Admin: Admin & Owner */}
               <Route path="admin" element={<ProtectedRoute allowedRoles={['Admin', 'Owner']}><AdminPage /></ProtectedRoute>} />

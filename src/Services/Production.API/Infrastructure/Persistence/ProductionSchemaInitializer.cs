@@ -156,6 +156,47 @@ public static class ProductionSchemaInitializer
             SET design_status = 'PendingDesign'
             WHERE design_status IS NULL OR btrim(design_status) = '';
 
+            UPDATE sales_orders so
+            SET design_worker_user_id = q.assigned_engineer_id,
+                design_worker_name = q.assigned_engineer_name
+            FROM quotations q
+            WHERE q.converted_sales_order_id = so."Id"
+              AND so.design_worker_user_id IS NULL
+              AND q.assigned_engineer_id IS NOT NULL;
+
+            UPDATE sales_order_items soi
+            SET notes = bom_json.payload
+            FROM (
+                SELECT
+                    q.converted_sales_order_id,
+                    (
+                        SELECT s."Id"
+                        FROM sales_order_items s
+                        WHERE s.sales_order_id = q.converted_sales_order_id
+                        ORDER BY s.product_part_number, s."Id"
+                        LIMIT 1
+                    ) AS target_item_id,
+                    json_agg(
+                        json_build_object(
+                            'id', 'quo-bom-' || qb."Id"::text,
+                            'code', qb.item_code,
+                            'itemCode', qb.item_code,
+                            'name', qb.name,
+                            'spec', qb.specification,
+                            'specification', qb.specification,
+                            'quantity', ROUND(qb.quantity)::integer,
+                            'unit', qb.unit,
+                            'isCustomerMaterial', false
+                        )
+                    )::text AS payload
+                FROM quotations q
+                INNER JOIN quotation_bom_items qb ON qb.quotation_id = q."Id"
+                WHERE q.converted_sales_order_id IS NOT NULL
+                GROUP BY q."Id", q.converted_sales_order_id
+            ) bom_json
+            WHERE soi."Id" = bom_json.target_item_id
+              AND (soi.notes IS NULL OR NOT soi.notes LIKE '[%');
+
             ALTER TABLE sales_orders ALTER COLUMN design_status SET DEFAULT 'PendingDesign';
             ALTER TABLE sales_orders ALTER COLUMN design_status SET NOT NULL;
 

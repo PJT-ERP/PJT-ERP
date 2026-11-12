@@ -36,6 +36,8 @@ export default defineConfig({
       '/api': 'http://localhost:5000',
       '/proofs': 'http://localhost:5000',
       '/qc-photos': 'http://localhost:5000',
+      '/engineering-drawings': 'http://localhost:5000',
+      '/comments': 'http://localhost:5000',
     }
   },
   test: {

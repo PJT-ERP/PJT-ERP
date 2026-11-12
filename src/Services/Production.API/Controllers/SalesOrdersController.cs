@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using PJT_ERP.Production.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PJT_ERP.Production.Api.Application.Production;
@@ -14,6 +16,21 @@ public sealed class SalesOrdersController(
     IProductionCommandService productionCommandService,
     IProductionQueryService queryService) : ControllerBase
 {
+    // Minimal reference data for reports; this does not grant access to SO details.
+    [HttpGet("report-options")]
+    public async Task<IActionResult> ReportOptions([FromServices] ProductionContext db, [FromQuery] string? search, [FromQuery] Guid? id, CancellationToken cancellationToken)
+    {
+        var query = db.SalesOrders.AsNoTracking();
+        if (id.HasValue) query = query.Where(order => order.Id == id.Value);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(order => EF.Functions.ILike(order.SoNumber, $"%{term}%") || EF.Functions.ILike(order.CustomerName, $"%{term}%"));
+        }
+        return Ok(await query.OrderByDescending(order => order.CreatedAtUtc).Take(30)
+            .Select(order => new { order.Id, order.SoNumber, order.CustomerName }).ToListAsync(cancellationToken));
+    }
+
     [HttpGet]
     [Authorize(Roles = "Admin,Owner,Sales,Sales Order,Finance,Engineering,Engineering Supervisor,Purchasing,QC")]
     public async Task<ActionResult<IReadOnlyCollection<SalesOrderDto>>> List(CancellationToken cancellationToken)

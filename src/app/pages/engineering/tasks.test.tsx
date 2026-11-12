@@ -211,4 +211,70 @@ describe('EngineeringTasksPage', () => {
     expect(await screen.findByText('Engineer A')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Tugaskan' })).toHaveLength(1);
   });
+
+  it('preserves won quotation identity in the Completed tab and routes engineer assignment to the quotation endpoint', async () => {
+    const quotationId = '44444444-4444-4444-8444-444444444444';
+    const engineerId = '22222222-2222-4222-8222-222222222222';
+    quotationState.value = {
+      id: quotationId,
+      quotationNumber: 'QU-2026-077',
+      status: 'won',
+      designSource: 'Engineering',
+      engineeringReviewRequired: true,
+      assignedEngineerId: null,
+      assignedEngineerName: null,
+      items: [{ id: 'item-77', productName: 'Won Quotation Fixture', quantity: 2, unit: 'pcs' }],
+      bomItems: [],
+    };
+    const { useSalesOrdersQuery } = await import('../../services/queries');
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({
+      data: [
+        {
+          id: 'QU-2026-077',
+          backendId: quotationId,
+          soNumber: 'QU-2026-077',
+          isQuotation: true,
+          status: 'Approved',
+          backendStatus: 'won',
+          description: 'Won Quotation Fixture',
+          customerId: 'CUST-77',
+          quantity: 2,
+          unit: 'PCS',
+        } as any,
+      ],
+      isLoading: false,
+    } as any);
+    vi.mocked(salesApi.assignQuotationEngineer).mockClear();
+    vi.mocked(salesApi.assignSalesOrderEngineers).mockClear();
+    vi.mocked(useApp).mockReturnValue({
+      quotations: [],
+      customers: [],
+      salesOrders: [],
+      users: [{ id: engineerId, name: 'Engineer A', role: 'Engineering', isActive: true }],
+      currentUser: { id: '33333333-3333-4333-8333-333333333333', name: 'Supervisor', role: 'Engineering Supervisor' },
+    } as any);
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter><EngineeringTasksPage /></MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const completedTabBtn = await screen.findByRole('button', { name: /Riwayat Selesai/i });
+    fireEvent.click(completedTabBtn);
+
+    expect(await screen.findByText('QU-2026-077')).toBeInTheDocument();
+    expect(screen.getByText('Won Quotation Fixture')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tugaskan' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Pilih Engineer Penanggung Jawab' }), { target: { value: engineerId } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Penugasan' }));
+
+    await waitFor(() => expect(salesApi.assignQuotationEngineer).toHaveBeenCalledWith(quotationId, {
+      engineerId,
+      engineerName: 'Engineer A',
+    }));
+    expect(salesApi.assignSalesOrderEngineers).not.toHaveBeenCalled();
+  });
 });

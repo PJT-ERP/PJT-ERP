@@ -19,6 +19,13 @@ public sealed class DailyReportTask
     public Guid Id { get; set; }
     public Guid DailyReportId { get; set; }
     public string Description { get; set; } = string.Empty;
+    public string Target { get; set; } = "";
+    public string Status { get; set; } = "On Progress";
+    public string Result { get; set; } = "";
+    public Guid? SalesOrderId { get; set; }
+    public string? SalesOrderNumber { get; set; }
+    public Guid[] TaggedUserIds { get; set; } = [];
+    public string[] TaggedUserNames { get; set; } = [];
     public int SortOrder { get; set; }
     public DailyReport? DailyReport { get; set; }
 }
@@ -27,6 +34,7 @@ public sealed class DailyReportAttachment
 {
     public Guid Id { get; set; }
     public Guid DailyReportId { get; set; }
+    public Guid? TaskId { get; set; }
     public string StoredFilePath { get; set; } = string.Empty;
     public string OriginalFileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
