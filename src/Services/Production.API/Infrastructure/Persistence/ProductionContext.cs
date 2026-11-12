@@ -183,6 +183,7 @@ public sealed class ProductionContext(DbContextOptions<ProductionContext> option
             builder.Property(order => order.CustomerCode).HasMaxLength(50).HasColumnName("customer_code");
             builder.Property(order => order.CustomerName).HasMaxLength(255).HasColumnName("customer_name");
             builder.Property(order => order.CustomerEmail).HasMaxLength(160).HasColumnName("customer_email");
+            builder.Property(order => order.Notes).HasColumnName("notes");
             builder.Property(order => order.CustomerDrawingUrl).HasMaxLength(1000).HasColumnName("customer_drawing_url");
             builder.Property(order => order.DesignReference).HasMaxLength(255).HasColumnName("design_reference");
             builder.Property(order => order.DesignStatus).HasMaxLength(50).HasColumnName("design_status");

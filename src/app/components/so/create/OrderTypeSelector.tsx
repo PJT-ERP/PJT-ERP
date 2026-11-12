@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { FilePlus2, Plus, RefreshCw } from "lucide-react";
 
 const S = {
   font: "Inter, sans-serif",
@@ -10,7 +10,7 @@ const S = {
   white: "#FFFFFF",
 };
 
-type OrderType = "new" | "repeat";
+type OrderType = "new" | "direct" | "repeat";
 
 interface OrderTypeSelectorProps {
   onSelect: (type: OrderType) => void;
@@ -19,6 +19,7 @@ interface OrderTypeSelectorProps {
 export function OrderTypeSelector({ onSelect }: OrderTypeSelectorProps) {
   const cards = [
     { type: "new" as const, icon: <Plus size={22} style={{ color: "#10B981" }} />, title: "Quotation Baru (New Quotation)", desc: "Buat Quotation penawaran baru dari awal. Otomatis masuk ke antrean Tim Engineering untuk analisis gambar & BOM.", accentColor: "#10B981" },
+    { type: "direct" as const, icon: <FilePlus2 size={22} style={{ color: "#C8102E" }} />, title: "Sales Order Baru (Langsung)", desc: "Buat SO langsung untuk pesanan yang sudah dikonfirmasi pelanggan, tanpa membuat Quotation terlebih dahulu.", accentColor: "#C8102E" },
     { type: "repeat" as const, icon: <RefreshCw size={22} style={{ color: "#6366F1" }} />, title: "Repeat Order", desc: "Pilih pelanggan existing dan ulangi order produk sebelumnya. Data auto-fill untuk mempercepat proses.", accentColor: "#6366F1" },
   ];
 

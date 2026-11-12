@@ -39,7 +39,7 @@ RUN dotnet publish ${PROJECT_PATH} -c Release -o /app/publish /p:UseAppHost=fals
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 WORKDIR /app
 RUN addgroup -S appgroup && adduser -S -D -H -G appgroup appuser \
-    && mkdir -p /app/wwwroot /tmp \
+    && mkdir -p /app/wwwroot/engineering-drawings /app/wwwroot/comments /app/wwwroot/qc-photos /app/wwwroot/proofs /app/data/daily-report-uploads /tmp \
     && chown -R appuser:appgroup /app /tmp
 COPY --from=build --chown=appuser:appgroup /app/publish .
 

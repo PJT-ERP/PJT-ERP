@@ -90,6 +90,7 @@ public class SalesOrderCommandService(
             CustomerCode = customer.Code,
             CustomerName = customer.Name,
             CustomerEmail = customer.Email,
+            Notes = NormalizeOptional(request.Notes),
             CustomerDrawingUrl = NormalizeOptionalUrl(request.CustomerDrawingUrl, "Customer drawing URL"),
             DesignReference = NormalizeOptional(request.DesignReference),
             DesignStatus = NormalizeDesignStatus(request.DesignStatus),
@@ -277,7 +278,8 @@ public class SalesOrderCommandService(
             request.Order.QcReviewer,
             request.Order.CustomerDrawingUrl,
             request.Order.DesignReference,
-            request.Order.DesignStatus
+            request.Order.DesignStatus,
+            request.Order.Notes
         );
 
         return await CreateSalesOrderAsync(createRequest, cancellationToken);
@@ -411,6 +413,9 @@ public class SalesOrderCommandService(
 
         var newItems = request.Items.Select(item => {
             var existingItem = salesOrder.Items.FirstOrDefault(x => x.ProductId == item.ProductId);
+            var preservedNotes = !string.IsNullOrWhiteSpace(item.Notes)
+                ? item.Notes
+                : (existingItem?.Notes != null && existingItem.Notes.StartsWith("[") ? existingItem.Notes : item.Notes);
             return new SalesOrderItem
             {
                 Id = Guid.NewGuid(),
@@ -420,7 +425,7 @@ public class SalesOrderCommandService(
                 ProductDescription = products[item.ProductId].Description,
                 Qty = item.Qty,
                 UnitPrice = item.UnitPrice != 0 ? item.UnitPrice : (existingItem?.UnitPrice ?? 0),
-                Notes = item.Notes,
+                Notes = preservedNotes,
                 CustomerDrawingUrl = existingItem?.CustomerDrawingUrl,
                 DesignReference = existingItem?.DesignReference
             };
@@ -750,6 +755,11 @@ public class SalesOrderCommandService(
             order.CustomerDrawingUrl = request.CustomerDrawingUrl;
         }
 
+        if (request.Notes != null)
+        {
+            order.Notes = NormalizeOptional(request.Notes);
+        }
+
         if (request.DesignRevisions != null)
         {
             order.DesignRevisions.Clear();
@@ -769,19 +779,27 @@ public class SalesOrderCommandService(
         // For legacy support: if description/quantity/notes/unit are updated generically on a single-item SO
         if (order.Items.Count > 0 && (request.Description != null || request.Quantity.HasValue || request.Notes != null))
         {
-            if (request.Quantity.HasValue)
+            var item = order.Items.First();
+            if (request.Quantity.HasValue && request.Quantity.Value != item.Qty)
             {
-                var disallowedStatuses = new[] { "Waiting Payment", SalesOrderStatuses.Confirmed, SalesOrderStatuses.InProduction, SalesOrderStatuses.QC, SalesOrderStatuses.Completed };
+                var disallowedStatuses = new[] { "Waiting Payment", "WaitingPayment", SalesOrderStatuses.Confirmed, SalesOrderStatuses.InProduction, SalesOrderStatuses.QC, SalesOrderStatuses.Completed };
                 if (disallowedStatuses.Contains(order.Status) || order.IsCostingCompleted)
                 {
                     throw new InvalidOperationException("Kuantitas item tidak dapat diubah setelah Sales Order masuk ke tahap pembayaran atau produksi.");
                 }
             }
 
-            var item = order.Items.First();
             if (request.Description != null) item.ProductDescription = request.Description;
             if (request.Quantity.HasValue) item.Qty = request.Quantity.Value;
-            if (request.Notes != null) item.Notes = request.Notes;
+            if (request.Notes != null)
+            {
+                var existingIsStructuredBom = item.Notes != null && item.Notes.StartsWith("[");
+                var incomingIsStructuredBom = request.Notes.StartsWith("[");
+                if (!existingIsStructuredBom || incomingIsStructuredBom)
+                {
+                    item.Notes = request.Notes;
+                }
+            }
             
             order.EstimatedAmount = order.Items.Sum(i => i.Qty * i.UnitPrice);
         }

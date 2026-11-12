@@ -67,8 +67,21 @@ public sealed class QuotationWorkflowTests
         var order = await service.ConvertToSalesOrderAsync(quotation.Id, CancellationToken.None);
         Assert.NotNull(order);
         Assert.Equal("WaitingPayment", order!.Status);
+        Assert.Equal(EngineerId, order.DesignWorkerUserId);
+        Assert.Equal("Engineer", order.DesignWorkerName);
+        Assert.NotNull(order.Materials);
+        var material = Assert.Single(order.Materials!);
+        Assert.Equal("MAT-01", material.Code);
+        Assert.Equal("Steel", material.Name);
+        Assert.Equal("S45C", material.Spec);
+        Assert.Equal("S45C", material.Specification);
+        Assert.Equal(2, material.Quantity);
+        Assert.Equal("kg", material.Unit);
         Assert.Equal(1, await db.SalesOrders.CountAsync());
-        var persistedOrder = await db.SalesOrders.SingleAsync();
+        var persistedOrder = await db.SalesOrders.Include(so => so.Items).SingleAsync();
+        Assert.Equal(EngineerId, persistedOrder.DesignWorkerUserId);
+        Assert.Equal("Engineer", persistedOrder.DesignWorkerName);
+        Assert.StartsWith("[", persistedOrder.Items.Single().Notes);
         Assert.Null(persistedOrder.DpPercentage);
         Assert.Null(persistedOrder.DpDueDate);
         Assert.IsType<SalesOrderReadyForInvoiceEvent>(Assert.Single(publisher.Events));
@@ -222,6 +235,57 @@ public sealed class QuotationWorkflowTests
         Assert.Empty(await db.SalesOrders.ToListAsync());
     }
 
+    [Fact]
+    public async Task ConvertedSalesOrder_retainsEngineerAndBomInQueryServiceAndProductionBoard_andBackfillsLegacyConvertedOrders()
+    {
+        await using var db = CreateDb();
+        await SeedCustomer(db);
+        var publisher = new RecordingPublisher();
+        var quotationService = new QuotationService(db, publisher);
+        var quotation = await quotationService.CreateAsync(Request(), CancellationToken.None);
+        await quotationService.AssignEngineerAsync(quotation.Id, new AssignQuotationEngineerRequest(EngineerId, "Engineering User"), CancellationToken.None);
+        await quotationService.SubmitDesignAsync(
+            quotation.Id,
+            new SubmitQuotationDesignRequest("https://design.test/part.dwg", [new QuotationBomItemRequest("MAT-001", "Bor 2mm", "HSS M2", 20, "PCS")], EngineerId, "Engineering User"),
+            CancellationToken.None);
+        await quotationService.ApproveDesignBySupervisorAsync(quotation.Id, CancellationToken.None);
+        await quotationService.ApproveClientDesignAsync(quotation.Id, CancellationToken.None);
+        await quotationService.SubmitPricingAsync(quotation.Id, new SubmitQuotationPricingRequest(400_000m, null, EngineerId, "Finance"), CancellationToken.None);
+        await quotationService.MarkWonAsync(quotation.Id, CancellationToken.None);
+
+        var converted = await quotationService.ConvertToSalesOrderAsync(quotation.Id, CancellationToken.None);
+        Assert.NotNull(converted);
+
+        // Simulate legacy converted SO missing engineer and JSON BOM in DB to verify query-time backfill
+        var persistedSo = await db.SalesOrders.Include(s => s.Items).SingleAsync(s => s.Id == converted!.Id);
+        persistedSo.DesignWorkerUserId = null;
+        persistedSo.DesignWorkerName = null;
+        persistedSo.Items.Single().Notes = null;
+        persistedSo.Status = SalesOrderStatuses.Confirmed;
+        await db.SaveChangesAsync();
+
+        var queryService = new PJT_ERP.Production.Api.Application.Production.ProductionQueryService(
+            db,
+            publisher,
+            new EmptyMasterDataClient());
+
+        var listed = await queryService.ListSalesOrdersAsync(CancellationToken.None);
+        var listedSo = Assert.Single(listed);
+        Assert.Equal(EngineerId, listedSo.DesignWorkerUserId);
+        Assert.Equal("Engineering User", listedSo.DesignWorkerName);
+        var listedMat = Assert.Single(listedSo.Materials!);
+        Assert.Equal("MAT-001", listedMat.Code);
+        Assert.Equal("Bor 2mm", listedMat.Name);
+        Assert.Equal("HSS M2", listedMat.Specification);
+        Assert.Equal(20, listedMat.Quantity);
+        Assert.Equal("PCS", listedMat.Unit);
+
+        var boardQueues = await queryService.GetProductionBoardQueuesAsync(EngineerId, "Engineering Supervisor", CancellationToken.None);
+        var boardSo = Assert.Single(boardQueues.PendingAssignment);
+        Assert.Equal(converted!.Id, boardSo.Id);
+        Assert.Single(boardSo.Materials!);
+    }
+
     private static async Task<QuotationDto> MakeWonCustomerQuotation(QuotationService service)
     {
         var quotation = await service.CreateAsync(Request(QuotationDesignSources.CustomerProvided, false, "https://customer.test/design.pdf", Bom()), CancellationToken.None);
@@ -258,5 +322,17 @@ public sealed class QuotationWorkflowTests
             Events.Add(e);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class EmptyMasterDataClient : PJT_ERP.Production.Api.Application.Production.IMasterDataClient
+    {
+        public Task<PJT_ERP.Production.Api.Application.Production.MasterDataCustomerDto?> GetCustomerAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<PJT_ERP.Production.Api.Application.Production.MasterDataCustomerDto?>(null);
+        public Task<PJT_ERP.Production.Api.Application.Production.MasterDataProductDto?> GetProductAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<PJT_ERP.Production.Api.Application.Production.MasterDataProductDto?>(null);
+        public Task<PJT_ERP.Production.Api.Application.Production.MasterDataCustomerDto> CreateCustomerAsync(PJT_ERP.Production.Api.Application.Production.CreateCustomerMasterDataRequest request, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<PJT_ERP.Production.Api.Application.Production.MasterDataProductDto> CreateProductAsync(PJT_ERP.Production.Api.Application.Production.CreateProductMasterDataRequest request, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task DeductBomStockAsync(Guid productId, int quantity, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeductBomStockBulkAsync(IReadOnlyCollection<PJT_ERP.Production.Api.Application.Production.DeductBomStockRequestItem> items, string reason, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task DeductCustomBomAsync(IReadOnlyCollection<PJT_ERP.Production.Api.Application.Production.DeductCustomBomRequestItem> items, string reason, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<IReadOnlyCollection<PJT_ERP.Production.Api.Application.Production.BomStockDto>> GetBomStockAsync(IEnumerable<Guid> productIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<PJT_ERP.Production.Api.Application.Production.BomStockDto>>(Array.Empty<PJT_ERP.Production.Api.Application.Production.BomStockDto>());
     }
 }

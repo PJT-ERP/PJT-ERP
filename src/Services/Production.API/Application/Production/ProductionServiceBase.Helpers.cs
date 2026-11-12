@@ -94,10 +94,11 @@ public abstract partial class ProductionServiceBase
             order.QcPhotos,
             MapMaterials(order, boms),
             order.DpPercentage,
-            order.DpDueDate);
+            order.DpDueDate,
+            order.Notes);
     }
 
-    protected static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
+    public static IReadOnlyCollection<SalesOrderMaterialDto>? MapMaterials(SalesOrder order, IReadOnlyCollection<BomStockDto>? boms)
     {
         var materialsByKey = new Dictionary<string, SalesOrderMaterialDto>();
         var legacyMaterials = new List<SalesOrderMaterialDto>();
@@ -116,15 +117,57 @@ public abstract partial class ProductionServiceBase
                         int index = 0;
                         foreach (var element in doc.RootElement.EnumerateArray())
                         {
+                            var codeVal = element.TryGetProperty("code", out var codeProp) && codeProp.ValueKind == System.Text.Json.JsonValueKind.String
+                                ? codeProp.GetString()
+                                : (element.TryGetProperty("itemCode", out var itemCodeProp) && itemCodeProp.ValueKind == System.Text.Json.JsonValueKind.String
+                                    ? itemCodeProp.GetString()
+                                    : null);
+                            var specVal = element.TryGetProperty("spec", out var specProp) && specProp.ValueKind == System.Text.Json.JsonValueKind.String
+                                ? specProp.GetString()
+                                : null;
+                            var specificationVal = element.TryGetProperty("specification", out var specificationProp) && specificationProp.ValueKind == System.Text.Json.JsonValueKind.String
+                                ? specificationProp.GetString()
+                                : null;
+                            specVal ??= specificationVal;
+                            specificationVal ??= specVal;
+
+                            int parsedQty = 0;
+                            if (element.TryGetProperty("quantity", out var qtyProp))
+                            {
+                                if (qtyProp.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                {
+                                    if (qtyProp.TryGetInt32(out var intQty))
+                                    {
+                                        parsedQty = intQty;
+                                    }
+                                    else if (qtyProp.TryGetDecimal(out var decQty))
+                                    {
+                                        parsedQty = (int)Math.Round(decQty, MidpointRounding.AwayFromZero);
+                                    }
+                                }
+                                else if (qtyProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                                {
+                                    var qtyStr = qtyProp.GetString();
+                                    if (int.TryParse(qtyStr, out int q))
+                                    {
+                                        parsedQty = q;
+                                    }
+                                    else if (decimal.TryParse(qtyStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal decQ))
+                                    {
+                                        parsedQty = (int)Math.Round(decQ, MidpointRounding.AwayFromZero);
+                                    }
+                                }
+                            }
+
                             var legacy = new SalesOrderMaterialDto(
                                 element.TryGetProperty("id", out var idProp) && idProp.ValueKind == System.Text.Json.JsonValueKind.String ? idProp.GetString() ?? $"{item.Id}-legacy-{index}" : $"{item.Id}-legacy-{index}",
-                                element.TryGetProperty("inventoryItemId", out var invIdProp) ? invIdProp.GetString() : null,
+                                element.TryGetProperty("inventoryItemId", out var invIdProp) && invIdProp.ValueKind == System.Text.Json.JsonValueKind.String ? invIdProp.GetString() : null,
                                 element.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == System.Text.Json.JsonValueKind.String ? nameProp.GetString() ?? "" : "",
-                                element.TryGetProperty("code", out var codeProp) ? codeProp.GetString() : null,
-                                element.TryGetProperty("spec", out var specProp) ? specProp.GetString() : null,
-                                element.TryGetProperty("specification", out var specificationProp) ? specificationProp.GetString() : null,
-                                element.TryGetProperty("quantity", out var qtyProp) ? (qtyProp.ValueKind == System.Text.Json.JsonValueKind.Number ? qtyProp.GetInt32() : (int.TryParse(qtyProp.GetString(), out int q) ? q : 0)) : 0,
-                                element.TryGetProperty("unit", out var unitProp) ? unitProp.GetString() ?? "" : "",
+                                codeVal,
+                                specVal,
+                                specificationVal,
+                                parsedQty,
+                                element.TryGetProperty("unit", out var unitProp) && unitProp.ValueKind == System.Text.Json.JsonValueKind.String ? unitProp.GetString() ?? "" : "",
                                 element.TryGetProperty("isCustomerMaterial", out var custMatProp) && (custMatProp.ValueKind == System.Text.Json.JsonValueKind.True || (custMatProp.ValueKind == System.Text.Json.JsonValueKind.String && bool.TryParse(custMatProp.GetString(), out bool b) && b))
                             );
                             legacyMaterials.Add(legacy);
@@ -143,7 +186,7 @@ public abstract partial class ProductionServiceBase
         {
             foreach (var legacy in legacyMaterials)
             {
-                var resolvedInvId = legacy.InventoryItemId ?? legacy.Id;
+                var resolvedInvId = legacy.InventoryItemId ?? legacy.Code ?? legacy.Id ?? legacy.Name;
                 var specKey = legacy.Spec ?? legacy.Specification ?? "";
                 var key = $"{resolvedInvId}|{specKey}|{legacy.Unit}";
                 

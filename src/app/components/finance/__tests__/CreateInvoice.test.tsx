@@ -307,4 +307,58 @@ describe('CreateInvoice', () => {
       expect(screen.queryByText(/Rp\s*11\.000/i)).not.toBeInTheDocument();
     });
   });
+
+  it('excludes quotations from invoice candidates while keeping eligible Sales Orders', async () => {
+    vi.mocked(useFinanceData).mockReturnValue({
+      invoiceCandidates: [
+        { ...mockCandidate, salesOrderId: 'so-valid', salesOrderNumber: 'SO-2026-010' },
+        { ...mockCandidate, salesOrderId: 'quo-won', salesOrderNumber: 'QU-2026-010' },
+      ],
+      refresh: vi.fn(),
+    } as any);
+
+    vi.mocked(useApp).mockReturnValue({
+      salesOrders: [
+        {
+          id: 'SO-2026-010',
+          backendId: 'so-valid',
+          soNumber: 'SO-2026-010',
+          isQuotation: false,
+          isCostingCompleted: true,
+          status: 'Waiting Payment',
+          estimatedAmount: 50000,
+          items: [{ id: 'item-1', productId: 'prod-1', productName: 'Valid SO Item', quantity: 10, unitPrice: 5000 }],
+        },
+        {
+          id: 'QU-2026-010',
+          backendId: 'quo-won',
+          soNumber: 'QU-2026-010',
+          isQuotation: true,
+          isCostingCompleted: true,
+          status: 'Approved',
+          backendStatus: 'won',
+          estimatedAmount: 50000,
+          items: [{ id: 'item-2', productId: 'prod-2', productName: 'Won Quotation Item', quantity: 10, unitPrice: 5000 }],
+        },
+        {
+          id: 'QU-2026-011',
+          backendId: 'quo-bypassed',
+          soNumber: 'QU-2026-011',
+          isQuotation: true,
+          isCostingCompleted: true,
+          status: 'Ready for Production',
+          estimatedAmount: 75000,
+          items: [{ id: 'item-3', productId: 'prod-3', productName: 'Quotation Item', quantity: 5, unitPrice: 15000 }],
+        },
+      ],
+    } as any);
+
+    render(<CreateInvoice />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/SO-2026-010/i)).toBeInTheDocument();
+      expect(screen.queryByText(/QU-2026-010/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/QU-2026-011/i)).not.toBeInTheDocument();
+    });
+  });
 });

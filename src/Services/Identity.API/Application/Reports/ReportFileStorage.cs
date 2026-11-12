@@ -35,9 +35,17 @@ public sealed class LocalReportFileStorage(IConfiguration configuration, IWebHos
         };
         var storedFileName = $"{Guid.NewGuid():N}{extension}";
         var destination = GetPath(storedFileName);
-        await using var output = File.Create(destination);
-        await file.CopyToAsync(output, cancellationToken);
-        return storedFileName;
+        try
+        {
+            await using var output = File.Create(destination);
+            await file.CopyToAsync(output, cancellationToken);
+            return storedFileName;
+        }
+        catch
+        {
+            if (File.Exists(destination)) File.Delete(destination);
+            throw;
+        }
     }
 
     public Stream OpenRead(string storedFilePath) => File.OpenRead(GetPath(storedFilePath));

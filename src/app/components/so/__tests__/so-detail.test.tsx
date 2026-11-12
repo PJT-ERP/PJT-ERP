@@ -7,6 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { useFinanceData } from '../../finance/useFinanceData';
 import { useSalesOrdersQuery } from '../../../services/queries';
 import { salesApi } from '../../../services/salesApi';
+import { toast } from 'sonner';
 
 afterEach(() => {
   cleanup();
@@ -210,5 +211,159 @@ describe('SODetail Component', () => {
     await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['salesOrders'] })));
     expect(onNavigate).toHaveBeenCalledWith('so-detail', 'SO-2026-010');
     invalidateQueries.mockRestore();
+  });
+
+  it('preserves Sales Order identity and labels when opened by backendId or refreshed (Test A4)', async () => {
+    const waitingPricingSo = {
+      id: 'SO-2026-0042',
+      backendId: '11111111-2222-3333-4444-555555555555',
+      soNumber: 'SO-2026-0042',
+      isQuotation: false,
+      customerId: 'CUST-001',
+      customerName: 'PT Maju Jaya',
+      partNumber: 'PART-042',
+      description: 'Precision Shaft',
+      quantity: 10,
+      unit: 'PCS',
+      deadline: '2026-08-15',
+      status: 'Waiting Pricing',
+      backendStatus: 'Draft',
+      backendDesignStatus: 'Approved',
+      createdBy: 'backend',
+      createdAt: '2026-08-01',
+      items: [{ id: 'item-42', productName: 'Precision Shaft', productPartNumber: 'PART-042', quantity: 10, unit: 'PCS', unitPrice: 0 }],
+    } as any;
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [waitingPricingSo] } as any);
+
+    const { rerender } = renderWithProviders(<SODetail orderId={waitingPricingSo.backendId} onNavigate={onNavigate} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('SO-2026-0042').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText('No. SO')).toBeInTheDocument();
+    expect(screen.getByText('No. SO / PO')).toBeInTheDocument();
+    expect(screen.queryByText('No. Quotation')).not.toBeInTheDocument();
+    expect(salesApi.getQuotation).not.toHaveBeenCalled();
+
+    // Simulate page refresh / re-render
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SODetail orderId="SO-2026-0042" onNavigate={onNavigate} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(screen.getAllByText('SO-2026-0042').length).toBeGreaterThan(0);
+    expect(screen.getByText('No. SO')).toBeInTheDocument();
+    expect(screen.queryByText('No. Quotation')).not.toBeInTheDocument();
+  });
+
+  it('surfaces duplicate conversion error and does not navigate when conversion fails (Test C2)', async () => {
+    const toastErrorSpy = vi.spyOn(toast, 'error');
+    const quotation = {
+      id: 'QU-2026-011', backendId: 'e5626d81-a742-4d9f-98b7-8a3c37c9d6f2', soNumber: 'QU-2026-011',
+      isQuotation: true, customerId: 'CUST-001', customerName: 'PT Maju Jaya',
+      partNumber: 'PART-011', description: 'Custom Part', quantity: 1, unit: 'pcs',
+      deadline: '2026-07-30', status: 'Approved', backendStatus: 'won', estimatedAmount: 1000,
+      items: [], materials: [],
+    } as any;
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [quotation] } as any);
+    vi.mocked(salesApi.getQuotation).mockResolvedValue({
+      id: quotation.backendId, quotationNumber: quotation.soNumber, customerId: 'customer-guid',
+      customerCode: 'CUST-001', customerName: 'PT Maju Jaya', deadline: quotation.deadline,
+      status: 'won', designSource: 'CustomerProvided', engineeringReviewRequired: false,
+      estimatedAmount: 1000, items: [], bomItems: [], revisions: [], createdAtUtc: '', updatedAtUtc: '',
+    } as any);
+    vi.mocked(salesApi.convertQuotationToSalesOrder).mockRejectedValueOnce(
+      new Error('Quotation QU-2026-011 has already been converted to Sales Order SO-2026-011.')
+    );
+
+    renderWithProviders(<SODetail orderId={quotation.id} onNavigate={onNavigate} />);
+
+    expect(await screen.findByText('Workflow Quotation')).toBeInTheDocument();
+    expect(screen.getAllByText('No. Quotation').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Convert ke Sales Order' }));
+
+    await waitFor(() => {
+      expect(toastErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/already been converted/i));
+    });
+    expect(onNavigate).not.toHaveBeenCalled();
+    toastErrorSpy.mockRestore();
+  });
+
+  it('displays inherited Engineer assignment and structured BOM on converted Sales Order detail and retains both after refresh', async () => {
+    const convertedSo = {
+      id: 'SO-2026-003',
+      backendId: '33333333-4444-5555-6666-777777777777',
+      soNumber: 'SO-2026-003',
+      isQuotation: false,
+      customerId: 'CUST-001',
+      customerName: 'PT Bahagia Abadi',
+      customerEmail: 'indah@abadi.com',
+      partNumber: 'test2',
+      description: 'test2',
+      quantity: 2,
+      unit: 'PCS',
+      deadline: '2026-11-13',
+      status: 'Waiting Payment',
+      backendStatus: 'WaitingPayment',
+      backendDesignStatus: 'Approved',
+      assignedTo: '30000000-0000-0000-0000-000000000004',
+      assignedName: 'Engineering User',
+      designAssignedTo: '30000000-0000-0000-0000-000000000004',
+      designAssignedName: 'Engineering User',
+      estimatedAmount: 400000,
+      isCostingCompleted: true,
+      createdBy: 'backend',
+      createdAt: '2026-11-11',
+      items: [
+        {
+          id: 'so-item-003',
+          productName: 'test2',
+          productPartNumber: 'test2',
+          quantity: 2,
+          unit: 'PCS',
+          unitPrice: 200000,
+        },
+      ],
+      materials: [
+        {
+          id: 'quo-bom-1',
+          code: 'MAT-001',
+          name: 'Bor 2mm',
+          spec: 'HSS M2',
+          specification: 'HSS M2',
+          quantity: 20,
+          unit: 'PCS',
+        },
+      ],
+    } as any;
+
+    vi.mocked(useSalesOrdersQuery).mockReturnValue({ data: [convertedSo] } as any);
+
+    const { rerender } = renderWithProviders(<SODetail orderId="SO-2026-003" onNavigate={onNavigate} />);
+
+    expect(await screen.findByText('Bill of Materials (Kebutuhan Bahan)')).toBeInTheDocument();
+    expect(screen.queryByText('Belum ada data material.')).not.toBeInTheDocument();
+    expect(screen.getByText('MAT-001')).toBeInTheDocument();
+    expect(screen.getByText('Bor 2mm')).toBeInTheDocument();
+    expect(screen.getByText('HSS M2')).toBeInTheDocument();
+    expect(screen.getByText('20 PCS')).toBeInTheDocument();
+    expect(screen.getByText('Engineering User')).toBeInTheDocument();
+
+    // Simulate page refresh / re-render
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SODetail orderId="SO-2026-003" onNavigate={onNavigate} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(screen.queryByText('Belum ada data material.')).not.toBeInTheDocument();
+    expect(screen.getByText('MAT-001')).toBeInTheDocument();
+    expect(screen.getByText('Bor 2mm')).toBeInTheDocument();
+    expect(screen.getByText('Engineering User')).toBeInTheDocument();
   });
 });

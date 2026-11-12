@@ -10,6 +10,9 @@ vi.mock('../../../services/salesApi', () => ({
   salesApi: {
     updateSalesOrderDesignStatus: vi.fn().mockResolvedValue({}),
     submitSalesOrderDesign: vi.fn().mockResolvedValue({}),
+    submitQuotationDesign: vi.fn().mockResolvedValue({}),
+    approveQuotationEngineering: vi.fn().mockResolvedValue({}),
+    rejectQuotationEngineering: vi.fn().mockResolvedValue({}),
     updateSalesOrderItems: vi.fn().mockResolvedValue({}),
     updateProductBom: vi.fn().mockResolvedValue({}),
     listSalesOrders: vi.fn().mockResolvedValue([
@@ -207,6 +210,83 @@ describe('EngineeringTaskDetailPage - Supervisor Resubmission Flow', () => {
 
     // The submit button should now be enabled
     await waitFor(() => expect(submitBtn).not.toBeDisabled());
+  });
+
+  it('routes Quotation design submission to quotation engineering endpoint with database GUID (Test D3)', async () => {
+    const queryClient = new QueryClient();
+    const quotationGuid = 'd4626d81-a742-4d9f-98b7-8a3c37c9d6f1';
+    const engineerGuid = '90000000-0000-4000-8000-000000000002';
+
+    vi.mocked(salesApi.listSalesOrders).mockResolvedValue([]);
+    vi.mocked(salesApi.listQuotations).mockResolvedValue([
+      {
+        id: quotationGuid,
+        quotationNumber: 'QU-2026-0077',
+        customerId: 'cust-guid-1',
+        customerCode: 'CUST-1',
+        customerName: 'Customer A',
+        deadline: '2026-08-15',
+        status: 'pending_design',
+        designSource: 'Engineering',
+        engineeringReviewRequired: true,
+        assignedEngineerId: engineerGuid,
+        assignedEngineerName: 'Eng Worker',
+        designLink: 'https://cad.example.com/qu-77.dwg',
+        items: [
+          { id: 'q-item-77', productName: 'Custom Bracket', quantity: 4, unit: 'PCS' }
+        ],
+        bomItems: [
+          { id: 'bom-77', itemCode: 'MAT-01', name: 'S45C Plate', specification: '10mm', quantity: 4, unit: 'pcs' }
+        ],
+        revisions: [],
+        createdAtUtc: '2026-08-01T00:00:00Z',
+        updatedAtUtc: '2026-08-01T00:00:00Z',
+      } as any
+    ]);
+
+    vi.spyOn(appContext, 'useApp').mockReturnValue({
+      customers: [{ code: 'CUST-1', name: 'Customer A' }],
+      currentUser: { id: 'u2', name: 'Eng Worker', role: 'Engineering' },
+      updateSalesOrder: vi.fn(),
+      refreshBackendData: vi.fn(),
+      productCatalog: [],
+      salesOrders: []
+    } as any);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/erp/engineer-tasks/QU-2026-0077']}>
+          <Routes>
+            <Route path="/erp/engineer-tasks/:id" element={<EngineeringTaskDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('QU-2026-0077')).toBeInTheDocument();
+    });
+
+    const submitBtn = await screen.findByRole('button', { name: /Simpan Desain & Lanjut ke Produksi/i });
+    expect(submitBtn).not.toBeDisabled();
+    fireEvent.click(submitBtn);
+
+    await screen.findByText(/Konfirmasi menyimpan spesifikasi CAD & BOM/i);
+    const confirmBtn = screen.getByRole('button', { name: /Simpan Desain & Lanjut ke Produksi/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(salesApi.submitQuotationDesign).toHaveBeenCalledWith(
+        quotationGuid,
+        expect.objectContaining({
+          engineerId: engineerGuid,
+          engineerName: 'Eng Worker',
+          designLink: 'https://cad.example.com/qu-77.dwg',
+        })
+      );
+    });
+    expect(salesApi.submitSalesOrderDesign).not.toHaveBeenCalled();
+    expect(salesApi.updateSalesOrderDesignStatus).not.toHaveBeenCalled();
   });
 
 });

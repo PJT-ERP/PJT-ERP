@@ -81,8 +81,12 @@ export function useProductionBoard() {
     
     return materials.some((m: any) => {
       if (m.isCustomerMaterial || m.isFromCustomer) return false; // Customer materials don't cause shortage
+      const mCode = (m.code || m.itemCode || "").trim().toLowerCase();
+      const mName = (m.itemName || m.name || "").trim().toLowerCase();
       const invItem = inventory.find((inv: any) => 
-        inv.name?.toLowerCase() === m.itemName.toLowerCase()
+        (m.inventoryItemId && inv.id === m.inventoryItemId) ||
+        (mCode && inv.code?.trim().toLowerCase() === mCode) ||
+        inv.name?.trim().toLowerCase() === mName
       );
       const reqQty = m.quantity ?? 0;
       const stock = invItem?.currentStock ?? 0;

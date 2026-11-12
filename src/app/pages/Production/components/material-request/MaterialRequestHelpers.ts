@@ -16,6 +16,9 @@ export type MaterialOption = {
   itemName: string;
   specification: string;
   quantity?: number;
+  unit?: string;
+  code?: string;
+  inventoryItemId?: string;
   isCustomerMaterial?: boolean;
 };
 
@@ -45,17 +48,32 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
   const options: MaterialOption[] = [];
   const seen = new Set<string>();
 
-  const addOption = (item: string, spec: string, quantity?: number, isCustomerMaterial?: boolean) => {
+  const addOption = (
+    item: string,
+    spec: string,
+    quantity?: number,
+    isCustomerMaterial?: boolean,
+    extra?: { unit?: string; code?: string; inventoryItemId?: string }
+  ) => {
     const key = `${item.toLowerCase().trim()}|${spec.toLowerCase().trim()}`;
     if (!seen.has(key) && item.trim()) {
       seen.add(key);
-      options.push({ key: `mat-${seen.size}`, itemName: item.trim(), specification: spec.trim(), quantity, isCustomerMaterial });
+      options.push({
+        key: `mat-${seen.size}`,
+        itemName: item.trim(),
+        specification: spec.trim(),
+        quantity,
+        isCustomerMaterial,
+        ...(extra?.unit ? { unit: extra.unit } : {}),
+        ...(extra?.code ? { code: extra.code } : {}),
+        ...(extra?.inventoryItemId ? { inventoryItemId: extra.inventoryItemId } : {}),
+      });
     }
   };
 
   if (so.bomsPerItem && so.items && so.items.length > 0) {
     let hasAnyMaterials = false;
-    const aggregatedMaterials = new Map<string, { itemName: string, spec: string, quantity: number, isCustomerMaterial: boolean }>();
+    const aggregatedMaterials = new Map<string, { itemName: string, spec: string, quantity: number, isCustomerMaterial: boolean, unit?: string, code?: string, inventoryItemId?: string }>();
 
     so.items.forEach((item: any) => {
       const boms = so.bomsPerItem![item.tempId || item.id || item.productId];
@@ -70,10 +88,17 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
             const rawQty = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
             const matQty = isNaN(rawQty) ? 0 : rawQty;
 
-            
             const key = `${itemName.toLowerCase()}|${specification.toLowerCase()}`;
             if (!aggregatedMaterials.has(key)) {
-              aggregatedMaterials.set(key, { itemName, spec: specification, quantity: 0, isCustomerMaterial: !!material.isCustomerMaterial });
+              aggregatedMaterials.set(key, {
+                itemName,
+                spec: specification,
+                quantity: 0,
+                isCustomerMaterial: !!material.isCustomerMaterial,
+                unit: material?.unit,
+                code: material?.code || material?.itemCode,
+                inventoryItemId: material?.inventoryItemId,
+              });
             }
             aggregatedMaterials.get(key)!.quantity += matQty; // Do not multiply by itemQty
           }
@@ -83,7 +108,11 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
 
     if (hasAnyMaterials) {
       aggregatedMaterials.forEach((val) => {
-        addOption(val.itemName, val.spec, val.quantity, val.isCustomerMaterial);
+        addOption(val.itemName, val.spec, val.quantity, val.isCustomerMaterial, {
+          unit: val.unit,
+          code: val.code,
+          inventoryItemId: val.inventoryItemId,
+        });
       });
       return options;
     }
@@ -99,7 +128,11 @@ export function getMaterialOptions(so: SalesOrder, includeCustomerMaterials: boo
       
       if (itemName && itemName.toLowerCase() !== "pppp") {
         const quantity = typeof material?.quantity === 'number' ? material.quantity : Number(material?.quantity);
-        addOption(itemName, specification, isNaN(quantity) ? undefined : quantity, !!material.isCustomerMaterial);
+        addOption(itemName, specification, isNaN(quantity) ? undefined : quantity, !!material.isCustomerMaterial, {
+          unit: material?.unit,
+          code: material?.code || material?.itemCode,
+          inventoryItemId: material?.inventoryItemId,
+        });
       }
     });
     

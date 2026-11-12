@@ -14,6 +14,7 @@ import { formatDocNumber, isQuotationEntry } from "../context/hooks/dataMappers"
 import { useFinanceData } from "../finance/useFinanceData";
 import { mergeSalesOrderInvoice } from "./invoice-sync";
 import { salesApi } from "../../services/salesApi";
+import { financeApi } from "../../services/financeApi";
 import { toBackendUserId } from "../../services/backendIds";
 import { ImagePreviewModal } from "./detail/ImagePreviewModal";
 import { InvoiceSection } from "./detail/InvoiceSection";
@@ -54,7 +55,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const { invoices, payments } = useFinanceData(isSalesOrHigher, false, false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
-  const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId);
+  const baseOrder = salesOrders.find(o => o.id === orderId || o.soNumber === orderId || o.backendId === orderId);
   const targetId = baseOrder?.backendId || baseOrder?.id || orderId;
   const order = baseOrder ? mergeSalesOrderInvoice(baseOrder, invoices, payments) : undefined;
   const isQuotation = isQuotationEntry(order);
@@ -74,7 +75,7 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   const isStandard = !isCustomBackend;
 
   let displayMaterials = order?.materials || [];
-  if (isStandard && productCatalog && order) {
+  if (displayMaterials.length === 0 && isStandard && productCatalog && order) {
     const matchedProduct = productCatalog.find(p => p.partNumber === order.partNumber || p.description === order.description);
     if (matchedProduct && matchedProduct.materialSpec) {
       displayMaterials = matchedProduct.materialSpec.split(/ \/ | and | \+ /).map((specPart, idx) => {
@@ -92,10 +93,11 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
   }
 
   displayMaterials = displayMaterials.map((mat: any) => {
-    let code = mat.code;
+    let code = mat.code || mat.itemCode;
     let name = mat.name;
+    const isSyntheticId = typeof mat.id === "string" && (mat.id.startsWith("quo-bom-") || mat.id.includes("-legacy-"));
     if (!code || code.length > 20) {
-      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+      const invId = mat.inventoryItemId || (mat.id && mat.id.length > 20 && !isSyntheticId ? mat.id : null);
       const matchedProduct = productCatalog.find(p => p.bomItems?.some(b => b.inventoryItemId === invId));
       if (matchedProduct) {
         const bomItem = matchedProduct.bomItems?.find(b => b.inventoryItemId === invId);
@@ -110,15 +112,24 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
       const codePrefix = `${code} - `;
       if (name.startsWith(codePrefix)) name = name.slice(codePrefix.length);
     }
-    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 ? mat.id : null);
+    const finalInvId = mat.inventoryItemId || (mat.id && mat.id.length > 20 && !isSyntheticId ? mat.id : null);
     return { ...mat, code: code || finalInvId || null, name };
   });
 
   const [actionForm, setActionForm] = useState({
     estimatedAmount: order?.estimatedAmount || 0,
-    engineerName: order?.assignedName || "",
+    engineerName: order?.assignedName || order?.designAssignedName || "",
     designUrl: order?.designLink || "",
   });
+
+  React.useEffect(() => {
+    if (!order) return;
+    setActionForm(prev => ({
+      estimatedAmount: order.estimatedAmount || prev.estimatedAmount || 0,
+      engineerName: order.assignedName || order.designAssignedName || prev.engineerName || "",
+      designUrl: order.designLink || prev.designUrl || "",
+    }));
+  }, [order?.id, order?.assignedName, order?.designAssignedName, order?.estimatedAmount, order?.designLink]);
 
   const [editForm, setEditForm] = useState({
     customerName: "",
@@ -197,6 +208,31 @@ export function SODetail({ orderId, onNavigate, initialEditMode }: SODetailProps
           style: { background: '#0f172a', color: '#4ade80', border: '1px solid #166534' },
           duration: 3000
         });
+      } else if (action === 'finance_force_complete') {
+        if (!order.invoice?.invoiceId) {
+          toast.error('SO hanya dapat diselesaikan melalui Finance jika invoice sudah diterbitkan.');
+          return;
+        }
+        try {
+          await financeApi.requestSalesOrderCompletion(order.invoice.invoiceId);
+        } catch (error: any) {
+          toast.error(error?.response?.data?.message || error?.message || 'Gagal meminta penyelesaian Sales Order.');
+          return;
+        }
+        let completed = false;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          await queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+          const refreshedOrders = queryClient.getQueryData<any[]>(['salesOrders']) || [];
+          completed = refreshedOrders.some(candidate =>
+            candidate.status === 'Completed'
+            && (candidate.backendId === targetId || candidate.id === order.id || candidate.soNumber === order.soNumber)
+          );
+          if (completed || attempt === 4) break;
+          await new Promise(resolve => window.setTimeout(resolve, 500));
+        }
+        toast.success(completed
+          ? 'Sales Order ditandai selesai berdasarkan invoice yang sudah terbit.'
+          : 'Permintaan diterima. Status Sales Order akan diperbarui setelah diproses.');
       } else if (action === 'send_to_qc') {
         updateSalesOrder(targetId, { status: 'QC' });
         toast.success('Sales Order dikirim ke QC untuk pengecekan.', {
@@ -696,6 +732,10 @@ function QuotationWorkflowActions({
         {actionButton("Convert ke Sales Order", () => {
           void perform(async () => {
             const created = await salesApi.convertQuotationToSalesOrder(quotation.id);
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["salesOrders"] }),
+              queryClient.invalidateQueries({ queryKey: ["quotations"] }),
+            ]);
             onConverted(created);
           }, "Sales Order dibuat.");
         })}

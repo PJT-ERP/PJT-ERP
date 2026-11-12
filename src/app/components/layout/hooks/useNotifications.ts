@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { dailyReportApi, DailyReport } from "../../../services/dailyReportApi";
 import { isUserMentioned } from "../../shared/mentions";
 
 export function useNotifications({
@@ -18,6 +19,22 @@ export function useNotifications({
   dismissedNotifIds: string[];
   knownUserNames?: string[];
 }) {
+  const [reportMentions, setReportMentions] = useState<{ userId: string; reports: DailyReport[] }>({ userId: "", reports: [] });
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let active = true;
+    const userId = currentUser.id;
+    const refresh = () => {
+      void dailyReportApi.mentioned(1, 50).then(result => {
+        if (active) setReportMentions({ userId, reports: result.items });
+      }).catch(() => { if (active) setReportMentions({ userId, reports: [] }); });
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 60000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("daily-reports-changed", refresh);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener("focus", refresh); window.removeEventListener("daily-reports-changed", refresh); };
+  }, [currentUser?.id]);
   const notifications = useMemo(() => {
     if (!currentUser) return [];
     const notifs: { id: string, type: 'alert' | 'warning' | 'success' | 'info', title: string, desc: string, targetPath?: string, isDismissible?: boolean, isMention?: boolean }[] = [];
@@ -171,8 +188,18 @@ export function useNotifications({
       }
     });
 
+    if (reportMentions.userId === currentUser.id) reportMentions.reports.forEach(report => {
+      if (report.userId === currentUser.id) return;
+      report.tasks.forEach(task => {
+        const id = `report-mention-${task.id}`;
+        if (!dismissedNotifIds.includes(id)) notifs.push({ id, type: 'info', title: 'Anda di-tag di Daily Report',
+          desc: `${report.userName}: ${task.description}`,
+          targetPath: currentUser.role === 'Owner' ? '/erp/daily-reports?tab=mentioned' : '/erp/daily-report?tab=mentioned',
+          isDismissible: true, isMention: true });
+      });
+    });
     return notifs;
-  }, [currentUser, salesOrders, purchasingRequests, dismissedNotifIds, invoices, payments, knownUserNames]);
+  }, [currentUser, salesOrders, purchasingRequests, dismissedNotifIds, invoices, payments, knownUserNames, reportMentions]);
 
   return notifications;
 }

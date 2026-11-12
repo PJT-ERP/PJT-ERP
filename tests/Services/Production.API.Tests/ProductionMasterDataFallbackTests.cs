@@ -53,7 +53,8 @@ public sealed class ProductionMasterDataFallbackTests
                 new EngineerAssignment(Guid.NewGuid(), "QC Reviewer"),
                 null,
                 null,
-                "PendingDesign"
+                "PendingDesign",
+                "PO: 4400096296"
             )
         );
 
@@ -64,6 +65,10 @@ public sealed class ProductionMasterDataFallbackTests
         // ── Assert ───────────────────────────────────────────────────────────
         Assert.NotNull(result);
         Assert.NotEmpty(result.SoNumber);
+        Assert.Equal("PO: 4400096296", result.Notes);
+
+        var salesOrder = await db.SalesOrders.FirstAsync();
+        Assert.Equal("PO: 4400096296", salesOrder.Notes);
 
         // Verify fallback CustomerReplica was created successfully
         var customerReplica = await db.CustomerReplicas.FirstOrDefaultAsync(c => c.Code == "CUST-009");

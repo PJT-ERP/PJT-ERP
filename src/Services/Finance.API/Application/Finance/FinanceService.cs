@@ -76,6 +76,25 @@ public sealed partial class FinanceService(FinanceContext db, IWebHostEnvironmen
         return invoice is null ? null : ToDto(invoice);
     }
 
+    public async Task<bool> RequestSalesOrderCompletionAsync(Guid invoiceId, CancellationToken cancellationToken)
+    {
+        var invoice = await db.Invoices.AsNoTracking()
+            .Where(invoice => invoice.Id == invoiceId)
+            .Select(invoice => new { invoice.Id, invoice.InvoiceNumber, invoice.SalesOrderId, invoice.SalesOrderNumber })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (invoice is null) return false;
+        if (eventPublisher is null)
+        {
+            throw new InvalidOperationException("Sales Order completion messaging is unavailable.");
+        }
+
+        await eventPublisher.PublishAsync(
+            new SalesOrderCompletionRequestedEvent(invoice.Id, invoice.InvoiceNumber, invoice.SalesOrderId, invoice.SalesOrderNumber),
+            cancellationToken);
+        return true;
+    }
+
     public async Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceRequest request, CancellationToken cancellationToken)
     {
         ValidateCreateInvoiceRequest(request);

@@ -116,22 +116,22 @@ export function EngineeringTasksPage() {
     const queuePending = [
       ...(queues?.pendingDesign || []),
       ...(queues?.revisionRequired || []),
-      ...(queues?.waitingApproval || [])
+      ...(isSupervisor ? (queues?.waitingApproval || []) : [])
     ].map(dto => mapSalesOrderDto(dto as any));
 
     const map = new Map<string, any>();
     queuePending.forEach(so => map.set(so.id, so));
 
-    const engineeringStatuses = ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Approval'];
+    const engineeringStatuses = isSupervisor ? ['Pending Design', 'Waiting Spv Approval', 'Revision Required', 'Waiting Approval'] : ['Pending Design', 'Revision Required'];
     allSalesOrders.forEach(so => {
       if (
         engineeringStatuses.includes(so.status) ||
         so.designStatus === 'PendingDesign' ||
         so.designStatus === 'RevisionRequired' ||
-        so.designStatus === 'WaitingApproval' ||
+        (isSupervisor && so.designStatus === 'WaitingApproval') ||
         so.backendDesignStatus === 'PendingDesign' ||
         so.backendDesignStatus === 'RevisionRequired' ||
-        so.backendDesignStatus === 'WaitingApproval'
+        (isSupervisor && so.backendDesignStatus === 'WaitingApproval')
       ) {
         if (!map.has(so.id)) {
           map.set(so.id, isQuotationEntry(so) ? so : mapSalesOrderDto(so as any));
@@ -146,7 +146,7 @@ export function EngineeringTasksPage() {
       .forEach(quotation => map.set(quotation.id, quotation));
 
     return filterForUser(Array.from(map.values()));
-  }, [queues, allSalesOrders, quotationTasks, filterForUser]);
+  }, [queues, allSalesOrders, quotationTasks, filterForUser, isSupervisor]);
 
   const completedSalesOrders = React.useMemo(() => {
     const queueCompleted = (queues?.completed || []).map(dto => mapSalesOrderDto(dto as any));
@@ -156,17 +156,17 @@ export function EngineeringTasksPage() {
 
     allSalesOrders.forEach(so => {
       if (
-        (so.status === 'Approved' || so.status === 'Design Selesai' || so.designStatus === 'Approved' || so.backendDesignStatus === 'Approved') &&
+        (so.status === 'Approved' || so.status === 'Design Selesai' || so.designStatus === 'Approved' || so.backendDesignStatus === 'Approved' || Boolean(so.designApprovedAt) || ['client_design_approval', 'waiting_pricing', 'client_price_approval', 'won'].includes(so.backendDesignStatus || so.backendStatus) || (!isSupervisor && (so.status === 'Waiting Spv Approval' || so.status === 'Waiting Approval' || so.backendDesignStatus === 'design_review' || so.backendDesignStatus === 'WaitingApproval'))) &&
         !pendingSalesOrders.some(p => p.id === so.id)
       ) {
         if (!map.has(so.id)) {
-          map.set(so.id, mapSalesOrderDto(so as any));
+          map.set(so.id, isQuotationEntry(so) ? so : mapSalesOrderDto(so as any));
         }
       }
     });
 
     return filterForUser(Array.from(map.values()));
-  }, [queues, allSalesOrders, pendingSalesOrders, filterForUser]);
+  }, [queues, allSalesOrders, pendingSalesOrders, filterForUser, isSupervisor]);
   
   const allQueue = activeTab === 'pending' ? pendingSalesOrders : completedSalesOrders;
   
@@ -341,7 +341,7 @@ export function EngineeringTasksPage() {
 
                   <span style={{ color: S.slate, fontSize: "12.5px", fontWeight: 500, whiteSpace: "nowrap" }}>{qut.deadline}</span>
                   <div>
-                    <StatusBadge status={activeTab === 'completed' ? 'Design Selesai' : qut.status} />
+                    <StatusBadge status={activeTab === 'completed' ? ((qut.status === 'Waiting Spv Approval' || qut.status === 'Waiting Approval') ? qut.status : 'Design Selesai') : qut.status} />
                   </div>
 
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
@@ -357,7 +357,7 @@ export function EngineeringTasksPage() {
                           </button>
                         );
                       }
-                      if (isApproved || (isPendingApproval && !isSupervisor)) {
+                      if (isApproved || (isPendingApproval && !isSupervisor) || (isQuotationEntry(qut) && isSupervisor && !isPendingApproval)) {
                         return (
                           <button
                             onClick={() => navigate(`/erp/engineer-tasks/${qut.id}`)}

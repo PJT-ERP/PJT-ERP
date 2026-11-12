@@ -468,10 +468,13 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                 CustomerCode = quotation.CustomerCode,
                 CustomerName = quotation.CustomerName,
                 CustomerEmail = quotation.CustomerEmail,
+                Notes = quotation.Notes,
                 CustomerDrawingUrl = quotation.Items.Select(item => item.CustomerImageUrl).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
                 DesignReference = quotation.DesignLink ?? quotation.Items.Select(item => item.CustomerImageUrl ?? item.DesignLink).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
                 DesignStatus = SalesOrderDesignStatuses.Approved,
-                DesignApprovedAtUtc = now,
+                DesignApprovedAtUtc = quotation.EngineeringApprovedAtUtc ?? now,
+                DesignWorkerUserId = quotation.AssignedEngineerId,
+                DesignWorkerName = quotation.AssignedEngineerName,
                 SoDate = DateOnly.FromDateTime(now),
                 TargetDate = quotation.Deadline,
                 Status = "WaitingPayment",
@@ -526,6 +529,7 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
         var unitPrice = totalQuantity > 0
             ? decimal.Round(quotation.EstimatedAmount.GetValueOrDefault() / totalQuantity, 2, MidpointRounding.AwayFromZero)
             : 0;
+        var isFirstItem = true;
         foreach (var item in quotation.Items)
         {
             ProductReplica? product = null;
@@ -535,19 +539,52 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                     .FirstOrDefaultAsync(product => product.Id == item.ProductId.Value, cancellationToken);
             }
 
+            var itemBom = quotation.BomItems
+                .Where(b => b.QuotationItemId == item.Id || (isFirstItem && b.QuotationItemId == null))
+                .ToList();
+            var structuredBomJson = BuildStructuredBomNotesJson(itemBom);
+
             result.Add(new SalesOrderItem
             {
                 ProductId = item.ProductId ?? Guid.NewGuid(),
                 ProductPartNumber = product?.PartNumber ?? item.ProductName,
                 ProductDescription = product?.Description ?? item.Description ?? item.ProductName,
                 ProductMaterialSpec = product?.MaterialSpec ?? BuildBomSummary(quotation),
+                CustomerDrawingUrl = item.CustomerImageUrl,
+                DesignReference = item.DesignLink ?? quotation.DesignLink,
                 Qty = item.Quantity,
                 UnitPrice = unitPrice,
-                Notes = item.Description
+                Notes = structuredBomJson ?? item.Description
             });
+            isFirstItem = false;
         }
 
         return result;
+    }
+
+    internal static string? BuildStructuredBomNotesJson(IReadOnlyCollection<QuotationBomItem> bomItems)
+    {
+        if (bomItems.Count == 0)
+        {
+            return null;
+        }
+
+        var payload = bomItems.Select(b => new
+        {
+            id = $"quo-bom-{b.Id}",
+            code = b.ItemCode,
+            itemCode = b.ItemCode,
+            name = b.Name,
+            spec = b.Specification,
+            specification = b.Specification,
+            quantity = b.Quantity % 1 == 0
+                ? (int)b.Quantity
+                : (int)decimal.Round(b.Quantity, 0, MidpointRounding.AwayFromZero),
+            unit = b.Unit,
+            isCustomerMaterial = false
+        });
+
+        return System.Text.Json.JsonSerializer.Serialize(payload);
     }
 
     private static string? BuildBomSummary(Quotation quotation)
@@ -790,8 +827,10 @@ public sealed class QuotationService(ProductionContext db, IEventPublisher event
                     item.UnitPrice,
                     item.Notes))
                 .ToArray(),
+            Materials: ProductionServiceBase.MapMaterials(salesOrder, null),
             DpPercentage: salesOrder.DpPercentage,
-            DpDueDate: salesOrder.DpDueDate);
+            DpDueDate: salesOrder.DpDueDate,
+            Notes: salesOrder.Notes);
     }
 
     private static string Required(string? value, string fieldName)

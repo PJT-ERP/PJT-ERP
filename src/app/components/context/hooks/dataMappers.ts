@@ -1,5 +1,5 @@
 import {
-  User, SalesOrder, Customer, UserRole,
+  User, SalesOrder, SOStatus, Customer, UserRole,
   PurchasingRequest, PurchasingStatus
 } from "../../data/mockData";
 import { CustomerDto, ProductDto, SalesOrderDto, QuotationDto } from "../../../services/salesApi";
@@ -61,7 +61,11 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
   // Add legacy materials
   legacyMaterials.forEach(legacy => {
     // Normalize inventoryItemId: repeat orders store it in `id`, manual entries use `inventoryItemId`
-    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') ? legacy.id : undefined);
+    const resolvedInvId = legacy.inventoryItemId || (legacy.id && !legacy.id.includes('-legacy-') && !legacy.id.startsWith('quo-bom-') ? legacy.id : undefined);
+
+    if (!legacy.code && legacy.itemCode) {
+      legacy.code = legacy.itemCode;
+    }
 
     // Try to find the item code from the products if it's missing
     if (!legacy.code && resolvedInvId) {
@@ -82,6 +86,13 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
       }
     }
 
+    if (!legacy.code && legacy.name && inventoryItems.length > 0) {
+      const invByName = inventoryItems.find(inv => inv.name?.toLowerCase() === legacy.name.toLowerCase());
+      if (invByName?.code) {
+        legacy.code = invByName.code;
+      }
+    }
+
     // Strip code prefix from name for legacy repeat orders that embedded it (e.g. "MAT-001 - S45C Round Bar")
     if (legacy.code && legacy.name) {
       const codePrefix = `${legacy.code} - `;
@@ -95,7 +106,9 @@ export function mapSalesOrderMaterials(order: SalesOrderDto, products: ProductDt
     }
 
     const specKey = legacy.spec || legacy.specification || "";
-    const key = `${resolvedInvId || legacy.name}|${specKey}|${legacy.unit}`;
+    legacy.spec = specKey || legacy.spec;
+    legacy.specification = specKey || legacy.specification;
+    const key = `${resolvedInvId || legacy.code || legacy.name}|${specKey}|${legacy.unit}`;
     const existing = materialsByKey.get(key);
     if (existing) {
       existing.quantity += Number(legacy.quantity || 0);
@@ -169,6 +182,7 @@ export function isQuotationEntry(order?: any): boolean {
   if (typeof order === 'string') return isQuotationStatus(order);
   if (typeof order.isQuotation === 'boolean') return order.isQuotation;
   if (order.quotationNumber || order.id?.startsWith('QU') || order.soNumber?.startsWith('QU')) return true;
+  if (order.id?.startsWith('SO-') || order.soNumber?.startsWith('SO-')) return false;
   return isQuotationStatus(order.status);
 }
 
@@ -177,49 +191,60 @@ export function isQuotationStatus(status?: string): boolean {
   return ['Pending Design', 'Waiting Spv Approval', 'Waiting Pricing', 'Waiting Client Approval', 'PendingDesign', 'Draft', 'Waiting Approval', 'Revision Required', 'RevisionRequired', 'WaitingApproval'].includes(status);
 }
 
-export function formatDocNumber(idOrNumber?: string, status?: string, isQuotation = isQuotationStatus(status)): string {
+export function formatDocNumber(idOrNumber?: string, status?: string, isQuotation?: boolean): string {
   if (!idOrNumber) return '';
-  if (isQuotation) {
+  if (isQuotation === false) return idOrNumber;
+  if (isQuotation === true) {
     return idOrNumber.replace(/^SO-/, 'QU-');
   }
   return idOrNumber;
 }
 
-export function getDocLabel(status?: string, isQuotation = isQuotationStatus(status)): string {
-  return isQuotation ? 'No. Quotation' : 'No. SO';
+export function getDocLabel(statusOrOrder?: any, isQuotation?: boolean): string {
+  if (typeof statusOrOrder === 'object' && statusOrOrder !== null) return isQuotationEntry(statusOrOrder) ? 'No. Quotation' : 'No. SO';
+  if (isQuotation !== undefined) return isQuotation ? 'No. Quotation' : 'No. SO';
+  return isQuotationStatus(statusOrOrder) ? 'No. Quotation' : 'No. SO';
 }
 
 export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
   if (!order) return order as any;
   const primaryItem = order.items?.[0];
-  const materials = order.materials || (order as any).materials || undefined;
-  const bomsPerItem = mapBomsPerItem(order);
+  const rawMaterials = order.materials || (order as any).materials;
+  const materials = (Array.isArray(rawMaterials) && rawMaterials.length > 0)
+    ? rawMaterials
+    : mapSalesOrderMaterials(order);
+  const computedBoms = mapBomsPerItem(order);
+  const bomsPerItem = Object.keys(computedBoms).some(k => computedBoms[k]?.length > 0) ? computedBoms : ((order as any).bomsPerItem || computedBoms);
   const mappedStatus = mapSalesOrderStatus(order);
   const rawNumber = order.soNumber || (order as any).soNumber || order.id;
   const displayId = formatDocNumber(rawNumber, mappedStatus, false);
+  const notes = [...new Set([
+    (order as any).notes,
+    ...(order.items || []).map(item => item.notes && item.notes.startsWith("[") ? item.notes.replace(/\[.*?\]\s*/, "") : item.notes),
+  ].filter(Boolean))].join(" | ");
 
   return {
     id: displayId,
-    backendId: order.id || (order as any).backendId,
-    backendStatus: order.status || (order as any).backendStatus,
-    soNumber: order.soNumber,
+    backendId: (order as any).backendId || order.id,
+    backendStatus: (order as any).backendStatus || order.status,
+    soNumber: order.soNumber || (order as any).soNumber,
     isQuotation: false,
     customerId: order.customerCode || (order as any).customerId,
     customerName: order.customerName || (order as any).customerName || order.customerCode || (order as any).customerId,
-    customerEmail: order.customerEmail || "",
-    customerDrawingUrl: order.customerDrawingUrl || "",
+    customerEmail: order.customerEmail ?? (order as any).customerEmail ?? "",
+    customerDrawingUrl: order.customerDrawingUrl ?? (order as any).customerDrawingUrl ?? "",
     partNumber: primaryItem?.productPartNumber || (primaryItem as any)?.partNumber || (order as any).partNumber || "-",
-    description: primaryItem?.productDescription || (primaryItem as any)?.productName || order.soNumber || (order as any).description,
+    description: primaryItem?.productDescription || (primaryItem as any)?.productName || (order as any).description || order.soNumber,
     quantity: (order.items || []).reduce((sum, item) => sum + (item.qty ?? (item as any).quantity ?? 0), 0) || (order as any).quantity || 0,
     unit: "PCS",
-    material: (primaryItem?.notes?.startsWith('[')) ? undefined : (primaryItem?.notes || undefined),
+    material: (primaryItem?.notes?.startsWith('[')) ? (order as any).material : (primaryItem?.notes || (order as any).material || undefined),
     deadline: order.targetDate || order.soDate || (order as any).deadline,
-    status: mapSalesOrderStatus(order),
+    status: mappedStatus,
     createdBy: "backend",
     createdAt: order.soDate || (order as any).createdAt,
     designReference: order.designReference || (order as any).designReference,
-    designId: order.designReference === "INTERNAL_DESIGN" ? "none" : (order.designStatus === "PendingDesign" ? "customer" : undefined),
-    designLink: order.drawingFileUrl || (order as any).drawingFileUrl || (order.designReference && order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || order.customerDrawingUrl || undefined,
+    designId: order.designReference === "INTERNAL_DESIGN" ? "none" : ((order.designStatus || (order as any).backendDesignStatus) === "PendingDesign" ? "customer" : (order as any).designId),
+    designLink: order.drawingFileUrl || (order as any).designLink || (order as any).drawingFileUrl || (order.designReference && order.designReference !== "INTERNAL_DESIGN" ? order.designReference : undefined) || order.customerDrawingUrl || undefined,
     startTime: order.startedAtUtc || (order as any).startTime,
     endTime: order.finishedAtUtc || (order as any).endTime,
     qcStatus: mapQcDecision(order.qcDecision || (order as any).qcStatus),
@@ -228,9 +253,9 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
       version: r.version,
       url: r.url,
       changedBy: r.changedBy,
-      changedAt: r.changedAtUtc
+      changedAt: r.changedAtUtc ?? r.changedAt
     })) || (order as any).designRevisions,
-    completedAt: order.status === "Completed" ? order.finishedAtUtc?.split("T")?.[0] : (order as any).completedAt,
+    completedAt: order.status === "Completed" ? (order.finishedAtUtc?.split("T")?.[0] || (order as any).completedAt) : (order as any).completedAt,
     qcPhotos: order.qcPhotos || (order as any).qcPhotos,
     productionPhotos: order.productionPhotos ? [...order.productionPhotos] : ((order as any).productionPhotos || []),
     completionNote: order.completionNote || (order as any).completionNote,
@@ -247,7 +272,7 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     designAssignedName: order.designWorkerName || (order as any).designAssignedName,
     designApprovedByName: order.designApprovedByName || (order as any).designApprovedByName,
     designApprovedByUserId: order.designApprovedByUserId || (order as any).designApprovedByUserId,
-    notes: (order.items || []).map(item => (item.notes && item.notes.startsWith("[") ? item.notes.replace(/\[.*?\]\s*/, "") : item.notes)).filter(Boolean).join(" | "),
+    notes,
     materials,
     bomsPerItem,
     backendDesignStatus: order.designStatus || (order as any).backendDesignStatus,
@@ -255,12 +280,12 @@ export function mapSalesOrderDto(order: SalesOrderDto): SalesOrder {
     items: (order.items || []).map(item => ({
       id: item.id,
       productId: item.productId,
-      productName: item.productDescription,
-      partNumber: item.productPartNumber,
-      productPartNumber: item.productPartNumber,
-      quantity: item.qty,
+      productName: item.productDescription || (item as any).productName,
+      partNumber: item.productPartNumber || (item as any).partNumber,
+      productPartNumber: item.productPartNumber || (item as any).productPartNumber || (item as any).partNumber,
+      quantity: item.qty ?? (item as any).quantity ?? 0,
       unitPrice: (item as any).unitPrice || 0,
-      unit: "PCS",
+      unit: (item as any).unit || "PCS",
       notes: item.notes,
       designReference: item.designReference || undefined,
       customerDrawingUrl: item.customerDrawingUrl || undefined
@@ -339,7 +364,8 @@ export function mapPurchasingStatus(status: string): PurchasingStatus {
 }
 
 export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []): SalesOrder["status"] {
-  const qcDecisionLower = order.qcDecision?.toLowerCase()?.trim();
+  const designStatus = order.designStatus || (order as any).backendDesignStatus;
+  const qcDecisionLower = (order.qcDecision || (order as any).qcStatus)?.toLowerCase()?.trim();
   if (order.status === "Completed" || qcDecisionLower === "pass" || qcDecisionLower === "go") {
     if (invoices.length > 0) {
       const invoice = invoices.find(inv => inv.salesOrderId === order.id || inv.salesOrderNumber === order.soNumber);
@@ -350,7 +376,7 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
     return "Completed";
   }
 
-  if (order.status === "Cancelled" || order.designStatus === "Rejected") {
+  if (order.status === "Cancelled" || order.status === "Rejected" || designStatus === "Rejected") {
     return "Rejected";
   }
 
@@ -370,8 +396,8 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
   }
 
   // Pre-Sales/Design Phase overrides Draft/Waiting Pricing status
-  if ((order.status === "Draft" || order.status === "Waiting Pricing") && order.designStatus !== "Approved") {
-    switch (order.designStatus) {
+  if ((order.status === "Draft" || order.status === "Waiting Pricing") && designStatus !== "Approved") {
+  switch (order.designStatus || (order as any).backendDesignStatus) {
       case "WaitingApproval":
         return "Waiting Spv Approval";
       case "RevisionRequired":
@@ -382,7 +408,7 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
   }
 
   // Allow production to run in parallel with pricing
-  if (order.status === "Waiting Pricing" || (order.status === "Draft" && order.designStatus === "Approved")) {
+  if (order.status === "Waiting Pricing" || (order.status === "Draft" && designStatus === "Approved")) {
     return "Waiting Pricing";
   }
 
@@ -394,11 +420,11 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
     return "QC";
   }
 
-  if (order.productionStatus === "InProgress") {
+  if (order.productionStatus === "InProgress" || order.status === "In Production") {
     return "In Production";
   }
 
-  if (order.productionStatus === "Paused") {
+  if (order.productionStatus === "Paused" || order.status === "Paused") {
     return "Paused";
   }
 
@@ -406,7 +432,10 @@ export function mapSalesOrderStatus(order: SalesOrderDto, invoices: any[] = []):
     return "Ready for Production";
   }
 
-  switch (order.designStatus) {
+  if (order.status === "Revision Required" || order.status === "RevisionRequired") return "Revision Required";
+  if (order.status === "Waiting Spv Approval") return "Waiting Spv Approval";
+  if (order.status === "Waiting Approval" || order.status === "WaitingApproval") return "Waiting Approval";
+  switch (order.designStatus || (order as any).backendDesignStatus) {
     case "WaitingApproval":
       return "Waiting Approval";
     case "RevisionRequired":
@@ -464,65 +493,78 @@ export function addDaysIso(date: Date, days: number) {
 export function mapQuotationDto(quo: QuotationDto): SalesOrder {
   if (!quo) return quo as any;
   const primaryItem = quo.items?.[0];
-  const mappedStatus = mapQuotationStatusString(quo.status);
-  const totalQty = (quo.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const rawStatus = (quo as any).backendStatus || quo.status;
+  const rawQuotationNumber = quo.quotationNumber || (quo as any).quotationNumber || (quo as any).soNumber || quo.id;
+  const rawBackendId = (quo as any).backendId || (quo as any).quotationId || quo.id;
+  const mappedStatus = mapQuotationStatusString(rawStatus);
+  const totalQty = (quo.items || []).reduce((sum, item) => sum + (item.quantity ?? (item as any).qty ?? 0), 0) || (quo as any).quantity || 0;
 
-  const materials = (quo.bomItems || []).map(b => ({
-    id: b.id,
-    name: b.name,
-    spec: b.specification || "",
-    specification: b.specification || "",
-    quantity: b.quantity,
-    unit: b.unit,
-    code: b.itemCode || undefined,
-  }));
+  const materials = (quo.bomItems && quo.bomItems.length > 0)
+    ? quo.bomItems.map(b => ({
+        id: b.id,
+        name: b.name,
+        spec: b.specification || "",
+        specification: b.specification || "",
+        quantity: b.quantity,
+        unit: b.unit,
+        code: b.itemCode || undefined,
+      }))
+    : ((quo as any).materials || []);
 
-  const customerDrawingUrl = primaryItem?.customerImageUrl || quo.designLink || undefined;
-  const displayId = formatDocNumber(quo.quotationNumber || quo.id, mappedStatus, true);
+  const customerDrawingUrl = primaryItem?.customerImageUrl || (primaryItem as any)?.customerDrawingUrl || (quo as any).customerDrawingUrl || quo.designLink || (quo as any).designLink || undefined;
+  const displayId = formatDocNumber(rawQuotationNumber, mappedStatus, true);
+  const resolvedDesignReference = quo.designSource
+    ? (quo.designSource === "Engineering" ? "INTERNAL_DESIGN" : "CUSTOMER_PROVIDED")
+    : ((quo as any).designReference || "CUSTOMER_PROVIDED");
+  const resolvedDesignId = quo.designSource
+    ? (quo.designSource === "Engineering" ? "none" : "customer")
+    : ((quo as any).designId || (resolvedDesignReference === "INTERNAL_DESIGN" ? "none" : "customer"));
 
   return {
     id: displayId,
-    backendId: quo.id,
-    backendStatus: quo.status,
-    convertedSalesOrderId: quo.convertedSalesOrderId,
-    convertedSalesOrderNumber: quo.convertedSalesOrderNumber,
-    soNumber: quo.quotationNumber,
+    backendId: rawBackendId,
+    backendStatus: rawStatus,
+    convertedSalesOrderId: quo.convertedSalesOrderId ?? (quo as any).convertedSalesOrderId,
+    convertedSalesOrderNumber: quo.convertedSalesOrderNumber ?? (quo as any).convertedSalesOrderNumber,
+    soNumber: rawQuotationNumber,
+    quotationId: rawBackendId,
+    quotationNumber: rawQuotationNumber,
     isQuotation: true,
     customerId: quo.customerCode || quo.customerId,
     customerName: quo.customerName || quo.customerCode || quo.customerId,
-    customerEmail: quo.customerEmail || "",
+    customerEmail: quo.customerEmail ?? (quo as any).customerEmail ?? "",
     customerDrawingUrl: customerDrawingUrl || "",
-    partNumber: primaryItem?.productName || quo.quotationNumber,
-    description: primaryItem?.description || primaryItem?.productName || quo.quotationNumber,
+    partNumber: primaryItem?.productName || (primaryItem as any)?.partNumber || (quo as any).partNumber || rawQuotationNumber,
+    description: primaryItem?.description || (primaryItem as any)?.notes || primaryItem?.productName || (quo as any).description || rawQuotationNumber,
     quantity: totalQty || 1,
-    unit: primaryItem?.unit || "PCS",
-    material: quo.notes || undefined,
-    deadline: quo.deadline || quo.createdAtUtc?.split("T")?.[0] || "",
+    unit: primaryItem?.unit || (quo as any).unit || "PCS",
+    material: quo.notes || (quo as any).material || undefined,
+    deadline: quo.deadline || quo.createdAtUtc?.split("T")?.[0] || (quo as any).deadline || "",
     status: mappedStatus,
     createdBy: "backend",
-    createdAt: quo.createdAtUtc?.split("T")?.[0] || quo.createdAtUtc || "",
-    designReference: quo.designSource === "Engineering" ? "INTERNAL_DESIGN" : "CUSTOMER_PROVIDED",
-    designId: quo.designSource === "Engineering" ? "none" : "customer",
-    designLink: quo.designLink || customerDrawingUrl,
-    estimatedAmount: quo.estimatedAmount ?? undefined,
-    isCostingCompleted: quo.status === "client_price_approval" || quo.status === "won",
-    designApprovedAt: quo.engineeringApprovedAtUtc?.split("T")?.[0] || undefined,
-    designAssignedTo: quo.assignedEngineerId || undefined,
-    designAssignedName: quo.assignedEngineerName || undefined,
-    notes: quo.notes || "",
+    createdAt: quo.createdAtUtc?.split("T")?.[0] || quo.createdAtUtc || (quo as any).createdAt || "",
+    designReference: resolvedDesignReference,
+    designId: resolvedDesignId,
+    designLink: quo.designLink || (quo as any).designLink || customerDrawingUrl,
+    estimatedAmount: quo.estimatedAmount ?? (quo as any).estimatedAmount ?? undefined,
+    isCostingCompleted: rawStatus === "client_price_approval" || rawStatus === "won" || Boolean((quo as any).isCostingCompleted),
+    designApprovedAt: quo.engineeringApprovedAtUtc?.split("T")?.[0] || (quo as any).designApprovedAt || undefined,
+    designAssignedTo: quo.assignedEngineerId || (quo as any).designAssignedTo || undefined,
+    designAssignedName: quo.assignedEngineerName || (quo as any).designAssignedName || undefined,
+    notes: quo.notes ?? (quo as any).notes ?? "",
     materials,
-    backendDesignStatus: quo.status,
+    backendDesignStatus: (quo as any).backendDesignStatus || rawStatus,
     items: (quo.items || []).map(item => ({
       id: item.id,
       productId: item.productId || undefined,
       productName: item.productName,
-      partNumber: item.productName,
-      productPartNumber: item.productName,
+      partNumber: (item as any).partNumber || item.productName,
+      productPartNumber: (item as any).productPartNumber || item.productName,
       quantity: item.quantity,
-      unitPrice: quo.estimatedAmount ? quo.estimatedAmount / (totalQty || 1) : 0,
+      unitPrice: (item as any).unitPrice ?? (quo.estimatedAmount ? quo.estimatedAmount / (totalQty || 1) : 0),
       unit: item.unit || "PCS",
-      notes: item.description || undefined,
-      customerDrawingUrl: item.customerImageUrl || undefined,
+      notes: item.description ?? (item as any).notes ?? undefined,
+      customerDrawingUrl: item.customerImageUrl ?? (item as any).customerDrawingUrl ?? undefined,
     })),
   };
 }
@@ -532,7 +574,7 @@ export function isActiveQuotationEntry(order: { isQuotation?: boolean; converted
   return isQuotationEntry(order) && !hasBeenConverted;
 }
 
-function mapQuotationStatusString(status: string): string {
+function mapQuotationStatusString(status: string): SOStatus {
   switch (status?.toLowerCase()) {
     case 'draft':
     case 'pending_design':
@@ -552,6 +594,6 @@ function mapQuotationStatusString(status: string): string {
     case 'lost':
       return 'Cancelled';
     default:
-      return status || 'Pending Design';
+      return (status as SOStatus) || 'Pending Design';
   }
 }

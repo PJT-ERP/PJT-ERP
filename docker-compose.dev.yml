@@ -47,7 +47,9 @@ services:
         PROJECT_PATH: "src/Services/Identity.API/Identity.API.csproj"
         ENTRY_DLL: Identity.API.dll
     restart: unless-stopped
-    environment: *api-environment
+    environment:
+      <<: *api-environment
+      ProductionApi__Address: "http://production-api:8080/"
     volumes:
       - pjt_dev_daily_report_uploads:/app/data/daily-report-uploads
     healthcheck:

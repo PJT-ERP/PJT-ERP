@@ -72,6 +72,7 @@ export interface SalesOrderDto {
   customerCode: string;
   customerName: string;
   customerEmail?: string | null;
+  notes?: string | null;
   customerDrawingUrl?: string | null;
   designReference?: string | null;
   designStatus: string;
@@ -225,6 +226,7 @@ export interface CompleteSalesOrderRequest {
       designReference?: string | null;
       customerDrawingUrl?: string | null;
     }>;
+    notes?: string | null;
     designWorker?: { userId: string; name: string } | null;
     productionWorker?: { userId: string; name: string } | null;
     qcReviewer?: { userId: string; name: string } | null;
