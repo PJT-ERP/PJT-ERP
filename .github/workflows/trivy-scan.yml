@@ -7,11 +7,17 @@ on:
       - main
       - dev
       - "feature/**"
+      - "security/**"
+  schedule:
+    - cron: '23 3 * * 1'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   trivy-scan:
@@ -21,6 +27,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup .NET for dependency audit
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Audit direct and transitive NuGet dependencies
+        run: >-
+          dotnet restore PtPjtErp.slnx --force
+          -p:NuGetAudit=true -p:NuGetAuditMode=all -p:NuGetAuditLevel=low
+          -warnaserror:NU1900,NU1901,NU1902,NU1903,NU1904,NU1905
 
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@v0.36.0
@@ -32,4 +49,6 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+        env:
+          TRIVY_INCLUDE_DEV_DEPS: 'true'
